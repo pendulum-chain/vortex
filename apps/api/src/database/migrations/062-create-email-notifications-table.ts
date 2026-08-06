@@ -105,6 +105,19 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex("email_notifications", ["user_id"], {
     name: "idx_email_notifications_user_id"
   });
+
+  // Tombstone every ramp that completed before this table existed. The hourly
+  // reconciliation sweep re-enqueues any completed ramp without a row here, so an
+  // empty table on first deploy would mass-mail the entire history of completions.
+  await queryInterface.sequelize.query(`
+    INSERT INTO email_notifications
+      (id, provider, type, user_id, resource_id, locale, payload, status, attempts, next_attempt_at, last_error, created_at, updated_at)
+    SELECT
+      uuid_generate_v4(), 'vortex', 'ramp_completed', user_id, id::text, 'en-US', '{}'::jsonb,
+      'skipped', 0, NOW(), 'Backfilled at table creation: ramp completed before email notifications existed', NOW(), NOW()
+    FROM ramp_states
+    WHERE current_phase = 'complete' AND user_id IS NOT NULL
+  `);
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {

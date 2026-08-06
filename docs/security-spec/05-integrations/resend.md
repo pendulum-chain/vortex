@@ -24,7 +24,7 @@ Every notification is persisted to the `email_notifications` table before any se
 - `apps/api/src/api/services/alfredpay/alfredpay-customer.service.ts` — enqueues Alfredpay KYC/KYB outcomes
 - `apps/api/src/api/workers/alfredpay-status.worker.ts` — drives the Alfredpay poll for unattended accounts
 - `apps/api/src/api/services/ramp/ramp.service.ts` — enqueues ramp completions
-- `apps/api/src/models/emailNotification.model.ts`, migration `055-create-email-notifications-table.ts`
+- `apps/api/src/models/emailNotification.model.ts`, migration `062-create-email-notifications-table.ts`
 
 The table is `email_notifications`, not `notifications`: migration 043 already owns `notifications`
 for the in-app notification centre. The two tables are unrelated, but they share one opt-out:

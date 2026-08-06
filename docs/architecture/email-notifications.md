@@ -295,7 +295,7 @@ skipped in the loop, so they never spend provider calls.
 The table *is* the design. It is simultaneously the queue, the retry ledger, the audit
 trail, and the idempotency key.
 
-Migration `055-create-email-notifications-table.ts`, model
+Migration `062-create-email-notifications-table.ts`, model
 `apps/api/src/models/emailNotification.model.ts`.
 
 | Column | Purpose |
@@ -504,7 +504,7 @@ apps/api/src/
 │   ├── services/phases/phase-processor.ts    fires the ramp-completion producer
 │   └── controllers/brla.controller.ts        persists attemptId → TaxId.kycAttempt
 ├── models/emailNotification.model.ts
-├── database/migrations/055-create-email-notifications-table.ts
+├── database/migrations/062-create-email-notifications-table.ts
 ├── config/express.ts                         raw-body mount, ahead of the JSON parser
 ├── config/vars.ts                            config.integrations.{resend,avenia}
 ├── scripts/preview-emails.ts                 bun preview:emails
