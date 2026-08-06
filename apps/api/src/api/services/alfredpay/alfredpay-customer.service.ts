@@ -349,8 +349,15 @@ export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): 
         : {})
     });
   } catch (error) {
-    // Keep the stored status if the provider is unavailable or has no submission yet.
-    logger.info(`Skipping Alfredpay status refresh for customer ${record.id}: ${error}`);
+    // Keep the stored status if the provider is unavailable or has no submission yet;
+    // provider read, enqueue, and persistence retry together on the next observation.
+    // warn, not info: this branch also swallows enqueue/persistence failures, and a
+    // persistent one silently blocks the terminal status (and its email) forever.
+    logger.warn(
+      `Skipping Alfredpay status refresh for customer ${record.id}: ${
+        error instanceof Error ? (error.stack ?? error.message) : error
+      }`
+    );
   }
 }
 

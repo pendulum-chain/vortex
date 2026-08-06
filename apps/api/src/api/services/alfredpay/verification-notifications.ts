@@ -22,8 +22,11 @@ function terminalNotificationType(status: AlfredpayKycStatus): NotificationType 
  * Single enqueue path for both Alfredpay verification kinds and both poll routes (the
  * dashboard's on-demand refresh and the background sweep). Keyed on the submission id, so
  * the same outcome observed twice — a sweep racing a dashboard refresh, or either one
- * repeating — cannot send two emails. A resubmission after a rejection carries a fresh
- * submission id, which is a genuinely new outcome and correctly mails again.
+ * repeating — cannot send two emails. A resubmission after a rejection normally carries a
+ * fresh submission id (the retry endpoints re-read it from the redirect link), which is a
+ * genuinely new outcome and correctly mails again. Caveat: if Alfredpay ever retains the
+ * id across an in-place retry, a second rejection of the same submission dedupes away —
+ * there is no per-outcome id to key on.
  *
  * `subject` decides whether the email says identity or business verification. Alfredpay
  * reports the same status vocabulary for KYC and KYB, so only our own customer record

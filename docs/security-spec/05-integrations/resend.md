@@ -43,7 +43,9 @@ both from the dashboard's status aggregation and from `AlfredpayStatusWorker` (h
 addresses the mail to the owning `customer_entities.profile_id` — partner-owned entities are
 excluded by the worker's query rather than skipped after the provider call, so they cost no
 Alfredpay requests. `resource_id` is the Alfredpay `submissionId`; a resubmission after a
-rejection carries a new one and is therefore a new notification, not a suppressed duplicate.
+rejection normally carries a new one and is therefore a new notification, not a suppressed
+duplicate. Known limit: an in-place retry that retains the submission id would dedupe a
+second rejection of that same submission — Alfredpay exposes no per-outcome id to key on.
 
 **Data sent to Resend:** recipient address, subject, and rendered body. Bodies contain the ramp id, output amount, currency, network, and completion timestamp, or a KYC/KYB outcome and its rejection reason — the copy names identity or business verification according to our own `provider_customers.customer_type`, since neither the Avenia attempt nor the Alfredpay status distinguishes them. No tax ids, no wallet keys, no session tokens, no API keys.
 

@@ -228,17 +228,26 @@ export class AlfredpayController {
 
           // Queue before persisting a terminal status. Once the row becomes terminal both
           // status pollers exclude it, so doing this afterwards could lose the email forever.
-          await enqueueObservedAlfredpayOutcome({
-            failureReason: statusResponse.metadata?.failureReason,
-            isBusiness,
-            status: statusResponse.status,
-            submissionId,
-            updatedAt: statusResponse.updatedAt,
-            userId
-          });
+          // Own catch: these are local DB writes, and the upstream-404 staleness heuristic
+          // below must never fire on their errors — an enqueue failure whose message happens
+          // to contain "not found" would otherwise wipe the observed status.
+          try {
+            await enqueueObservedAlfredpayOutcome({
+              failureReason: statusResponse.metadata?.failureReason,
+              isBusiness,
+              status: statusResponse.status,
+              submissionId,
+              updatedAt: statusResponse.updatedAt,
+              userId
+            });
 
-          if (Object.keys(updateData).length > 0) {
-            await alfredPayCustomer.update(updateData);
+            if (Object.keys(updateData).length > 0) {
+              await alfredPayCustomer.update(updateData);
+            }
+          } catch (error) {
+            // Skipping the update keeps enqueue-before-persist: the next refresh
+            // re-observes the outcome and the enqueue dedupes on the submission id.
+            logger.error(`Error queuing/persisting observed Alfredpay outcome for customer ${alfredPayCustomer.id}:`, error);
           }
         }
       } catch (error) {
