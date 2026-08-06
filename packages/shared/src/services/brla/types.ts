@@ -485,14 +485,18 @@ export interface AveniaWebhookEvent {
   cursor?: string;
 }
 
-export interface AveniaWebhookRegistration {
+export interface AveniaWebhook {
   id: string;
-  webhookUrl: string;
+  url: string;
   subscriptions: string[];
 }
 
+export interface AveniaWebhookRegistration {
+  webhookId: string;
+}
+
 export interface AveniaWebhooksListResponse {
-  webhooks: AveniaWebhookRegistration[];
+  webhooks: AveniaWebhook[];
 }
 
 export interface AveniaPublicKeyResponse {

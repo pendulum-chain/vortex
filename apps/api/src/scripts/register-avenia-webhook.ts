@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   const subscriptions = [AveniaWebhookSubscription.All];
 
   const { webhooks } = await brlaApiService.listWebhooks();
-  const existing = webhooks?.find(webhook => webhook.webhookUrl === webhookUrl);
+  const existing = webhooks?.find(webhook => webhook.url === webhookUrl);
 
   if (existing) {
     await brlaApiService.updateWebhook(existing.id, webhookUrl, subscriptions);
@@ -35,13 +35,11 @@ async function main(): Promise<void> {
   }
 
   if (webhooks && webhooks.length >= 3) {
-    throw new Error(
-      `Avenia allows 3 webhooks; ${webhooks.length} are registered: ${webhooks.map(w => w.webhookUrl).join(", ")}`
-    );
+    throw new Error(`Avenia allows 3 webhooks; ${webhooks.length} are registered: ${webhooks.map(w => w.url).join(", ")}`);
   }
 
   const created = await brlaApiService.createWebhook(webhookUrl, subscriptions);
-  console.log(`Registered Avenia webhook ${created.id} -> ${webhookUrl} ${JSON.stringify(subscriptions)}`);
+  console.log(`Registered Avenia webhook ${created.webhookId} -> ${webhookUrl} ${JSON.stringify(subscriptions)}`);
 }
 
 main().catch(error => {

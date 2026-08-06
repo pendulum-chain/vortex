@@ -7,13 +7,16 @@
  * pre-provisioned, KYC-approved sandbox subaccount (see .env.example):
  *
  *  - AVENIA_CONTRACT_SUBACCOUNT_ID
+ *  - AVENIA_CONTRACT_WEBHOOK_URL (temporary webhook-management lifecycle)
  *
- * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid) is
- * created per run. Payout tickets are covered hermetically only — creating one
- * live would move BRLA balance, and reading one needs the id of a real payout.
+ * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid) and
+ * one temporary webhook are created per run. The webhook is deleted in `finally`.
+ * Payout tickets are covered hermetically only — creating one live would move
+ * BRLA balance, and reading one needs the id of a real payout.
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
  * `getAveniaSwapTicket` have no production consumers and are deliberately uncovered.
  */
+import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import {
   aveniaAccountBalanceSchema,
@@ -25,6 +28,9 @@ import {
   aveniaPixInputTicketSchema,
   aveniaPixKeyDataSchema,
   aveniaQuoteResponseSchema,
+  AveniaWebhookSubscription,
+  aveniaWebhookRegistrationSchema,
+  aveniaWebhooksListSchema,
   BlockchainSendMethod,
   BrlaApiService,
   BrlaCurrency,
@@ -36,9 +42,21 @@ import { FakeBrla } from "../../test-utils/fake-world/fake-anchors";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 const HAS_CREDS = !!(process.env.BRLA_API_KEY && process.env.BRLA_PRIVATE_KEY);
 const SUBACCOUNT_ID = process.env.AVENIA_CONTRACT_SUBACCOUNT_ID;
+const WEBHOOK_URL = process.env.AVENIA_CONTRACT_WEBHOOK_URL;
 
 if (RUN_LIVE && !HAS_CREDS) {
   console.warn("[contract:live] Avenia live half skipped: BRLA_API_KEY/BRLA_PRIVATE_KEY not set");
+}
+if (RUN_LIVE && HAS_CREDS && !WEBHOOK_URL) {
+  console.warn("[contract:live] Avenia webhook lifecycle skipped: AVENIA_CONTRACT_WEBHOOK_URL not set");
+}
+
+async function requireLive<T>(label: string, call: () => Promise<T>): Promise<T> {
+  const result = await runLive(label, call);
+  if (result === null) {
+    throw new Error(`${label} did not complete; webhook management has not been verified`);
+  }
+  return result;
 }
 
 // Mirrors OnRampInitializeAveniaEngine / prepareOnrampBrlTransactions: BRL arrives
@@ -191,6 +209,54 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       expect(payinTickets.map(t => t.id)).toContain(ticket.id);
     },
     120_000
+  );
+
+  test.skipIf(!WEBHOOK_URL)(
+    "POST + GET /notifications/webhooks register a webhook that can be deleted",
+    async () => {
+      const contractUrl = new URL(WEBHOOK_URL as string);
+      contractUrl.searchParams.set("contractRun", randomUUID());
+      const webhookUrl = contractUrl.toString();
+      const subscriptions = [AveniaWebhookSubscription.All];
+      let webhookId: string | null = null;
+
+      try {
+        const before = aveniaWebhooksListSchema.parse(
+          await requireLive("avenia listWebhooks (before registration)", () => api().listWebhooks())
+        );
+        if (before.webhooks.length >= 3) {
+          throw new Error(`Avenia sandbox already has ${before.webhooks.length} webhooks; no free contract-test slot`);
+        }
+
+        const created = await requireLive("avenia createWebhook", () => api().createWebhook(webhookUrl, subscriptions));
+        webhookId = typeof created.webhookId === "string" ? created.webhookId : null;
+        const registration = aveniaWebhookRegistrationSchema.parse(created);
+        webhookId = registration.webhookId;
+
+        const after = aveniaWebhooksListSchema.parse(
+          await requireLive("avenia listWebhooks (after registration)", () => api().listWebhooks())
+        );
+        expect(after.webhooks).toContainEqual(
+          expect.objectContaining({ id: webhookId, subscriptions, url: webhookUrl })
+        );
+      } finally {
+        if (!webhookId) {
+          try {
+            const current = aveniaWebhooksListSchema.parse(await api().listWebhooks());
+            webhookId = current.webhooks.find(webhook => webhook.url === webhookUrl)?.id ?? null;
+          } catch (error) {
+            console.warn(
+              `[contract:live] could not look up temporary Avenia webhook for cleanup: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
+
+        if (webhookId) {
+          await api().deleteWebhook(webhookId);
+        }
+      }
+    },
+    60_000
   );
 });
 

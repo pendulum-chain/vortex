@@ -226,8 +226,22 @@ export interface EndpointMapping {
       body: { webhookId: string; webhookUrl?: string; subscriptions?: string[] };
       response: undefined;
     };
+    DELETE: {
+      body: undefined;
+      response: undefined;
+    };
   };
 }
 
 export type Endpoints = keyof EndpointMapping;
-export type Methods = keyof EndpointMapping[Endpoints];
+export type EndpointMethod<E extends Endpoints> = Extract<keyof EndpointMapping[E], string>;
+export type EndpointRequestBody<E extends Endpoints, M extends EndpointMethod<E>> = EndpointMapping[E][M] extends {
+  body: infer B;
+}
+  ? B
+  : never;
+export type EndpointResponse<E extends Endpoints, M extends EndpointMethod<E>> = EndpointMapping[E][M] extends {
+  response: infer R;
+}
+  ? R
+  : never;

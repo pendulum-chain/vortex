@@ -2,7 +2,7 @@ import * as forge from "node-forge";
 import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
-import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
+import { Endpoint, EndpointMethod, EndpointRequestBody, EndpointResponse, Endpoints } from "./mappings";
 import {
   AccountLimitsResponse,
   AveniaAccountBalanceResponse,
@@ -112,13 +112,13 @@ export class BrlaApiService {
     return BrlaApiService.instance;
   }
 
-  public async sendRequest<M extends Methods, E extends Endpoints>(
+  public async sendRequest<E extends Endpoints, M extends EndpointMethod<E>>(
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]["body"],
+    payload?: EndpointRequestBody<E, M>,
     pathParam?: string
-  ): Promise<EndpointMapping[E][M]["response"]> {
+  ): Promise<EndpointResponse<E, M>> {
     const timestamp = Date.now().toString();
     const body = payload ? JSON.stringify(payload) : "";
     let requestUri = endpoint as string;
@@ -191,9 +191,9 @@ export class BrlaApiService {
       });
     }
     try {
-      return await response.json();
+      return (await response.json()) as EndpointResponse<E, M>;
     } catch {
-      return undefined;
+      return undefined as EndpointResponse<E, M>;
     }
   }
 
@@ -415,6 +415,10 @@ export class BrlaApiService {
 
   public async updateWebhook(webhookId: string, webhookUrl: string, subscriptions: string[]): Promise<void> {
     await this.sendRequest(Endpoint.Webhooks, "PATCH", undefined, { subscriptions, webhookId, webhookUrl });
+  }
+
+  public async deleteWebhook(webhookId: string): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "DELETE", undefined, undefined, webhookId);
   }
 
   /**
