@@ -473,6 +473,7 @@ export interface KybLevel1Response {
 export interface KybAttemptStatusResponse {
   failureReason?: string;
   result?: KycAttemptResult;
+  retryable?: boolean;
   status: KycAttemptStatus;
 }
 
@@ -546,10 +547,10 @@ export enum KycAttemptResult {
 
 export interface KycAttempt {
   id: string;
-  levelName: "level-1";
-  submissionData: unknown;
+  levelName: string;
+  submissionData?: unknown;
   status: KycAttemptStatus;
-  result: KycAttemptResult;
+  result?: KycAttemptResult;
   resultMessage: string;
   retryable: boolean;
   createdAt: string;

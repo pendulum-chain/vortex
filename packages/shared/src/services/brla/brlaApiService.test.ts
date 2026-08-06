@@ -6,7 +6,32 @@ import { AveniaDocumentType, type AveniaKybLevel1Payload, type AveniaUboPayload 
 
 function serviceWithMockedRequest() {
   const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
-  const sendRequest = mock(async () => ({ id: "provider-id" }));
+  const sendRequest = mock(async (endpoint: Endpoint) => {
+    if (endpoint === Endpoint.GetDocument) {
+      return {
+        document: {
+          documentType: AveniaDocumentType.PASSPORT,
+          id: "document/1",
+          ready: true,
+          uploadStatusFront: "PROCESSED"
+        }
+      };
+    }
+    if (endpoint === Endpoint.GetKybAttempt) {
+      return {
+        attempt: {
+          createdAt: "2026-08-06T12:00:00.000Z",
+          id: "attempt-1",
+          levelName: "kyb-level-1",
+          resultMessage: "",
+          retryable: false,
+          status: "PENDING",
+          updatedAt: "2026-08-06T12:00:00.000Z"
+        }
+      };
+    }
+    return { id: "provider-id" };
+  });
   Object.assign(service, { sendRequest });
   return { sendRequest, service };
 }
@@ -103,5 +128,12 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     expect(AveniaDocumentType.CERTIFICATE_OF_INCORPORATION).toBe("CERTIFICATE-OF-INCORPORATION");
     expect(AveniaDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT).toBe("COMPANY-TAX-IDENTIFICATION-DOCUMENT");
     expect(AveniaDocumentType.RESIDENCE_PERMIT).toBe("RESIDENCE-PERMIT");
+  });
+
+  test("rejects malformed successful provider responses", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { sendRequest: mock(async () => ({})) });
+
+    await expect(service.submitKybLevel1(kyb, "sub-1")).rejects.toThrow();
   });
 });

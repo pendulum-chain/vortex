@@ -53,7 +53,12 @@ export async function upsertAveniaKycCase(
 
   const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
   if (existing) {
-    await existing.update({ ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle });
+    await existing.update({
+      ...(providerCaseId ? { providerCaseId, submissionStatus: "submitted" as const } : {}),
+      status,
+      statusExternal,
+      ...lifecycle
+    });
     return;
   }
   await KycCase.create({
@@ -64,6 +69,7 @@ export async function upsertAveniaKycCase(
     providerCustomerId: record.id,
     status,
     statusExternal,
+    submissionStatus: providerCaseId ? "submitted" : "not_started",
     type: record.customerType === "business" ? "kyb" : "kyc",
     ...lifecycle
   });

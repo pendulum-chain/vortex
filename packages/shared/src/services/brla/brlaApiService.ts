@@ -4,6 +4,15 @@ import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
+  aveniaDocumentResponseSchema,
+  aveniaDocumentUploadResponseSchema,
+  aveniaKybAttemptStatusSchema,
+  aveniaKybLevel1ResponseSchema,
+  aveniaKycAttemptsSchema,
+  aveniaLevel1ResponseSchema,
+  aveniaUboResponseSchema
+} from "./schemas";
+import {
   AccountLimitsResponse,
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
@@ -227,7 +236,7 @@ export class BrlaApiService {
       isDoubleSided
     };
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+    return aveniaDocumentUploadResponseSchema.parse(await this.sendRequest(Endpoint.Documents, "POST", query, payload));
   }
 
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
@@ -237,12 +246,14 @@ export class BrlaApiService {
 
   public async getUploadedDocument(documentId: string, subAccountId: string): Promise<AveniaDocumentResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.GetDocument, "GET", query, undefined, documentId);
+    return aveniaDocumentResponseSchema.parse(
+      await this.sendRequest(Endpoint.GetDocument, "GET", query, undefined, documentId)
+    );
   }
 
   public async createUbo(payload: AveniaUboPayload, subAccountId: string): Promise<AveniaUboResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Ubos, "POST", query, payload);
+    return aveniaUboResponseSchema.parse(await this.sendRequest(Endpoint.Ubos, "POST", query, payload));
   }
 
   public async createPayInQuote(
@@ -388,17 +399,17 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    return await this.sendRequest(Endpoint.Level1Api, "POST", query, payload);
+    return aveniaLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.Level1Api, "POST", query, payload));
   }
 
   public async submitKybLevel1(payload: AveniaKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Level1Api, "POST", query, payload);
+    return aveniaLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.Level1Api, "POST", query, payload));
   }
 
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
+    return aveniaKycAttemptsSchema.parse(await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined));
   }
 
   /**
@@ -410,7 +421,7 @@ export class BrlaApiService {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     // Avenia requires the field to be present but ignores its value for the Web SDK flow.
     const payload = { redirectUrl: "" };
-    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload);
+    return aveniaKybLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload));
   }
 
   /**
@@ -420,7 +431,9 @@ export class BrlaApiService {
    */
   public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<AveniaKybAttemptStatusResponse> {
     const query = subAccountId ? `subAccountId=${encodeURIComponent(subAccountId)}` : undefined;
-    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId);
+    return aveniaKybAttemptStatusSchema.parse(
+      await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
+    );
   }
 
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {

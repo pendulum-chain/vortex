@@ -56,7 +56,7 @@ export interface BrlaGetKycStatusResponse {
   type: "KYC";
   level: string;
   status: KycAttemptStatus;
-  result: KycAttemptResult;
+  result?: KycAttemptResult;
   failureReason?: KycFailureReason;
 }
 

@@ -14,6 +14,10 @@ import {
   AveniaSubaccountWallet,
   AveniaTicketStatus,
   AveniaUboResponse,
+  DocumentUploadResponse,
+  GetKycAttemptResponse,
+  KybLevel1Response,
+  KycAttempt,
   KycAttemptResult,
   KycAttemptStatus,
   KycLevel1Response,
@@ -147,14 +151,28 @@ export const aveniaAccountInfoSchema = z.looseObject({
 /** A document after Avenia has processed the bytes uploaded to its pre-signed URL. */
 export const aveniaDocumentResponseSchema = z.looseObject({
   document: z.looseObject({
+    createdAt: z.string().min(1).optional(),
     documentType: z.enum(AveniaDocumentType),
     id: z.string().min(1),
     ready: z.boolean(),
-    uploadStatusFront: z.string().min(1)
+    updatedAt: z.string().min(1).optional(),
+    uploadErrorBack: z.string().optional(),
+    uploadErrorFront: z.string().optional(),
+    uploadStatusBack: z.string().optional(),
+    uploadStatusFront: z.string().min(1),
+    uploadURLBack: z.string().optional(),
+    uploadURLFront: z.string().optional()
   })
-}) satisfies z.ZodType<{
-  document: Pick<AveniaDocument, "documentType" | "id" | "ready" | "uploadStatusFront">;
-}>;
+}) satisfies z.ZodType<{ document: AveniaDocument }>;
+
+/** The upload target returned when an Avenia document record is created. */
+export const aveniaDocumentUploadResponseSchema = z.looseObject({
+  id: z.string().min(1),
+  livenessUrl: z.string().min(1).optional(),
+  uploadURLBack: z.string().optional(),
+  uploadURLFront: z.string().min(1),
+  validateLivenessToken: z.string().min(1).optional()
+}) satisfies z.ZodType<DocumentUploadResponse>;
 
 /** The identifier returned by UBO creation. */
 export const aveniaUboResponseSchema = z.looseObject({
@@ -166,16 +184,31 @@ export const aveniaLevel1ResponseSchema = z.looseObject({
   id: z.string().min(1)
 }) satisfies z.ZodType<KycLevel1Response>;
 
+/** The hosted company KYB attempt and continuation URLs. */
+export const aveniaKybLevel1ResponseSchema = z.looseObject({
+  attemptId: z.string().min(1),
+  authorizedRepresentativeUrl: z.string().min(1),
+  basicCompanyDataUrl: z.string().min(1)
+}) satisfies z.ZodType<KybLevel1Response>;
+
+const aveniaAttemptSchema = z.looseObject({
+  createdAt: z.string().datetime({ offset: true }),
+  id: z.string().min(1),
+  levelName: z.string().min(1),
+  result: z.enum(KycAttemptResult).optional(),
+  resultMessage: z.string(),
+  retryable: z.boolean(),
+  status: z.enum(KycAttemptStatus),
+  submissionData: z.record(z.string(), z.unknown()).optional(),
+  updatedAt: z.string().datetime({ offset: true })
+}) satisfies z.ZodType<KycAttempt>;
+
+/** Paginated attempt history used to reconcile an ambiguous submission. */
+export const aveniaKycAttemptsSchema = z.looseObject({
+  attempts: z.array(aveniaAttemptSchema)
+}) satisfies z.ZodType<GetKycAttemptResponse>;
+
 /** A KYB attempt returned by GET /v2/kyc/attempts/{attemptId}. */
 export const aveniaKybAttemptStatusSchema = z.looseObject({
-  attempt: z.looseObject({
-    createdAt: z.string().min(1),
-    id: z.string().min(1),
-    levelName: z.string().min(1),
-    result: z.enum(KycAttemptResult).optional(),
-    resultMessage: z.string(),
-    retryable: z.boolean(),
-    status: z.enum(KycAttemptStatus),
-    updatedAt: z.string().min(1)
-  })
+  attempt: aveniaAttemptSchema
 }) satisfies z.ZodType<AveniaKybAttemptStatusResponse>;

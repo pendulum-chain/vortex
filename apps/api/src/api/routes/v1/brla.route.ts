@@ -2,7 +2,13 @@ import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { optionalAuth, requireAuth } from "../../middlewares/supabaseAuth";
-import { validateStartKyc2, validateSubaccountCreation } from "../../middlewares/validators";
+import {
+  validateAveniaKybDocument,
+  validateAveniaKybLevel1,
+  validateAveniaKybUbo,
+  validateStartKyc2,
+  validateSubaccountCreation
+} from "../../middlewares/validators";
 
 const router: Router = Router({ mergeParams: true });
 
@@ -37,7 +43,25 @@ router.route("/newKyc").post(requireAuth, brlaController.newKyc);
 
 router.route("/kyb/new-level-1/web-sdk").post(requireAuth, brlaController.initiateKybLevel1);
 
-router.route("/kyb/attempt-status").get(requireAuth, brlaController.getKybAttemptStatus);
+router
+  .route("/kyb/documents")
+  .post(validateAveniaKybDocument, requirePartnerOrUserAuth(), brlaController.createKybDocument as unknown as RequestHandler);
+
+router
+  .route("/kyb/documents/:documentId")
+  .get(requirePartnerOrUserAuth(), brlaController.getKybDocument as unknown as RequestHandler);
+
+router
+  .route("/kyb/ubos")
+  .post(validateAveniaKybUbo, requirePartnerOrUserAuth(), brlaController.createKybUbo as unknown as RequestHandler);
+
+router
+  .route("/kyb/new-level-1/api")
+  .post(validateAveniaKybLevel1, requirePartnerOrUserAuth(), brlaController.submitKybLevel1Api as unknown as RequestHandler);
+
+router
+  .route("/kyb/attempt-status")
+  .get(requirePartnerOrUserAuth(), brlaController.getKybAttemptStatus as unknown as RequestHandler);
 
 router.route("/kyc/record-attempt").post(requireAuth, brlaController.recordInitialKycAttempt);
 
