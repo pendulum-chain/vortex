@@ -46,4 +46,15 @@ describe("renderVerificationStatus", () => {
     expect(email.text).toContain("Document unreadable");
     expect(email.html).toContain("Not approved");
   });
+
+  // Spec invariant 9 (docs/security-spec/05-integrations/resend.md): the reason is
+  // provider-supplied text and must never reach the HTML body as markup.
+  it("escapes a hostile provider reason instead of rendering it as markup", () => {
+    const hostile = `<img src=x onerror="alert(1)"> & "quotes"`;
+    const email = renderVerificationStatus("rejected", "en-US", payload({ reason: hostile, subject: "individual" }));
+
+    expect(email.html).not.toContain("<img src=x");
+    expect(email.html).not.toContain("onerror=\"alert");
+    expect(email.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &quot;quotes&quot;");
+  });
 });

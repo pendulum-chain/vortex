@@ -19,10 +19,15 @@ const slackAlerts: string[] = [];
 // Only the outbound edges are replaced: the transport, the Slack alert, and template
 // rendering. The claim/retry/abandon logic under test runs for real against the in-memory
 // table below. mock.module is process-global, so each real module is spread back in.
+let sendFailure: Error | null = null;
+
 const realTransport = await import("./resend.transport");
 mock.module("./resend.transport", () => ({
   ...realTransport,
   sendEmail: async (email: OutboundEmail) => {
+    if (sendFailure) {
+      throw sendFailure;
+    }
     sends.push(email);
     return "resend-message-id";
   }
@@ -115,6 +120,7 @@ const realUserFindByPk = User.findByPk;
 const realPreferenceFindOne = NotificationPreference.findOne;
 const realApiKey = config.integrations.resend.apiKey;
 const realAllowlist = config.integrations.resend.recipientAllowlist;
+const realDeploymentEnv = config.deploymentEnv;
 
 afterAll(() => {
   EmailNotification.findAll = realFindAll;
@@ -124,6 +130,7 @@ afterAll(() => {
   NotificationPreference.findOne = realPreferenceFindOne;
   config.integrations.resend.apiKey = realApiKey;
   config.integrations.resend.recipientAllowlist = realAllowlist;
+  config.deploymentEnv = realDeploymentEnv;
   // Restore the real modules so this file's stubs don't leak into later files.
   mock.module("./resend.transport", () => ({ ...realTransport }));
   mock.module("../slack.service", () => ({ ...realSlack }));
@@ -135,7 +142,9 @@ beforeEach(() => {
   sends.length = 0;
   slackAlerts.length = 0;
   preferences = null;
+  sendFailure = null;
 
+  config.deploymentEnv = "test";
   config.integrations.resend.apiKey = "re_test_key";
   config.integrations.resend.recipientAllowlist = [RECIPIENT];
 
@@ -257,5 +266,99 @@ describe("stale claim recovery", () => {
 
     expect(spent.attempts).toBe(6);
     expect(sends).toHaveLength(0);
+  });
+});
+
+describe("claiming", () => {
+  // Both flow-variant backends dispatch against one table; dropping the transactional
+  // SKIP LOCKED claim would double-send every email whenever their cycles overlap.
+  it("claims inside a transaction with a row lock, SKIP LOCKED, and a bounded batch", async () => {
+    const captured: Record<string, unknown>[] = [];
+    const previous = EmailNotification.findAll;
+    EmailNotification.findAll = (async (options: Record<string, unknown>) => {
+      captured.push(options);
+      return (previous as unknown as (options: Record<string, unknown>) => Promise<unknown>)(options);
+    }) as unknown as typeof EmailNotification.findAll;
+    row();
+
+    await dispatchPendingNotifications();
+
+    const claim = captured.find(options => options.lock !== undefined);
+    expect(claim).toBeDefined();
+    expect(claim?.skipLocked).toBe(true);
+    expect(claim?.transaction).toBeDefined();
+    expect(claim?.limit).toBe(25);
+  });
+});
+
+describe("non-production recipient allowlist", () => {
+  it("skips a recipient absent from the allowlist without calling Resend", async () => {
+    config.integrations.resend.recipientAllowlist = ["someone-else@vortexfinance.co"];
+    const pending = row();
+
+    await dispatchPendingNotifications();
+
+    expect(sends).toHaveLength(0);
+    expect(pending.status).toBe(NotificationStatus.Skipped);
+    expect(pending.lastError).toContain("EMAIL_RECIPIENT_ALLOWLIST");
+  });
+
+  it("skips everyone when the allowlist is empty", async () => {
+    config.integrations.resend.recipientAllowlist = [];
+    const pending = row();
+
+    await dispatchPendingNotifications();
+
+    expect(sends).toHaveLength(0);
+    expect(pending.status).toBe(NotificationStatus.Skipped);
+  });
+
+  it("does not gate production sends on the allowlist", async () => {
+    config.deploymentEnv = "production";
+    config.integrations.resend.recipientAllowlist = [];
+    const pending = row();
+
+    await dispatchPendingNotifications();
+
+    expect(sends).toHaveLength(1);
+    expect(pending.status).toBe(NotificationStatus.Sent);
+  });
+});
+
+describe("delivery failure", () => {
+  it("records a failed send and schedules the first retry from the backoff table", async () => {
+    sendFailure = new Error("Resend responded 500: internal error");
+    const pending = row();
+
+    const before = Date.now();
+    await dispatchPendingNotifications();
+
+    expect(pending.status).toBe(NotificationStatus.Failed);
+    expect(pending.lastError).toContain("Resend responded 500");
+    // First failure (attempts = 1) → next attempt one minute out.
+    const delay = pending.nextAttemptAt.getTime() - before;
+    expect(delay).toBeGreaterThanOrEqual(55_000);
+    expect(delay).toBeLessThanOrEqual(65_000);
+    expect(slackAlerts).toHaveLength(0);
+  });
+
+  it("abandons on the final failed attempt and alerts Slack", async () => {
+    sendFailure = new Error("Resend responded 500: internal error");
+    const last = row({ attempts: 5 });
+
+    await dispatchPendingNotifications();
+
+    expect(last.status).toBe(NotificationStatus.Abandoned);
+    expect(slackAlerts).toHaveLength(1);
+    expect(slackAlerts[0]).toContain("after 6 attempts");
+  });
+
+  it("caps the recorded error text", async () => {
+    sendFailure = new Error("x".repeat(5000));
+    const pending = row();
+
+    await dispatchPendingNotifications();
+
+    expect(pending.lastError?.length).toBeLessThanOrEqual(2000);
   });
 });

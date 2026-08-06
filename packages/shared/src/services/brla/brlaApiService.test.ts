@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
-import { AVENIA_PUBLIC_KEY_TIMEOUT_MS, BrlaApiService } from "./brlaApiService";
+import { generateKeyPairSync } from "crypto";
+import { BrlaApiService } from "./brlaApiService";
 
 const realFetch = globalThis.fetch;
 
@@ -22,6 +23,33 @@ describe("BrlaApiService.getAveniaPublicKey", () => {
 
     await expect(service.getAveniaPublicKey()).resolves.toBe("test-public-key");
     expect(signal).toBeInstanceOf(AbortSignal);
-    expect(AVENIA_PUBLIC_KEY_TIMEOUT_MS).toBe(10_000);
+  });
+});
+
+describe("BrlaApiService.sendRequest path templating", () => {
+  // GetKybAttempt is "/v2/kyc/attempts/{attemptId}". Before templating, the path param
+  // was appended, signing and requesting a literal "/{attemptId}/<id>" URL.
+  it("interpolates the {attemptId} template instead of appending the path param", async () => {
+    let requestedUrl: string | undefined;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      requestedUrl = String(input);
+      return new Response(JSON.stringify({ attempt: { id: "attempt-9" } }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    });
+
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { format: "pem", type: "pkcs1" },
+      publicKeyEncoding: { format: "pem", type: "pkcs1" }
+    });
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-api-key", privateKey });
+
+    await service.getKybAttemptStatus("attempt-9");
+
+    expect(requestedUrl).toContain("/v2/kyc/attempts/attempt-9");
+    expect(requestedUrl).not.toContain("{attemptId}");
   });
 });
