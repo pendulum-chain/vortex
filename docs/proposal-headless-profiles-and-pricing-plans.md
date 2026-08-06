@@ -2,7 +2,7 @@
 
 Status: proposed. This document records the agreed product shape and the smallest likely
 implementation. Exact API contracts and provider-specific KYC/KYB work remain design
-decisions. Last updated: 2026-08-05.
+decisions. Last updated: 2026-08-06.
 
 Related decisions and specifications:
 
@@ -36,18 +36,18 @@ authorization needed for delegated control.
 manager profile
     -> manager enablement and allowed corridors
     -> managed_profiles relationship
-        -> headless profile (profiles.email = NULL)
+        -> headless profile (profiles.kind = managed, profiles.email = NULL)
             -> its customer_entity (individual or business)
                 -> provider_customers
                 -> kyc_cases
-            -> optional child API credentials
             -> child-owned quotes, ramps, and webhooks
 ```
 
-A headless profile is a normal `profiles` row with `email = NULL`. It has no Supabase Auth
-identity, email login, OTP flow, or claiming lifecycle. Its unique `managed_profiles` row
-identifies its manager and completes the definition of a managed headless profile. No
-second headless-user model is needed.
+A headless profile is a normal `profiles` row with `kind = managed` and `email = NULL`.
+The explicit kind prevents email nullability from becoming an authorization or lifecycle
+signal. It has no Supabase Auth identity, email login, OTP flow, or claiming lifecycle.
+Its unique `managed_profiles` row identifies its manager. No second headless-user model
+is needed.
 
 The child has its own `customer_entities` row. Customer type, provider accounts, KYC/KYB
 cases, and provider status belong to that child entity, never to the manager's entity.
@@ -59,6 +59,8 @@ cases, and provider status belong to that child entity, never to the manager's e
 - A manager and child are separate profiles.
 - One manager may control many headless profiles.
 - One headless profile has exactly one manager.
+- Every managed headless profile has `profiles.kind = managed`; authenticated profiles
+  cannot be attached as managed children.
 - A profile cannot manage itself, and nested management is not supported.
 - The child profile remains the owner of its customer entity, credentials, quotes, ramps,
   provider records, and webhooks.
@@ -84,21 +86,11 @@ Authorization must verify all of the following:
 3. The requested corridor is enabled for the manager when the operation is corridor-bound.
 4. The requested operation is part of the explicit control list below.
 
-The operation executes for the child, so existing services may need to treat the child as
-the effective profile for ownership and provider resolution. The manager must still be
-preserved as the authenticated actor used to authorize and audit the delegated operation.
-
-The minimum safe implementation reuses the existing child-oriented services with two
-separate request-context values:
-
-```text
-authenticatedManagerProfileId = managerId
-effectiveUserId                = childId
-```
-
-Authorization uses the authenticated manager and its direct relationship to the child.
-Existing ownership and provider resolution use the effective child. Both values remain
-available for audit attribution; the effective child must never erase the manager actor.
+One central delegated-authorization function performs these checks and returns a request
+context containing both `actorProfileId` and `subjectProfileId`. Downstream services use
+the subject for ownership and provider resolution while retaining the actor for audit.
+The implementation must not replace the authenticated manager ID globally or introduce
+a generic impersonation mode.
 
 Manager sessions are not required for the first implementation. Supporting only secret
 API credentials keeps the delegated surface smaller; session support can be added if a
@@ -110,7 +102,6 @@ An enabled manager may perform these operations for its directly managed childre
 
 - create, list, and read headless profiles;
 - logically delete a headless profile;
-- create, list, and revoke child API credentials;
 - create provider customers and fiat accounts through supported integrations;
 - start, submit, update, and read customer-level KYC/KYB operations;
 - upload KYC/KYB documents through supported provider flows;
@@ -124,15 +115,18 @@ state directly, or use Vortex-admin import and reconciliation operations.
 A manager cannot access another manager's child, transfer a child to another manager, or
 perform an operation outside its enabled corridors.
 
-### Child API credentials
+### Credentials in the first iteration
 
-The manager may optionally create credentials owned by a child profile. Such a credential
-authenticates directly as the child; it is not a manager credential and cannot operate
-another child.
+The first iteration supports manager secret credentials only. The manager authenticates
+as itself and selects an authorized child through delegated request context. Managers do
+not create child API credentials in this iteration. This keeps one authorization path
+while the delegated model is introduced.
 
-Managed-child corridor restrictions apply even when a child credential is used directly.
-Otherwise a manager could create a child credential and use it to bypass its own corridor
-permissions.
+Child-owned credentials may be added when a concrete integration needs per-child key
+isolation. Before that feature ships, each child credential must be linked to the managed
+relationship, denied whenever the manager, relationship, or corridor is inactive, and
+revoked when the child is logically deleted. It must not provide a second path around
+manager authorization.
 
 ### Corridor authorization
 
@@ -148,19 +142,25 @@ blocked by corridor removal. Removing a corridor must:
 - allow already-started ramps to finish through background processing;
 - preserve read access needed for support and reconciliation.
 
-Whether quote creation is blocked or remains available for rate discovery is still an
-API-product decision. Registration and execution must always enforce the corridor.
+Quote creation may remain available for rate discovery. A delegated quote associated
+with a child resolves ownership and pricing from that child. Ramp registration and start
+always re-check the active manager, relationship, child, and corridor rather than treating
+the quote as authorization evidence.
 
 ### Deletion
 
 Deleting a headless profile is a logical lifecycle operation, not physical erasure. It
 must:
 
-- mark the managed relationship and child profile unavailable for new operations;
-- revoke active child API credentials;
+- atomically mark the managed relationship and child profile unavailable for new
+  operations before any concurrent mutation can begin;
+- revoke any active child API credentials, including credentials created before this
+  proposal or added by a future iteration;
 - reject future manager and child mutations;
 - preserve customer, provider, KYC/KYB, ramp, and audit records;
 - allow already-started ramps to finish;
+- allow trusted provider callbacks and background reconciliation to update retained
+  records;
 - avoid automatically deleting provider-side customer records.
 
 Physical deletion requires separate legal-retention and provider-deletion requirements
@@ -173,6 +173,7 @@ Pricing remains independent from management:
 - manager and child may have different profile pricing assignments;
 - a manager credential does not select the child's pricing;
 - delegated quotes resolve pricing from the child operation profile;
+- the quote stores the resolved price and fee breakdown for its validity window;
 - no pricing-plan identifier is accepted from the delegated request.
 
 The broader cleanup that renames the overloaded partner pricing subsystem may proceed
@@ -182,11 +183,17 @@ separately. It is not required to establish managed-profile control.
 
 ### `profiles`
 
-Make `profiles.email` nullable. A null-email profile must have exactly one
-`managed_profiles` row; no route may create an orphan null-email profile.
+Add an explicit profile kind and make `profiles.email` nullable:
 
-Do not add a profile-kind column. The null email plus managed relationship is the headless
-profile discriminator.
+```text
+profiles
+    kind    authenticated | managed
+```
+
+Existing profiles are `authenticated`. A managed profile must have `email = NULL` and
+exactly one `managed_profiles` row. Provisioning creates the profile and relationship in
+one transaction, and migrations or startup validation must reject orphan managed
+profiles. Email nullability alone does not grant managed capabilities.
 
 ### Manager enablement
 
@@ -218,7 +225,7 @@ managed_profiles
     id
     manager_profile_id  FK -> managed_profile_managers.profile_id
     profile_id          FK -> profiles.id
-    external_subject_id
+    external_subject_id NOT NULL
     status              active | deleted
     creation_source     manager | vortex
     created_at
@@ -252,11 +259,10 @@ manager authenticates with secret API credential
     -> requests a child using its external subject ID and customer type
     -> Vortex verifies manager enablement and requested corridor
     -> one transaction creates:
-        profiles row with email = NULL
+        profiles row with kind = managed and email = NULL
         customer_entities row owned by the child profile
         profiles.active_customer_entity_id link
         managed_profiles row with creation_source = manager
-    -> optional child API credential is created and returned once
     -> manager starts supported KYC/KYB for an allowed corridor
     -> after approval, manager creates and operates child ramps
 ```
@@ -277,8 +283,7 @@ Vortex selects an enabled manager
        and managed_profiles row with creation_source = vortex
     -> the association delivers control to the manager
     -> the child appears in the manager's profile list
-    -> Vortex or the manager optionally creates a child API credential
-    -> the manager continues KYC/KYB, credential, and ramp operations within its corridors
+    -> the manager continues KYC/KYB and ramp operations within its corridors
 ```
 
 Delivery is the committed `managed_profiles` association, not transfer of a Supabase
@@ -302,28 +307,26 @@ manager secret credential authenticates manager
 manager requests deletion of its child
     -> authorization verifies direct relationship
     -> reject or explicitly handle ramps not yet started
-    -> mark managed profile deleted
-    -> revoke child credentials
+    -> transactionally mark managed profile deleted and revoke any child credentials
     -> block new KYC/KYB and ramp mutations
     -> retain records and allow already-started ramp processing
 ```
 
 ## Minimum implementation changes
 
-1. Add the two tables above and make profile email nullable.
+1. Add the two tables above, add the profile kind, and make profile email nullable.
 2. Replace the current partner-managed-profile association with the manager-to-child
    relationship without adding another user model.
 3. Add one provisioning service used by both Vortex-admin and manager-initiated creation.
 4. Add narrow delegated authorization that returns manager actor and child subject IDs.
-5. Add manager-facing profile and child-credential lifecycle endpoints.
+5. Add manager-facing profile lifecycle endpoints.
 6. Allow delegated authorization on the existing provider/KYC, fiat-account, quote, and
    ramp operations included in the control list.
-7. Enforce manager state and corridor permission for manager credentials and direct child
-   credentials.
-8. Implement logical deletion and child credential revocation without deleting financial
-   or compliance history.
-9. Add focused tests for cross-manager isolation, corridor denial, child-key bypass,
-   idempotent provisioning, deletion, and actor/subject ownership.
+7. Enforce manager state and corridor permission for manager credentials.
+8. Implement serialized logical deletion and revocation of any existing child credentials
+   without deleting financial or compliance history.
+9. Add focused tests for cross-manager isolation, corridor denial, idempotent provisioning,
+   deletion races, actor/subject ownership, and child pricing resolution.
 10. Update the API contract and relevant authentication, provider, ramp, and audit-facing
     security specifications with the final routes and invariants.
 
@@ -331,17 +334,29 @@ Avoid a general tenant system, organization memberships, permission matrices, ar
 impersonation, credential scopes, or a second headless identity model until a concrete
 requirement needs one.
 
+## Follow-up capabilities
+
+The following are intentionally outside the first iteration and should be introduced only
+when a concrete integration requires them:
+
+- child-owned API credential issuance and its relationship-bound revocation rules;
+- normalized per-corridor grant rows or operation-specific permissions;
+- manager credential scopes or separate management and runtime credentials;
+- manager dashboard sessions;
+- suspended, quarantined, or transferable managed-profile states;
+- broader pricing subsystem renaming or assignment administration.
+
 ## Acceptance criteria
 
 - Vortex can enable a manager for selected corridors.
 - An enabled manager can create headless profiles without per-customer Vortex approval.
 - Vortex can create a headless profile and deliver it to an enabled manager.
-- Every headless profile is a null-email profile with one manager and one child customer
-  entity.
+- Every headless profile has `kind = managed`, a null email, one manager, and one child
+  customer entity.
 - Manager credentials can perform only the defined child operations and corridors.
-- Optional child credentials cannot bypass manager or corridor restrictions.
 - Managers cannot access each other's children.
 - KYC/KYB and provider records belong to the child's customer entity.
 - Quotes and ramps remain owned by the child profile and use the child's pricing.
-- Logical deletion blocks new activity, revokes child credentials, and preserves required
-  compliance and financial history.
+- Logical deletion blocks concurrent new activity, revokes any existing child credentials,
+  preserves required compliance and financial history, and does not block trusted
+  callbacks for in-flight work.
