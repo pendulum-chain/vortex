@@ -1,13 +1,23 @@
 import { RampDirection } from "@vortexfi/shared";
-import { Op } from "sequelize";
+import { literal, Op } from "sequelize";
 import logger from "../../../config/logger";
-import EmailNotification, { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
+import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { enqueueNotification } from "./notification.service";
 
-// How far back the reconciliation sweep looks for completed ramps that were never queued.
-const RECONCILE_WINDOW_MS = 24 * 60 * 60 * 1000;
+function getCompletedAt(rampState: RampState): string {
+  const completion = [...rampState.phaseHistory].reverse().find(entry => entry.phase === "complete");
+  const rawTimestamp: unknown = completion?.timestamp;
+  const completedAt =
+    rawTimestamp instanceof Date
+      ? rawTimestamp
+      : typeof rawTimestamp === "string" || typeof rawTimestamp === "number"
+        ? new Date(rawTimestamp)
+        : rampState.updatedAt;
+
+  return Number.isNaN(completedAt.getTime()) ? rampState.updatedAt.toISOString() : completedAt.toISOString();
+}
 
 /**
  * Queues the ramp completion email. Only ramps owned by a signed-in user get one:
@@ -36,7 +46,7 @@ export async function enqueueRampCompletedEmail(rampState: RampState): Promise<v
 
   await enqueueNotification({
     payload: {
-      completedAt: new Date().toISOString(),
+      completedAt: getCompletedAt(rampState),
       fiatAmount: isBuy ? quote.inputAmount : quote.outputAmount,
       fiatCurrency: (isBuy ? quote.inputCurrency : quote.outputCurrency).toUpperCase(),
       network: quote.network,
@@ -63,10 +73,18 @@ export async function enqueueRampCompletedEmail(rampState: RampState): Promise<v
  */
 export async function reconcileMissedRampCompletedEmails(): Promise<void> {
   const completed = await RampState.findAll({
-    attributes: ["id", "quoteId", "type", "userId"],
+    attributes: ["id", "phaseHistory", "quoteId", "type", "updatedAt", "userId"],
     where: {
+      [Op.and]: literal(`NOT EXISTS (
+        SELECT 1
+        FROM email_notifications
+        WHERE provider = '${NotificationProvider.Vortex}'
+          AND type = '${NotificationType.RampCompleted}'
+          AND resource_id = "RampState"."id"::text
+      )`),
       currentPhase: "complete",
-      updatedAt: { [Op.gte]: new Date(Date.now() - RECONCILE_WINDOW_MS) },
+      // Query only anomalies, using the notification key's index. A fixed lookback can
+      // turn one transient outage into a permanent gap once the completed ramp ages out.
       userId: { [Op.not]: null }
     }
   });
@@ -75,25 +93,9 @@ export async function reconcileMissedRampCompletedEmails(): Promise<void> {
     return;
   }
 
-  const queued = await EmailNotification.findAll({
-    attributes: ["resourceId"],
-    where: {
-      provider: NotificationProvider.Vortex,
-      resourceId: { [Op.in]: completed.map(state => state.id) },
-      type: NotificationType.RampCompleted
-    }
-  });
+  logger.warn(`Reconciling ${completed.length} completed ramp(s) whose completion email was never enqueued`);
 
-  const queuedIds = new Set(queued.map(notification => notification.resourceId));
-  const missed = completed.filter(state => !queuedIds.has(state.id));
-
-  if (missed.length === 0) {
-    return;
-  }
-
-  logger.warn(`Reconciling ${missed.length} completed ramp(s) whose completion email was never enqueued`);
-
-  for (const state of missed) {
+  for (const state of completed) {
     try {
       await enqueueRampCompletedEmail(state);
     } catch (error) {

@@ -10,6 +10,7 @@ import {
   KycAttemptStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
+import { reconcileMissedRampCompletedEmails } from "../api/services/email";
 import { emitNotification } from "../api/services/notifications/notification.service";
 import CustomerEntity from "../models/customerEntity.model";
 import KycCase from "../models/kycCase.model";
@@ -64,6 +65,12 @@ describe("GET /v1/notifications", () => {
     expect(body.unreadCount).toBe(2);
     expect(body.notifications).toHaveLength(1);
     expect(body.notifications[0].title).toBe("Second");
+  });
+});
+
+describe("ramp completion notification reconciliation", () => {
+  it("executes the missing-notification anti-join against PostgreSQL", async () => {
+    await reconcileMissedRampCompletedEmails();
   });
 });
 
