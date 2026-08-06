@@ -59,13 +59,22 @@ async function apiFetch<T>(
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
     });
 
+  const impersonation = AuthService.getImpersonationSession();
   const initialTokens = AuthService.getTokens();
-  let response = await doFetch(initialTokens?.accessToken);
+  let response = await doFetch(AuthService.getEffectiveAccessToken() ?? undefined);
 
-  if (response.status === 401 && initialTokens?.accessToken) {
-    const refreshed = await refreshTokenOnce();
-    if (refreshed?.accessToken && refreshed.userId === initialTokens.userId) {
-      response = await doFetch(refreshed.accessToken);
+  if (response.status === 401) {
+    if (impersonation) {
+      // Impersonation tokens are opaque and non-renewable — there is no refresh path.
+      // Drop back to the operator's own (untouched) session instead of retrying.
+      AuthService.clearImpersonationSession();
+      throw new ApiError(401, {}, "Your impersonation session has expired. You're back in your own session.");
+    }
+    if (initialTokens?.accessToken) {
+      const refreshed = await refreshTokenOnce();
+      if (refreshed?.accessToken && refreshed.userId === initialTokens.userId) {
+        response = await doFetch(refreshed.accessToken);
+      }
     }
   }
 

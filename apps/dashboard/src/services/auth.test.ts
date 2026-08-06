@@ -229,3 +229,45 @@ describe("AuthService", () => {
     });
   });
 });
+
+describe("AuthService impersonation session", () => {
+  it("prefers the impersonation token over the operator's own access token", () => {
+    assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
+
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      token: "vtx_imp_abc123",
+    });
+
+    assert.equal(AuthService.getEffectiveAccessToken(), "vtx_imp_abc123");
+    assert.deepEqual(AuthService.getImpersonationSession(), {
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      token: "vtx_imp_abc123",
+    });
+  });
+
+  it("falls back to the operator's own token once the impersonation session is cleared", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      token: "vtx_imp_abc123",
+    });
+
+    AuthService.clearImpersonationSession();
+
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
+    // The operator's own session must be untouched by entering/exiting impersonation.
+    assert.deepEqual(AuthService.getTokens(), {
+      accessToken: "expired-access-token",
+      refreshToken: "refresh-token",
+      userEmail: "e2e@vortex.local",
+      userId: "user-1",
+    });
+  });
+});

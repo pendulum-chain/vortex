@@ -45,7 +45,7 @@ function userFromTokens(tokens: AuthTokens): AuthUser {
   return { email, name: displayNameFromEmail(email), userId: tokens.userId };
 }
 
-function clearAccountState(): void {
+export function clearAccountState(): void {
   queryClient.clear();
   useNotificationsStore.getState().clear();
   resetTransferState();

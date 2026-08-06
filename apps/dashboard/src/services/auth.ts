@@ -7,6 +7,14 @@ export interface AuthTokens {
   userEmail?: string;
 }
 
+/** An active "log in as" session — opaque, non-renewable, valid 30 minutes. */
+export interface ImpersonationSession {
+  token: string;
+  sessionId: string;
+  expiresAt: string;
+  targetEmail: string;
+}
+
 /**
  * Session storage + refresh, ported from the widget's AuthService. Keys are
  * dashboard-scoped so a widget session on the same origin is never reused.
@@ -16,6 +24,12 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_dashboard_refresh_token";
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
+  // Separate keys so an active impersonation session never touches the operator's own
+  // Supabase tokens above — Exit just drops these and the operator's session is already there.
+  private static readonly IMPERSONATION_TOKEN_KEY = "vortex_dashboard_impersonation_token";
+  private static readonly IMPERSONATION_SESSION_ID_KEY = "vortex_dashboard_impersonation_session_id";
+  private static readonly IMPERSONATION_EXPIRES_AT_KEY = "vortex_dashboard_impersonation_expires_at";
+  private static readonly IMPERSONATION_TARGET_EMAIL_KEY = "vortex_dashboard_impersonation_target_email";
   private static sessionGeneration = 0;
   private static refreshFlight: {
     generation: number;
@@ -51,6 +65,40 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_EMAIL_KEY);
+  }
+
+  static storeImpersonationSession(session: ImpersonationSession): void {
+    localStorage.setItem(this.IMPERSONATION_TOKEN_KEY, session.token);
+    localStorage.setItem(this.IMPERSONATION_SESSION_ID_KEY, session.sessionId);
+    localStorage.setItem(this.IMPERSONATION_EXPIRES_AT_KEY, session.expiresAt);
+    localStorage.setItem(this.IMPERSONATION_TARGET_EMAIL_KEY, session.targetEmail);
+  }
+
+  static getImpersonationSession(): ImpersonationSession | null {
+    const token = localStorage.getItem(this.IMPERSONATION_TOKEN_KEY);
+    const sessionId = localStorage.getItem(this.IMPERSONATION_SESSION_ID_KEY);
+    const expiresAt = localStorage.getItem(this.IMPERSONATION_EXPIRES_AT_KEY);
+    const targetEmail = localStorage.getItem(this.IMPERSONATION_TARGET_EMAIL_KEY);
+    if (!token || !sessionId || !expiresAt || !targetEmail) {
+      return null;
+    }
+    return { expiresAt, sessionId, targetEmail, token };
+  }
+
+  static clearImpersonationSession(): void {
+    localStorage.removeItem(this.IMPERSONATION_TOKEN_KEY);
+    localStorage.removeItem(this.IMPERSONATION_SESSION_ID_KEY);
+    localStorage.removeItem(this.IMPERSONATION_EXPIRES_AT_KEY);
+    localStorage.removeItem(this.IMPERSONATION_TARGET_EMAIL_KEY);
+  }
+
+  /** The bearer token requests should use: the impersonation token takes priority when active. */
+  static getEffectiveAccessToken(): string | null {
+    const impersonation = this.getImpersonationSession();
+    if (impersonation) {
+      return impersonation.token;
+    }
+    return this.getTokens()?.accessToken ?? null;
   }
 
   static isAuthenticated(): boolean {
