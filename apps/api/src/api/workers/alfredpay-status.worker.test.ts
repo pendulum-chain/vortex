@@ -3,9 +3,11 @@ import { FindOptions, IncludeOptions, Op } from "sequelize";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import AlfredpayStatusWorker from "./alfredpay-status.worker";
 
-// `poll` does not touch `this` (see the class-methods-use-this suppression on it), so it
-// can be driven directly — constructing the worker would fire a real cycle via runOnInit.
-const poll = (AlfredpayStatusWorker.prototype as unknown as { poll: () => Promise<void> }).poll;
+type TestableWorker = {
+  cursorId: string | null;
+  job: { isActive: boolean; waitForCompletion: boolean };
+  poll: () => Promise<void>;
+};
 
 const realFindAll = ProviderCustomer.findAll;
 
@@ -20,7 +22,8 @@ async function captureQuery(): Promise<FindOptions> {
     return [];
   }) as typeof ProviderCustomer.findAll;
 
-  await poll.call({});
+  const worker = new AlfredpayStatusWorker() as unknown as TestableWorker;
+  await worker.poll();
   return captured;
 }
 
@@ -49,6 +52,40 @@ describe("AlfredpayStatusWorker query window", () => {
   // one cycle into a provider flood.
   it("caps how many accounts a single cycle polls", async () => {
     expect((await captureQuery()).limit).toBeGreaterThan(0);
+  });
+
+  it("does not start on construction and suppresses overlapping cycles", () => {
+    const { job } = new AlfredpayStatusWorker() as unknown as TestableWorker;
+
+    expect(job.isActive).toBe(false);
+    expect(job.waitForCompletion).toBe(true);
+  });
+
+  it("orders by a stable key so capped cycles can advance instead of starving older rows", async () => {
+    const options = await captureQuery();
+
+    expect(options.order).toEqual([["id", "ASC"]]);
+  });
+
+  it("continues after the previous full page, then wraps after reaching the end", async () => {
+    const queries: FindOptions[] = [];
+    let queryNumber = 0;
+    ProviderCustomer.findAll = (async (options: FindOptions) => {
+      queries.push(options);
+      queryNumber += 1;
+      if (queryNumber === 1) {
+        return Array.from({ length: options.limit as number }, (_, index) => ({ id: `account-${index}` }));
+      }
+      return [];
+    }) as typeof ProviderCustomer.findAll;
+
+    const worker = new AlfredpayStatusWorker("15 * * * *", async () => undefined) as unknown as TestableWorker;
+    await worker.poll();
+    await worker.poll();
+
+    const secondWhere = queries[1].where as Record<string, Record<symbol, string>>;
+    expect(secondWhere.id[Op.gt]).toBe("account-249");
+    expect(worker.cursorId).toBeNull();
   });
 
   // Partner-owned entities have no profile to email; excluding them in the query rather

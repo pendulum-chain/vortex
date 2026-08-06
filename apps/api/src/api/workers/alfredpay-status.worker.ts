@@ -26,8 +26,19 @@ const MAX_ACCOUNTS_PER_CYCLE = 250;
 class AlfredpayStatusWorker {
   private job: CronJob;
 
-  constructor(cronTime = "15 * * * *") {
-    this.job = new CronJob(cronTime, this.poll.bind(this), null, false, "UTC", null, true);
+  private cursorId: string | null = null;
+
+  constructor(
+    cronTime = "15 * * * *",
+    private readonly refreshCustomerStatus = refreshAlfredpayCustomerStatus
+  ) {
+    this.job = CronJob.from({
+      cronTime,
+      onTick: this.poll.bind(this),
+      start: false,
+      timeZone: "UTC",
+      waitForCompletion: true
+    });
   }
 
   public start(): void {
@@ -40,7 +51,6 @@ class AlfredpayStatusWorker {
     this.job.stop();
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private async poll(): Promise<void> {
     try {
       const pending = await ProviderCustomer.findAll({
@@ -56,10 +66,11 @@ class AlfredpayStatusWorker {
           }
         ],
         limit: MAX_ACCOUNTS_PER_CYCLE,
-        // Most-recently-touched first: an account that just moved is the one most likely to
-        // be mid-decision, and the one a truncated cycle can least afford to defer.
-        order: [["updatedAt", "DESC"]],
+        // Walk a stable keyset instead of repeatedly taking the newest 250 rows. A busy
+        // deployment can otherwise keep older eligible accounts outside every cycle.
+        order: [["id", "ASC"]],
         where: {
+          ...(this.cursorId ? { id: { [Op.gt]: this.cursorId } } : {}),
           provider: "alfredpay",
           status: { [Op.notIn]: [VerificationStatus.Approved, VerificationStatus.Rejected] },
           // An account abandoned mid-wizard stays non-terminal forever; without this bound the
@@ -68,6 +79,10 @@ class AlfredpayStatusWorker {
         }
       });
 
+      // A short page means the scan reached the end; wrap on the next cycle so failed
+      // provider calls and newly eligible lower ids get another chance.
+      this.cursorId = pending.length === MAX_ACCOUNTS_PER_CYCLE ? (pending.at(-1)?.id ?? null) : null;
+
       if (pending.length === 0) {
         return;
       }
@@ -75,14 +90,14 @@ class AlfredpayStatusWorker {
       logger.info(`Checking Alfredpay verification status for ${pending.length} account(s)`);
       if (pending.length === MAX_ACCOUNTS_PER_CYCLE) {
         logger.warn(
-          `Alfredpay status sweep hit its ${MAX_ACCOUNTS_PER_CYCLE}-account cap; the remainder waits for the next cycle`
+          `Alfredpay status sweep hit its ${MAX_ACCOUNTS_PER_CYCLE}-account cap; the keyset scan continues next cycle`
         );
       }
 
       for (const customer of pending) {
         // Best-effort per account: refreshAlfredpayCustomerStatus swallows provider failures
         // and leaves the stored status untouched, so one bad account cannot end the cycle.
-        await refreshAlfredpayCustomerStatus(customer);
+        await this.refreshCustomerStatus(customer);
       }
     } catch (error) {
       const errorDetails = error instanceof Error ? (error.stack ?? error.message) : String(error);
