@@ -1,15 +1,8 @@
-import { EPaymentMethod, FiatToken, Networks, type PaymentMethod } from "@vortexfi/shared";
+import { CORRIDOR_FIAT_TOKEN, EPaymentMethod, FiatToken, Networks, type PaymentMethod } from "@vortexfi/shared";
 import type { CorridorId } from "@/domain/types";
 
 /** Dashboard corridor → wire FiatToken (note EURC → "EUR"). */
-export const CORRIDOR_FIAT: Record<CorridorId, FiatToken> = {
-  AR: FiatToken.ARS,
-  BR: FiatToken.BRL,
-  CO: FiatToken.COP,
-  EU: FiatToken.EURC,
-  MX: FiatToken.MXN,
-  US: FiatToken.USD
-};
+export const CORRIDOR_FIAT: Record<CorridorId, FiatToken> = CORRIDOR_FIAT_TOKEN;
 
 /** Dashboard corridor → wire PaymentMethod. */
 export const CORRIDOR_PAYMENT_METHOD: Record<CorridorId, PaymentMethod> = {

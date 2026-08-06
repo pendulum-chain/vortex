@@ -42,7 +42,7 @@ Two middleware variants exist:
 
 ## Audit Checklist
 
-- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) uses `requireAuth` (F-068 resolved); admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
+- [x] Auth middleware is applied to endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: `/v1/ramp/*`, delegated BRLA/Alfredpay operations, and onboarding status use `requirePartnerOrUserAuth()` with ownership/delegation guards; email-bound Mykobo, Monerium, and Alfredpay customer creation remain on `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
 - [x] `SupabaseAuthService.verifyToken()` uses authoritative Supabase Auth validation without requiring service-role privilege — **PASS**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**

@@ -74,8 +74,8 @@ A manager authenticates as itself through an accepted existing authentication pa
 Supabase bearer session or an API credential whose subject is the manager. No dedicated
 manager credential or session is required. API credential strength must still be
 sufficient for the requested operation, whether the credential is profile-managed and
-self-created or partner-managed. A delegated request also identifies the managed child
-that is the subject of the operation:
+self-created or partner-managed. A delegated request identifies the managed child that is
+the subject of the operation through `X-Managed-Profile-Id: <child-profile-uuid>`:
 
 ```text
 authenticated profile = manager
@@ -96,6 +96,11 @@ checks and returns a request context containing both `actorProfileId` and
 `subjectProfileId`. Downstream services use the subject for ownership and provider
 resolution while retaining the actor for audit.
 
+The header is only a selector. It has no effect until route-level delegated authorization
+validates it, and it is never copied into `req.userId`. A public API key is attribution,
+not manager authentication, so only a Supabase session or secret API credential can
+establish the actor for a delegated request.
+
 The minimum safe implementation reuses the existing child-oriented services with two
 separate request-context values:
 
@@ -113,6 +118,12 @@ a generic impersonation mode.
 Existing Supabase sessions and API credentials are both accepted according to each
 endpoint's current authentication requirements. This does not introduce a dedicated
 manager session, credential type, or generic impersonation mode.
+
+The first route retrofit covers child-oriented quote creation; ramp registration,
+mutation, status, history, and errors; aggregate onboarding status; Avenia customer/KYC
+operations; and Alfredpay KYC/KYB and fiat-account operations. Email-bound Mykobo,
+Monerium, and Alfredpay customer creation remain outside delegation until managed children
+have an explicit provider contact-email contract.
 
 ### Manager control
 

@@ -79,11 +79,12 @@ export function mapFiatAccountProviderRejection(
 
 export class AlfredpayController {
   private static getRequiredUserId(req: Request): string {
-    if (!req.userId) {
+    const userId = getEffectiveUserId(req);
+    if (!userId) {
       throw new Error("Authenticated user id not available");
     }
 
-    return req.userId;
+    return userId;
   }
 
   private static getFiatAccountUserId(req: Request): string {
@@ -914,7 +915,7 @@ export class AlfredpayController {
       const body = req.body as { country?: string; relatedPersonId?: string; fileType?: string };
       const errSummary = error instanceof Error ? error.message : String(error);
       logger.error(
-        `[submitKybRelatedPersonFile] ${errSummary} | customerIdPenny=${pennyCustomerId ?? "n/a"} relatedPersonId=${body.relatedPersonId ?? "n/a"} userId=${req.userId ?? "n/a"}`
+        `[submitKybRelatedPersonFile] ${errSummary} | customerIdPenny=${pennyCustomerId ?? "n/a"} relatedPersonId=${body.relatedPersonId ?? "n/a"} userId=${getEffectiveUserId(req) ?? "n/a"}`
       );
       const message = error instanceof Error ? error.message : "Internal server error";
       res.status(500).json({ error: message });

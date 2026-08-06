@@ -21,11 +21,11 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 
 ## Security Invariants
 
-1. **Profile assignments MUST be server-side only** - The client MUST NOT be able to choose its assigned partner by passing a request body field, URL parameter, or local storage value. The backend resolves assignments only from the authenticated `req.userId`.
+1. **Profile assignments MUST be server-side only** - The client MUST NOT be able to choose its assigned partner by passing a request body field, URL parameter, or local storage value. The backend resolves assignments only from the authenticated profile or a verified delegated child subject.
 2. **Profile assignments MUST NOT authenticate partner ownership** - A Supabase profile assigned to a partner MUST NOT populate `req.authenticatedPartner`, MUST NOT satisfy `enforcePartnerAuth()`, and MUST NOT access partner-owned quotes or ramps.
 3. **Explicit partner API-key integrations MUST keep their existing behavior** - Requests that include `partnerId` still require a matching partner secret key. Existing SDK/API clients using partner keys must continue to create partner-owned quotes.
 4. **Partner pricing source precedence MUST be deterministic** - Explicit `partnerId` has highest precedence, then validated public API key partner name, then profile assignment, then default `"vortex"` pricing.
-5. **Profile-assigned quotes MUST be user-owned** - A quote priced through a profile assignment MUST persist `user_id = req.userId` and `partner_id = NULL`. Register/update/start/status access for the resulting ramp is authorized through the Supabase user path.
+5. **Profile-assigned quotes MUST be user-owned** - A quote priced through a profile assignment MUST persist the effective profile in `user_id` and leave `partner_id = NULL`. For delegated requests, the effective profile is the verified child and the manager credential's partner cannot override child pricing.
 6. **The pricing partner MUST be persisted separately** - Any quote that applies non-default partner pricing MUST persist `pricing_partner_id` so downstream fee distribution and dynamic discount state use the same partner row that quote calculation used.
 7. **Inactive or expired assignments MUST be ignored** - The assignment resolver must require `is_active = true` and either `expires_at IS NULL` or `expires_at > now()`.
 8. **Assignment partner IDs MUST be stable** - Assignment creation may accept a logical partner name for admin convenience, but it MUST persist the resolved `partner_id` and quote resolution MUST use that ID, not a fresh name lookup. Direction and corridor selection happen at quote time via the `(partner_id, ramp_type, fiat_currency)` pricing-config lookup (corridor-scoped config first, wildcard fallback).
@@ -61,7 +61,7 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 - [x] Default admin assignment listing excludes expired rows; `includeInactive=true` is required for historical rows.
 - [x] Admin assignment replacement deactivates the old active row and creates the new row in one transaction after taking a row lock for the target profile.
 - [x] Active-assignment unique-index collisions return `409 ASSIGNMENT_CONFLICT` instead of a generic server error.
-- [x] Quote creation resolves profile assignments only from `req.userId`; unauthenticated quotes never use profile assignment pricing.
+- [x] Quote creation resolves profile assignments only from the authenticated profile or verified delegated child; unauthenticated quotes never use profile assignment pricing.
 - [x] Profile assignment quote resolution uses the stored `partner_id` plus a `(partner_id, ramp_type, fiat_currency)` pricing-config lookup, not a fresh runtime `partner_name` lookup.
 - [x] `POST /v1/quotes` and `POST /v1/quotes/best` still reject explicit `partnerId` without matching secret-key authentication.
 - [x] Profile-assigned quotes persist `user_id` and `pricing_partner_id`, while leaving `partner_id` `NULL`.

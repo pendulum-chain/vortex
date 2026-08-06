@@ -87,6 +87,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 23. **BRL Base destination variants MUST use token-specific static topology** — Base USDC MUST omit Squid entirely. Other configured non-BRLA Base outputs MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; transaction preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` at the nonce immediately after the Squid swap. BRLA remains the direct bypass in invariant 14.
 24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 25. **Unified BRL limit reads MUST use the authenticated user's provider account** — `POST /v1/limits` MUST derive the Avenia subaccount through `resolveAveniaAccountForUser`; it MUST NOT accept a caller-supplied tax ID or subaccount. BRL `max`, `used`, year, and month are mapped directly from Avenia's BRL fiat-in/fiat-out limit row. Tax IDs and provider subaccount IDs are never returned.
+26. **Delegated BRLA operations MUST remain child- and corridor-scoped** — Supported customer, KYC/KYB, and onboarding-status routes may derive the effective user from a verified `X-Managed-Profile-Id` context. Mutating provider/KYC operations require the manager's `BR` corridor; status and account reads preserve access after corridor removal. Tax IDs and subaccount IDs still require ownership through the child's customer entities.
 
 ## Threat Vectors & Mitigations
 
@@ -128,7 +129,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] PIX deposit details (QR code) generated server-side. **PASS** — comes from Avenia API response.
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
 - [ ] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
-- [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requireAuth`.
+- [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requirePartnerOrUserAuth()` and delegated requests additionally require active BR authorization.
 - [x] BRL→BRLA-on-Base on-ramps emit only provider mint, funding, and `destinationTransfer` — no Nabla, fee distribution, Squid, final settlement, or Base cleanup transaction. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] The BRL→BRLA direct flow omits Squid and final settlement rather than relying on executor short-circuits. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] BRL→EVM destination-token precision preserved. **PASS** — block flow simulation preserves Squid destination raw output and destination-token decimals.

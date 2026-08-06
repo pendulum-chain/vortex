@@ -1,3 +1,5 @@
+import { FiatToken } from "./tokens/types/base";
+
 export type CorridorCountry = "AR" | "BR" | "CO" | "EU" | "MX" | "US";
 export type CorridorProviderName = "alfredpay" | "avenia" | "monerium" | "mykobo";
 export type CorridorCustomerType = "individual" | "business";
@@ -21,6 +23,19 @@ export const CORRIDOR_CAPABILITIES: Record<CorridorCountry, CorridorCapability> 
   MX: { customerTypes: ["individual", "business"], provider: "alfredpay", rail: "mxn" },
   US: { customerTypes: ["individual", "business"], provider: "alfredpay", rail: "usd" }
 };
+
+export const CORRIDOR_FIAT_TOKEN: Record<CorridorCountry, FiatToken> = {
+  AR: FiatToken.ARS,
+  BR: FiatToken.BRL,
+  CO: FiatToken.COP,
+  EU: FiatToken.EURC,
+  MX: FiatToken.MXN,
+  US: FiatToken.USD
+};
+
+export const FIAT_TOKEN_CORRIDOR = Object.fromEntries(
+  Object.entries(CORRIDOR_FIAT_TOKEN).map(([corridor, fiatToken]) => [fiatToken, corridor])
+) as Record<FiatToken, CorridorCountry>;
 
 export function isCorridorSupportedForCustomerType(country: CorridorCountry, customerType: CorridorCustomerType): boolean {
   return CORRIDOR_CAPABILITIES[country].customerTypes.includes(customerType);

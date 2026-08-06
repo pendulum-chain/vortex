@@ -8,7 +8,7 @@ BRL routes settle over PIX and require user onboarding with Vortex's local payme
 
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
-Partner integrations cannot drive BRL KYC with only `sk_*` or `pk_*` keys. The BRLA endpoints are first-party, user-oriented flows that rely on a Vortex-authenticated user context. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
+A normal partner key cannot select an arbitrary user. An enabled managed-profile manager may use a secret `sk_*` key or Supabase session with `X-Managed-Profile-Id` to drive supported BRLA KYC operations for its directly managed child when the manager has the `BR` corridor. A public `pk_*` key is insufficient. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 
 ## USD, MXN, COP, ARS (Bank Transfers)
 
@@ -27,7 +27,7 @@ All four corridors support buys and sells on EVM networks; AssetHub is not avail
 
 Each corridor requires the user to complete KYC for the corridor's country before a ramp can be registered. Onboard the user through the Vortex app or hosted Widget; the identity documents collected differ per country (for example INE, resident card, or passport in Mexico; cédula in Colombia; DNI in Argentina). Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 
-Unlike BRL, ramp registration still resolves the user's KYC and payment profile from the authenticated account, not from request fields. Authenticate as that user through a user-scoped key, a partner key delegated to the user, or a Supabase Bearer session. Your integration can mint a user-scoped key programmatically after an email OTP sign-in; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Partner-only keys cannot register ramps or drive KYC on a user's behalf. Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
+Ramp registration resolves KYC and payment identity from the effective profile, not from payment or identity fields in the request. Authenticate as the user through a user-scoped key or Supabase Bearer session. Alternatively, an enabled managed-profile manager may use its secret key or session with `X-Managed-Profile-Id`; Vortex verifies the direct child relationship and corridor before resolving the child's KYC/provider records. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
 
 ### Fiat Accounts
 

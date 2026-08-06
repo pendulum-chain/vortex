@@ -83,6 +83,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           req.authenticatedPartner = result.partner;
         }
         req.credential = result.credential;
+        req.authenticatedCredentialProfileId = result.credential.profileId;
         return next();
       }
 

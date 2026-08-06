@@ -99,8 +99,9 @@ managers. The internal provisioning service atomically creates a managed profile
 active customer entity, and the relationship, with idempotency scoped by manager and
 external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
 allowed corridors without deleting manager history. Manager-facing routes and delegated
-authorization are not active yet; the legacy partner-managed flow remains operational
-during the transition.
+profile lifecycle routes are not active yet. Delegated authorization is active on the
+existing child-oriented quote, ramp, onboarding-status, Avenia, and Alfredpay routes; the
+legacy partner-managed flow remains operational during the transition.
 
 ### Recipients
 
@@ -117,20 +118,24 @@ Current product behavior and acknowledged gaps are in
 
 ## Authentication and ownership flow
 
-1. `requirePartnerOrUserAuth()` accepts a valid secret API key or Supabase bearer token.
-2. `getEffectiveUserId()` prefers the Supabase user and otherwise uses the user linked to
-   the validated secret key.
-3. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
+1. Existing authentication accepts a valid secret API key or Supabase bearer token and
+   establishes the actor profile.
+2. On delegated routes, `X-Managed-Profile-Id` selects a child profile. The authorization
+   middleware verifies the active manager, direct active relationship, managed child,
+   active child customer entity, and the configured corridor for mutations.
+3. `getEffectiveUserId()` uses the verified child subject when delegation is present;
+   otherwise it preserves the existing Supabase/API-credential resolution.
+4. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
    to that effective user and their customer entities.
-4. At ramp registration, the server resolves the provider account for the effective user.
+5. At ramp registration, the server resolves the provider account for the effective user.
    Client-supplied provider identifiers are either ignored or accepted only when they
    match the server-derived identity.
 
-An authenticated profile configured as a managed-profile manager continues to use these
-existing Supabase or API-credential authentication paths. Delegated authorization is a
-separate step: it verifies the active manager, its direct child relationship, and any
-applicable corridor before resolving the child as the operation subject. It does not
-replace the authenticated manager actor.
+The derived request context retains `actorProfileId`, `subjectProfileId`,
+`customerEntityId`, and the manager-child relationship ID. It never overwrites
+`req.userId`, and a public API key cannot authenticate a manager. Email-bound Mykobo,
+Monerium, and Alfredpay customer-creation routes do not accept delegation because managed
+children have no canonical email.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
@@ -139,7 +144,7 @@ quote cannot be claimed by another user.
 ## Implementation map
 
 - Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiCredential,partnerManagedProfile,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
-- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
+- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,managedProfileAuth,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
 - Migration 060 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
