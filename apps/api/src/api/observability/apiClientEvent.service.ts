@@ -33,6 +33,7 @@ interface ApiClientRequestLike {
   params?: unknown;
   path?: string;
   query?: unknown;
+  impersonation?: { sessionId: string; actorProfileId: string };
 }
 
 interface RequestMetadataOptions {
@@ -90,6 +91,13 @@ export function buildApiClientRequestMetadata(
     requestMethod: req.method || null,
     requestPath: buildTemplatedRequestPath(req.path, req.params)
   };
+
+  // Every event raised during an impersonated request stays attributable to the operator,
+  // even though `userId` on the event is the target's.
+  if (req.impersonation) {
+    metadata.impersonationSessionId = req.impersonation.sessionId;
+    metadata.impersonatorProfileId = req.impersonation.actorProfileId;
+  }
 
   addSelectedValues(metadata, "requestBody", req.body, options.bodyKeys);
   addSelectedValues(metadata, "requestParam", req.params, options.paramKeys);
