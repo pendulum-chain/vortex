@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038–060 and the API models
-on 2026-08-04.
+Status: current architecture. Last reconciled with migrations 038–061 and the API models
+on 2026-08-06.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -29,6 +29,9 @@ erDiagram
     partners ||--o{ partner_pricing_configs : prices
     partners ||--o{ api_credentials : attributes
     partners ||--o{ partner_managed_profiles : provisions
+    profiles ||--o| managed_profile_managers : enables
+    managed_profile_managers ||--o{ managed_profiles : controls
+    profiles ||--o| managed_profiles : identifies
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -36,8 +39,9 @@ erDiagram
 
 ### Profiles and customer entities
 
-`profiles` is the Supabase-linked login identity. Email OTP authentication yields a
-Supabase user ID, which is also the profile ID used by the API.
+`profiles.kind` distinguishes Supabase-linked `authenticated` profiles from headless
+`managed` profiles. Authenticated profiles have an email and use their Supabase user ID
+as the profile ID. Managed profiles have no email or Supabase identity.
 
 `customer_entities` represents the legal/compliance customer. A profile may own an
 individual and a business entity, while `profiles.active_customer_entity_id` records the
@@ -86,6 +90,13 @@ retired; startup fails closed while any active row remains.
 (normalized source and external subject ID) for provenance and idempotency; it is not an
 authentication or pricing principal. Normative credential rules live in
 [`security-spec/01-auth/api-keys.md`](security-spec/01-auth/api-keys.md).
+
+The additive `managed_profile_managers` and `managed_profiles` schema is the foundation
+for headless delegated profiles. It records manager enablement, allowed corridors, and
+the unique manager-to-child relationship. Database constraints require every managed
+profile to have exactly one relationship and prevent managed profiles from becoming
+managers. Delegated provisioning and authorization are not active yet; the legacy
+partner-managed flow remains operational during the transition.
 
 ### Recipients
 

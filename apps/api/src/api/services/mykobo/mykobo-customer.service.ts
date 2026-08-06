@@ -104,9 +104,9 @@ export interface ResolvedMykoboCustomer {
  */
 export async function resolveMykoboCustomerForUser(userId: string, providedEmail?: string): Promise<ResolvedMykoboCustomer> {
   const user = await User.findByPk(userId);
-  if (!user) {
+  if (!user || !user.email) {
     throw new APIError({
-      message: "No profile found for this user; cannot resolve the Mykobo customer.",
+      message: "No email-authenticated profile found for this user; cannot resolve the Mykobo customer.",
       status: httpStatus.BAD_REQUEST
     });
   }
