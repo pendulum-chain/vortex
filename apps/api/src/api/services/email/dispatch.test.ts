@@ -124,6 +124,10 @@ afterAll(() => {
   NotificationPreference.findOne = realPreferenceFindOne;
   config.integrations.resend.apiKey = realApiKey;
   config.integrations.resend.recipientAllowlist = realAllowlist;
+  // Restore the real modules so this file's stubs don't leak into later files.
+  mock.module("./resend.transport", () => ({ ...realTransport }));
+  mock.module("../slack.service", () => ({ ...realSlack }));
+  mock.module("./templates", () => ({ ...realTemplates }));
 });
 
 beforeEach(() => {

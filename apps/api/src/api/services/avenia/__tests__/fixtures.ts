@@ -1,5 +1,6 @@
 import * as shared from "@vortexfi/shared";
 import crypto from "crypto";
+import * as loggerModule from "../../../../config/logger";
 
 function generate() {
   return crypto.generateKeyPairSync("rsa", {
@@ -44,6 +45,12 @@ const silence = () => undefined;
 export const loggerModuleMock = () => ({
   default: { debug: silence, error: silence, info: silence, warn: silence }
 });
+
+// afterAll restore targets: mock.module is process-global, so each Avenia test file must
+// put the real modules back when it finishes or its stubs poison every later file.
+export const sharedModuleReal = () => ({ ...shared });
+
+export const loggerModuleReal = () => ({ ...loggerModule });
 
 /** Mirrors Avenia's documented signing: RSA-PSS over the raw body, SHA-256, max salt. */
 export function sign(body: Buffer, key: string): string {

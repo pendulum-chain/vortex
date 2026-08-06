@@ -1,5 +1,15 @@
 import { afterAll, beforeEach, describe, expect, it, mock, setSystemTime } from "bun:test";
-import { keyServer, loggerModuleMock, pkcs1Keys, primaryKeys, rotatedKeys, sharedModuleMock, sign } from "./__tests__/fixtures";
+import {
+  keyServer,
+  loggerModuleMock,
+  loggerModuleReal,
+  pkcs1Keys,
+  primaryKeys,
+  rotatedKeys,
+  sharedModuleMock,
+  sharedModuleReal,
+  sign
+} from "./__tests__/fixtures";
 
 mock.module("@vortexfi/shared", sharedModuleMock);
 mock.module("../../../config/logger", loggerModuleMock);
@@ -22,6 +32,9 @@ function advance(ms: number): void {
 
 afterAll(() => {
   setSystemTime();
+  // Restore the real modules so this file's stubs don't leak into later files.
+  mock.module("@vortexfi/shared", sharedModuleReal);
+  mock.module("../../../config/logger", loggerModuleReal);
 });
 
 describe("verifyAveniaSignature", () => {

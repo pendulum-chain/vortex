@@ -33,6 +33,20 @@ describe("leak canary: no test file leaked a singleton patch", () => {
     expect(ApiManager.getInstance.name, "ApiManager.getInstance was left faked").toBe("getInstance");
   });
 
+  it("service singletons are real classes, not object-literal module stubs", () => {
+    // The name check above misses `{ getInstance: () => … }`: a method shorthand or
+    // property arrow in an object literal *infers* the name "getInstance". A leaked
+    // mock.module stub of that shape only fails the class-ness check.
+    for (const [name, ctor] of [
+      ["EvmClientManager", EvmClientManager],
+      ["BrlaApiService", BrlaApiService],
+      ["MykoboApiService", MykoboApiService],
+      ["ApiManager", ApiManager]
+    ] as const) {
+      expect(typeof ctor, `${name} was replaced by a non-class module stub`).toBe("function");
+    }
+  });
+
   it("global fetch is not a leftover fetch guard", () => {
     expect(globalThis.fetch.name, "the fetch guard was left installed").toBe("fetch");
   });
