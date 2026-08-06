@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { Topbar } from "@/components/layout/Topbar";
 import { AccountTypeSelector } from "@/components/onboarding/AccountTypeSelector";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ function AppLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
+        <ImpersonationBanner />
         <Topbar />
         {/* Re-key on pathname so each navigation cross-fades the page content in. */}
         <motion.div
