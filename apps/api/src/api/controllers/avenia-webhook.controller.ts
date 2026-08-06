@@ -43,12 +43,21 @@ function parseWebhookEvent(rawBody: Buffer): ParsedWebhookEvent | null {
     return null;
   }
 
-  if (!isRecord(body) || !isNonEmptyString(body.subAccountId) || !isNonEmptyString(body.subscription)) {
+  if (!isRecord(body)) {
     return null;
   }
 
-  const envelope = { subAccountId: body.subAccountId, subscription: body.subscription };
-  const data = isRecord(body.data) ? body.data : {};
+  // Avenia's management guide shows the fields at the top level, while its
+  // event-specific guide wraps them in `event` and calls the account `accountId`.
+  // Accept both documented envelopes and normalize them before doing any work.
+  const event = isRecord(body.event) ? body.event : body;
+  const subAccountId = event.subAccountId ?? event.accountId;
+  if (!isNonEmptyString(subAccountId) || !isNonEmptyString(event.subscription)) {
+    return null;
+  }
+
+  const envelope = { subAccountId, subscription: event.subscription };
+  const data = isRecord(event.data) ? event.data : {};
 
   if (data.attempt === undefined || data.attempt === null) {
     return { ...envelope, attempt: null };

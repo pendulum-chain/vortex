@@ -42,6 +42,7 @@ interface CachedQuote {
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+export const AVENIA_PUBLIC_KEY_TIMEOUT_MS = 10_000;
 
 /**
  * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
@@ -427,7 +428,10 @@ export class BrlaApiService {
    */
   // eslint-disable-next-line class-methods-use-this
   public async getAveniaPublicKey(): Promise<string> {
-    const response = await fetch(`${BRLA_BASE_URL}/v2/public-key`, { headers: { Accept: "application/json" } });
+    const response = await fetch(`${BRLA_BASE_URL}/v2/public-key`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(AVENIA_PUBLIC_KEY_TIMEOUT_MS)
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch Avenia public key: status '${response.status}'`);

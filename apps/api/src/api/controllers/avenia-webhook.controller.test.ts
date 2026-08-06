@@ -75,6 +75,22 @@ describe("handleAveniaWebhook", () => {
     expect(enqueueVerificationNotification.mock.calls[0]?.[1]).toBe("user-1");
   });
 
+  it("accepts Avenia's documented nested event envelope", async () => {
+    const body = JSON.stringify({
+      event: {
+        accountId: "sub-nested",
+        data: { attempt: { id: "attempt-nested", result: "APPROVED", status: "COMPLETED", updatedAt: "2026-08-06" } },
+        subscription: "KYC"
+      }
+    });
+
+    const response = await signed(body);
+
+    expect(response.status).toBe(200);
+    expect(findAveniaOwnerBySubaccountId).toHaveBeenCalledWith("sub-nested");
+    expect(enqueueVerificationNotification.mock.calls[0]?.[0].id).toBe("attempt-nested");
+  });
+
   it("verifies the exact bytes received rather than a reparsed body", async () => {
     // Whitespace a JSON round-trip would drop still has to satisfy the signature.
     const body = `{ "subAccountId":"sub-1",  "subscription":"KYC",\n"data":{"attempt":{"id":"attempt-2","status":"EXPIRED","updatedAt":"2026-07-29T10:00:00Z"}} }`;
