@@ -5,6 +5,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata } from "../../core/metadata";
 import { MoonbeamToPendulumXcmContext } from ".";
 
@@ -13,7 +14,7 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
     return "moonbeamToPendulumXcm";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) throw new Error("Quote not found for the given state");
     const metadata = getBlockMetadata(quote.metadata, MoonbeamToPendulumXcmContext);
@@ -25,9 +26,11 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
     const pendulum = await manager.getApi("pendulum");
     const arrived = async () => {
       const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.pendulumCurrencyId);
-      return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0").gt(0);
+      return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0").gte(
+        metadata.outputAmountRaw
+      );
     };
-    if (!(await arrived())) {
+    if (!(await arrived()) && !state.state.moonbeamXcmTransactionHash) {
       const hasPreviousError = state.errorLogs.some(log => log.phase === this.getPhaseName());
       let moonbeam;
       try {
@@ -38,11 +41,25 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         throw new RecoverablePhaseError("MoonbeamToPendulumXcmExecutor: All RPC options exhausted.", 1800);
       }
       try {
+        throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, moonbeam.api);
-        await submitMoonbeamXcm(evmAddress, extrinsic);
+        const { hash } = await this.runFinancialOperation(state, {
+          attemptClass: "moonbeam-xcm-broadcast",
+          externalId: result => result.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            return abortableCall(signal, () => submitMoonbeamXcm(evmAddress, extrinsic));
+          },
+          provider: "moonbeam",
+          request: { network: "moonbeam", signedTransaction: presigned.txData },
+          signal
+        });
+        state.state = { ...state.state, moonbeamXcmTransactionHash: hash as `0x${string}` };
+        await state.update({ state: state.state });
       } catch (error) {
         logger.error("MoonbeamToPendulumXcmExecutor: XCM submission failed", error);
+        if (error instanceof RecoverablePhaseError) throw error;
         const message = error instanceof Error ? error.message : String(error);
         throw new RecoverablePhaseError(
           message.includes("IsInvalid") || message.includes("banned")
@@ -52,7 +69,7 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         );
       }
     }
-    await waitUntilTrue(arrived, 5000);
+    await waitUntilTrue(arrived, 5000, signal);
     return state;
   }
 }

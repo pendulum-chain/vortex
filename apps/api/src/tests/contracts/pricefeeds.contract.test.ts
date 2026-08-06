@@ -1,5 +1,5 @@
 /**
- * External API contract: CoinGecko price feed (docs/features/contract-tests.md).
+ * External API contract: CoinGecko price feed (docs/operations-testing.md).
  *
  * Unlike the anchor fakes, FakePrices patches PriceFeedService's methods *above*
  * the HTTP seam (it never produces wire JSON), so the verified-fake half is
@@ -9,16 +9,13 @@
  *
  * The live half mirrors getCryptoPrice's request construction: the ids/currencies
  * requested are the ones production actually asks for ("usd-coin" as the USD proxy
- * for the CoinGecko fiat fallback with vs_currencies mxn/cop/ars, and tokenIdMap
- * entries like "ethereum" priced in usd). No credentials are strictly required:
- * with COINGECKO_API_KEY set it uses the configured (pro) base URL like production,
- * otherwise it falls back to the keyless public API. The two API tiers no longer
- * serve the same currencies: CoinGecko dropped COP from the public API (observed
- * 2026-07-23 — /simple/supported_vs_currencies lost "cop" and keyless simple/price
- * omits the key), while the pro API production uses still returns it. COP presence
- * is therefore asserted only when a key is configured; run the nightly with
- * COINGECKO_API_KEY set so this contract keeps guarding the COP sanity-band
- * reference and last-resort fallback production actually consumes.
+ * for the CoinGecko fiat fallback with vs_currencies ars/brl/eur/mxn, and tokenIdMap
+ * entries like "ethereum" priced in usd). COP is deliberately absent: CoinGecko
+ * removed it from both public and Pro supported quote currencies (observed
+ * 2026-08-04), so PriceFeedService no longer queries it as a sanity reference or
+ * last-resort fallback. No credentials are strictly required: with
+ * COINGECKO_API_KEY set this uses the configured Pro URL like production;
+ * otherwise it falls back to the keyless public API.
  *
  * Binance spot is the primary USD rate source for the currencies mapped in
  * BINANCE_USDT_FIAT_SYMBOLS (imported from the service, so the live check can
@@ -34,9 +31,7 @@ import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 
 const REQUESTED_IDS = ["usd-coin", "ethereum"];
-const REQUESTED_CURRENCIES = ["usd", "mxn", "cop", "ars"];
-// Pro-only on CoinGecko since ~2026-07 (see header); asserted only when a key is set.
-const PRO_ONLY_CURRENCIES = ["cop"];
+const REQUESTED_CURRENCIES = ["usd", "ars", "brl", "eur", "mxn"];
 
 describe("CoinGecko external API contract — hermetic (fixtures)", () => {
   test("accepts the consumed simple/price shape including unknown keys", () => {
@@ -82,10 +77,7 @@ describe.skipIf(!RUN_LIVE)("CoinGecko external API contract — live", () => {
         expect(parsed[id]).toBeDefined();
         expect(parsed[id]?.usd).toBeGreaterThan(0);
       }
-      const expectedCurrencies = apiKey
-        ? REQUESTED_CURRENCIES
-        : REQUESTED_CURRENCIES.filter(currency => !PRO_ONLY_CURRENCIES.includes(currency));
-      for (const currency of expectedCurrencies) {
+      for (const currency of REQUESTED_CURRENCIES) {
         expect(parsed["usd-coin"]?.[currency]).toBeGreaterThan(0);
       }
     },

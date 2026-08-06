@@ -20,6 +20,7 @@ export const AveniaMoonbeamMint: Phase<
 > = {
   context: AveniaMintContext,
   executors: [new BrlaOnrampMintExecutor()],
+  externalOperations: { register: { provider: "avenia" } },
   name: "AveniaMoonbeamMint",
   phases: ["brlaOnrampMint"],
   prepareTxs: prepareAveniaMoonbeamMintTxs,

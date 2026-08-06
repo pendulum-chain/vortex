@@ -1,10 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
 import { Networks } from "@vortexfi/shared";
+import Big from "big.js";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
+import * as financialOperationNamespace from "../core/financial-operation";
+import { settlementBalanceKey } from "../core/settlement";
 
 const sharedReal = { ...sharedNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const SWAP_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const getStatus = mock(async (..._args: unknown[]) => ({
   id: "",
@@ -15,6 +19,7 @@ const getStatus = mock(async (..._args: unknown[]) => ({
 }));
 const getStatusAxelarScan = mock(async (..._args: unknown[]) => undefined as unknown);
 const recoverAxelarStuckConfirm = mock(async (..._args: unknown[]) => "AXELAR_RECOVERY_HASH");
+const checkEvmBalanceForToken = mock(async (..._args: unknown[]) => new Big("900100"));
 const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n }));
 const sendTransaction = mock(async (_transaction: Record<string, unknown>) => "0xgasfunding" as `0x${string}`);
 const fundingAccount = { address: "0x1111111111111111111111111111111111111111" as `0x${string}` };
@@ -23,25 +28,38 @@ mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
   EvmClientManager: {
     getInstance: () => ({
-      getClient: () => ({ chain: {}, estimateFeesPerGas }),
+      getClient: () => ({
+        chain: {},
+        estimateFeesPerGas,
+        getTransactionCount: async () => 0,
+        waitForTransactionReceipt: async () => ({ status: "success" })
+      }),
       getWalletClient: () => ({ account: fundingAccount, sendTransaction })
     })
   },
+  checkEvmBalanceForToken,
   getStatus,
   getStatusAxelarScan,
   recoverAxelarStuckConfirm
+}));
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
 }));
 
 const { SquidRouterPayExecutor } = await import("../phases/squid-router-swap/execution");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
 
 beforeEach(() => {
   getStatus.mockClear();
   getStatusAxelarScan.mockClear();
   recoverAxelarStuckConfirm.mockClear();
+  checkEvmBalanceForToken.mockClear();
   estimateFeesPerGas.mockClear();
   sendTransaction.mockClear();
   getStatus.mockImplementation(async () => ({
@@ -62,6 +80,7 @@ function makeQuote(fromNetwork: Networks = Networks.Arbitrum) {
           fromNetwork,
           fromToken: "0x1111111111111111111111111111111111111111",
           inputAmountRaw: "1000000",
+          outputAmountRaw: "1000000",
           toNetwork: Networks.Base,
           toToken: "0x2222222222222222222222222222222222222222"
         }
@@ -128,6 +147,43 @@ describe("SquidRouterPayExecutor reliability", () => {
     expect(requestSignals[0]).toBeInstanceOf(AbortSignal);
     expect(requestSignals[1]).toBeInstanceOf(AbortSignal);
     expect(requestSignals[0]).not.toBe(requestSignals[1]);
+    expect(status.evidenceProvider).toBe("axelar");
+  });
+
+  it("persists a route-scoped 90% balance fallback instead of accepting any positive balance", async () => {
+    const quote = makeQuote();
+    const tokenDetails = sharedReal.getOnChainTokenDetails(Networks.Base, quote.outputCurrency as never) as {
+      erc20AddressSourceChain: string;
+    };
+    const address = "0x2222222222222222222222222222222222222222";
+    const baselineKey = settlementBalanceKey(Networks.Base, address, tokenDetails.erc20AddressSourceChain);
+    const state = makeState({
+      evmEphemeralAddress: address,
+      transactionPlan: { settlementBaselines: { [baselineKey]: "100" } }
+    });
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+    handler.initialDelayMs = 60_000;
+    handler.patchStateKey = mock(async (target: RampState, key: string, value: unknown) => {
+      target.state = { ...target.state, [key]: value };
+      return 1;
+    });
+
+    await handler.checkStatus(state, SWAP_HASH, quote);
+
+    expect(checkEvmBalanceForToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amountDesiredRaw: "900100",
+        chain: Networks.Base,
+        ownerAddress: address
+      })
+    );
+    expect(state.state.squidRouterDeliveryEvidence).toMatchObject({
+      baselineRaw: "100",
+      expectedAmountRaw: "1000000",
+      kind: "destination-balance",
+      minimumRatioBps: 9000,
+      sourceTransactionHash: SWAP_HASH
+    });
   });
 
   it("persists the initial payment hash with a single-key patch", async () => {
@@ -175,7 +231,7 @@ describe("SquidRouterPayExecutor reliability", () => {
       `state->>'squidRouterExtraGasTxHash' IS NULL`
     );
     expect(handler.executeFundTransaction).toHaveBeenCalledTimes(1);
-    expect(handler.executeFundTransaction.mock.calls[0]?.[0]).toBe(Networks.Arbitrum);
+    expect(handler.executeFundTransaction.mock.calls[0]?.[1]).toBe(Networks.Arbitrum);
   });
 
   it("records stuck-confirm recovery before broadcasting and honors its cooldown", async () => {
@@ -255,10 +311,10 @@ describe("SquidRouterPayExecutor reliability", () => {
   it("uses the configured EIP-1559 multipliers for Polygon and Base gas payments", async () => {
     const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
 
-    await handler.executeFundTransaction(Networks.Polygon, "1", SWAP_HASH, 1);
+    await handler.executeFundTransaction(makeState(), Networks.Polygon, "1", SWAP_HASH, 1, "initial-gas-payment");
     expect(sendTransaction.mock.calls[0]?.[0]).toMatchObject({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n });
 
-    await handler.executeFundTransaction(Networks.Base, "1", SWAP_HASH, 1);
+    await handler.executeFundTransaction(makeState(), Networks.Base, "1", SWAP_HASH, 1, "initial-gas-payment");
     expect(sendTransaction.mock.calls[1]?.[0]).toMatchObject({ maxFeePerGas: 20n, maxPriorityFeePerGas: 6n });
   });
 });

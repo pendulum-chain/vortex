@@ -108,4 +108,36 @@ describe("vars deployment environment validation", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
   });
+
+  it("accepts a lower recipient-invite discount ceiling", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "125"
+    });
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+
+  it("rejects a recipient-invite discount ceiling above the hard cap", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "301"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("RECIPIENT_INVITE_MAX_DISCOUNT_BPS must be an integer between 0 and 300");
+  });
+
+  it("rejects a non-integer recipient-invite discount ceiling", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "2.5"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("RECIPIENT_INVITE_MAX_DISCOUNT_BPS must be an integer between 0 and 300");
+  });
 });

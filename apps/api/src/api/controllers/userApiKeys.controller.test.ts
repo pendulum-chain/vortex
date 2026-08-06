@@ -1,115 +1,90 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
-import httpStatus from "http-status";
-import ApiKey from "../../models/apiKey.model";
-import { createUserApiKey, MAX_ACTIVE_KEYS_PER_USER, revokeUserApiKey } from "./userApiKeys.controller";
+import { Request, Response } from "express";
+import ApiCredential from "../../models/apiCredential.model";
+import { listUserApiKeys, revokeUserApiKey } from "./userApiKeys.controller";
 
-function createResponse() {
-  const res = {
+const originals = {
+  findAll: ApiCredential.findAll,
+  update: ApiCredential.update
+};
+
+afterEach(() => {
+  ApiCredential.findAll = originals.findAll;
+  ApiCredential.update = originals.update;
+});
+
+function responseDouble() {
+  const response = {
     body: undefined as unknown,
-    send: mock(() => res),
-    statusCode: Number(httpStatus.OK),
+    statusCode: 200,
     json: mock((body: unknown) => {
-      res.body = body;
-      return res;
+      response.body = body;
+      return response;
     }),
+    send: mock(() => response),
     status: mock((statusCode: number) => {
-      res.statusCode = statusCode;
-      return res;
+      response.statusCode = statusCode;
+      return response;
     })
   };
-
-  return res;
+  return response;
 }
 
-describe("createUserApiKey", () => {
-  const originalCount = ApiKey.count;
+function credentialRow(overrides: Record<string, unknown>) {
+  return ApiCredential.build({
+    createdAt: new Date("2026-08-03T00:00:00Z"),
+    environment: "live",
+    expiresAt: new Date("2027-08-03T00:00:00Z"),
+    name: "key",
+    partnerId: null,
+    profileId: "profile-1",
+    publicKeyValue: "pk_live_x",
+    publicLastUsedAt: null,
+    revokedAt: null,
+    secretKeyPrefix: "sk_live_x",
+    secretLastUsedAt: null,
+    updatedAt: new Date("2026-08-03T00:00:00Z"),
+    ...overrides
+  } as never);
+}
 
-  afterEach(() => {
-    ApiKey.count = originalCount;
-  });
+describe("listUserApiKeys", () => {
+  it("lists partner-scoped credentials alongside profile-owned ones", async () => {
+    let findWhere: Record<PropertyKey, unknown> = {};
+    ApiCredential.findAll = mock(async (options: { where: Record<PropertyKey, unknown> }) => {
+      findWhere = options.where;
+      return [
+        credentialRow({ id: "credential-own", partnerId: null }),
+        credentialRow({ id: "credential-partner", partnerId: "partner-1" })
+      ];
+    }) as never;
+    const response = responseDouble();
 
-  it("rejects creation with 409 when the per-user active key cap is reached", async () => {
-    ApiKey.count = mock(async () => MAX_ACTIVE_KEYS_PER_USER) as unknown as typeof ApiKey.count;
+    await listUserApiKeys({ userId: "profile-1" } as Request, response as unknown as Response);
 
-    const res = createResponse();
-    await createUserApiKey({ body: {}, userId: "user-1" } as never, res as never);
-
-    expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect((res.body as { error: { code: string } }).error.code).toBe("API_KEY_LIMIT_REACHED");
+    expect(findWhere).toEqual({ profileId: "profile-1" });
+    expect(response.statusCode).toBe(200);
+    const credentials = (response.body as { credentials: { id: string; partnerId: string | null }[] }).credentials;
+    expect(credentials.map(credential => credential.id)).toEqual(["credential-own", "credential-partner"]);
   });
 });
 
 describe("revokeUserApiKey", () => {
-  const originalFindOne = ApiKey.findOne;
+  it("revokes a partner-scoped credential owned by the profile", async () => {
+    let updateWhere: Record<PropertyKey, unknown> = {};
+    ApiCredential.update = mock(async (_values: unknown, options: { where: Record<PropertyKey, unknown> }) => {
+      updateWhere = options.where;
+      return [1];
+    }) as never;
+    const response = responseDouble();
 
-  afterEach(() => {
-    ApiKey.findOne = originalFindOne;
-  });
-
-  function stubKeyPair() {
-    const updates: Array<{ id: string; changes: unknown }> = [];
-    const secretKey = {
-      id: "secret-key-id",
-      keyType: "secret",
-      name: "Secret Key",
-      update: mock(async (changes: unknown) => {
-        updates.push({ changes, id: "secret-key-id" });
-      })
-    };
-    const publicKey = {
-      id: "public-key-id",
-      keyType: "public",
-      name: "Public Key",
-      update: mock(async (changes: unknown) => {
-        updates.push({ changes, id: "public-key-id" });
-      })
-    };
-
-    ApiKey.findOne = mock(async ({ where }: { where: { id: string } }) => {
-      if (where.id === "secret-key-id") return secretKey;
-      if (where.id === "public-key-id") return publicKey;
-      return null;
-    }) as unknown as typeof ApiKey.findOne;
-
-    return updates;
-  }
-
-  const expectedPairUpdates = [
-    { changes: { isActive: false, revokedAt: expect.any(Date) }, id: "secret-key-id" },
-    { changes: { isActive: false, revokedAt: expect.any(Date) }, id: "public-key-id" }
-  ];
-
-  it("revokes default-named public and secret keys as one pair via pairedKeyId", async () => {
-    const updates = stubKeyPair();
-
-    const res = createResponse();
     await revokeUserApiKey(
-      {
-        body: { pairedKeyId: "public-key-id" },
-        params: { keyId: "secret-key-id" },
-        userId: "user-1"
-      } as never,
-      res as never
+      { params: { credentialId: "credential-partner" }, userId: "profile-1" } as unknown as Request<{ credentialId: string }>,
+      response as unknown as Response
     );
 
-    expect(res.statusCode).toBe(httpStatus.NO_CONTENT);
-    expect(updates).toEqual(expectedPairUpdates);
-  });
-
-  it("still accepts the legacy publicKeyId alias", async () => {
-    const updates = stubKeyPair();
-
-    const res = createResponse();
-    await revokeUserApiKey(
-      {
-        body: { publicKeyId: "public-key-id" },
-        params: { keyId: "secret-key-id" },
-        userId: "user-1"
-      } as never,
-      res as never
-    );
-
-    expect(res.statusCode).toBe(httpStatus.NO_CONTENT);
-    expect(updates).toEqual(expectedPairUpdates);
+    expect(updateWhere).toEqual({ id: "credential-partner", profileId: "profile-1", revokedAt: null });
+    expect(response.statusCode).toBe(204);
+    expect(response.send).toHaveBeenCalled();
   });
 });

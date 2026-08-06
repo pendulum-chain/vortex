@@ -2,184 +2,184 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
+import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
   ERC20Permit,
-  ERC20PermitInterface
+  ERC20PermitInterface,
 } from "../../../../../../@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit";
 
 const _abi = [
   {
     inputs: [],
     name: "ECDSAInvalidSignature",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "uint256",
         name: "length",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ECDSAInvalidSignatureLength",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "bytes32",
         name: "s",
-        type: "bytes32"
-      }
+        type: "bytes32",
+      },
     ],
     name: "ECDSAInvalidSignatureS",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "allowance",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "needed",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC20InsufficientAllowance",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "balance",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "needed",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC20InsufficientBalance",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "approver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidApprover",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "receiver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidReceiver",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidSender",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidSpender",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "uint256",
         name: "deadline",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC2612ExpiredSignature",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "signer",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC2612InvalidSigner",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "account",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "currentNonce",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "InvalidAccountNonce",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [],
     name: "InvalidShortString",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "string",
         name: "str",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     name: "StringTooLong",
-    type: "error"
+    type: "error",
   },
   {
     anonymous: false,
@@ -188,29 +188,29 @@ const _abi = [
         indexed: true,
         internalType: "address",
         name: "owner",
-        type: "address"
+        type: "address",
       },
       {
         indexed: true,
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         indexed: false,
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "Approval",
-    type: "event"
+    type: "event",
   },
   {
     anonymous: false,
     inputs: [],
     name: "EIP712DomainChanged",
-    type: "event"
+    type: "event",
   },
   {
     anonymous: false,
@@ -219,23 +219,23 @@ const _abi = [
         indexed: true,
         internalType: "address",
         name: "from",
-        type: "address"
+        type: "address",
       },
       {
         indexed: true,
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         indexed: false,
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "Transfer",
-    type: "event"
+    type: "event",
   },
   {
     inputs: [],
@@ -244,78 +244,78 @@ const _abi = [
       {
         internalType: "bytes32",
         name: "",
-        type: "bytes32"
-      }
+        type: "bytes32",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "spender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "allowance",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "approve",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "account",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "balanceOf",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -324,11 +324,11 @@ const _abi = [
       {
         internalType: "uint8",
         name: "",
-        type: "uint8"
-      }
+        type: "uint8",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -337,41 +337,41 @@ const _abi = [
       {
         internalType: "bytes1",
         name: "fields",
-        type: "bytes1"
+        type: "bytes1",
       },
       {
         internalType: "string",
         name: "name",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "string",
         name: "version",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "uint256",
         name: "chainId",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "address",
         name: "verifyingContract",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "bytes32",
         name: "salt",
-        type: "bytes32"
+        type: "bytes32",
       },
       {
         internalType: "uint256[]",
         name: "extensions",
-        type: "uint256[]"
-      }
+        type: "uint256[]",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -380,73 +380,73 @@ const _abi = [
       {
         internalType: "string",
         name: "",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "nonces",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "deadline",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint8",
         name: "v",
-        type: "uint8"
+        type: "uint8",
       },
       {
         internalType: "bytes32",
         name: "r",
-        type: "bytes32"
+        type: "bytes32",
       },
       {
         internalType: "bytes32",
         name: "s",
-        type: "bytes32"
-      }
+        type: "bytes32",
+      },
     ],
     name: "permit",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -455,11 +455,11 @@ const _abi = [
       {
         internalType: "string",
         name: "",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -468,65 +468,65 @@ const _abi = [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "transfer",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "from",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "transferFrom",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class ERC20Permit__factory {

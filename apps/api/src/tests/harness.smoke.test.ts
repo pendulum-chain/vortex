@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { assertApiCredentialSchemaReady } from "../api/services/apiCredential.service";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
 import { setupTestDatabase, truncateAllTables } from "../test-utils/db";
 import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
@@ -25,6 +26,10 @@ describe("test harness smoke test", () => {
     expect(response.status).toBe(200);
   });
 
+  it("has the complete api_credentials schema and no legacy key table", async () => {
+    await expect(assertApiCredentialSchemaReady()).resolves.toBeUndefined();
+  });
+
   it("persists factory-built entities against the migrated schema", async () => {
     const user = await createTestUser();
     const partner = await createTestPartner();
@@ -33,7 +38,8 @@ describe("test harness smoke test", () => {
     const ramp = await createTestRampState({ quoteId: quote.id, userId: user.id });
 
     expect(user.id).toBeTruthy();
-    expect(record.keyPrefix).toBe(plaintextKey.slice(0, 8));
+    // Secret keys store the 16-char lookup prefix (non-secret key identifier).
+    expect(record.secretKeyPrefix).toBe(plaintextKey.slice(0, 16));
     expect(quote.status).toBe("pending");
     expect(ramp.currentPhase).toBe("initial");
   });

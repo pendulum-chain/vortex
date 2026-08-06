@@ -54,7 +54,6 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         fromNetwork: Networks.Base,
         inputCurrency: EvmToken.USDC,
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
-        rampType: ctx.request.rampType,
         toNetwork
       });
       if (expectedOutput.gt(0) && bridge.outputAmountDecimal.gt(0)) {
@@ -136,7 +135,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
     ? calculateSubsidyAmount(expectedWithAnchor, input.amount, partner?.maxSubsidy ?? 0)
     : new Big(0);
   const subsidy = new Big(subsidyUnrounded.toFixed(6, 0));
-  const subsidyRaw = multiplyByPowerOfTen(subsidyUnrounded, tokenDetails.decimals).toFixed(0, 0);
+  const subsidyRaw = multiplyByPowerOfTen(subsidy, tokenDetails.decimals).toFixed(0, 0);
   const targetAmount = input.amount.plus(subsidy);
   const targetRaw = new Big(actualRaw).plus(subsidyRaw).toFixed(0, 0);
   const metadata: SubsidizePostMetadata = {
@@ -154,7 +153,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
     partnerId: partner?.id ?? null,
     subsidyAmountInOutputTokenDecimal: subsidy,
     subsidyAmountInOutputTokenRaw: subsidyRaw,
-    subsidyRate: expectedWithAnchor.gt(0) ? subsidyUnrounded.div(expectedWithAnchor) : new Big(0),
+    subsidyRate: expectedWithAnchor.gt(0) ? subsidy.div(expectedWithAnchor) : new Big(0),
     targetOutputAmountDecimal: targetAmount,
     targetOutputAmountRaw: targetRaw
   };

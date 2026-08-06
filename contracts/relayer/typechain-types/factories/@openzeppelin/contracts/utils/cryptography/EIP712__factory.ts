@@ -2,31 +2,34 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
-import type { EIP712, EIP712Interface } from "../../../../../@openzeppelin/contracts/utils/cryptography/EIP712";
+import { Contract, Interface, type ContractRunner } from "ethers";
+import type {
+  EIP712,
+  EIP712Interface,
+} from "../../../../../@openzeppelin/contracts/utils/cryptography/EIP712";
 
 const _abi = [
   {
     inputs: [],
     name: "InvalidShortString",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "string",
         name: "str",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     name: "StringTooLong",
-    type: "error"
+    type: "error",
   },
   {
     anonymous: false,
     inputs: [],
     name: "EIP712DomainChanged",
-    type: "event"
+    type: "event",
   },
   {
     inputs: [],
@@ -35,42 +38,42 @@ const _abi = [
       {
         internalType: "bytes1",
         name: "fields",
-        type: "bytes1"
+        type: "bytes1",
       },
       {
         internalType: "string",
         name: "name",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "string",
         name: "version",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "uint256",
         name: "chainId",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "address",
         name: "verifyingContract",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "bytes32",
         name: "salt",
-        type: "bytes32"
+        type: "bytes32",
       },
       {
         internalType: "uint256[]",
         name: "extensions",
-        type: "uint256[]"
-      }
+        type: "uint256[]",
+      },
     ],
     stateMutability: "view",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class EIP712__factory {

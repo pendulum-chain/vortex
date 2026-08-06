@@ -11,7 +11,7 @@ import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/share
 import type { QuoteContext as IQuoteContext, PartnerInfo, PartnerPricingSource } from "./types";
 
 export function createQuoteContext(args: {
-  request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
+  request: CreateQuoteRequest & { apiCredentialId?: string; userId?: string };
   targetFeeFiatCurrency: RampCurrency;
   partner: PartnerInfo | null;
   partnerOwnerId?: string | null;

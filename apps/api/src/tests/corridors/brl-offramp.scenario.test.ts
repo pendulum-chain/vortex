@@ -14,12 +14,15 @@ import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, par
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import FinancialOperation from "../../models/financialOperation.model";
+import type Partner from "../../models/partner.model";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
 import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
+import { createTestPartner, createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -120,7 +123,13 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
+  async function createQuoteViaApi(options: { authUserId?: string } = {}): Promise<{ id: string; outputAmount: string }> {
+    // An authenticated quote picks up the user's profile-assigned pricing partner.
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.authUserId) {
+      headers.Authorization = `Bearer ${testUserToken(options.authUserId)}`;
+    }
+
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Base,
@@ -131,7 +140,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         rampType: RampDirection.SELL,
         to: "pix"
       }),
-      headers: { "Content-Type": "application/json" },
+      headers,
       method: "POST"
     });
     expect(response.status).toBe(201);
@@ -187,17 +196,74 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   }
 
   /**
+   * Signs a blueprint plus the four required same-call backups at the following
+   * nonces, honoring the blueprint's fee/gas minimums, shaped for /v1/ramp/update.
+   */
+  async function signBlueprintWithBackups(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx) {
+    const txData = blueprint.txData as unknown as {
+      to: `0x${string}`;
+      data: `0x${string}`;
+      value?: string;
+      gas?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+    };
+    const atLeast = (raw: string | undefined, floor: bigint) => {
+      const value = BigInt(raw ?? "0");
+      return value > floor ? value : floor;
+    };
+    const sign = (nonce: number) =>
+      ephemeral.signTransaction({
+        chainId: 8453,
+        data: txData.data,
+        gas: atLeast(txData.gas, 600_000n),
+        maxFeePerGas: atLeast(txData.maxFeePerGas, 5_000_000_000n),
+        maxPriorityFeePerGas: atLeast(txData.maxPriorityFeePerGas, 5_000_000_000n),
+        nonce,
+        to: txData.to,
+        type: "eip1559",
+        value: BigInt(txData.value ?? "0")
+      });
+
+    const additionalTxs: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+    for (let i = 1; i <= 4; i++) {
+      additionalTxs[`${blueprint.phase}${i}`] = { nonce: blueprint.nonce + i, txData: await sign(blueprint.nonce + i) };
+    }
+    return {
+      meta: { additionalTxs },
+      network: blueprint.network,
+      nonce: blueprint.nonce,
+      phase: blueprint.phase,
+      signer: ephemeral.address,
+      txData: await sign(blueprint.nonce)
+    };
+  }
+
+  /**
    * Creates quote + registration through the HTTP API with a fresh ephemeral,
    * signs the ephemeral phase blueprints exactly as issued, and stores them as
-   * presigned transactions the way /v1/ramp/update would.
+   * presigned transactions the way /v1/ramp/update would (or, with submitViaApi,
+   * actually submits them through /v1/ramp/update to exercise the real merge).
    */
-  async function setUpRegisteredRamp(): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(
+    options: { pricingPartner?: Partner; submitViaApi?: boolean } = {}
+  ): Promise<CorridorSetup & { userId: string }> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
-    const quote = await createQuoteViaApi();
+    if (options.pricingPartner) {
+      // Profile-assigned pricing: the quote stays user-owned (partner_id NULL) but is
+      // priced by — and pays markup to — the assigned partner via pricing_partner_id.
+      await ProfilePartnerAssignment.create({
+        isActive: true,
+        partnerId: options.pricingPartner.id,
+        partnerName: options.pricingPartner.name,
+        userId: user.id
+      });
+    }
+    const quote = await createQuoteViaApi(options.pricingPartner ? { authUserId: user.id } : {});
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -241,6 +307,14 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       txData
     });
 
+    // Fee-charging quotes carry one distributeFees transfer per fee recipient; sign
+    // whatever the route prepared (none for zero-fee quotes).
+    const feeBlueprints = unsignedTxs.filter(tx => tx.phase === "distributeFees");
+    const presignedFeeTxs = [];
+    for (const blueprint of feeBlueprints) {
+      presignedFeeTxs.push(presign(blueprint, await signBlueprint(ephemeral, blueprint)));
+    }
+
     // The user broadcasts the source-of-funds USDC transfer from their own
     // wallet; fundEphemeral verifies the reported hash against the blueprint.
     const userBlueprint = blueprintOf(unsignedTxs, "squidRouterNoPermitTransfer");
@@ -251,24 +325,54 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       value: 0n
     });
 
-    await rampState.update({
-      presignedTxs: [
-        presign(nablaApproveBlueprint, signedNablaApprove),
-        presign(nablaSwapBlueprint, signedNablaSwap),
-        presign(payoutBlueprint, signedPayout)
-      ],
-      state: { ...rampState.state, squidRouterNoPermitTransferHash: userTxHash }
-    });
+    let effectiveSignedNablaSwap = signedNablaSwap;
+    let effectiveSignedPayout = signedPayout;
+    if (options.submitViaApi) {
+      // Full API flow: sign EVERY ephemeral blueprint (with the required backups) and
+      // submit through /v1/ramp/update, exercising the real presign merge path.
+      const ephemeralBlueprints = unsignedTxs.filter(tx => tx.signer.toLowerCase() === ephemeral.address.toLowerCase());
+      const apiPresignedTxs = [];
+      for (const blueprint of ephemeralBlueprints) {
+        apiPresignedTxs.push(await signBlueprintWithBackups(ephemeral, blueprint));
+      }
+      effectiveSignedNablaSwap = apiPresignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as `0x${string}`;
+      effectiveSignedPayout = apiPresignedTxs.find(tx => tx.phase === "brlaPayoutOnBase")?.txData as `0x${string}`;
+
+      const updateResponse = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          additionalData: { squidRouterNoPermitTransferHash: userTxHash },
+          presignedTxs: apiPresignedTxs,
+          rampId: ramp.id
+        }),
+        headers: {
+          Authorization: `Bearer ${testUserToken(user.id)}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      expect(updateResponse.status).toBe(200);
+    } else {
+      await rampState.update({
+        presignedTxs: [
+          ...presignedFeeTxs,
+          presign(nablaApproveBlueprint, signedNablaApprove),
+          presign(nablaSwapBlueprint, signedNablaSwap),
+          presign(payoutBlueprint, signedPayout)
+        ],
+        state: { ...rampState.state, squidRouterNoPermitTransferHash: userTxHash }
+      });
+    }
 
     return {
       ephemeral,
       payoutBlueprint,
       quoteId: quote.id,
       rampId: ramp.id,
-      signedNablaSwap,
-      signedPayout,
+      signedNablaSwap: effectiveSignedNablaSwap,
+      signedPayout: effectiveSignedPayout,
       swapInputRaw,
-      swapOutputRaw
+      swapOutputRaw,
+      userId: user.id
     };
   }
 
@@ -354,7 +458,56 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   );
 
   it(
-    "transient failure: a scripted RPC outage is recorded as recoverable and the corridor still completes",
+    "fee collection: vortex fee and partner markup are each paid to their payout address on-chain",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      const partnerPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: vortexPayout });
+      // 5 BRL flat each = exactly 1 USD at the fake 5 BRL/USD rate: the partner-split
+      // path previously batched both transfers through Multicall3.aggregate3, which
+      // executes with the contract as msg.sender and cannot move the ephemeral's USDC.
+      const partner = await createTestPartner({
+        markupCurrency: FiatToken.BRL,
+        markupType: "absolute",
+        markupValue: 5,
+        name: "markup-partner",
+        payoutAddressEvm: partnerPayout,
+        rampType: RampDirection.SELL,
+        vortexFeeType: "absolute",
+        vortexFeeValue: 5
+      });
+
+      // Presigns go through the REAL /v1/ramp/update merge and validation: a
+      // nonce-less merge key used to collapse the two distributeFees transfers
+      // into one, silently dropping a fee recipient.
+      const setup = await setUpRegisteredRamp({ pricingPartner: partner, submitViaApi: true });
+
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(getFlowMetadata(quote?.metadata).globals.fees?.usd?.vortex)).toBe(1);
+      expect(Number(getFlowMetadata(quote?.metadata).globals.fees?.usd?.partnerMarkup)).toBe(1);
+
+      const registered = await RampState.findByPk(setup.rampId);
+      expect(registered?.presignedTxs?.filter(tx => tx.phase === "distributeFees")).toHaveLength(2);
+
+      scriptHappyWorld(setup);
+      // The ephemeral holds the swap input plus the 2 USDC fee residual.
+      world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw + parseUnits("2", 6));
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+
+      // Each recipient received its exact fee on the fake ledger.
+      expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, partnerPayout)).toBe(parseUnits("1", 6));
+    },
+    30000
+  );
+
+  it(
+    "ambiguous payout failure: a scripted RPC outage pauses the corridor for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -373,14 +526,20 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("brlaPayoutOnBase");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      // The payout handler wraps broadcast errors in its own recoverable message.
+      // The first broadcast error is recoverable at the phase layer, but its
+      // financial-operation claim is now ambiguous. Automatic retries halt
+      // rather than risk paying the anchor twice.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Failed to send BRLA payout transaction")) ?? [];
       expect(outageLogs.length).toBeGreaterThanOrEqual(1);
       expect(outageLogs.every(log => log.phase === "brlaPayoutOnBase")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(
+        await FinancialOperation.findOne({ where: { phase: "brlaPayoutOnBase", scopeId: setup.rampId } })
+      ).toMatchObject({ status: "unknown" });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
     },
     30000
   );

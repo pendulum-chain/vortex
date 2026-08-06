@@ -1,5 +1,6 @@
 import {
   ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ERC20_TOKEN,
   ALFREDPAY_EVM_TOKEN,
   ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
@@ -56,6 +57,19 @@ export interface AlfredpayOfframpMetadata {
 
 export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp");
 
+function directAlfredpaySettlementQuote(amountDecimal: string) {
+  const outputAmountDecimal = new Big(amountDecimal);
+  const amountRaw = multiplyByPowerOfTen(outputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, Big.roundDown);
+
+  return {
+    fromToken: ALFREDPAY_ERC20_TOKEN,
+    inputAmountRaw: amountRaw,
+    outputAmountDecimal,
+    outputAmountRaw: amountRaw,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  };
+}
+
 export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork extends EvmNetworks>(
   fromToken: FromToken,
   fromNetwork: FromNetwork
@@ -64,14 +78,16 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     input: PhaseIO<FromToken, FromNetwork>,
     ctx: PhaseCtx
   ): Promise<PhaseResult<PhaseIO<FiatToken, "fiat">, AlfredpayOfframpMetadata>> => {
-    const bridge = await getEvmBridgeQuote({
-      amountDecimal: ctx.request.inputAmount,
-      fromNetwork,
-      inputCurrency: fromToken as OnChainToken,
-      outputCurrency: ALFREDPAY_EVM_TOKEN,
-      rampType: RampDirection.SELL,
-      toNetwork: Networks.Polygon
-    });
+    const bridge =
+      fromNetwork === Networks.Polygon && fromToken === ALFREDPAY_EVM_TOKEN
+        ? directAlfredpaySettlementQuote(ctx.request.inputAmount)
+        : await getEvmBridgeQuote({
+            amountDecimal: ctx.request.inputAmount,
+            fromNetwork,
+            inputCurrency: fromToken as OnChainToken,
+            outputCurrency: ALFREDPAY_EVM_TOKEN,
+            toNetwork: Networks.Polygon
+          });
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
       ctx.request.inputAmount,
       ctx.request.inputCurrency,
@@ -115,12 +131,15 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       true,
       partner
     );
-    const subsidyFiat = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualFiat, maxSubsidy) : new Big(0);
-    const providerInput = actualFiat
-      .plus(subsidyFiat)
-      .div(oneUnitInFiat)
-      .minus(deductibleUsd)
-      .round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
+    // The advertised target rate is the user's final, net-of-platform-fees rate: the
+    // subsidy is sized against the FEE-NET actual output (mirroring the onramp's
+    // AlfredpaySubsidizePre), so it may economically offset the charged fee — bounded
+    // by maxSubsidy — while the fee itself remains reserved and collected by
+    // distributeFees. Sequelize returns DECIMAL pricing fields as strings at runtime.
+    const actualNetFiat = actualFiat.minus(deductibleUsd.mul(oneUnitInFiat));
+    const subsidyFiat =
+      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutput, actualNetFiat, maxSubsidy) : new Big(0);
+    const providerInput = actualNetFiat.plus(subsidyFiat).div(oneUnitInFiat).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
     const customerId = await resolveAlfredpayQuoteCustomerId(ctx.request.outputCurrency, ctx.request.userId);
     const providerQuote = await AlfredpayApiService.getInstance().createOfframpQuote({
       chain: AlfredpayChain.MATIC,

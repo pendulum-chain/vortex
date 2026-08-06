@@ -5,6 +5,7 @@ export interface APIErrorResponse {
   errors?: unknown[];
   status: number;
   isPublic?: boolean;
+  code?: string;
 }
 
 export class VortexSdkError extends Error {
@@ -12,14 +13,16 @@ export class VortexSdkError extends Error {
   public readonly isPublic: boolean;
   public readonly errors?: unknown[];
   public readonly originalError?: Error;
+  public readonly code?: string;
 
-  constructor(message: string, status = 500, isPublic = false, errors?: unknown[], originalError?: Error) {
+  constructor(message: string, status = 500, isPublic = false, errors?: unknown[], originalError?: Error, code?: string) {
     super(message);
     this.name = "VortexSdkError";
     this.status = status;
     this.isPublic = isPublic;
     this.errors = errors;
     this.originalError = originalError;
+    this.code = code;
   }
 }
 
@@ -381,6 +384,22 @@ export class APINotInitializedError extends VortexSdkInternalError {
   }
 }
 
+export class NetworkApiInitializationError extends VortexSdkInternalError {
+  public readonly network: string;
+  public readonly timeoutMs: number;
+
+  constructor(network: string, timeoutMs: number, originalError?: Error) {
+    const displayName = `${network.charAt(0).toUpperCase()}${network.slice(1)}`;
+    const message = originalError
+      ? `Failed to initialize ${displayName} WebSocket API: ${originalError.message}`
+      : `Timed out initializing ${displayName} WebSocket API after ${timeoutMs}ms`;
+    super(message, originalError);
+    this.name = "NetworkApiInitializationError";
+    this.network = network;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export class EphemeralGenerationError extends VortexSdkInternalError {
   constructor(network: string, originalError?: Error) {
     super(`Failed to generate ephemeral account for network: ${network}`, originalError);
@@ -441,9 +460,11 @@ function extractErrorMessage(value: unknown): string | undefined {
  */
 export function parseAPIError(response: unknown, fallbackStatus?: number): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, errors } = response as Record<string, unknown>;
+    const { message, error, errors, code } = response as Record<string, unknown>;
     const normalizedStatus = extractErrorStatus(response as Record<string, unknown>) ?? fallbackStatus ?? 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
+    const nestedCode = error && typeof error === "object" ? (error as Record<string, unknown>).code : undefined;
+    const errorCode = typeof code === "string" ? code : typeof nestedCode === "string" ? nestedCode : undefined;
 
     if (errorMessage) {
       if (errorMessage?.includes("Missing required fields")) {
@@ -557,7 +578,9 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       errorMessage ?? "Unknown API error",
       normalizedStatus,
       true,
-      Array.isArray(errors) ? errors : undefined
+      Array.isArray(errors) ? errors : undefined,
+      undefined,
+      errorCode
     );
   }
 

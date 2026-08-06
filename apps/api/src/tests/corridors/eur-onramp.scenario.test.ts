@@ -20,6 +20,7 @@ import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import CustomerEntity from "../../models/customerEntity.model";
+import FinancialOperation from "../../models/financialOperation.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -67,7 +68,7 @@ interface CorridorSetup {
  * → complete against the fake external world.
  *
  * This scenario is the hermetic-coverage precondition documented next to the
- * kill-switch and in docs/testing-strategy.md ("EUR re-enablement
+ * kill-switch and in docs/operations-testing.md ("EUR re-enablement
  * precondition"). The kill-switch itself stays on; once it is lifted, replace
  * the seeding helper with a plain POST /v1/ramp/register like the BRL/MXN
  * corridor files.
@@ -158,7 +159,7 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts([
       { address: ephemeral.address, type: EphemeralAccountType.EVM }
     ]);
-    await validateEphemeralAccountsFresh(ephemerals);
+    await validateEphemeralAccountsFresh(ephemerals, quote);
 
     const metadata = getFlowMetadata(quote.metadata);
     const flow = resolveBlockFlow(metadata.globals.request);
@@ -356,7 +357,7 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
   );
 
   it(
-    "transient failure: a scripted RPC outage on the destination transfer is recoverable and the corridor still completes",
+    "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -366,16 +367,19 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-
-      expect(submissionsOf(setup.signedTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.destination)).toBe(0n);
     },
     30000
   );

@@ -16,9 +16,7 @@ describe("mapTransactionStatus", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "failed",
-        expiresAt: "2026-07-21T00:15:00.000Z",
-        status: WireTransactionStatus.FAILED,
-        type: RampDirection.BUY
+        status: WireTransactionStatus.FAILED
       }),
       "failed"
     );
@@ -28,57 +26,20 @@ describe("mapTransactionStatus", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "timedOut",
-        expiresAt: "2026-07-21T00:15:00.000Z",
-        status: WireTransactionStatus.FAILED,
-        type: RampDirection.BUY
+        status: WireTransactionStatus.FAILED
       }),
       "cancelled"
     );
     assert.equal(mapPhaseToStatus("timedOut"), "cancelled");
   });
 
-  it("maps an unstarted onramp to awaiting payment", () => {
-    assert.equal(
-      mapTransactionStatus({
-        currentPhase: "initial",
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        status: WireTransactionStatus.PENDING,
-        type: RampDirection.BUY
-      }),
-      "awaiting_payin"
-    );
-  });
-
-  it("maps an expired unstarted onramp to cancelled", () => {
-    assert.equal(
-      mapTransactionStatus({
-        currentPhase: "initial",
-        expiresAt: new Date(Date.now() - 60_000).toISOString(),
-        status: WireTransactionStatus.PENDING,
-        type: RampDirection.BUY
-      }),
-      "cancelled"
-    );
-  });
-
-  it("keeps an unstarted offramp in processing", () => {
-    assert.equal(
-      mapTransactionStatus({
-        currentPhase: "initial",
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        status: WireTransactionStatus.PENDING,
-        type: RampDirection.SELL
-      }),
-      "processing"
-    );
-  });
 });
 
 describe("mapRampHistoryTransaction", () => {
   it("maps a BUY ramp without requiring a connected wallet", () => {
     const transaction = mapRampHistoryTransaction(
       {
-        currentPhase: "initial",
+        currentPhase: "fundEphemeral",
         date: "2026-07-21T00:00:00.000Z",
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
         from: EPaymentMethod.PIX,
@@ -101,7 +62,40 @@ describe("mapRampHistoryTransaction", () => {
     assert.equal(transaction?.amountInToken, "BRL");
     assert.equal(transaction?.payoutCurrency, "USDC");
     assert.equal(transaction?.recipientEmail, "Your wallet");
-    assert.equal(transaction?.status, "awaiting_payin");
+    assert.equal(transaction?.status, "processing");
+  });
+
+  it("omits initial BUY and SELL ramps from history", () => {
+    const base = {
+      currentPhase: "initial" as const,
+      date: "2026-07-21T00:00:00.000Z",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      from: EPaymentMethod.SPEI,
+      fromAmount: "100.00",
+      fromCurrency: FiatToken.MXN,
+      id: "initial-ramp",
+      status: WireTransactionStatus.PENDING,
+      to: Networks.Polygon,
+      toAmount: "18.20",
+      toCurrency: EvmToken.USDC,
+      walletAddress: "0x1111111111111111111111111111111111111111"
+    };
+
+    assert.equal(mapRampHistoryTransaction({ ...base, type: RampDirection.BUY }, "account-1"), null);
+    assert.equal(
+      mapRampHistoryTransaction(
+        {
+          ...base,
+          from: Networks.Polygon,
+          fromCurrency: EvmToken.USDC,
+          to: EPaymentMethod.SPEI,
+          toCurrency: FiatToken.MXN,
+          type: RampDirection.SELL
+        },
+        "account-1"
+      ),
+      null
+    );
   });
 
   it("keeps a SELL source wallet separate from its payout destination label", () => {

@@ -1,0 +1,46 @@
+# Security Risk Register
+
+## Authority and status
+
+This is the authoritative index of current, consciously accepted, deferred, or
+deployment-dependent security risk. Module specifications define required behavior; this
+register records the approved exceptions. A module checklist, historical finding, review
+document, or implementation note cannot silently create another exception.
+
+Statuses have the following meanings:
+
+- **Accepted** — the residual risk is an intentional current product/architecture decision.
+- **Deferred** — the behavior is intentionally out of scope and must not be enabled or expanded
+  until the exit criteria are met.
+- **Deployment pending** — source is fixed, but production is not protected until rollout
+  evidence is recorded.
+
+Changes to an accepted boundary require business/architecture approval and updates to both this
+register and the owning module specification.
+
+## Current risks
+
+| ID | Status | Severity | Owner role | Scope and decision | Existing controls | Revisit / exit criteria |
+|---|---|---:|---|---|---|---|
+| RISK-001 | Accepted | High | Platform + Finance | Subsidy limits are per component/ramp; there is no atomically reserved principal, partner, corridor, funding-wallet, or rolling-window budget. Current aggregate behavior is preserved. | Quote-bound amounts, per-component caps, fail-closed USD valuation, durable operation claims, funding-wallet balance. | Before materially increasing volume, adding concurrent workers, or widening subsidy-eligible corridors. |
+| RISK-002 | Accepted | Medium | Operations | Administrative writes use one shared `ADMIN_SECRET`; there is no individual principal, MFA, role separation, selective revocation, or per-operator attribution. | Independent high-entropy secret, constant-time equal-length comparison, route middleware, rate limiting, operational rotation. | Introduce an identity provider before broadening the admin surface or team access. |
+| RISK-003 | Accepted | Medium | Product + Security | Pending recipient invitations retain the raw bearer token so the sender can re-copy the link. | 192-bit random token, 14-day TTL, hash-only redemption lookup, sender-scoped listing, optional email binding, first-redeemer binding, raw token cleared on acceptance/observed expiry. | Revisit if invitations gain money-movement authority or threat exposure changes. |
+| RISK-004 | Deferred | High | Product + Payments Architecture | Recipient eligibility is advisory; recipient-directed payout is unsupported. Ramp registration is a sender self-offramp and rejects common recipient-context fields. | Authenticated/entity-scoped recipient APIs; explicit registration rejection prevents accidental reliance on ignored fields. | A separate PR must define the second principal, relationship ownership, hard eligibility gate, and provider-side payout reference resolution before enabling recipient payout. |
+| RISK-005 | Accepted | Medium | Product + Operations | The product promises the exact quoted amount. A ramp does not downgrade that promise or report a lesser amount as successful when automated delivery cannot complete. | Exact quote-bound targets, balance checks, capped subsidy paths, recoverable/terminal phase states, reconciliation data. | Add a formal deadline and automatic return of in-transit funds without weakening the exact-amount promise. |
+| RISK-006 | Accepted | Medium | Client Platform | Client recovery keys are retained until a terminal ramp state is observed, then for 90 days; unresolved ramps are retained indefinitely. | Route-scoped freshness, pruning on storage access, terminal timestamp recorded once, no count-based eviction of unresolved records. | Revisit if storage pressure or client compromise data shows the retention window is too broad. |
+| RISK-007 | Deployment pending | High | Smart Contracts + Operations | TokenRelayer source rejects fee-on-transfer shortfalls, partial consumption, codeless destinations, and cross-execution balance subsidy. Existing deployed addresses do not inherit the fix. Automatic discrepancy subsidy is intentionally absent because no immutable cap/funding policy has been approved. | Execution-local token/native balance accounting, exact transient allowance, refund attribution, events, contract tests. | Redeploy and verify bytecode on every supported chain, update the address registry, retire old deployments, and record rollout evidence. |
+| RISK-008 | Accepted | High | Payments Platform | Squid/Axelar terminal status is preferred, but an EVM destination-balance fallback remains necessary because provider indexing can miss real arrivals. The fallback waits for baseline plus 90% of the exact route output; a late remainder can still overfund the ephemeral. | Route/source/token/amount/baseline-bound persisted evidence, explicit fallback kind and ratio, structured logging, per-ramp settlement cap, subsidy clamped to observed shortfall. | Add provider receipt proof or late-arrival reconciliation/recovery before raising caps or expanding exposure. |
+| RISK-009 | Deferred | High | Cross-chain Platform | Quote-disabled BRL↔AssetHub recovery retains XCM evidence exceptions: Pendulum→AssetHub re-entry trusts an internally persisted finalized source block without proving AssetHub arrival, and Pendulum→Moonbeam recovery may use source depletion. | Public quote creation rejects both directions; new submissions wait for source finalization/events; destination amount checks exist where supported. | Destination receipt/balance-delta proof and durable ambiguous-broadcast recovery are release blockers before re-enabling either corridor. |
+| RISK-010 | Accepted | Medium | Payments Architecture | Fee distribution is final even if a later phase fails; there is no fee-refund path. | Per-flow fee ordering, later-phase recovery/retry, exact phase metadata and durable external-operation claims. | Revisit when implementing automatic failure deadlines/refunds. |
+| RISK-011 | Accepted | High | Infrastructure + Security | Application secrets are environment variables; there is no integrated secrets manager, access audit, dual-secret rollout, or automated rotation. | Deployment access controls, independent credentials, startup/runtime presence checks on security-critical paths, operational rotation. | Adopt managed secret storage and dual-key rotation before materially expanding privileged operators or deployments. |
+| RISK-012 | Accepted | High | Rebalancer Operations | Rebalancer state has no distributed lock and several externally visible steps can be ambiguous across a crash; single-run scheduling is an operational assumption. | One-shot process, saved state, chain nonces/balance checks on some steps, daily bridge limit and route-cost policy. | Add a lease and durable operation claims before allowing overlapping schedules or multiple replicas. |
+| RISK-014 | Accepted | Medium | Pricing + Treasury | CoinGecko’s `usd-coin` price is used as a USD/fiat fallback or sanity reference, so a USDC depeg can distort the reference. | FastForex/Binance primary routes, sanity bands, short cache TTL, fail-closed when no valid provider remains, operational depeg monitoring. | Replace with an independent fiat FX reference before raising depeg-sensitive exposure. |
+| RISK-015 | Accepted | Low | EVM Operations | Base cleanup sweeps supported ERC-20 residuals after completion but does not sweep small native gas dust. | Just-in-time gas funding and token sweeps limit residual value. | Revisit if observed native residuals become material. |
+| RISK-016 | Deferred | High | Payments Platform | Failed/timed-out Base ramps are not swept by the Base post-process handler, and AssetHub cleanup is a no-op. | Cleanup worker selects terminal ramps; completed Base token cleanup works; AssetHub corridors remain quote-disabled. | Widen safe Base cleanup to failed/timed-out states and implement/remove AssetHub cleanup before enabling AssetHub or relying on automatic failure refunds. |
+| RISK-017 | Deferred | High | Operations + Data | Migrations 060-061 permanently delete legacy provider/KYC/credential records and schema objects. Approved legacy-only data has no archive or database down migration; unknown consumers, old processes, incomplete canonical mappings, or an unusable backup could turn deployment into unrecoverable loss or outage. | Fail-closed parity script, maintenance-window hard cutover and process drain, PostgreSQL catalog/external-consumer audit, five-second lock timeout, default `RESTRICT`, and rehearsed pre-migration restore. | Complete and retain every gate in [`operations-legacy-schema-cleanup.md`](../operations-legacy-schema-cleanup.md), verify production cleanup, and confirm the post-deploy observation window is clean. |
+
+## Review cadence
+
+The owning role must review an entry when its trigger occurs and during any security release
+review that changes the referenced scope. “Accepted” never means unbounded: if a control named
+above is removed or a limit is raised, the exception requires fresh approval.

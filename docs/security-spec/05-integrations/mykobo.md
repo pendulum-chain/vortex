@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Stellar, Pendulum, or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
+Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Pendulum or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
 
 EUR ramp registration is currently disabled at `RampService.registerRamp`: any quote whose input or output currency is `FiatToken.EURC` is rejected with `503 SERVICE_UNAVAILABLE` before Mykobo intents or phase transactions are prepared. The flow details below describe the intended Mykobo behavior for when the EUR rail is re-enabled.
 
@@ -10,7 +10,7 @@ Monerium now owns EU dashboard KYC/KYB and recipient onboarding eligibility; Myk
 
 Mykobo replaces two earlier EUR rails:
 
-- The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed for EUR. See `stellar-anchors.md` for the deprecation note.
+- The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed; Stellar/Spacewalk support was fully removed from the platform (migration 028).
 - The legacy **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. The new Monerium OAuth onboarding flow is separate and does not restore that settlement path; see `monerium.md`.
 
 **Provider type:** Both (on-ramp and off-ramp)
@@ -38,7 +38,7 @@ Mykobo replaces two earlier EUR rails:
    - **Recovery shortcut**: if the ephemeral already holds ≥ 95% of `quote.metadata.blocks.mykoboMint.mint.outputAmountRaw` EURC (`EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95`), the block executor skips the wait. The 5% tolerance absorbs fee variance between quote creation and SEPA settlement.
    - On outer-timeout expiry, the ramp transitions to `failed` (the user did not pay).
 5. `fundEphemeral` (Base ETH gas top-up; same as BRL onramp) → `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
-6. `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed). The EVM post-swap branch uses the split subsidy caps documented in `fund-routing.md`: swap-output discrepancy and discount subsidy are bounded separately before any transfer is submitted.
+6. `distributeFees` (sequential USDC transfers on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed). The EVM post-swap branch uses the split subsidy caps documented in `fund-routing.md`: swap-output discrepancy and discount subsidy are bounded separately before any transfer is submitted.
 7. If destination is Base + USDC → direct `destinationTransfer` after Nabla (Squid omitted). For Base USDT, ETH, AXLUSDC, or BRLA → one same-chain `squidRouterApprove` / `squidRouterSwap` followed immediately by `destinationTransfer`, with no pay, backup, or final-settlement work. Non-Base EVM outputs use the cross-chain Squid path with pay/fallback/final settlement.
 
 #### Degenerate EUR→EURC-on-Base route (direct bypass)

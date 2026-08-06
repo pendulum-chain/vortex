@@ -17,6 +17,7 @@ export const AveniaMint: Phase<
 > = {
   context: AveniaMintContext,
   executors: [new BrlaOnrampMintExecutor()],
+  externalOperations: { register: { provider: "avenia" } },
   name: "AveniaMint",
   phases: ["brlaOnrampMint"],
   prepareTxs: prepareAveniaMintTxs,
@@ -36,7 +37,6 @@ export const AveniaMint: Phase<
               fromNetwork: Networks.Base,
               inputCurrency: EvmToken.USDC,
               outputCurrency: ctx.request.outputCurrency as OnChainToken,
-              rampType: ctx.request.rampType,
               toNetwork
             })
           ).networkFeeUSD;

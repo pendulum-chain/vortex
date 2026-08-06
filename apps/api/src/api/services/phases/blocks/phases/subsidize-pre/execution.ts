@@ -12,6 +12,7 @@ import {
   RampCurrency,
   RampDirection,
   RampPhase,
+  sleep,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import { Big } from "big.js";
@@ -26,6 +27,7 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePreContext } from "./simulation";
@@ -41,7 +43,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
     return 200;
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
@@ -67,21 +69,41 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           const funding = getFundingAccount();
           const available = await getBalance(funding.address);
           if (available.lt(required)) throw this.createUnrecoverableError("Pendulum pre-swap funding balance too low");
-          const result = await manager.executeApiCall(
-            api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
-            funding,
-            "pendulum"
-          );
+          const result = await this.runFinancialOperation(state, {
+            attemptClass: "substrate-subsidy-transfer",
+            externalId: operation => operation.hash,
+            perform: async () => {
+              throwIfAborted(signal);
+              const sent = await abortableCall(signal, () =>
+                manager.executeApiCall(
+                  api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
+                  funding,
+                  "pendulum"
+                )
+              );
+              await waitUntilTrueWithTimeout(
+                async () => (await getBalance(substrateAddress)).gte(metadata.targetInputAmountRaw),
+                5000,
+                180000,
+                signal
+              );
+              return { hash: sent.hash };
+            },
+            provider: Networks.Pendulum,
+            request: {
+              amountRaw: required.toFixed(0, 0),
+              currencyId,
+              destination: substrateAddress,
+              source: funding.address
+            },
+            signal
+          });
           await this.createSubsidy(
             state,
             nativeToDecimal(required, metadata.inputDecimals).toNumber(),
             metadata.inputCurrency as SubsidyToken,
             funding.address,
             result.hash
-          );
-          await waitUntilTrueWithTimeout(
-            async () => (await getBalance(substrateAddress)).gte(metadata.targetInputAmountRaw),
-            5000
           );
         }
         return state;
@@ -106,16 +128,21 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           `Could not find token details for input token ${inputToken} on network ${inputNetwork}. Invalid quote metadata.`
         );
       }
-      const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;
+      // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
+      // additionally keeps the later distributeFees transfers funded on the ephemeral.
+      const expectedInputAmountForSwapRaw = Big(metadata.targetInputAmountRaw)
+        .plus(metadata.feeReserveRaw ?? "0")
+        .toFixed(0);
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
+      await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
 
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",
         chain: inputTokenDetails.network as EvmNetworks,
         intervalMs: 1000,
         ownerAddress: evmEphemeralAddress,
+        signal,
         timeoutMs: 5000,
         tokenDetails: inputTokenDetails
       });
@@ -159,6 +186,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
 
         const publicClient = evmClientManager.getClient(destinationNetwork);
         const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+        const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
 
         const data = encodeFunctionData({
           abi: erc20Abi,
@@ -166,26 +194,41 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           functionName: "transfer"
         });
 
-        const txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-          data,
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-          to: inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
-          value: 0n
+        const { hash: txHash } = await this.runFinancialOperation(state, {
+          attemptClass: "evm-subsidy-transfer",
+          externalId: operation => operation.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+              data,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              nonce,
+              to: inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
+              value: 0n
+            });
+            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+            if (receipt.status !== "success") {
+              throw new Error(`SubsidizePreSwapExecutor: Subsidy transaction ${hash} failed`);
+            }
+            return { hash };
+          },
+          provider: destinationNetwork,
+          request: {
+            amountRaw: requiredAmount.toFixed(0),
+            destination: evmEphemeralAddress,
+            network: destinationNetwork,
+            nonce,
+            source: fundingAccount.address,
+            token: inputTokenDetails.erc20AddressSourceChain
+          },
+          signal
         });
 
         const subsidyAmount = nativeToDecimal(requiredAmount, metadata.inputDecimals).toNumber();
         const subsidyToken = metadata.inputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
-
-        const receipt = await publicClient.waitForTransactionReceipt({
-          hash: txHash as `0x${string}`
-        });
-
-        if (!receipt || receipt.status !== "success") {
-          throw new Error(`SubsidizePreSwapExecutor: Subsidy transaction ${txHash} failed or was not found`);
-        }
       }
 
       return state;

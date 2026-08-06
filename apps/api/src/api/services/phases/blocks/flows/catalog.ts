@@ -14,7 +14,10 @@ import {
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
+import type { FlowIdentity } from "../core/identity";
+import { assertFlowIdentity } from "../core/identity";
 import type { FlowMetadata } from "../core/metadata";
+import { getFlowMetadata } from "../core/metadata";
 import type { Flow } from "../core/types";
 import { alfredpayOfframpFlow, makeAlfredpayOfframpFlow } from "./alfredpay-offramp";
 import { alfredpayOnrampCrossChainFlow, makeAlfredpayOnrampCrossChainFlow } from "./alfredpay-onramp-cross-chain";
@@ -315,14 +318,62 @@ const flowDefinitions: FlowDefinition[] = [
 ];
 
 export function resolveBlockFlow(request: FlowRequest): Flow {
-  const definition = flowDefinitions.find(candidate => candidate.matches(request));
-  if (!definition) {
+  const definitions = flowDefinitions.filter(candidate => candidate.matches(request));
+  if (definitions.length === 0) {
     throw new APIError({
       message: `No block flow mapped for ${request.rampType} ${request.from}/${request.inputCurrency} -> ${request.to}/${request.outputCurrency}`,
       status: httpStatus.BAD_REQUEST
     });
   }
-  return definition.create(request);
+  if (definitions.length > 1) {
+    throw new APIError({
+      message: `Ambiguous block flow mapping for ${request.rampType} ${request.from}/${request.inputCurrency} -> ${request.to}/${request.outputCurrency}: ${definitions
+        .map(definition => definition.executorFlow.identity.id)
+        .join(", ")}`,
+      status: httpStatus.INTERNAL_SERVER_ERROR
+    });
+  }
+  return definitions[0].create(request);
+}
+
+export function resolvePersistedBlockFlow(metadataValue: unknown): Flow {
+  const metadata = getFlowMetadata(metadataValue);
+  if (!metadata.flow) {
+    const legacyFlow = resolveBlockFlow(metadata.globals.request);
+    legacyFlow.assertMetadata(metadata, { allowLegacy: true });
+    return legacyFlow;
+  }
+
+  const candidates = flowDefinitions.filter(definition => {
+    const identity = definition.executorFlow.identity;
+    return (
+      identity.id === metadata.flow?.id &&
+      identity.version === metadata.flow.version &&
+      identity.catalogVersion === metadata.flow.catalogVersion &&
+      definition.matches(metadata.globals.request)
+    );
+  });
+  if (candidates.length !== 1) {
+    throw new Error(
+      `Unsupported or ambiguous persisted flow ${metadata.flow.id}@${metadata.flow.version} for catalog ${metadata.flow.catalogVersion}`
+    );
+  }
+  const flow = candidates[0].create(metadata.globals.request);
+  assertFlowIdentity(metadata.flow, flow.identity);
+  flow.assertMetadata(metadata);
+  return flow;
+}
+
+export function getBlockFlowByIdentity(identity: FlowIdentity): Flow {
+  const candidates = getBlockExecutorFlows().filter(
+    flow => flow.identity.id === identity.id && flow.identity.version === identity.version
+  );
+  const unique = [...new Map(candidates.map(flow => [`${flow.identity.id}@${flow.identity.version}`, flow])).values()];
+  if (unique.length !== 1) {
+    throw new Error(`Unsupported persisted flow ${identity.id}@${identity.version}`);
+  }
+  assertFlowIdentity(identity, unique[0].identity);
+  return unique[0];
 }
 
 export function getBlockExecutorFlows(): Flow[] {

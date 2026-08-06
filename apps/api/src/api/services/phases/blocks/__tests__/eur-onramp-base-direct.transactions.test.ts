@@ -99,6 +99,7 @@ describe("EUR onramp Base direct transactions", () => {
       },
       destinationAddress: DESTINATION,
       evmEphemeralAddress: EPHEMERAL,
+      flow: eurOnrampBaseDirectFlow.identity,
       isDirectTransfer: true,
       phaseFlow: ["initial", "mykoboOnrampDeposit", "fundEphemeral", "destinationTransfer", "complete"],
       transactionPlan: { nativePrefunding: {} }

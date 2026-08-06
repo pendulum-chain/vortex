@@ -30,18 +30,18 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 2. API-key-authenticated integration initiates on-ramp for a user with completed Alfredpay KYC → receives Alfredpay payment instructions.
 3. User makes fiat payment.
 4. `alfredpayOnrampMint` phase: confirms Alfredpay payment, credits the Alfredpay on-chain token to the ephemeral on Polygon. If the provider quote is degraded or expired and the discount engine's `expectedOutput` exceeds the provider's, the phase emits `alfredOnrampMintFallback` to record the substitution.
-5. `subsidizePreSwap` phase: tops up the ephemeral's Alfredpay on-chain token balance to the subsidy target (Polygon, `ALFREDPAY_EVM_TOKEN`).
+5. `subsidizePreSwap` phase: tops up the ephemeral's Alfredpay on-chain token balance to the subsidy target plus the vortex/partner fee reserve (Polygon, `ALFREDPAY_EVM_TOKEN`); the components were deducted from the mint when the target was priced.
 6. `squidRouterSwap` phase: routes the Polygon Alfredpay token to the destination EVM chain/token. For same-chain same-token (Polygon `ALFREDPAY_EVM_TOKEN` → Polygon `ALFREDPAY_EVM_TOKEN`), the passthrough shortcut sends the funds directly without invoking SquidRouter.
-7. `destinationTransfer` → `polygonCleanup` → `complete`.
+7. `destinationTransfer` → `distributeFees` (pays the reserved vortex/partner residual on Polygon, see `03-ramp-engine/fee-integrity.md`) → `polygonCleanup` → `complete`.
 
 For routed Alfredpay onramps (any non-passthrough output), the final quote output is the Squid destination-token amount. `quote.outputAmount` MUST be stored with the destination token's decimals, and `evmToEvm.outputAmountRaw` MUST preserve Squid's destination-token raw output. The Polygon-minted Alfredpay token remains the Squid source amount; the spec must not treat Polygon source-token decimals as final settlement precision.
 
 **Off-ramp flow:**
 1. The catalog `AlfredpayOfframp` block stores provider quote facts under `metadata.blocks.alfredpayOfframp` and returns the provider expiration as the Vortex quote TTL. Its registration hook validates `fiatAccountId` and wallet address, resolves the authenticated KYC-approved Alfredpay customer, refreshes the provider quote with exact `toAmount` and fee equality, updates only that block's `quoteId`/expiration, and creates the order transactionally. Drift hard-fails registration.
 2. `squidRouterPermitExecute` or `squidRouterNoPermitTransfer/Approve/Swap` phase: executes the user-signed permit (or the no-permit equivalent) and lands the Alfredpay on-chain token on Polygon.
-3. `finalSettlementSubsidy` phase: always runs for Alfredpay offramps because `AlfredpayOfframp` declares it between funding and provider transfer for every source variant.
+3. `finalSettlementSubsidy` phase: always runs for Alfredpay offramps because `AlfredpayOfframp` declares it between funding and provider transfer for every source variant; its target is the Alfredpay deposit PLUS the charged vortex/partner fees so the later fee transfers stay funded.
 4. `alfredpayOfframpTransfer` phase: transfers the Alfredpay on-chain token to Alfredpay's settlement address for fiat payout. If Alfredpay rejects the stored `quoteId` as expired, the handler requests a fresh provider quote at execute time and re-attempts (`alfredpayOfframpTransferFallback` phase records the re-attempt).
-5. `polygonCleanupAxlUsdc` → `complete`.
+5. `distributeFees` (pays the reserved vortex/partner residual on Polygon, see `03-ramp-engine/fee-integrity.md`) → `polygonCleanupAxlUsdc` → `complete`.
 
 **Request validation:** Alfredpay middleware (`alfredpay.middleware.ts`) validates the `country` parameter against the `AlfredPayCountry` enum for all Alfredpay-related requests.
 
@@ -73,8 +73,9 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 
 22. **Uploaded filenames MUST be sanitized to ASCII before reaching Alfredpay** — `AlfredpayApiService` rewrites the multipart filename of every KYC/KYB upload to `[A-Za-z0-9._-]` (accents transliterated, everything else replaced) rather than forwarding the name the user's file happened to carry. Alfredpay's relate-person endpoint answers a non-ASCII filename with a bare 5xx `111301 UNKNOWN_ERROR` that names no field, which stranded MX company onboardings at the representative's ID upload. The trigger is invisible: macOS separates the time from AM/PM with U+202F, so `Screenshot 2026-07-09 at 12.23.56 PM.png` is rejected while the same name retyped with an ordinary space is accepted, and accented filenames fail for the same reason — the provider stores every upload under a generated `{uuid}.{ext}`, so the submitted name is discarded on arrival and nothing is lost by rewriting it. This also keeps user-controlled text out of a downstream `Content-Disposition` header. The sanitizer MUST copy the bytes into a new `File`: under Bun, `new File([file], name)`, `new Blob([file])` and `FormData.append(field, file, name)` all alias or ignore their way back to the original name, so the guarantee is asserted on the value that reaches the wire (`alfredpayApiService.test.ts`), not on the helper alone.
 23. **Dashboard Alfredpay BUY confirmation MUST only start processing, never assert settlement** — The dashboard renders the server-issued MXN/USD/COP/ARS payment instructions after registration and keeps the ramp unstarted. `I have made the payment` may call `/ramp/start`, but token crediting still depends on Alfredpay's independently verified payment status; the client confirmation is not proof of payment.
-24. **A terminal verification outcome MUST be queued for notification before it is persisted** — Alfredpay publishes no verification webhook, so `refreshAlfredpayCustomerStatus` is the only place an outcome is ever observed, and both of its callers (the dashboard's status aggregation and `AlfredpayStatusWorker`) select on a non-terminal stored status. An account written terminal while its enqueue failed would therefore be excluded from every subsequent poll and never notified. The enqueue MUST be ordered before `view.update`, so a failure leaves the account non-terminal and the next poll retries both. The notification key is `(alfredpay, verification_*, submissionId)`, which makes the retry — and a sweep racing a dashboard refresh — idempotent. See `resend.md` invariant 13.
-25. **The background verification sweep MUST be bounded and MUST NOT poll accounts it cannot notify** — `AlfredpayStatusWorker` costs two to three Alfredpay calls per account (submission-id resolution, then status). It MUST bound the sweep by account age (60 days on `provider_customers.updatedAt`, since an account abandoned mid-wizard never reaches a terminal status) and by batch size, logging when a cycle is truncated rather than dropping the remainder silently. Entities with a null `profile_id` are partner-owned and have no profile to email; they MUST be excluded in the query so they never consume provider requests.
+24. **Reported Alfredpay usage MUST be user-scoped and provider-leg denominated** — `POST /v1/limits` derives the effective user from authentication and counts only that user's ramps whose `complete` phase-history timestamp falls in the current UTC calendar month. Routed BUY usage is the Alfredpay fiat input; routed SELL usage is `metadata.blocks.alfredpayOfframp.inputAmountDecimal` in `ALFREDPAY_EVM_TOKEN`, not the public source-token amount. This informational aggregate is cached in memory for 60 seconds; quote-time limit enforcement never reads that cache. Alfredpay does not document whether its cumulative quota resets by calendar month or uses a rolling window, so the calendar-month period is an explicit Vortex assumption rather than provider-confirmed semantics.
+25. **A terminal verification outcome MUST be queued for notification before it is persisted** — Alfredpay publishes no verification webhook, so `refreshAlfredpayCustomerStatus` is the only place an outcome is ever observed, and both of its callers (the dashboard's status aggregation and `AlfredpayStatusWorker`) select on a non-terminal stored status. An account written terminal while its enqueue failed would therefore be excluded from every subsequent poll and never notified. The enqueue MUST be ordered before `view.update`, so a failure leaves the account non-terminal and the next poll retries both. The notification key is `(alfredpay, verification_*, submissionId)`, which makes the retry — and a sweep racing a dashboard refresh — idempotent. See `resend.md` invariant 13.
+26. **The background verification sweep MUST be bounded and MUST NOT poll accounts it cannot notify** — `AlfredpayStatusWorker` costs two to three Alfredpay calls per account (submission-id resolution, then status). It MUST bound the sweep by account age (60 days on `provider_customers.updatedAt`, since an account abandoned mid-wizard never reaches a terminal status) and by batch size, logging when a cycle is truncated rather than dropping the remainder silently. Entities with a null `profile_id` are partner-owned and have no profile to email; they MUST be excluded in the query so they never consume provider requests.
 
 ## Threat Vectors & Mitigations
 
@@ -107,7 +108,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 - [x] Alfredpay block executors use `RecoverablePhaseError` for transient failures. **PASS** — verified in the block execution modules.
 - [x] HTTPS enforced for Alfredpay API calls. **PASS** — base URL uses `https://`.
 - [x] No Alfredpay credentials or user payment details in logs. **PASS** — no credential leakage observed in log statements.
-- [FAIL] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
+- [ ] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
 - [x] `subsidizePreSwap` runs before `squidRouterSwap` on the onramp flow, and `finalSettlementSubsidy` runs before `alfredpayOfframpTransfer` on the offramp flow. **PASS** — flow tests pin both sequences.
 - [x] Onramp fallback emits `alfredOnrampMintFallback` from the `AlfredpayMint` block using the phase-owned mint output. **PASS** — `phases/blocks/phases/alfredpay-mint/transactions.ts`. Phase is registered as an EVM phase in `transactions/validation.ts`.
 - [x] Offramp fallback emits `alfredpayOfframpTransferFallback` for expired-quote recovery; phase is registered as an EVM phase in `transactions/validation.ts:250`. **PASS**.
@@ -139,8 +140,20 @@ Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
   `IN_REVIEW`, `COMPLETED`, and `FAILED` map to `in_review`, `approved`, and `rejected`
   respectively.
 - All controller lookups go through `findAlfredpayCustomer(userId, country[, type])`, which
-  resolves the caller's `customer_entity` first and preserves the legacy updatedAt-DESC
-  tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
-  type-ASC precedence ('business' < 'individual').
+  preserves the legacy updatedAt-DESC tie-break across a user's individual/business rows.
+  Type-less lookups resolve the caller's active `customer_entity` (the quote/ramp account
+  context). Typed lookups scope by the row's `customer_type` across every entity the profile
+  owns, and never create entities: migration 040 attached legacy business rows to the
+  profile's (038-backfilled) individual entity, so scoping to the same-typed entity made
+  migrated business customers invisible to every KYB endpoint and findOrCreate'd stray
+  empty business entities as a side effect of reads. `createAlfredpayCustomer` homes a new
+  row on the entity already carrying the profile's alfredpay rows of that `customer_type`,
+  preferring the *active* entity when such rows are split across entities (a pre-fix
+  duplicate can sit on a stray business entity) and falling back to the typed entity, so
+  ramp registration — which resolves the active entity — keeps seeing every corridor of a
+  migrated profile. `lookupAlfredpayCustomerType` keeps the type-ASC precedence
+  ('business' < 'individual').
 - Canonical and external status transitions mirror into the account's `kyc_cases` row in the same code path.
-- The legacy `alfredpay_customers` table is a read-only backup with no remaining readers.
+- Migration 060 permanently deletes the legacy `alfredpay_customers` table, including historical
+  and folded rows. This deletion is intentionally irreversible; no application reader or archive
+  remains, and recovery requires restoring the pre-migration database backup.

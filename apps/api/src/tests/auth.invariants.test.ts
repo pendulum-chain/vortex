@@ -74,7 +74,7 @@ describe("auth and ownership invariants", () => {
     it("rejects a revoked API key", async () => {
       const user = await createTestUser();
       const { record, plaintextKey } = await createTestApiKey({ userId: user.id });
-      await record.update({ isActive: false });
+      await record.update({ revokedAt: new Date() });
 
       const response = await register(body, { "X-API-Key": plaintextKey });
       expect(response.status).toBe(401);
@@ -219,7 +219,8 @@ describe("auth and ownership invariants", () => {
   describe("admin authentication", () => {
     it("guards partner API key admin routes with the admin secret", async () => {
       const partner = await createTestPartner();
-      const path = `/v1/admin/partners/${partner.name}/api-keys`;
+      const profile = await createTestUser();
+      const path = `/v1/admin/partners/${partner.name}/api-credentials?userId=${profile.id}`;
 
       const noAuth = await app.request(path);
       expect(noAuth.status).toBe(401);

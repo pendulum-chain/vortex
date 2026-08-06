@@ -8,6 +8,7 @@ import {
   EphemeralAccount,
   EphemeralAccountType,
   EvmTransactionData,
+  GetRampInfoResponse,
   GetRampStatusResponse,
   isAlfredpayToken,
   isEvmTransactionData,
@@ -56,11 +57,10 @@ export class VortexSdk {
   private brlHandler: BrlHandler;
   private alfredpayHandler: AlfredpayHandler;
   private mykoboHandler: MykoboHandler;
-  private initializationPromise: Promise<void>;
   private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
-    this.apiService = new ApiService(config.apiBaseUrl, config.secretKey);
+    this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
     this.publicKey = config.publicKey;
@@ -86,8 +86,6 @@ export class VortexSdk {
       this.generateEphemerals.bind(this),
       this.signTransactions.bind(this)
     );
-
-    this.initializationPromise = this.networkManager.waitForInitialization();
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
@@ -110,6 +108,10 @@ export class VortexSdk {
     return this.apiService.getRampStatus(rampId);
   }
 
+  async getRampInfo(): Promise<GetRampInfoResponse> {
+    return this.apiService.getRampInfo();
+  }
+
   async getUserTransactions(rampProcess: RampProcess, userAddress: string): Promise<UnsignedTx[]> {
     if (!rampProcess.unsignedTxs) {
       return [];
@@ -127,11 +129,9 @@ export class VortexSdk {
   }> {
     if (!this.secretKey) {
       throw new Error(
-        "Ramp registration requires a user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
+        "Ramp registration requires a secretKey (sk_*) that resolves to a Vortex user. Use a user-scoped key or a partner key delegated to a user."
       );
     }
-
-    await this.ensureInitialized();
 
     let rampProcess: RampProcess;
     let unsignedTransactions: UnsignedTx[] = [];
@@ -349,10 +349,6 @@ export class VortexSdk {
     }
   }
 
-  private async ensureInitialized(): Promise<void> {
-    await this.initializationPromise;
-  }
-
   private async generateEphemerals(): Promise<{
     ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
     accountMetas: AccountMeta[];
@@ -385,7 +381,9 @@ export class VortexSdk {
       evmEphemeral?: EphemeralAccount;
     }
   ): Promise<PresignedTx[]> {
-    await this.ensureInitialized();
+    if (unsignedTxs.length === 0) {
+      return [];
+    }
 
     try {
       const signedTxs = await signUnsignedTransactions(
@@ -407,7 +405,8 @@ export class VortexSdk {
 
       return signedTxs;
     } catch (error) {
-      throw new TransactionSigningError(undefined, error as Error);
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      throw new TransactionSigningError(originalError.message, originalError);
     }
   }
 }

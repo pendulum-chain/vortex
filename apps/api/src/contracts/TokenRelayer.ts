@@ -1,6 +1,24 @@
 export const tokenRelayerAbi = [
   {
     inputs: [
+      { name: "token", type: "address" },
+      { name: "requested", type: "uint256" },
+      { name: "received", type: "uint256" }
+    ],
+    name: "TokenReceiptMismatch",
+    type: "error"
+  },
+  {
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "balanceBefore", type: "uint256" },
+      { name: "balanceAfter", type: "uint256" }
+    ],
+    name: "TokenBalanceNotRestored",
+    type: "error"
+  },
+  {
+    inputs: [
       {
         components: [
           { name: "token", type: "address" },
@@ -23,7 +41,7 @@ export const tokenRelayerAbi = [
       }
     ],
     name: "execute",
-    outputs: [{ name: "", type: "bool" }],
+    outputs: [],
     stateMutability: "payable",
     type: "function"
   }

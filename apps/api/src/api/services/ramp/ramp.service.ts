@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
@@ -30,6 +31,8 @@ import { isAddress } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
+import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../../constants/constants";
+import PartnerManagedProfile from "../../../models/partnerManagedProfile.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
@@ -42,7 +45,7 @@ import {
 import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers";
 import { accountCapabilities } from "../phases/blocks/core/accounts";
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
-import { resolveBlockFlow } from "../phases/blocks/flows/catalog";
+import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions/validation";
@@ -51,7 +54,21 @@ import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
 
-const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
+function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error(`${label} contains a non-object compatibility record`);
+    }
+    for (const [key, value] of Object.entries(record)) {
+      if (Object.hasOwn(merged, key) && !isDeepStrictEqual(merged[key], value)) {
+        throw new Error(`${label} contains conflicting values for compatibility field ${key}`);
+      }
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -149,11 +166,38 @@ export class RampService extends BaseRampService {
       });
     }
   }
+
+  private static assertStartDeadlineNotExceeded(ramp: Pick<RampState, "createdAt">): void {
+    const ageSeconds = (Date.now() - ramp.createdAt.getTime()) / 1000;
+    if (ageSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+      throw new APIError({
+        message: "Maximum time window to start process exceeded. Ramp invalidated.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
   public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+    const recipientContextKeys = [
+      "recipientId",
+      "recipientRelationshipId",
+      "recipientPayoutReferenceId",
+      "senderRecipientId"
+    ] as const;
+    const unsupportedRecipientKey = recipientContextKeys.find(key =>
+      Object.prototype.hasOwnProperty.call(request.additionalData ?? {}, key)
+    );
+    if (unsupportedRecipientKey) {
+      throw new APIError({
+        message: "Recipient-directed payout is not supported by ramp registration; recipient eligibility is advisory only.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -211,9 +255,23 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const technicalManagedProfile = await PartnerManagedProfile.findOne({
+        attributes: ["id"],
+        transaction,
+        where: { profileId: effectiveUserId, subjectType: "technical" }
+      });
+      if (technicalManagedProfile) {
+        throw new APIError({
+          isPublic: true,
+          message: "Technical managed profiles are not eligible to register ramps.",
+          status: httpStatus.FORBIDDEN,
+          type: "TECHNICAL_PROFILE_NOT_RAMP_ELIGIBLE"
+        });
+      }
+
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
-      // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
+      // RUN_LIVE_TESTS-gated tests only — see docs/operations-testing.md).
       if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
         throw new APIError({
           message: "EUR ramps are currently disabled",
@@ -260,7 +318,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      await validateEphemeralAccountsFresh(ephemerals);
+      await validateEphemeralAccountsFresh(ephemerals, quote);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
@@ -380,6 +438,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertStartDeadlineNotExceeded(rampState);
+
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
@@ -392,13 +452,17 @@ export class RampService extends BaseRampService {
         await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs, { requireComplete: false });
       }
 
-      // Merge presigned transactions (replace existing ones with same phase/network/signer)
+      // Merge presigned transactions (replace existing ones with same phase/network/signer/nonce).
+      // The nonce MUST be part of the identity: split fee distribution prepares several
+      // distributeFees transactions that differ only by nonce, and a nonce-less key would
+      // let the later one overwrite the earlier one.
       const existingTxs = rampState.presignedTxs || [];
       const updatedTxs = [...existingTxs];
 
       presignedTxs.forEach((newTx: UnsignedTx) => {
         const existingIndex = updatedTxs.findIndex(
-          tx => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer
+          tx =>
+            tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer && tx.nonce === newTx.nonce
         );
         if (existingIndex >= 0) {
           updatedTxs[existingIndex] = newTx;
@@ -488,17 +552,7 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      RampService.assertStartDeadlineNotExceeded(rampState);
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
@@ -880,7 +934,7 @@ export class RampService extends BaseRampService {
     }
 
     const metadata = getFlowMetadata(quote.metadata);
-    const flow = resolveBlockFlow(metadata.globals.request);
+    const flow = resolvePersistedBlockFlow(metadata);
     const quoteFields = quote.get({ plain: true });
     const registered = await flow.register({
       authenticatedUser: { id: userId },
@@ -900,12 +954,14 @@ export class RampService extends BaseRampService {
       registrationFacts: registered.registrationFacts,
       userId
     });
-    const compatibilityState = Object.assign(
-      {},
+    const compatibilityState = mergeCompatibilityRecords("Prepared ramp state", [
       ...Object.values(registered.registrationFacts),
       ...Object.values(prepared.stateMeta.blockState ?? {})
-    ) as Partial<StateMetadata>;
-    const responseArtifacts = Object.assign({}, ...Object.values(registered.responseArtifacts)) as {
+    ]) as Partial<StateMetadata>;
+    const responseArtifacts = mergeCompatibilityRecords(
+      "Ramp registration response",
+      Object.values(registered.responseArtifacts)
+    ) as {
       aveniaTicketId?: string;
       depositQrCode?: string;
       ibanPaymentData?: IbanPaymentData;
@@ -1022,9 +1078,10 @@ export class RampService extends BaseRampService {
     transaction: Transaction
   ): Promise<{ achPaymentData?: AlfredpayFiatPaymentInstructions }> {
     const metadata = getFlowMetadata(quote.metadata);
-    const started = await resolveBlockFlow(metadata.globals.request).start({
+    const started = await resolvePersistedBlockFlow(metadata).start({
       metadata,
       quote: quote.get({ plain: true }),
+      rampId: rampState.id,
       state: rampState.state,
       userId: rampState.userId ?? undefined
     });

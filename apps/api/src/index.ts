@@ -10,7 +10,11 @@ import { config } from "./config/vars";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
-import { registerBlockFlowHandlers } from "./api/services/phases/blocks/register-handlers";
+import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
+import {
+  assertPersistedBlockFlowVersionsSupported,
+  registerBlockFlowHandlers
+} from "./api/services/phases/blocks/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
 import AlfredpayStatusWorker from "./api/workers/alfredpay-status.worker";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
@@ -61,11 +65,14 @@ const initializeApp = async () => {
     // Run database migrations
     await runMigrations();
 
+    await assertApiCredentialSchemaReady();
+
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
 
     // Recovery must not run before the flow-derived executor registry exists.
     registerBlockFlowHandlers();
+    await assertPersistedBlockFlowVersionsSupported();
 
     // Start background workers
     new CleanupWorker().start();

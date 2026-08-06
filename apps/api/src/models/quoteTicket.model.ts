@@ -7,6 +7,7 @@ import { FlowVariant } from "../config/vars";
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
+  apiCredentialId: string | null;
   userId: string | null; // UUID reference to Supabase Auth user (nullable for unauthenticated quotes)
   rampType: RampDirection;
   from: DestinationType;
@@ -30,11 +31,16 @@ export interface QuoteTicketAttributes {
 }
 
 // Define the attributes that can be set during creation
-export type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, "id" | "createdAt" | "updatedAt">;
+export type QuoteTicketCreationAttributes = Optional<
+  QuoteTicketAttributes,
+  "id" | "apiCredentialId" | "createdAt" | "updatedAt"
+>;
 
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   declare id: string;
+
+  declare apiCredentialId: string | null;
 
   declare userId: string | null;
 
@@ -80,6 +86,17 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 // Initialize the model
 QuoteTicket.init(
   {
+    apiCredentialId: {
+      allowNull: true,
+      field: "api_credential_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "api_credentials"
+      },
+      type: DataTypes.UUID
+    },
     apiKey: {
       allowNull: true,
       field: "api_key",
@@ -211,6 +228,10 @@ QuoteTicket.init(
         where: {
           status: "pending"
         }
+      },
+      {
+        fields: ["api_credential_id"],
+        name: "idx_quote_tickets_api_credential_id"
       },
       {
         fields: ["partner_id"],

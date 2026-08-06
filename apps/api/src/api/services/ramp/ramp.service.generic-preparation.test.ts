@@ -21,7 +21,7 @@ const start = mock(async (ctx: { metadata: unknown; state: unknown }) => ({
 
 mock.module("../phases/blocks/flows/catalog", () => ({
   ...catalogReal,
-  resolveBlockFlow: () => ({ prepareTxs, register, start })
+  resolvePersistedBlockFlow: () => ({ prepareTxs, register, start })
 }));
 
 const { RampService } = await import("./ramp.service");

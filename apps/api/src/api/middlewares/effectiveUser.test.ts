@@ -1,5 +1,5 @@
 import {describe, expect, it} from "bun:test";
-import {getEffectiveUserId, setApiKeyUserId} from "./effectiveUser";
+import {getEffectiveUserId} from "./effectiveUser";
 
 function fakeReq({userId, apiKeyUserId}: {userId?: string; apiKeyUserId?: string} = {}): {
   userId?: string;
@@ -16,37 +16,28 @@ function fakeReq({userId, apiKeyUserId}: {userId?: string; apiKeyUserId?: string
 }
 
 describe("getEffectiveUserId", () => {
-  it("prefers req.userId (Supabase) over req.apiKeyUserId", () => {
-    expect(getEffectiveUserId(fakeReq({userId: "supabase-user", apiKeyUserId: "key-user"}))).toBe(
-      "supabase-user"
-    );
+  it("prefers req.userId (Supabase) over the credential subject", () => {
+    expect(
+      getEffectiveUserId({
+        credential: { credentialId: "credential-1", environment: "test", partnerId: null, profileId: "key-user", strength: "secret" },
+        userId: "supabase-user"
+      } as never)
+    ).toBe("supabase-user");
   });
 
-  it("falls back to req.apiKeyUserId when no Supabase user", () => {
-    expect(getEffectiveUserId(fakeReq({apiKeyUserId: "key-user"}))).toBe("key-user");
+  it("uses the credential subject when no Supabase user is present", () => {
+    expect(
+      getEffectiveUserId({
+        credential: { credentialId: "credential-1", environment: "test", partnerId: null, profileId: "key-user", strength: "secret" }
+      } as never)
+    ).toBe("key-user");
   });
 
   it("returns undefined when no identity is present", () => {
     expect(getEffectiveUserId(fakeReq())).toBeUndefined();
   });
-});
 
-describe("setApiKeyUserId", () => {
-  it("sets req.apiKeyUserId from a non-empty string", () => {
-    const req: {userId?: string; apiKeyUserId?: string} = {};
-    setApiKeyUserId(req as never, "key-user");
-    expect(req.apiKeyUserId).toBe("key-user");
-  });
-
-  it("does not set req.apiKeyUserId when value is null", () => {
-    const req: {userId?: string; apiKeyUserId?: string} = {};
-    setApiKeyUserId(req as never, null);
-    expect(req.apiKeyUserId).toBeUndefined();
-  });
-
-  it("does not set req.apiKeyUserId when value is undefined", () => {
-    const req: {userId?: string; apiKeyUserId?: string} = {};
-    setApiKeyUserId(req as never, undefined);
-    expect(req.apiKeyUserId).toBeUndefined();
+  it("ignores the legacy API key user field", () => {
+    expect(getEffectiveUserId(fakeReq({ apiKeyUserId: "legacy-user" }) as never)).toBeUndefined();
   });
 });

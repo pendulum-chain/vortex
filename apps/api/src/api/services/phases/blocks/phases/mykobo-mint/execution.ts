@@ -15,6 +15,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata } from "../../core/metadata";
 import { MykoboMintContext } from "./simulation";
 
@@ -44,7 +45,7 @@ export class MykoboOnrampDepositExecutor extends BasePhaseHandler {
     }
     const expectedAmountRaw = metadata.mint.outputAmountRaw;
     const recoveryThresholdRaw = new Big(expectedAmountRaw).mul(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
-    if (await this.ephemeralAlreadyFunded(token.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
+    if (await this.ephemeralAlreadyFunded(token.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw, signal)) {
       logger.info(`MykoboOnrampDepositExecutor: Base ephemeral already holds at least 95% of ${expectedAmountRaw} EURC`);
       return state;
     }
@@ -77,16 +78,20 @@ export class MykoboOnrampDepositExecutor extends BasePhaseHandler {
   private async ephemeralAlreadyFunded(
     tokenAddress: string,
     ownerAddress: string,
-    expectedAmountRaw: string
+    expectedAmountRaw: string,
+    signal?: AbortSignal
   ): Promise<boolean> {
     try {
-      const balance = await getEvmTokenBalance({
-        chain: Networks.Base,
-        ownerAddress: ownerAddress as EvmAddress,
-        tokenAddress: tokenAddress as EvmAddress
-      });
+      const balance = await abortableCall(signal, () =>
+        getEvmTokenBalance({
+          chain: Networks.Base,
+          ownerAddress: ownerAddress as EvmAddress,
+          tokenAddress: tokenAddress as EvmAddress
+        })
+      );
       return balance.gte(new Big(expectedAmountRaw));
     } catch (error) {
+      throwIfAborted(signal);
       logger.warn(`MykoboOnrampDepositExecutor: balance pre-check failed, falling back to wait loop: ${error}`);
       return false;
     }

@@ -1,14 +1,16 @@
 import sequelize from "../config/database";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
-import ApiKey from "./apiKey.model";
+import ApiCredential from "./apiCredential.model";
 import CustomerEntity from "./customerEntity.model";
 import EmailNotification from "./emailNotification.model";
+import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
+import PartnerManagedProfile from "./partnerManagedProfile.model";
 import PartnerPricingConfig from "./partnerPricingConfig.model";
 import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
 import ProfileRole from "./profileRole.model";
@@ -19,7 +21,6 @@ import RecipientInvitation from "./recipientInvitation.model";
 import RecipientPayoutReference from "./recipientPayoutReference.model";
 import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
-import TaxId from "./taxId.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
 
@@ -40,9 +41,6 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
 
-User.hasMany(TaxId, { as: "taxIds", foreignKey: "userId" });
-TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
-
 User.hasMany(EmailNotification, { as: "emailNotifications", foreignKey: "userId" });
 EmailNotification.belongsTo(User, { as: "user", foreignKey: "userId" });
 
@@ -51,18 +49,16 @@ ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "buyPartner", foreignKey: "buyPartnerId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "sellPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "sellProfileAssignments", foreignKey: "sellPartnerId" });
 
-// API key ↔ user binding
-User.hasMany(ApiKey, { as: "apiKeys", foreignKey: "userId" });
-ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
+User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
+ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "partnerId" });
+ApiCredential.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
 
-// API key ↔ partner attribution (FK replaces the partner_name string)
-ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
-Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
+User.hasOne(PartnerManagedProfile, { as: "managedProfile", foreignKey: "profileId" });
+PartnerManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(PartnerManagedProfile, { as: "managedProfiles", foreignKey: "partnerId" });
+PartnerManagedProfile.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
 
 // Partner pricing split
 Partner.hasMany(PartnerPricingConfig, { as: "pricingConfigs", foreignKey: "partnerId" });
@@ -104,14 +100,16 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 const models = {
   Anchor,
   ApiClientEvent,
-  ApiKey,
+  ApiCredential,
   CustomerEntity,
   EmailNotification,
+  FinancialOperation,
   KycCase,
   MaintenanceSchedule,
   Notification,
   NotificationPreference,
   Partner,
+  PartnerManagedProfile,
   PartnerPricingConfig,
   ProfilePartnerAssignment,
   ProfileRole,
@@ -122,7 +120,6 @@ const models = {
   RecipientPayoutReference,
   SenderRecipient,
   Subsidy,
-  TaxId,
   User,
   Webhook
 };
