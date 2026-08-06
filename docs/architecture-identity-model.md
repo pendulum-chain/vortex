@@ -1,7 +1,8 @@
 # Identity, Customer, and Partner Model
 
 Status: current architecture. Last reconciled with migrations 038–054 and the API models
-on 2026-07-31.
+on 2026-07-31, plus the admin-impersonation principal-resolution seam (migrations 059–060)
+on 2026-08-05.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -99,13 +100,29 @@ Current product behavior and acknowledged gaps are in
 ## Authentication and ownership flow
 
 1. `requirePartnerOrUserAuth()` accepts a valid secret API key or Supabase bearer token.
-2. `getEffectiveUserId()` prefers the Supabase user and otherwise uses the user linked to
-   the validated secret key.
+   Any presented bearer token — on this path or on the Supabase-only `requireAuth`/
+   `optionalAuth` middleware — is first resolved by `resolveBearerPrincipal()`
+   (`bearerPrincipal.ts`). This is the one place a request's principal can become someone
+   other than the credential holder: a token prefixed `vtx_imp_` resolves against a live
+   row in `admin_impersonation_sessions` and, if found, the principal returned is the
+   **target** profile (its `userId` and `userEmail`), not the `vortex_admin` operator who
+   holds the token. An ordinary Supabase token resolves unchanged. The operator's own
+   identity is preserved separately on `req.impersonation` for audit; it does not
+   participate in ownership resolution.
+2. `getEffectiveUserId()` prefers `req.userId` and otherwise uses the user linked to
+   the validated secret key. It is unmodified by impersonation — by the time it runs,
+   `req.userId` already reflects step 1's substitution, so every step below scopes to the
+   target profile exactly as it would for that profile's own session.
 3. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
    to that effective user and their customer entities.
 4. At ramp registration, the server resolves the provider account for the effective user.
    Client-supplied provider identifiers are either ignored or accepted only when they
    match the server-derived identity.
+
+Impersonation is a substitution at step 1, not a parallel authorization path — nothing from
+step 2 onward changes. Its session lifecycle, controls, and audit trail are normative in
+[`security-spec/01-auth/admin-impersonation.md`](security-spec/01-auth/admin-impersonation.md);
+this document only reflects where the seam sits in principal resolution.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
@@ -114,7 +131,8 @@ quote cannot be claimed by another user.
 ## Implementation map
 
 - Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiKey,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
-- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
+- Principal resolution: `apps/api/src/api/middlewares/{bearerPrincipal,dualAuth,effectiveUser,ownershipAuth}.ts`
+- Impersonation session lifecycle: `apps/api/src/api/services/impersonation.service.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`

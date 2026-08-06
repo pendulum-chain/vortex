@@ -289,6 +289,55 @@ provider-shaped rather than UI-shaped.
   `getOrCreateCustomerEntityForProfile`. Whether users will ever be able to *switch* the active
   entity (individual ↔ company) remains open.
 
+## Admin console (operator surface)
+
+A separate, operator-facing surface exists alongside the customer-facing dashboard described
+above: profiles holding the `vortex_admin` role reach `/v1/admin-console/*` and can act on a
+customer's behalf. It is documented here as the product-level counterpart to the customer
+surface; its security controls are normative in
+[`security-spec/01-auth/admin-impersonation.md`](security-spec/01-auth/admin-impersonation.md).
+
+**What v1 lets an operator do:**
+
+- Look up an account: `GET /v1/admin-console/accounts` (list/search) and
+  `GET /v1/admin-console/accounts/:profileId` (single account).
+- Start impersonating a customer: `POST /v1/admin-console/impersonation` with the target
+  profile id, returning a 30-minute, non-renewable session token.
+- See active and recent impersonation sessions: `GET /v1/admin-console/impersonation`.
+- End a session immediately: `DELETE /v1/admin-console/impersonation/:sessionId`.
+
+**Depth is FULL, not scoped.** Once impersonating, the operator acts with the target account's
+complete rights, including money movement — there is no read-only or reduced-capability
+impersonation mode in v1. An impersonated request cannot mint a durable API credential or
+re-enter the admin console (no privilege re-escalation, no chaining), with one narrow exception
+so an operator can end its own session.
+
+**v1 scope is Vortex → main-account only.** There is no parent/child account table. The
+main-account → sub-account delegation layer, modelled on Avenia's subaccount API, is explicitly
+v2 — not present, not planned for this iteration.
+
+**Operator surface in this app.** The `/v1/admin-console/*` layer is implemented and covered by
+tests, and the frontend that consumes it ships here: `/admin` (searchable, paginated account
+table with a "Log in as" action behind a confirmation dialog) and `/admin/$profileId`
+(entities, their provider accounts and KYC cases, plus recent sessions against that account).
+Both redirect to `/overview` unless `roles` from `GET /v1/onboarding/status` contains
+`vortex_admin`, and the sidebar's Admin item follows the same gate. While a session is live,
+`ImpersonationBanner` is rendered above the topbar on every `_app` route — non-dismissible,
+naming the impersonated account and offering "Exit". Because the operator's own Supabase tokens
+are kept beside the impersonation token rather than replaced, exiting is local and instant.
+
+**Verified against a running stack.** Migrations 059 and 060 apply and revert cleanly, and the
+manual flow (grant the role, log in, list accounts, impersonate, exit) has been exercised
+against a local API with Supabase auth: the impersonated principal resolves to the target,
+`/v1/admin-console/*` and API-credential minting refuse an impersonated caller with 403, the
+session self-revokes on exit, and a revoked token is rejected on its next use.
+
+Exiting revokes the session server-side on a best-effort basis: the banner clears and the
+operator returns to their own session even if that `DELETE` fails, so a failed network call can
+never strand them in someone else's account. When it does fail, the server-side row stays live
+until the 30-minute TTL expires — the local UI state is not proof the session is closed. The
+audit view (`GET /v1/admin-console/impersonation`) is authoritative.
+
 ---
 
 Architecture: [`docs/architecture-identity-model.md`](architecture-identity-model.md).
