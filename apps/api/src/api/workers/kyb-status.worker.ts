@@ -29,7 +29,13 @@ class KybStatusWorker {
   private job: CronJob;
 
   constructor(cronTime = "0 * * * *") {
-    this.job = new CronJob(cronTime, this.poll.bind(this), null, false, "UTC", null, true);
+    this.job = CronJob.from({
+      cronTime,
+      onTick: this.poll.bind(this),
+      start: false,
+      timeZone: "UTC",
+      waitForCompletion: true
+    });
   }
 
   public start(): void {

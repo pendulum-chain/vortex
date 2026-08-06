@@ -17,8 +17,20 @@ class NotificationDispatchWorker {
   private reconcileJob: CronJob;
 
   constructor(dispatchCronTime = "* * * * *", reconcileCronTime = "15 * * * *") {
-    this.dispatchJob = new CronJob(dispatchCronTime, this.dispatch.bind(this), null, false, "UTC", null, true);
-    this.reconcileJob = new CronJob(reconcileCronTime, this.reconcile.bind(this), null, false, "UTC", null, true);
+    this.dispatchJob = CronJob.from({
+      cronTime: dispatchCronTime,
+      onTick: this.dispatch.bind(this),
+      start: false,
+      timeZone: "UTC",
+      waitForCompletion: true
+    });
+    this.reconcileJob = CronJob.from({
+      cronTime: reconcileCronTime,
+      onTick: this.reconcile.bind(this),
+      start: false,
+      timeZone: "UTC",
+      waitForCompletion: true
+    });
   }
 
   public start(): void {

@@ -80,8 +80,15 @@ const initializeApp = async () => {
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
     new NotificationDispatchWorker().start();
-    new KybStatusWorker().start();
-    new AlfredpayStatusWorker().start();
+    // Both flow-variant backends share this database and these provider accounts. Give
+    // the replacement backend sole ownership of external status polling so the legacy
+    // grace-period backend does not make every Avenia/Alfredpay request a second time.
+    if (config.flowVariant === "mykobo") {
+      new KybStatusWorker().start();
+      new AlfredpayStatusWorker().start();
+    } else {
+      logger.info("Provider status workers are owned by the mykobo backend");
+    }
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();

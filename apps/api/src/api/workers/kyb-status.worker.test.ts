@@ -3,9 +3,10 @@ import { FindOptions, Op } from "sequelize";
 import KycCase from "../../models/kycCase.model";
 import KybStatusWorker from "./kyb-status.worker";
 
-// `poll` does not touch `this` (see the class-methods-use-this suppression on it), so it
-// can be driven directly — constructing the worker would fire a real cycle via runOnInit.
-const poll = (KybStatusWorker.prototype as unknown as { poll: () => Promise<void> }).poll;
+type TestableWorker = {
+  job: { isActive: boolean; waitForCompletion: boolean };
+  poll: () => Promise<void>;
+};
 
 const realFindAll = KycCase.findAll;
 
@@ -20,7 +21,8 @@ async function captureQuery(): Promise<FindOptions> {
     return [];
   }) as typeof KycCase.findAll;
 
-  await poll.call({});
+  const worker = new KybStatusWorker() as unknown as TestableWorker;
+  await worker.poll();
   return captured;
 }
 
@@ -42,5 +44,12 @@ describe("KybStatusWorker query window", () => {
     expect(where.type).toBe("kyb");
     expect(where.providerCaseId).toBeDefined();
     expect(where.status).toBeDefined();
+  });
+
+  it("does not start on construction and suppresses overlapping cycles", () => {
+    const { job } = new KybStatusWorker() as unknown as TestableWorker;
+
+    expect(job.isActive).toBe(false);
+    expect(job.waitForCompletion).toBe(true);
   });
 });
