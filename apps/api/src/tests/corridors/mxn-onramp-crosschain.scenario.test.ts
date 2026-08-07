@@ -49,6 +49,7 @@ const HAPPY_PATH_PHASES: RampPhase[] = [
   "squidRouterPay",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 

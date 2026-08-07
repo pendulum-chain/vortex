@@ -122,7 +122,7 @@ export function clearAlfredpayMonthlyUsageCache(): void {
   monthlyUsageCache.clear();
 }
 
-async function getAlfredpayMonthlyUsageByFiat(userId: string): Promise<Map<string, string>> {
+async function getReportedAlfredpayMonthlyUsageByFiat(userId: string): Promise<Map<string, string>> {
   const { startsAt, endsAt } = getCurrentUtcMonthPeriod();
   const cacheKey = `${userId}:${startsAt.toISOString()}`;
   const cached = monthlyUsageCache.get(cacheKey);
@@ -195,13 +195,39 @@ async function getAlfredpayMonthlyUsageByFiat(userId: string): Promise<Map<strin
   return usage;
 }
 
-/** Returned in input-currency human units: fiat on onramp, stablecoin on offramp. */
-export async function getAlfredpayMonthlyUsage(
+/** Uncached usage used to enforce quote limits, preserving the original creation-time semantics. */
+export async function getAlfredpayMonthlyUsageForEnforcement(
   userId: string,
   direction: RampDirection,
   fiat: FiatToken,
   stablecoin: AlfredpayStablecoinKey
 ): Promise<Big> {
-  const usage = await getAlfredpayMonthlyUsageByFiat(userId);
+  const isOnramp = direction === RampDirection.BUY;
+  const fiatSide = isOnramp ? { inputCurrency: fiat } : { outputCurrency: fiat };
+  const stablecoinSide = isOnramp ? { outputCurrency: stablecoin } : { inputCurrency: stablecoin };
+
+  const completedRamps = (await RampState.findAll({
+    include: [{ as: "quote", model: QuoteTicket, required: true, where: { ...fiatSide, ...stablecoinSide } }],
+    where: {
+      createdAt: { [Op.gte]: getCurrentUtcMonthPeriod().startsAt },
+      currentPhase: "complete",
+      type: direction,
+      userId
+    }
+  })) as Array<RampState & { quote: QuoteTicket }>;
+
+  let total = new Big(0);
+  for (const ramp of completedRamps) total = total.plus(ramp.quote.inputAmount);
+  return total;
+}
+
+/** Cached usage for informational reporting, grouped by provider-leg currency. */
+export async function getReportedAlfredpayMonthlyUsage(
+  userId: string,
+  direction: RampDirection,
+  fiat: FiatToken,
+  stablecoin: AlfredpayStablecoinKey
+): Promise<Big> {
+  const usage = await getReportedAlfredpayMonthlyUsageByFiat(userId);
   return new Big(usage.get(usageKey(direction, fiat, stablecoin)) ?? 0);
 }

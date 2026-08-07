@@ -2,7 +2,6 @@ import sequelize from "../config/database";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
-import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
 import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
@@ -21,7 +20,6 @@ import RecipientInvitation from "./recipientInvitation.model";
 import RecipientPayoutReference from "./recipientPayoutReference.model";
 import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
-import TaxId from "./taxId.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
 
@@ -42,26 +40,11 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
 
-User.hasMany(TaxId, { as: "taxIds", foreignKey: "userId" });
-TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
-
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "buyPartner", foreignKey: "buyPartnerId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "sellPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "sellProfileAssignments", foreignKey: "sellPartnerId" });
-
-// API key ↔ user binding
-User.hasMany(ApiKey, { as: "apiKeys", foreignKey: "userId" });
-ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
-
-// API key ↔ partner attribution (FK replaces the partner_name string)
-ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
-Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
 
 User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
 ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
@@ -114,7 +97,6 @@ const models = {
   Anchor,
   ApiClientEvent,
   ApiCredential,
-  ApiKey,
   CustomerEntity,
   FinancialOperation,
   KycCase,
@@ -133,7 +115,6 @@ const models = {
   RecipientPayoutReference,
   SenderRecipient,
   Subsidy,
-  TaxId,
   User,
   Webhook
 };

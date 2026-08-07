@@ -30,7 +30,7 @@ export interface ValidatedPublicKey {
 export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPublicKey | null> {
   const credential = await validatePublicKey(apiKey);
   if (!credential) return null;
-  const partner = credential.partnerId ? await Partner.findByPk(credential.partnerId) : null;
+  const partner = credential.partnerId ? await Partner.findOne({ where: { id: credential.partnerId, isActive: true } }) : null;
   if (credential.partnerId && !partner) return null;
   return { credential };
 }

@@ -130,8 +130,9 @@ two people.
   required and never signs a BUY transaction (implemented).
 
 ### Transactions
-- As a sender, I see my onramp and offramp history — destination, corridor, amounts in and out, status
-  (`awaiting_payin · processing · completed · failed`), and the reason a payout failed.
+- As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,
+  status (`processing · completed · failed · cancelled`), and the reason a payout failed. Ramps that
+  remain in the `initial` phase are omitted from history.
 
 ### Notifications & settings
 - As a user, I get in-app and email alerts when a corridor's KYC/KYB resolves, when an invited
@@ -188,8 +189,8 @@ provider-shaped rather than UI-shaped.
   them) and retains earlier ramp entries independently of disposable transfer-machine state.
   From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
   `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
-  transactions page labels the matching initial BUY ramp as **Awaiting payment** and offers
-  **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
+  transactions page omits the matching initial BUY ramp from history and offers **Resume payment**
+  in a prominent standalone card. Resume affordances are scoped
   to the account that created the ramp; switching accounts does not expose its payment details.
   The customer can return to the same instructions while the payment window remains open. Once
   the instructions expire, **Get a new quote** clears only the local transfer state. Starting an

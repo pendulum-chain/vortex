@@ -55,6 +55,8 @@ export class FakeEvm {
   /** Reverts the next `failNextSends` transaction submissions with the given error. */
   failNextSends = 0;
   sendFailureMessage = "FakeEvm: scripted transaction failure";
+  /** Hashes whose receipts report a mined-but-reverted transaction. */
+  readonly revertedReceiptHashes = new Set<string>();
 
   private key(network: string, token: string, holder: string): string {
     return `${network}:${token.toLowerCase()}:${holder.toLowerCase()}`;
@@ -142,14 +144,15 @@ export class FakeEvm {
     const network = networkName as string;
     // Receipts for recorded transactions carry from/to so verification code
     // (e.g. user-tx-verifier) can cross-check them; unknown hashes still
-    // confirm generically for recovery paths that probe stored hashes.
+    // confirm generically for recovery paths that probe stored hashes. Hashes in
+    // `revertedReceiptHashes` report a mined-but-reverted transaction instead.
     const receipt = (hash: `0x${string}`) => {
       const recorded = this.transactionsByHash.get(hash);
       return {
         blockNumber: 1n,
         from: recorded?.from,
         logs: [],
-        status: "success" as const,
+        status: this.revertedReceiptHashes.has(hash) ? ("reverted" as const) : ("success" as const),
         to: recorded?.to,
         transactionHash: hash
       };

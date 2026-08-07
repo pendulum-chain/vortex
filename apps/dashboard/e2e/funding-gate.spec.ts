@@ -23,7 +23,7 @@ test("funding panel offers connected-wallet submission only", async ({ page }) =
   await expect(page.getByText("Connected")).toBeVisible({ timeout: 20_000 });
 
   await expect(page.getByText("Send crypto")).toHaveCount(0);
-  await expect(page.getByText("Available: 1000.00 USDC on Polygon", { exact: true })).toBeVisible();
+  await expect(page.getByText("Available: 1,000 USDC on Polygon", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Send/ })).toBeEnabled();
   await expect(page.getByText(/reach out to/)).toHaveCount(0);
   expect(backend.balanceRequests.at(-1)).toMatchObject({ network: "polygon-mainnet" });
@@ -40,8 +40,8 @@ test("insufficient selected-network USDC balance blocks an offramp", async ({ pa
 
   await page.locator("#token-amount").fill("54.054054");
 
-  await expect(page.getByText("Available: 50.00 USDC on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText(/Insufficient USDC balance.*54\.054054 USDC on Polygon/)).toBeVisible();
+  await expect(page.getByText("Available: 50 USDC on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Insufficient USDC balance.*54\.054 USDC on Polygon/)).toBeVisible();
   await expect(page.getByRole("button", { name: /^Send/ })).toBeDisabled();
   expect(backend.registerRequests).toHaveLength(0);
 });
@@ -64,7 +64,7 @@ test("balance check follows the selected payin network, not the wallet chain", a
   await page.getByRole("combobox").filter({ hasText: "Polygon" }).click();
   await page.getByRole("option", { exact: true, name: "Arbitrum One" }).click();
 
-  await expect(page.getByText("Available: 1.00 USDC on Arbitrum One", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Available: 1 USDC on Arbitrum One", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(sendButton).toBeDisabled();
   expect(backend.balanceRequests.map(request => request.network)).toEqual(
     expect.arrayContaining(["polygon-mainnet", "arb-mainnet"])
@@ -118,7 +118,7 @@ test("balance gate checks the selected ERC-20 rather than another held token", a
   await page.getByRole("option", { exact: true, name: "USDT" }).click();
   await page.locator("#token-amount").fill("100");
 
-  await expect(page.getByText("Available: 50.00 USDT on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Available: 50 USDT on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Insufficient USDT balance/)).toBeVisible();
   await expect(page.getByRole("button", { name: /^Send/ })).toBeDisabled();
   expect(backend.registerRequests).toHaveLength(0);
@@ -134,7 +134,7 @@ test("native POL uses the portfolio native balance", async ({ page }) => {
   await page.getByRole("option", { exact: true, name: "POL" }).click();
   await page.locator("#token-amount").fill("1");
 
-  await expect(page.getByText("Available: 2.000000 POL on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Available: 2 POL on Polygon", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: /Send ≈ 1 POL/ })).toBeEnabled();
 });
 

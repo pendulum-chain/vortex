@@ -20,7 +20,7 @@ import { trimTrailingZeros } from "./helpers";
 import type { FlowMetadata } from "./metadata";
 import { buildBlockQuoteResponse } from "./quote-response";
 import type { PhaseCtx, PhaseIO } from "./types";
-import { applyAlfredpayLimits, validateAmountLimits } from "./validation";
+import { applyAlfredpayLimits, assertEvmPartnerPayoutPresent, validateAmountLimits } from "./validation";
 
 async function validateOutput(ctx: QuoteContext, output: PhaseIO): Promise<number> {
   if (output.amount.lte(0)) {
@@ -131,6 +131,7 @@ export async function runBlockQuoteFlow(ctx: QuoteContext): Promise<void> {
   const expiresAt = resolveBlockQuoteExpiry(providerExpiresAt);
   await assignSubsidyDisplay(metadata, ctx);
   ctx.fees = phaseCtx.fees;
+  assertEvmPartnerPayoutPresent(ctx);
 
   if (ctx.skipPersistence) {
     ctx.builtResponse = buildTemporaryResponse(ctx, metadata, outputAmount, expiresAt);

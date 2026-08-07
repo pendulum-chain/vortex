@@ -47,7 +47,7 @@ test("Onramp prefills the connected wallet but keeps a manually edited destinati
   await expect(destination).toHaveValue(DESTINATION);
   await expect(page.getByText("1 MXN = 0.2022 USDC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fee details" }).click();
-  await expect(page.getByText("1 MXN = 0.1820 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 MXN = 0.182 USDC", { exact: true })).toBeVisible();
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
@@ -191,13 +191,14 @@ test("A failed onramp start keeps the payment instructions and retries the same 
 for (const journey of CASES) {
   test(`BUY ${journey.currency}: quote, ephemeral registration, instructions, confirmation, start`, async ({ page }) => {
     const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: journey.currency });
+    const inputAmount = journey.currency === "MXN" ? "1000.00" : "100";
     await seedSession(page);
     await page.goto("/transfer?mode=onramp");
 
     const destination = page.getByLabel("Destination wallet address");
     await expect(destination).toBeVisible({ timeout: 20_000 });
     await destination.fill(DESTINATION);
-    await page.getByLabel(`You pay (${journey.currency})`).fill("100");
+    await page.getByLabel(`You pay (${journey.currency})`).fill(inputAmount);
 
     await page.getByLabel("Network").click();
     await page.getByRole("option", { exact: true, name: "Polygon" }).click();
@@ -211,12 +212,13 @@ for (const journey of CASES) {
 
     await expect(page.getByText(journey.expected, { exact: true })).toBeVisible({ timeout: 20_000 });
     if (journey.currency === "MXN") {
+      await expect(page.getByText(`${inputAmount} MXN`, { exact: true })).toBeVisible();
       await page.reload();
       await expect(page.getByText("CLABE", { exact: true })).toBeVisible({ timeout: 20_000 });
     }
     expect(backend.startRequests).toHaveLength(0);
     expect(backend.quoteRequests.at(-1)).toMatchObject({
-      inputAmount: "100",
+      inputAmount,
       inputCurrency: journey.currency,
       network: "polygon",
       outputCurrency: "USDC",

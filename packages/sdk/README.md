@@ -205,13 +205,14 @@ interface VortexSdkConfig {
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
+  networkInitializationTimeoutMs?: number;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
 }
 ```
 
-Only the base Vortex API is required. If the RPC URL's are not provided, default public ones will be used.
+Only the base Vortex API is required. Chain WebSocket APIs are initialized lazily when returned unsigned transactions require them; quote and registration HTTP requests do not wait for RPC connections. If the RPC URLs are not provided, default public ones are used. `networkInitializationTimeoutMs` defaults to 15 seconds and applies independently to each required network.
 
 ### API keys
 

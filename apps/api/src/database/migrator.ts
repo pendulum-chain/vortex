@@ -1,5 +1,5 @@
 import path from "path";
-import { Sequelize } from "sequelize";
+import { QueryTypes, Sequelize } from "sequelize";
 import { MigrationParams, SequelizeStorage, Umzug } from "umzug";
 import sequelize from "../config/database";
 import logger from "../config/logger";
@@ -163,9 +163,46 @@ const umzug = new Umzug({
   storage: new SequelizeStorage({ sequelize })
 });
 
+// These migrations were renumbered to clear the duplicate-055 prefix. Databases that
+// already executed them under the old names (staging, developer machines) must have their
+// SequelizeMeta entries renamed, or umzug re-runs the renamed files and fails on
+// createTable. This cannot be a migration itself: umzug resolves the pending list before
+// executing any of them.
+const MIGRATION_RENAMES: Record<string, string> = {
+  "055-create-api-credentials": "057-create-api-credentials",
+  "057-create-partner-managed-profiles": "058-create-partner-managed-profiles",
+  "058-add-api-credential-id-to-quote-tickets": "059-add-api-credential-id-to-quote-tickets"
+};
+
+async function reconcileRenamedMigrations(): Promise<void> {
+  const [tableCheck] = await sequelize.query<{ present: boolean }>(
+    `SELECT to_regclass('public."SequelizeMeta"') IS NOT NULL AS present`,
+    { type: QueryTypes.SELECT }
+  );
+  if (!tableCheck?.present) {
+    // Fresh database: nothing recorded yet, the files run under their new names.
+    return;
+  }
+
+  for (const [oldBase, newBase] of Object.entries(MIGRATION_RENAMES)) {
+    for (const extension of [".ts", ".js"]) {
+      const [, renamedCount] = await sequelize.query(
+        `UPDATE "SequelizeMeta" SET name = :newName
+         WHERE name = :oldName
+           AND NOT EXISTS (SELECT 1 FROM "SequelizeMeta" WHERE name = :newName)`,
+        { replacements: { newName: newBase + extension, oldName: oldBase + extension }, type: QueryTypes.UPDATE }
+      );
+      if (renamedCount > 0) {
+        logger.info(`Renamed applied migration ${oldBase}${extension} -> ${newBase}${extension} in SequelizeMeta`);
+      }
+    }
+  }
+}
+
 // Run migrations
 export const runMigrations = async (): Promise<void> => {
   try {
+    await reconcileRenamedMigrations();
     await umzug.up();
     logger.info("Migrations completed successfully");
   } catch (error) {

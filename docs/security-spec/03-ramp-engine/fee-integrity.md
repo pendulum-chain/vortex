@@ -32,12 +32,17 @@ block has not successfully supplied its override.
 ### Ordering is per flow
 
 There is deliberately no global “fees before swap” or “fees after swap” rule. Fees are
-distributed while the ephemeral holds USDC:
+distributed while the ephemeral holds the fee token:
 
 - BRL/EUR off-ramp flows execute `DistributeFees` before the USDC-to-BRLA/EURC Nabla
   swap.
 - BRL/EUR on-ramp flows execute `DistributeFees` after the BRLA/EURC-to-USDC Nabla
   swap.
+- Alfredpay flows (USD/MXN/COP/ARS, USDT on Polygon) execute `DistributeFees` as the
+  LAST phase before `complete`, after the user-facing leg (`destinationTransfer` /
+  `alfredpayOfframpTransfer`) succeeded: the corridor deducts the components from the
+  user leg during pricing (`AlfredpaySubsidizePre` / `AlfredpayOfframp`) and the block
+  only collects the reserved residual (pass-through simulation).
 - Anchor fees are netted by the provider and are not moved by `DistributeFees`.
 - A flow without a `DistributeFees` block does not collect Vortex, network, or partner
   components on-chain. Such a flow MUST either quote those components as zero or add an
@@ -48,18 +53,54 @@ always occur only after all user-facing phases is incorrect.
 
 ### Distribution
 
-- **EVM/Base:** Base USDC is sent directly when only the Vortex destination is needed,
-  or atomically through Multicall3 `aggregate3` at
-  `0xcA11bde05977b3631167028862bE2a173976CA11` for split Vortex/partner payouts.
+- **EVM (Base USDC, Polygon USDT):** one plain ephemeral-signed ERC-20 `transfer` per
+  fee recipient at consecutive main-lane nonces (`createEvmFeeDistributionTransactions`):
+  network + vortex fees to the vortex `payout_address_evm` (with the
+  `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` fallback), partner markup to the pricing
+  partner's address. Multicall3 batching is deliberately NOT used: `aggregate3`
+  executes each call with the Multicall3 contract as `msg.sender`, so a batched
+  ERC-20 `transfer` could only move the contract's (empty) balance and the batch
+  reverts — the former split path failed every Base ramp with a nonzero partner markup
+  and a configured partner payout address.
+- The executor broadcasts the presigned transfers in nonce order with one durable
+  financial-operation claim per transfer (`evm-fee-distribution[:nonce]`); confirmed
+  claims replay without a second broadcast, the balance precondition covers only the
+  unpaid transfers, and a mined-but-reverted transfer halts the ramp for manual
+  reconciliation (its nonce is consumed, so the presign can never execute again).
 - **Pendulum:** `utility.batchAll` groups USDC transfers, with the configured optional
   PEN buyback applied to the Vortex component.
 - Network and Vortex components use the active Vortex payout address. Partner markup
-  resolves through `pricing_partner_id ?? partner_id`.
-- Fee **amounts** come from the immutable quote snapshot. Payout **addresses** are
-  deliberately resolved while the registration plan is built, so address rotation can
-  affect an already-created but not-yet-registered quote.
+  resolves through `pricing_partner_id ?? partner_id`. Payout addresses are resolved
+  (and required) only for quotes whose rounded components are positive; a positive
+  markup without a partner `payout_address_evm` fails quote creation
+  (`assertEvmPartnerPayoutPresent`, computed-component based) and — if partner
+  configuration changes between quote and registration — fails registration in the
+  transfer builder. A charged fee can never be silently dropped.
+- Fee **amounts** come from the immutable quote snapshot; every raw-unit consumer
+  (transfers, settlement targets, reserve sizing, fallback refunds) derives them from
+  the shared component rounding in `computeFeeComponentRawsFromUsd` /
+  `getEvmFeeTotalRawFromUsd` so the amounts reconcile exactly. Payout **addresses**
+  are deliberately resolved while the registration plan is built, so address rotation
+  can affect an already-created but not-yet-registered quote.
 - Distributed fees are final. The current implementation has no automatic clawback if
   a later delivery phase fails.
+
+### Alfredpay corridors: solvency and failure safety
+
+- **Charging** — the onramp deducts vortex/partner components from the provider mint
+  before sizing the bridge/transfer leg; the offramp deducts them from the bridged USD
+  leg before pricing the Alfredpay deposit. The residual stays reserved on the Polygon
+  ephemeral until `distributeFees`.
+- **Solvency** — the onramp pre-swap settlement reserves the swap target PLUS the fee
+  residual (`SubsidizePreMetadata.feeReserveRaw`), and the offramp
+  `finalSettlementSubsidy` targets deposit + fees, so a short provider leg cannot
+  starve the fee transfers.
+- **Failure safety** — fees are collected only after the user-facing leg succeeded.
+  The offramp refund fallback is sized deposit + charged fees so a failed ramp
+  returns the user's full value; the onramp mint fallback stays full-mint.
+- **Rollout** — the fee phase shipped as flow version 2 of the three Alfredpay flows
+  with a drain-then-deploy gate; persisted v1 identities fail closed at
+  registration/dispatch and require manual recovery.
 
 ### Rounding
 
@@ -119,7 +160,9 @@ quotes may already contain snapshots prepared under the old rule.
 | Wrong universal ordering changes the effective charge | Cataloged per-flow order is normative |
 | Anchor fee is collected twice | Anchor included in quote total but excluded from `DistributeFees` |
 | Partner payout is misattributed | Resolve with `pricing_partner_id ?? partner_id` |
-| Missing payout address silently loses revenue | Vortex destination fails closed; partner gap remains tracked |
+| Missing payout address silently loses revenue | Vortex destination fails closed; a positive computed markup without a partner address fails quote creation and registration |
+| Batched transfers cannot move ephemeral funds | Multicall3 removed; plain sequential ephemeral-signed transfers only |
+| Retry double-pays a fee recipient | One durable financial-operation claim per transfer; confirmed claims replay without broadcasting |
 | Rounding is represented inaccurately | Current EVM and Substrate rules are documented separately |
 | Later phase fails after collection | Accepted recovery gap; operational reconciliation is required |
 
@@ -131,17 +174,29 @@ quotes may already contain snapshots prepared under the old rule.
   recompute fee amounts.
 - [x] `fee-distribution.ts` reads `metadata.fees.usd` and excludes `anchor`.
 - [x] BRL/EUR off-ramp flows distribute before Nabla; BRL/EUR on-ramp flows distribute
-  after Nabla.
+  after Nabla; Alfredpay flows distribute last, after the user-facing leg.
 - [x] Direct BRL/EUR same-token routes quote zero bridge network fee.
-- [x] EVM distribution uses direct ERC-20 transfer or atomic Multicall3 with
-  `allowFailure: false`.
+- [x] EVM distribution uses plain sequential ephemeral-signed ERC-20 transfers, one per
+  recipient. **CHANGED 2026-08** — the former split path batched transfers through
+  Multicall3 `aggregate3`, which executes with the contract as `msg.sender` and could
+  never move the ephemeral's tokens; the previous checkbox asserting that path was
+  sound was wrong. Pinned by the "fee collection" test in
+  `apps/api/src/tests/corridors/brl-offramp.scenario.test.ts`.
 - [x] Partner payout attribution uses `pricing_partner_id ?? partner_id`.
 - [x] Negative calculated components are clamped to zero.
-- [ ] **OPEN — uncollected displayed components:** any live flow that displays positive
-  Vortex/partner/network fees but has no `DistributeFees` block violates invariant 1.
-- [ ] **OPEN — missing partner payout:** the EVM builder currently logs and drops a
-  positive markup when the pricing partner has no payout address. Quote/registration
-  must fail instead.
+- [x] **Alfredpay corridors charge AND collect vortex/partner fees** — previously the
+  components were deducted from the user leg but no `DistributeFees` block existed, so
+  the residual stranded unrecoverably on the Polygon ephemeral (invariant 1
+  violation). **FIXED 2026-08** — flow version 2 appends the Polygon/USDT collection
+  phase after the user-facing leg; solvency, failure-path sizing, and idempotency per
+  the "Alfredpay corridors" section above. Pinned by the fee-collection tests in
+  `mxn-onramp.scenario.test.ts` and `mxn-offramp.scenario.test.ts` (payout-address
+  balances asserted on the fake ledger).
+- [x] **Partner markup without a payout address fails closed** — quote creation rejects
+  a positive COMPUTED markup on every EVM-collecting corridor when the pricing partner
+  lacks `payout_address_evm` (a configured markup that rounds to zero raw units needs
+  no address), and the transfer builder throws at registration if configuration
+  changed after quoting. **FIXED 2026-08**; previously logged and dropped.
 - [ ] **OPEN — cross-chain rounding consistency:** EVM raw distribution uses half-up
   while Substrate truncates. Preserve current behavior until a versioned accounting
   decision changes it.

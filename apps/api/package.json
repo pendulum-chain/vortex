@@ -88,10 +88,7 @@
   "license": "MIT",
   "name": "vortex-backend",
   "scripts": {
-    "backfill:api-key-digests": "bun scripts/backfill-api-key-digests.ts",
     "build": "bun run swc src -d dist --strip-leading-paths",
-    "credentials:migrate": "bun scripts/migrate-api-credentials.ts",
-    "credentials:preflight": "bun scripts/preflight-api-credential-migration.ts",
     "dev": "NODE_ENV=development bun --watch src/index.ts",
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
