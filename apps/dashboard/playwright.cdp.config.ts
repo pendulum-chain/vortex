@@ -17,10 +17,12 @@ export default defineConfig({
     env: {
       VITE_ALCHEMY_API_KEY: "e2e-mock-key",
       VITE_CDP_ENABLED: "true",
+      VITE_CDP_EXPORT_ENABLED: "true",
       VITE_CDP_OFFRAMP_ENABLED: "true",
       VITE_CDP_ONRAMP_ENABLED: "true",
       VITE_CDP_PROJECT_ID: "e2e-public-project-id",
-      VITE_CDP_PROVISIONING_ENABLED: "true"
+      VITE_CDP_PROVISIONING_ENABLED: "true",
+      VITE_CDP_SIGNING_ENABLED: "true"
     },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

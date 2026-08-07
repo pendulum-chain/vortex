@@ -56,6 +56,70 @@
         "required": ["address", "type"],
         "type": "object"
       },
+      "ApiCredential": {
+        "properties": {
+          "createdAt": { "format": "date-time", "type": "string" },
+          "environment": { "enum": ["live", "test"], "type": "string" },
+          "expiresAt": { "format": "date-time", "type": "string" },
+          "id": { "format": "uuid", "type": "string" },
+          "name": { "maxLength": 100, "type": "string" },
+          "partnerId": { "format": "uuid", "type": ["string", "null"] },
+          "profileId": { "format": "uuid", "type": "string" },
+          "publicKey": {
+            "description": "Retrievable public half of the credential.",
+            "pattern": "^pk_(live|test)_[a-zA-Z0-9]{32}$",
+            "type": "string"
+          },
+          "publicLastUsedAt": { "format": "date-time", "type": ["string", "null"] },
+          "revokedAt": { "format": "date-time", "type": ["string", "null"] },
+          "secretKeyPrefix": {
+            "description": "Non-secret 16-character lookup/display prefix. The secret value is not retrievable.",
+            "maxLength": 16,
+            "minLength": 16,
+            "type": "string"
+          },
+          "secretLastUsedAt": { "format": "date-time", "type": ["string", "null"] },
+          "updatedAt": { "format": "date-time", "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "profileId",
+          "partnerId",
+          "environment",
+          "publicKey",
+          "secretKeyPrefix",
+          "publicLastUsedAt",
+          "secretLastUsedAt",
+          "expiresAt",
+          "revokedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ApiCredentialErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable error code such as `AUTHENTICATION_REQUIRED`, `INVALID_PUBLIC_KEY`, `INVALID_SECRET_KEY`, `CREDENTIAL_MISMATCH`, `CREDENTIAL_LIMIT_REACHED`, `CREDENTIAL_NOT_FOUND`, `CREDENTIAL_SUBJECT_REQUIRED`, `INVALID_CREDENTIAL_EXPIRY`, or `INVALID_CREDENTIAL_NAME`.",
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
       "AveniaDocumentType": {
         "enum": ["ID", "DRIVERS-LICENSE", "PASSPORT", "SELFIE", "SELFIE-FROM-LIVENESS"],
         "type": "string"
@@ -173,6 +237,33 @@
       "CountryCode": {
         "description": "Allowed values: `AR`, `BR`, `EU`",
         "type": "string"
+      },
+      "CreateApiCredentialRequest": {
+        "properties": {
+          "expiresAt": {
+            "description": "Optional future ISO-8601 expiry, at most two years from creation. Defaults to one year.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": { "default": "API Credential", "maxLength": 100, "type": "string" }
+        },
+        "type": "object"
+      },
+      "CreateApiCredentialResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiCredential" },
+          {
+            "properties": {
+              "secretKey": {
+                "description": "Returned only at creation. Store it immediately in a server-side secret manager.",
+                "pattern": "^sk_(live|test)_[a-zA-Z0-9]{32}$",
+                "type": "string"
+              }
+            },
+            "required": ["secretKey"],
+            "type": "object"
+          }
+        ]
       },
       "CreateBestQuoteRequest": {
         "properties": {
@@ -503,6 +594,34 @@
         ],
         "type": "object"
       },
+      "GetUserLimitsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "corridors": {
+            "items": {
+              "enum": ["AR", "BR", "CO", "MX", "US"],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": ["corridors"],
+        "type": "object"
+      },
+      "GetUserLimitsResponse": {
+        "properties": {
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/UserLimit"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["limits"],
+        "type": "object"
+      },
       "GetUserRemainingLimitResponse": {
         "properties": {
           "remainingLimitOfframp": {
@@ -696,56 +815,14 @@
         "required": ["id"],
         "type": "object"
       },
-      "ListUserApiKeysResponse": {
+      "ListApiCredentialsResponse": {
         "properties": {
-          "apiKeys": {
-            "items": {
-              "properties": {
-                "createdAt": {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                "expiresAt": {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                "id": {
-                  "type": "string"
-                },
-                "isActive": {
-                  "type": "boolean"
-                },
-                "key": {
-                  "description": "Full key value; present for public keys only. Secret key values are never returned after creation.",
-                  "type": "string"
-                },
-                "keyPrefix": {
-                  "type": "string"
-                },
-                "lastUsedAt": {
-                  "description": "Null until the key is first used.",
-                  "format": "date-time",
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "type": {
-                  "enum": ["public", "secret"],
-                  "type": "string"
-                },
-                "updatedAt": {
-                  "format": "date-time",
-                  "type": "string"
-                }
-              },
-              "required": ["createdAt", "expiresAt", "id", "isActive", "keyPrefix", "name", "type", "updatedAt"],
-              "type": "object"
-            },
+          "credentials": {
+            "items": { "$ref": "#/components/schemas/ApiCredential" },
             "type": "array"
           }
         },
-        "required": ["apiKeys"],
+        "required": ["credentials"],
         "type": "object"
       },
       "Networks": {
@@ -942,6 +1019,28 @@
           }
         },
         "required": ["timestamp", "phase", "error"],
+        "type": "object"
+      },
+      "RampInfoResponse": {
+        "properties": {
+          "corridors": {
+            "additionalProperties": {
+              "properties": {
+                "canBuy": { "type": "boolean" },
+                "canSell": { "type": "boolean" },
+                "kycStatus": {
+                  "enum": ["not_started", "pending", "approved", "rejected"],
+                  "type": "string"
+                }
+              },
+              "required": ["kycStatus", "canBuy", "canSell"],
+              "type": "object"
+            },
+            "description": "Sanitized eligibility keyed by corridor country code. No exact limits, PII, provider IDs, or failure reasons are returned.",
+            "type": "object"
+          }
+        },
+        "required": ["corridors"],
         "type": "object"
       },
       "RampPhase": {
@@ -1323,91 +1422,50 @@
         "required": ["rampId", "presignedTxs"],
         "type": "object"
       },
-      "UserApiKeyErrorResponse": {
+      "UserLimit": {
         "properties": {
-          "error": {
-            "properties": {
-              "code": {
-                "description": "Machine-readable error code, e.g. `AUTHENTICATION_REQUIRED`, `API_KEY_LIMIT_REACHED`, `INVALID_EXPIRES_AT`, `API_KEY_NOT_FOUND`.",
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "status": {
-                "type": "integer"
-              }
-            },
-            "required": ["code", "message", "status"],
-            "type": "object"
+          "corridor": {
+            "enum": ["AR", "BR", "CO", "MX", "US"],
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RampDirection"
+          },
+          "max": {
+            "description": "Maximum amount in the returned currency's human units.",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/UserLimitPeriod"
+          },
+          "used": {
+            "description": "Amount consumed during the period in the returned currency's human units.",
+            "type": "string"
           }
         },
-        "required": ["error"],
+        "required": ["corridor", "currency", "direction", "max", "period", "used"],
         "type": "object"
       },
-      "UserApiKeyPairResponse": {
+      "UserLimitPeriod": {
         "properties": {
-          "createdAt": {
+          "endsAt": {
+            "description": "Exclusive end of the reported period.",
             "format": "date-time",
             "type": "string"
           },
-          "expiresAt": {
+          "startsAt": {
             "format": "date-time",
             "type": "string"
           },
-          "isActive": {
-            "type": "boolean"
-          },
-          "publicKey": {
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "key": {
-                "description": "The full key value. For the secret key this is returned only in this response.",
-                "type": "string"
-              },
-              "keyPrefix": {
-                "description": "Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`.",
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "type": {
-                "enum": ["public", "secret"],
-                "type": "string"
-              }
-            },
-            "required": ["id", "key", "keyPrefix", "name", "type"],
-            "type": "object"
-          },
-          "secretKey": {
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "key": {
-                "description": "The full key value. For the secret key this is returned only in this response.",
-                "type": "string"
-              },
-              "keyPrefix": {
-                "description": "Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`.",
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "type": {
-                "enum": ["public", "secret"],
-                "type": "string"
-              }
-            },
-            "required": ["id", "key", "keyPrefix", "name", "type"],
-            "type": "object"
+          "type": {
+            "const": "calendar_month",
+            "type": "string"
           }
         },
-        "required": ["createdAt", "expiresAt", "isActive", "publicKey", "secretKey"],
+        "required": ["type", "startsAt", "endsAt"],
         "type": "object"
       },
       "ValidatePixKeyResponse": {
@@ -1420,38 +1478,56 @@
         "type": "object"
       }
     },
-    "securitySchemes": {}
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "Supabase JWT",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "PublicApiKey": {
+        "description": "Public credential value (`pk_live_*` or `pk_test_*`) for attribution and approved low-sensitivity reads.",
+        "in": "header",
+        "name": "X-Public-Key",
+        "type": "apiKey"
+      },
+      "SecretApiKey": {
+        "description": "Server-side secret credential value (`sk_live_*` or `sk_test_*`).",
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
+    }
   },
   "info": {
-    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**Scope:** 25 paths verified against `apps/api/src/api/routes/v1/`.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` \u2014 partner SDK key (server-side).\n- `X-Public-Key: pk_<live|test>_...` \u2014 partner public key (browser; attribution only).\n- `Authorization: Bearer <Supabase JWT>` \u2014 first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer only; partner sk_*/pk_* keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**API credentials:** one credential contains a public (`pk_*`) and secret (`sk_*`) value for one profile subject. Send public values through `X-Public-Key` and server-side secret values through `X-API-Key`. If both are sent, they must belong to the same credential or the request returns `403 CREDENTIAL_MISMATCH`. Public capability is limited to attribution and explicitly sanitized reads; secret capability is required for sensitive and state-changing partner operations.\n\n`Authorization: Bearer <Supabase JWT>` represents a first-party user session and is required for profile-managed credential lifecycle endpoints.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
     "title": "Vortex API",
     "version": "1.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
-    "/v1/api-keys": {
+    "/v1/api-credentials": {
       "get": {
         "deprecated": false,
-        "description": "Lists the authenticated user's active API keys. Public key values are included; secret key values are never returned.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
-        "operationId": "listUserApiKeys",
+        "description": "Lists all profile-managed credentials owned by the authenticated profile, newest first. Each item represents one public/secret credential. Public values and safe secret prefixes are included; secret values are never returned.\n\n**Auth:** Supabase Bearer session only.",
+        "operationId": "listApiCredentials",
         "parameters": [],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListUserApiKeysResponse"
+                  "$ref": "#/components/schemas/ListApiCredentialsResponse"
                 }
               }
             },
-            "description": "Active keys, newest first.",
+            "description": "Credentials, newest first, including revoked and expired lifecycle records.",
             "headers": {}
           },
           "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1462,7 +1538,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1470,36 +1546,19 @@
             "headers": {}
           }
         },
-        "security": [],
-        "summary": "List the user's API keys",
+        "security": [{ "BearerAuth": [] }],
+        "summary": "List API credentials",
         "tags": ["Authentication"]
       },
       "post": {
         "deprecated": false,
-        "description": "Creates a public + secret API key pair bound to the authenticated user. The secret key value is returned only in this response; Vortex stores a hash and cannot show it again.\n\nKeys expire after one year by default; `expiresAt` may extend this to at most two years from now. A user may hold at most 10 active keys (a pair counts as two).\n\nSandbox mints `pk_test_*`/`sk_test_*`; production mints `pk_live_*`/`sk_live_*`.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
-        "operationId": "createUserApiKey",
+        "description": "Creates one credential row containing a public value and a hashed secret value for the authenticated profile. The secret is returned only in this response. Expiry defaults to one year and cannot exceed two years. At most five non-revoked, non-expired credentials may exist per profile.\n\n**Auth:** Supabase Bearer session only.",
+        "operationId": "createApiCredential",
         "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
-              "example": {
-                "expiresAt": "2027-07-06T00:00:00.000Z",
-                "name": "my-backend"
-              },
-              "schema": {
-                "properties": {
-                  "expiresAt": {
-                    "description": "Optional ISO-8601 expiry, at most 2 years from now. Defaults to 1 year.",
-                    "format": "date-time",
-                    "type": "string"
-                  },
-                  "name": {
-                    "description": "Optional label; defaults to \"API Key\".",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
+              "schema": { "$ref": "#/components/schemas/CreateApiCredentialRequest" }
             }
           },
           "required": false
@@ -1509,29 +1568,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyPairResponse"
+                  "$ref": "#/components/schemas/CreateApiCredentialResponse"
                 }
               }
             },
-            "description": "Key pair created. Persist `secretKey.key` immediately; it cannot be retrieved again.",
+            "description": "Credential created. Persist `secretKey` immediately; it cannot be retrieved again.",
             "headers": {}
           },
           "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
-            "description": "`INVALID_EXPIRES_AT`: expiresAt is not a valid ISO-8601 date or is more than 2 years from now.",
+            "description": "`INVALID_CREDENTIAL_EXPIRY` or `INVALID_CREDENTIAL_NAME`.",
             "headers": {}
           },
           "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1542,18 +1601,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
-            "description": "`API_KEY_LIMIT_REACHED`: the user already holds the maximum of 10 active keys.",
+            "description": "`CREDENTIAL_LIMIT_REACHED`: the profile already holds five active non-expired credentials.",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1561,67 +1620,38 @@
             "headers": {}
           }
         },
-        "security": [],
-        "summary": "Create a user-linked API key pair",
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Create an API credential",
         "tags": ["Authentication"]
       }
     },
-    "/v1/api-keys/{keyId}": {
+    "/v1/api-credentials/{credentialId}": {
       "delete": {
         "deprecated": false,
-        "description": "Revokes (soft-deletes) an API key owned by the authenticated user. Pass `pairedKeyId` in the body to revoke both halves of a pair together; the two keys must be of opposite types (one public, one secret) and share the same base name. The legacy `publicKeyId` body field is accepted as an alias.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
-        "operationId": "revokeUserApiKey",
+        "description": "Sets `revokedAt` on one profile-managed credential owned by the authenticated profile, atomically disabling its public and secret values. No request body or paired key ID is accepted.\n\n**Auth:** Supabase Bearer session only.",
+        "operationId": "revokeApiCredential",
         "parameters": [
           {
-            "description": "ID of the key to revoke.",
+            "description": "Immutable credential ID to revoke.",
             "in": "path",
-            "name": "keyId",
+            "name": "credentialId",
             "required": true,
             "schema": {
+              "format": "uuid",
               "type": "string"
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "pairedKeyId": "00000000-0000-0000-0000-000000000000"
-              },
-              "schema": {
-                "properties": {
-                  "pairedKeyId": {
-                    "description": "Optional ID of the other half of the pair, to revoke both keys together.",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": false
-        },
         "responses": {
           "204": {
-            "description": "Key(s) revoked.",
-            "headers": {}
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
-                }
-              }
-            },
-            "description": "`INVALID_KEY_PAIR` or `KEY_PAIR_MISMATCH`: the two keys are not opposite halves of the same pair.",
+            "description": "Credential revoked; both values are immediately unusable.",
             "headers": {}
           },
           "401": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1632,18 +1662,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
-            "description": "`API_KEY_NOT_FOUND` or `PAIRED_PUBLIC_KEY_NOT_FOUND`: key missing, already revoked, or not owned by the user.",
+            "description": "`CREDENTIAL_NOT_FOUND`: credential is missing, already revoked, partner-managed, or not owned by the profile.",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
                 }
               }
             },
@@ -1651,8 +1681,8 @@
             "headers": {}
           }
         },
-        "security": [],
-        "summary": "Revoke an API key",
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Revoke an API credential",
         "tags": ["Authentication"]
       }
     },
@@ -2318,6 +2348,50 @@
         "tags": ["Account Management"]
       }
     },
+    "/v1/limits": {
+      "post": {
+        "deprecated": false,
+        "description": "Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.\n\n**Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.",
+        "operationId": "getUserLimits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetUserLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserLimitsResponse"
+                }
+              }
+            },
+            "description": "Limits and consumed amounts for both directions of every requested corridor."
+          },
+          "400": {
+            "description": "Invalid corridor list or no completed provider profile for a requested corridor."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "The credential is not linked to a user."
+          },
+          "502": {
+            "description": "Provider limits are unavailable or invalid."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get user ramp limits",
+        "tags": ["Account Management"]
+      }
+    },
     "/v1/public-key": {
       "get": {
         "deprecated": false,
@@ -2822,6 +2896,43 @@
         "tags": ["Quotes"]
       }
     },
+    "/v1/ramp-info": {
+      "get": {
+        "deprecated": false,
+        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
+        "operationId": "getRampInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RampInfoResponse" } }
+            },
+            "description": "Sanitized corridor eligibility."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+            },
+            "description": "Malformed key or wrong key type."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked API credential."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials."
+          }
+        },
+        "security": [{ "PublicApiKey": [] }, { "SecretApiKey": [] }],
+        "summary": "Get sanitized ramp eligibility",
+        "tags": ["Account Management"]
+      }
+    },
     "/v1/ramp/{id}": {
       "get": {
         "deprecated": false,
@@ -3060,19 +3171,31 @@
             "in": "query",
             "name": "limit",
             "required": false,
-            "schema": { "default": 20, "type": "integer" }
+            "schema": {
+              "default": 20,
+              "type": "integer"
+            }
           },
           {
             "description": "The offset for querying older transactions.",
             "in": "query",
             "name": "offset",
             "required": false,
-            "schema": { "default": 0, "type": "integer" }
+            "schema": {
+              "default": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GetRampHistoryResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRampHistoryResponse"
+                }
+              }
+            },
             "description": "Authenticated user's ramp history.",
             "headers": {}
           }
@@ -4328,7 +4451,7 @@
     "/v1/webhook": {
       "post": {
         "deprecated": false,
-        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nWebhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -4344,7 +4467,7 @@
                     "type": "array"
                   },
                   "quoteId": {
-                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote",
+                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote. The quote must have been created with your API key.",
                     "type": "string"
                   },
                   "sessionId": {
@@ -4352,7 +4475,7 @@
                     "type": "string"
                   },
                   "url": {
-                    "description": "Your HTTPS webhook endpoint URL",
+                    "description": "Your HTTPS webhook endpoint URL. No embedded credentials; must resolve to a publicly routable address.",
                     "type": "string"
                   }
                 },
@@ -4426,7 +4549,7 @@
     "/v1/webhook/{id}": {
       "delete": {
         "deprecated": false,
-        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nDeletion is scoped to your account: a webhook registered by another account returns `404`.",
         "parameters": [
           {
             "description": "",

@@ -1,6 +1,6 @@
 ---
 name: vortex-integration
-description: Use when integrating Vortex or @vortexfi/sdk, including quotes, onramps/offramps for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU), ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
+description: Use when integrating Vortex or @vortexfi/sdk, including unified API credentials, sanitized ramp info, quotes, onramps/offramps for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU), ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
 ---
 
 # Vortex Integration Skill
@@ -15,10 +15,12 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 
 - **SDK**: `@vortexfi/sdk` (JavaScript/TypeScript). Install: `npm i @vortexfi/sdk`.
 - **API base URLs**: production `https://api.vortexfinance.co`, sandbox `https://api-sandbox.vortexfinance.co`.
-- **Auth keys**: partner integrations use a key pair.
-  - `pk_live_*` / `pk_test_*` — public key, sent in request bodies for partner attribution.
-  - `sk_live_*` / `sk_test_*` — secret key, sent in the `X-API-Key` header. **Never expose `sk_*` in a browser or mobile app.**
-  - **Ramp registration requires a user-linked `sk_*` key in every corridor** — the register call is rejected unless the authenticated key resolves to a user account. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from that account, never from request fields.
+- **API credentials**: one `api_credentials` resource contains one public value and one secret value for exactly one profile subject, with one environment, expiry, optional partner, and atomic revocation lifecycle.
+  - `pk_live_*` / `pk_test_*` — public value, sent as `X-Public-Key` for attribution and approved low-sensitivity reads. Quote/widget body `apiKey` remains compatibility transport; if both are present they must match.
+  - `sk_live_*` / `sk_test_*` — secret value, sent only in `X-API-Key`. **Never expose `sk_*` in a browser or mobile app.** It is returned only when the credential is created.
+  - If both values are configured, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. A valid secret may be used without a public value.
+  - **Ramp registration requires an authenticated profile in every corridor.** The secret credential acts only for its bound profile; raw API clients may instead use that profile's Supabase Bearer session. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
+  - Profile-managed credentials use `POST/GET/DELETE /v1/api-credentials` with a Supabase Bearer session. One profile may have at most five active non-expired credentials; revoke by credential ID disables both values atomically with no DELETE body.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Presigned counts**: this is **per ephemeral-signed transaction, not per ramp**. Each transaction an ephemeral key signs must be submitted as 5 presigned variants — 1 primary plus exactly 4 backups with consecutive nonces in `meta.additionalTxs` (`NUMBER_OF_PRESIGNED_TXS = 5`); the API rejects any other backup count. A ramp can contain several ephemeral-signed transactions across its phases. (The SDK builds these for you; only raw-API integrations need to construct them.)
@@ -47,7 +49,7 @@ triggers:
 The first call in any ramp flow. A quote pins the price, fees, and route for a short window (see `expiresAt`). You must hold a non-expired quote to call `registerRamp`.
 
 ## Prerequisites
-- Valid API key pair (`pk_*` + `sk_*`).
+- Optional public credential for attribution; a matching secret credential is required later for ramp operations.
 - Known input currency, output currency, amount, and target network.
 
 ## SDK recipe
@@ -84,6 +86,7 @@ const sameQuote = await vortex.getQuote(quote.id);
 ```bash
 curl -X POST https://api.vortexfinance.co/v1/quotes \
   -H "Content-Type: application/json" \
+  -H "X-Public-Key: $VORTEX_PUBLIC_KEY" \
   -H "X-API-Key: $VORTEX_SECRET_KEY" \
   -d '{
     "rampType": "BUY",
@@ -93,8 +96,7 @@ curl -X POST https://api.vortexfinance.co/v1/quotes \
     "inputCurrency": "BRL",
     "outputCurrency": "USDC",
     "network": "Polygon",
-    "paymentMethod": "pix",
-    "publicKey": "'"$VORTEX_PUBLIC_KEY"'"
+    "paymentMethod": "pix"
   }'
 ```
 
@@ -343,7 +345,7 @@ triggers:
 ```
 
 ## When to use
-The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. These corridors **require a user-linked `sk_*` key**: registration resolves the user's KYC and payment profile from the authenticated account. Partner-scoped keys cannot register ramps here. EVM networks only (no AssetHub).
+The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. Registration resolves KYC and payment ownership from the secret credential's bound profile; raw API clients may instead use that profile's Bearer session. A technical profile without the user's eligible provider account cannot register that user's ramp. EVM networks only (no AssetHub).
 
 | Fiat | Rail identifier | Payment rail |
 |------|-----------------|--------------|
@@ -402,7 +404,7 @@ The SDK cannot **create** fiat accounts; they are created during onboarding in t
 ## Common failures
 - `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
 - `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
-- `400` "requires an API key linked to a user" on register — the `sk_*` key is partner-scoped, not user-linked. Mint a user key after email OTP sign-in.
+- `400` "requires an API key linked to a user" on register — the secret credential is not bound to an eligible profile. Create a profile-managed credential after OTP sign-in or provision a managed profile and issue the credential for that explicit subject.
 - `InsufficientBalanceError` — the offramp pre-flight found the source wallet balance below the quote's input amount.
 
 ---
@@ -478,12 +480,14 @@ triggers:
 ## When to use
 First-time integration, environment migration, or when an agent needs to decide where each key may live.
 
-## Key types
-| Key | Where it goes | Purpose |
+## Credential capabilities
+| Value | Where it goes | Purpose |
 |-----|---------------|---------|
-| `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent inside request bodies as `publicKey`. |
-| `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | Webhook management and partner attribution. Sent as `X-API-Key` header. **Cannot register ramps** unless the key is also linked to a user. **Never** ship to browser/mobile bundles. |
-| `sk_live_*` / `sk_test_*` (user-linked) | Server-side only | Required for ramp registration in every corridor; corridor identity (BRL taxId, Alfredpay/Mykobo customer) is derived from the linked account. Minted programmatically after email OTP sign-in; shown once at creation. |
+| `pk_live_*` / `pk_test_*` | `X-Public-Key`; browser-safe | Quote/widget attribution and sanitized `getRampInfo()`. It cannot read exact limits, ramp details/history/errors, provider accounts, or mutate ramps/webhooks. |
+| `sk_live_*` / `sk_test_*` | `X-API-Key`; server-side only | Authenticated operations as the credential's bound profile and optional partner. Never ship it to browser/mobile bundles. |
+| Supabase session | `Authorization: Bearer ...` | First-party profile flows and profile-managed credential lifecycle. |
+
+The public and secret values are not independent records. They are two capabilities of one credential and must share an immutable credential ID. Never pair or migrate values by display name.
 
 ## SDK recipe
 ```js
@@ -493,6 +497,7 @@ const vortex = new VortexSdk({
   apiBaseUrl: process.env.VORTEX_API_URL, // sandbox or prod
   publicKey:  process.env.VORTEX_PUBLIC_KEY,  // pk_*
   secretKey:  process.env.VORTEX_SECRET_KEY,  // sk_*  — server side only
+  networkInitializationTimeoutMs: 15_000,     // lazy per-network signing RPC timeout
   storeEphemeralKeys: true                    // writes ephemerals_<rampId>.json locally
 });
 ```
@@ -500,13 +505,27 @@ const vortex = new VortexSdk({
 For server processes that manage their own ephemeral key storage (e.g. HSM, encrypted DB), set `storeEphemeralKeys: false` and persist via your own mechanism.
 
 ## REST fallback
-Every authenticated endpoint takes:
-- Header: `X-API-Key: sk_<env>_<32chars>`
-- Body field: `"publicKey": "pk_<env>_<...>"`
+Use:
+- `X-Public-Key: pk_<env>_<32chars>` on attribution and approved public reads.
+- `X-API-Key: sk_<env>_<32chars>` on sensitive/authenticated endpoints.
+- `Authorization: Bearer <Supabase JWT>` on `/v1/api-credentials`.
+
+Create a profile-managed credential with `POST /v1/api-credentials`, list one resource per credential with `GET /v1/api-credentials`, and atomically revoke both values with `DELETE /v1/api-credentials/:credentialId` (no body). The secret is present only in the create response.
+
+Use the sanitized readiness read before a ramp when useful:
+
+```js
+const info = await vortex.getRampInfo();
+// { corridors: { BR: { kycStatus, canBuy, canSell }, ... } }
+```
+
+`GET /v1/ramp-info` accepts public or secret API credential capability, derives the profile from that credential, and returns no exact limits, PII, provider IDs, failure reasons, account details, or ramp history. Supabase sessions do not authorize this endpoint.
 
 ## Common failures
 - `401 Unauthorized` — `X-API-Key` missing, malformed, or wrong environment.
-- Mixing keys across environments (`sk_test_*` against prod URL) — always silently fails auth.
+- `403 CREDENTIAL_MISMATCH` — public/body/header and secret values are not from one credential. Replace the configured pair; do not retry by dropping ownership checks.
+- Mixing keys across environments (`*_test_*` against production or `*_live_*` against sandbox) fails validation.
+- `409 CREDENTIAL_LIMIT_REACHED` — the profile already has five active non-expired credentials; revoke an unused credential by ID.
 - Browser bundle accidentally including `sk_*` — rotate the key immediately if exposed.
 
 ---
@@ -664,7 +683,7 @@ try {
 ## Current corridor reality (July 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
 - **EUR via SEPA (Mykobo)**: onramp and offramp fully implemented in the SDK (`FiatToken.EURC`, rail `"sepa"`), but registration is feature-gated server-side and currently returns `503` "EUR ramps are currently disabled" when the gate is on. Quotes succeed regardless — probe registration, not quoting.
-- **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; requires a user-linked `sk_*` key. Route resolver determines availability per-combination.
+- **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; registration requires an authenticated user identity. Route resolver determines availability per-combination.
 - All corridors deliver to EVM networks; AssetHub is only available for BRL routes.
 
 ## Common failures
@@ -713,7 +732,8 @@ Include this payload (with secrets redacted) in any support ticket.
 | `InvalidNetworkError` | Network not in `Networks` enum | Use `discover-supported-corridors` |
 | `MissingRequiredFieldsError` / `MissingBrlParametersError` / `MissingBrlOfframpParametersError` | Body field missing | Fill the missing field; do not retry blindly |
 | `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
-| `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard the user via the Vortex app or Widget; do not retry programmatically |
+| `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
+| `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
 | `InsufficientBalanceError` | Offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote |
 | `EphemeralNotFreshError` / `EphemeralFreshnessCheckError` | Generated ephemeral account was not fresh, or freshness could not be verified | Safe to retry `registerRamp` — the SDK generates new ephemerals each attempt |
@@ -744,4 +764,4 @@ Contact Vortex support if:
 - `getErrorLogs` shows the same error repeating across attempts.
 - A `complete` ramp shows no `transactionHash` after 10 minutes.
 
-Always include: `rampId`, environment (sandbox/prod), partner `publicKey`, redacted error logs, and the `transactionHash` if present. **Never** include `sk_*` keys in support communications.
+Always include: `rampId`, environment (sandbox/prod), credential ID or safe prefix, redacted error logs, and the `transactionHash` if present. Do not include full `pk_*` or `sk_*` values in support communications.

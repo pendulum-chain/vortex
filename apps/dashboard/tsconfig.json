@@ -18,7 +18,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
-    "types": ["node", "vite/client"],
+    "types": ["bun", "node", "vite/client"],
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true
   },

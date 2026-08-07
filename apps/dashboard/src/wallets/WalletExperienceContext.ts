@@ -4,6 +4,7 @@ import type { WalletMode } from "@/services/api/wallets.api";
 export interface WalletExperience {
   activateSigner: () => void;
   address?: `0x${string}`;
+  canExportEmbeddedWallet: boolean;
   canSignOfframp: boolean;
   canUseAsOnrampDestination: boolean;
   canUseEmbeddedWallet: boolean;

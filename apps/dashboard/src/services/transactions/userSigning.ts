@@ -1,5 +1,7 @@
 import { getNetworkId, isEvmTransactionData, type SignedTypedData, type UnsignedTx } from "@vortexfi/shared";
 import { getAddress } from "viem";
+import { cdpWalletConfig } from "@/wallets/config";
+import { confirmEmbeddedWalletAction } from "@/wallets/embeddedWalletReview";
 import { getActiveWalletSigningAdapter } from "@/wallets/signingAdapter";
 
 /**
@@ -13,6 +15,15 @@ export async function signMultipleTypedData(
   const adapter = getActiveWalletSigningAdapter();
   if (getAddress(adapter.address) !== getAddress(expectedSigner)) {
     throw new Error("The selected wallet does not match the server-issued typed-data signer");
+  }
+  if (adapter.kind === "cdp_embedded" && typedDataArray.length > 0) {
+    if (!cdpWalletConfig.signingEnabled) {
+      throw new Error("Embedded wallet signing is disabled in this environment");
+    }
+    confirmEmbeddedWalletAction("EIP-712 signature", {
+      signer: expectedSigner,
+      typedData: typedDataArray
+    });
   }
   const signedTypedDataArray: SignedTypedData[] = [];
 
@@ -56,6 +67,18 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
   const adapter = getActiveWalletSigningAdapter();
   if (getAddress(adapter.address) !== getAddress(unsignedTx.signer)) {
     throw new Error("The selected wallet does not match the server-issued transaction signer");
+  }
+  if (adapter.kind === "cdp_embedded") {
+    if (!cdpWalletConfig.signingEnabled) {
+      throw new Error("Embedded wallet signing is disabled in this environment");
+    }
+    confirmEmbeddedWalletAction("EVM transaction", {
+      chainId: targetChainId,
+      network,
+      phase: unsignedTx.phase,
+      signer: unsignedTx.signer,
+      transaction: txData
+    });
   }
   const hash = await adapter.sendTransaction({
     chainId: targetChainId,

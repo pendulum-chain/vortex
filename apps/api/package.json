@@ -89,10 +89,14 @@
   "name": "vortex-backend",
   "scripts": {
     "build": "bun run swc src -d dist --strip-leading-paths",
+    "build:auth-emails": "bun src/scripts/auth-email-templates.ts",
     "dev": "NODE_ENV=development bun --watch src/index.ts",
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
+    "preview:emails": "bun src/scripts/preview-emails.ts",
+    "preview:emails:watch": "bun --watch src/scripts/preview-emails.ts",
+    "register:avenia-webhook": "bun src/scripts/register-avenia-webhook.ts",
     "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",
@@ -100,6 +104,7 @@
     "test:coverage": "bun test --timeout 15000 --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.55 0.64",
     "test:db:start": "./scripts/test-db.sh start",
     "test:db:stop": "./scripts/test-db.sh stop",
+    "timeout:initial-ramps": "bun scripts/timeout-initial-ramps.ts",
     "typecheck": "tsc --noEmit"
   },
   "version": "1.0.0"

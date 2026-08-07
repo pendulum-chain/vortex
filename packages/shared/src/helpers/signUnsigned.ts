@@ -18,6 +18,47 @@ import {
 } from "../index";
 import logger from "../logger";
 
+// Networks whose transactions are signed directly with the EVM ephemeral, regardless of phase.
+const EVM_EPHEMERAL_SIGNING_NETWORKS: Networks[] = [
+  Networks.Polygon,
+  Networks.PolygonAmoy,
+  Networks.Base,
+  Networks.Arbitrum,
+  Networks.Avalanche,
+  Networks.BSC,
+  Networks.Ethereum
+];
+
+const DESTINATION_NETWORK_PHASES = [
+  "destinationTransfer",
+  "backupSquidRouterApprove",
+  "backupSquidRouterSwap",
+  "backupApprove"
+];
+
+/**
+ * Groups transactions by the signing flow that handles them. The destination group must
+ * exclude every network the EVM group selects, or the same transaction would be signed
+ * (and returned) twice.
+ */
+export function groupUnsignedTxsForSigning(unsignedTxs: UnsignedTx[]): {
+  destinationNetworkTxs: UnsignedTx[];
+  evmTxs: UnsignedTx[];
+  hydrationTxs: UnsignedTx[];
+  moonbeamTxs: UnsignedTx[];
+  pendulumTxs: UnsignedTx[];
+} {
+  return {
+    destinationNetworkTxs: unsignedTxs.filter(
+      tx => DESTINATION_NETWORK_PHASES.includes(tx.phase) && !EVM_EPHEMERAL_SIGNING_NETWORKS.includes(tx.network)
+    ),
+    evmTxs: unsignedTxs.filter(tx => EVM_EPHEMERAL_SIGNING_NETWORKS.includes(tx.network)),
+    hydrationTxs: unsignedTxs.filter(tx => tx.network === Networks.Hydration),
+    moonbeamTxs: unsignedTxs.filter(tx => tx.network === Networks.Moonbeam),
+    pendulumTxs: unsignedTxs.filter(tx => tx.network === Networks.Pendulum)
+  };
+}
+
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
     return primaryTx;
@@ -77,7 +118,7 @@ async function signMultipleSubstrateTransactions(
  * @param apiKey - Optional Alchemy API key
  * @returns WalletClient for the specified network
  */
-function createEvmClient(
+export function createEvmClient(
   network: string, // Accept string to match UnsignedTx.network type usually being string/enum
   evmEphemeral: EphemeralAccount,
   apiKey?: string
@@ -95,7 +136,7 @@ function createEvmClient(
       break;
     case Networks.PolygonAmoy:
       chain = polygonAmoy;
-      rpcUrls = ["https://polygon-amoy.api.onfinality.io/public"];
+      rpcUrls = apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Moonbeam:
       chain = moonbeam;
@@ -206,25 +247,9 @@ export async function signUnsignedTransactions(
   const signedTxs: PresignedTx[] = [];
 
   // Group transactions
-  const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
-  const evmTxs = unsignedTxs.filter(
-    tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy || tx.network === Networks.Base
-  );
-  const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
-  const destinationNetworkTxs = unsignedTxs.filter(
-    tx =>
-      (tx.phase === "destinationTransfer" ||
-        tx.phase === "backupSquidRouterApprove" ||
-        tx.phase === "backupSquidRouterSwap" ||
-        tx.phase === "backupApprove") &&
-      tx.network !== Networks.Polygon &&
-      tx.network !== Networks.PolygonAmoy &&
-      tx.network !== Networks.Base
-  );
+  const { destinationNetworkTxs, evmTxs, hydrationTxs, moonbeamTxs, pendulumTxs } = groupUnsignedTxsForSigning(unsignedTxs);
 
   try {
-    const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");
-
     for (const tx of hydrationTxs) {
       if (!ephemerals.substrateEphemeral) {
         throw new Error("Missing Substrate ephemeral account");
@@ -323,10 +348,6 @@ export async function signUnsignedTransactions(
       if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
-
-      // Check if already signed to avoid duplication
-      const alreadySigned = signedTxs.some(st => st === tx || (st.txData === tx.txData && st.nonce === tx.nonce));
-      if (alreadySigned) continue;
 
       const client = createEvmClient(tx.network, ephemerals.evmEphemeral, alchemyApiKey);
       const multiSignedTxs = await signMultipleEvmTransactions(tx, client, tx.nonce);

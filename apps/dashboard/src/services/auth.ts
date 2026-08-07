@@ -17,6 +17,12 @@ export class AuthService {
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
   private static readonly listeners = new Set<() => void>();
+  private static sessionGeneration = 0;
+  private static refreshFlight: {
+    generation: number;
+    refreshToken: string;
+    promise: Promise<AuthTokens | null>;
+  } | null = null;
 
   private static notifyListeners(): void {
     for (const listener of this.listeners) {
@@ -30,6 +36,7 @@ export class AuthService {
   }
 
   static storeTokens(tokens: AuthTokens): void {
+    this.sessionGeneration += 1;
     localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.accessToken);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refreshToken);
     localStorage.setItem(this.USER_ID_KEY, tokens.userId);
@@ -52,6 +59,7 @@ export class AuthService {
   }
 
   static clearTokens(): void {
+    this.sessionGeneration += 1;
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
@@ -103,15 +111,33 @@ export class AuthService {
 
   /**
    * Refresh the access token via `/v1/auth/refresh`. Returns the new tokens, or `null`
-   * when the refresh token is confirmed invalid (401 — session cleared). Transient
-   * failures throw so callers can retry without destroying a still-valid session.
+   * when the current refresh token is confirmed invalid (401 — session cleared). A
+   * superseded flight returns the replacement session instead. Transient failures throw so
+   * callers can retry without destroying a still-valid session. Callers in the same session
+   * share an in-flight refresh so proactive refresh and 401 recovery cannot race refresh-token
+   * rotation; a replacement session starts its own flight.
    */
-  static async refreshAccessToken(): Promise<AuthTokens | null> {
+  static refreshAccessToken(): Promise<AuthTokens | null> {
     const tokens = this.getTokens();
     if (!tokens) {
-      return null;
+      return Promise.resolve(null);
     }
 
+    const generation = this.sessionGeneration;
+    if (this.refreshFlight?.generation === generation && this.refreshFlight.refreshToken === tokens.refreshToken) {
+      return this.refreshFlight.promise;
+    }
+
+    const promise = this.performTokenRefresh(tokens, generation).finally(() => {
+      if (this.refreshFlight?.promise === promise) {
+        this.refreshFlight = null;
+      }
+    });
+    this.refreshFlight = { generation, promise, refreshToken: tokens.refreshToken };
+    return promise;
+  }
+
+  private static async performTokenRefresh(tokens: AuthTokens, generation: number): Promise<AuthTokens | null> {
     const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
       body: JSON.stringify({ refresh_token: tokens.refreshToken }),
       headers: { "Content-Type": "application/json" },
@@ -119,6 +145,9 @@ export class AuthService {
       signal: AbortSignal.timeout(30000)
     });
 
+    if (!this.isCurrentSession(tokens.refreshToken, generation)) {
+      return this.getTokens();
+    }
     if (response.status === 401) {
       this.clearTokens();
       return null;
@@ -128,6 +157,9 @@ export class AuthService {
     }
 
     const data = (await response.json()) as { access_token: string; refresh_token: string };
+    if (!this.isCurrentSession(tokens.refreshToken, generation)) {
+      return this.getTokens();
+    }
     const newTokens: AuthTokens = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
@@ -136,6 +168,10 @@ export class AuthService {
     };
     this.storeTokens(newTokens);
     return newTokens;
+  }
+
+  private static isCurrentSession(refreshToken: string, generation: number): boolean {
+    return this.sessionGeneration === generation && this.getTokens()?.refreshToken === refreshToken;
   }
 
   static signOut(): void {

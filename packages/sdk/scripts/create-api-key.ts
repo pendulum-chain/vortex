@@ -1,4 +1,4 @@
-// Create a new public + secret API key pair (POST /v1/api-keys).
+// Create a unified public + secret API credential (POST /v1/api-credentials).
 // Requires a valid auth token from scripts/login.ts.
 //
 // Run:
@@ -23,12 +23,13 @@ interface AuthToken {
   userId: string;
 }
 
-interface ApiKeyResponse {
+interface ApiCredentialResponse {
   createdAt: string;
   expiresAt: string;
-  isActive: boolean;
-  publicKey: { id: string; key: string; keyPrefix: string; name: string; type: "public" };
-  secretKey: { id: string; key: string; keyPrefix: string; name: string; type: "secret" };
+  id: string;
+  name: string;
+  publicKey: string;
+  secretKey: string;
 }
 
 function loadAuthToken(): AuthToken {
@@ -41,8 +42,8 @@ function loadAuthToken(): AuthToken {
 async function main(): Promise<void> {
   const auth = loadAuthToken();
 
-  console.log(`🗝️  Creating api-key "${API_KEY_NAME}" ...`);
-  const response = await fetch(`${API_BASE_URL}/v1/api-keys`, {
+  console.log(`🗝️  Creating API credential "${API_KEY_NAME}" ...`);
+  const response = await fetch(`${API_BASE_URL}/v1/api-credentials`, {
     body: JSON.stringify({ name: API_KEY_NAME }),
     headers: {
       Authorization: `Bearer ${auth.accessToken}`,
@@ -52,22 +53,21 @@ async function main(): Promise<void> {
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`${response.status} /v1/api-keys: ${text}`);
+    throw new Error(`${response.status} /v1/api-credentials: ${text}`);
   }
-  const keyPair = JSON.parse(text) as ApiKeyResponse;
+  const credential = JSON.parse(text) as ApiCredentialResponse;
 
-  console.log("   publicKey:", keyPair.publicKey.key);
-  console.log("   secretKey:", keyPair.secretKey.key, " (shown once)");
+  console.log("   publicKey:", credential.publicKey);
+  console.log("   secretKey:", credential.secretKey, " (shown once)");
 
   const out = {
     apiUrl: API_BASE_URL,
-    createdAt: keyPair.createdAt,
-    expiresAt: keyPair.expiresAt,
-    name: API_KEY_NAME,
-    publicKey: keyPair.publicKey.key,
-    publicKeyId: keyPair.publicKey.id,
-    secretKey: keyPair.secretKey.key,
-    secretKeyId: keyPair.secretKey.id,
+    createdAt: credential.createdAt,
+    credentialId: credential.id,
+    expiresAt: credential.expiresAt,
+    name: credential.name,
+    publicKey: credential.publicKey,
+    secretKey: credential.secretKey,
     userId: auth.userId
   };
   fs.writeFileSync(API_KEY_OUTFILE, JSON.stringify(out, null, 2));

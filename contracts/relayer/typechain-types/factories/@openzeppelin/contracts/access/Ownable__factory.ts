@@ -2,8 +2,11 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
-import type { Ownable, OwnableInterface } from "../../../../@openzeppelin/contracts/access/Ownable";
+import { Contract, Interface, type ContractRunner } from "ethers";
+import type {
+  Ownable,
+  OwnableInterface,
+} from "../../../../@openzeppelin/contracts/access/Ownable";
 
 const _abi = [
   {
@@ -11,22 +14,22 @@ const _abi = [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "OwnableInvalidOwner",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "account",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "OwnableUnauthorizedAccount",
-    type: "error"
+    type: "error",
   },
   {
     anonymous: false,
@@ -35,17 +38,17 @@ const _abi = [
         indexed: true,
         internalType: "address",
         name: "previousOwner",
-        type: "address"
+        type: "address",
       },
       {
         indexed: true,
         internalType: "address",
         name: "newOwner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "OwnershipTransferred",
-    type: "event"
+    type: "event",
   },
   {
     inputs: [],
@@ -54,32 +57,32 @@ const _abi = [
       {
         internalType: "address",
         name: "",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
     name: "renounceOwnership",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "newOwner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "transferOwnership",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class Ownable__factory {

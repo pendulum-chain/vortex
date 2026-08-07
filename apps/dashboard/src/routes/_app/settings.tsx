@@ -9,29 +9,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import type { EmailNotificationCategory } from "@/services/api/notification-preferences.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useWalletExperience } from "@/wallets/WalletExperienceContext";
 
-const NOTIFICATION_PREFS = [
+const NOTIFICATION_PREFS: Array<{ id: EmailNotificationCategory; label: string; description: string }> = [
   {
-    defaultChecked: true,
     description: "When a corridor's KYB/KYC is approved or rejected.",
     id: "onboarding",
     label: "Onboarding updates"
   },
   {
-    defaultChecked: true,
-    description: "When an invited recipient completes KYC/KYB.",
-    id: "recipients",
-    label: "Recipient approvals"
-  },
-  {
-    defaultChecked: true,
-    description: "When a wallet-to-fiat pay-out settles or fails.",
+    description: "When a ramp settles.",
     id: "transfers",
     label: "Transfer status"
   }
-] as const;
+];
 
 export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage
@@ -41,6 +35,7 @@ function SettingsPage() {
   const user = useAuthStore(state => state.user);
   const account = useActiveAccount();
   const wallet = useWalletExperience();
+  const { categoryEnabled, controlsDisabled, setCategoryEnabled } = useNotificationPreferences();
 
   return (
     <Stagger className="mx-auto grid max-w-3xl gap-6">
@@ -93,9 +88,11 @@ function SettingsPage() {
                         <Copy className="size-4" />
                         Copy receive address
                       </Button>
-                      <Button onClick={() => void wallet.exportEmbeddedWallet()} type="button" variant="outline">
-                        Export wallet
-                      </Button>
+                      {wallet.canExportEmbeddedWallet && (
+                        <Button onClick={() => void wallet.exportEmbeddedWallet()} type="button" variant="outline">
+                          Export wallet
+                        </Button>
+                      )}
                     </>
                   )}
                   <Button onClick={() => void wallet.switchToExternalWallet()} type="button" variant="outline">
@@ -156,7 +153,12 @@ function SettingsPage() {
                 htmlFor={pref.id}
                 key={pref.id}
               >
-                <Checkbox defaultChecked={pref.defaultChecked} id={pref.id} />
+                <Checkbox
+                  checked={categoryEnabled(pref.id)}
+                  disabled={controlsDisabled}
+                  id={pref.id}
+                  onCheckedChange={checked => setCategoryEnabled(pref.id, checked === true)}
+                />
                 <span className="grid gap-0.5">
                   <span className="font-medium text-sm">{pref.label}</span>
                   <span className="text-muted-foreground text-xs">{pref.description}</span>

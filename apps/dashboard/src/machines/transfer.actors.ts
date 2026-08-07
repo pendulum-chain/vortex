@@ -25,7 +25,7 @@ import { fetchQuote, type QuoteParams } from "@/services/api/quote.service";
 import { shouldRefreshQuote } from "@/services/api/quote-expiry";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
 import { fetchTokenPortfolio, getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
-import { bindRampEphemerals, storePendingRampEphemerals } from "@/services/rampEphemerals";
+import { bindRampEphemerals, markRampEphemeralsTerminal, storePendingRampEphemerals } from "@/services/rampEphemerals";
 import { signAndSubmitEvmTransaction, signMultipleTypedData } from "@/services/transactions/userSigning";
 
 const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY;
@@ -254,6 +254,7 @@ export function pollRampUntilTerminal(
       }
       onStatus(status);
       if (isTerminalPhase(status)) {
+        markRampEphemeralsTerminal(rampId);
         onTerminal(status);
         return;
       }

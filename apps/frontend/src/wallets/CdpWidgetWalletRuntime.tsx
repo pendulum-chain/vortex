@@ -16,6 +16,9 @@ import { ProfileWallet, WalletMode, WalletsResponse, WalletsService } from "../s
 import { AuthService } from "../services/auth";
 import { createCdpSigningAdapter } from "./cdpSigningAdapter";
 import { selectCdpEmbeddedWallet } from "./cdpWalletSelection";
+import { cdpWidgetConfig } from "./config";
+import { confirmEmbeddedWalletAction } from "./embeddedWalletReview";
+import { validateEmbeddedWalletSiweMessage } from "./embeddedWalletSiwe";
 import { setActiveEvmWalletSigningAdapter } from "./signingAdapter";
 import { WidgetEvmWallet, WidgetWalletContext } from "./WidgetWalletContext";
 
@@ -83,7 +86,7 @@ export function CdpWidgetWalletRuntime({
 
   const signingAdapter = useMemo(
     () =>
-      address
+      address && cdpWidgetConfig.signingEnabled
         ? createCdpSigningAdapter(address, {
             signTransaction: signEvmTransaction,
             signTypedData: signEvmTypedData
@@ -91,6 +94,8 @@ export function CdpWidgetWalletRuntime({
         : null,
     [address, signEvmTransaction, signEvmTypedData]
   );
+
+  useEffect(() => () => setActiveEvmWalletSigningAdapter(null), []);
 
   const register = useCallback(
     async (walletAddressToRegister: string, cdpUserId: string) => {
@@ -150,6 +155,7 @@ export function CdpWidgetWalletRuntime({
     () => ({
       activateSigner: () => setActiveEvmWalletSigningAdapter(signingAdapter),
       address,
+      canExportEmbeddedWallet: cdpWidgetConfig.exportEnabled,
       canUseEmbeddedWallet: true,
       connectExternalWallet,
       connected: Boolean(address),
@@ -159,13 +165,28 @@ export function CdpWidgetWalletRuntime({
         ? "The registered embedded wallet is not available in the current CDP session."
         : undefined,
       exportEmbeddedWallet: async () => {
+        if (!cdpWidgetConfig.exportEnabled) {
+          throw new Error("Embedded wallet export is disabled in this environment");
+        }
         if (!address) throw new Error("No embedded wallet is available to export");
+        confirmEmbeddedWalletAction("Reveal private key", {
+          address,
+          warning: "Anyone with this private key has full control of the wallet and its assets."
+        });
         setExportOpen(true);
       },
       mode,
       ready: isInitialized && authenticated,
       signMessage: async message => {
+        if (!cdpWidgetConfig.signingEnabled) {
+          throw new Error("Embedded wallet signing is disabled in this environment");
+        }
         if (!address) throw new Error("The embedded wallet is not ready");
+        const signInMessage = validateEmbeddedWalletSiweMessage(message, address, window.location.host);
+        confirmEmbeddedWalletAction("Sign in to Vortex", {
+          ...signInMessage,
+          message
+        });
         const result = await signEvmMessage({ evmAccount: address, message });
         return result.signature;
       },
@@ -189,7 +210,7 @@ export function CdpWidgetWalletRuntime({
   return (
     <>
       <WidgetWalletContext value={value}>{children}</WidgetWalletContext>
-      {address && (
+      {address && cdpWidgetConfig.exportEnabled && (
         <ExportWalletModal address={address} open={exportOpen} setIsOpen={setExportOpen}>
           <span hidden />
         </ExportWalletModal>

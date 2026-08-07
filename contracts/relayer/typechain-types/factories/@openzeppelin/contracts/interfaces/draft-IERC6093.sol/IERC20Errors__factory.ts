@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
+import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
   IERC20Errors,
-  IERC20ErrorsInterface
+  IERC20ErrorsInterface,
 } from "../../../../../@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC20Errors";
 
 const _abi = [
@@ -14,87 +14,87 @@ const _abi = [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "allowance",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "needed",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC20InsufficientAllowance",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "balance",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "needed",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC20InsufficientBalance",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "approver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidApprover",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "receiver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidReceiver",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidSender",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC20InvalidSpender",
-    type: "error"
-  }
+    type: "error",
+  },
 ] as const;
 
 export class IERC20Errors__factory {
@@ -102,7 +102,10 @@ export class IERC20Errors__factory {
   static createInterface(): IERC20ErrorsInterface {
     return new Interface(_abi) as IERC20ErrorsInterface;
   }
-  static connect(address: string, runner?: ContractRunner | null): IERC20Errors {
+  static connect(
+    address: string,
+    runner?: ContractRunner | null
+  ): IERC20Errors {
     return new Contract(address, _abi, runner) as unknown as IERC20Errors;
   }
 }

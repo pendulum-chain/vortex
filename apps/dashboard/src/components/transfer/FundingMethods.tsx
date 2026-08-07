@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { RampTokenOption } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
 import { useTokenPortfolio } from "@/hooks/useTokenPortfolio";
+import { CRYPTO_DISPLAY_DECIMALS, formatAmount, formatCurrencyAmount } from "@/lib/amount";
 import { getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
 import { useWalletExperience } from "@/wallets/WalletExperienceContext";
 
@@ -97,13 +98,14 @@ export function FundingMethods({ disabled, quote, submitting, token, onSubmit }:
             <p className="text-muted-foreground">
               Available:{" "}
               <span className="font-medium text-foreground tabular-nums">
-                {balance.formatted} {token.label}
+                {formatAmount(balance.formatted, CRYPTO_DISPLAY_DECIMALS)} {token.label}
               </span>{" "}
               on {token.networkLabel}
             </p>
             {!hasEnoughBalance && (
               <p className="text-destructive" role="alert">
-                Insufficient {token.label} balance. You need {quote.inputAmount} {token.label} on {token.networkLabel}.
+                Insufficient {token.label} balance. You need {formatCurrencyAmount(quote.inputAmount, token.label)}{" "}
+                {token.label} on {token.networkLabel}.
               </p>
             )}
           </div>
@@ -123,7 +125,7 @@ export function FundingMethods({ disabled, quote, submitting, token, onSubmit }:
           type="button"
         >
           {submitting || checkingBalance ? <Loader2 className="size-4 animate-spin" /> : null}
-          Send ≈ <span className="tabular-nums">{quote.inputAmount}</span> {token.label}
+          Send ≈ <span className="tabular-nums">{formatCurrencyAmount(quote.inputAmount, token.label)}</span> {token.label}
         </Button>
       </div>
     </div>

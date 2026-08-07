@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeftRight, Calculator, Send, Settings, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeftRight, Calculator, Gauge, KeyRound, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,8 @@ const NAV_ITEMS = [
   { icon: Calculator, label: "Get a quote", to: "/quote" },
   { icon: Send, label: "New transfer", to: "/transfer" },
   { icon: ArrowLeftRight, label: "Transactions", to: "/transactions" },
+  { icon: KeyRound, label: "API keys", to: "/api-keys" },
+  { icon: Gauge, label: "Limits", to: "/limits" },
   { icon: Settings, label: "Settings", to: "/settings" }
 ] as const;
 

@@ -290,7 +290,7 @@ describe("SDK ↔ API contract (BRL onramp, pix → BRLA on Base)", () => {
       const destination = privateKeyToAccount(generatePrivateKey()).address;
 
       await expect(anonymous.registerRamp(quote, { destinationAddress: destination })).rejects.toThrow(
-        /requires a user-linked secretKey/
+        /requires a secretKey .* that resolves to a Vortex user/
       );
     },
     30000

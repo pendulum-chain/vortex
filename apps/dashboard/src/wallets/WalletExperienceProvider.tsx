@@ -75,6 +75,7 @@ function WalletExperienceSession({ children, userId }: { children: React.ReactNo
     () => ({
       activateSigner: () => setActiveWalletSigningAdapter(externalAdapter),
       address,
+      canExportEmbeddedWallet: false,
       canSignOfframp: true,
       canUseAsOnrampDestination: true,
       canUseEmbeddedWallet: cdpWalletConfig.provisioningEnabled,

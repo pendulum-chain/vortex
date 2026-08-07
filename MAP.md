@@ -1,47 +1,48 @@
 # Repository Map
 
-Wayfinding for the Vortex monorepo: what kind of code lives where. Each app/package
-has its own `CLAUDE.md` with scoped commands and conventions — `cd` into the relevant
-one before working there.
+Wayfinding for the Vortex monorepo. Start with the nearest `CLAUDE.md` before changing a
+workspace; use [`docs/README.md`](docs/README.md) to locate durable project context.
 
-## Apps
+## Applications
 
-| Path | What lives here |
-|------|-----------------|
-| `apps/frontend` | React 19 + Vite web app — the user-facing ramp UI. Zustand, TanStack Query/Router, XState, Wagmi/Talisman wallets. → [`CLAUDE.md`](apps/frontend/CLAUDE.md) |
-| `apps/api` | Express backend (PostgreSQL + Sequelize). Ramp state machine, quotes, partners, webhooks, XCM/Nabla/Stellar/BRLA integrations. → [`CLAUDE.md`](apps/api/CLAUDE.md) |
-| `apps/rebalancer` | Standalone liquidity rebalancing service. → [`CLAUDE.md`](apps/rebalancer/CLAUDE.md) |
+| Path | Responsibility |
+|---|---|
+| `apps/api` | Express API, PostgreSQL/Sequelize models and migrations, block-flow ramp engine, provider integrations, webhooks, and workers. |
+| `apps/frontend` | React widget and public web surface. XState ramp/KYC flows, wallets, and partner embedding. |
+| `apps/dashboard` | React account dashboard. Auth, customer entities, onboarding, recipients, history, and self-ramp flows. |
+| `apps/rebalancer` | Standalone service for cross-chain liquidity correction and profitability-aware rebalancing. |
 
 ## Packages
 
-| Path | What lives here |
-|------|-----------------|
-| `packages/shared` | `@vortexfi/shared` — token/network configs, contract ABIs & addresses, decimal/BigNumber helpers, endpoint helpers, logger. Consumed by every app. → [`CLAUDE.md`](packages/shared/CLAUDE.md) |
-| `packages/sdk` | `@vortexfi/sdk` — the public integration SDK shipped to partners. → [`CLAUDE.md`](packages/sdk/CLAUDE.md) |
+| Path | Responsibility |
+|---|---|
+| `packages/shared` | `@vortexfi/shared`: wire contracts, tokens/networks, provider clients, signing helpers, and shared configuration. |
+| `packages/kyc` | `@vortexfi/kyc`: provider KYC/KYB state machines shared by widget and dashboard. |
+| `packages/sdk` | `@vortexfi/sdk`: public partner SDK for quote, registration, signing, update, start, and status flows. |
 
 ## Contracts
 
-| Path | What lives here |
-|------|-----------------|
-| `contracts` | Solidity contracts: `cctp-settlement` and `relayer`. |
-| `relayer-contract` | Relayer contract security-audit material. |
+| Path | Responsibility |
+|---|---|
+| `contracts/relayer` | Hardhat project for `TokenRelayer.sol`, tests, and deployment scripts. |
+| `contracts/cctp-settlement` | CCTP settlement contract workspace. |
 
-## Docs & specs
+## Documentation
 
-| Path | What lives here |
-|------|-----------------|
-| `docs/security-spec` | Audit-facing source of truth for security-sensitive behavior. Keep in sync with code changes (see root `CLAUDE.md` → Security Spec Sync). |
-| `docs/api` | Public API docs — OpenAPI spec (`openapi/`) and prose pages (`pages/`). Whitelabeled. |
-| `docs/architecture`, `docs/features`, `docs/qa`, `docs/refactoring` | Architecture notes, feature write-ups, QA and refactoring records. |
-| `docs/testing-strategy.md`, `docs/test-audit-findings.md` | Testing approach and audit findings. |
-| `memory-bank` | Long-form project context: product/tech context, decision log, phases, progress. |
+| Path | Responsibility |
+|---|---|
+| `docs` | Documentation index plus the small set of current project, ADR, incident, and proposal files. |
+| `docs/security-spec` | Normative security invariants, current risk register, and dated audit evidence. |
+| `docs/api` | Partner-facing OpenAPI and guide-page publication source. |
 
-## Tooling & config
+The full placement and lifecycle policy is in [`docs/README.md`](docs/README.md).
 
-| Path | What lives here |
-|------|-----------------|
-| `scripts` | Repo tooling — `check-coverage.ts`, `coverage-report.ts` (LCOV-based coverage gate). |
-| `supabase` | Supabase config, DB migrations, snippets, email templates. |
-| `.agents/skills` | Repo-scoped agent skills: `vortex-integration` (partner integration recipes), `sentry-vortex` (frontend error-instrumentation audit). |
-| `.clinerules` | Cline coding rules (general, useful prompts, frontend). |
-| `.claude` | Claude Code config — shared `settings.json` (deny rules), personal `settings.local.json` (ignored), worktrees. |
+## Tooling and configuration
+
+| Path | Responsibility |
+|---|---|
+| `scripts` | Repository coverage and maintenance tooling. |
+| `supabase` | Supabase configuration, migrations, snippets, and email templates. |
+| `.agents/skills` | Purpose-built, repository-specific agent workflows (currently Vortex integration and Sentry guidance). |
+| `.claude` | Shared Claude Code settings and worktree configuration. |
+| `.clinerules` | Pointer from Cline to the canonical `CLAUDE.md` and documentation policy. |

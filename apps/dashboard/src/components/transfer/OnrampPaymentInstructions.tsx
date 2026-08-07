@@ -38,8 +38,6 @@ function usdReference(payment: AlfredpayFiatPaymentInstructions): string | undef
 
 function instructionRows(ramp: RampProcess): Array<{ label: string; value: unknown }> {
   const payment = ramp.achPaymentData;
-  // inputAmount is already a decimal string from the API — no float math, which would
-  // truncate (e.g. 4.35 -> 4.34) the exact amount the user is told to send.
   const amountRow = { label: "Amount", value: `${ramp.inputAmount} ${ramp.inputCurrency}` };
   switch (ramp.inputCurrency) {
     case "MXN":

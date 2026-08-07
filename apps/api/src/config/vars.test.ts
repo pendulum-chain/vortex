@@ -112,7 +112,7 @@ describe("vars deployment environment validation", () => {
   it("requires the CDP project ID when wallet registration is enabled", async () => {
     const result = await importVarsWithEnv({
       CDP_WALLET_REGISTRATION_ENABLED: "true",
-      NODE_ENV: "test",
+      NODE_ENV: "test"
     });
 
     expect(result.exitCode).toBe(1);
@@ -123,9 +123,40 @@ describe("vars deployment environment validation", () => {
     const result = await importVarsWithEnv({
       CDP_PROJECT_ID: "test-cdp-project",
       CDP_WALLET_REGISTRATION_ENABLED: "true",
-      NODE_ENV: "test",
+      NODE_ENV: "test"
     });
 
     expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+
+  it("accepts a lower recipient-invite discount ceiling", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "125"
+    });
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+  it("rejects a recipient-invite discount ceiling above the hard cap", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "301"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("RECIPIENT_INVITE_MAX_DISCOUNT_BPS must be an integer between 0 and 300");
+  });
+
+  it("rejects a non-integer recipient-invite discount ceiling", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production",
+      RECIPIENT_INVITE_MAX_DISCOUNT_BPS: "2.5"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("RECIPIENT_INVITE_MAX_DISCOUNT_BPS must be an integer between 0 and 300");
   });
 });

@@ -3,7 +3,18 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
-import webhookService from "../services/webhook/webhook.service";
+import webhookService, { WebhookOwner } from "../services/webhook/webhook.service";
+
+// Webhook routes require secret capability (no Supabase session), so the owner is
+// the credential's principal: the partner for partner-managed credentials, the
+// subject profile for profile-managed ones.
+function webhookOwnerFromRequest(req: Pick<Request, "credential">): WebhookOwner {
+  const partnerId = req.credential?.partnerId ?? null;
+  return {
+    partnerId,
+    userId: partnerId ? null : (req.credential?.profileId ?? null)
+  };
+}
 
 export const registerWebhook = async (
   req: Request<unknown, unknown, RegisterWebhookRequest>,
@@ -42,12 +53,15 @@ export const registerWebhook = async (
       });
     }
 
-    const webhook = await webhookService.registerWebhook({
-      events,
-      quoteId,
-      sessionId,
-      url
-    });
+    const webhook = await webhookService.registerWebhook(
+      {
+        events,
+        quoteId,
+        sessionId,
+        url
+      },
+      webhookOwnerFromRequest(req)
+    );
 
     res.status(httpStatus.CREATED).json(webhook);
   } catch (error) {
@@ -71,7 +85,7 @@ export const deleteWebhook = async (
       });
     }
 
-    const success = await webhookService.deleteWebhook(id);
+    const success = await webhookService.deleteWebhook(id, webhookOwnerFromRequest(req));
 
     if (!success) {
       throw new APIError({

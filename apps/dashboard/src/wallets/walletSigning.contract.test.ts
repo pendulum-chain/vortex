@@ -4,11 +4,12 @@ import {
   type UnsignedTx
 } from "@vortexfi/shared";
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import {
   signAndSubmitEvmTransaction,
   signMultipleTypedData
 } from "@/services/transactions/userSigning";
+import { cdpWalletConfig } from "./config";
 import {
   setActiveWalletSigningAdapter,
   type WalletSigningAdapter
@@ -18,6 +19,9 @@ const address = "0x1111111111111111111111111111111111111111";
 const txHash = `0x${"cd".repeat(32)}` as `0x${string}`;
 const confirmedHash = `0x${"ef".repeat(32)}` as `0x${string}`;
 const rawSignature = `0x${"11".repeat(64)}1b` as `0x${string}`;
+const originalSigningEnabled = cdpWalletConfig.signingEnabled;
+const originalConfirm = globalThis.confirm;
+let confirmationMessages: string[] = [];
 
 const typedData: SignedTypedData = {
   domain: {
@@ -69,6 +73,21 @@ function fakeAdapter(kind: WalletSigningAdapter["kind"]) {
 }
 
 describe("wallet signer contract", () => {
+  beforeEach(() => {
+    cdpWalletConfig.signingEnabled = true;
+    confirmationMessages = [];
+    globalThis.confirm = message => {
+      confirmationMessages.push(String(message));
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    cdpWalletConfig.signingEnabled = originalSigningEnabled;
+    if (originalConfirm) globalThis.confirm = originalConfirm;
+    else Reflect.deleteProperty(globalThis, "confirm");
+  });
+
   for (const kind of ["external", "cdp_embedded"] as const) {
     it(`${kind} produces the same permit and transaction result shapes`, async () => {
       const fake = fakeAdapter(kind);
@@ -104,8 +123,34 @@ describe("wallet signer contract", () => {
       assert.equal(sent.maxPriorityFeePerGas, 1000000000n);
       assert.equal(sent.nonce, 0);
       assert.equal(sent.value, 7n);
+      assert.equal(confirmationMessages.length, kind === "cdp_embedded" ? 2 : 0);
+      if (kind === "cdp_embedded") {
+        assert.match(confirmationMessages.join("\n"), /PermitTransferFrom/);
+        assert.match(confirmationMessages.join("\n"), /"chainId": 8453/);
+        assert.match(confirmationMessages.join("\n"), /"data": "0x1234"/);
+      }
     });
   }
+
+  it("blocks embedded signing when the signing kill switch is off", async () => {
+    const fake = fakeAdapter("cdp_embedded");
+    setActiveWalletSigningAdapter(fake.adapter);
+    cdpWalletConfig.signingEnabled = false;
+
+    await assert.rejects(signAndSubmitEvmTransaction(unsignedTx), /signing is disabled/);
+    assert.equal(fake.calls.length, 0);
+    assert.equal(confirmationMessages.length, 0);
+  });
+
+  it("does not sign or broadcast when the user rejects the embedded-wallet review", async () => {
+    const fake = fakeAdapter("cdp_embedded");
+    setActiveWalletSigningAdapter(fake.adapter);
+    globalThis.confirm = () => false;
+
+    await assert.rejects(signMultipleTypedData([typedData], address), /action was cancelled/);
+    await assert.rejects(signAndSubmitEvmTransaction(unsignedTx), /action was cancelled/);
+    assert.equal(fake.calls.length, 0);
+  });
 
   it("rejects a server-issued transaction for a different signer before broadcasting", async () => {
     const fake = fakeAdapter("cdp_embedded");

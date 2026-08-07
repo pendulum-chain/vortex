@@ -25,6 +25,41 @@ interface CdpSigningFunctions {
 
 type EvmAddress = `0x${string}`;
 
+export interface CdpSigningAdapterDependencies {
+  estimateFees: (chainId: number) => Promise<{ maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint }>;
+  estimateGas: (address: EvmAddress, transaction: WalletTransactionRequest) => Promise<bigint>;
+  getGasPrice: (chainId: number) => Promise<bigint>;
+  getNonce: (address: EvmAddress, chainId: number) => Promise<number>;
+  getPublicClient: (
+    chainId: number
+  ) => { sendRawTransaction: (options: { serializedTransaction: Hex }) => Promise<Hex> } | undefined;
+  waitForTransaction: (hash: Hex, chainId: number) => Promise<Hex>;
+}
+
+const defaultDependencies: CdpSigningAdapterDependencies = {
+  estimateFees: chainId => estimateFeesPerGas(wagmiConfig, { chainId }),
+  estimateGas: (address, transaction) =>
+    estimateGas(wagmiConfig, {
+      account: address,
+      chainId: transaction.chainId,
+      data: transaction.data,
+      to: transaction.to,
+      value: transaction.value
+    }),
+  getGasPrice: chainId => getGasPrice(wagmiConfig, { chainId }),
+  getNonce: (address, chainId) => getTransactionCount(wagmiConfig, { address, blockTag: "pending", chainId }),
+  getPublicClient: chainId => {
+    const publicClient = getPublicClient(wagmiConfig, { chainId });
+    return publicClient
+      ? { sendRawTransaction: options => publicClient.sendRawTransaction(options) as Promise<Hex> }
+      : undefined;
+  },
+  waitForTransaction: async (hash, chainId) => {
+    const receipt = await waitForTransactionReceipt(wagmiConfig, { chainId, hash });
+    return receipt.transactionHash;
+  }
+};
+
 function toCdpTypedData(typedData: SignedTypedData): EIP712TypedData {
   const domain = {
     ...(typedData.domain.chainId !== undefined ? { chainId: Number(typedData.domain.chainId) } : {}),
@@ -48,27 +83,23 @@ function toCdpTypedData(typedData: SignedTypedData): EIP712TypedData {
   };
 }
 
-async function prepareTransaction(address: EvmAddress, transaction: WalletTransactionRequest) {
+async function prepareTransaction(
+  address: EvmAddress,
+  transaction: WalletTransactionRequest,
+  dependencies: CdpSigningAdapterDependencies
+) {
   const [nonce, gas, estimatedFees] = await Promise.all([
-    transaction.nonce ?? getTransactionCount(wagmiConfig, { address, blockTag: "pending", chainId: transaction.chainId }),
-    transaction.gas && transaction.gas > 0n
-      ? transaction.gas
-      : estimateGas(wagmiConfig, {
-          account: address,
-          chainId: transaction.chainId,
-          data: transaction.data,
-          to: transaction.to,
-          value: transaction.value
-        }),
+    transaction.nonce ?? dependencies.getNonce(address, transaction.chainId),
+    transaction.gas && transaction.gas > 0n ? transaction.gas : dependencies.estimateGas(address, transaction),
     transaction.maxFeePerGas !== undefined && transaction.maxPriorityFeePerGas !== undefined
       ? undefined
-      : estimateFeesPerGas(wagmiConfig, { chainId: transaction.chainId })
+      : dependencies.estimateFees(transaction.chainId)
   ]);
 
   let maxFeePerGas = transaction.maxFeePerGas ?? estimatedFees?.maxFeePerGas;
   let maxPriorityFeePerGas = transaction.maxPriorityFeePerGas ?? estimatedFees?.maxPriorityFeePerGas;
   if ((transaction.chainId === 56 || transaction.chainId === 97) && (!maxPriorityFeePerGas || maxPriorityFeePerGas === 0n)) {
-    const gasPrice = await getGasPrice(wagmiConfig, { chainId: transaction.chainId });
+    const gasPrice = await dependencies.getGasPrice(transaction.chainId);
     maxPriorityFeePerGas = gasPrice;
     maxFeePerGas = maxFeePerGas && maxFeePerGas > gasPrice ? maxFeePerGas : gasPrice;
   }
@@ -91,7 +122,8 @@ async function prepareTransaction(address: EvmAddress, transaction: WalletTransa
 
 export function createCdpSigningAdapter(
   address: EvmAddress,
-  { signTransaction, signTypedData }: CdpSigningFunctions
+  { signTransaction, signTypedData }: CdpSigningFunctions,
+  dependencies: CdpSigningAdapterDependencies = defaultDependencies
 ): WalletSigningAdapter {
   return {
     address,
@@ -99,9 +131,9 @@ export function createCdpSigningAdapter(
     sendTransaction: async transaction => {
       const result = await signTransaction({
         evmAccount: address,
-        transaction: await prepareTransaction(address, transaction)
+        transaction: await prepareTransaction(address, transaction, dependencies)
       });
-      const publicClient = getPublicClient(wagmiConfig, { chainId: transaction.chainId });
+      const publicClient = dependencies.getPublicClient(transaction.chainId);
       if (!publicClient) throw new Error(`No public client configured for chain ${transaction.chainId}`);
       return publicClient.sendRawTransaction({ serializedTransaction: result.signedTransaction });
     },
@@ -113,8 +145,7 @@ export function createCdpSigningAdapter(
       return result.signature as Hex;
     },
     waitForTransaction: async (hash, chainId) => {
-      const receipt = await waitForTransactionReceipt(wagmiConfig, { chainId, hash });
-      return receipt.transactionHash;
+      return dependencies.waitForTransaction(hash, chainId);
     }
   };
 }

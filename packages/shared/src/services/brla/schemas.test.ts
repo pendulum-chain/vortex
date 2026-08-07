@@ -7,7 +7,9 @@ import {
   aveniaPayoutTicketSchema,
   aveniaPixInputTicketSchema,
   aveniaPixKeyDataSchema,
-  aveniaQuoteResponseSchema
+  aveniaQuoteResponseSchema,
+  aveniaWebhookRegistrationSchema,
+  aveniaWebhooksListSchema
 } from "./schemas";
 
 function validQuoteBody() {
@@ -97,6 +99,20 @@ describe("aveniaAccountLimitsSchema", () => {
     delete (body.limitInfo.limits[0].usedLimit as Record<string, unknown>).usedFiatIn;
     expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
   });
+
+  test("requires the provider usage year and month", () => {
+    const usedLimit: Record<string, unknown> = { month: 7, usedFiatIn: "0", usedFiatOut: "0", year: 2026 };
+    const body = {
+      limitInfo: { limits: [{ currency: "BRL", maxFiatIn: "10000", maxFiatOut: "10000", usedLimit }] }
+    };
+
+    expect(() => aveniaAccountLimitsSchema.parse(body)).not.toThrow();
+    delete usedLimit.month;
+    expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
+    usedLimit.month = 7;
+    delete usedLimit.year;
+    expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
+  });
 });
 
 describe("aveniaAccountBalanceSchema", () => {
@@ -121,5 +137,33 @@ describe("aveniaAccountInfoSchema", () => {
     expect(() => aveniaAccountInfoSchema.parse(body)).not.toThrow();
     body.accountInfo.identityStatus = "PENDING";
     expect(() => aveniaAccountInfoSchema.parse(body)).toThrow();
+  });
+});
+
+describe("Avenia webhook management schemas", () => {
+  test("accepts the create response's webhookId field", () => {
+    expect(() => aveniaWebhookRegistrationSchema.parse({ webhookId: "webhook-1" })).not.toThrow();
+    expect(() => aveniaWebhookRegistrationSchema.parse({ id: "webhook-1" })).toThrow();
+  });
+
+  test("accepts list entries with url and rejects the request-only webhookUrl field", () => {
+    const response = {
+      webhooks: [
+        {
+          createdAt: "2026-01-01T00:00:00Z",
+          id: "webhook-1",
+          subscriptions: ["*"],
+          updatedAt: "2026-01-01T00:00:00Z",
+          url: "https://example.com/avenia"
+        }
+      ]
+    };
+
+    expect(() => aveniaWebhooksListSchema.parse(response)).not.toThrow();
+    const [webhook] = response.webhooks;
+    const url = webhook.url;
+    delete (webhook as Partial<typeof webhook>).url;
+    Object.assign(webhook, { webhookUrl: url });
+    expect(() => aveniaWebhooksListSchema.parse(response)).toThrow();
   });
 });

@@ -1,5 +1,5 @@
 /**
- * External API contract: SquidRouter (docs/features/contract-tests.md).
+ * External API contract: SquidRouter (docs/operations-testing.md).
  *
  * The same consumed-contract schemas run against the fake (hermetic, PR-blocking)
  * and against the real public API (live, nightly). The live half needs no

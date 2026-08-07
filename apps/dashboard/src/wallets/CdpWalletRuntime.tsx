@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { createCdpSigningAdapter } from "./cdpSigningAdapter";
 import { selectCdpEmbeddedWallet } from "./cdpWalletSelection";
 import { cdpWalletConfig } from "./config";
+import { confirmEmbeddedWalletAction } from "./embeddedWalletReview";
 import { setActiveWalletSigningAdapter } from "./signingAdapter";
 import { type WalletExperience, WalletExperienceContext } from "./WalletExperienceContext";
 
@@ -80,7 +81,7 @@ export function CdpWalletRuntime({
 
   const signingAdapter = useMemo(
     () =>
-      address
+      address && cdpWalletConfig.signingEnabled
         ? createCdpSigningAdapter(address, {
             signTransaction: signEvmTransaction,
             signTypedData: signEvmTypedData
@@ -88,6 +89,8 @@ export function CdpWalletRuntime({
         : null,
     [address, signEvmTransaction, signEvmTypedData]
   );
+
+  useEffect(() => () => setActiveWalletSigningAdapter(null), []);
 
   const register = useCallback(
     async (walletAddressToRegister: string, cdpUserId: string) => {
@@ -145,7 +148,8 @@ export function CdpWalletRuntime({
     () => ({
       activateSigner: () => setActiveWalletSigningAdapter(signingAdapter),
       address,
-      canSignOfframp: cdpWalletConfig.offrampEnabled,
+      canExportEmbeddedWallet: cdpWalletConfig.exportEnabled,
+      canSignOfframp: cdpWalletConfig.offrampEnabled && cdpWalletConfig.signingEnabled,
       canUseAsOnrampDestination: cdpWalletConfig.onrampEnabled,
       canUseEmbeddedWallet: cdpWalletConfig.provisioningEnabled,
       connectExternalWallet,
@@ -158,7 +162,14 @@ export function CdpWalletRuntime({
           ? "The registered embedded wallet is not available in the current CDP session"
           : undefined),
       exportEmbeddedWallet: async () => {
+        if (!cdpWalletConfig.exportEnabled) {
+          throw new Error("Embedded wallet export is disabled in this environment");
+        }
         if (!address) throw new Error("No embedded wallet is available to export");
+        confirmEmbeddedWalletAction("Reveal private key", {
+          address,
+          warning: "Anyone with this private key has full control of the wallet and its assets."
+        });
         setExportOpen(true);
       },
       mode: "cdp_embedded",
@@ -182,7 +193,7 @@ export function CdpWalletRuntime({
   return (
     <>
       <WalletExperienceContext value={value}>{children}</WalletExperienceContext>
-      {address && (
+      {address && cdpWalletConfig.exportEnabled && (
         <ExportWalletModal
           address={address}
           onIframeError={cause => setError(cause ?? "Secure wallet export failed")}

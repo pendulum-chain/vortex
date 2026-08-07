@@ -1,7 +1,7 @@
 import { ApiManager, EvmClientManager, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
-import { getEvmFundingAccount } from "../../phases/evm-funding";
+import { getEvmFundingAccount } from "../../phases/blocks/core/evm-funding";
 
 export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
   try {

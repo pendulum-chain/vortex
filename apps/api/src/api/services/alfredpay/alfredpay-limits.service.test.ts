@@ -63,4 +63,29 @@ describe("AlfredpayLimitsService.refresh", () => {
     const limits = service.getLimits(FiatToken.MXN, "USDC", AlfredpayCustomerType.INDIVIDUAL, RampDirection.BUY);
     expect(limits).toEqual({ maxRaw: "17079999", minRaw: "5000" });
   });
+
+  test("indexes ARS rows from the provider configuration", async () => {
+    AlfredpayApiService.getInstance = () =>
+      ({
+        getAllConfigs: async () => ({
+          supportedPairs: [
+            pair({
+              fromCurrency: "ARS",
+              maxQuantity: "250000",
+              minQuantity: "1000",
+              toCurrency: "USDT",
+              typeCustomer: AlfredpayCustomerType.INDIVIDUAL
+            })
+          ]
+        })
+      }) as unknown as AlfredpayApiService;
+
+    const service = new (AlfredpayLimitsService as unknown as { new (): AlfredpayLimitsService })();
+    await (service as unknown as { refresh(): Promise<void> }).refresh();
+
+    expect(service.getLimits(FiatToken.ARS, "USDT", AlfredpayCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual({
+      maxRaw: "25000000",
+      minRaw: "100000"
+    });
+  });
 });

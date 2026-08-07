@@ -2,6 +2,16 @@ import { isAuthRetryableFetchError, type User } from "@supabase/supabase-js";
 import logger from "../../../config/logger";
 import { supabase, supabaseAdmin } from "../../../config/supabase";
 
+export class AccessTokenVerificationError extends Error {
+  readonly transient: boolean;
+
+  constructor(message: string, transient: boolean) {
+    super(message);
+    this.name = "AccessTokenVerificationError";
+    this.transient = transient;
+  }
+}
+
 /**
  * Thrown by `refreshToken` to distinguish a confirmed-invalid refresh token (the session is
  * over) from a transient failure (Supabase unreachable / 5xx). Callers must only end the
@@ -62,6 +72,23 @@ export class SupabaseAuthService {
     } catch (error) {
       logger.error("Error checking user existence:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Reads the user's preferred email locale from Supabase Auth metadata.
+   * Falls back to the default locale when unset or unreadable.
+   */
+  static async getUserLocale(userId: string): Promise<string> {
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (error) {
+        throw error;
+      }
+      return resolveLocale(data.user?.user_metadata?.locale as string | undefined).resolved;
+    } catch (error) {
+      logger.warn(`Could not read locale for user ${userId}, falling back to ${DEFAULT_LOCALE}: ${error}`);
+      return DEFAULT_LOCALE;
     }
   }
 
@@ -161,11 +188,20 @@ export class SupabaseAuthService {
     user_id?: string;
     email?: string;
   }> {
-    const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+    // Access-token verification is an Auth operation and does not require broad
+    // service-role privileges. The project anon key identifies the trusted Supabase
+    // project; the bearer token remains the credential being verified.
+    const { data, error } = await supabase.auth.getUser(accessToken);
 
-    if (error || !data.user) {
+    if (error) {
+      const status = error.status ?? 0;
+      const transient = isAuthRetryableFetchError(error) || status === 0 || status >= 500;
+      if (transient) {
+        throw new AccessTokenVerificationError("Supabase access-token verification unavailable", true);
+      }
       return { valid: false };
     }
+    if (!data.user) return { valid: false };
 
     return {
       email: data.user.email,

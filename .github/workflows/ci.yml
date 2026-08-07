@@ -90,6 +90,9 @@ jobs:
       - name: 🧪 Dashboard tests
         run: cd apps/dashboard && bun run test
 
+      - name: 🧪 CDP spike helper tests
+        run: bun run test:cdp-spike
+
       - name: 🧪 Rebalancer tests (coverage-gated)
         run: cd apps/rebalancer && bun run test:coverage
 

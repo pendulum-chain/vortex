@@ -60,8 +60,32 @@ export async function getOrCreateCustomerEntityForProfile(
   return entity;
 }
 
-export async function selectActiveCustomerEntity(profileId: string, type: CustomerEntityType): Promise<CustomerEntity> {
-  return sequelize.transaction(async transaction => {
+/**
+ * All customer entity ids owned by a profile, oldest first. Read-only counterpart to
+ * getOrCreateCustomerEntityForProfile for lookup/ownership paths: migration 040 attached
+ * legacy business provider rows to the profile's individual entity, so a row's owning
+ * entity does not reliably carry the row's customer_type — callers that filter provider
+ * rows by customer_type must scope by every entity the profile owns, and a pure lookup
+ * must not leave an empty entity behind.
+ */
+export async function findCustomerEntityIdsForProfile(profileId: string): Promise<string[]> {
+  const entities = await CustomerEntity.findAll({
+    attributes: ["id"],
+    order: [
+      ["createdAt", "ASC"],
+      ["id", "ASC"]
+    ],
+    where: { profileId }
+  });
+  return entities.map(entity => entity.id);
+}
+
+export async function selectActiveCustomerEntity(
+  profileId: string,
+  type: CustomerEntityType,
+  existingTransaction?: Transaction
+): Promise<CustomerEntity> {
+  const select = async (transaction: Transaction): Promise<CustomerEntity> => {
     const profile = await User.findByPk(profileId, { lock: Transaction.LOCK.UPDATE, transaction });
     if (!profile) {
       throw new APIError({ isPublic: true, message: "Profile not found", status: httpStatus.NOT_FOUND });
@@ -113,5 +137,7 @@ export async function selectActiveCustomerEntity(profileId: string, type: Custom
       ));
     await profile.update({ activeCustomerEntityId: selected.id }, { transaction });
     return selected;
-  });
+  };
+
+  return existingTransaction ? select(existingTransaction) : sequelize.transaction(select);
 }

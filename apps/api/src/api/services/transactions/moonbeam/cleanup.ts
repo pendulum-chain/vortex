@@ -1,7 +1,7 @@
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { ApiManager, Networks } from "@vortexfi/shared";
-import { getEvmFundingAccount } from "../../phases/evm-funding";
+import { getEvmFundingAccount } from "../../phases/blocks/core/evm-funding";
 
 export async function prepareMoonbeamCleanupTransaction(): Promise<SubmittableExtrinsic<"promise", ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();

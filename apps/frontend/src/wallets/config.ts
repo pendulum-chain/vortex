@@ -1,8 +1,10 @@
 export interface CdpWidgetConfig {
   allowedParentOrigins: string[];
   enabled: boolean;
+  exportEnabled: boolean;
   projectId: string;
   provisioningEnabled: boolean;
+  signingEnabled: boolean;
 }
 
 function normalizeOrigin(value: string): string | undefined {
@@ -25,8 +27,10 @@ export function readCdpWidgetConfig(env: ImportMetaEnv = import.meta.env): CdpWi
   return {
     allowedParentOrigins: [...new Set(allowedParentOrigins)],
     enabled: isEnabled,
+    exportEnabled: isEnabled && env.VITE_CDP_EXPORT_ENABLED?.trim().toLowerCase() === "true",
     projectId,
-    provisioningEnabled: isEnabled && env.VITE_CDP_PROVISIONING_ENABLED?.trim().toLowerCase() === "true"
+    provisioningEnabled: isEnabled && env.VITE_CDP_PROVISIONING_ENABLED?.trim().toLowerCase() === "true",
+    signingEnabled: isEnabled && env.VITE_CDP_SIGNING_ENABLED?.trim().toLowerCase() === "true"
   };
 }
 

@@ -46,10 +46,10 @@ router
   .route("/")
   .post(
     rejectDuringActiveMaintenance("quote_create"),
-    validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
+    validateCreateQuoteInput,
     enforcePartnerAuth(),
     createQuote
   );
@@ -111,10 +111,10 @@ router
   .route("/best")
   .post(
     rejectDuringActiveMaintenance("quote_create_best"),
-    validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
+    validateCreateBestQuoteInput,
     enforcePartnerAuth(),
     createBestQuote
   );

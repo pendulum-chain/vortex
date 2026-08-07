@@ -104,6 +104,25 @@ function readFractionEnv(name: string, defaultValue: string): number {
   return value;
 }
 
+function readEmailAllowlist(): string[] {
+  return (process.env.EMAIL_RECIPIENT_ALLOWLIST || "")
+    .split(",")
+    .map(entry => entry.trim().toLowerCase())
+    .filter(entry => entry.length > 0);
+}
+
+export const RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS = 300;
+
+function readRecipientInviteDiscountLimit(): number {
+  const name = "RECIPIENT_INVITE_MAX_DISCOUNT_BPS";
+  const rawValue = process.env[name] ?? String(RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS);
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value < 0 || value > RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS || rawValue.trim() === "") {
+    throw new Error(`${name} must be an integer between 0 and ${RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS}`);
+  }
+  return value;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
@@ -159,6 +178,9 @@ interface Config {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
   };
+  recipients: {
+    inviteMaxDiscountBps: number;
+  };
   mykobo: {
     feeFallback: MykoboFeeFallback;
   };
@@ -179,6 +201,19 @@ interface Config {
   integrations: {
     alchemy: {
       apiKey: string | undefined;
+    };
+    avenia: {
+      // Public URL of this backend's /v1/webhooks/avenia receiver, used only by the
+      // subscription registration script.
+      webhookUrl: string | undefined;
+    };
+    resend: {
+      apiKey: string | undefined;
+      fromAddress: string;
+      replyToAddress: string | undefined;
+      // Outside production, only these recipients receive mail; everything else is
+      // recorded as skipped. Empty means no recipient at all outside production.
+      recipientAllowlist: string[];
     };
     slack: {
       webhookToken: string | undefined;
@@ -225,6 +260,15 @@ export const config: Config = {
   integrations: {
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY
+    },
+    avenia: {
+      webhookUrl: process.env.AVENIA_WEBHOOK_URL
+    },
+    resend: {
+      apiKey: process.env.RESEND_API_KEY,
+      fromAddress: process.env.EMAIL_FROM_ADDRESS || "Vortex Finance <support@vortexfinance.co>",
+      recipientAllowlist: readEmailAllowlist(),
+      replyToAddress: process.env.EMAIL_REPLY_TO_ADDRESS
     },
     slack: {
       userId: process.env.SLACK_USER_ID,
@@ -281,6 +325,9 @@ export const config: Config = {
   rateLimitMaxRequests: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
+  recipients: {
+    inviteMaxDiscountBps: readRecipientInviteDiscountLimit()
+  },
 
   sandboxEnabled: process.env.SANDBOX_ENABLED === "true",
 

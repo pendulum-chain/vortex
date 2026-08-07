@@ -123,10 +123,12 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
   });
 
   describe("webhooks", () => {
-    async function apiKeyHeaders(): Promise<Record<string, string>> {
+    // Webhooks are owner-scoped: a user-scoped key can only target quotes owned by
+    // that user, so the caller needs the user id to create ownable quotes.
+    async function apiKeyPrincipal(): Promise<{ headers: Record<string, string>; userId: string }> {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
-      return { "x-api-key": plaintextKey };
+      return { headers: { "x-api-key": plaintextKey }, userId: user.id };
     }
 
     it("registration requires an API key", async () => {
@@ -138,9 +140,9 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(response.status).toBe(401);
     });
 
-    it("registers a webhook for a quote and deletes it exactly once", async () => {
-      const headers = await apiKeyHeaders();
-      const quote = await createTestQuote();
+    it("registers a webhook for an owned quote and deletes it exactly once", async () => {
+      const { headers, userId } = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId });
 
       const created = await requestJson("/v1/webhook", {
         body: { quoteId: quote.id, url: "https://partner.example/hook" },
@@ -161,9 +163,50 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(again.status).toBe(404);
     });
 
+    it("scopes registration and deletion to the owning principal", async () => {
+      const owner = await apiKeyPrincipal();
+      const stranger = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId: owner.userId });
+
+      // A foreign quote is indistinguishable from a nonexistent one.
+      const foreignRegistration = await requestJson("/v1/webhook", {
+        body: { quoteId: quote.id, url: "https://partner.example/hook" },
+        headers: stranger.headers,
+        method: "POST"
+      });
+      expect(foreignRegistration.status).toBe(404);
+
+      // An anonymous quote has no owner, so nobody can subscribe to it.
+      const anonymousQuote = await createTestQuote();
+      const anonymousRegistration = await requestJson("/v1/webhook", {
+        body: { quoteId: anonymousQuote.id, url: "https://partner.example/hook" },
+        headers: owner.headers,
+        method: "POST"
+      });
+      expect(anonymousRegistration.status).toBe(404);
+
+      // Deleting someone else's webhook returns the same 404 as a nonexistent one.
+      const created = await requestJson("/v1/webhook", {
+        body: { quoteId: quote.id, url: "https://partner.example/hook" },
+        headers: owner.headers,
+        method: "POST"
+      });
+      expect(created.status).toBe(201);
+      const foreignDeletion = await requestJson(`/v1/webhook/${created.body.id}`, {
+        headers: stranger.headers,
+        method: "DELETE"
+      });
+      expect(foreignDeletion.status).toBe(404);
+      const ownDeletion = await requestJson(`/v1/webhook/${created.body.id}`, {
+        headers: owner.headers,
+        method: "DELETE"
+      });
+      expect(ownDeletion.status).toBe(200);
+    });
+
     it("rejects non-HTTPS URLs, unknown quotes, and registrations without a quote or session", async () => {
-      const headers = await apiKeyHeaders();
-      const quote = await createTestQuote();
+      const { headers, userId } = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId });
 
       const insecure = await requestJson("/v1/webhook", {
         body: { quoteId: quote.id, url: "http://partner.example/hook" },
@@ -281,12 +324,13 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(anonymous.status).toBe(401);
     });
 
-    it("rejects a partner-only secret key instead of falling back to partner-wide history", async () => {
+    it("scopes a partner-managed credential to its profile history", async () => {
       const partner = await createTestPartner();
       const { plaintextKey } = await createTestApiKey({ partnerName: partner.name });
 
       const response = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ totalCount: 0, transactions: [] });
     });
 
     it("validates history pagination", async () => {

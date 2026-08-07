@@ -15,6 +15,7 @@ import { CORRIDORS } from "@/domain/corridors";
 import { getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import type { CorridorId, SenderAccount } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
+import { formatCurrencyAmount } from "@/lib/amount";
 import { transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
 import { useWalletExperience } from "@/wallets/WalletExperienceContext";
@@ -152,7 +153,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         payoutCurrency: String(quote.outputCurrency),
         recipientEmail: "Your wallet",
         recipientId: "",
-        summary: `${quote.outputAmount} ${quote.outputCurrency} to your wallet`
+        summary: `${formatCurrencyAmount(quote.outputAmount, String(quote.outputCurrency))} ${quote.outputCurrency} to your wallet`
       },
       quote,
       quoteRequest: { kind: "input", params: quoteParams },
@@ -295,7 +296,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
             <div className="flex items-center justify-between rounded-lg border p-4">
               <span className="text-muted-foreground text-sm">You receive</span>
               <span className="font-semibold tabular-nums">
-                {quote.outputAmount} {String(quote.outputCurrency)}
+                {formatCurrencyAmount(quote.outputAmount, String(quote.outputCurrency))} {String(quote.outputCurrency)}
               </span>
             </div>
             <QuoteSummary isFetching={isFetching} quote={quote} />

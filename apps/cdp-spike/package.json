@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@coinbase/cdp-core": "0.0.119",
-    "@coinbase/cdp-hooks": "0.0.119",
-    "@coinbase/cdp-react": "0.0.119",
+    "@coinbase/cdp-core": "0.0.120",
+    "@coinbase/cdp-hooks": "0.0.120",
+    "@coinbase/cdp-react": "0.0.120",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "viem": "catalog:"

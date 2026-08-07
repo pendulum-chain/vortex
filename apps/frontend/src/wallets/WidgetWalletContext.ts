@@ -4,6 +4,7 @@ import { WalletMode } from "../services/api/wallets.service";
 export interface WidgetEvmWallet {
   activateSigner: () => void;
   address?: `0x${string}`;
+  canExportEmbeddedWallet: boolean;
   canUseEmbeddedWallet: boolean;
   connectExternalWallet: () => Promise<void>;
   connected: boolean;

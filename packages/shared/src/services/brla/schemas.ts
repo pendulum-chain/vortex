@@ -10,6 +10,9 @@ import {
   AveniaSubaccountAccountInfo,
   AveniaSubaccountWallet,
   AveniaTicketStatus,
+  AveniaWebhook,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   Limit,
   PixInputTicketOutput,
   PixKeyData,
@@ -18,7 +21,7 @@ import {
 } from "./types";
 
 /**
- * External API contract schemas for Avenia/BRLA (see docs/features/contract-tests.md).
+ * External API contract schemas for Avenia/BRLA (see docs/operations-testing.md).
  *
  * These model the raw wire JSON of the fields Vortex actually consumes — not the full
  * partner response. Unknown extra fields always pass (loose objects); a removed or
@@ -39,7 +42,7 @@ type ConsumedQuote = Pick<AveniaQuoteResponse, "quoteToken" | "inputAmount" | "o
   appliedFees: ConsumedFee[];
 };
 type ConsumedLimit = Pick<Limit, "currency" | "maxFiatIn" | "maxFiatOut"> & {
-  usedLimit: Pick<UsedLimitDetails, "usedFiatIn" | "usedFiatOut">;
+  usedLimit: Pick<UsedLimitDetails, "month" | "usedFiatIn" | "usedFiatOut" | "year">;
 };
 type ConsumedAccountInfo = Pick<AveniaAccountInfoResponse, "brCode"> & {
   accountInfo: Pick<AveniaSubaccountAccountInfo, "identityStatus">;
@@ -103,8 +106,10 @@ export const aveniaAccountLimitsSchema = z.looseObject({
         maxFiatIn: z.string().regex(DECIMAL_STRING),
         maxFiatOut: z.string().regex(DECIMAL_STRING),
         usedLimit: z.looseObject({
+          month: z.number().int().min(1).max(12),
           usedFiatIn: z.string().regex(DECIMAL_STRING),
-          usedFiatOut: z.string().regex(DECIMAL_STRING)
+          usedFiatOut: z.string().regex(DECIMAL_STRING),
+          year: z.number().int()
         })
       })
     )
@@ -134,3 +139,20 @@ export const aveniaAccountInfoSchema = z.looseObject({
     })
   )
 }) satisfies z.ZodType<ConsumedAccountInfo>;
+
+/** The body returned after POST /v2/notifications/webhooks. */
+export const aveniaWebhookRegistrationSchema = z.looseObject({
+  webhookId: z.string().min(1)
+}) satisfies z.ZodType<AveniaWebhookRegistration>;
+
+/** An entry in the GET /v2/notifications/webhooks response. */
+export const aveniaWebhookSchema = z.looseObject({
+  id: z.string().min(1),
+  subscriptions: z.array(z.string().min(1)),
+  url: z.string().url()
+}) satisfies z.ZodType<AveniaWebhook>;
+
+/** The body returned by GET /v2/notifications/webhooks. */
+export const aveniaWebhooksListSchema = z.looseObject({
+  webhooks: z.array(aveniaWebhookSchema)
+}) satisfies z.ZodType<AveniaWebhooksListResponse>;

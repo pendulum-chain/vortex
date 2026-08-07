@@ -134,8 +134,11 @@ describe("quote consumption invariants (BRL onramp)", () => {
 
     const persisted = await QuoteTicket.findByPk(quote.id);
     expect(persisted?.status).toBe("pending");
-    expect(persisted?.metadata.fees?.usd).toBeDefined();
-    expect(persisted?.metadata.fees?.displayFiat).toBeDefined();
+    const metadata = persisted?.metadata as unknown as
+      | { globals: { fees: { displayFiat?: unknown; usd?: unknown } } }
+      | undefined;
+    expect(metadata?.globals.fees.usd).toBeDefined();
+    expect(metadata?.globals.fees.displayFiat).toBeDefined();
   });
 
   it("registers a ramp and consumes the quote exactly once", async () => {
@@ -278,6 +281,27 @@ describe("quote consumption invariants (BRL onramp)", () => {
     const historyRamp = history.transactions.find(transaction => transaction.id === ramp.id);
     expect(historyRamp?.currentPhase).toBe("initial");
     expect(new Date(historyRamp?.expiresAt ?? 0).getTime()).toBeLessThan(Date.now());
+  });
+
+  it("rejects updating an expired ramp before persisting signatures or starting its flow", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const registerResponse = await registerViaApi(quote.id, user.id, ephemeral.address);
+    expect(registerResponse.status).toBe(201);
+    const ramp = (await registerResponse.json()) as { id: string };
+    const presignedTx = await presignDestinationTransfer(ephemeral, ramp.id);
+
+    await RampState.update({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }, { where: { id: ramp.id } });
+
+    const updateResponse = await updateViaApi(ramp.id, user.id, [presignedTx]);
+
+    expect(updateResponse.status).toBe(400);
+    expect(await updateResponse.text()).toContain("Maximum time window to start process exceeded");
+    const persistedRamp = await RampState.findByPk(ramp.id);
+    expect(persistedRamp?.currentPhase).toBe("initial");
+    expect(persistedRamp?.presignedTxs).toBeNull();
   });
 
   // Pins the atomic-UPDATE backstop directly: even if the registration flow's

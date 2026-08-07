@@ -101,6 +101,7 @@ function WidgetWalletSession({
     () => ({
       activateSigner: () => setActiveEvmWalletSigningAdapter(externalAdapter),
       address: evmAddress,
+      canExportEmbeddedWallet: false,
       canUseEmbeddedWallet: isCdpProvisioningEnabledForCurrentFrame,
       connectExternalWallet,
       connected: isConnected && Boolean(evmAddress),

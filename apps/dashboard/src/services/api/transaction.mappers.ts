@@ -7,9 +7,7 @@ import {
 import type { Transaction, TransactionStatus } from "@/domain/types";
 import { CORRIDOR_BY_FIAT } from "./mappers";
 
-export function mapTransactionStatus(
-  tx: Pick<GetRampHistoryTransaction, "currentPhase" | "expiresAt" | "status" | "type">
-): TransactionStatus {
+export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "currentPhase" | "status">): TransactionStatus {
   if (tx.currentPhase === "timedOut") {
     return "cancelled";
   }
@@ -19,9 +17,6 @@ export function mapTransactionStatus(
   if (tx.status === WireTransactionStatus.FAILED) {
     return "failed";
   }
-  if (tx.type === RampDirection.BUY && tx.currentPhase === "initial") {
-    return new Date(tx.expiresAt).getTime() <= Date.now() ? "cancelled" : "awaiting_payin";
-  }
   return "processing";
 }
 
@@ -29,6 +24,9 @@ export function mapTransactionStatus(
  * Maps onramps and offramps into the dashboard's source/destination transaction shape.
  */
 export function mapRampHistoryTransaction(tx: GetRampHistoryTransaction, accountId: string): Transaction | null {
+  if (tx.currentPhase === "initial") {
+    return null;
+  }
   const isOnramp = tx.type === RampDirection.BUY;
   const corridorId = CORRIDOR_BY_FIAT[(isOnramp ? tx.fromCurrency : tx.toCurrency) as FiatToken];
   if (!corridorId) {

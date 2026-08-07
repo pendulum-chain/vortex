@@ -100,12 +100,14 @@ describe("partner pricing configs admin routes", () => {
     expect(withCurrency.status).toBe(201);
   });
 
-  it("rejects a negative maxSubsidy, which the discount engine would read as uncapped", async () => {
+  it("rejects maxSubsidy outside the disabled-or-fractional range", async () => {
     await createTestPartner({ name: "acme", rampType: RampDirection.BUY });
-    const response = await post({ maxSubsidy: -0.01, partnerName: "acme", rampType: "SELL" });
-    expect(response.status).toBe(400);
-    const body = (await response.json()) as { error: { message: string } };
-    expect(body.error.message).toContain("maxSubsidy");
+    for (const maxSubsidy of [-0.01, 1.01]) {
+      const response = await post({ maxSubsidy, partnerName: "acme", rampType: "SELL" });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { message: string } };
+      expect(body.error.message).toContain("maxSubsidy");
+    }
   });
 
   it("inherits vortex payout addresses onto a scoped config, and refuses when none are inheritable", async () => {

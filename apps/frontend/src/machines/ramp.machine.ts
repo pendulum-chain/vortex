@@ -508,7 +508,7 @@ export const rampMachine = setup({
             actions: assign({
               executionInput: ({ context, event }) =>
                 context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
-              isSep24Redo: () => true,
+              isQuoteRedo: () => true,
               quote: ({ event }) => event.quote,
               quoteId: ({ event }) => event.quote.id
             }),

@@ -187,9 +187,13 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
 function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Networks): EphemeralAccountType {
   // Phases that dispatch polymorphically between substrate and EVM based on the network of the presigned tx.
   switch (phase) {
+    case "distributeFees":
+      // distributeFees runs on Base (BRL/EUR corridors) or Polygon (Alfredpay corridors).
+      return network === Networks.Base || network === Networks.Polygon
+        ? EphemeralAccountType.EVM
+        : EphemeralAccountType.Substrate;
     case "nablaApprove":
     case "nablaSwap":
-    case "distributeFees":
     case "subsidizePreSwap":
     case "subsidizePostSwap":
       return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
@@ -231,6 +235,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "baseCleanupAxlUsdc":
     case "alfredOnrampMintFallback":
     case "alfredpayOfframpTransferFallback":
+    case "ethereumCleanupUsdc":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({
@@ -350,12 +355,22 @@ export async function validatePresignedTxs(
     // them — only the resulting on-chain tx hash via /v1/ramp/update additionalData. The receipt
     // is then verified against the unsigned blueprint by user-tx-verifier at phase execution time.
     // Accepting a presignedTx here would create a fake authority surface that bypasses that check.
-    const isUserWalletPhase =
+    // The signer is the source of truth: an unsigned entry whose signer is an ephemeral address
+    // is broadcast by the ephemeral (and requires a presignedTx); an entry signed by the user is
+    // broadcast by the user (and must NOT have a presignedTx).
+    const ephemeralSigners = new Set(
+      Object.values(ephemerals)
+        .filter((v): v is string => Boolean(v))
+        .map(s => s.toLowerCase())
+    );
+    const isSquidBridgePhase = tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove";
+    const isAlwaysUserWalletPhase =
+      tx.phase === "assethubToPendulum" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
       tx.phase === "squidRouterNoPermitSwap" ||
-      (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"));
-    if (isUserWalletPhase) {
+      (isSquidBridgePhase && direction === RampDirection.SELL && !ephemeralSigners.has(tx.signer.toLowerCase()));
+    if (isAlwaysUserWalletPhase) {
       throw new APIError({
         message: `Phase ${tx.phase} is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.`,
         status: httpStatus.BAD_REQUEST

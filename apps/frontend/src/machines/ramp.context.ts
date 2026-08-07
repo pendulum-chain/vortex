@@ -14,7 +14,7 @@ export const initialRampContext: RampContext = {
   initializeFailedMessage: undefined,
   isAuthenticated: false,
   isQuoteExpired: false,
-  isSep24Redo: false,
+  isQuoteRedo: false,
   kybLink: undefined,
   partnerId: undefined,
   paymentData: undefined,
