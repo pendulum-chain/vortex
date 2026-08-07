@@ -33,10 +33,18 @@ dispatch reads `notification_preferences` for the recipient before every send (i
 The KYB worker polls `GET /v2/kyc/attempts/{attemptId}` for the specific attempt id recorded
 in `kyc_cases.provider_case_id` when `initiateKybLevel1` ran, and addresses the mail to the
 owning `customer_entities.profile_id` — a partner-owned entity has no profile, so it is
-skipped rather than notified. Attempts whose outcome is already queued are excluded by an
+excluded in the join itself, never notified and never occupying batch slots. Attempts whose
+outcome is already queued are excluded by an
 anti-join against `email_notifications` (the worker never writes status back to
-`kyc_cases`, so the queue row is what retires an attempt), and each cycle is capped at
-250 cases, oldest writes first. It does not list a subaccount's attempts
+`kyc_cases`, so the queue row is what retires an attempt). Each cycle walks a 250-case
+keyset (id-ordered cursor, like the Alfredpay sweep) so a backlog larger than one batch
+drains instead of re-selecting the same prefix, and a returned attempt whose id does not
+match the case's `provider_case_id` is discarded — the same mismatch guard the
+authenticated route applies. The authenticated `GET /v1/brla/kyb/attempt-status` route
+also enqueues the outcome *before* persisting a terminal status: once a case is
+Approved/Rejected both that route's short-circuit and this worker stop observing the
+attempt, so a client polling ahead of a lost webhook would otherwise lose the email
+forever. It does not list a subaccount's attempts
 and pick one: that endpoint has no documented ordering, so selecting from it would guess at
 which attempt a notification describes, and `resource_id` — the dedupe key — is that attempt id.
 
@@ -93,8 +101,8 @@ second rejection of that same submission — Alfredpay exposes no per-outcome id
 
 - [ ] `RESEND_API_KEY` is read only from `config.integrations.resend.apiKey` and never logged
 - [ ] Recipient is resolved from `profiles.email` via `email_notifications.user_id` — grep for any code path that passes a request-supplied address to `sendEmail`
-- [ ] `enqueueCompletionEmail` returns early when `RampState.userId` is null
-- [ ] Migration `055` creates `uniq_email_notifications_provider_type_resource` and all three member columns are `NOT NULL`
+- [ ] `enqueueRampCompletedEmail` returns early when `RampState.userId` is null, and tombstones API-credential ramps as `skipped`
+- [ ] Migration `062` creates `uniq_email_notifications_provider_type_resource` and all three member columns are `NOT NULL`
 - [ ] `enqueueNotification` uses `findOrCreate` keyed on `(provider, type, resourceId)`
 - [ ] Dispatch claims rows with `lock: transaction.LOCK.UPDATE` and `skipLocked: true` before sending
 - [ ] `attempts` is incremented at claim time, not after a successful send

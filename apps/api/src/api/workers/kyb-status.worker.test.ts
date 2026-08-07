@@ -1,5 +1,7 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { BrlaApiService, KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { FindOptions, Op } from "sequelize";
+import EmailNotification from "../../models/emailNotification.model";
 import KycCase from "../../models/kycCase.model";
 import KybStatusWorker from "./kyb-status.worker";
 
@@ -62,6 +64,75 @@ describe("KybStatusWorker query window", () => {
     expect(String(anti?.val)).toContain("NOT EXISTS");
     expect(String(anti?.val)).toContain("email_notifications");
     expect(options.limit).toBe(250);
-    expect(options.order).toEqual([["updatedAt", "ASC"]]);
+    expect(options.order).toEqual([["id", "ASC"]]);
+  });
+
+  it("filters partner-owned entities in the join so they cannot occupy batch slots", async () => {
+    const options = await captureQuery();
+    const include = (options.include as Array<{ where?: Record<string, unknown> }>)[0];
+
+    expect(include.where?.profileId).toBeDefined();
+  });
+
+  // A poll does not modify a still-pending case, so without the cursor the same first
+  // batch would be re-selected every hour and everything behind it starved.
+  it("advances the keyset cursor when a cycle fills its cap and resets it when one does not", async () => {
+    const captured: FindOptions[] = [];
+    // profileId null makes each row a fast no-op in the poll loop.
+    const fakeCase = (id: string) => ({ customerEntity: { profileId: null }, id, providerCaseId: `attempt-${id}` });
+    KycCase.findAll = (async (options: FindOptions) => {
+      captured.push(options);
+      return captured.length === 1 ? Array.from({ length: 250 }, (_, i) => fakeCase(String(i).padStart(3, "0"))) : [];
+    }) as unknown as typeof KycCase.findAll;
+
+    const worker = new KybStatusWorker() as unknown as TestableWorker;
+    await worker.poll();
+    await worker.poll();
+    await worker.poll();
+
+    const wheres = captured.map(options => options.where as Record<string, Record<symbol, unknown>>);
+    expect(wheres[0].id).toBeUndefined();
+    expect(wheres[1].id[Op.gt]).toBe("249");
+    // The second cycle came back under the cap, so the third starts from the top again.
+    expect(wheres[2].id).toBeUndefined();
+  });
+
+  // Mirrors the authenticated route's guard: a malformed provider response must not
+  // enqueue another attempt's outcome for this case's profile.
+  it("discards a provider response whose attempt id does not match the case", async () => {
+    const polledCase = { customerEntity: { profileId: "user-1" }, id: "case-1", providerCaseId: "attempt-1" };
+    KycCase.findAll = (async () => [polledCase]) as unknown as typeof KycCase.findAll;
+
+    const realGetInstance = BrlaApiService.getInstance;
+    const realFindOne = EmailNotification.findOne;
+    // First touch of any enqueue is the dedupe lookup; recording it observes whether
+    // the guard let the outcome through.
+    const enqueueTouched = mock(async () => ({}) as EmailNotification);
+    EmailNotification.findOne = enqueueTouched as unknown as typeof EmailNotification.findOne;
+
+    const respondWith = (id: string) =>
+      mock(
+        () =>
+          ({
+            getKybAttemptStatus: mock(async () => ({
+              attempt: { id, result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED, updatedAt: "2026-08-07" }
+            }))
+          }) as unknown as BrlaApiService
+      );
+
+    try {
+      const worker = new KybStatusWorker() as unknown as TestableWorker;
+
+      BrlaApiService.getInstance = respondWith("attempt-OTHER");
+      await worker.poll();
+      expect(enqueueTouched).not.toHaveBeenCalled();
+
+      BrlaApiService.getInstance = respondWith("attempt-1");
+      await worker.poll();
+      expect(enqueueTouched).toHaveBeenCalledTimes(1);
+    } finally {
+      BrlaApiService.getInstance = realGetInstance;
+      EmailNotification.findOne = realFindOne;
+    }
   });
 });

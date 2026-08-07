@@ -30,6 +30,10 @@ const MAX_CASES_PER_CYCLE = 250;
 class KybStatusWorker {
   private job: CronJob;
 
+  // Keyset cursor: null selects from the top; set only when a cycle filled its cap, so
+  // the next cycle continues behind the last row instead of re-taking the same prefix.
+  private cursorId: string | null = null;
+
   constructor(cronTime = "0 * * * *") {
     this.job = CronJob.from({
       cronTime,
@@ -50,15 +54,26 @@ class KybStatusWorker {
     this.job.stop();
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private async poll(): Promise<void> {
     try {
       const pending = await KycCase.findAll({
-        include: [{ as: "customerEntity", model: CustomerEntity, required: true }],
-        // Oldest writes first so a burst larger than the cap drains across cycles.
+        include: [
+          {
+            as: "customerEntity",
+            model: CustomerEntity,
+            required: true,
+            // Partner-owned entities have no profile to email. Filtered in the join, not
+            // after the fetch, so they cannot occupy the batch's slots.
+            where: { profileId: { [Op.not]: null } }
+          }
+        ],
         limit: MAX_CASES_PER_CYCLE,
-        order: [["updatedAt", "ASC"]],
+        // Walk a stable keyset: a poll does not modify a still-pending case, so a plain
+        // oldest-first prefix would re-select the same rows every cycle and starve the
+        // rest whenever more than one batch is pending.
+        order: [["id", "ASC"]],
         where: {
+          ...(this.cursorId ? { id: { [Op.gt]: this.cursorId } } : {}),
           // An attempt whose outcome is already queued (webhook or an earlier poll) is
           // settled for this worker's purpose. Without the anti-join every settled case
           // costs one Avenia request per hour until it ages out of the window, since
@@ -81,8 +96,14 @@ class KybStatusWorker {
         }
       });
 
+      this.cursorId = pending.length === MAX_CASES_PER_CYCLE ? (pending.at(-1)?.id ?? null) : null;
+
       if (pending.length === 0) {
         return;
+      }
+
+      if (pending.length === MAX_CASES_PER_CYCLE) {
+        logger.info(`KYB status sweep hit its ${MAX_CASES_PER_CYCLE}-case cap; the keyset scan continues next cycle`);
       }
 
       logger.info(`Checking KYB status for ${pending.length} company account(s)`);
@@ -91,7 +112,7 @@ class KybStatusWorker {
 
       for (const kycCase of pending) {
         try {
-          // Partner-owned entities have no profile to email.
+          // Non-null by the join filter above; kept for type narrowing.
           const profileId = kycCase.customerEntity?.profileId;
           if (!profileId) {
             continue;
@@ -100,6 +121,13 @@ class KybStatusWorker {
           // Non-null by the providerCaseId filter in the query above.
           const { attempt } = await brlaApiService.getKybAttemptStatus(kycCase.providerCaseId as string);
           if (!attempt) {
+            continue;
+          }
+
+          // Mirror the authenticated route's mismatch guard: a malformed provider response
+          // must not enqueue another attempt's outcome (and reason) for this case's profile.
+          if (attempt.id !== kycCase.providerCaseId) {
+            logger.error(`Avenia returned attempt ${attempt.id} when asked for ${kycCase.providerCaseId}; skipping`);
             continue;
           }
 

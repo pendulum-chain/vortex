@@ -122,6 +122,19 @@ describe("ramp completion notification reconciliation", () => {
       type: "kyb"
     });
 
+    // Partner-owned: an entity with no profile has nobody to email and must not
+    // occupy a batch slot (the worker filters it in the join).
+    const partnerEntity = await CustomerEntity.create({ profileId: null, status: "active", type: "business" });
+    await KycCase.create({
+      customerEntityId: partnerEntity.id,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-partner",
+      providerCustomerId: null,
+      status: VerificationStatus.InReview,
+      type: "kyb"
+    });
+
     const settled = await createAuthedUser("kyb-poll-settled@example.com");
     const settledBusiness = await createTestTaxId(settled.user.id, {
       customerType: "business",
