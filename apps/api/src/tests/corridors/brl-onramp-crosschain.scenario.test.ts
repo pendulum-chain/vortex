@@ -81,6 +81,12 @@ interface CorridorSetup {
   destination: `0x${string}`;
 }
 
+interface DestinationFundingExpectation {
+  initialBalanceRaw: bigint;
+  liabilityRaw: bigint;
+  shortfallRaw: bigint;
+}
+
 /**
  * Corridor scenario tests for the CROSS-CHAIN BRL onramp (pix → BRLA minted on
  * Base → Nabla swap to USDC → SquidRouter bridge → USDC on Arbitrum). This is
@@ -294,14 +300,25 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
    * Scripts the fake world so every polling loop succeeds on its first check:
    * - the Avenia subaccount holds the minted BRL and the mint ticket credits
    *   the ephemeral's BRLA on Base instantly,
-   * - the ephemeral has gas on Base AND Arbitrum (destination funding),
+   * - the ephemeral has source gas on Base but only a partial destination gas
+   *   balance on Arbitrum, so fundEphemeral must supply the exact shortfall,
    * - the broadcast Nabla swap credits the ephemeral's Base USDC,
    * - the broadcast squid swap credits the bridged USDC on Arbitrum,
-   * - raw ERC-20 transfers are applied to the in-memory ledger.
+   * - the destination payout is accepted only if the funded native balance can
+   *   cover its full signed fee cap, then raw ERC-20 transfers are applied to
+   *   the in-memory ledger.
    */
-  function scriptHappyWorld(setup: CorridorSetup): void {
+  function scriptHappyWorld(setup: CorridorSetup): DestinationFundingExpectation {
+    const parsedTransfer = parseTransaction(setup.signedTransfer);
+    if (parsedTransfer.gas === undefined || parsedTransfer.maxFeePerGas === undefined) {
+      throw new Error("Signed destination transfer is missing its gas fee cap");
+    }
+    const liabilityRaw = parsedTransfer.gas * parsedTransfer.maxFeePerGas;
+    const initialBalanceRaw = liabilityRaw / 4n;
+    const shortfallRaw = liabilityRaw - initialBalanceRaw;
+
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
-    world.evm.setNativeBalance(Networks.Arbitrum, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Arbitrum, setup.ephemeral.address, initialBalanceRaw);
     world.brla.onPixOutputTicket = ({ walletAddress }) => {
       if (walletAddress) {
         // Generous credit (same as the direct corridor): the mint handler
@@ -311,6 +328,14 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       }
     };
     world.evm.onTransaction = tx => {
+      if (!tx.serialized && tx.to?.toLowerCase() === setup.ephemeral.address.toLowerCase() && tx.value !== undefined) {
+        world.evm.setNativeBalance(
+          tx.network,
+          setup.ephemeral.address,
+          world.evm.nativeBalance(tx.network, setup.ephemeral.address) + tx.value
+        );
+        return;
+      }
       if (tx.serialized === setup.signedNablaSwap) {
         world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapOutputRaw);
         return;
@@ -323,6 +348,18 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
           world.evm.erc20Balance(Networks.Arbitrum, USDC_ON_ARBITRUM, setup.ephemeral.address) + setup.bridgedAmountRaw
         );
         return;
+      }
+      if (tx.serialized === setup.signedTransfer) {
+        const fundedBalanceRaw = world.evm.nativeBalance(Networks.Arbitrum, setup.ephemeral.address);
+        if (fundedBalanceRaw < liabilityRaw) {
+          throw new Error(
+            `FakeEvm: destination payout needs ${liabilityRaw} native units but ephemeral holds ${fundedBalanceRaw}`
+          );
+        }
+        // Charge the full signed fee cap. Real execution normally spends less, but
+        // this proves the selected funding survives the worst case authorized by
+        // the transaction before the fake RPC accepts the submission.
+        world.evm.setNativeBalance(Networks.Arbitrum, setup.ephemeral.address, fundedBalanceRaw - liabilityRaw);
       }
       const parsed = tx.serialized ? parseTransaction(tx.serialized as `0x${string}`) : { data: tx.data, to: tx.to };
       if (!parsed.to || !parsed.data) {
@@ -345,6 +382,8 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
     };
+
+    return { initialBalanceRaw, liabilityRaw, shortfallRaw };
   }
 
   function submissionsOf(signedTx: `0x${string}`): number {
@@ -370,10 +409,10 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   });
 
   it(
-    "happy path: mints on Base, swaps BRLA to USDC via Nabla, bridges via squid, and pays the destination on Arbitrum",
+    "dynamically funds the signed payout shortfall, then submits the full cross-chain payout",
     async () => {
       const setup = await setUpRegisteredRamp();
-      scriptHappyWorld(setup);
+      const destinationFunding = scriptHappyWorld(setup);
       const pixOutBefore = world.brla.pixOutputTickets.length;
 
       // Registration requested a Base USDC → Arbitrum USDC squid route.
@@ -406,6 +445,19 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       expect(submissionsOf(setup.signedSquidApprove)).toBe(1);
       expect(submissionsOf(setup.signedSquidSwap)).toBe(1);
       expect(submissionsOf(setup.signedTransfer)).toBe(1);
+      const destinationFundingTxs = world.evm.sentTransactions.filter(
+        tx =>
+          !tx.serialized &&
+          tx.network === Networks.Arbitrum &&
+          tx.to?.toLowerCase() === setup.ephemeral.address.toLowerCase() &&
+          tx.value !== undefined
+      );
+      expect(destinationFundingTxs).toHaveLength(1);
+      expect(destinationFundingTxs[0].value).toBe(destinationFunding.shortfallRaw);
+      expect(destinationFunding.initialBalanceRaw + (destinationFundingTxs[0].value ?? 0n)).toBe(
+        destinationFunding.liabilityRaw
+      );
+      expect(world.evm.nativeBalance(Networks.Arbitrum, setup.ephemeral.address)).toBe(0n);
       expect(world.evm.erc20Balance(Networks.Arbitrum, USDC_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
     },
     30000
