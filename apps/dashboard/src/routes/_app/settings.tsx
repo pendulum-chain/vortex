@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/settings")({
 function SettingsPage() {
   const user = useAuthStore(state => state.user);
   const account = useActiveAccount();
-  const { categoryEnabled, isLoading: preferencesLoading, setCategoryEnabled } = useNotificationPreferences();
+  const { categoryEnabled, controlsDisabled, setCategoryEnabled } = useNotificationPreferences();
 
   return (
     <Stagger className="mx-auto grid max-w-3xl gap-6">
@@ -74,7 +74,7 @@ function SettingsPage() {
               >
                 <Checkbox
                   checked={categoryEnabled(pref.id)}
-                  disabled={preferencesLoading}
+                  disabled={controlsDisabled}
                   id={pref.id}
                   onCheckedChange={checked => setCategoryEnabled(pref.id, checked === true)}
                 />

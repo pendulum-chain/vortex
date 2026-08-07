@@ -269,7 +269,9 @@ provider-shaped rather than UI-shaped.
   `/v1/notifications` exists; wiring it up is listed under next steps. The Settings email
   preference toggles are wired to `/v1/notifications/preferences`: "Onboarding updates" maps to
   the three `verification_*` types and "Transfer status" to `ramp_completed`, the stored type
-  strings the email dispatch worker consults at delivery time.
+  strings the email dispatch worker consults at delivery time (shared `EmailNotificationType`
+  enum). The stored master switch is honored too: a globally muted profile shows both
+  categories off, and re-enabling one lifts the switch while pinning the other to muted.
 
 ## Next steps
 
