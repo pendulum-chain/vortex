@@ -1,3 +1,4 @@
+import { EmailNotificationType } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -9,12 +10,11 @@ export enum NotificationProvider {
   Vortex = "vortex"
 }
 
-export enum NotificationType {
-  RampCompleted = "ramp_completed",
-  VerificationApproved = "verification_approved",
-  VerificationExpired = "verification_expired",
-  VerificationRejected = "verification_rejected"
-}
+// The stored type values live in @vortexfi/shared: they are the wire contract with the
+// dashboard's notification-preference toggles, which write prefs keyed by these strings.
+// Re-exported under the model's historical name for the API's existing imports.
+export { EmailNotificationType as NotificationType };
+type NotificationType = EmailNotificationType;
 
 export enum NotificationStatus {
   Abandoned = "abandoned",
