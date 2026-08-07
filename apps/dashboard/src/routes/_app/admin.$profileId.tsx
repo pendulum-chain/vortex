@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ImpersonateDialog } from "@/components/admin/ImpersonateDialog";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
@@ -7,24 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminAccount } from "@/hooks/useAdminConsole";
-import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 
 export const Route = createFileRoute("/_app/admin/$profileId")({
-  component: AdminAccountDetailPage
+  component: AccountDetail
 });
-
-function AdminAccountDetailPage() {
-  const onboardingStatus = useOnboardingStatusQuery();
-  const isAdmin = onboardingStatus.data?.roles.includes("vortex_admin") ?? false;
-
-  if (onboardingStatus.isLoading) {
-    return <Skeleton className="mx-auto mt-20 h-80 max-w-3xl" />;
-  }
-  if (!isAdmin) {
-    return <Navigate to="/overview" />;
-  }
-  return <AccountDetail />;
-}
 
 function AccountDetail() {
   const { profileId } = Route.useParams();

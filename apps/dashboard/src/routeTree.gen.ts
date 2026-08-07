@@ -23,6 +23,7 @@ import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppLimitsRouteImport } from './routes/_app/limits'
 import { Route as AppApiKeysRouteImport } from './routes/_app/api-keys'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppAdminIndexRouteImport } from './routes/_app/admin.index'
 import { Route as AppAdminProfileIdRouteImport } from './routes/_app/admin.$profileId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -94,6 +95,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminProfileIdRoute = AppAdminProfileIdRouteImport.update({
   id: '/$profileId',
   path: '/$profileId',
@@ -115,11 +121,11 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/admin/$profileId': typeof AppAdminProfileIdRoute
+  '/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/admin': typeof AppAdminRouteWithChildren
   '/api-keys': typeof AppApiKeysRoute
   '/limits': typeof AppLimitsRoute
   '/overview': typeof AppOverviewRoute
@@ -131,6 +137,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/admin/$profileId': typeof AppAdminProfileIdRoute
+  '/admin': typeof AppAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +156,7 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/_app/admin/$profileId': typeof AppAdminProfileIdRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,11 +175,11 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/monerium/callback'
     | '/admin/$profileId'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/admin'
     | '/api-keys'
     | '/limits'
     | '/overview'
@@ -183,6 +191,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/monerium/callback'
     | '/admin/$profileId'
+    | '/admin'
   id:
     | '__root__'
     | '/'
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/monerium/callback'
     | '/_app/admin/$profileId'
+    | '/_app/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -310,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/$profileId': {
       id: '/_app/admin/$profileId'
       path: '/$profileId'
@@ -322,10 +339,12 @@ declare module '@tanstack/react-router' {
 
 interface AppAdminRouteChildren {
   AppAdminProfileIdRoute: typeof AppAdminProfileIdRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminProfileIdRoute: AppAdminProfileIdRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
