@@ -87,7 +87,7 @@ update the existing canonical document when one owns the topic.
 
 ## Commit Messages & PR Titles
 
-Every commit message and PR title follows [Conventional Commits](https://www.conventionalcommits.org/):
+Every commit message follows [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <summary>

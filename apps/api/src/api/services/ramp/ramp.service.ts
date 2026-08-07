@@ -452,13 +452,17 @@ export class RampService extends BaseRampService {
         await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs, { requireComplete: false });
       }
 
-      // Merge presigned transactions (replace existing ones with same phase/network/signer)
+      // Merge presigned transactions (replace existing ones with same phase/network/signer/nonce).
+      // The nonce MUST be part of the identity: split fee distribution prepares several
+      // distributeFees transactions that differ only by nonce, and a nonce-less key would
+      // let the later one overwrite the earlier one.
       const existingTxs = rampState.presignedTxs || [];
       const updatedTxs = [...existingTxs];
 
       presignedTxs.forEach((newTx: UnsignedTx) => {
         const existingIndex = updatedTxs.findIndex(
-          tx => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer
+          tx =>
+            tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer && tx.nonce === newTx.nonce
         );
         if (existingIndex >= 0) {
           updatedTxs[existingIndex] = newTx;

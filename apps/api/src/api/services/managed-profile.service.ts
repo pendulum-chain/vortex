@@ -66,6 +66,11 @@ async function findSupabaseUserByEmail(email: string): Promise<SupabaseUser | nu
   }
 }
 
+// Only a duplicate-email rejection means an identity to reconcile already exists. Any other
+// Auth failure (rate limit, outage) must surface as an upstream error rather than a conflict,
+// and must not trigger the full-directory scan below.
+const EXISTING_EMAIL_CODES = new Set(["email_exists", "user_already_exists"]);
+
 async function createOrReconcileAuthUser(input: CreateManagedProfileInput, email: string): Promise<SupabaseUser> {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     app_metadata: {
@@ -77,6 +82,9 @@ async function createOrReconcileAuthUser(input: CreateManagedProfileInput, email
   });
 
   if (!error && data.user) return data.user;
+  if (!error || !error.code || !EXISTING_EMAIL_CODES.has(error.code)) {
+    throw new ManagedProfileServiceError("MANAGED_PROFILE_UPSTREAM_ERROR", "Could not create the Auth identity");
+  }
 
   const existing = await findSupabaseUserByEmail(email);
   if (!existing || !hasAssociationMetadata(existing, input.partnerId, input.externalUserId)) {

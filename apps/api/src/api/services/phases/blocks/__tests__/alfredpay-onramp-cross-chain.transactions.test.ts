@@ -13,11 +13,15 @@ import { privateKeyToAccount } from "viem/accounts";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import * as evmFundingNamespace from "../core/evm-funding";
 import * as alfredpayCustomerNamespace from "../../../quote/alfredpay-customer";
+import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { FlowMetadata } from "../core/metadata";
 
 const sharedReal = { ...sharedNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
 const alfredpayCustomerReal = { ...alfredpayCustomerNamespace };
+const partnerPricingReal = { ...partnerPricingNamespace };
+const VORTEX_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000fee5";
+const PARTNER_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000abcd";
 const sourceAmounts: string[] = [];
 const destinationAmounts: string[] = [];
 const EVM_EPHEMERAL_ADDRESS = privateKeyToAccount(
@@ -62,12 +66,18 @@ mock.module("../../alfredpay-customer", () => ({
   resolveAlfredpayCustomerId: async () => "alfredpay-user-id"
 }));
 
+mock.module("../../../partners/partner-pricing.service", () => ({
+  findPartnerWithPricing: async (where: { name?: string; id?: string }) =>
+    where.name === "vortex" ? { payoutAddressEvm: VORTEX_PAYOUT_ADDRESS } : { payoutAddressEvm: PARTNER_PAYOUT_ADDRESS }
+}));
+
 const { makeAlfredpayOnrampCrossChainFlow } = await import("../flows/alfredpay-onramp-cross-chain");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../core/evm-funding", () => ({ ...evmFundingReal }));
   mock.module("../../alfredpay-customer", () => ({ ...alfredpayCustomerReal }));
+  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
 });
 
 function buildQuote(): QuoteTicketAttributes {
@@ -84,7 +94,7 @@ function buildQuote(): QuoteTicketAttributes {
     outputAmount: "95",
     outputCurrency: EvmToken.USDC,
     partnerId: null,
-    pricingPartnerId: null,
+    pricingPartnerId: "pricing-partner-1",
     rampType: RampDirection.BUY,
     to: Networks.Arbitrum
   } as unknown as QuoteTicketAttributes;
@@ -108,6 +118,15 @@ function buildMetadata(): FlowMetadata {
         amountRaw: "95000000",
         network: Networks.Arbitrum,
         token: EvmToken.USDC
+      },
+      distributeFees: {
+        anchorFeeUsd: "2",
+        feeToken: EvmToken.USDT,
+        network: Networks.Polygon,
+        networkFeeUsd: "0",
+        partnerMarkupUsd: "1",
+        totalFeesUsd: "2",
+        vortexFeeUsd: "1"
       },
       finalSettlementSubsidy: {},
       fundEphemeral: { network: Networks.Polygon, token: EvmToken.USDT },
@@ -182,6 +201,7 @@ describe("AlfredPay onramp cross-chain transactions", () => {
       "squidRouterPay",
       "finalSettlementSubsidy",
       "destinationTransfer",
+      "distributeFees",
       "complete"
     ]);
     expect(blocks.stateMeta.transactionPlan).toEqual({
@@ -191,11 +211,13 @@ describe("AlfredPay onramp cross-chain transactions", () => {
       ["squidRouterApprove", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 0],
       ["squidRouterSwap", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 1],
       ["destinationTransfer", Networks.Arbitrum, EVM_EPHEMERAL_ADDRESS, 0],
+      ["distributeFees", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 2],
+      ["distributeFees", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 3],
       ["backupSquidRouterApprove", Networks.Arbitrum, EVM_EPHEMERAL_ADDRESS, 1],
       ["backupSquidRouterSwap", Networks.Arbitrum, EVM_EPHEMERAL_ADDRESS, 2],
       ["backupApprove", Networks.Arbitrum, EVM_EPHEMERAL_ADDRESS, 0],
-      ["polygonCleanup", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 2],
-      ["alfredOnrampMintFallback", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 3]
+      ["polygonCleanup", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 4],
+      ["alfredOnrampMintFallback", Networks.Polygon, EVM_EPHEMERAL_ADDRESS, 5]
     ]);
     expect(blocks.unsignedTxs.find(tx => tx.phase === "squidRouterSwap")?.txData).toMatchObject({ data: "0xa2" });
     expect(blocks.unsignedTxs.find(tx => tx.phase === "backupSquidRouterSwap")?.txData).toMatchObject({ data: "0xb2" });

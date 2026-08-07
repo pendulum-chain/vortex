@@ -36,7 +36,7 @@ Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fia
 
 Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling.
 
-Before starting a flow, `sdk.getRampInfo()` / `GET /v1/ramp-info` can return the bound profile's sanitized per-corridor `kycStatus`, `canBuy`, and `canSell` using public, secret, or session capability. It intentionally does not return exact limits, PII, provider IDs, or ramp history.
+Before starting a flow, `sdk.getRampInfo()` / `GET /v1/ramp-info` can return the credential-bound profile's sanitized per-corridor `kycStatus`, `canBuy`, and `canSell` using a public or secret API key. Supabase sessions do not authorize this endpoint. It intentionally does not return exact limits, PII, provider IDs, or ramp history.
 
 Production integrations should persist the `quoteId`, `rampId`, partner order ID, user/session identifier, and any local ephemeral-key backup reference needed for support or recovery.
 

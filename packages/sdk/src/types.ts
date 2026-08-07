@@ -109,10 +109,10 @@ export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends Alfr
 export interface BrlOnrampAdditionalData {
   destinationAddress: string;
   /**
-   * @deprecated The BRL subaccount is now derived server-side from
-   * `api_keys.user_id -> tax_ids.user_id`. The SDK still accepts the field
-   * for one release of backward compatibility, but the server rejects
-   * mismatches against the derived taxId.
+   * @deprecated The BRL account is now derived server-side from the authenticated
+   * profile's canonical customer entity and provider customer. The SDK still
+   * accepts the field for one release of backward compatibility, but the server
+   * rejects mismatches.
    */
   taxId?: string;
 }
@@ -135,10 +135,10 @@ export interface BrlOfframpAdditionalData {
   walletAddress: string;
   receiverTaxId?: string;
   /**
-   * @deprecated The BRL subaccount is now derived server-side from
-   * `api_keys.user_id -> tax_ids.user_id`. The SDK still accepts the field
-   * for one release of backward compatibility, but the server rejects
-   * mismatches against the derived taxId.
+   * @deprecated The BRL account is now derived server-side from the authenticated
+   * profile's canonical customer entity and provider customer. The SDK still
+   * accepts the field for one release of backward compatibility, but the server
+   * rejects mismatches.
    */
   taxId?: string;
 }
@@ -238,6 +238,12 @@ export interface VortexSdkConfig {
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
+  /**
+   * Maximum time to wait when a signing operation first needs a Substrate
+   * WebSocket API. Chain APIs are initialized lazily and independently.
+   * @default 15000
+   */
+  networkInitializationTimeoutMs?: number;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;

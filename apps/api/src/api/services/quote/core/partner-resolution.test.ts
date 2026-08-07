@@ -49,7 +49,7 @@ describe("resolveQuotePartner", () => {
     ProfilePartnerAssignment.findOne = originalAssignmentFindOne;
   });
 
-  it("uses explicit partnerId before public keys or profile assignments", async () => {
+  it("uses the credential partner before profile assignments", async () => {
     let assignmentLookupCount = 0;
     Partner.findOne = mock(async ({ where }: { where: { name?: string } }) => {
       if (where.name === "ExplicitPartner") {
@@ -71,7 +71,6 @@ describe("resolveQuotePartner", () => {
     const result = await resolveQuotePartner({
       ...baseRequest,
       partnerId: "ExplicitPartner",
-      partnerName: "PublicKeyPartner",
       userId: "user-1"
     });
 
@@ -79,31 +78,6 @@ describe("resolveQuotePartner", () => {
     expect(result.pricingPartnerId).toBe("explicit-id");
     expect(result.ownerPartnerId).toBe("explicit-id");
     expect(assignmentLookupCount).toBe(0);
-  });
-
-  it("keeps public-key partner quotes partner-owned for compatibility", async () => {
-    Partner.findOne = mock(async ({ where }: { where: { name?: string } }) => {
-      if (where.name === "PublicKeyPartner") {
-        return stubPartner("public-key-id", "PublicKeyPartner");
-      }
-      return null;
-    }) as typeof Partner.findOne;
-    PartnerPricingConfig.findOne = mock(async () =>
-      stubConfig("public-key-id", RampDirection.BUY)
-    ) as typeof PartnerPricingConfig.findOne;
-    ProfilePartnerAssignment.findOne = mock(async () => ({
-      partnerId: "assigned-id"
-    })) as typeof ProfilePartnerAssignment.findOne;
-
-    const result = await resolveQuotePartner({
-      ...baseRequest,
-      partnerName: "PublicKeyPartner",
-      userId: "user-1"
-    });
-
-    expect(result.source).toBe("publicKey");
-    expect(result.pricingPartnerId).toBe("public-key-id");
-    expect(result.ownerPartnerId).toBe("public-key-id");
   });
 
   it("applies the profile assignment as pricing-only for authenticated buy users", async () => {

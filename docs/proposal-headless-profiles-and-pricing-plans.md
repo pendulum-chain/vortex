@@ -9,7 +9,6 @@ Related decisions and specifications:
 - [`Identity, Customer, and Partner Model`](architecture-identity-model.md)
 - [`API Credential Authentication`](security-spec/01-auth/api-keys.md)
 - [`Monerium Integration`](security-spec/05-integrations/monerium.md)
-- [`API Credential Production Rollout`](operations-api-credential-rollout.md)
 - [PR #1298](https://github.com/pendulum-chain/vortex/pull/1298)
 
 ## Decision sought
@@ -692,22 +691,20 @@ and a source string grants no runtime permission.
 **Gate:** a malformed managed profile cannot enter a provider call, while an attached and
 approved managed entity can complete the same ramp path as a self-service profile.
 
-### Phase 6: migrate credentials and pricing assignments
+### Phase 6: migrate credential ownership and pricing assignments
 
-- Backfill SHA-256 secret digests for every preserved secret using
-  `backfill-api-key-digests.ts`; reissue any unavailable plaintext secret.
-- Use an explicit immutable-ID manifest for legacy key pairs and profile ownership.
-- Convert legacy key partner references into profile-pricing assignments, not credential
+- Use immutable `api_credentials` IDs and profile ownership for every migration decision.
+- Convert credential partner references into profile-pricing assignments, not credential
   ownership.
-- If a profile has no active pricing assignment and all its selected legacy keys reference
+- If a profile has no active pricing assignment and all its selected credentials reference
   one pricing plan, create that assignment.
-- If existing assignments and key references disagree, or selected keys reference several
-  plans for one profile, stop for operator review.
-- Provision/attach headless profiles before creating their unified credentials.
-- Require zero active legacy keys and zero partner-owned credentials before startup.
+- If existing assignments and credential references disagree, or selected credentials
+  reference several plans for one profile, stop for operator review.
+- Provision or attach headless profiles before moving their credentials.
+- Require zero partner-owned credentials before startup.
 
 **Gate:** one profile has one effective pricing plan regardless of credential, and every
-credential/profile pair in the manifest is unambiguous.
+credential/profile relationship is unambiguous.
 
 ### Phase 7: documentation and contract synchronization
 
@@ -787,12 +784,11 @@ Supabase identities, or credentials/webhooks as partner-owned.
 
 ### Migration/preflight tests
 
-- Legacy key pairs are selected only by immutable IDs.
-- Key partner references backfill profile pricing, not credential ownership.
+- Credentials are selected only by immutable IDs.
+- Credential partner references backfill profile pricing, not credential ownership.
 - Conflicting plan references for one profile fail preflight.
 - Unmappable partner-owned webhooks fail preflight.
-- Missing secret plaintext forces reissue; there is no bcrypt/runtime fallback.
-- Startup rejects active legacy keys, partner credential columns, or incomplete schemas.
+- Startup rejects partner credential columns or incomplete schemas.
 
 ### Suggested verification commands
 
@@ -805,7 +801,6 @@ bun test partner-pricing.service.test.ts
 bun test profilePartnerAssignments.controller.test.ts
 bun test managed-profile.service.test.ts
 bun test apiCredential.service.test.ts
-bun test api-credential-migration.test.ts
 bun test ownershipAuth.test.ts
 bun test webhook.service.test.ts
 bun test auth.invariants.test.ts

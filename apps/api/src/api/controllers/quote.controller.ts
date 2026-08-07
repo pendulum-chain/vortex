@@ -46,7 +46,7 @@ export const createQuote = async (
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
     const effectiveUserId = getEffectiveUserId(req);
 
-    // Create quote with public key and partner name for discount application
+    // Create quote with the public key and credential partner for discount application
     const quote = await quoteService.createQuote({
       apiCredentialId: req.credential?.credentialId,
       apiKey: publicApiKey,
@@ -56,7 +56,6 @@ export const createQuote = async (
       network,
       outputCurrency,
       partnerId: req.credential?.partnerId ?? undefined,
-      partnerName: undefined,
       rampType,
       to,
       userId: effectiveUserId
@@ -120,7 +119,6 @@ export const createBestQuote = async (
       networks,
       outputCurrency,
       partnerId: req.credential?.partnerId ?? undefined,
-      partnerName: undefined,
       rampType,
       to,
       userId: effectiveUserId

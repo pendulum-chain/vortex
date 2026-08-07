@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038–054 and the API models
-on 2026-07-31.
+Status: current architecture. Last reconciled with migrations 038–060 and the API models
+on 2026-08-04.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -22,12 +22,13 @@ owned by [`docs/security-spec/`](security-spec/README.md).
 ```mermaid
 erDiagram
     profiles ||--o{ customer_entities : owns
-    profiles ||--o{ api_keys : may_own
+    profiles ||--o{ api_credentials : owns
     customer_entities ||--o{ provider_customers : owns
     customer_entities ||--o{ kyc_cases : verifies
     provider_customers ||--o{ kyc_cases : has
     partners ||--o{ partner_pricing_configs : prices
-    partners ||--o{ api_keys : attributes
+    partners ||--o{ api_credentials : attributes
+    partners ||--o{ partner_managed_profiles : provisions
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -66,22 +67,25 @@ references: `provider_customers.tax_reference` remains a runtime join key for in
 ramp state. Its SHA-256 value backs lookup and uniqueness; masked display is derived at
 read time rather than stored as a second copy.
 
-### Partners, pricing, and API keys
+### Partners, pricing, and API credentials
 
 `partners` contains one commercial identity per unique partner name.
 `partner_pricing_configs` contains the BUY/SELL pricing rows, optionally scoped to a fiat
 currency; a currency-specific row takes precedence over the wildcard row.
 
-API keys have two independent axes:
+`api_credentials` is the runtime authentication store: one row is one public/secret key
+pair with a required subject `profile_id`, an optional attributing `partner_id`,
+environment, expiry, and a revocation timestamp. The public value is stored plainly and
+suits attribution; the secret is stored hashed and authenticates requests as the subject
+profile. There is no partner-only credential: a partner-managed credential still acts
+for exactly one profile, and ramp registration stays user-gated per
+[`ADR 0001`](adr-0001-user-gated-ramp-registration.md). The legacy `api_keys` table is
+removed by migration 061; startup fails closed if the table still exists.
 
-- `partner_id` supplies commercial attribution and partner pricing;
-- `user_id` identifies the profile the key may act for.
-
-Public `pk_*` keys are stored as public values and are suitable for attribution. Secret
-`sk_*` keys are stored as hashes and may authenticate requests. A partner-only key may
-quote but cannot register a ramp for an arbitrary customer; registration requires either
-a Supabase user or a secret key linked to one user. See
-[`ADR 0001`](adr-0001-user-gated-ramp-registration.md).
+`partner_managed_profiles` records that a partner provisioned a Supabase-backed profile
+(normalized source and external subject ID) for provenance and idempotency; it is not an
+authentication or pricing principal. Normative credential rules live in
+[`security-spec/01-auth/api-keys.md`](security-spec/01-auth/api-keys.md).
 
 ### Recipients
 
@@ -113,10 +117,11 @@ quote cannot be claimed by another user.
 
 ## Implementation map
 
-- Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiKey,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
+- Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiCredential,partnerManagedProfile,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
 - Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
+- Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 
 Update this document only when the cross-module shape changes. Provider-specific flows,

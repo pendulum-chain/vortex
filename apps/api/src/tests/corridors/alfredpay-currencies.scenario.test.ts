@@ -47,6 +47,7 @@ const ONRAMP_PHASES: RampPhase[] = [
   "squidRouterSwap",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -61,6 +62,7 @@ const CROSS_CHAIN_ONRAMP_PHASES: RampPhase[] = [
   "squidRouterPay",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -70,6 +72,7 @@ const OFFRAMP_PHASES: RampPhase[] = [
   "fundEphemeral",
   "finalSettlementSubsidy",
   "alfredpayOfframpTransfer",
+  "distributeFees",
   "complete"
 ];
 

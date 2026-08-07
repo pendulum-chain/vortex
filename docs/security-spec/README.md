@@ -41,7 +41,7 @@ documents win.
 | Current Risk Register | `RISK-REGISTER.md` | Authoritative accepted, deferred, and rollout-dependent exceptions |
 | System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
-| API Key Auth | `01-auth/api-keys.md` | Dual-key system (pk\_/sk\_), validation, partner matching |
+| API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
 | Server-Side Signing | `02-signing-keys/server-side-signing.md` | Funding keys, executor keys, webhook signing |
@@ -63,6 +63,7 @@ documents win.
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
+| Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |

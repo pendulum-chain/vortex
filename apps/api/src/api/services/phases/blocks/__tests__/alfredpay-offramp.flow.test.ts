@@ -14,20 +14,30 @@ const ALFREDPAY_OFFRAMP: RampPhase[] = [
   "fundEphemeral",
   "finalSettlementSubsidy",
   "alfredpayOfframpTransfer",
+  "distributeFees",
   "complete"
 ];
 import { assemblePhaseFlow } from "../core/phase-flow";
 import { alfredpayOfframpFlow, makeAlfredpayOfframpFlow } from "../flows/alfredpay-offramp";
-import { resolveBlockFlow } from "../flows/catalog";
+import { getBlockFlowByIdentity, resolveBlockFlow } from "../flows/catalog";
 
 const CORE_PHASES: RampPhase[] = [
   "squidRouterPermitExecute",
   "fundEphemeral",
   "finalSettlementSubsidy",
-  "alfredpayOfframpTransfer"
+  "alfredpayOfframpTransfer",
+  "distributeFees"
 ];
 
 describe("Alfredpay offramp flow", () => {
+  it("fails closed for persisted pre-v3 identities (drain-then-deploy contract)", () => {
+    expect(alfredpayOfframpFlow.identity.version).toBe(3);
+    expect(alfredpayOfframpFlow.identity.blockSchemaVersions.alfredpayOfframp).toBe(2);
+    expect(() => getBlockFlowByIdentity({ ...alfredpayOfframpFlow.identity, version: 2 })).toThrow(
+      /Unsupported persisted flow AlfredpayOfframp@2/
+    );
+  });
+
   it("preserves phase sequence and executor coverage", () => {
     expect(alfredpayOfframpFlow.phases).toEqual(CORE_PHASES);
     expect(alfredpayOfframpFlow.executors.map(executor => executor.getPhaseName())).toEqual(CORE_PHASES);

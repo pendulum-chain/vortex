@@ -54,28 +54,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/ramp-info": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get sanitized ramp eligibility
-         * @description Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated credential or session. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential.
-         *
-         *     **Auth:** `X-Public-Key`, `X-API-Key`, or Supabase Bearer session.
-         */
-        get: operations["getRampInfo"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/request-otp": {
         parameters: {
             query?: never;
@@ -440,6 +418,28 @@ export interface paths {
          * @description Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output.
          */
         post: operations["createBestQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get sanitized ramp eligibility
+         * @description Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.
+         *
+         *     **Auth:** `X-Public-Key` or `X-API-Key`.
+         */
+        get: operations["getRampInfo"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1187,6 +1187,41 @@ export interface components {
              */
             type: "EVM" | "Substrate";
         };
+        ApiCredential: {
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            environment: "live" | "test";
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uuid */
+            partnerId: string | null;
+            /** Format: uuid */
+            profileId: string;
+            /** @description Retrievable public half of the credential. */
+            publicKey: string;
+            /** Format: date-time */
+            publicLastUsedAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /** @description Non-secret 16-character lookup/display prefix. The secret value is not retrievable. */
+            secretKeyPrefix: string;
+            /** Format: date-time */
+            secretLastUsedAt: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ApiCredentialErrorResponse: {
+            error: {
+                /** @description Machine-readable error code such as `AUTHENTICATION_REQUIRED`, `INVALID_PUBLIC_KEY`, `INVALID_SECRET_KEY`, `CREDENTIAL_MISMATCH`, `CREDENTIAL_LIMIT_REACHED`, `CREDENTIAL_NOT_FOUND`, `CREDENTIAL_SUBJECT_REQUIRED`, `INVALID_CREDENTIAL_EXPIRY`, or `INVALID_CREDENTIAL_NAME`. */
+                code: string;
+                message: string;
+                status: number;
+            };
+        };
         /** @enum {string} */
         AveniaDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "SELFIE" | "SELFIE-FROM-LIVENESS";
         AveniaKYCDataUploadRequest: {
@@ -1230,6 +1265,19 @@ export interface components {
         };
         /** @description Allowed values: `AR`, `BR`, `EU` */
         CountryCode: string;
+        CreateApiCredentialRequest: {
+            /**
+             * Format: date-time
+             * @description Optional future ISO-8601 expiry, at most two years from creation. Defaults to one year.
+             */
+            expiresAt?: string;
+            /** @default API Credential */
+            name: string;
+        };
+        CreateApiCredentialResponse: components["schemas"]["ApiCredential"] & {
+            /** @description Returned only at creation. Store it immediately in a server-side secret manager. */
+            secretKey: string;
+        };
         CreateBestQuoteRequest: {
             /** @description Your api key, if available. */
             apiKey?: string;
@@ -1458,46 +1506,6 @@ export interface components {
         KycLevel1Response: {
             id: string;
         };
-        ApiCredential: {
-            /** Format: date-time */
-            createdAt: string;
-            /** @enum {string} */
-            environment: "live" | "test";
-            /** Format: date-time */
-            expiresAt: string;
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** Format: uuid */
-            partnerId: string | null;
-            /** Format: uuid */
-            profileId: string;
-            /** @description Retrievable public half of the credential. */
-            publicKey: string;
-            /** Format: date-time */
-            publicLastUsedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-            /** @description Non-secret 16-character lookup/display prefix. The secret value is not retrievable. */
-            secretKeyPrefix: string;
-            /** Format: date-time */
-            secretLastUsedAt: string | null;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        CreateApiCredentialRequest: {
-            /**
-             * Format: date-time
-             * @description Optional future ISO-8601 expiry, at most two years from creation. Defaults to one year.
-             */
-            expiresAt?: string;
-            /** @default API Credential */
-            name: string;
-        };
-        CreateApiCredentialResponse: components["schemas"]["ApiCredential"] & {
-            /** @description Returned only at creation. Store it immediately in a server-side secret manager. */
-            secretKey: string;
-        };
         ListApiCredentialsResponse: {
             credentials: components["schemas"]["ApiCredential"][];
         };
@@ -1609,6 +1617,17 @@ export interface components {
             recoverable?: boolean;
             /** Format: date-time */
             timestamp: string;
+        };
+        RampInfoResponse: {
+            /** @description Sanitized eligibility keyed by corridor country code. No exact limits, PII, provider IDs, or failure reasons are returned. */
+            corridors: {
+                [key: string]: {
+                    canBuy: boolean;
+                    canSell: boolean;
+                    /** @enum {string} */
+                    kycStatus: "not_started" | "pending" | "approved" | "rejected";
+                };
+            };
         };
         /**
          * @description The current phase of the ramp process.
@@ -1782,25 +1801,6 @@ export interface components {
              * @example proc_12345
              */
             rampId: string;
-        };
-        ApiCredentialErrorResponse: {
-            error: {
-                /** @description Machine-readable error code such as `AUTHENTICATION_REQUIRED`, `INVALID_PUBLIC_KEY`, `INVALID_SECRET_KEY`, `CREDENTIAL_MISMATCH`, `CREDENTIAL_LIMIT_REACHED`, `CREDENTIAL_NOT_FOUND`, `CREDENTIAL_SUBJECT_REQUIRED`, `INVALID_CREDENTIAL_EXPIRY`, or `INVALID_CREDENTIAL_NAME`. */
-                code: string;
-                message: string;
-                status: number;
-            };
-        };
-        RampInfoResponse: {
-            /** @description Sanitized eligibility keyed by corridor country code. No exact limits, PII, provider IDs, or failure reasons are returned. */
-            corridors: {
-                [key: string]: {
-                    canBuy: boolean;
-                    canSell: boolean;
-                    /** @enum {string} */
-                    kycStatus: "not_started" | "pending" | "approved" | "rejected";
-                };
-            };
         };
         UserLimit: {
             /** @enum {string} */
@@ -1997,53 +1997,6 @@ export interface operations {
             };
             /** @description Internal server error. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
-                };
-            };
-        };
-    };
-    getRampInfo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Sanitized corridor eligibility. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RampInfoResponse"];
-                };
-            };
-            /** @description Malformed key or wrong key type. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
-                };
-            };
-            /** @description Missing, invalid, expired, or revoked credential/session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
-                };
-            };
-            /** @description `CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2811,6 +2764,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRampInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sanitized corridor eligibility. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RampInfoResponse"];
+                };
+            };
+            /** @description Malformed key or wrong key type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked API credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+            /** @description `CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
         };

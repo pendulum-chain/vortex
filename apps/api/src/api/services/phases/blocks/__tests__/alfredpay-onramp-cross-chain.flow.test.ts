@@ -65,6 +65,7 @@ const ALFREDPAY_ONRAMP_CROSS_CHAIN: RampPhase[] = [
   "squidRouterPay",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 import { FlowBuilder } from "../core/flow";
@@ -90,7 +91,8 @@ const CORE_PHASES: RampPhase[] = [
   "squidRouterSwap",
   "squidRouterPay",
   "finalSettlementSubsidy",
-  "destinationTransfer"
+  "destinationTransfer",
+  "distributeFees"
 ];
 
 function buildCtx(): PhaseCtx {
@@ -168,7 +170,8 @@ describe("Alfredpay cross-chain onramp flow", () => {
       "subsidizePreSwap",
       "squidRouterSwap",
       "finalSettlementSubsidy",
-      "destinationTransfer"
+      "destinationTransfer",
+      "distributeFees"
     ]);
     expect(getBlockMetadata(metadata, AlfredpayMintContext).outputAmountRaw).toBe("98000000");
     expect(getBlockMetadata(metadata, SubsidizePreContext).targetInputAmountRaw).toBe("96000000");

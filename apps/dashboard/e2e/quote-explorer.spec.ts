@@ -58,7 +58,7 @@ test("SELL carries the token input, network, and corridor into the offramp", asy
   await page.getByRole("option", { name: /MXN/ }).click();
   await page.getByRole("combobox").filter({ hasText: /^POL$/ }).click();
   await page.getByRole("option", { exact: true, name: "USDC" }).click();
-  await page.getByLabel("You pay").fill("54.054054");
+  await page.getByLabel("You pay").fill("54.054567");
 
   const continueLink = page.getByRole("link", { name: "Continue to transfer" });
   await expect(continueLink).toBeVisible({ timeout: 20_000 });
@@ -70,16 +70,16 @@ test("SELL carries the token input, network, and corridor into the offramp", asy
     const value = search.get(key);
     return value?.startsWith('"') ? JSON.parse(value) : value;
   };
-  expect(decoded("amount")).toBe("54.054054");
+  expect(decoded("amount")).toBe("54.054567");
   expect(decoded("corridorId")).toBe("MX");
   expect(decoded("mode")).toBe("offramp");
   expect(decoded("network")).toBe("polygon");
   expect(decoded("token")).toBe("USDC");
-  await expect(page.locator("#token-amount")).toHaveValue("54.054054");
+  await expect(page.locator("#token-amount")).toHaveValue("54.054567");
   await expect(page.getByRole("combobox").filter({ hasText: "Polygon" })).toBeVisible();
   await expect(page.getByRole("combobox").filter({ hasText: "USDC" })).toBeVisible();
   expect(backend.quoteRequests.at(-1)).toMatchObject({
-    inputAmount: "54.054054",
+    inputAmount: "54.054567",
     inputCurrency: "USDC",
     network: "polygon",
     outputCurrency: "MXN",

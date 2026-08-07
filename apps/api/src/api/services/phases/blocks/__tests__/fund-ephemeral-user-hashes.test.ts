@@ -5,6 +5,10 @@ import type RampState from "../../../../../models/rampState.model";
 import * as userTxVerifier from "../../../phases/helpers/user-tx-verifier";
 import { privateKeyToAccount } from "viem/accounts";
 
+// Snapshot before mocking: mock.module mutates the imported namespace in place, so
+// spreading `userTxVerifier` at restore time would copy the stub back.
+const userTxVerifierReal = { ...userTxVerifier };
+
 const verifyUserSubmittedTxByHash = mock(async () => undefined);
 mock.module("../../../phases/helpers/user-tx-verifier", () => ({
   ...userTxVerifier,
@@ -13,7 +17,7 @@ mock.module("../../../phases/helpers/user-tx-verifier", () => ({
 const { FundEphemeralExecutor } = await import("../phases/fund-ephemeral/execution");
 
 afterAll(() => {
-  mock.module("../../../phases/helpers/user-tx-verifier", () => ({ ...userTxVerifier }));
+  mock.module("../../../phases/helpers/user-tx-verifier", () => userTxVerifierReal);
 });
 
 function makeQuote(outputCurrency: FiatToken = FiatToken.BRL) {

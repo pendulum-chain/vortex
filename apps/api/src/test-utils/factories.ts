@@ -26,6 +26,8 @@ import RampState, { type RampStateAttributes } from "../models/rampState.model";
 import User from "../models/user.model";
 
 let sequence = 0;
+const TEST_VORTEX_EVM_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000fee5";
+
 function nextSeq(): number {
   return ++sequence;
 }
@@ -162,11 +164,17 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
 /**
  * Baseline configuration the quote pipeline expects in every environment:
  * the "vortex" partner rows carrying the default platform fee (zero here;
- * tests that assert fee math override via createTestPartner).
+ * tests that assert fee math override via createTestPartner). The payout
+ * address is required whenever a corridor prices a positive network fee.
  */
 export async function seedVortexPartners(): Promise<void> {
   for (const rampType of [RampDirection.BUY, RampDirection.SELL]) {
-    await createTestPartner({ displayName: "Vortex", name: "vortex", rampType });
+    await createTestPartner({
+      displayName: "Vortex",
+      name: "vortex",
+      payoutAddressEvm: TEST_VORTEX_EVM_PAYOUT_ADDRESS,
+      rampType
+    });
   }
 }
 
@@ -200,8 +208,7 @@ export async function createTestAlfredpayCustomer(
   });
 }
 
-/** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
-/** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
+/** An approved Avenia provider account linked to a user for BRL ramp registration. */
 export async function createTestTaxId(
   userId: string,
   overrides: Partial<{ companyName: string; customerType: "individual" | "business"; taxId: string; subAccountId: string }> = {}

@@ -187,9 +187,13 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
 function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Networks): EphemeralAccountType {
   // Phases that dispatch polymorphically between substrate and EVM based on the network of the presigned tx.
   switch (phase) {
+    case "distributeFees":
+      // distributeFees runs on Base (BRL/EUR corridors) or Polygon (Alfredpay corridors).
+      return network === Networks.Base || network === Networks.Polygon
+        ? EphemeralAccountType.EVM
+        : EphemeralAccountType.Substrate;
     case "nablaApprove":
     case "nablaSwap":
-    case "distributeFees":
     case "subsidizePreSwap":
     case "subsidizePostSwap":
       return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;

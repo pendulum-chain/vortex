@@ -384,6 +384,22 @@ export class APINotInitializedError extends VortexSdkInternalError {
   }
 }
 
+export class NetworkApiInitializationError extends VortexSdkInternalError {
+  public readonly network: string;
+  public readonly timeoutMs: number;
+
+  constructor(network: string, timeoutMs: number, originalError?: Error) {
+    const displayName = `${network.charAt(0).toUpperCase()}${network.slice(1)}`;
+    const message = originalError
+      ? `Failed to initialize ${displayName} WebSocket API: ${originalError.message}`
+      : `Timed out initializing ${displayName} WebSocket API after ${timeoutMs}ms`;
+    super(message, originalError);
+    this.name = "NetworkApiInitializationError";
+    this.network = network;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export class EphemeralGenerationError extends VortexSdkInternalError {
   constructor(network: string, originalError?: Error) {
     super(`Failed to generate ephemeral account for network: ${network}`, originalError);

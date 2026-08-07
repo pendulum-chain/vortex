@@ -210,15 +210,20 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
+# Use a production-ready SMTP server.
+# Applies to the LOCAL stack only — nothing pushes this file to hosted projects,
+# so staging/production auth mail must be set in the Supabase Dashboard
+# (Project Settings -> Authentication -> SMTP) with these same values.
+# Uncomment once the vortexfinance.co domain is verified in Resend and
+# RESEND_API_KEY is exported in the shell that runs `supabase start`.
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
+# host = "smtp.resend.com"
 # port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "support@vortexfinance.co"
+# sender_name = "Vortex Finance"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

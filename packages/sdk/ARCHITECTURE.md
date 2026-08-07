@@ -10,7 +10,8 @@ state or a user's wallet.
 - `VortexSdk.ts` is the public orchestrator.
 - `services/ApiService.ts` owns HTTP requests and error mapping.
 - `services/NetworkManager.ts` owns the RPC connections needed for ephemeral signing and
-  preflight balance checks.
+  initializes only the networks required for ephemeral signing. Quote and registration
+  HTTP calls do not wait for chain WebSockets.
 - `handlers/BrlHandler.ts`, `AlfredpayHandler.ts`, and `MykoboHandler.ts` adapt
   corridor-specific registration and update data to the common lifecycle.
 - `eip712.ts` classifies and attaches signatures for user-owned typed-data operations.

@@ -77,7 +77,8 @@ const CORE_PHASES: RampPhase[] = [
   "subsidizePreSwap",
   "squidRouterSwap",
   "finalSettlementSubsidy",
-  "destinationTransfer"
+  "destinationTransfer",
+  "distributeFees"
 ];
 const ALFREDPAY_ONRAMP_DIRECT: RampPhase[] = ["initial", ...CORE_PHASES, "complete"];
 

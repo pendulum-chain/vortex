@@ -1,3 +1,19 @@
+import { isFiatToken } from "@vortexfi/shared";
+import { applyLocale, FormatOn, formatValueForDisplay, ThousandStyle } from "numora";
+
+export const FIAT_DISPLAY_DECIMALS = 2;
+export const CRYPTO_DISPLAY_DECIMALS = 4;
+
+const AMOUNT_FORMATTING_OPTIONS = {
+  autoAddLeadingZero: true,
+  formatOn: FormatOn.Change,
+  thousandStyle: ThousandStyle.Thousand,
+  ...applyLocale(true, {})
+};
+
+export const AMOUNT_DECIMAL_SEPARATOR = AMOUNT_FORMATTING_OPTIONS.decimalSeparator ?? ".";
+export const AMOUNT_THOUSAND_SEPARATOR = AMOUNT_FORMATTING_OPTIONS.thousandSeparator ?? ",";
+
 /**
  * Numora renders amounts with the active locale's separators (de-DE "1.234,56"), while the quote
  * wire and every `Number(...)` parse need a plain dot-decimal string. The two representations are
@@ -13,7 +29,7 @@ export function toDisplayAmount(raw: string, decimalSeparator: string): string {
 }
 
 /**
- * Fiat rails settle to cents while on-chain legs are quoted at six decimals, so flipping direction
+ * Fiat rails settle to cents while dashboard on-chain amounts use four decimals, so flipping direction
  * has to cut the extra digits instead of sending an amount the ramp would reject.
  */
 export function clampDecimals(raw: string, maxDecimals: number): string {
@@ -22,6 +38,22 @@ export function clampDecimals(raw: string, maxDecimals: number): string {
     return raw;
   }
   return maxDecimals === 0 ? raw.slice(0, separator) : raw.slice(0, separator + maxDecimals + 1);
+}
+
+export function trimTrailingZeros(raw: string): string {
+  if (!raw.includes(".")) {
+    return raw;
+  }
+  return raw.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+export function formatAmount(raw: string, maxDecimals: number): string {
+  const displayAmount = toDisplayAmount(trimTrailingZeros(clampDecimals(raw, maxDecimals)), AMOUNT_DECIMAL_SEPARATOR);
+  return formatValueForDisplay(displayAmount, maxDecimals, AMOUNT_FORMATTING_OPTIONS).formatted;
+}
+
+export function formatCurrencyAmount(raw: string, currency: string): string {
+  return formatAmount(raw, isFiatToken(currency) ? FIAT_DISPLAY_DECIMALS : CRYPTO_DISPLAY_DECIMALS);
 }
 
 /** A half-typed "12." parses fine but is not a shape the wire should carry. */
