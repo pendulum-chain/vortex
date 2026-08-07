@@ -77,6 +77,17 @@ describe("reconcileMissedRampCompletedEmails", () => {
     expect((rampQuery?.where as Record<symbol, unknown>)[Op.and]).toBeDefined();
   });
 
+  // No age cutoff means a prolonged outage can accumulate an arbitrary backlog; the cap
+  // keeps one cycle bounded, and processed ramps leave the anti-join so the rest drains.
+  it("processes a bounded, stable batch per cycle", async () => {
+    withMissingRamps([]);
+
+    await reconcileMissedRampCompletedEmails();
+
+    expect(rampQuery?.limit).toBe(250);
+    expect(rampQuery?.order).toEqual([["updatedAt", "ASC"]]);
+  });
+
   it("keeps going after one ramp fails to reconcile", async () => {
     withMissingRamps(["ramp-broken", "ramp-lost"]);
     QuoteTicket.findByPk = (async (quoteId: string) => {

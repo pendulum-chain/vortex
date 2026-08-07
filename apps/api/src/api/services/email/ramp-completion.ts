@@ -86,9 +86,15 @@ export async function enqueueRampCompletedEmail(rampState: RampState): Promise<v
  * so nothing else would ever notice. This sweep re-enqueues those; enqueuing is keyed on
  * the ramp id, so a row the inline path did write is a no-op here.
  */
+// Bounds one reconcile cycle after a prolonged outage; anything beyond it drains on the
+// following cycles, because every processed ramp gains a queue row and leaves the anti-join.
+const RECONCILE_BATCH_SIZE = 250;
+
 export async function reconcileMissedRampCompletedEmails(): Promise<void> {
   const completed = await RampState.findAll({
     attributes: ["id", "phaseHistory", "quoteId", "type", "updatedAt", "userId"],
+    limit: RECONCILE_BATCH_SIZE,
+    order: [["updatedAt", "ASC"]],
     where: {
       [Op.and]: literal(`NOT EXISTS (
         SELECT 1
@@ -109,6 +115,9 @@ export async function reconcileMissedRampCompletedEmails(): Promise<void> {
   }
 
   logger.warn(`Reconciling ${completed.length} completed ramp(s) whose completion email was never enqueued`);
+  if (completed.length === RECONCILE_BATCH_SIZE) {
+    logger.warn(`Completion email reconcile hit its ${RECONCILE_BATCH_SIZE}-ramp cap; the remainder drains next cycle`);
+  }
 
   for (const state of completed) {
     try {
