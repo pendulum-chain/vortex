@@ -321,17 +321,20 @@ v2 — not present, not planned for this iteration.
 tests, and the frontend that consumes it ships here: `/admin` (searchable, paginated account
 table with a "Log in as" action behind a confirmation dialog) and `/admin/$profileId`
 (entities, their provider accounts and KYC cases, plus recent sessions against that account).
-Both redirect to `/overview` unless `roles` from `GET /v1/onboarding/status` contains
-`vortex_admin`, and the sidebar's Admin item follows the same gate. While a session is live,
+Both inherit the `/admin` parent route's redirect to `/overview` unless `roles` from
+`GET /v1/onboarding/status` contains `vortex_admin`, and the sidebar's Admin item follows the
+same gate. While a session is live,
 `ImpersonationBanner` is rendered above the topbar on every `_app` route — non-dismissible,
 naming the impersonated account and offering "Exit". Because the operator's own Supabase tokens
-are kept beside the impersonation token rather than replaced, exiting is local and instant.
+are kept beside one atomic impersonation-session record rather than replaced, exiting is local
+and instant. The record is observed across tabs, and every enter, exit, expiry, or cross-tab
+replacement clears account-scoped query, notification, transfer, and wallet state.
 
-**Verified against a running stack.** Migrations 059 and 060 apply and revert cleanly, and the
-manual flow (grant the role, log in, list accounts, impersonate, exit) has been exercised
-against a local API with Supabase auth: the impersonated principal resolves to the target,
+**Verified against a running stack.** Migrations 062 and 063 apply from a clean schema, and the
+flow (grant the role, log in, list accounts, impersonate, exit) is covered against a local API
+with Supabase auth: the impersonated principal resolves to the target,
 `/v1/admin-console/*` and API-credential minting refuse an impersonated caller with 403, the
-session self-revokes on exit, and a revoked token is rejected on its next use.
+exit path requests self-revocation, and a revoked token is rejected on its next use.
 
 Exiting revokes the session server-side on a best-effort basis: the banner clears and the
 operator returns to their own session even if that `DELETE` fails, so a failed network call can

@@ -36,7 +36,20 @@ the shared credential; individual admin identities are out of scope for this cha
 5. **Error responses MUST distinguish between missing auth (401) and invalid auth (403)** — This is the current behavior: missing header → 401, invalid token → 403.
 6. **The `Authorization` header MUST use the `Bearer` scheme** — Other schemes (Basic, etc.) must be rejected.
 7. **Admin auth on `/v1/admin/*` MUST NOT attach any identity to the request** — Unlike Supabase auth (which sets `userId`) or API key auth (which sets `authenticatedPartner`), admin auth on this surface is identity-less. No `req.adminUser` or similar should exist. This invariant is scoped to `/v1/admin/*`: the separate `/v1/admin-console/*` surface is intentionally identity-bearing — it authenticates via Supabase and carries the operator's profile ID — by design; see [`admin-impersonation.md`](admin-impersonation.md).
-8. **`vortex_admin` MUST NOT be grantable through `POST /v1/admin/profile-roles`** — that route is guarded only by `ADMIN_SECRET`, and `vortex_admin` grants access to `/v1/admin-console/*` including FULL-depth customer impersonation ([`admin-impersonation.md`](admin-impersonation.md)). If the shared secret could grant that role, it would be sufficient by itself to gain money-movement rights over any customer, collapsing the separation this document's "What This Does" section describes. Granting `vortex_admin` must go through an out-of-band operator process outside this route. **Enforced**: `profileRole.model.ts` exports `HTTP_GRANTABLE_PROFILE_ROLES = ["discount_manager"]`; `addProfileRole` (`profileRoles.controller.ts`) returns `403 ROLE_NOT_HTTP_GRANTABLE` for `vortex_admin` (verified in `profileRoles.controller.test.ts`). `removeProfileRole` deliberately remains exempt — it can still revoke `vortex_admin` as a safety valve. The sanctioned grant path is `apps/api/scripts/grant-vortex-admin.ts`, run as `bun run grant:vortex-admin <email>`.
+8. **`vortex_admin` MUST NOT be grantable through `POST /v1/admin/profile-roles`** — that
+   route is guarded only by `ADMIN_SECRET`, and `vortex_admin` grants access to
+   `/v1/admin-console/*` including FULL-depth customer impersonation
+   ([`admin-impersonation.md`](admin-impersonation.md)). If the shared secret could grant that
+   role, it would be sufficient by itself to gain money-movement rights over any customer,
+   collapsing the separation this document's "What This Does" section describes. Granting
+   `vortex_admin` must go through an out-of-band operator process outside this route.
+   **Enforced**: `profileRole.model.ts` exports
+   `HTTP_GRANTABLE_PROFILE_ROLES = ["discount_manager"]`; `addProfileRole`
+   (`profileRoles.controller.ts`) returns `403 ROLE_NOT_HTTP_GRANTABLE` for `vortex_admin`
+   (verified in `profileRoles.controller.test.ts`). `removeProfileRole` deliberately remains
+   exempt as a safety valve; removing `vortex_admin` atomically revokes every live
+   impersonation session owned by that profile. The sanctioned grant path is
+   `apps/api/scripts/grant-vortex-admin.ts`, run as `bun run grant:vortex-admin <email>`.
 
 ## Threat Vectors & Mitigations
 
