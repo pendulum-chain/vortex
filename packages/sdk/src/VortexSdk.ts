@@ -57,7 +57,6 @@ export class VortexSdk {
   private brlHandler: BrlHandler;
   private alfredpayHandler: AlfredpayHandler;
   private mykoboHandler: MykoboHandler;
-  private initializationPromise: Promise<void>;
   private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
@@ -87,8 +86,6 @@ export class VortexSdk {
       this.generateEphemerals.bind(this),
       this.signTransactions.bind(this)
     );
-
-    this.initializationPromise = this.networkManager.waitForInitialization();
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
@@ -135,8 +132,6 @@ export class VortexSdk {
         "Ramp registration requires a secretKey (sk_*) that resolves to a Vortex user. Use a user-scoped key or a partner key delegated to a user."
       );
     }
-
-    await this.ensureInitialized();
 
     let rampProcess: RampProcess;
     let unsignedTransactions: UnsignedTx[] = [];
@@ -354,10 +349,6 @@ export class VortexSdk {
     }
   }
 
-  private async ensureInitialized(): Promise<void> {
-    await this.initializationPromise;
-  }
-
   private async generateEphemerals(): Promise<{
     ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
     accountMetas: AccountMeta[];
@@ -390,7 +381,9 @@ export class VortexSdk {
       evmEphemeral?: EphemeralAccount;
     }
   ): Promise<PresignedTx[]> {
-    await this.ensureInitialized();
+    if (unsignedTxs.length === 0) {
+      return [];
+    }
 
     try {
       const signedTxs = await signUnsignedTransactions(
@@ -412,7 +405,8 @@ export class VortexSdk {
 
       return signedTxs;
     } catch (error) {
-      throw new TransactionSigningError(undefined, error as Error);
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      throw new TransactionSigningError(originalError.message, originalError);
     }
   }
 }

@@ -1,5 +1,4 @@
 import { RampDirection, type UserLimit } from "@vortexfi/shared";
-import { formatAmount } from "@/components/quote/AmountPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDORS } from "@/domain/corridors";
 import { useLimits } from "@/hooks/useLimits";
+import { formatAmount } from "@/lib/amount";
 
 const DIRECTIONS = [RampDirection.BUY, RampDirection.SELL];
 

@@ -41,7 +41,7 @@ documents win.
 | Current Risk Register | `RISK-REGISTER.md` | Authoritative accepted, deferred, and rollout-dependent exceptions |
 | System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
-| API Key Auth | `01-auth/api-keys.md` | Dual-key system (pk\_/sk\_), validation, partner matching |
+| API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
 | Admin Impersonation | `01-auth/admin-impersonation.md` | `vortex_admin` acting as a customer profile via `/v1/admin-console/*`: session lifecycle, principal substitution, revocation, audit trail |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |

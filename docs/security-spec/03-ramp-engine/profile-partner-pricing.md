@@ -15,7 +15,7 @@ The intended data model separates two concepts that were historically collapsed 
 - `partner_id` remains the partner owner of a quote for API-key integrations.
 - `pricing_partner_id` records which partner rate configuration was used for quote pricing, fee calculation, subsidy calculation, fee distribution, and dynamic discount state.
 
-`profile_partner_assignments.partner_name` is a display/audit snapshot only. Runtime pricing resolution MUST use the assignment's stored `partner_id` foreign key (the legacy `buy_partner_id` / `sell_partner_id` pair remains as an unread backup — both directions always referenced the same logical partner), so partner renames cannot silently change an existing profile assignment. Duplicate partner names are structurally impossible: `partners.name` is unique and per-direction pricing lives in `partner_pricing_configs`.
+`profile_partner_assignments.partner_name` is a display/audit snapshot only. Runtime pricing resolution MUST use the assignment's stored `partner_id` foreign key, so partner renames cannot silently change an existing profile assignment. The application model does not declare the legacy `buy_partner_id` / `sell_partner_id` columns or associations; this allows migration 060 to drop those unread backups without breaking Sequelize queries. Duplicate partner names are structurally impossible: `partners.name` is unique and per-direction pricing lives in `partner_pricing_configs`.
 
 For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the authenticated profile, `quote_tickets.partner_id` stays `NULL`, and `quote_tickets.pricing_partner_id` is set to the resolved partner row. This lets the user consume their own quote through the existing Supabase ownership path while still preserving which partner pricing was applied.
 
@@ -55,7 +55,7 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 
 ## Audit Checklist
 
-- [x] `profile_partner_assignments` exists with `user_id`, display/audit `partner_name`, canonical `partner_id` FK (legacy `buy_partner_id` / `sell_partner_id` retained as unread backup), `is_active`, optional `expires_at`, timestamps, and indexes for active user lookups.
+- [x] The application model for `profile_partner_assignments` declares `user_id`, display/audit `partner_name`, canonical `partner_id` FK, `is_active`, optional `expires_at`, timestamps, and indexes for canonical partner and active-user lookups; it does not declare the legacy `buy_partner_id` / `sell_partner_id` columns or associations.
 - [x] Admin assignment endpoints are protected by `adminAuth` and reject non-admin credentials.
 - [x] Admin assignment creation resolves the unique-name partner or returns `404 PARTNER_NOT_FOUND` (same-name ambiguity is structurally impossible post-split).
 - [x] Default admin assignment listing excludes expired rows; `includeInactive=true` is required for historical rows.

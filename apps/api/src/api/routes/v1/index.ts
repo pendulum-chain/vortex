@@ -219,8 +219,8 @@ router.use("/onboarding", onboardingRoutes);
 router.use("/api-credentials", apiCredentialsRoutes);
 
 /**
- * Admin routes for partner API key management
- * Uses partner name (not ID) to manage keys for all partner configurations
+ * Admin routes for partner-managed API credentials. The partner is addressed by
+ * its unique name; each credential is bound to one explicit profile subject.
  * POST /v1/admin/partners/:partnerName/api-credentials
  * GET /v1/admin/partners/:partnerName/api-credentials
  * DELETE /v1/admin/partners/:partnerName/api-credentials/:credentialId

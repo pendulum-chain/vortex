@@ -4,7 +4,7 @@ import httpStatus from "http-status";
 import logger from "../../../../../config/logger";
 import { APIError } from "../../../../errors/api-error";
 import {
-  getAlfredpayMonthlyUsage,
+  getAlfredpayMonthlyUsageForEnforcement,
   ResolvedAlfredpayLimits,
   resolveAlfredpayQuoteLimits
 } from "../../../alfredpay/alfredpay.helpers";
@@ -125,7 +125,7 @@ export async function applyAlfredpayLimits(ctx: QuoteContext, amount: Big.BigSou
   const { userId } = ctx.request;
   if (!userId) return true;
 
-  const used = await getAlfredpayMonthlyUsage(
+  const used = await getAlfredpayMonthlyUsageForEnforcement(
     userId,
     alfredpayLimits.direction,
     alfredpayLimits.fiat,

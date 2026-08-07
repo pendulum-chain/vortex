@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { clampDecimals, stripTrailingSeparator, toDisplayAmount, toRawAmount } from "./amount";
+import {
+  clampDecimals,
+  formatAmount,
+  formatCurrencyAmount,
+  stripTrailingSeparator,
+  toDisplayAmount,
+  toRawAmount,
+  trimTrailingZeros
+} from "./amount";
 
 describe("toRawAmount", () => {
   it("strips thousand separators and normalises the decimal separator", () => {
@@ -35,6 +43,27 @@ describe("clampDecimals", () => {
 
   it("keeps a trailing separator so typing the first decimal is not swallowed", () => {
     assert.equal(clampDecimals("12.", 2), "12.");
+  });
+});
+
+describe("trimTrailingZeros", () => {
+  it("removes insignificant fractional zeroes", () => {
+    assert.equal(trimTrailingZeros("1503.430000000000000000"), "1503.43");
+    assert.equal(trimTrailingZeros("1.000000000000000000"), "1");
+    assert.equal(trimTrailingZeros("1.2304"), "1.2304");
+  });
+});
+
+describe("formatAmount", () => {
+  it("caps decimals and omits insignificant zeroes", () => {
+    assert.equal(formatAmount("1.000000000000000000", 4), "1");
+    assert.equal(formatAmount("1503.430000000000000000", 2), "1,503.43");
+    assert.equal(formatAmount("1.234567", 4), "1.2345");
+  });
+
+  it("selects the display cap from the currency", () => {
+    assert.equal(formatCurrencyAmount("1503.439", "ARS"), "1,503.43");
+    assert.equal(formatCurrencyAmount("1.234567", "USDC"), "1.2345");
   });
 });
 

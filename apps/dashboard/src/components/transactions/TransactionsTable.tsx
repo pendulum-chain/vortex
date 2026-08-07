@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowRight, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { CORRIDORS } from "@/domain/corridors";
 import { TX_STATUS_META } from "@/domain/status";
 import { shortenAddress, TRANSFER_NETWORKS } from "@/domain/transfer";
 import type { Transaction } from "@/domain/types";
+import { formatCurrencyAmount } from "@/lib/amount";
 
 const MotionRow = motion.create(TableRow);
 
@@ -33,13 +33,7 @@ const LIVE_DOT: Partial<Record<Transaction["status"], string>> = {
   processing: "bg-info"
 };
 
-export function TransactionsTable({
-  resumableRampId,
-  transactions
-}: {
-  resumableRampId?: string;
-  transactions: Transaction[];
-}) {
+export function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
   return (
     <Table>
       <TableHeader>
@@ -87,12 +81,12 @@ export function TransactionsTable({
               </TableCell>
               <TableCell>
                 <span className="font-medium">
-                  {tx.amountIn} {tx.amountInToken}
+                  {formatCurrencyAmount(tx.amountIn, tx.amountInToken)} {tx.amountInToken}
                 </span>
               </TableCell>
               <TableCell>
                 <span className="font-medium">
-                  {tx.fiatPayoutAmount} {tx.payoutCurrency}
+                  {formatCurrencyAmount(tx.fiatPayoutAmount, tx.payoutCurrency)} {tx.payoutCurrency}
                 </span>
               </TableCell>
               <TableCell className="text-muted-foreground">
@@ -105,14 +99,7 @@ export function TransactionsTable({
                 </span>
               </TableCell>
               <TableCell className="text-right">
-                {tx.id === resumableRampId && tx.direction === "BUY" && tx.status === "awaiting_payin" ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link search={{ mode: "onramp" }} to="/transfer">
-                      Resume payment
-                      <ArrowRight />
-                    </Link>
-                  </Button>
-                ) : tx.status === "failed" ? (
+                {tx.status === "failed" ? (
                   <FailedAction direction={tx.direction} reason={tx.failureReason} />
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>

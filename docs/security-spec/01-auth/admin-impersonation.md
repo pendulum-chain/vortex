@@ -11,7 +11,7 @@ modelled on Avenia's subaccount API is deferred to v2.
 Depth is **FULL**: while impersonating, the operator acts with the target profile's complete
 rights, including money movement. There is no reduced-scope or read-only impersonation mode in
 v1; this is the primary residual risk this document exists to bound (see the risk register,
-RISK-017).
+RISK-018).
 
 ### Routes
 
@@ -186,7 +186,7 @@ and requires deployment/database access rather than an HTTP credential — see
   a deliberate v1 design decision, not an oversight, but it remains the primary residual risk:
   any compromised operator account or misused session can move a customer's funds. There is no
   read-only or reduced-scope impersonation mode. Tracked as an accepted risk in the risk register
-  (RISK-017), not as an open implementation gap.
+  (RISK-018), not as an open implementation gap.
 - Starting two sessions for the same (actor, target) pair in rapid succession is not
   database-serialized (Invariant 7); the application-layer supersession check can race. Impact is
   bounded — see the Threat table — and this is not considered a blocking finding.

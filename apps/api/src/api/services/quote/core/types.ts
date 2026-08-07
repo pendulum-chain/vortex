@@ -46,13 +46,13 @@ export interface PartnerInfo {
   payoutAddressEvm?: string | null;
 }
 
-export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";
+export type PartnerPricingSource = "request" | "profileAssignment" | "none";
 
 // Quote context flows through all stages. Defined in quote-context.ts.
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest & { apiCredentialId?: string; partnerName?: string | null; userId?: string };
+  readonly request: CreateQuoteRequest & { apiCredentialId?: string; userId?: string };
   readonly now: Date;
 
   // Partner info (if any)

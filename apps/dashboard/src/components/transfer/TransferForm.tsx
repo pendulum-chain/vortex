@@ -22,6 +22,7 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
+import { formatCurrencyAmount } from "@/lib/amount";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
 import { transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
@@ -137,7 +138,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
       return;
     }
     const label = recipientLabel(selected);
-    const summary = `${quote.outputAmount} ${selected.payoutCurrency} to ${label}`;
+    const summary = `${formatCurrencyAmount(quote.outputAmount, selected.payoutCurrency)} ${selected.payoutCurrency} to ${label}`;
 
     // One-shot outcome watcher: navigate when tracking begins, surface the error
     // when any stage fails. The actor keeps polling after this form unmounts.
@@ -147,7 +148,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
         const currentMeta = snapshot.context.meta;
         const currentQuote = snapshot.context.quote;
         toast.success("Transfer initiated", {
-          description: `Funding via ${submit.label} — we'll pay out ${currentMeta?.summary ?? summary} once your ${currentQuote?.inputAmount ?? quote.inputAmount} ${currentQuote?.inputCurrency ?? quote.inputCurrency} lands.`
+          description: `Funding via ${submit.label} — we'll pay out ${currentMeta?.summary ?? summary} once your ${formatCurrencyAmount(currentQuote?.inputAmount ?? quote.inputAmount, String(currentQuote?.inputCurrency ?? quote.inputCurrency))} ${currentQuote?.inputCurrency ?? quote.inputCurrency} lands.`
         });
         navigate({ to: "/transactions" });
       } else if (snapshot.matches("Failed")) {
@@ -298,7 +299,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <span className="text-muted-foreground text-sm">Recipient gets</span>
                 <span className="font-semibold tabular-nums">
-                  {quote.outputAmount} {String(quote.outputCurrency)}
+                  {formatCurrencyAmount(quote.outputAmount, String(quote.outputCurrency))} {String(quote.outputCurrency)}
                 </span>
               </div>
               <QuoteSummary isFetching={isFetching} quote={quote} />

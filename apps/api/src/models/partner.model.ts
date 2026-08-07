@@ -3,7 +3,6 @@ import sequelize from "../config/database";
 
 // Commercial identity only — one row per partner, unique name. Pricing lives in
 // partner_pricing_configs (per ramp direction), resolved via (partner_id, ramp_type).
-// The legacy pricing/ramp_type columns still exist in the DB as unread backup.
 export interface PartnerAttributes {
   id: string; // UUID
   name: string;

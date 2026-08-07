@@ -9,6 +9,7 @@ import { getUserLimits } from "./limits.service";
 
 const originals = {
   brlaGetInstance: BrlaApiService.getInstance,
+  customerEntityFindAll: CustomerEntity.findAll,
   customerEntityFindOne: CustomerEntity.findOne,
   providerCustomerFindAll: ProviderCustomer.findAll,
   providerCustomerFindOne: ProviderCustomer.findOne,
@@ -19,11 +20,13 @@ const originals = {
 beforeEach(() => {
   clearAlfredpayMonthlyUsageCache();
   User.findByPk = mock(async () => null) as unknown as typeof User.findByPk;
+  CustomerEntity.findAll = mock(async () => [{ id: "entity-1" }]) as unknown as typeof CustomerEntity.findAll;
   CustomerEntity.findOne = mock(async () => ({ id: "entity-1" })) as unknown as typeof CustomerEntity.findOne;
 });
 
 afterEach(() => {
   BrlaApiService.getInstance = originals.brlaGetInstance;
+  CustomerEntity.findAll = originals.customerEntityFindAll;
   CustomerEntity.findOne = originals.customerEntityFindOne;
   ProviderCustomer.findAll = originals.providerCustomerFindAll;
   ProviderCustomer.findOne = originals.providerCustomerFindOne;

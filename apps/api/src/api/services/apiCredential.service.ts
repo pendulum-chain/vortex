@@ -3,7 +3,6 @@ import { Op, QueryTypes } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import ApiCredential, { ApiCredentialEnvironment } from "../../models/apiCredential.model";
-import ApiKey from "../../models/apiKey.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 
@@ -284,8 +283,11 @@ export async function assertApiCredentialSchemaReady(): Promise<void> {
     throw new Error(`api_credentials schema is incomplete; missing constraints: ${missingConstraints.join(", ")}`);
   }
 
-  const activeLegacyCount = await ApiKey.count({ where: { isActive: true } });
-  if (activeLegacyCount > 0) {
-    throw new Error(`${activeLegacyCount} active api_keys row(s) remain; migrate or revoke them before startup`);
+  const legacyTables = await sequelize.query<{ table_name: string }>(
+    `SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'api_keys'`,
+    { type: QueryTypes.SELECT }
+  );
+  if (legacyTables.length > 0) {
+    throw new Error("legacy api_keys table still exists; run migration 061 before startup");
   }
 }
