@@ -24,12 +24,13 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_dashboard_refresh_token";
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
-  // Separate keys so an active impersonation session never touches the operator's own
-  // Supabase tokens above — Exit just drops these and the operator's session is already there.
-  private static readonly IMPERSONATION_TOKEN_KEY = "vortex_dashboard_impersonation_token";
-  private static readonly IMPERSONATION_SESSION_ID_KEY = "vortex_dashboard_impersonation_session_id";
-  private static readonly IMPERSONATION_EXPIRES_AT_KEY = "vortex_dashboard_impersonation_expires_at";
-  private static readonly IMPERSONATION_TARGET_EMAIL_KEY = "vortex_dashboard_impersonation_target_email";
+  // One atomic record prevents readers from combining fields from different cross-tab writes.
+  static readonly IMPERSONATION_STORAGE_KEY = "vortex_dashboard_impersonation_session";
+  private static readonly LEGACY_IMPERSONATION_TOKEN_KEY = "vortex_dashboard_impersonation_token";
+  private static readonly LEGACY_IMPERSONATION_SESSION_ID_KEY = "vortex_dashboard_impersonation_session_id";
+  private static readonly LEGACY_IMPERSONATION_EXPIRES_AT_KEY = "vortex_dashboard_impersonation_expires_at";
+  private static readonly LEGACY_IMPERSONATION_TARGET_EMAIL_KEY = "vortex_dashboard_impersonation_target_email";
+  private static readonly impersonationListeners = new Set<() => void>();
   private static sessionGeneration = 0;
   private static refreshFlight: {
     generation: number;
@@ -68,28 +69,86 @@ export class AuthService {
   }
 
   static storeImpersonationSession(session: ImpersonationSession): void {
-    localStorage.setItem(this.IMPERSONATION_TOKEN_KEY, session.token);
-    localStorage.setItem(this.IMPERSONATION_SESSION_ID_KEY, session.sessionId);
-    localStorage.setItem(this.IMPERSONATION_EXPIRES_AT_KEY, session.expiresAt);
-    localStorage.setItem(this.IMPERSONATION_TARGET_EMAIL_KEY, session.targetEmail);
+    const previousSnapshot = this.getImpersonationSessionSnapshot();
+    localStorage.setItem(
+      this.IMPERSONATION_STORAGE_KEY,
+      JSON.stringify({
+        expiresAt: session.expiresAt,
+        sessionId: session.sessionId,
+        targetEmail: session.targetEmail,
+        token: session.token
+      })
+    );
+    this.clearLegacyImpersonationKeys();
+    this.notifyImpersonationListeners(previousSnapshot);
   }
 
   static getImpersonationSession(): ImpersonationSession | null {
-    const token = localStorage.getItem(this.IMPERSONATION_TOKEN_KEY);
-    const sessionId = localStorage.getItem(this.IMPERSONATION_SESSION_ID_KEY);
-    const expiresAt = localStorage.getItem(this.IMPERSONATION_EXPIRES_AT_KEY);
-    const targetEmail = localStorage.getItem(this.IMPERSONATION_TARGET_EMAIL_KEY);
-    if (!token || !sessionId || !expiresAt || !targetEmail) {
+    return this.parseImpersonationSessionSnapshot(this.getImpersonationSessionSnapshot());
+  }
+
+  /** Stable serialized snapshot for `useSyncExternalStore`. Also reads complete legacy data. */
+  static getImpersonationSessionSnapshot(): string | null {
+    const current = localStorage.getItem(this.IMPERSONATION_STORAGE_KEY);
+    if (current !== null) {
+      return current;
+    }
+
+    const token = localStorage.getItem(this.LEGACY_IMPERSONATION_TOKEN_KEY);
+    const sessionId = localStorage.getItem(this.LEGACY_IMPERSONATION_SESSION_ID_KEY);
+    const expiresAt = localStorage.getItem(this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY);
+    const targetEmail = localStorage.getItem(this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY);
+    return token && sessionId && expiresAt && targetEmail ? JSON.stringify({ expiresAt, sessionId, targetEmail, token }) : null;
+  }
+
+  static parseImpersonationSessionSnapshot(snapshot: string | null): ImpersonationSession | null {
+    if (!snapshot) return null;
+    try {
+      const parsed = JSON.parse(snapshot) as Partial<ImpersonationSession>;
+      if (
+        typeof parsed.token !== "string" ||
+        typeof parsed.sessionId !== "string" ||
+        typeof parsed.expiresAt !== "string" ||
+        !Number.isFinite(Date.parse(parsed.expiresAt)) ||
+        typeof parsed.targetEmail !== "string"
+      ) {
+        return null;
+      }
+      return {
+        expiresAt: parsed.expiresAt,
+        sessionId: parsed.sessionId,
+        targetEmail: parsed.targetEmail,
+        token: parsed.token
+      };
+    } catch {
       return null;
     }
-    return { expiresAt, sessionId, targetEmail, token };
+  }
+
+  /** Same-tab writes notify directly; cross-tab writes arrive through the storage event. */
+  static subscribeImpersonationSession(listener: () => void): () => void {
+    this.impersonationListeners.add(listener);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === null || this.isImpersonationStorageKey(event.key)) {
+        listener();
+      }
+    };
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("storage", handleStorage);
+    }
+    return () => {
+      this.impersonationListeners.delete(listener);
+      if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+        window.removeEventListener("storage", handleStorage);
+      }
+    };
   }
 
   static clearImpersonationSession(): void {
-    localStorage.removeItem(this.IMPERSONATION_TOKEN_KEY);
-    localStorage.removeItem(this.IMPERSONATION_SESSION_ID_KEY);
-    localStorage.removeItem(this.IMPERSONATION_EXPIRES_AT_KEY);
-    localStorage.removeItem(this.IMPERSONATION_TARGET_EMAIL_KEY);
+    const previousSnapshot = this.getImpersonationSessionSnapshot();
+    localStorage.removeItem(this.IMPERSONATION_STORAGE_KEY);
+    this.clearLegacyImpersonationKeys();
+    this.notifyImpersonationListeners(previousSnapshot);
   }
 
   /** The bearer token requests should use: the impersonation token takes priority when active. */
@@ -197,6 +256,31 @@ export class AuthService {
   }
 
   static signOut(): void {
+    this.clearImpersonationSession();
     this.clearTokens();
+  }
+
+  private static clearLegacyImpersonationKeys(): void {
+    localStorage.removeItem(this.LEGACY_IMPERSONATION_TOKEN_KEY);
+    localStorage.removeItem(this.LEGACY_IMPERSONATION_SESSION_ID_KEY);
+    localStorage.removeItem(this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY);
+    localStorage.removeItem(this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY);
+  }
+
+  private static isImpersonationStorageKey(key: string): boolean {
+    return [
+      this.IMPERSONATION_STORAGE_KEY,
+      this.LEGACY_IMPERSONATION_TOKEN_KEY,
+      this.LEGACY_IMPERSONATION_SESSION_ID_KEY,
+      this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY,
+      this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY
+    ].includes(key);
+  }
+
+  private static notifyImpersonationListeners(previousSnapshot: string | null): void {
+    if (this.getImpersonationSessionSnapshot() === previousSnapshot) return;
+    for (const listener of this.impersonationListeners) {
+      listener();
+    }
   }
 }

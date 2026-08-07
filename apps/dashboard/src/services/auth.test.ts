@@ -231,6 +231,73 @@ describe("AuthService", () => {
 });
 
 describe("AuthService impersonation session", () => {
+  it("stores the complete session in one atomic dashboard key", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      token: "vtx_imp_abc123",
+    });
+
+    const impersonationKeys = [...values.keys()].filter((key) =>
+      key.includes("impersonation"),
+    );
+    assert.deepEqual(impersonationKeys, [
+      AuthService.IMPERSONATION_STORAGE_KEY,
+    ]);
+  });
+
+  it("rejects malformed or incomplete atomic session records", () => {
+    values.set(AuthService.IMPERSONATION_STORAGE_KEY, "not-json");
+    assert.equal(AuthService.getImpersonationSession(), null);
+
+    values.set(
+      AuthService.IMPERSONATION_STORAGE_KEY,
+      JSON.stringify({ sessionId: "session-1", token: "vtx_imp_abc123" }),
+    );
+    assert.equal(AuthService.getImpersonationSession(), null);
+  });
+
+  it("reads a complete legacy session and removes legacy keys on the next write", () => {
+    values.set("vortex_dashboard_impersonation_token", "vtx_imp_legacy");
+    values.set("vortex_dashboard_impersonation_session_id", "legacy-session");
+    values.set(
+      "vortex_dashboard_impersonation_expires_at",
+      "2026-01-01T00:00:00.000Z",
+    );
+    values.set(
+      "vortex_dashboard_impersonation_target_email",
+      "legacy@example.com",
+    );
+
+    assert.deepEqual(AuthService.getImpersonationSession(), {
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "legacy-session",
+      targetEmail: "legacy@example.com",
+      token: "vtx_imp_legacy",
+    });
+
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-02-01T00:00:00.000Z",
+      sessionId: "session-2",
+      targetEmail: "current@example.com",
+      token: "vtx_imp_current",
+    });
+    assert.equal(values.has("vortex_dashboard_impersonation_token"), false);
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_session_id"),
+      false,
+    );
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_expires_at"),
+      false,
+    );
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_target_email"),
+      false,
+    );
+  });
+
   it("prefers the impersonation token over the operator's own access token", () => {
     assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
 
@@ -269,5 +336,19 @@ describe("AuthService impersonation session", () => {
       userEmail: "e2e@vortex.local",
       userId: "user-1",
     });
+  });
+
+  it("clears both operator and impersonation credentials on sign-out", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      token: "vtx_imp_abc123",
+    });
+
+    AuthService.signOut();
+
+    assert.equal(AuthService.getTokens(), null);
+    assert.equal(AuthService.getImpersonationSession(), null);
   });
 });

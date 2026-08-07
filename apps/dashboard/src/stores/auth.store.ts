@@ -74,6 +74,7 @@ export const useAuthStore = create<AuthState>()(set => ({
   verifyOtp: async (email, code) => {
     const result = await AuthAPI.verifyOTP(email, code);
     clearAccountState();
+    AuthService.clearImpersonationSession();
     AuthService.storeTokens({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,

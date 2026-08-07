@@ -4,6 +4,7 @@ import { AuthService } from "@/services/auth";
 import { apiClient, isApiError } from "./api-client";
 
 const originalFetch = globalThis.fetch;
+const originalGetImpersonationSession = AuthService.getImpersonationSession;
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const values = new Map<string, string>();
@@ -25,10 +26,12 @@ Object.defineProperty(globalThis, "window", {
 
 beforeEach(() => {
   values.clear();
+  AuthService.getImpersonationSession = originalGetImpersonationSession;
 });
 
 after(() => {
   globalThis.fetch = originalFetch;
+  AuthService.getImpersonationSession = originalGetImpersonationSession;
   if (originalLocalStorage) {
     Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
   } else {
@@ -66,6 +69,25 @@ describe("apiFetch while impersonating", () => {
 
     await apiClient.get("/ping");
 
+    assert.equal(authorization, "Bearer vtx_imp_abc123");
+  });
+
+  it("uses one impersonation snapshot for authorization and 401 handling", async () => {
+    const activeSession = AuthService.getImpersonationSession();
+    let snapshotReads = 0;
+    AuthService.getImpersonationSession = (() => {
+      snapshotReads += 1;
+      return snapshotReads === 1 ? activeSession : null;
+    }) as typeof AuthService.getImpersonationSession;
+    let authorization: string | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      authorization = (init?.headers as Record<string, string>).Authorization;
+      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" }, status: 200 });
+    }) as typeof fetch;
+
+    await apiClient.get("/ping");
+
+    assert.equal(snapshotReads, 1);
     assert.equal(authorization, "Bearer vtx_imp_abc123");
   });
 

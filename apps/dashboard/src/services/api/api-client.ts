@@ -61,7 +61,10 @@ async function apiFetch<T>(
 
   const impersonation = AuthService.getImpersonationSession();
   const initialTokens = AuthService.getTokens();
-  let response = await doFetch(AuthService.getEffectiveAccessToken() ?? undefined);
+  // Capture one coherent identity snapshot. Reading impersonation again here could pair the
+  // operator's token with impersonation-specific 401 handling during a cross-tab transition.
+  const initialAccessToken = impersonation?.token ?? initialTokens?.accessToken;
+  let response = await doFetch(initialAccessToken);
 
   if (response.status === 401) {
     if (impersonation) {

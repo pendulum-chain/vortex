@@ -12,7 +12,7 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
-import { useImpersonationStore } from "@/stores/impersonation.store";
+import { useImpersonationSession } from "@/stores/impersonation.store";
 import { VortexLogo } from "./VortexLogo";
 
 const NAV_ITEMS = [
@@ -31,7 +31,7 @@ const ADMIN_NAV_ITEM = { icon: UserCog, label: "Admin", to: "/admin" } as const;
 export function AppSidebar() {
   const pathname = useRouterState({ select: state => state.location.pathname });
   const { data: onboardingStatus } = useOnboardingStatusQuery();
-  const isImpersonating = useImpersonationStore(state => state.session !== null);
+  const isImpersonating = useImpersonationSession() !== null;
   const isAdmin = onboardingStatus?.roles.includes("vortex_admin") ?? false;
   // An operator acting as a customer must see exactly the customer's navigation.
   const navItems = isAdmin && !isImpersonating ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;

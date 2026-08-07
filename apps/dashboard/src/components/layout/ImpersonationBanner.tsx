@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useImpersonationStore } from "@/stores/impersonation.store";
+import { exitImpersonation, useImpersonationSession } from "@/stores/impersonation.store";
 
 function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -12,53 +12,42 @@ function formatRemaining(ms: number): string {
 
 /**
  * Sticky, non-dismissible: an operator forgetting they are impersonating is the failure
- * mode this guards against. Ticks every second both to show time remaining and to notice
- * a session api-client already cleared (expired token on a 401) so the banner drops itself.
+ * mode this guards against. The timer only renders the remaining duration; storage changes
+ * are subscribed through `useImpersonationSession`.
  */
 export function ImpersonationBanner() {
-  const session = useImpersonationStore(state => state.session);
-  const exit = useImpersonationStore(state => state.exit);
-  const syncFromStorage = useImpersonationStore(state => state.syncFromStorage);
+  const session = useImpersonationSession();
   const navigate = useNavigate();
-  const [remainingMs, setRemainingMs] = useState<number | null>(null);
-  const [exiting, setExiting] = useState(false);
+  const expiresAt = session?.expiresAt;
+  const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
-    if (!session) {
-      setRemainingMs(null);
-      return;
-    }
-    const tick = () => {
-      syncFromStorage();
-      setRemainingMs(new Date(session.expiresAt).getTime() - Date.now());
-    };
+    if (!expiresAt) return;
+    const tick = () => setNow(Date.now());
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [session, syncFromStorage]);
+  }, [expiresAt]);
 
   if (!session) {
     return null;
   }
 
-  async function handleExit() {
-    setExiting(true);
-    try {
-      await exit();
-      navigate({ to: "/admin" });
-    } finally {
-      setExiting(false);
-    }
+  function handleExit() {
+    exitImpersonation();
+    navigate({ to: "/admin" });
   }
+
+  const remainingMs = new Date(session.expiresAt).getTime() - now;
 
   return (
     <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 bg-warning px-4 py-2 text-sm text-warning-foreground">
       <span>
         You are acting as <strong>{session.targetEmail}</strong>
-        {remainingMs !== null && <> · {formatRemaining(remainingMs)} remaining</>}
+        <> · {formatRemaining(remainingMs)} remaining</>
       </span>
-      <Button disabled={exiting} onClick={handleExit} size="sm" type="button" variant="outline">
-        {exiting ? "Exiting…" : "Exit"}
+      <Button onClick={handleExit} size="sm" type="button" variant="outline">
+        Exit
       </Button>
     </div>
   );

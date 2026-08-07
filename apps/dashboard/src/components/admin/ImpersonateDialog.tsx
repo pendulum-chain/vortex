@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStartImpersonation } from "@/hooks/useAdminConsole";
-import { useImpersonationStore } from "@/stores/impersonation.store";
+import { enterImpersonation } from "@/stores/impersonation.store";
 
 /**
  * "Log in as" confirmation: swaps the active session to the returned impersonation token
@@ -18,7 +18,6 @@ export function ImpersonateDialog({
   target: { id: string; email: string } | null;
 }) {
   const navigate = useNavigate();
-  const enterImpersonation = useImpersonationStore(state => state.enter);
   const startImpersonation = useStartImpersonation();
 
   function handleOpenChange(open: boolean) {

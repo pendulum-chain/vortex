@@ -7,6 +7,7 @@ const originalFetch = globalThis.fetch;
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const values = new Map<string, string>();
+const storageListeners = new Set<(event: { key: string | null }) => void>();
 
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
@@ -17,15 +18,19 @@ Object.defineProperty(globalThis, "localStorage", {
   }
 });
 
-// apiFetch resolves relative URLs against window.location.origin; bun's test runner has no DOM.
 Object.defineProperty(globalThis, "window", {
   configurable: true,
-  value: { location: { origin: "http://localhost" } }
+  value: {
+    addEventListener: (type: string, listener: (event: { key: string | null }) => void) => {
+      if (type === "storage") storageListeners.add(listener);
+    },
+    location: { origin: "http://localhost" },
+    removeEventListener: (type: string, listener: (event: { key: string | null }) => void) => {
+      if (type === "storage") storageListeners.delete(listener);
+    }
+  }
 });
 
-// auth.store transitively boots wagmi -> appkit -> lit-html -> sonner, none of which survive a
-// stubbed DOM. Only `clearAccountState` matters here, and counting its calls is precisely the
-// invariant under test: no cached data from one identity may survive into the other.
 let accountStateClears = 0;
 mock.module("@/stores/auth.store", () => ({
   clearAccountState: () => {
@@ -33,9 +38,8 @@ mock.module("@/stores/auth.store", () => ({
   }
 }));
 
-// Imported only after the shims above: the store reads storage at module-evaluation time.
 const { AuthService } = await import("@/services/auth");
-const { useImpersonationStore } = await import("./impersonation.store");
+const { enterImpersonation, exitImpersonation } = await import("./impersonation.store");
 
 function session(overrides: Partial<ImpersonationSession> = {}): ImpersonationSession {
   return {
@@ -47,10 +51,14 @@ function session(overrides: Partial<ImpersonationSession> = {}): ImpersonationSe
   };
 }
 
+function dispatchStorage(key: string | null): void {
+  for (const listener of storageListeners) listener({ key });
+}
+
 beforeEach(() => {
+  AuthService.clearImpersonationSession();
   values.clear();
   accountStateClears = 0;
-  useImpersonationStore.setState({ session: null });
   globalThis.fetch = (() => Promise.resolve(new Response(null, { status: 204 }))) as typeof fetch;
 });
 
@@ -68,87 +76,103 @@ after(() => {
   }
 });
 
-describe("useImpersonationStore", () => {
-  it("enter() persists the session so api-client picks it up on the next request", () => {
+describe("impersonation session transitions", () => {
+  it("persists an entered identity and clears account-scoped state", () => {
     const entered = session();
 
-    useImpersonationStore.getState().enter(entered);
+    enterImpersonation(entered);
 
-    assert.deepEqual(useImpersonationStore.getState().session, entered);
     assert.deepEqual(AuthService.getImpersonationSession(), entered);
     assert.equal(accountStateClears, 1);
   });
 
-  it("exit() revokes the session server-side and clears it locally", async () => {
+  it("exits locally without waiting for the server revocation", async () => {
+    let releaseRequest: (() => void) | undefined;
     let requestCount = 0;
     let lastRequest = "";
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       requestCount += 1;
       lastRequest = `${init?.method ?? "GET"} ${input instanceof URL ? input.pathname : String(input)}`;
-      return Promise.resolve(new Response(null, { status: 204 }));
+      return new Promise<Response>(resolve => {
+        releaseRequest = () => resolve(new Response(null, { status: 204 }));
+      });
     }) as typeof fetch;
 
-    useImpersonationStore.getState().enter(session());
-    await useImpersonationStore.getState().exit();
+    enterImpersonation(session());
+    exitImpersonation();
 
     assert.equal(requestCount, 1);
     assert.match(lastRequest, /^DELETE .*\/admin-console\/impersonation\/session-1$/);
-    assert.equal(useImpersonationStore.getState().session, null);
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(accountStateClears, 2);
+
+    releaseRequest?.();
+    await Promise.resolve();
+  });
+
+  it("still exits locally when the revocation request fails", async () => {
+    globalThis.fetch = (() => Promise.reject(new Error("network down"))) as typeof fetch;
+
+    enterImpersonation(session());
+    exitImpersonation();
+    await Promise.resolve();
+
     assert.equal(AuthService.getImpersonationSession(), null);
     assert.equal(accountStateClears, 2);
   });
 
-  it("exit() still drops the operator back into their own session when the revoke call fails", async () => {
-    globalThis.fetch = (() => Promise.reject(new Error("network down"))) as typeof fetch;
-
-    useImpersonationStore.getState().enter(session());
-    await useImpersonationStore.getState().exit();
-
-    // Best-effort by design: never strand the operator in someone else's session. The
-    // server-side row may outlive this call, bounded by the 30-minute TTL.
-    assert.equal(useImpersonationStore.getState().session, null);
-    assert.equal(AuthService.getImpersonationSession(), null);
-  });
-
-  it("exit() is a no-op against the server when there is no active session", async () => {
+  it("does not call the server when there is no active session", () => {
     let called = false;
     globalThis.fetch = (() => {
       called = true;
       return Promise.resolve(new Response(null, { status: 204 }));
     }) as typeof fetch;
 
-    await useImpersonationStore.getState().exit();
+    exitImpersonation();
 
     assert.equal(called, false);
-    assert.equal(useImpersonationStore.getState().session, null);
+    assert.equal(accountStateClears, 0);
   });
 
-  it("syncFromStorage() clears the store when api-client dropped the session on a 401", () => {
-    useImpersonationStore.getState().enter(session());
+  it("clears account state when the API client drops a rejected session", () => {
+    enterImpersonation(session());
+    accountStateClears = 0;
+
     AuthService.clearImpersonationSession();
 
-    useImpersonationStore.getState().syncFromStorage();
-
-    assert.equal(useImpersonationStore.getState().session, null);
-    assert.equal(accountStateClears, 2);
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(accountStateClears, 1);
   });
 
-  it("syncFromStorage() adopts a session started in another tab", () => {
+  it("adopts another tab's session and clears the prior account cache", () => {
     const fromOtherTab = session({ sessionId: "session-2", token: "vtx_imp_token-2" });
-    AuthService.storeImpersonationSession(fromOtherTab);
+    values.set(AuthService.IMPERSONATION_STORAGE_KEY, JSON.stringify(fromOtherTab));
 
-    useImpersonationStore.getState().syncFromStorage();
+    dispatchStorage(AuthService.IMPERSONATION_STORAGE_KEY);
 
-    assert.deepEqual(useImpersonationStore.getState().session, fromOtherTab);
+    assert.deepEqual(AuthService.getImpersonationSession(), fromOtherTab);
+    assert.equal(accountStateClears, 1);
   });
 
-  it("syncFromStorage() keeps the current session when storage still holds the same token", () => {
+  it("clears the session and account cache when another tab exits", () => {
+    enterImpersonation(session());
+    accountStateClears = 0;
+    values.delete(AuthService.IMPERSONATION_STORAGE_KEY);
+
+    dispatchStorage(AuthService.IMPERSONATION_STORAGE_KEY);
+
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(accountStateClears, 1);
+  });
+
+  it("does not clear account state for an unchanged storage event", () => {
     const current = session();
-    useImpersonationStore.getState().enter(current);
-    const before = useImpersonationStore.getState().session;
+    enterImpersonation(current);
+    accountStateClears = 0;
 
-    useImpersonationStore.getState().syncFromStorage();
+    dispatchStorage(AuthService.IMPERSONATION_STORAGE_KEY);
 
-    assert.equal(useImpersonationStore.getState().session, before);
+    assert.deepEqual(AuthService.getImpersonationSession(), current);
+    assert.equal(accountStateClears, 0);
   });
 });
