@@ -3,9 +3,11 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase
 } from "@vortexfi/shared";
@@ -196,6 +198,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     expect(mintAmountRaw).toBeGreaterThan(0n);
 
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+    const registered = await RampState.findByPk(ramp.id);
+    const transferBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!transferBlueprint) throw new Error("destinationTransfer blueprint missing");
+    const transferTxData = transferBlueprint.txData as EvmTransactionData;
     async function signTransfer(recipient: `0x${string}`, nonce: number): Promise<`0x${string}`> {
       return ephemeral.signTransaction({
         chainId: 137,
@@ -204,10 +210,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
           args: [recipient, amountRaw],
           functionName: "transfer"
         }),
-        gas: 100_000n,
-        // validatePresignedTxs enforces a 3 gwei floor on Polygon fees.
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(transferTxData.gas),
+        maxFeePerGas: BigInt(transferTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(transferTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: ALFREDPAY_ERC20_TOKEN,
         type: "eip1559"
@@ -245,16 +251,17 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     const feeBlueprints = (rampState.unsignedTxs ?? []).filter(tx => tx.phase === "distributeFees");
     const signedFeeTransfers: `0x${string}`[] = [];
     for (const blueprint of feeBlueprints) {
-      const blueprintData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const blueprintData = blueprint.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         ephemeral.signTransaction({
           chainId: 137,
-          data: blueprintData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: blueprintData.data as `0x${string}`,
+          gas: BigInt(blueprintData.gas),
+          maxFeePerGas: BigInt(blueprintData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(blueprintData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: blueprintData.to,
+          to: blueprintData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};

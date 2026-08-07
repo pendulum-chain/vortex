@@ -30,7 +30,7 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import { calculatePresignedGasBudgetRaw } from "../../core/evm-destination-gas";
+import { calculatePresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
@@ -222,8 +222,11 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     let destinationGasReserveRaw = new Big(0);
     if (isNative) {
       destinationGasReserveRaw = new Big(
-        calculatePresignedGasBudgetRaw(
-          this.getPresignedTransaction(state, "destinationTransfer").txData as `0x${string}`
+        (
+          await calculatePresignedExecutionBudgetRaw(
+            this.getPresignedTransaction(state, "destinationTransfer").txData as `0x${string}`,
+            destinationNetwork
+          )
         ).toString()
       );
     }

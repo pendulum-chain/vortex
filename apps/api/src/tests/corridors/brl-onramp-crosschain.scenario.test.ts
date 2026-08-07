@@ -7,6 +7,7 @@ import {
   Networks,
   RampDirection,
   type RampPhase,
+  signUnsignedTransactions,
   type UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -36,11 +37,33 @@ const USDC_ON_ARBITRUM = requireToken(Networks.Arbitrum, EvmToken.USDC).erc20Add
 const BRLA_ON_BASE = requireToken(Networks.Base, EvmToken.BRLA).erc20AddressSourceChain as `0x${string}`;
 
 const TAX_ID = "12345678901";
+const BASE_CHAIN_ID_HEX = "0x2105";
+const ARBITRUM_CHAIN_ID_HEX = "0xa4b1";
 
-const CHAIN_IDS: Partial<Record<Networks, number>> = {
-  [Networks.Arbitrum]: 42161,
-  [Networks.Base]: 8453
-};
+function installChainIdShim(): { restore: () => void } {
+  const guardedFetch = globalThis.fetch;
+  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    if (typeof init?.body === "string") {
+      try {
+        const payload = JSON.parse(init.body) as { id?: number; method?: string };
+        if (payload.method === "eth_chainId") {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          const chainId = url.includes("base") ? BASE_CHAIN_ID_HEX : ARBITRUM_CHAIN_ID_HEX;
+          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: chainId });
+        }
+      } catch {
+        // Not a JSON-RPC request; retain the hermetic fetch guard below.
+      }
+    }
+    return guardedFetch(input, init);
+  }) as typeof fetch;
+  globalThis.fetch = Object.assign(shim, guardedFetch);
+  return {
+    restore: () => {
+      globalThis.fetch = guardedFetch;
+    }
+  };
+}
 
 // Unlike the direct pix→BRLA-on-Base corridor, the full swap-and-bridge chain
 // executes here: Nabla swaps the minted BRLA into USDC on Base, the squid
@@ -101,10 +124,12 @@ interface DestinationFundingExpectation {
 describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Arbitrum)", () => {
   let world: FakeWorld;
   let auth: { restore: () => void };
+  let chainIdShim: { restore: () => void };
   let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
+    chainIdShim = installChainIdShim();
     auth = installFakeSupabaseAuth();
     await setupTestDatabase();
     app = await startTestApp();
@@ -113,6 +138,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   afterAll(async () => {
     await app?.close();
     auth?.restore();
+    chainIdShim?.restore();
     world?.restore();
   });
 
@@ -122,6 +148,8 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     // partner's EVM payout address even when the resulting fees are zero.
     await updatePartnerPricing("vortex", RampDirection.BUY, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
+    world.evm.setFeeEstimate(Networks.Arbitrum, 1_000_000_000n);
+    world.evm.setFeeEstimate(Networks.Base, 1_000_000_000n);
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 1_000_000, USDC: 0, USDM: 0, USDT: 0 };
@@ -188,33 +216,14 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     return blueprint as UnsignedTx;
   }
 
-  async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
-    const chainId = CHAIN_IDS[blueprint.network];
-    if (!chainId) {
-      throw new Error(`No chain id mapped for ${blueprint.network}`);
-    }
-    return ephemeral.signTransaction({
-      chainId,
-      data: txData.data,
-      gas: 600_000n,
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
-      nonce: blueprint.nonce,
-      to: txData.to,
-      type: "eip1559",
-      value: BigInt(txData.value ?? "0")
-    });
-  }
-
   /**
-   * Creates quote + registration through the HTTP API, then signs the
-   * ephemeral phase blueprints exactly as issued — the Nabla pair and squid
-   * pair on Base plus the destination transfer on Arbitrum — and stores them
-   * as presigned transactions the way /v1/ramp/update would.
+   * Creates quote + registration through the HTTP API, signs every ephemeral
+   * blueprint with the shared production signer (including backups), and
+   * submits the result through the real /v1/ramp/update validation path.
    */
   async function setUpRegisteredRamp(): Promise<CorridorSetup> {
-    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const ephemeralSecret = generatePrivateKey();
+    const ephemeral = privateKeyToAccount(ephemeralSecret);
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
     const user = await createTestUser();
@@ -247,34 +256,37 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     const squidApproveBlueprint = blueprintOf(unsignedTxs, "squidRouterApprove");
     const squidSwapBlueprint = blueprintOf(unsignedTxs, "squidRouterSwap");
     const transferBlueprint = blueprintOf(unsignedTxs, "destinationTransfer");
+    expect(nablaApproveBlueprint.network).toBe(Networks.Base);
+    expect(nablaSwapBlueprint.network).toBe(Networks.Base);
     expect(squidApproveBlueprint.network).toBe(Networks.Base);
     expect(squidSwapBlueprint.network).toBe(Networks.Base);
     expect(transferBlueprint.network).toBe(Networks.Arbitrum);
 
-    const signedNablaApprove = await signBlueprint(ephemeral, nablaApproveBlueprint);
-    const signedNablaSwap = await signBlueprint(ephemeral, nablaSwapBlueprint);
-    const signedSquidApprove = await signBlueprint(ephemeral, squidApproveBlueprint);
-    const signedSquidSwap = await signBlueprint(ephemeral, squidSwapBlueprint);
-    const signedTransfer = await signBlueprint(ephemeral, transferBlueprint);
-
-    const presign = (blueprint: UnsignedTx, txData: `0x${string}`) => ({
-      meta: {},
-      network: blueprint.network,
-      nonce: blueprint.nonce,
-      phase: blueprint.phase,
-      signer: ephemeral.address,
-      txData
+    const presignedTxs = await signUnsignedTransactions(unsignedTxs, {
+      evmEphemeral: {
+        address: ephemeral.address,
+        secret: ephemeralSecret
+      }
     });
+    const signedFor = (phase: RampPhase) => {
+      const transaction = presignedTxs.find(tx => tx.phase === phase);
+      expect(transaction, `production signer omitted ${phase}`).toBeDefined();
+      return transaction?.txData as `0x${string}`;
+    };
+    const signedNablaSwap = signedFor("nablaSwap");
+    const signedSquidApprove = signedFor("squidRouterApprove");
+    const signedSquidSwap = signedFor("squidRouterSwap");
+    const signedTransfer = signedFor("destinationTransfer");
 
-    await rampState.update({
-      presignedTxs: [
-        presign(nablaApproveBlueprint, signedNablaApprove),
-        presign(nablaSwapBlueprint, signedNablaSwap),
-        presign(squidApproveBlueprint, signedSquidApprove),
-        presign(squidSwapBlueprint, signedSquidSwap),
-        presign(transferBlueprint, signedTransfer)
-      ]
+    const updateResponse = await app.request("/v1/ramp/update", {
+      body: JSON.stringify({ presignedTxs, rampId: ramp.id }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
     });
+    expect(updateResponse.status, `ramp update failed: ${await updateResponse.clone().text()}`).toBe(200);
 
     const transferTxData = transferBlueprint.txData as unknown as { data: `0x${string}` };
     const { args } = decodeFunctionData({ abi: erc20Abi, data: transferTxData.data });
@@ -454,11 +466,39 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       );
       expect(destinationFundingTxs).toHaveLength(1);
       expect(destinationFundingTxs[0].value).toBe(destinationFunding.shortfallRaw);
+      expect(destinationFundingTxs[0].gas).toBe(21_000n);
+      expect(destinationFundingTxs[0].maxFeePerGas).toBe(1_000_000_000n);
+      expect(destinationFundingTxs[0].maxPriorityFeePerGas).toBe(1_000_000_000n);
       expect(destinationFunding.initialBalanceRaw + (destinationFundingTxs[0].value ?? 0n)).toBe(
         destinationFunding.liabilityRaw
       );
       expect(world.evm.nativeBalance(Networks.Arbitrum, setup.ephemeral.address)).toBe(0n);
       expect(world.evm.erc20Balance(Networks.Arbitrum, USDC_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "pauses without treasury spend when live destination fees exceed the quote envelope",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      world.evm.setFeeEstimate(Networks.Arbitrum, 1_200_000_001n, 1_000_000_000n);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("fundEphemeral");
+      expect(
+        world.evm.sentTransactions.filter(
+          tx =>
+            !tx.serialized &&
+            tx.network === Networks.Arbitrum &&
+            tx.to?.toLowerCase() === setup.ephemeral.address.toLowerCase()
+        )
+      ).toHaveLength(0);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(paused?.errorLogs.some(log => log.phase === "fundEphemeral" && log.recoverable)).toBe(true);
     },
     30000
   );

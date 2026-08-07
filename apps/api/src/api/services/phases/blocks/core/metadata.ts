@@ -25,8 +25,10 @@ export function defineContext<Simulation>() {
 
 export interface EvmDestinationGasQuote {
   executionFeeUsd: string;
+  fundingL1FeeUpperBoundRaw?: string;
   maxFeePerGas: string;
   network: EvmNetworks;
+  payoutL1FeeUpperBoundRaw?: string;
   transferGasLimit: string;
 }
 

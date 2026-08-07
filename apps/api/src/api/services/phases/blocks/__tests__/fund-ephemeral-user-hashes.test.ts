@@ -124,9 +124,27 @@ describe("FundEphemeralExecutor destination gas funding", () => {
       value: 0n
     });
     const handler = Object.create(FundEphemeralExecutor.prototype) as any;
-    handler.getPresignedTransaction = () => ({ network: Networks.Polygon, txData: rawTx });
+    handler.getPresignedTransaction = () => ({ network: Networks.Polygon, signer: account.address, txData: rawTx });
+    const state = {
+      unsignedTxs: [
+        {
+          network: Networks.Polygon,
+          nonce: 0,
+          phase: "destinationTransfer",
+          signer: account.address,
+          txData: {
+            data: "0x",
+            gas: "100000",
+            maxFeePerGas: "10000000000",
+            maxPriorityFeePerGas: "1000000000",
+            to: "0x0000000000000000000000000000000000000001",
+            value: "0"
+          }
+        }
+      ]
+    } as unknown as RampState;
 
-    expect(handler.getDestinationEvmFundingRequirementRaw({} as RampState, Networks.Polygon)).toBe(
+    expect(await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon)).toBe(
       3_000_000_000_000_000n
     );
   });

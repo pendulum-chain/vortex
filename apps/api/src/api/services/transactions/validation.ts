@@ -11,6 +11,7 @@ import {
   isSignedTypedDataArray,
   Networks,
   NUMBER_OF_PRESIGNED_TXS,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -34,28 +35,37 @@ interface VerifiedEvmTransaction {
   chainId: number;
 }
 
-function assertSignedEvmMinimum(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
+function assertSignedEvmFeeWithinBounds(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
   if (expectedMinimumRaw === undefined) {
     return;
   }
 
   const expectedMinimum = BigInt(expectedMinimumRaw);
-  // When the server-issued minimum is 0, a missing field is equivalent to "≥ 0" (e.g., legacy txs that
-  // use gasPrice instead of maxPriorityFeePerGas, or chains that accept zero priority fee). Reject only
-  // if a concrete value is present and is strictly below the minimum.
-  if (expectedMinimum === 0n) {
-    if (actual !== undefined && actual < expectedMinimum) {
-      throw new APIError({
-        message: `Signed EVM transaction ${fieldName} ${actual.toString()} is below expected minimum ${expectedMinimum.toString()}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    return;
-  }
-
   if (actual === undefined || actual < expectedMinimum) {
     throw new APIError({
       message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const expectedMaximum = expectedMinimum * PRESIGNED_EVM_FEE_MULTIPLIER;
+  if (actual > expectedMaximum) {
+    throw new APIError({
+      message: `Signed EVM transaction ${fieldName} ${actual.toString()} exceeds expected maximum ${expectedMaximum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+function assertSignedEvmGasLimit(actual: bigint | undefined, expectedRaw: string | undefined) {
+  if (expectedRaw === undefined) {
+    return;
+  }
+
+  const expected = BigInt(expectedRaw);
+  if (actual !== expected) {
+    throw new APIError({
+      message: `Signed EVM transaction gas limit ${actual?.toString() ?? "missing"} does not match expected ${expected.toString()}`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -139,9 +149,9 @@ async function verifySignedEvmTransaction(
       });
     }
 
-    assertSignedEvmMinimum("gas limit", parsed.gas, unsignedTxData.gas);
-    assertSignedEvmMinimum("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
-    assertSignedEvmMinimum(
+    assertSignedEvmGasLimit(parsed.gas, unsignedTxData.gas);
+    assertSignedEvmFeeWithinBounds("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
+    assertSignedEvmFeeWithinBounds(
       "maxPriorityFeePerGas",
       parsed.maxPriorityFeePerGas ?? parsed.gasPrice,
       unsignedTxData.maxPriorityFeePerGas

@@ -3,9 +3,11 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOfframpStatus,
+  type EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -41,10 +43,9 @@ const HAPPY_PATH_PHASES: RampPhase[] = [
 const ALFREDPAY_OFFRAMP_RATE = 20;
 const FIAT_ACCOUNT_ID = "test-fiat-account-1";
 
-interface EvmTxBlueprint {
+interface EvmTxBlueprint extends EvmTransactionData {
   to: `0x${string}`;
   data: `0x${string}`;
-  value?: string;
 }
 
 interface CorridorSetup {
@@ -192,10 +193,11 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       return ephemeral.signTransaction({
         chainId: 137,
         data: offrampTransferBlueprint.data,
-        gas: 100_000n,
-        // validatePresignedTxs enforces a 3 gwei floor on Polygon fees.
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(offrampTransferBlueprint.gas),
+        maxFeePerGas:
+          BigInt(offrampTransferBlueprint.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(offrampTransferBlueprint.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: offrampTransferBlueprint.to,
         type: "eip1559"
@@ -422,16 +424,17 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       // Presign the single distributeFees transfer (vortex only) as blueprinted.
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
-      const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const feeData = feeBlueprint?.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         setup.ephemeral.signTransaction({
           chainId: 137,
-          data: feeData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: feeData.data as `0x${string}`,
+          gas: BigInt(feeData.gas),
+          maxFeePerGas: BigInt(feeData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(feeData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: feeData.to,
+          to: feeData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
@@ -519,16 +522,17 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
-      const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const feeData = feeBlueprint?.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         setup.ephemeral.signTransaction({
           chainId: 137,
-          data: feeData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: feeData.data as `0x${string}`,
+          gas: BigInt(feeData.gas),
+          maxFeePerGas: BigInt(feeData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(feeData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: feeData.to,
+          to: feeData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};

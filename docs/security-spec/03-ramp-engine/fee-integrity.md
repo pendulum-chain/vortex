@@ -85,6 +85,27 @@ always occur only after all user-facing phases is incorrect.
 - Distributed fees are final. The current implementation has no automatic clawback if
   a later delivery phase fails.
 
+### Dynamic EVM destination execution fees
+
+- BUY flows with a non-direct EVM payout quote the native execution cost of both the
+  treasury-to-ephemeral funding transfer and the presigned payout. Base and Base Sepolia
+  additionally query the GasPriceOracle for each transaction's L1 security fee upper
+  bound; omitting this component underprices a fee charged on every normal Base-family
+  transaction.
+- The quote persists the destination network, transfer gas, L2 fee estimate, and the
+  Base L1 upper bounds. Registration may accept only a prepared payout inside that
+  estimate plus `EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS`.
+- Immediately before the treasury funding transfer, execution re-estimates the L2 fee
+  and both Base L1 upper bounds (funding and payout). If any exceeds the persisted envelope plus margin,
+  the phase pauses recoverably before claiming or broadcasting a financial operation.
+  An accepted transfer carries the checked gas and EIP-1559 fee caps explicitly.
+- The native amount delivered to the ephemeral is based on the bounded signed payout
+  liability, not arbitrary client fields. The gas limit must match the server blueprint
+  and the signed fee cap cannot exceed the shared production signer's 3× multiplier.
+- The residual between a signed/quoted cap and the effective fee is accepted native
+  dust for now. It is not solved by this policy and remains documented in
+  `ephemeral-accounts.md`; a future smart-contract or paymaster flow can eliminate it.
+
 ### Alfredpay corridors: solvency and failure safety
 
 - **Charging** — the onramp deducts vortex/partner components from the provider mint
