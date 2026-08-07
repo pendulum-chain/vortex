@@ -5,7 +5,7 @@ introduction of transactional email (mid-2026) and stays as context for why the 
 exists.
 
 Security-facing detail (invariants, threat model, audit checklist) lives in
-[`docs/security-spec/05-integrations/resend.md`](../security-spec/05-integrations/resend.md).
+[`docs/security-spec/05-integrations/resend.md`](security-spec/05-integrations/resend.md).
 This page is the shape of the system.
 
 ---
@@ -432,7 +432,7 @@ flowchart LR
 
 | | In-app notifications (`main`) | Email notifications (this branch) |
 |---|---|---|
-| Table | `notifications` (migration 043) | `email_notifications` (migration 055) |
+| Table | `notifications` (migration 043) | `email_notifications` (migration 062) |
 | Model | `models/notification.model.ts` | `models/emailNotification.model.ts` |
 | Service | `api/services/notifications/` | `api/services/email/` |
 | Preferences | `notification_preferences.email_enabled` | same row, read at delivery |
