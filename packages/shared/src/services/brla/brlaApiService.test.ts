@@ -31,8 +31,10 @@ describe("BrlaApiService.sendRequest path templating", () => {
   // was appended, signing and requesting a literal "/{attemptId}/<id>" URL.
   it("interpolates the {attemptId} template instead of appending the path param", async () => {
     let requestedUrl: string | undefined;
-    globalThis.fetch = mock(async (input: string | URL | Request) => {
+    let signal: AbortSignal | null | undefined;
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       requestedUrl = String(input);
+      signal = init?.signal;
       return new Response(JSON.stringify({ attempt: { id: "attempt-9" } }), {
         headers: { "Content-Type": "application/json" },
         status: 200
@@ -51,5 +53,8 @@ describe("BrlaApiService.sendRequest path templating", () => {
 
     expect(requestedUrl).toContain("/v2/kyc/attempts/attempt-9");
     expect(requestedUrl).not.toContain("{attemptId}");
+    // A hung connection must not stall callers forever — cron workers with
+    // waitForCompletion would otherwise never run another cycle.
+    expect(signal).toBeInstanceOf(AbortSignal);
   });
 });

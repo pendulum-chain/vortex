@@ -43,6 +43,9 @@ interface CachedQuote {
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
 export const AVENIA_PUBLIC_KEY_TIMEOUT_MS = 10_000;
+// Bound on every signed API request. A hung connection would otherwise stall callers
+// indefinitely — cron workers with waitForCompletion never run their next cycle.
+export const BRLA_REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
@@ -153,7 +156,8 @@ export class BrlaApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(BRLA_REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
