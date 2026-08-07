@@ -98,10 +98,14 @@ profile to have exactly one relationship and prevent managed profiles from becom
 managers. The internal provisioning service atomically creates a managed profile, its
 active customer entity, and the relationship, with idempotency scoped by manager and
 external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
-allowed corridors without deleting manager history. Manager-facing routes and delegated
-profile lifecycle routes are not active yet. Delegated authorization is active on the
-existing child-oriented quote, ramp, onboarding-status, Avenia, and Alfredpay routes; the
-legacy partner-managed flow remains operational during the transition.
+allowed corridors without deleting manager history. Active managers create, list, read,
+and logically delete their children through `/v1/managed-profiles`; Vortex administrators
+use `/v1/admin/managed-profile-managers/:profileId/managed-profiles` for the same headless
+provisioning with `creation_source = vortex`. Logical deletion retains the profile and its
+financial/compliance records, permanently reserves the manager/external-subject pair, and
+revokes all child credentials. Delegated authorization is active on the existing
+child-oriented quote, ramp, onboarding-status, Avenia, and Alfredpay routes; the legacy
+partner-managed flow remains operational during the transition.
 
 ### Recipients
 

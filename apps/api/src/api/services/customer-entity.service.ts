@@ -30,6 +30,14 @@ export async function getOrCreateCustomerEntityForProfile(
     if (!type || activeEntity.type === type) {
       return activeEntity;
     }
+    if (profile.kind === "managed") {
+      throw new APIError({
+        isPublic: true,
+        message: "A managed profile's customer entity type cannot be changed",
+        status: httpStatus.CONFLICT,
+        type: "MANAGED_PROFILE_ENTITY_TYPE_IMMUTABLE"
+      });
+    }
   }
 
   if (!type) {

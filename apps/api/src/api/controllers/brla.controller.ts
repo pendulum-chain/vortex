@@ -34,6 +34,7 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
+import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
@@ -351,6 +352,14 @@ export const createSubaccount = async (
     const normalizedTaxId = normalizeTaxId(taxId);
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
+
+    if (req.managedProfileContext) {
+      const entity = await CustomerEntity.findByPk(req.managedProfileContext.customerEntityId, { attributes: ["type"] });
+      if (entity?.type !== accountTypeToCustomerType(accountType)) {
+        res.status(httpStatus.CONFLICT).json({ error: "The account type does not match the managed profile" });
+        return;
+      }
+    }
 
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.

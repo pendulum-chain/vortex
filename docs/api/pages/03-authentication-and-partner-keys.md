@@ -42,6 +42,21 @@ The header is supported for quote creation; ramp registration, update, start, st
 
 `X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
+### Manage Headless Profiles
+
+An active manager may use its Supabase session or profile-bound secret credential on these endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /v1/managed-profiles` | Create an `individual` or `business` child from an immutable `externalSubjectId` |
+| `GET /v1/managed-profiles` | List children; defaults to active records with `limit=50&offset=0` |
+| `GET /v1/managed-profiles/:profileId` | Read an owned active or deleted child |
+| `DELETE /v1/managed-profiles/:profileId` | Logically delete an owned child and revoke its credentials |
+
+Creation is not tied to one corridor. Every later corridor-bound operation checks the manager's current allowed corridors, so removing a corridor immediately blocks new child mutations there. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, blocks unstarted ramp mutations, and does not interrupt background processing for ramps that already started.
+
+Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
+
 Partners must provision one genuine managed profile per individual, business, or technical subject when interactive signup is unavailable. Vortex's admin workflow binds the profile to immutable partner and external-user IDs and allows the same identity to be claimed later through OTP. Individual and business subjects receive the corresponding customer entity. Technical subjects receive no customer entity and cannot perform customer or ramp operations. Do not share dummy profiles between customers or infer a subject from a credential display name.
 
 ## Secret Handling

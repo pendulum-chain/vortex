@@ -776,6 +776,7 @@ describe("createSubaccount", () => {
   const originalProviderCreate = ProviderCustomer.create;
   const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
+  const originalEntityFindByPk = CustomerEntity.findByPk;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
   const originalGetInstance = BrlaApiService.getInstance;
@@ -794,6 +795,7 @@ describe("createSubaccount", () => {
     ProviderCustomer.create = originalProviderCreate;
     CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
+    CustomerEntity.findByPk = originalEntityFindByPk;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
     BrlaApiService.getInstance = originalGetInstance;
@@ -818,6 +820,29 @@ describe("createSubaccount", () => {
     name: "Attacker",
     taxId: "08786985906"
   };
+
+  it("rejects a managed child's mismatched account type before provider access", async () => {
+    mockBrlaApi();
+    createAveniaSubaccountMock.mockClear();
+    CustomerEntity.findByPk = mock(async () => ({ type: "individual" })) as unknown as typeof CustomerEntity.findByPk;
+
+    const res = createResponse();
+    await createSubaccount(
+      {
+        body: { accountType: AveniaAccountType.COMPANY, name: "Wrong Type", taxId: "11222333000181" },
+        managedProfileContext: {
+          actorProfileId: "manager-1",
+          customerEntityId: "entity-child-1",
+          managedProfileId: "relationship-1",
+          subjectProfileId: "child-1"
+        }
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+  });
 
   it("rejects when the canonical provider customer belongs to a different Supabase user", async () => {
     mockBrlaApi();
