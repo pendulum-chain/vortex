@@ -141,6 +141,13 @@ The derived request context retains `actorProfileId`, `subjectProfileId`,
 Monerium, and Alfredpay customer-creation routes do not accept delegation because managed
 children have no canonical email.
 
+Managed children have no supported direct authentication path in the first iteration.
+Each child has one immutable manager relationship that is retained after logical deletion,
+so child-owned resources can be attributed to their manager through that relationship. A
+duplicate operation-level actor/subject audit record is not required unless child-owned
+credentials, manager transfer, multiple managers, or credential-level attribution are
+introduced.
+
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
 quote cannot be claimed by another user.

@@ -94,7 +94,7 @@ One central delegated-authorization function first requires the request to be au
 as the manager through an accepted existing authentication path. It then performs these
 checks and returns a request context containing both `actorProfileId` and
 `subjectProfileId`. Downstream services use the subject for ownership and provider
-resolution while retaining the actor for audit.
+resolution while retaining the actor for authorization throughout the request.
 
 The header is only a selector. It has no effect until route-level delegated authorization
 validates it, and it is never copied into `req.userId`. A public API key is attribution,
@@ -111,9 +111,17 @@ effectiveUserId                = childId
 
 Authorization uses the authenticated manager and its direct relationship to the child.
 Existing ownership and provider resolution use the effective child. Both values remain
-available for audit attribution; the effective child must never erase the manager actor.
-The implementation must not replace the authenticated manager ID globally or introduce
-a generic impersonation mode.
+available throughout the request; the effective child must never erase the manager actor.
+The implementation must not replace the authenticated manager ID globally or introduce a
+generic impersonation mode.
+
+The first iteration does not require a separate operation-level audit record containing
+both IDs. A managed child has no supported direct authentication path, has exactly one
+immutable manager relationship, and retains that relationship after logical deletion.
+The manager for a child-owned quote, ramp, or compliance record is therefore derivable
+without duplicating the relationship on every operation. This decision must be revisited
+before adding child-owned credentials, manager transfer, multiple managers, or a
+requirement for credential- or request-level attribution.
 
 Existing Supabase sessions and API credentials are both accepted according to each
 endpoint's current authentication requirements. This does not introduce a dedicated
@@ -331,7 +339,7 @@ accepted existing authentication establishes the manager actor
     -> corridor-bound operations verify manager corridor permission
     -> service resolves the child's active customer entity
     -> operation executes and persists resources under the child profile
-    -> audit records manager actor and child subject
+    -> retained manager-child relationship provides manager-level attribution
 ```
 
 ### Logical deletion
