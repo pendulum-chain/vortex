@@ -12,6 +12,7 @@ import { isSessionActive } from "../../services/impersonation.service";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function clampLimit(value: unknown): number {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : NaN;
@@ -117,6 +118,13 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
 export async function getAccount(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
     const { profileId } = req.params;
+    if (!UUID_PATTERN.test(profileId)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: { code: "INVALID_PROFILE_ID", message: "profileId must be a valid UUID", status: httpStatus.BAD_REQUEST }
+      });
+      return;
+    }
+
     const profile = await User.findByPk(profileId);
     if (!profile) {
       res.status(httpStatus.NOT_FOUND).json({

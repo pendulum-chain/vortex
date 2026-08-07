@@ -1,7 +1,9 @@
 import crypto from "crypto";
 import { literal } from "sequelize";
+import sequelize from "../../config/database";
 import { config } from "../../config/vars";
 import AdminImpersonationSession from "../../models/adminImpersonationSession.model";
+import ProfileRole from "../../models/profileRole.model";
 import User from "../../models/user.model";
 
 /** Opaque token prefix, so ordinary Supabase bearer tokens are routed without a DB hit. */
@@ -38,6 +40,12 @@ export class ImpersonationTargetError extends Error {
   }
 }
 
+export class ImpersonationActorError extends Error {
+  constructor() {
+    super("Actor no longer has the vortex_admin role");
+  }
+}
+
 export function isImpersonationToken(token: string): boolean {
   return token.startsWith(IMPERSONATION_TOKEN_PREFIX);
 }
@@ -62,30 +70,55 @@ export async function createSession(input: {
     throw new ImpersonationTargetError("An admin cannot impersonate themselves");
   }
 
-  const target = await User.findByPk(input.targetProfileId);
-  if (!target) {
-    throw new ImpersonationTargetError("Target profile was not found");
-  }
-
-  // One active session per (actor, target): starting a new one closes the old one, so a
-  // forgotten tab can never hold rights alongside a fresh session.
-  await AdminImpersonationSession.update(
-    { revokedAt: new Date(), revokedReason: "superseded" },
-    {
-      where: {
-        actorProfileId: input.actorProfileId,
-        revokedAt: null,
-        targetProfileId: input.targetProfileId
-      }
-    }
-  );
-
   const token = `${IMPERSONATION_TOKEN_PREFIX}${crypto.randomBytes(32).toString("base64url")}`;
-  const session = await AdminImpersonationSession.create({
-    actorProfileId: input.actorProfileId,
-    expiresAt: new Date(Date.now() + IMPERSONATION_TTL_MS),
-    targetProfileId: input.targetProfileId,
-    tokenHash: hashToken(token)
+  const { session, target } = await sequelize.transaction(async transaction => {
+    // Serialize all session creation for one operator. Without this lock, two concurrent
+    // requests can both run the revoke step before either inserts, leaving two live tokens.
+    const actor = await User.findByPk(input.actorProfileId, {
+      attributes: ["id"],
+      lock: transaction.LOCK.UPDATE,
+      transaction
+    });
+    if (!actor) {
+      throw new ImpersonationTargetError("Actor profile was not found");
+    }
+
+    const [target, actorRole] = await Promise.all([
+      User.findByPk(input.targetProfileId, { transaction }),
+      ProfileRole.findOne({ transaction, where: { role: "vortex_admin", userId: input.actorProfileId } })
+    ]);
+    if (!target) {
+      throw new ImpersonationTargetError("Target profile was not found");
+    }
+    if (!actorRole) {
+      throw new ImpersonationActorError();
+    }
+
+    // One active session per (actor, target): starting a new one closes the old one, so a
+    // forgotten tab can never hold rights alongside a fresh session.
+    await AdminImpersonationSession.update(
+      { revokedAt: new Date(), revokedReason: "superseded" },
+      {
+        transaction,
+        where: {
+          actorProfileId: input.actorProfileId,
+          revokedAt: null,
+          targetProfileId: input.targetProfileId
+        }
+      }
+    );
+
+    const session = await AdminImpersonationSession.create(
+      {
+        actorProfileId: input.actorProfileId,
+        expiresAt: new Date(Date.now() + IMPERSONATION_TTL_MS),
+        targetProfileId: input.targetProfileId,
+        tokenHash: hashToken(token)
+      },
+      { transaction }
+    );
+
+    return { session, target };
   });
 
   return { session, target, token };
@@ -105,8 +138,11 @@ export async function resolveSession(token: string): Promise<ImpersonationContex
     return null;
   }
 
-  const target = await User.findByPk(session.targetProfileId, { attributes: ["id", "email"] });
-  if (!target) {
+  const [target, actorRole] = await Promise.all([
+    User.findByPk(session.targetProfileId, { attributes: ["id", "email"] }),
+    ProfileRole.findOne({ attributes: ["id"], where: { role: "vortex_admin", userId: session.actorProfileId } })
+  ]);
+  if (!target || !actorRole) {
     return null;
   }
 
@@ -137,12 +173,15 @@ export async function revokeSession(sessionId: string, revokedReason: string): P
 export async function listSessions(
   input: { actorProfileId?: string; limit?: number } = {}
 ): Promise<AdminImpersonationSession[]> {
+  const requestedLimit = input.limit ?? 50;
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 200) : 50;
+
   return AdminImpersonationSession.findAll({
     include: [
       { as: "actor", attributes: ["id", "email"], model: User },
       { as: "target", attributes: ["id", "email"], model: User }
     ],
-    limit: Math.min(input.limit ?? 50, 200),
+    limit,
     order: [
       // Mirrors isSessionActive() in SQL so live sessions sort above closed ones.
       [

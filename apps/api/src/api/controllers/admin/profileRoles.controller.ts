@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
+import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
 import ProfileRole, {
   HTTP_GRANTABLE_PROFILE_ROLES,
   PROFILE_ROLE_NAMES,
@@ -100,7 +102,21 @@ export async function removeProfileRole(req: Request<{ userIdOrEmail: string; ro
     }
 
     const user = await findProfile(userIdOrEmail);
-    const deleted = user ? await ProfileRole.destroy({ where: { role, userId: user.id } }) : 0;
+    const deleted = user
+      ? await sequelize.transaction(async transaction => {
+          // Share the actor-row lock used by session creation, so role removal cannot race
+          // with a new token being minted after the revocation sweep.
+          await User.findByPk(user.id, { attributes: ["id"], lock: transaction.LOCK.UPDATE, transaction });
+          const deleted = await ProfileRole.destroy({ transaction, where: { role, userId: user.id } });
+          if (deleted && role === "vortex_admin") {
+            await AdminImpersonationSession.update(
+              { revokedAt: new Date(), revokedReason: "vortex_admin_role_revoked" },
+              { transaction, where: { actorProfileId: user.id, revokedAt: null } }
+            );
+          }
+          return deleted;
+        })
+      : 0;
     if (!deleted) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {

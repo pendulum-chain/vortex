@@ -56,7 +56,7 @@ AdminImpersonationSession.init(
     targetProfileId: {
       allowNull: false,
       field: "target_profile_id",
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
       onUpdate: "CASCADE",
       references: { key: "id", model: "profiles" },
       type: DataTypes.UUID
@@ -68,7 +68,13 @@ AdminImpersonationSession.init(
     indexes: [
       { fields: ["token_hash"], name: "uq_admin_impersonation_sessions_token_hash", unique: true },
       { fields: ["target_profile_id"], name: "idx_admin_impersonation_sessions_target" },
-      { fields: ["actor_profile_id", "created_at"], name: "idx_admin_impersonation_sessions_actor_created" }
+      { fields: ["actor_profile_id", "created_at"], name: "idx_admin_impersonation_sessions_actor_created" },
+      {
+        fields: ["actor_profile_id", "target_profile_id"],
+        name: "uq_admin_impersonation_sessions_active",
+        unique: true,
+        where: { revoked_at: null }
+      }
     ],
     modelName: "AdminImpersonationSession",
     sequelize,

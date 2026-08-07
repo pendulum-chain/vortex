@@ -9,12 +9,15 @@ import { buildApiClientRequestMetadata, observeApiClientEvent } from "../../obse
 import { getRequestDurationMs } from "../../observability/requestContext";
 import {
   createSession,
+  ImpersonationActorError,
   ImpersonationDisabledError,
   ImpersonationTargetError,
   isSessionActive,
   listSessions,
   revokeSession
 } from "../../services/impersonation.service";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /v1/admin-console/impersonation
@@ -26,9 +29,13 @@ export async function createImpersonationSession(req: Request, res: Response): P
   const actorProfileId = req.userId as string;
   const { targetProfileId } = req.body ?? {};
 
-  if (typeof targetProfileId !== "string" || !targetProfileId) {
+  if (typeof targetProfileId !== "string" || !UUID_PATTERN.test(targetProfileId)) {
     res.status(httpStatus.BAD_REQUEST).json({
-      error: { code: "INVALID_IMPERSONATION_INPUT", message: "targetProfileId is required", status: httpStatus.BAD_REQUEST }
+      error: {
+        code: "INVALID_IMPERSONATION_INPUT",
+        message: "targetProfileId must be a valid UUID",
+        status: httpStatus.BAD_REQUEST
+      }
     });
     return;
   }
@@ -56,6 +63,10 @@ export async function createImpersonationSession(req: Request, res: Response): P
       token
     });
   } catch (error) {
+    if (error instanceof ImpersonationActorError) {
+      vortexAdminRequiredResponse(res);
+      return;
+    }
     if (error instanceof ImpersonationDisabledError) {
       observeApiClientEvent({
         durationMs: getRequestDurationMs(req),
@@ -96,8 +107,9 @@ export async function createImpersonationSession(req: Request, res: Response): P
  */
 export async function listImpersonationSessions(req: Request, res: Response): Promise<void> {
   try {
-    const limit = typeof req.query.limit === "string" ? Number.parseInt(req.query.limit, 10) : undefined;
-    const sessions = await listSessions({ limit: Number.isFinite(limit) ? limit : undefined });
+    const parsedLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+    const limit = Number.isInteger(parsedLimit) && (parsedLimit as number) > 0 ? parsedLimit : undefined;
+    const sessions = await listSessions({ limit });
 
     res.status(httpStatus.OK).json({
       sessions: sessions.map(session => {
@@ -139,6 +151,17 @@ export async function listImpersonationSessions(req: Request, res: Response): Pr
 export async function deleteImpersonationSession(req: Request<{ sessionId: string }>, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
+    if (!UUID_PATTERN.test(sessionId)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_IMPERSONATION_SESSION_ID",
+          message: "sessionId must be a valid UUID",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
     const isSelfRevoke = req.impersonation?.sessionId === sessionId;
 
     if (!isSelfRevoke) {

@@ -40,7 +40,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     target_profile_id: {
       allowNull: false,
-      onDelete: "CASCADE",
+      // RESTRICT: the target is part of the security audit record and must not erase it.
+      onDelete: "RESTRICT",
       onUpdate: "CASCADE",
       references: { key: "id", model: "profiles" },
       type: DataTypes.UUID
@@ -66,9 +67,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex("admin_impersonation_sessions", ["actor_profile_id", "created_at"], {
     name: "idx_admin_impersonation_sessions_actor_created"
   });
-  // Supports "does this actor already hold a live session on this target?" without a scan.
+  // Enforces one non-revoked session per actor/target even if application locking regresses.
   await queryInterface.sequelize.query(
-    `CREATE INDEX "idx_admin_impersonation_sessions_active"
+    `CREATE UNIQUE INDEX "uq_admin_impersonation_sessions_active"
      ON "admin_impersonation_sessions" ("actor_profile_id", "target_profile_id")
      WHERE "revoked_at" IS NULL;`
   );

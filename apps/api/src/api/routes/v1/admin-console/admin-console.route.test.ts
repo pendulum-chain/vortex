@@ -98,6 +98,16 @@ describe("admin-console routes", () => {
       const response = await fetch(`${baseUrl}/accounts/${crypto.randomUUID()}`, { headers });
       expect(response.status).toBe(404);
     });
+
+    it("returns 400 for a malformed profile id instead of leaking a database error", async () => {
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/accounts/not-a-uuid`, { headers });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_PROFILE_ID");
+    });
   });
 
   describe("POST /impersonation", () => {
@@ -140,6 +150,35 @@ describe("admin-console routes", () => {
       expect(response.status).toBe(503);
       const body = (await response.json()) as { error: { code: string } };
       expect(body.error.code).toBe("IMPERSONATION_DISABLED");
+    });
+
+    it("returns 400 for a malformed target id", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation`, {
+        body: JSON.stringify({ targetProfileId: "not-a-uuid" }),
+        headers: { ...headers, "Content-Type": "application/json" },
+        method: "POST"
+      });
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_IMPERSONATION_INPUT");
+    });
+
+    it("uses the default list limit for a negative query value", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      await createSession({ actorProfileId: admin.id, targetProfileId: target.id });
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation?limit=-1`, { headers });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { sessions: unknown[] };
+      expect(body.sessions).toHaveLength(1);
     });
   });
 
@@ -207,6 +246,16 @@ describe("admin-console routes", () => {
 
       const response = await fetch(`${baseUrl}/impersonation/${session.id}`, { headers, method: "DELETE" });
       expect(response.status).toBe(204);
+    });
+
+    it("returns 400 for a malformed session id", async () => {
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation/not-a-uuid`, { headers, method: "DELETE" });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_IMPERSONATION_SESSION_ID");
     });
   });
 });
