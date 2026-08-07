@@ -133,7 +133,8 @@ mutation, status, history, errors, limits, and sanitized ramp info; aggregate on
 status; Avenia customer/KYC operations; and Alfredpay customer, KYC/KYB, and fiat-account
 operations. Mykobo, Monerium, recipient invitations, and active-entity selection remain
 outside delegation. Managed children receive an immutable provider contact email at
-provisioning while `profiles.email` remains null.
+provisioning while `profiles.email` remains null. A manager cannot assign the same
+normalized contact email to multiple children because Alfredpay keys customers by email.
 
 ### Manager control
 
@@ -280,12 +281,16 @@ Required constraints:
 ```text
 UNIQUE (profile_id)
 UNIQUE (manager_profile_id, external_subject_id)
+UNIQUE (manager_profile_id, contact_email)
 CHECK (manager_profile_id <> profile_id)
 ```
 
-The manager and external subject ID provide ownership provenance and idempotency. A
-separate free-form source namespace is unnecessary for manager-created profiles. If a
-future provider import needs additional provenance, add it only to that import contract.
+The manager and external subject ID provide ownership provenance and idempotency. Contact
+email uniqueness prevents one manager from provisioning multiple children against the
+same provider customer identity. Both manager-scoped pairs remain reserved after logical
+deletion. A separate free-form source namespace is unnecessary for manager-created
+profiles. If a future provider import needs additional provenance, add it only to that
+import contract.
 
 Do not duplicate `customer_entity_id` on `managed_profiles`. The child profile and its
 active `customer_entities` relationship already identify the compliance subject.

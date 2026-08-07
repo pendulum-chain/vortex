@@ -144,7 +144,7 @@ describe("managed profile lifecycle", () => {
     expect(await ManagedProfile.findOne({ where: { profileId: child.profileId } })).toMatchObject({ status: "deleted" });
   });
 
-  it("rejects partner credential issuance for managed children", async () => {
+  it("requires managed child credentials to use the controlling-manager issuance path", async () => {
     const manager = await createManager();
     const child = await provisionManagedProfile({
       contactEmail: "partner-bypass@example.com",
@@ -154,6 +154,9 @@ describe("managed profile lifecycle", () => {
       managerProfileId: manager.id
     });
 
+    await expect(createCredential({ environment: "test", profileId: child.profileId })).rejects.toMatchObject({
+      code: "INVALID_CREDENTIAL_SUBJECT"
+    });
     await expect(
       createCredential({ environment: "test", partnerId: "11111111-1111-4111-8111-111111111111", profileId: child.profileId })
     ).rejects.toMatchObject({ code: "INVALID_CREDENTIAL_SUBJECT" });

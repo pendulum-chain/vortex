@@ -108,6 +108,17 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
     });
     if (existing) return existingResult(existing, contactEmail, input.customerType, transaction);
 
+    const existingContactEmail = await ManagedProfile.findOne({
+      transaction,
+      where: { contactEmail, managerProfileId: input.managerProfileId }
+    });
+    if (existingContactEmail) {
+      throw new ManagedProfileProvisioningError(
+        "MANAGED_PROFILE_CONFLICT",
+        "The contact email is already associated with another managed profile"
+      );
+    }
+
     const profile = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
     const customerEntity = await CustomerEntity.create(
       { profileId: profile.id, status: "active", type: input.customerType },

@@ -132,6 +132,37 @@ describe("managed profile provisioning", () => {
     expect(await ManagedProfile.count()).toBe(2);
   });
 
+  it("rejects contact email reuse within one manager but permits it across managers", async () => {
+    const firstManager = await createManager();
+    const secondManager = await createManager();
+    await provisionManagedProfile({
+      contactEmail: " Shared@Example.com ",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "first-child",
+      managerProfileId: firstManager.id
+    });
+
+    await expect(
+      provisionManagedProfile({
+        contactEmail: "shared@example.com",
+        creationSource: "manager",
+        customerType: "business",
+        externalSubjectId: "second-child",
+        managerProfileId: firstManager.id
+      })
+    ).rejects.toMatchObject({ code: "MANAGED_PROFILE_CONFLICT" });
+    await expect(
+      provisionManagedProfile({
+        contactEmail: "shared@example.com",
+        creationSource: "manager",
+        customerType: "business",
+        externalSubjectId: "other-manager-child",
+        managerProfileId: secondManager.id
+      })
+    ).resolves.toMatchObject({ contactEmail: "shared@example.com", created: true });
+  });
+
   it("rejects missing, inactive, and invalid manager requests without partial records", async () => {
     const inactiveManager = await createManager(false);
 

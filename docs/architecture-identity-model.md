@@ -95,17 +95,18 @@ The additive `managed_profile_managers` and `managed_profiles` schema is the fou
 for headless delegated profiles. It records manager enablement, allowed corridors, and
 the unique manager-to-child relationship and immutable provider contact email. The contact
 email is not a login identity: `profiles.email` remains null. Database constraints require
-every managed profile to have exactly one relationship and prevent managed profiles from
-becoming managers. The internal provisioning service atomically creates a managed profile,
-its active customer entity, and the relationship, with idempotency scoped by manager and
-external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
-allowed corridors without deleting manager history. Active managers create, list, read,
-and logically delete their children through `/v1/managed-profiles`; Vortex administrators
-use `/v1/admin/managed-profile-managers/:profileId/managed-profiles` for the same headless
+every managed profile to have exactly one relationship, keep normalized contact emails
+unique within each manager, and prevent managed profiles from becoming managers. The
+internal provisioning service atomically creates a managed profile, its active customer
+entity, and the relationship, with idempotency scoped by manager and external subject ID.
+Admin-only `PUT` and `GET` routes configure manager activation and allowed corridors
+without deleting manager history. Active managers create, list, read, and logically delete
+their children through `/v1/managed-profiles`; Vortex administrators use
+`/v1/admin/managed-profile-managers/:profileId/managed-profiles` for the same headless
 provisioning with `creation_source = vortex`. Managers also issue, list, and revoke
 child-owned credentials through nested lifecycle routes. Logical deletion retains the
-profile and its financial/compliance records, permanently reserves the
-manager/external-subject pair, and revokes all child credentials. Delegated authorization
+profile and its financial/compliance records, permanently reserves the manager-scoped
+external-subject and contact-email pairs, and revokes all child credentials. Delegated authorization
 is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
 routes; recipient invitations remain unavailable to managed children.
 
@@ -150,6 +151,10 @@ immutable relationship retained after logical deletion, so child-owned resources
 attributable to their controlling manager without a duplicate operation-level
 actor/subject record. Distinguishing direct child-credential requests from delegated
 manager requests in durable operation records is not required by the current model.
+Generic profile and admin partner credential creation reject managed subjects; only the
+controlling manager's child-credential route may issue one. A committed manager,
+relationship, or corridor policy change blocks subsequent authorization decisions but
+does not cancel a request that was already authorized and remains in flight.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned

@@ -11,6 +11,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       },
       { transaction }
     );
+    await queryInterface.addIndex("managed_profiles", ["manager_profile_id", "contact_email"], {
+      name: "uq_managed_profiles_manager_contact_email",
+      transaction,
+      unique: true
+    });
     await queryInterface.sequelize.query(
       `CREATE FUNCTION enforce_managed_profile_contact_email_immutable() RETURNS trigger AS $$
       BEGIN
@@ -38,6 +43,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
       transaction
     });
     await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_contact_email_immutable();", { transaction });
+    await queryInterface.removeIndex("managed_profiles", "uq_managed_profiles_manager_contact_email", { transaction });
     await queryInterface.removeColumn("managed_profiles", "contact_email", { transaction });
   });
 }

@@ -107,6 +107,11 @@ ManagedProfile.init(
         fields: ["manager_profile_id", "external_subject_id"],
         name: "uq_managed_profiles_manager_external_subject",
         unique: true
+      },
+      {
+        fields: ["manager_profile_id", "contact_email"],
+        name: "uq_managed_profiles_manager_contact_email",
+        unique: true
       }
     ],
     modelName: "ManagedProfile",

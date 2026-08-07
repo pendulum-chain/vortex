@@ -127,10 +127,10 @@ export async function createCredential(input: {
     if (!profile) {
       throw new ApiCredentialServiceError("CREDENTIAL_SUBJECT_REQUIRED", "Profile was not found");
     }
-    if (profile.kind === "managed" && input.partnerId) {
+    if (profile.kind === "managed") {
       throw new ApiCredentialServiceError(
         "INVALID_CREDENTIAL_SUBJECT",
-        "Partner API credentials cannot be issued for managed profiles"
+        "Managed-profile credentials must be issued by the controlling manager"
       );
     }
 
