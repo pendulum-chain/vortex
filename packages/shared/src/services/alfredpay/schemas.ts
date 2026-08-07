@@ -3,6 +3,7 @@ import { AlfredpayCustomerType } from "../../tokens/types/base";
 import {
   AlfredpayConfigPair,
   AlfredpayFee,
+  AlfredpayFeeType,
   AlfredpayFiatAccount,
   AlfredpayFiatAccountType,
   AlfredpayFiatPaymentInstructions,
@@ -33,8 +34,8 @@ type ConsumedConfigPair = Pick<
   AlfredpayConfigPair,
   "fromCurrency" | "toCurrency" | "minQuantity" | "maxQuantity" | "decimals" | "typeCustomer"
 >;
-type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency">;
-type ConsumedQuote = Pick<AlfredpayOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration"> & {
+type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency" | "type">;
+type ConsumedQuote = Pick<AlfredpayOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration" | "rate"> & {
   fees: ConsumedFee[];
 };
 type ConsumedOnrampTransaction = Pick<AlfredpayOnrampTransaction, "status"> & {
@@ -84,19 +85,21 @@ export const alfredpayConfigsResponseSchema = z.looseObject({
 
 /**
  * The body of a POST …/quotes response, BUY and SELL alike — the consumed fields are
- * direction-independent (`fromCurrency`/`toCurrency`/`rate` are never read back; Vortex
- * trusts its own request there).
+ * direction-independent (`fromCurrency`/`toCurrency` are never read back; Vortex trusts
+ * its own request there).
  */
 export const alfredpayQuoteResponseSchema = z.looseObject({
   expiration: parseableTimestamp,
   fees: z.array(
     z.looseObject({
       amount: z.string().regex(DECIMAL_STRING),
-      currency: z.string().min(1)
+      currency: z.string().min(1),
+      type: z.enum(AlfredpayFeeType)
     })
   ),
   fromAmount: z.string().regex(DECIMAL_STRING),
   quoteId: z.string().min(1),
+  rate: z.string().regex(DECIMAL_STRING),
   toAmount: z.string().regex(DECIMAL_STRING)
 }) satisfies z.ZodType<ConsumedQuote>;
 

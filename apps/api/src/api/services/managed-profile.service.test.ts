@@ -23,7 +23,7 @@ describe("managed profile creation", () => {
   const createUserMock = mock(async (attributes: { app_metadata?: Record<string, unknown>; email?: string }) => {
     const email = attributes.email!;
     if (authUsers.has(email)) {
-      return { data: { user: null }, error: { message: "User already registered" } } as never;
+      return { data: { user: null }, error: { code: "email_exists", message: "User already registered" } } as never;
     }
     const user = {
       app_metadata: attributes.app_metadata ?? {},
@@ -128,6 +128,31 @@ describe("managed profile creation", () => {
     authUsers.set(foreignEmail, { ...exactUser, email: foreignEmail, id: crypto.randomUUID(), app_metadata: {} });
     const rejected = await post({ email: foreignEmail, externalUserId: "retry-2", partnerId: partner.id, subjectType: "individual" });
     expect(rejected.status).toBe(409);
+  });
+
+  it("reports non-duplicate Auth failures without scanning users", async () => {
+    const partner = await createTestPartner();
+    createUserMock.mockImplementationOnce(
+      async () => ({ data: { user: null }, error: { code: "over_request_rate_limit", message: "Rate limit exceeded" } }) as never
+    );
+
+    const response = await post({
+      email: "rate-limited@example.com",
+      externalUserId: "rate-limited-1",
+      partnerId: partner.id,
+      subjectType: "individual"
+    });
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "MANAGED_PROFILE_UPSTREAM_ERROR",
+        message: "Could not create the Auth identity",
+        status: 502
+      }
+    });
+    expect(listUsersMock).not.toHaveBeenCalled();
+    expect(await PartnerManagedProfile.count()).toBe(0);
   });
 
   it("creates no entity for technical profiles and marks claims after OTP verification by profile UUID", async () => {

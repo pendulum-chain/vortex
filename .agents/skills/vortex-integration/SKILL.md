@@ -497,6 +497,7 @@ const vortex = new VortexSdk({
   apiBaseUrl: process.env.VORTEX_API_URL, // sandbox or prod
   publicKey:  process.env.VORTEX_PUBLIC_KEY,  // pk_*
   secretKey:  process.env.VORTEX_SECRET_KEY,  // sk_*  — server side only
+  networkInitializationTimeoutMs: 15_000,     // lazy per-network signing RPC timeout
   storeEphemeralKeys: true                    // writes ephemerals_<rampId>.json locally
 });
 ```
@@ -518,7 +519,7 @@ const info = await vortex.getRampInfo();
 // { corridors: { BR: { kycStatus, canBuy, canSell }, ... } }
 ```
 
-`GET /v1/ramp-info` accepts public, secret, or session capability, derives the profile from that credential/session, and returns no exact limits, PII, provider IDs, failure reasons, account details, or ramp history.
+`GET /v1/ramp-info` accepts public or secret API credential capability, derives the profile from that credential, and returns no exact limits, PII, provider IDs, failure reasons, account details, or ramp history. Supabase sessions do not authorize this endpoint.
 
 ## Common failures
 - `401 Unauthorized` — `X-API-Key` missing, malformed, or wrong environment.

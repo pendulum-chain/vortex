@@ -200,8 +200,7 @@ export async function createTestAlfredpayCustomer(
   });
 }
 
-/** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
-/** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
+/** An approved Avenia provider account linked to a user for BRL ramp registration. */
 export async function createTestTaxId(
   userId: string,
   overrides: Partial<{ companyName: string; customerType: "individual" | "business"; taxId: string; subAccountId: string }> = {}

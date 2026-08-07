@@ -13,7 +13,11 @@ import {
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
-import { getAlfredpayMonthlyUsage, getCurrentUtcMonthPeriod, resolveAlfredpayQuoteLimits } from "./alfredpay/alfredpay.helpers";
+import {
+  getCurrentUtcMonthPeriod,
+  getReportedAlfredpayMonthlyUsage,
+  resolveAlfredpayQuoteLimits
+} from "./alfredpay/alfredpay.helpers";
 import { resolveAveniaAccountForUser } from "./avenia-account";
 
 const CORRIDOR_FIAT: Record<Exclude<LimitsCorridor, "BR">, FiatToken> = {
@@ -49,7 +53,7 @@ async function getAlfredpayLimits(userId: string, corridor: Exclude<LimitsCorrid
       throw new APIError({ message: `Limits unavailable for ${corridor}`, status: httpStatus.BAD_REQUEST });
     }
 
-    const used = await getAlfredpayMonthlyUsage(userId, direction, fiat, resolved.stablecoin);
+    const used = await getReportedAlfredpayMonthlyUsage(userId, direction, fiat, resolved.stablecoin);
     limits.push({
       corridor,
       currency: direction === RampDirection.BUY ? fiat : ALFREDPAY_EVM_TOKEN,

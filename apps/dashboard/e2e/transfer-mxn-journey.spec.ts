@@ -4,6 +4,7 @@ import { injectMockWallet, MOCK_WALLET_ADDRESS, MOCK_WALLET_TX_HASH } from "./su
 import { seedSession } from "./support/session";
 
 const EXPECTED_PAYIN_USDC = "54.054054";
+const DISPLAY_PAYIN_USDC = "54.054";
 
 // The dashboard's money path: a SELL (offramp) transfer of USDC on Polygon to an MXN payout
 // account, against the mocked backend and the injected mock wallet.
@@ -19,6 +20,23 @@ const EXPECTED_PAYIN_USDC = "54.054054";
 //   "broadcast" by the wallet stub, and its receipt is answered by the mocked Polygon RPC.
 // - Only the direct Polygon no-permit path is exercised; the permit/TokenRelayer variant needs
 //   relayer-contract execution that the mock does not model.
+test("SELL preserves full token precision in prefilled and entered amounts", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await injectMockWallet(page, { chainIdHex: "0x89" });
+  await seedSession(page);
+
+  await page.goto(`/transfer?amount=${EXPECTED_PAYIN_USDC}`);
+
+  const amountInput = page.locator("#token-amount");
+  await expect(amountInput).toHaveValue(EXPECTED_PAYIN_USDC, { timeout: 20_000 });
+  await expect.poll(() => backend.quoteRequests.at(-1)?.inputAmount).toBe(EXPECTED_PAYIN_USDC);
+
+  const enteredAmount = "12.123456";
+  await amountInput.fill(enteredAmount);
+  await expect(amountInput).toHaveValue(enteredAmount);
+  await expect.poll(() => backend.quoteRequests.at(-1)?.inputAmount).toBe(enteredAmount);
+});
+
 test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast, start, tracking", async ({ page }) => {
   const backend = await mockBackend(page);
   // The whole journey lives on Polygon, so the wallet connects on chain 137 and
@@ -39,10 +57,10 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   // submit button carries the payin amount.
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
-  await expect(sendButton).toContainText(EXPECTED_PAYIN_USDC);
+  await expect(sendButton).toContainText(DISPLAY_PAYIN_USDC);
   await expect(page.getByText("1 USDC = 18.69 MXN", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fee details" }).click();
-  await expect(page.getByText("1 USDC = 18.50 MXN", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 USDC = 18.5 MXN", { exact: true })).toBeVisible();
 
   // Stage 3: submitting runs register -> presign -> user signing -> start. The form toasts and
   // navigates once the machine reaches Tracking.

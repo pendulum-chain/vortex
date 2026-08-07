@@ -29,6 +29,33 @@ function responseDouble() {
 }
 
 describe("validatePublicKey", () => {
+  it("rejects a partner-managed public key when the partner is inactive", async () => {
+    const publicKey = generateApiKey("public", "test");
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: "partner-1",
+      profileId: "profile-1",
+      publicKeyValue: publicKey,
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    Partner.findOne = mock(async () => null) as typeof Partner.findOne;
+    const response = responseDouble();
+    const next = mock(() => undefined);
+
+    await validatePublicKey()(
+      { body: {}, headers: { "x-public-key": publicKey }, query: {} } as never,
+      response as never,
+      next
+    );
+
+    expect(Partner.findOne).toHaveBeenCalledWith({ where: { id: "partner-1", isActive: true } });
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect((response.body as { error: { code: string } }).error.code).toBe("INVALID_PUBLIC_KEY");
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it("rejects a body/header public key mismatch before continuing", async () => {
     const next = mock(() => undefined);
     const response = responseDouble();

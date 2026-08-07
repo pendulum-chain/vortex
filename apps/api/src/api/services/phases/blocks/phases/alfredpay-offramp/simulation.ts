@@ -5,6 +5,7 @@ import {
   ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
   AlfredpayChain,
+  type AlfredpayFeeType,
   type AlfredpayFiatCurrency,
   AlfredpayPaymentMethodType,
   type EvmNetworks,
@@ -17,7 +18,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { priceFeedService } from "../../../../priceFeed.service";
+import { type FiatExchangeRateSource, priceFeedService } from "../../../../priceFeed.service";
 import { resolveAlfredpayQuoteCustomerId } from "../../../../quote/alfredpay-customer";
 import {
   calculateExpectedOutput,
@@ -48,6 +49,32 @@ export interface AlfredpayOfframpMetadata {
   network: typeof Networks.Polygon;
   outputAmountDecimal: SerializableBig;
   outputAmountRaw: string;
+  pricing: {
+    customer: {
+      allInRate: SerializableBig;
+      inputAmountUsd: SerializableBig;
+      referenceDifferenceBps: SerializableBig;
+    };
+    provider: {
+      baseCurrency: typeof ALFREDPAY_ONCHAIN_CURRENCY;
+      feeAmount: SerializableBig;
+      fees: Array<{ amount: string; currency: string; type: AlfredpayFeeType }>;
+      grossRate: SerializableBig;
+      grossReferenceDifferenceBps: SerializableBig;
+      netRate: SerializableBig;
+      netReferenceDifferenceBps: SerializableBig;
+      quoteCurrency: FiatToken;
+      quotedAt: Date;
+      source: "alfredpay";
+    };
+    reference: {
+      baseCurrency: "USD";
+      observedAt: Date;
+      quoteCurrency: FiatToken;
+      rate: SerializableBig;
+      source: FiatExchangeRateSource;
+    };
+  };
   quoteId: string;
   subsidyAmountDecimal: SerializableBig;
   subsidyAmountRaw: string;
@@ -55,7 +82,7 @@ export interface AlfredpayOfframpMetadata {
   toToken: `0x${string}`;
 }
 
-export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp");
+export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp", 2);
 
 function directAlfredpaySettlementQuote(amountDecimal: string) {
   const outputAmountDecimal = new Big(amountDecimal);
@@ -112,6 +139,10 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       )
     );
     const fiatToUsd = new Big(1).div(oneUnitInFiat);
+    const referenceRateSnapshot = await priceFeedService.getUsdToFiatExchangeRateSnapshot(
+      ctx.request.outputCurrency as RampCurrency
+    );
+    const referenceRate = new Big(referenceRateSnapshot.rate);
     const partner = await resolveDiscountPartner(ctx as never, RampDirection.SELL);
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
@@ -131,12 +162,15 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       true,
       partner
     );
-    const subsidyFiat = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualFiat, maxSubsidy) : new Big(0);
-    const providerInput = actualFiat
-      .plus(subsidyFiat)
-      .div(oneUnitInFiat)
-      .minus(deductibleUsd)
-      .round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
+    // The advertised target rate is the user's final, net-of-platform-fees rate: the
+    // subsidy is sized against the FEE-NET actual output (mirroring the onramp's
+    // AlfredpaySubsidizePre), so it may economically offset the charged fee — bounded
+    // by maxSubsidy — while the fee itself remains reserved and collected by
+    // distributeFees. Sequelize returns DECIMAL pricing fields as strings at runtime.
+    const actualNetFiat = actualFiat.minus(deductibleUsd.mul(oneUnitInFiat));
+    const subsidyFiat =
+      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutput, actualNetFiat, maxSubsidy) : new Big(0);
+    const providerInput = actualNetFiat.plus(subsidyFiat).div(oneUnitInFiat).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
     const customerId = await resolveAlfredpayQuoteCustomerId(ctx.request.outputCurrency, ctx.request.userId);
     const providerQuote = await AlfredpayApiService.getInstance().createOfframpQuote({
       chain: AlfredpayChain.MATIC,
@@ -147,6 +181,9 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       toCurrency: ctx.request.outputCurrency as unknown as AlfredpayFiatCurrency
     });
     const outputAmount = new Big(providerQuote.toAmount);
+    const providerGrossRate = new Big(providerQuote.rate);
+    const providerNetRate = outputAmount.div(providerInput);
+    const customerAllInRate = outputAmount.div(inputAmountUsd);
     const providerFee = AlfredpayApiService.sumFeesByCurrency(
       providerQuote.fees,
       ctx.request.outputCurrency as unknown as AlfredpayFiatCurrency
@@ -179,6 +216,32 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
         network: Networks.Polygon,
         outputAmountDecimal: outputAmount,
         outputAmountRaw: multiplyByPowerOfTen(outputAmount, 2).toFixed(0, 0),
+        pricing: {
+          customer: {
+            allInRate: customerAllInRate,
+            inputAmountUsd,
+            referenceDifferenceBps: customerAllInRate.div(referenceRate).minus(1).mul(10_000)
+          },
+          provider: {
+            baseCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+            feeAmount: providerFee,
+            fees: providerQuote.fees.map(({ amount, currency, type }) => ({ amount, currency, type })),
+            grossRate: providerGrossRate,
+            grossReferenceDifferenceBps: providerGrossRate.div(referenceRate).minus(1).mul(10_000),
+            netRate: providerNetRate,
+            netReferenceDifferenceBps: providerNetRate.div(referenceRate).minus(1).mul(10_000),
+            quoteCurrency: ctx.request.outputCurrency as FiatToken,
+            quotedAt: ctx.now,
+            source: "alfredpay"
+          },
+          reference: {
+            baseCurrency: "USD",
+            observedAt: referenceRateSnapshot.observedAt,
+            quoteCurrency: ctx.request.outputCurrency as FiatToken,
+            rate: referenceRate,
+            source: referenceRateSnapshot.source
+          }
+        },
         quoteId: providerQuote.quoteId,
         subsidyAmountDecimal: subsidyFiat.div(oneUnitInFiat),
         subsidyAmountRaw: multiplyByPowerOfTen(subsidyFiat.div(oneUnitInFiat), ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),

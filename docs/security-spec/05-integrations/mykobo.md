@@ -38,7 +38,7 @@ Mykobo replaces two earlier EUR rails:
    - **Recovery shortcut**: if the ephemeral already holds ≥ 95% of `quote.metadata.blocks.mykoboMint.mint.outputAmountRaw` EURC (`EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95`), the block executor skips the wait. The 5% tolerance absorbs fee variance between quote creation and SEPA settlement.
    - On outer-timeout expiry, the ramp transitions to `failed` (the user did not pay).
 5. `fundEphemeral` (Base ETH gas top-up; same as BRL onramp) → `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
-6. `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed). The EVM post-swap branch uses the split subsidy caps documented in `fund-routing.md`: swap-output discrepancy and discount subsidy are bounded separately before any transfer is submitted.
+6. `distributeFees` (sequential USDC transfers on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed). The EVM post-swap branch uses the split subsidy caps documented in `fund-routing.md`: swap-output discrepancy and discount subsidy are bounded separately before any transfer is submitted.
 7. If destination is Base + USDC → direct `destinationTransfer` after Nabla (Squid omitted). For Base USDT, ETH, AXLUSDC, or BRLA → one same-chain `squidRouterApprove` / `squidRouterSwap` followed immediately by `destinationTransfer`, with no pay, backup, or final-settlement work. Non-Base EVM outputs use the cross-chain Squid path with pay/fallback/final settlement.
 
 #### Degenerate EUR→EURC-on-Base route (direct bypass)

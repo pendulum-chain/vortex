@@ -19,7 +19,7 @@ BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, acces
 2. User makes PIX payment to the Avenia-managed account.
 3. `brlaOnrampMint`: Avenia mints BRLA on Base directly to the user's Base ephemeral. The handler first polls the Avenia subaccount balance every 5s (`waitUntilTrueWithTimeout`, 5-minute chunks — `AVENIA_BALANCE_CHECK_TIMEOUT_MS`), then the `evmEphemeralAddress` balance every 1s (`checkEvmBalancePeriodically`, 5-minute chunks — `EVM_BALANCE_CHECK_TIMEOUT_MS`). Each chunk timeout is a recoverable error; the overall payment window of **30 minutes** (`PAYMENT_TIMEOUT_MS`, wall clock since phase entry via `phaseHistory`) is re-checked on every chunk timeout and cancels the ramp (`failed`) when exceeded. Both waits accept the processor's `AbortSignal` so abandoned executions stop polling. (Before 2026-07-08 the Avenia wait ran 30 minutes per execution, which always outlived the processor's 10-minute execution timeout — so the payment-window cancellation never ran for recovered ramps and never-paid onramps churned indefinitely.)
 4. `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps BRLA → USDC.
-5. `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed).
+5. `distributeFees` (sequential USDC transfers on Base, see `fee-integrity.md`) → `subsidizePostSwap` (if needed).
 6. If destination is Base + USDC → direct `destinationTransfer` (Squid omitted). For Base USDT, ETH, AXLUSDC, or EURC → same-chain `squidRouterApprove` / `squidRouterSwap` followed immediately by `destinationTransfer`, with no pay, backup bridge, or final-settlement work. Non-Base EVM outputs use the cross-chain Squid path with pay/fallback/final settlement. BRL→AssetHub is temporarily disabled at quote eligibility and should not reach registration.
 
 For non-Base EVM destinations, the final quote output is the Squid destination-token amount. `quote.outputAmount` MUST be stored with the destination token's decimals (for example, 18 decimals for BSC USDT), and `phases/blocks/phases/destination-transfer/transactions.ts` derives the final raw amount at those decimals. Truncating all BRL on-ramp outputs to 6 decimals would create under-delivery and make phase metadata disagree with Squid's destination raw amount.
@@ -44,9 +44,39 @@ The catalog resolves every supported EVM source through `BrlOfframpBase`. Its so
 
 ### Subaccount model
 
-Avenia requires a subaccount per user, identified by tax ID (CPF for individuals, CNPJ for businesses). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
+Avenia requires a subaccount per user, identified by tax ID (CPF for individuals, CNPJ for businesses). The system creates and manages subaccounts through canonical `provider_customers` rows (`provider = 'avenia'`) owned by the user's `customer_entities` row. `provider_subaccount_id` stores the Avenia subaccount identifier, while normalized tax-ID lookup uses `tax_reference_hash`.
 
-`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in quote-less onboarding paths such as the **KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) and authenticated dashboard sender onboarding, it is omitted. The controller stores it as the quote-provenance fields were dropped in the provider_customers cutover (they were write-only). It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and authenticated user context gate subaccount creation independently of whether a quote is present.
+`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in quote-less onboarding paths such as the **KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) and authenticated dashboard sender onboarding, it is omitted. Quote provenance is not persisted because those write-only fields were dropped in the `provider_customers` cutover. The value is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and authenticated user context gate subaccount creation independently of whether a quote is present.
+
+### Inbound verification webhook (`POST /v1/webhooks/avenia`)
+
+Avenia pushes KYC (individual) and — expected but unconfirmed — KYB (company) attempt
+updates to this endpoint. It is the primary trigger for verification result emails; the
+hourly `KybStatusWorker` poll is a reconciliation fallback behind it.
+
+This is the only Vortex endpoint authenticated purely by an **inbound RSA signature**
+rather than an API key or session. Avenia signs the raw request body with RSA-PSS /
+SHA-256; the receiver verifies it against Avenia's published key from `GET /v2/public-key`,
+cached for one hour and refetched on a verification miss because Avenia rotates it
+without notice. Because anyone can force a miss on a public route, those refetches are
+coalesced into one in-flight request, rate-limited to one per 30 seconds, and aborted after
+10 seconds if Avenia does not respond.
+
+The route is mounted **ahead of the global JSON body parser** (`config/express.ts`) with
+`bodyParser.raw`, because the signature covers the exact bytes sent — a parsed and
+re-serialised payload does not reproduce them.
+
+The receiver normalizes both documented envelopes: top-level `subAccountId` and the
+event-specific `{ event: { accountId, ... } }` shape. Verification kind is resolved from the
+local `provider_customers.customer_type` for that normalized id, never from the payload, so a caller cannot influence which flow an
+event is treated as. The recipient is likewise local: the owning `customer_entities.profile_id`,
+and an unknown or partner-owned subaccount is acknowledged without notifying anyone. Only
+`attempt.id`, `status`, `result`, `resultMessage` and `updatedAt` are consumed; nothing in the
+payload updates ramp, quote, or KYC-status state.
+
+Those five fields are runtime-validated before any of them is read (invariant 30). A signed
+body is still an untrusted shape: the payload is persisted and later rendered into a user's
+inbox, so a missing `status` or `updatedAt` is rejected `400` rather than queued.
 
 ### The three-amount model (off-ramp)
 
@@ -78,8 +108,8 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 14. **The BRL→BRLA-on-Base on-ramp MUST take the direct-transfer bypass** — When `inputCurrency === BRL`, `outputCurrency === BRLA`, and `network === Base`, `isBrlToBrlaBaseDirect` MUST short-circuit the route to a single `destinationTransfer` from the ephemeral to the user, with `stateMeta.isDirectTransfer = true`. The Nabla swap, `distributeFees`, SquidRouter, `finalSettlementSubsidy`, and Base cleanup phases MUST NOT run — routing BRLA through USDC and back would burn double-swap slippage/fees against the user and expose the over-subsidy race (`06-cross-chain/fund-routing.md`). The `squidRouterSwap` and `finalSettlementSubsidy` handlers MUST also honor `isDirectTransfer`/`isBrlToBrlaBaseDirect` defensively and skip to `destinationTransfer` if reached.
 15. **BRL→EVM quote output precision MUST match the destination token** — For supported EVM destinations, `quote.outputAmount` MUST preserve the destination token's decimal precision, and `evmToEvm.outputAmountRaw` MUST represent the destination token's raw units. The Squid bridge input remains Base USDC raw (`evmToEvm.inputAmountRaw`), but final delivery uses destination-token decimals.
 16. **BRL register paths MUST derive tax ID / subaccount from the effective user** — The catalog flow's `AveniaMint.register` and `AveniaOfframpPayout.register` hooks resolve the Avenia account via `resolveAveniaAccountForRamp(userId, additionalData.taxId)` and call the block-owned `createAveniaOnrampTicket` / `validateAveniaOfframpRecipient` logic in `phases/blocks/core/avenia-registration.ts`. That module owns pending-BRL aggregation, BRL/global limit enforcement, PIX-owner masked-tax-ID matching, trusted subaccount wallet resolution, and onramp ticket creation. A client-supplied `additionalData.taxId` is accepted only when it matches the derived value (enforced identically on the onramp and offramp paths); mismatches return `400`. `additionalData.receiverTaxId` may legitimately differ from the sender and is validated downstream against the PIX key owner. `RampService` only dispatches through the flow recorded in quote metadata and projects phase-owned facts/artifacts into legacy ramp state; it does not own Avenia registration operations.
-17. **`/v1/brla/getUser` and `/v1/brla/getUserRemainingLimit` MUST scope reads to the effective user** — When a `taxId` query is provided, the `TaxId` row MUST be owned by `getEffectiveUserId(req)`. When `taxId` is omitted, the endpoint derives the user's Avenia account via the resolver and returns `400` for zero or multiple KYC-completed matches. The legacy partner-key exemption that allowed reading any taxId has been removed; bare partner keys (no `api_keys.user_id` binding) and fully anonymous callers are rejected with `400`.
-18. **`/v1/brla/createSubaccount` MUST require an authenticated principal** — The route now uses `requirePartnerOrUserAuth()` and the controller requires an effective user. Bare partner keys and anonymous callers receive `400`; the Avenia API is not called and no `TaxId` row is created. This closes the anonymous subaccount creation DoS surface.
+17. **`/v1/brla/getUser` and `/v1/brla/getUserRemainingLimit` MUST scope reads to the effective user** — When a `taxId` query is provided, the matching Avenia `provider_customers` row MUST belong to a `customer_entities` row owned by `getEffectiveUserId(req)`. When `taxId` is omitted, the endpoint derives the user's Avenia account via the resolver and returns `400` for zero or multiple KYC-completed matches. The legacy partner-key exemption that allowed reading any taxId has been removed; bare partner keys without a profile binding and fully anonymous callers are rejected with `400`.
+18. **`/v1/brla/createSubaccount` MUST require an authenticated principal and use only canonical identity** — The route uses `requirePartnerOrUserAuth()` and the controller requires an effective user. Bare partner keys and anonymous callers receive `400`; the Avenia API is not called and no `provider_customers` row is created. Existing-tax-ID conflict and reuse decisions inspect only canonical Avenia `provider_customers` ownership. The controller does not query or adopt rows from `tax_ids`.
 19. **BRL quote creation MUST remain anonymous-eligible while register/start remain user-gated** — `POST /v1/quotes` and `POST /v1/quotes/best` accept BRL corridors from anonymous callers and partner-key callers (with or without a `userId` binding). The Avenia `createPayInQuote` calls used by the BRL engines do not require a user-bound principal. The actual Avenia subaccount/taxId resolution still happens server-side at register time via `resolveAveniaAccountForRamp(effectiveUserId, additionalData.taxId)`. `POST /v1/ramp/register` requires Supabase or secret-key credentials, and `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`. **An anonymous BRL quote may be claimed by an authenticated caller** (the normal web-app funnel: quote before login, register after) — claiming is not an escalation because the anonymous quote carries no owner and the Avenia identity is derived from the claimer's own KYC records, never from the quote or request body.
 20. **`brlaPayoutOnBase` MUST verify the ephemeral's BRLA balance before the first broadcast of the presigned transfer** — The presigned payout is single-use (its nonce is consumed even on revert), so the handler calls `ensurePresignedTransferFunded` before `sendRawTransaction`: sender/token/amount are decoded from the signed raw tx and the ephemeral balance is polled (3-minute timeout); a shortfall raises a recoverable error instead of burning the nonce. The Avenia-side balance poll (invariant 4) runs after this on-chain transfer and does not replace it. See `03-ramp-engine/ramp-phase-flows.md` invariant 12.
 21. **Avenia company KYB completion MUST be provider-confirmed and ownership-bound** — `POST /v1/brla/kyb/new-level-1/web-sdk` stores the returned Avenia `attemptId` as the owned business `kyc_cases.provider_case_id`. `GET /v1/brla/kyb/attempt-status` accepts only a case owned by the effective user, queries that exact attempt, persists normalized status on both the case and provider customer, and returns only `status`, optional `result`, and optional normalized `failureReason`. Client-side events cannot assert completion: only provider `COMPLETED` plus `APPROVED` may complete onboarding; `REJECTED`, `EXPIRED`, `PENDING`, and `PROCESSING` must not pass the parent verification gate.
@@ -87,6 +117,12 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 23. **BRL Base destination variants MUST use token-specific static topology** — Base USDC MUST omit Squid entirely. Other configured non-BRLA Base outputs MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; transaction preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` at the nonce immediately after the Squid swap. BRLA remains the direct bypass in invariant 14.
 24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 25. **Unified BRL limit reads MUST use the authenticated user's provider account** — `POST /v1/limits` MUST derive the Avenia subaccount through `resolveAveniaAccountForUser`; it MUST NOT accept a caller-supplied tax ID or subaccount. BRL `max`, `used`, year, and month are mapped directly from Avenia's BRL fiat-in/fiat-out limit row. Tax IDs and provider subaccount IDs are never returned.
+
+26. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
+27. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
+28. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
+29. **Public-key refetches on a signature miss MUST be bounded** — The route is unauthenticated, so any caller can force a miss. Refetches are coalesced into one in-flight request, rate-limited to one per 30-second cooldown, and aborted after 10 seconds; a miss inside the cooldown is rejected without an outbound call. Key rotation is still picked up (within the cooldown), but forged bodies cannot be amplified into load on Avenia or leave a verifier waiting indefinitely.
+30. **The webhook body MUST be runtime-validated before any property is read** — A valid signature proves only that Avenia sent the bytes. `JSON.parse` alone admits `null`, arrays, scalars, and attempts missing the fields an email is rendered from, so the receiver accepts Avenia's two documented envelopes (top-level `subAccountId` or nested `event.accountId`), normalizes them, and validates the account id plus `subscription` and, when one is present, the attempt (`id`, `status`, `updatedAt` as non-empty strings; `result` and `resultMessage` as strings when present) before the first property access or database lookup. Anything failing that returns a deterministic `400` and enqueues nothing. An unrecognised *value* of `status` or `result` is not a validation failure: it is a well-formed event with no email mapped to it, and is acknowledged `200` so Avenia does not retry it indefinitely.
 
 ## Threat Vectors & Mitigations
 
@@ -99,12 +135,16 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **Avenia API compromise** | Attacker intercepts or manipulates Avenia API calls | HTTPS enforced; balance verified on-chain against deposit; PIX amount derived from immutable quote. |
 | **Amount manipulation between quote and payout** | Attacker modifies the payout amount between quote and execution | `quote.outputAmount` read from DB at execution time; quote is immutable post-creation. |
 | **Avenia service outage or partial ticket failure** | Avenia API is unreachable mid-ramp, or a ticket reaches `PARTIAL-FAILED` after one leg completed and a later leg failed | `RecoverablePhaseError` → phase processor retries transient outages. `PARTIAL-FAILED` must be treated as ticket-specific failure with prior completed legs preserved; callers may retry only after reconciling source/destination balances. |
-| **Subaccount data leak** | Avenia subaccount details exposed via API | Only `subAccountId`, EVM wallet address, and balances are stored locally; no PII beyond CPF (which is itself a regulatory requirement). |
+| **Subaccount data leak** | Avenia subaccount details exposed via API | Canonical `provider_customers` stores the provider subaccount ID and normalized tax reference; account reads are scoped through the owning customer entity. |
 | **Underdelivery from Nabla** | Nabla swap returns less BRLA than quoted, balance poll times out, ramp stuck | Balance-poll timeout (5min) fails the phase as recoverable; `subsidizePostSwap` (EVM branch) tops up eligible shortfalls subject to the env-configured split quote-relative EVM subsidy caps documented in `fund-routing.md`. The actual-vs-quoted swap discrepancy is capped at the greater of $1.00 and `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` × quote output; the discount component uses `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` (no floor). Both fractions default to `0.05`. |
 | **Disabled AssetHub corridor accidentally re-enabled** | A developer mistakes either cataloged recovery flow for an eligible production corridor | Quote eligibility rejects both BRL→AssetHub and AssetHub→BRL before simulation. Flow and transaction tests may resolve the flows directly, but any successful public quote remains a regression until intentional re-enablement. |
 | **BRL→BRLA-Base self-swap drain** | The generic pipeline swaps the user's already-minted BRLA to USDC and back, charging two swaps of slippage/fees and triggering `finalSettlementSubsidy` against bridge-less dust (over-subsidy + strand) | `isBrlToBrlaBaseDirect` collapses the corridor to a single `destinationTransfer` with `isDirectTransfer = true`; Nabla/distributeFees/Squid/finalSettlementSubsidy/cleanup are skipped at both route-build and handler level. |
 | **Anonymous BRL register on someone else's subaccount** | An anonymous SDK caller (no Supabase session, no linked secret key) uses an anonymous BRL quote to register a ramp on top of another user's Avenia subaccount via the quoteId guess | `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`; an attacker cannot bind a BRL ramp to a subaccount they do not own. |
-| **Claiming an anonymous BRL estimate at register time** | Attacker mints an anonymous BRL quote, then presents a Supabase token (or a different user's linked secret API key) at register time to bind the resulting ramp to a different user's `TaxId` | `RampService.registerRamp` rejects with `403` when `quote.userId == null && request.userId != null` (inv. 19). The register principal must re-quote with their identity so `quote.userId` is bound at quote time. |
+| **Claiming an anonymous BRL estimate at register time** | Attacker mints an anonymous BRL quote, then presents a Supabase token (or a different user's linked secret API key) at register time to bind the resulting ramp to a different user's Avenia provider customer | An authenticated caller may claim an ownerless quote; `RampService.registerRamp` rejects only when both `quote.userId` and `request.userId` are non-null and differ. Provider identity is derived from the authenticated caller's canonical Avenia account, so the quote cannot select another user's provider customer. |
+| **Forged verification webhook** | Attacker posts a fabricated `verification_approved` event for another user's subaccount | Body must carry a valid RSA-PSS signature from Avenia's published key; unsigned or mis-signed bodies are rejected 401 before any DB lookup. Even a valid event only enqueues an email — it grants no entitlement. |
+| **Webhook replay** | Attacker re-sends a captured, correctly-signed event repeatedly | Avenia provides no timestamp or nonce to check. Enqueue is idempotent on the attempt id, so replays collapse to a no-op; no email amplification is possible. |
+| **Key-rotation denial of service** | Avenia rotates the signing key; genuine events start failing verification | Key is fetched, never pinned; a failed verify against the cached key triggers exactly one refetch before rejection, so rotation self-heals within one request. |
+| **Unknown-subaccount probing** | Attacker uses signed events to enumerate which subaccounts Vortex knows | Requires a valid Avenia signature, so it is not reachable by an external attacker; responses are an identical `200 {received:true}` for known, unknown, and partner-owned subaccounts. |
 | **Destination-token decimal under-delivery** | A BRL on-ramp targets an 18-decimal token such as BSC USDT, but the quote output is truncated to 6 decimals before `destinationTransfer` raw amount construction. | On-ramp finalization uses destination-token decimals for BRL EVM outputs; Squid metadata preserves destination raw output from `route.estimate.toAmount`. |
 | **Company KYB status bypass or cross-user attempt lookup** | A browser asserts that hosted verification finished, or probes another user's Avenia attempt ID and receives provider submission metadata. | Initiation binds the attempt to the authenticated user's KYB case; status lookup checks that binding before the provider call, minimizes its response, and the client/parent accept only provider-confirmed `COMPLETED` + `APPROVED`. |
 
@@ -159,22 +199,28 @@ Key properties:
   `in_review` (invariant 22).
 - Business rows may store a nullable `company_name`. It is set from the name accepted during
   subaccount creation and missing legacy values are lazily refreshed from Avenia account info.
-- The legacy `tax_ids` table is a read-only backup. Its only remaining read is the
-  createSubaccount legacy-adoption probe: quarantined (ownerless) legacy rows can be claimed
-  by an authenticated caller exactly as before; owned legacy rows still 409.
+- Migration 060 permanently deletes `tax_ids`, including ownerless/quarantined rows and any
+  provider subaccount references that were not migrated. This loss is intentionally approved and
+  irreversible; no adoption path or archive remains, and recovery requires restoring the
+  pre-migration database backup. All live onboarding and ownership checks use `provider_customers`.
 - Ownership gaps closed in the cutover: `fetchSubaccountKycStatus` (which also WRITES status
   transitions) and `getSelfieLivenessUrl` require the effective user to own the account.
   KYB initiation stores Avenia's opaque attempt ID in the owned `kyc_cases.provider_case_id`;
   `getKybAttemptStatus` resolves that binding and verifies ownership before querying Avenia.
   The browser receives only normalized status/result fields, never provider submission data.
 - Ownership is profile-level: a row must belong to one of the effective user's customer
-  entities, never to a specific typed entity. Migration 040 attached legacy business rows to
-  the profile's individual entity, so comparing against the typed business entity 403'd/409'd
-  the legitimate owner (`getUploadUrls`, `getKybAttemptStatus`, the `createSubaccount`
-  conflict check) and findOrCreate'd stray empty business entities as a read side effect.
-  `createSubaccount` defers typed-entity creation to the branches that persist a new row,
-  so a retry that updates an existing row creates no entity. Cross-profile requests still
-  fail closed.
+  entities, never to a specific typed or active entity. Migration 040 attached legacy business
+  rows to the profile's individual entity, so comparing against a single resolved entity
+  403'd/409'd the legitimate owner and findOrCreate'd stray empty entities as a read side
+  effect. Every Avenia ownership check (`getAveniaUser`, `getAveniaUserRemainingLimit`,
+  `fetchSubaccountKycStatus`, `getSelfieLivenessUrl`, `getUploadUrls`, `newKyc`,
+  `initiateKybLevel1`, `getKybAttemptStatus`, the `createSubaccount` conflict check) scopes
+  across all owned entities via `findCustomerEntityIdsForProfile`. Ramp-time resolution
+  (`resolveAveniaAccountForUser`) searches all owned entities too; when a multi-entity profile
+  owns several approved accounts, the active entity's account wins and anything else is
+  rejected as ambiguous. `createSubaccount` defers typed-entity creation to the branches
+  that persist a new row, so a retry that updates an existing row creates no entity.
+  Cross-profile requests still fail closed.
 - KYC/KYB state transitions update canonical status and provider status on both
   `provider_customers` and the account's `kyc_cases` row in the same code path.
   `updateAveniaKycOutcome` treats `approved` as terminal (a stale attempt read never

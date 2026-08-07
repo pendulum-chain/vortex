@@ -4,6 +4,10 @@ import Big from "big.js";
 import * as partnerPricingService from "../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../priceFeed.service";
 
+// Snapshot before mocking: mock.module mutates the imported namespace in place, so
+// spreading `partnerPricingService` at restore time would copy the stub back.
+const partnerPricingReal = { ...partnerPricingService };
+
 const findPartnerWithPricing = mock(async () => null);
 mock.module("../../../partners/partner-pricing.service", () => ({
   ...partnerPricingService,
@@ -13,7 +17,7 @@ mock.module("../../../partners/partner-pricing.service", () => ({
 const { simulateOfframpSubsidizePost } = await import("../phases/subsidize-post/simulation");
 
 afterAll(() => {
-  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingService }));
+  mock.module("../../../partners/partner-pricing.service", () => partnerPricingReal);
 });
 
 describe("block offramp subsidy USD valuation", () => {

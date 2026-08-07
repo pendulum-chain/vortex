@@ -130,13 +130,16 @@ two people.
   required and never signs a BUY transaction (implemented).
 
 ### Transactions
-- As a sender, I see my onramp and offramp history — destination, corridor, amounts in and out, status
-  (`awaiting_payin · processing · completed · failed`), and the reason a payout failed.
+- As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,
+  status (`processing · completed · failed · cancelled`), and the reason a payout failed. Ramps that
+  remain in the `initial` phase are omitted from history.
 
 ### Notifications & settings
-- As a user, I get in-app and email alerts when a corridor's KYC/KYB resolves, when an invited
-  recipient completes onboarding, and when a payout settles or fails.
-- As a user, I toggle each of those three notification categories.
+- As a user, I get in-app and email alerts when a corridor's KYC/KYB resolves and when a ramp
+  settles.
+- As a user, I toggle each of those two email notification categories on Settings. (A third
+  category — recipient-approval alerts — was dropped for now: no such notification type exists
+  in the backend yet.)
 
 ## High-level implementation strategy
 
@@ -188,8 +191,8 @@ provider-shaped rather than UI-shaped.
   them) and retains earlier ramp entries independently of disposable transfer-machine state.
   From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
   `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
-  transactions page labels the matching initial BUY ramp as **Awaiting payment** and offers
-  **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
+  transactions page omits the matching initial BUY ramp from history and offers **Resume payment**
+  in a prominent standalone card. Resume affordances are scoped
   to the account that created the ramp; switching accounts does not expose its payment details.
   The customer can return to the same instructions while the payment window remains open. Once
   the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
@@ -262,15 +265,19 @@ provider-shaped rather than UI-shaped.
   #2 stops at "onboarded", not "payable". The product and provider contract must define how
   payout instruments are created for both senders creating links and recipients redeeming them,
   while keeping raw bank PII provider-side.
-- The notification feed rendered in the dashboard shell and the three notification preference
-  toggles on Settings are still client-mocked even though `/v1/notifications` exists; wiring them
-  up is listed under next steps.
+- The notification feed rendered in the dashboard shell is still client-mocked even though
+  `/v1/notifications` exists; wiring it up is listed under next steps. The Settings email
+  preference toggles are wired to `/v1/notifications/preferences`: "Onboarding updates" maps to
+  the three `verification_*` types and "Transfer status" to `ramp_completed`, the stored type
+  strings the email dispatch worker consults at delivery time (shared `EmailNotificationType`
+  enum). The stored master switch is honored too: a globally muted profile shows both
+  categories off, and re-enabling one lifts the switch while pinning the other to muted.
 
 ## Next steps
 
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
-- Connect the dashboard notification feed and its three preference controls to the backend.
+- Connect the dashboard notification feed to the backend.
 - Consider persisting intended corridor selection independently of provider entities. A small
   backend table could support adding/removing tracked corridors and explicit status management;
   provider-created entities remain the authoritative persisted onboarding state meanwhile.

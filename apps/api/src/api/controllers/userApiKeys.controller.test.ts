@@ -79,7 +79,7 @@ describe("revokeUserApiKey", () => {
     const response = responseDouble();
 
     await revokeUserApiKey(
-      { params: { credentialId: "credential-partner" }, userId: "profile-1" } as unknown as Request<{ credentialId?: string }>,
+      { params: { credentialId: "credential-partner" }, userId: "profile-1" } as unknown as Request<{ credentialId: string }>,
       response as unknown as Response
     );
 
