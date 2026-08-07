@@ -191,6 +191,15 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson({ access_token: "e2e-access-token", refresh_token: "e2e-refresh-token", success: true });
       return;
     }
+    if (path === "/v1/wallets" && method === "GET") {
+      await fulfillJson({ mode: null, wallets: [] });
+      return;
+    }
+    if (path === "/v1/wallets/mode" && method === "PATCH") {
+      const body = request.postDataJSON() as { mode: string | null };
+      await fulfillJson({ mode: body.mode });
+      return;
+    }
 
     // Avenia/BRLA KYC gate: an existing, KYC-confirmed user (BrlaGetUserResponse shape),
     // so validateKyc reports kycNeeded=false and the ramp can proceed to the summary.

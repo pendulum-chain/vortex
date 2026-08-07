@@ -1,5 +1,4 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
-import { useAppKitAccount } from "@reown/appkit/react";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { FiatToken, isNetworkEVM, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
@@ -10,6 +9,7 @@ import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useMaintenanceAwareButton } from "../../hooks/useMaintenanceAware";
+import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { useFiatToken, useInputAmount } from "../../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
@@ -27,7 +27,7 @@ export const WalletConnectedSubmitButton: FC<WalletConnectedSubmitButtonProps> =
   needsWalletConnection = false
 }) => {
   const { walletAccount } = usePolkadotWalletState();
-  const { isConnected } = useAppKitAccount();
+  const { isConnected } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
 
   if (needsWalletConnection) {

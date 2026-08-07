@@ -39,7 +39,8 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - During an active window, mutable quote/ramp operations return HTTP `503 Service Unavailable` before controller/service work starts.
 - Rejections include `Retry-After`, `Cache-Control: no-store`, and downtime metadata (`maintenance_start`, `maintenance_end`, affected operations) in the error payload so direct API clients can pause and retry after the window.
 
-**Route structure:** 27 TypeScript route files under `api/routes/v1/` including `index.ts`, each mounting controllers with appropriate auth middleware.
+**Route structure:** TypeScript route modules under `api/routes/v1/` mount controllers with
+explicit Supabase-session, API-credential, admin, metrics-dashboard, or public access rules.
 
 ## Security Invariants
 
@@ -66,6 +67,11 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 21. **Credential startup MUST fail closed** — the process must not listen unless the complete `api_credentials` schema, nullability, indexes, and constraints exist and the legacy `api_keys` table is absent. Runtime auth must not fall back to legacy rows, hashes, prefixes, or pairing heuristics.
 22. **`ramp-info` MUST expose only a sanitized subject-derived projection** — `GET /v1/ramp-info` may accept public or secret credential capability, but not a Supabase session. It must derive the profile from `CredentialContext`, accept no caller-selected profile/user/PII identifier, and return only per-corridor `kycStatus`, `canBuy`, and `canSell`.
 23. **Managed-profile provisioning MUST use immutable associations** — `POST /v1/admin/managed-profiles` requires admin auth, normalizes email, and binds a genuine Supabase/profile identity to unique `(partner_id, external_user_id)` and unique `profile_id` records. Existing Auth identities may be reconciled only when their immutable metadata matches. Technical subjects must not receive customer entities or register ramps.
+24. **Embedded-wallet metadata routes MUST remain session- and owner-scoped** — `GET /v1/wallets`,
+    `PATCH /v1/wallets/mode`, and `POST /v1/wallets/cdp` require a verified Supabase session and
+    derive the profile only from that session. Registration additionally verifies the same bearer
+    token with CDP and matches JWT subject, CDP user ID, and address before persistence. Public or
+    secret API credentials do not authorize these first-party wallet-management routes.
 
 ## Threat Vectors & Mitigations
 
@@ -98,14 +104,21 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [ ] Verify `NODE_ENV` is set to `"production"` in production — stack traces are only stripped when not in development mode. **N/A** — requires deployment configuration inspection.
 - [x] Verify error responses do not include internal error types, database error codes, or SQL fragments. **PASS** — error handler wraps errors in generic `APIError` format.
 - [x] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names. **PASS** — error messages are user-facing validation messages.
-- [x] Map all TypeScript route files and verify each has appropriate auth middleware (Supabase, API credential, admin, metrics dashboard, or public). **PASS** — `/v1/ramp/*` and quote routes use credential/session middleware with ownership guards; `/v1/api-credentials` uses `requireAuth`; admin partner credential routes use `adminAuth`; `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` requires secret capability.
+- [x] Map all TypeScript route modules and verify each has appropriate auth middleware (Supabase,
+  API credential, admin, metrics dashboard, or public). **PASS** — ramp and quote routes use
+  credential/session middleware with ownership guards; `/v1/api-credentials` and `/v1/wallets/*`
+  require Supabase auth; wallet lookups/mutations are profile-scoped and CDP registration performs
+  provider ownership verification; admin credential routes use `adminAuth`;
+  `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` requires secret
+  capability.
 - [x] Active customer-entity selection is Supabase-authenticated, serialized on the profile row, owner-scoped, idempotent for an identical retry, and rejects mutation or ambiguity.
 - [x] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key). **PASS** — auth middleware usage reviewed per route.
 - [ ] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns. **N/A** — deferred; requires comprehensive Sequelize usage audit.
 - [x] Verify no endpoint returns `process.env`, server config, or internal paths in responses. **PASS** — no endpoint exposes internal configuration.
 - [ ] Check whether Supabase auth cookies use `SameSite=Strict` or `SameSite=Lax` — and whether CSRF tokens are required for state-changing operations. **PARTIAL** — cookie parser enabled but cookie attributes not explicitly configured for `SameSite`.
 - [x] Verify the 404 handler does not reveal Express version or framework information. **PASS** — custom 404 handler returns generic JSON error.
-- [x] Check all 27 route files for endpoints that accept file uploads — verify file size limits and type validation if present. **PASS** — no file upload endpoints found.
+- [x] Check all route modules for endpoints that accept file uploads — verify file size limits and
+  type validation if present. **PASS** — no file upload endpoints found.
 - [ ] Verify request ID middleware runs before routes and returns `X-Request-ID` without using request IDs for authorization.
 - [ ] Verify partner-facing API observability writes are best-effort and cannot alter response status, response body, or quote/ramp state.
 - [x] Verify active maintenance windows are enforced by the backend on quote creation and ramp register/update/start, not only by frontend UI state.

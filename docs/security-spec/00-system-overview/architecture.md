@@ -6,6 +6,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 
 - **API** (`apps/api`) — Express backend handling ramp orchestration, quote generation, auth, and external service integration
 - **Frontend** (`apps/frontend`) — React SPA for end-user flows
+- **Dashboard** (`apps/dashboard`) — Authenticated account surface for onboarding, self-ramps, and optional EVM wallet custody UX
 - **SDK** (`packages/sdk`) — Stateless Node.js SDK abstracting API calls and ephemeral key management for partner integrations
 - **Rebalancer** (`apps/rebalancer`) — Automated liquidity management across chains
 - **Smart Contracts** (`contracts/relayer`) — TokenRelayer.sol for ERC-20 meta-transaction relaying on EVM chains
@@ -48,6 +49,12 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 
 **Base** is the hub for all BRL on/off-ramp flows: BRLA mint/burn via Avenia, Nabla swap on EVM, and sequential-transfer fee distribution. BRL flows do not touch Pendulum or Moonbeam.
 
+The optional embedded-wallet mode adds two direct CDP trust edges that are not represented by the
+backend-centered diagram: the authenticated browser sends its Supabase JWT and device-authorized
+signing/export requests to CDP, and the API sends the same request bearer to CDP only to verify the
+submitted user/address association. CDP never replaces Vortex API authentication. See
+[`01-auth/cdp-embedded-wallets.md`](../01-auth/cdp-embedded-wallets.md).
+
 ### Key Data Flows
 
 1. **Quote flow:** Client → API (quote request) → Price providers + fee calculation → Stored quote → Client
@@ -55,12 +62,17 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 3. **Phase execution:** Phase processor reads state from DB → Executes handler (on-chain tx, external API call) → Updates phase + state in DB → Next phase
 4. **Subsidization:** During ramp, if swap output doesn't match quoted amount, funding accounts top up the ephemeral to cover the difference
 5. **Webhook delivery:** API signs events with RSA-PSS → Delivers to partner webhook URLs
+6. **Embedded-wallet flow (optional EVM only):** Browser authenticates to CDP with its Supabase
+   session → user explicitly provisions/restores an EOA → API verifies and records the association →
+   browser asks CDP to sign the Vortex-issued payload → browser broadcasts through the configured RPC
 
 ## Security Invariants
 
 1. **Every client-facing endpoint MUST declare its accepted principals** — protected routes require Supabase OTP, API key (`sk_`), or an admin token as appropriate. Quote creation and other explicitly catalogued public-information routes may be anonymous. Anonymous quote IDs are short-lived bearer references until atomically claimed.
 2. **Authentication and resource authorization are separate boundaries** — middleware authenticates the presented principal and rejects invalid or indeterminate credentials before controller logic. Controllers/services MUST additionally enforce ownership and authority after loading the referenced quote, ramp, webhook, recipient, or other resource.
-3. **The API server MUST NOT hold user private keys** — ephemeral keys are generated client-side (SDK/frontend). The server only receives addresses, never secrets.
+3. **The API server MUST NOT hold user private keys** — ephemeral keys are generated client-side
+   (SDK/frontend). Optional CDP EOA key operations remain in CDP's protected flow; the API receives
+   only wallet metadata and must never receive exported key or device-credential material.
 4. **Server-held secrets (funding keys, executor keys) MUST only be used for platform operations** — funding ephemeral accounts, executing subsidization, signing webhooks. Never for user-initiated transactions on behalf of the user's own assets.
 5. **All external service calls (BRLA, Mykobo, Alfredpay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.
 6. **Database state MUST be the single source of truth for ramp progress** — in-memory state is transient and may be lost on restart.
@@ -78,6 +90,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 | **Database tampering** | Attacker with DB access modifies ramp state to skip phases | Phase transition validation in code (not just DB constraints); audit logging of all state changes |
 | **Cross-chain message failure** | XCM transfer succeeds on source but fails on destination | Phase handlers wait for destination confirmation before advancing; timeout + retry logic |
 | **Rebalancer key theft** | Rebalancer's chain keys compromised | Rebalancer uses dedicated keys separate from main API; limited balances; monitoring for unexpected transfers |
+| **Embedded-wallet session or origin compromise** | Stolen Supabase session or same-origin script authenticates to CDP and requests signatures | Production remains deferred under `RISK-018` until custom auth, exact origins, policies, MFA, confirmation, CSP, monitoring, and rollback controls are evidenced |
 
 ## Audit Checklist
 

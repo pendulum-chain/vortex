@@ -25,8 +25,10 @@ two people.
  KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
  self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
- remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo.
+ remain target-state rather than current behavior. An optional CDP EVM wallet is implemented behind
+ disabled-by-default flags for self-onramps and self-offramps; production enablement remains deferred
+ under [`RISK-018`](security-spec/RISK-REGISTER.md#current-risks). EUR onramps remain unavailable
+ while dashboard onboarding uses Monerium but active EUR ramps resolve Mykobo.
 
 
 ## User stories
@@ -37,6 +39,14 @@ two people.
   see it on Settings.
 - As a user, I connect an EVM wallet only for wallet-funded transfers; the core fiat→fiat payment
   never asks for one.
+- As a user, when the environment enables it, I can explicitly create or restore a profile-bound
+  CDP EVM wallet instead of connecting AppKit. Creation is opt-in, export uses CDP's isolated UI,
+  and I can switch back to an external wallet when no ramp is active.
+- As an embedded-wallet user, the dashboard can independently enable the wallet as an onramp
+  destination and as an offramp signer. Signing and private-key export have additional independent,
+  disabled-by-default kill switches; each enabled high-risk action shows an exact-field confirmation
+  before invoking CDP. AssetHub and other Substrate paths continue to require their existing wallet
+  flow.
 
 ### Onboarding (KYC/KYB)
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
@@ -150,7 +160,10 @@ provider-shaped rather than UI-shaped.
   Query, Zustand for client state, React Hook Form + Zod, Tailwind, wagmi/AppKit for EVM wallets.
   The dashboard uses the frontend's `WagmiAdapter`/`createAppKit` configuration, supported network
   list, featured wallets, project id, restricted feature set, and explicit `Connect`/`Account`
-  modal views rather than maintaining a separate wallet-modal implementation.
+  modal views rather than maintaining a separate wallet-modal implementation. The optional CDP path
+  lazy-loads its provider only after an authenticated user selects embedded mode. External and CDP
+  wallets expose the same ramp signing adapter; the API separately verifies and stores the CDP user
+  and address association.
 
 - **XState v5 for every multi-step flow**, `setup().createMachine()`, machines under
   `src/machines/`. Three flows are machines: onboarding (headless / external), the provider KYC
@@ -259,6 +272,10 @@ provider-shaped rather than UI-shaped.
 
 - Self-onramps and self-offramps are functional. Third-party recipient payments and fiat-funded
   fiat-to-fiat payments remain future work; the Cross-border mode renders a complete coming-soon state.
+- The CDP path has test-environment and test-network coverage only. Production project migration,
+  custom-auth, origin, policy, MFA, export, external smoke-test, and risk-acceptance gates are tracked
+  in [`operations-cdp-embedded-wallet-rollout.md`](operations-cdp-embedded-wallet-rollout.md); all
+  production flags remain off until those gates are complete.
 - **No recipient can currently become payable.** The payable gate requires a *verified payout
   reference*, and nothing in the API creates `RecipientPayoutReference` rows — payout-instrument
   registration is not implemented. Invitations and recipient KYC work end-to-end, but capability

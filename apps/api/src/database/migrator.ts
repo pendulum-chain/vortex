@@ -169,7 +169,9 @@ const umzug = new Umzug({
 // createTable. This cannot be a migration itself: umzug resolves the pending list before
 // executing any of them.
 const MIGRATION_RENAMES: Record<string, string> = {
+  "055-add-wallet-mode-to-profiles": "063-add-wallet-mode-to-profiles",
   "055-create-api-credentials": "057-create-api-credentials",
+  "056-create-profile-wallets": "064-create-profile-wallets",
   "057-create-partner-managed-profiles": "058-create-partner-managed-profiles",
   "058-add-api-credential-id-to-quote-tickets": "059-add-api-credential-id-to-quote-tickets"
 };

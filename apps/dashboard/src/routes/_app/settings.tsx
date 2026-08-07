@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, User } from "lucide-react";
+import { Building2, Copy, KeyRound, User, Wallet } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -10,6 +12,7 @@ import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import type { EmailNotificationCategory } from "@/services/api/notification-preferences.service";
 import { useAuthStore } from "@/stores/auth.store";
+import { useWalletExperience } from "@/wallets/WalletExperienceContext";
 
 const NOTIFICATION_PREFS: Array<{ id: EmailNotificationCategory; label: string; description: string }> = [
   {
@@ -31,6 +34,7 @@ export const Route = createFileRoute("/_app/settings")({
 function SettingsPage() {
   const user = useAuthStore(state => state.user);
   const account = useActiveAccount();
+  const wallet = useWalletExperience();
   const { categoryEnabled, controlsDisabled, setCategoryEnabled } = useNotificationPreferences();
 
   return (
@@ -38,6 +42,83 @@ function SettingsPage() {
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Your profile and linked sender accounts.</p>
+      </StaggerItem>
+
+      <StaggerItem>
+        <Card>
+          <CardHeader>
+            <CardTitle>Wallet</CardTitle>
+            <CardDescription>An embedded wallet is optional. You can keep using a wallet you already control.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="surface-raised flex items-center gap-3 rounded-lg p-3">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                {wallet.mode === "cdp_embedded" ? <KeyRound className="size-4" /> : <Wallet className="size-4" />}
+              </span>
+              <div className="grid flex-1">
+                <span className="font-medium text-sm">
+                  {wallet.mode === "cdp_embedded" ? "Vortex embedded wallet" : "Existing wallet"}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {wallet.address ?? (wallet.connected ? "Connected" : "Not connected")}
+                </span>
+              </div>
+              <Badge variant="secondary">{wallet.mode === "cdp_embedded" ? "Embedded" : "External"}</Badge>
+            </div>
+            {wallet.mode === "cdp_embedded" && wallet.address && (
+              <div className="surface-raised grid justify-items-center gap-2 rounded-lg p-4">
+                <div className="rounded-lg bg-white p-3">
+                  <QRCodeSVG aria-label="Embedded wallet receive address" size={128} value={wallet.address} />
+                </div>
+                <p className="text-center text-muted-foreground text-xs">
+                  Scan to receive supported EVM assets at this address.
+                </p>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {wallet.mode === "cdp_embedded" ? (
+                <>
+                  {wallet.address && (
+                    <>
+                      <Button
+                        onClick={() => void navigator.clipboard.writeText(wallet.address as string)}
+                        type="button"
+                        variant="outline"
+                      >
+                        <Copy className="size-4" />
+                        Copy receive address
+                      </Button>
+                      {wallet.canExportEmbeddedWallet && (
+                        <Button onClick={() => void wallet.exportEmbeddedWallet()} type="button" variant="outline">
+                          Export wallet
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Button onClick={() => void wallet.switchToExternalWallet()} type="button" variant="outline">
+                    Use an existing wallet
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => void wallet.connectExternalWallet()} type="button" variant="outline">
+                    Connect existing wallet
+                  </Button>
+                  {wallet.canUseEmbeddedWallet && (
+                    <Button
+                      disabled={wallet.creatingEmbeddedWallet}
+                      onClick={() => void wallet.createEmbeddedWallet()}
+                      type="button"
+                    >
+                      Create embedded wallet
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+            {wallet.error && <p className="text-destructive text-sm">{wallet.error}</p>}
+          </CardContent>
+        </Card>
       </StaggerItem>
 
       <StaggerItem>

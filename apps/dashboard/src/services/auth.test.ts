@@ -39,6 +39,33 @@ after(() => {
 });
 
 describe("AuthService", () => {
+  it("notifies subscribers for login, token refresh storage, and logout", () => {
+    let notifications = 0;
+    const unsubscribe = AuthService.subscribe(() => {
+      notifications += 1;
+    });
+    const tokens = {
+      accessToken: "access-one",
+      refreshToken: "refresh-one",
+      userId: "user-one"
+    };
+
+    AuthService.storeTokens(tokens);
+    AuthService.storeTokens({ ...tokens, accessToken: "access-two" });
+    AuthService.clearTokens();
+    unsubscribe();
+    AuthService.storeTokens(tokens);
+
+    assert.equal(notifications, 3);
+  });
+
+  it("returns the current JWT to CDP while it remains fresh", async () => {
+    const accessToken = "header.eyJleHAiOjQxMDI0NDQ4MDB9.signature";
+    AuthService.storeTokens({ accessToken, refreshToken: "refresh", userId: "user" });
+
+    assert.equal(await AuthService.getFreshAccessToken(), accessToken);
+  });
+
   it("coalesces concurrent token refreshes across auth callers", async () => {
     let fetchCalls = 0;
     let releaseRequest: (() => void) | undefined;
@@ -56,7 +83,7 @@ describe("AuthService", () => {
         }),
         { headers: { "Content-Type": "application/json" }, status: 200 },
       );
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const proactiveRefresh = AuthService.refreshAccessToken();
     const requestRecoveryRefresh = AuthService.refreshAccessToken();
@@ -78,7 +105,7 @@ describe("AuthService", () => {
   });
 
   it("clears the current session when its refresh token is rejected", async () => {
-    globalThis.fetch = (async () => new Response(null, { status: 401 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response(null, { status: 401 })) as unknown as typeof fetch;
 
     assert.equal(await AuthService.refreshAccessToken(), null);
     assert.equal(AuthService.getTokens(), null);
@@ -92,7 +119,7 @@ describe("AuthService", () => {
       releaseOldRequest = resolve;
     });
 
-    globalThis.fetch = (async (_input, init) => {
+    globalThis.fetch = (async (_input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
       const body = JSON.parse(String(init?.body)) as { refresh_token: string };
       if (body.refresh_token === "refresh-token") {
         oldRefreshRequests += 1;
@@ -114,7 +141,7 @@ describe("AuthService", () => {
         }),
         { headers: { "Content-Type": "application/json" }, status: 200 },
       );
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const oldRefresh = AuthService.refreshAccessToken();
     AuthService.storeTokens({
@@ -157,7 +184,7 @@ describe("AuthService", () => {
     globalThis.fetch = (async () => {
       await requestGate;
       return new Response(null, { status: 401 });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const oldRefresh = AuthService.refreshAccessToken();
     AuthService.storeTokens({
@@ -193,7 +220,7 @@ describe("AuthService", () => {
     globalThis.fetch = (async () => {
       await requestGate;
       return new Response(null, { status: 401 });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     startTokenRefresh({
       getExpiryMs: () => 60_000,
@@ -225,7 +252,7 @@ describe("AuthService", () => {
       accessToken: "new-access-token",
       refreshToken: "new-refresh-token",
       userEmail: "new@vortex.local",
-      userId: "user-2",
+      userId: "user-2"
     });
   });
 });

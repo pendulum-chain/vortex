@@ -227,12 +227,20 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
+  cdp: {
+    projectId: string;
+    walletRegistrationEnabled: boolean;
+  };
 }
 
 export const config: Config = {
   adminSecret: process.env.ADMIN_SECRET || "",
   amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
   backendTestStarterAccount: process.env.BACKEND_TEST_STARTER_ACCOUNT,
+  cdp: {
+    projectId: process.env.CDP_PROJECT_ID || "",
+    walletRegistrationEnabled: process.env.CDP_WALLET_REGISTRATION_ENABLED === "true"
+  },
   database: {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
@@ -363,6 +371,10 @@ if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
 
 if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
   throw new Error("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
+}
+
+if (config.cdp.walletRegistrationEnabled && !config.cdp.projectId) {
+  throw new Error("CDP_PROJECT_ID is required when CDP_WALLET_REGISTRATION_ENABLED=true");
 }
 
 if (config.env === "production") {

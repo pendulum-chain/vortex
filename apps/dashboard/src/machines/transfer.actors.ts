@@ -196,10 +196,10 @@ export async function signUserTransactions(input: SignUserTransactionsInput): Pr
   try {
     for (const tx of sortedTxs) {
       if (isSignedTypedData(tx.txData)) {
-        const signedArray = await signMultipleTypedData([tx.txData]);
+        const signedArray = await signMultipleTypedData([tx.txData], tx.signer);
         signedTxs.push({ ...tx, txData: signedArray[0] } as PresignedTx);
       } else if (isSignedTypedDataArray(tx.txData)) {
-        signedTxs.push({ ...tx, txData: await signMultipleTypedData(tx.txData) } as PresignedTx);
+        signedTxs.push({ ...tx, txData: await signMultipleTypedData(tx.txData, tx.signer) } as PresignedTx);
       } else if (tx.phase === "squidRouterApprove") {
         squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
       } else if (tx.phase === "squidRouterSwap") {

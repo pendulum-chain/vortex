@@ -11,6 +11,7 @@ import {
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
+import type { Transaction } from "sequelize";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../api/middlewares/apiKeyAuth.helpers";
 import { hashTaxReference } from "../api/services/avenia/avenia-customer.service";
 import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
@@ -233,24 +234,30 @@ const DEFAULT_UNSIGNED_TX: UnsignedTx = {
 /**
  * A ramp state in its initial phase, linked to a fresh quote unless quoteId is given.
  */
-export async function createTestRampState(overrides: Partial<RampStateAttributes> = {}): Promise<RampState> {
+export async function createTestRampState(
+  overrides: Partial<RampStateAttributes> = {},
+  transaction?: Transaction
+): Promise<RampState> {
   const quoteId = overrides.quoteId ?? (await createTestQuote()).id;
-  return RampState.create({
-    currentPhase: "initial",
-    errorLogs: [],
-    flowVariant: config.flowVariant,
-    from: EPaymentMethod.SEPA as DestinationType,
-    paymentMethod: EPaymentMethod.SEPA,
-    phaseHistory: [],
-    postCompleteState: { cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null } },
-    presignedTxs: null,
-    processingLock: { locked: false, lockedAt: null },
-    state: (overrides.state ?? {}) as StateMetadata,
-    to: Networks.Base,
-    type: RampDirection.BUY,
-    unsignedTxs: [DEFAULT_UNSIGNED_TX],
-    userId: null,
-    ...overrides,
-    quoteId
-  });
+  return RampState.create(
+    {
+      currentPhase: "initial",
+      errorLogs: [],
+      flowVariant: config.flowVariant,
+      from: EPaymentMethod.SEPA as DestinationType,
+      paymentMethod: EPaymentMethod.SEPA,
+      phaseHistory: [],
+      postCompleteState: { cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null } },
+      presignedTxs: null,
+      processingLock: { locked: false, lockedAt: null },
+      state: (overrides.state ?? {}) as StateMetadata,
+      to: Networks.Base,
+      type: RampDirection.BUY,
+      unsignedTxs: [DEFAULT_UNSIGNED_TX],
+      userId: null,
+      ...overrides,
+      quoteId
+    },
+    { transaction }
+  );
 }

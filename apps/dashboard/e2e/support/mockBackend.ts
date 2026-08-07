@@ -252,6 +252,7 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
+  appOrigin?: string;
   apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
@@ -389,6 +390,7 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
+  const appOrigin = options.appOrigin ?? APP_ORIGIN;
   const apiCredentialRequests: Array<{ body: Record<string, unknown> | null; method: string; path: string }> = [];
   const limitsRequests: Array<Record<string, unknown>> = [];
   const requestOtpRequests: Array<Record<string, unknown>> = [];
@@ -445,7 +447,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   // handlers in reverse registration order.
   await page.route("**/*", async route => {
     const url = route.request().url();
-    if (url.startsWith(APP_ORIGIN) || url.startsWith("data:") || url.startsWith("blob:")) {
+    if (url.startsWith(appOrigin) || url.startsWith("data:") || url.startsWith("blob:")) {
       await route.continue();
       return;
     }
@@ -490,6 +492,15 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/auth/refresh" && method === "POST") {
       auth.refreshes += 1;
       await fulfillJson({ access_token: "e2e-access-token", refresh_token: "e2e-refresh-token", success: true });
+      return;
+    }
+    if (path === "/v1/wallets" && method === "GET") {
+      await fulfillJson({ mode: null, wallets: [] });
+      return;
+    }
+    if (path === "/v1/wallets/mode" && method === "PATCH") {
+      const body = request.postDataJSON() as { mode: string | null };
+      await fulfillJson({ mode: body.mode });
       return;
     }
 
@@ -653,7 +664,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/monerium/oauth/start" && method === "POST" && options.moneriumKyc) {
       monerium.startRequests.push(request.postDataJSON() as Record<string, unknown>);
       await fulfillJson({
-        authorizationUrl: `${APP_ORIGIN}/monerium/callback?code=e2e-code&state=e2e-state`
+        authorizationUrl: `${appOrigin}/monerium/callback?code=e2e-code&state=e2e-state`
       });
       return;
     }

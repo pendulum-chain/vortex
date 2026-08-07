@@ -5,16 +5,18 @@ export interface UserAttributes {
   id: string; // UUID from Supabase Auth
   email: string;
   activeCustomerEntityId: string | null;
+  walletMode: "external" | "cdp_embedded" | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type UserCreationAttributes = Optional<UserAttributes, "activeCustomerEntityId" | "createdAt" | "updatedAt">;
+type UserCreationAttributes = Optional<UserAttributes, "activeCustomerEntityId" | "walletMode" | "createdAt" | "updatedAt">;
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
   declare email: string;
   declare activeCustomerEntityId: string | null;
+  declare walletMode: "external" | "cdp_embedded" | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -54,6 +56,11 @@ User.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    walletMode: {
+      allowNull: true,
+      field: "wallet_mode",
+      type: DataTypes.STRING(32)
     }
   },
   {

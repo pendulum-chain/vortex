@@ -8,6 +8,8 @@ import { runMigrations } from "./migrator";
 // Must stay in sync with MIGRATION_RENAMES in migrator.ts.
 const RENAMED = [
   ["055-create-api-credentials.ts", "057-create-api-credentials.ts"],
+  ["055-add-wallet-mode-to-profiles.ts", "063-add-wallet-mode-to-profiles.ts"],
+  ["056-create-profile-wallets.ts", "064-create-profile-wallets.ts"],
   ["057-create-partner-managed-profiles.ts", "058-create-partner-managed-profiles.ts"],
   ["058-add-api-credential-id-to-quote-tickets.ts", "059-add-api-credential-id-to-quote-tickets.ts"]
 ] as const;
@@ -37,7 +39,7 @@ describe("migration rename reconciliation", () => {
   });
 
   it("renames old-name SequelizeMeta entries instead of re-running the migrations", async () => {
-    // Simulate a database that executed the files under their pre-rename names (staging).
+    // Simulate a database that executed the files under their pre-rename names.
     for (const [oldName, newName] of RENAMED) {
       await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name = :newName`, { replacements: { newName } });
       await sequelize.query(`INSERT INTO "SequelizeMeta" (name) VALUES (:oldName)`, { replacements: { oldName } });

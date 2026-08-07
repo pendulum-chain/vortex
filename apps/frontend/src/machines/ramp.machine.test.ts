@@ -767,10 +767,38 @@ describe("rampMachine", () => {
   });
 
   describe("global events", () => {
+    it("authenticates before entering the optional embedded-wallet setup and returns to Idle when ready", async () => {
+      const actor = createRampActor();
+      actor.start();
+
+      actor.send({ type: "REQUEST_EMBEDDED_WALLET" });
+      await waitFor(actor, state => state.matches("EmbeddedWallet"));
+
+      actor.send({
+        address: "0x4444444444444444444444444444444444444444",
+        type: "EMBEDDED_WALLET_READY"
+      });
+      expect(actor.getSnapshot().value).toBe("Idle");
+      expect(actor.getSnapshot().context.connectedWalletAddress).toBe(
+        "0x4444444444444444444444444444444444444444"
+      );
+      expect(actor.getSnapshot().context.postAuthTarget).toBeUndefined();
+    });
+
     it("updates the connected wallet address from anywhere", () => {
       const actor = createRampActor();
       actor.start();
       actor.send({ address: "0x3333333333333333333333333333333333333333", type: "SET_ADDRESS" });
+      expect(actor.getSnapshot().context.connectedWalletAddress).toBe("0x3333333333333333333333333333333333333333");
+    });
+
+    it("preserves the connected wallet address when an update is transiently undefined", () => {
+      const actor = createRampActor();
+      actor.start();
+      actor.send({ address: "0x3333333333333333333333333333333333333333", type: "SET_ADDRESS" });
+
+      actor.send({ address: undefined, type: "SET_ADDRESS" });
+
       expect(actor.getSnapshot().context.connectedWalletAddress).toBe("0x3333333333333333333333333333333333333333");
     });
 

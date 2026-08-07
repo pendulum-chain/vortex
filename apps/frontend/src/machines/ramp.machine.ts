@@ -148,6 +148,12 @@ export const rampMachine = setup({
       }),
       target: "#ramp.EnterEmail"
     },
+    REQUEST_EMBEDDED_WALLET: {
+      actions: assign({
+        postAuthTarget: () => "EmbeddedWallet"
+      }),
+      target: ".CheckAuth"
+    },
     RESET_RAMP: {
       target: ".Resetting"
     },
@@ -156,7 +162,7 @@ export const rampMachine = setup({
     },
     SET_ADDRESS: {
       actions: assign({
-        connectedWalletAddress: ({ event }) => event.address
+        connectedWalletAddress: ({ context, event }) => event.address ?? context.connectedWalletAddress
       })
     },
     SET_EXTERNAL_ID: {
@@ -304,6 +310,26 @@ export const rampMachine = setup({
             target: "Idle"
           }
         ]
+      }
+    },
+    EmbeddedWallet: {
+      on: {
+        EMBEDDED_WALLET_FAILED: {
+          actions: [{ type: "setErrorMessage" }],
+          target: "Error"
+        },
+        EMBEDDED_WALLET_READY: {
+          actions: assign({
+            connectedWalletAddress: ({ event }) => event.address,
+            errorMessage: undefined,
+            postAuthTarget: undefined
+          }),
+          target: "Idle"
+        },
+        GO_BACK: {
+          actions: assign({ postAuthTarget: undefined }),
+          target: "Idle"
+        }
       }
     },
     EnterEmail: {
@@ -549,6 +575,10 @@ export const rampMachine = setup({
         {
           guard: ({ context }) => context.kybLink?.invite !== undefined,
           target: "RedeemingInvite"
+        },
+        {
+          guard: ({ context }) => context.postAuthTarget === "EmbeddedWallet",
+          target: "EmbeddedWallet"
         },
         {
           guard: ({ context }) => context.postAuthTarget === "RegisterRamp",

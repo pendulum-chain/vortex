@@ -231,7 +231,7 @@ describe("signTransactionsActor", () => {
 
       const { events } = await runActor(context);
 
-      expect(signMultipleTypedData).toHaveBeenCalledWith([typedData]);
+      expect(signMultipleTypedData).toHaveBeenCalledWith([typedData], USER_ADDRESS);
       expect(events.map(event => event.phase)).toEqual(["started", "signed"]);
       expect(updateCalls[0].presignedTxs).toHaveLength(1);
       expect(updateCalls[0].presignedTxs[0].txData).toEqual(signedTypedData);
@@ -248,7 +248,7 @@ describe("signTransactionsActor", () => {
 
       await runActor(context);
 
-      expect(signMultipleTypedData).toHaveBeenCalledWith(typedDataArray);
+      expect(signMultipleTypedData).toHaveBeenCalledWith(typedDataArray, USER_ADDRESS);
       expect(updateCalls[0].presignedTxs[0].txData).toEqual(signedArray);
     });
   });

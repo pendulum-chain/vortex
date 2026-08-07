@@ -9,25 +9,37 @@ import {
   SignedTypedData,
   UnsignedTx
 } from "@vortexfi/shared";
-import { getAccount, sendTransaction, signTypedData, switchChain } from "@wagmi/core";
+import { getAddress } from "viem";
 import { config } from "../../config";
-import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
-import { wagmiConfig } from "../../wagmiConfig";
+import { cdpWidgetConfig } from "../../wallets/config";
+import { confirmEmbeddedWalletAction } from "../../wallets/embeddedWalletReview";
+import { getActiveEvmWalletSigningAdapter } from "../../wallets/signingAdapter";
 import { PolkadotNodeName, polkadotApiService } from "../api/polkadot.service";
 
 /**
  * Signs multiple typed data objects and returns signature objects
  */
-export async function signMultipleTypedData(typedDataArray: SignedTypedData[]): Promise<SignedTypedData[]> {
+export async function signMultipleTypedData(
+  typedDataArray: SignedTypedData[],
+  expectedSigner: string
+): Promise<SignedTypedData[]> {
+  const adapter = getActiveEvmWalletSigningAdapter();
+  if (getAddress(adapter.address) !== getAddress(expectedSigner)) {
+    throw new Error("The selected wallet does not match the server-issued typed-data signer");
+  }
+  if (adapter.kind === "cdp_embedded" && typedDataArray.length > 0) {
+    if (!cdpWidgetConfig.signingEnabled) {
+      throw new Error("Embedded wallet signing is disabled in this environment");
+    }
+    confirmEmbeddedWalletAction("EIP-712 signature", {
+      signer: expectedSigner,
+      typedData: typedDataArray
+    });
+  }
   const signedTypedDataArray: SignedTypedData[] = [];
 
   for (const typedData of typedDataArray) {
-    const rawSignature = await signTypedData(wagmiConfig, {
-      domain: typedData.domain,
-      message: typedData.message,
-      primaryType: typedData.primaryType,
-      types: typedData.types
-    });
+    const rawSignature = await adapter.signTypedData(typedData);
 
     const v = parseInt(rawSignature.slice(130, 132), 16);
     const r = `0x${rawSignature.slice(2, 66)}` as `0x${string}`;
@@ -58,73 +70,42 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
 
   const targetChainId = getNetworkId(network);
 
-  const account = getAccount(wagmiConfig);
-  const originalChainId = account.chainId;
-
   console.log("About to send transaction for phase", unsignedTx.phase);
 
   if (!targetChainId) {
     throw new Error(`Invalid network: ${network}. Unable to determine chain ID.`);
   }
 
-  if (!originalChainId) {
-    throw new Error("No wallet connected or unable to determine current chain ID.");
+  const adapter = getActiveEvmWalletSigningAdapter();
+  if (getAddress(adapter.address) !== getAddress(unsignedTx.signer)) {
+    throw new Error("The selected wallet does not match the server-issued transaction signer");
   }
-
-  const needsNetworkSwitch = originalChainId !== targetChainId;
-
-  if (needsNetworkSwitch) {
-    console.log(`Switching from chain ${originalChainId} to chain ${targetChainId} for transaction`);
-    try {
-      await switchChain(wagmiConfig, { chainId: targetChainId });
-    } catch (error) {
-      console.error("Failed to switch chain:", error);
-      throw new Error(
-        `Failed to switch to network ${network} (chainId: ${targetChainId}). Please switch manually and try again.`
-      );
+  if (adapter.kind === "cdp_embedded") {
+    if (!cdpWidgetConfig.signingEnabled) {
+      throw new Error("Embedded wallet signing is disabled in this environment");
     }
-  }
-
-  try {
-    const gas = BigInt(txData.gas);
-    const hash = await sendTransaction(wagmiConfig, {
-      data: txData.data,
-      ...(gas > 0n ? { gas } : {}),
-      to: txData.to,
-      value: BigInt(txData.value)
+    confirmEmbeddedWalletAction("EVM transaction", {
+      chainId: targetChainId,
+      network,
+      phase: unsignedTx.phase,
+      signer: unsignedTx.signer,
+      transaction: txData
     });
-    console.log("Transaction sent", hash);
-
-    const confirmedHash = await waitForTransactionConfirmation(hash, targetChainId);
-    console.log("Transaction confirmed", confirmedHash);
-
-    // Switch back to original chain if we switched
-    if (needsNetworkSwitch) {
-      console.log(`Switching back to original chain ${originalChainId}`);
-      try {
-        await switchChain(wagmiConfig, { chainId: originalChainId });
-      } catch (error) {
-        console.warn("Failed to switch back to original chain:", error);
-      }
-    }
-
-    return confirmedHash;
-  } catch (error) {
-    console.error("Transaction failed:", error);
-
-    if (needsNetworkSwitch) {
-      console.log(`Switching back to original chain ${originalChainId} after failure`);
-      try {
-        await switchChain(wagmiConfig, { chainId: originalChainId });
-        console.log(`Successfully switched back to chain ${originalChainId}`);
-      } catch (switchError) {
-        console.warn("Failed to switch back to original chain after transaction failure:", switchError);
-        // Preserve the original error
-      }
-    }
-
-    throw error;
   }
+  const hash = await adapter.sendTransaction({
+    chainId: targetChainId,
+    data: txData.data,
+    gas: BigInt(txData.gas),
+    maxFeePerGas: txData.maxFeePerGas ? BigInt(txData.maxFeePerGas) : undefined,
+    maxPriorityFeePerGas: txData.maxPriorityFeePerGas ? BigInt(txData.maxPriorityFeePerGas) : undefined,
+    nonce: txData.nonce,
+    to: txData.to,
+    value: BigInt(txData.value)
+  });
+  console.log("Transaction sent", hash);
+  const confirmedHash = await adapter.waitForTransaction(hash, targetChainId);
+  console.log("Transaction confirmed", confirmedHash);
+  return confirmedHash;
 }
 
 /// Sign the transaction with the user's connected wallet. The api needs to be for the correct network.

@@ -9,9 +9,9 @@ Use documents in this order:
 1. **Module specifications** define normative current behavior.
 2. **`RISK-REGISTER.md`** is the only authority for current accepted, deferred, or
    deployment-dependent exceptions to those requirements.
-3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md` and
-   `PUBLIC-RELEASE-READINESS.md`) is non-normative. It remains only while its review or
-   remediation context is still useful; status claims may be stale.
+3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md`) is non-normative. It
+   remains only while its review or remediation context is still useful; status claims may be
+   stale.
 4. **Older audit results, findings trackers, and spec deltas** are kept in Git history,
    not alongside the maintained specification.
 5. **Implementation-side notes** such as
@@ -41,6 +41,7 @@ documents win.
 | Current Risk Register | `RISK-REGISTER.md` | Authoritative accepted, deferred, and rollout-dependent exceptions |
 | System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
+| Coinbase CDP Embedded Wallets | `01-auth/cdp-embedded-wallets.md` | Profile-scoped wallet ownership, mode selection, signer binding |
 | API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
@@ -78,7 +79,6 @@ documents win.
 | Document | Why it remains |
 |---|---|
 | `REVIEW-POST-1232-2026-07-30.md` | Latest full spec-first review of the block-flow architecture and the evidence that drove its remediation |
-| `PUBLIC-RELEASE-READINESS.md` | Repository-history secret exposure review with remediation actions that still require operational confirmation |
 
 ## Checklist Semantics
 
@@ -116,7 +116,7 @@ Most module specifications use these sections:
 | **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
 | **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
-| **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
+| **pk\_/sk\_** | Public and secret capabilities of one unified API credential record |
 | **PIX** | Brazilian instant payment system |
 | **SEPA** | Single Euro Payments Area — European bank transfer system |
 | **Coverage ratio** | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing |

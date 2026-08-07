@@ -46,7 +46,7 @@ export interface RampContext {
   isAuthenticated: boolean;
   isAuthLoading?: boolean;
   alfredpayCustomer?: unknown;
-  postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
+  postAuthTarget?: "EmbeddedWallet" | "QuoteReady" | "RegisterRamp" | "SelectRegion";
   // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
   kybLink?: {
     customerType?: "individual" | "business";
@@ -95,7 +95,10 @@ export type RampMachineEvents =
   | { type: "GO_BACK" }
   | { type: "START_KYB_LINK"; invite?: string; region?: string; locked?: boolean }
   | { type: "RETRY_INVITE" }
-  | { type: "SELECT_REGION"; fiatToken: FiatToken };
+  | { type: "SELECT_REGION"; fiatToken: FiatToken }
+  | { type: "REQUEST_EMBEDDED_WALLET" }
+  | { type: "EMBEDDED_WALLET_READY"; address: string }
+  | { type: "EMBEDDED_WALLET_FAILED"; error: Error };
 
 export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

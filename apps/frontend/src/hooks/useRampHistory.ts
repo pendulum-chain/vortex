@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { GetRampHistoryTransaction } from "@vortexfi/shared";
-import { useAccount } from "wagmi";
 
 import { Transaction } from "../components/menus/HistoryMenu/types";
 import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import { RampService } from "../services/api/ramp.service";
+import { useWidgetWallet } from "../wallets/WidgetWalletContext";
 
 function formatTransaction(tx: GetRampHistoryTransaction): Transaction {
   return {
@@ -23,7 +23,7 @@ function formatTransaction(tx: GetRampHistoryTransaction): Transaction {
 }
 
 export function useRampHistory(walletAddress?: string) {
-  const { address: evmAddress } = useAccount();
+  const { address: evmAddress } = useWidgetWallet();
   const { walletAccount: polkadotAccount } = usePolkadotWalletState();
 
   const addresses = walletAddress ? [walletAddress] : ([evmAddress, polkadotAccount?.address].filter(Boolean) as string[]);

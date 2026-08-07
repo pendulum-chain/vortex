@@ -5,7 +5,6 @@ import { Lock, TriangleAlert } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { isAddress } from "viem";
-import { useAccount } from "wagmi";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -19,6 +18,7 @@ import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
+import { useWalletExperience } from "@/wallets/WalletExperienceContext";
 import { OnrampPaymentInstructions } from "./OnrampPaymentInstructions";
 import { QuoteSummary } from "./QuoteSummary";
 import { TokenCombobox } from "./TokenCombobox";
@@ -47,7 +47,8 @@ interface OnrampPrefill {
 }
 
 export function OnrampForm({ account, prefill }: { account: SenderAccount; prefill?: OnrampPrefill }) {
-  const { address } = useAccount();
+  const wallet = useWalletExperience();
+  const address = wallet.mode === "cdp_embedded" && !wallet.canUseAsOnrampDestination ? undefined : wallet.address;
   const { approved, isLoading: isLoadingApprovals } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getRampTokenOptions(RampDirection.BUY);

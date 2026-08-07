@@ -109,6 +109,26 @@ describe("vars deployment environment validation", () => {
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
   });
 
+  it("requires the CDP project ID when wallet registration is enabled", async () => {
+    const result = await importVarsWithEnv({
+      CDP_WALLET_REGISTRATION_ENABLED: "true",
+      NODE_ENV: "test"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("CDP_PROJECT_ID");
+  });
+
+  it("allows CDP wallet registration when the project ID is present", async () => {
+    const result = await importVarsWithEnv({
+      CDP_PROJECT_ID: "test-cdp-project",
+      CDP_WALLET_REGISTRATION_ENABLED: "true",
+      NODE_ENV: "test"
+    });
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+
   it("accepts a lower recipient-invite discount ceiling", async () => {
     const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "production",
@@ -118,7 +138,6 @@ describe("vars deployment environment validation", () => {
 
     expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
   });
-
   it("rejects a recipient-invite discount ceiling above the hard cap", async () => {
     const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "production",

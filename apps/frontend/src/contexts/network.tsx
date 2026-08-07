@@ -5,6 +5,7 @@ import { getEnabledFrontendNetwork } from "../config/networkAvailability";
 import { WALLETCONNECT_ASSETHUB_ID } from "../constants/constants";
 import { LocalStorageKeys, useLocalStorage } from "../hooks/useLocalStorage";
 import { useRampUrlParams } from "../hooks/useRampUrlParams";
+import { useWidgetWallet } from "../wallets/WidgetWalletContext";
 import { useRampActor } from "./rampState";
 
 interface NetworkContextType {
@@ -45,6 +46,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
 
   const { switchChainAsync } = useSwitchChain();
   const { chain: connectedEvmChain } = useAccount();
+  const evmWallet = useWidgetWallet();
 
   const setSelectedNetwork = useCallback(
     async (network: Networks, resetState = false) => {
@@ -56,7 +58,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       setSelectedNetworkLocalStorage(enabledNetwork);
 
       // Will only switch chain on the EVM connected wallet case.
-      if (isNetworkEVM(enabledNetwork)) {
+      if (isNetworkEVM(enabledNetwork) && evmWallet.mode !== "cdp_embedded") {
         // Only switch chain if the network is different from the current one
         // see https://github.com/wevm/wagmi/issues/3417
         if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(enabledNetwork)) {
@@ -64,7 +66,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         }
       }
     },
-    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, rampActor]
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, rampActor, evmWallet.mode]
   );
 
   return (

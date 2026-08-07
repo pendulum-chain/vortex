@@ -14,6 +14,7 @@ import PartnerManagedProfile from "./partnerManagedProfile.model";
 import PartnerPricingConfig from "./partnerPricingConfig.model";
 import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
 import ProfileRole from "./profileRole.model";
+import ProfileWallet from "./profileWallet.model";
 import ProviderCustomer from "./providerCustomer.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
@@ -49,6 +50,8 @@ ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
+User.hasMany(ProfileWallet, { as: "wallets", foreignKey: "profileId" });
+ProfileWallet.belongsTo(User, { as: "profile", foreignKey: "profileId" });
 
 User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
 ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
@@ -113,6 +116,7 @@ const models = {
   PartnerPricingConfig,
   ProfilePartnerAssignment,
   ProfileRole,
+  ProfileWallet,
   ProviderCustomer,
   QuoteTicket,
   RampState,

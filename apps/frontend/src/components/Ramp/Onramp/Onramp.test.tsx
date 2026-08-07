@@ -35,6 +35,20 @@ const stubs = {
   signMessage: { signMessageAsync: vi.fn() },
   switchChain: { switchChainAsync: vi.fn() }
 };
+const widgetWallet = {
+  activateSigner: vi.fn(),
+  address: undefined,
+  canUseEmbeddedWallet: false,
+  connectExternalWallet: vi.fn(),
+  connected: false,
+  createEmbeddedWallet: vi.fn(),
+  creatingEmbeddedWallet: false,
+  exportEmbeddedWallet: vi.fn(),
+  mode: null,
+  ready: true,
+  signMessage: vi.fn(),
+  switchToExternalWallet: vi.fn()
+};
 
 vi.mock("wagmi", () => ({
   useAccount: () => stubs.account,
@@ -73,6 +87,9 @@ vi.mock("../../../contexts/events", () => ({
 
 vi.mock("../../../contexts/polkadotWallet", () => ({
   usePolkadotWalletState: () => stubs.polkadotWallet
+}));
+vi.mock("../../../wallets/WidgetWalletContext", () => ({
+  useWidgetWallet: () => widgetWallet
 }));
 
 import { Onramp } from "./index";

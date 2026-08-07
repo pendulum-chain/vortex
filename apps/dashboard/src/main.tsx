@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { wagmiConfig } from "@/lib/wagmi";
 import { getRouter } from "@/router";
 import { useAuthStore } from "@/stores/auth.store";
+import { WalletExperienceProvider } from "@/wallets/WalletExperienceProvider";
 
 const router = getRouter();
 
@@ -25,7 +26,9 @@ async function renderApp(container: HTMLElement) {
   createRoot(container).render(
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <WalletExperienceProvider>
+          <RouterProvider router={router} />
+        </WalletExperienceProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

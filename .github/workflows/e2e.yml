@@ -37,6 +37,11 @@ jobs:
         working-directory: apps/frontend
         run: bun run test:e2e
 
+      - name: 🧪 CDP wallet-choice journeys
+        if: always()
+        working-directory: apps/frontend
+        run: bun run test:e2e:cdp
+
       - name: 📤 Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -56,6 +61,11 @@ jobs:
         if: always()
         working-directory: apps/dashboard
         run: bun run test:e2e
+
+      - name: 🧪 Dashboard CDP wallet-choice journeys
+        if: always()
+        working-directory: apps/dashboard
+        run: bun run test:e2e:cdp
 
       - name: 📤 Upload dashboard report on failure
         if: failure()

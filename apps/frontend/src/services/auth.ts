@@ -14,6 +14,18 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_refresh_token";
   private static readonly USER_ID_KEY = "vortex_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_user_email";
+  private static readonly listeners = new Set<() => void>();
+
+  private static notifyListeners(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  static subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   /**
    * Store tokens in localStorage
@@ -33,6 +45,7 @@ export class AuthService {
     // Attach the pseudonymous Supabase user id for issue-impact counts. Deliberately no email/IP
     // so Sentry can count affected users without storing PII.
     Sentry.setUser({ id: tokens.userId });
+    this.notifyListeners();
   }
 
   /**
@@ -60,6 +73,7 @@ export class AuthService {
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_EMAIL_KEY);
     Sentry.setUser(null);
+    this.notifyListeners();
   }
 
   /**
@@ -83,6 +97,18 @@ export class AuthService {
       return null;
     }
     return this.decodeJwtExpiryMs(tokens.accessToken);
+  }
+
+  static async getFreshAccessToken(): Promise<string | undefined> {
+    const tokens = this.getTokens();
+    if (!tokens) return undefined;
+
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    if (expiryMs === null || expiryMs > Date.now() + 60_000) {
+      return tokens.accessToken;
+    }
+
+    return (await this.refreshAccessToken())?.accessToken;
   }
 
   private static decodeJwtExpiryMs(token: string): number | null {

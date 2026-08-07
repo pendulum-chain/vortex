@@ -16,12 +16,24 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_dashboard_refresh_token";
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
+  private static readonly listeners = new Set<() => void>();
   private static sessionGeneration = 0;
   private static refreshFlight: {
     generation: number;
     refreshToken: string;
     promise: Promise<AuthTokens | null>;
   } | null = null;
+
+  private static notifyListeners(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  static subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   static storeTokens(tokens: AuthTokens): void {
     this.sessionGeneration += 1;
@@ -31,6 +43,7 @@ export class AuthService {
     if (tokens.userEmail) {
       localStorage.setItem(this.USER_EMAIL_KEY, tokens.userEmail);
     }
+    this.notifyListeners();
   }
 
   static getTokens(): AuthTokens | null {
@@ -51,6 +64,7 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_EMAIL_KEY);
+    this.notifyListeners();
   }
 
   static isAuthenticated(): boolean {
@@ -60,6 +74,18 @@ export class AuthService {
     }
     const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
     return expiryMs === null || expiryMs > Date.now();
+  }
+
+  static async getFreshAccessToken(): Promise<string | undefined> {
+    const tokens = this.getTokens();
+    if (!tokens) return undefined;
+
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    if (expiryMs === null || expiryMs > Date.now() + 60_000) {
+      return tokens.accessToken;
+    }
+
+    return (await this.refreshAccessToken())?.accessToken;
   }
 
   static getAccessTokenExpiryMs(): number | null {

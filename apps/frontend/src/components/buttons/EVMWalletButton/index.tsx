@@ -1,8 +1,9 @@
-import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { useAppKit, useAppKitNetwork } from "@reown/appkit/react";
 import { isNetworkEVM, Networks } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { wagmiConfig } from "../../../wagmiConfig";
+import { useWidgetWallet } from "../../../wallets/WidgetWalletContext";
 import { WalletButtonVariant } from "../ConnectWalletButton";
 import { BaseWalletButton } from "../ConnectWalletButton/BaseWalletButton";
 
@@ -18,7 +19,7 @@ export function EVMWalletButton({
   forceNetwork?: Networks;
 }) {
   const { address, chainId: walletChainId } = useVortexAccount(forceNetwork);
-  const { isConnected } = useAppKitAccount();
+  const wallet = useWidgetWallet();
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
   const { t } = useTranslation();
@@ -26,25 +27,41 @@ export function EVMWalletButton({
   const isOnSupportedNetwork =
     (forceNetwork && isNetworkEVM(forceNetwork)) || wagmiConfig.chains.find(chain => chain.id === walletChainId) !== undefined;
 
-  if (!isConnected) {
+  if (!wallet.connected) {
     return (
-      <BaseWalletButton
-        customStyles={customStyles}
-        hideIcon={hideIcon}
-        onClick={() => {
-          open({ view: "Connect" });
-        }}
-        showPlayIcon
-        variant={variant}
-      >
-        <p className="flex">
-          {t("components.dialogs.connectWallet.connect")} <span className="hidden sm:ml-1 sm:block">Wallet</span>
-        </p>
-      </BaseWalletButton>
+      <div className="grid gap-2">
+        <BaseWalletButton
+          customStyles={customStyles}
+          hideIcon={hideIcon}
+          onClick={() => {
+            void wallet.connectExternalWallet();
+          }}
+          showPlayIcon
+          variant={variant}
+        >
+          <p className="flex">
+            {t("components.dialogs.connectWallet.connect")} <span className="hidden sm:ml-1 sm:block">Wallet</span>
+          </p>
+        </BaseWalletButton>
+        {wallet.canUseEmbeddedWallet && (
+          <BaseWalletButton
+            customStyles={customStyles}
+            hideIcon={hideIcon}
+            onClick={wallet.createEmbeddedWallet}
+            showPlayIcon
+            variant={variant}
+          >
+            Use a Vortex wallet
+          </BaseWalletButton>
+        )}
+        {wallet.embeddedUnavailableReason && (
+          <p className="text-center text-gray-500 text-xs">{wallet.embeddedUnavailableReason}</p>
+        )}
+      </div>
     );
   }
 
-  if (!isOnSupportedNetwork) {
+  if (wallet.mode !== "cdp_embedded" && !isOnSupportedNetwork) {
     return (
       <BaseWalletButton
         hideIcon={hideIcon}
@@ -67,7 +84,7 @@ export function EVMWalletButton({
       customStyles={customStyles}
       hideIcon={hideIcon}
       onClick={() => {
-        open({ view: "Account" });
+        if (wallet.mode !== "cdp_embedded") open({ view: "Account" });
       }}
       variant={variant}
     />
