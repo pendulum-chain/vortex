@@ -132,16 +132,18 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
+  async function createQuoteViaApi(
+    destinationNetwork: Networks.Arbitrum | Networks.Ethereum = Networks.Arbitrum
+  ): Promise<{ id: string; outputAmount: string }> {
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: "pix",
         inputAmount: "500",
         inputCurrency: FiatToken.BRL,
-        network: Networks.Arbitrum,
+        network: destinationNetwork,
         outputCurrency: EvmToken.USDC,
         rampType: RampDirection.BUY,
-        to: Networks.Arbitrum
+        to: destinationNetwork
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST"
@@ -345,6 +347,14 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   function submissionsOf(signedTx: `0x${string}`): number {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTx).length;
   }
+
+  it("creates BRL onramp quotes for Ethereum destinations", async () => {
+    const quote = await createQuoteViaApi(Networks.Ethereum);
+    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+
+    expect(persistedQuote?.network).toBe(Networks.Ethereum);
+    expect(persistedQuote?.to).toBe(Networks.Ethereum);
+  });
 
   it(
     "happy path: mints on Base, swaps BRLA to USDC via Nabla, bridges via squid, and pays the destination on Arbitrum",
