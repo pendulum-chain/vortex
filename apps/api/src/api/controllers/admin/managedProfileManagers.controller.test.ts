@@ -91,6 +91,7 @@ describe("managed profile manager admin routes", () => {
     const manager = await createTestUser();
     expect((await put(manager.id, { allowedCorridors: ["BR"], isActive: true })).status).toBe(201);
     const child = await provisionManagedProfile({
+      contactEmail: "child@example.com",
       creationSource: "vortex",
       customerType: "individual",
       externalSubjectId: "child-subject",
@@ -117,7 +118,11 @@ describe("managed profile manager admin routes", () => {
     expect((await put(manager.id, { allowedCorridors: ["BR"], isActive: true })).status).toBe(201);
 
     const response = await fetch(`${baseUrl}/${manager.id}/managed-profiles`, {
-      body: JSON.stringify({ customerType: "business", externalSubjectId: "vortex-customer" }),
+      body: JSON.stringify({
+        contactEmail: " Vortex.Customer@Example.COM ",
+        customerType: "business",
+        externalSubjectId: "vortex-customer"
+      }),
       headers: ADMIN_HEADERS,
       method: "POST"
     });
@@ -125,6 +130,7 @@ describe("managed profile manager admin routes", () => {
     expect(await response.json()).toMatchObject({
       managedProfile: {
         creationSource: "vortex",
+        contactEmail: "vortex.customer@example.com",
         customerType: "business",
         externalSubjectId: "vortex-customer",
         status: "active"

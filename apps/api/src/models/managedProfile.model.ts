@@ -9,6 +9,7 @@ export interface ManagedProfileAttributes {
   managerProfileId: string;
   profileId: string;
   externalSubjectId: string;
+  contactEmail: string | null;
   status: ManagedProfileStatus;
   creationSource: ManagedProfileCreationSource;
   createdAt: Date;
@@ -18,7 +19,7 @@ export interface ManagedProfileAttributes {
 
 type ManagedProfileCreationAttributes = Optional<
   ManagedProfileAttributes,
-  "id" | "status" | "createdAt" | "updatedAt" | "deletedAt"
+  "id" | "status" | "createdAt" | "updatedAt" | "deletedAt" | "contactEmail"
 >;
 
 class ManagedProfile
@@ -29,6 +30,7 @@ class ManagedProfile
   declare managerProfileId: string;
   declare profileId: string;
   declare externalSubjectId: string;
+  declare contactEmail: string | null;
   declare status: ManagedProfileStatus;
   declare creationSource: ManagedProfileCreationSource;
   declare createdAt: Date;
@@ -38,6 +40,11 @@ class ManagedProfile
 
 ManagedProfile.init(
   {
+    contactEmail: {
+      allowNull: true,
+      field: "contact_email",
+      type: DataTypes.STRING(255)
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,

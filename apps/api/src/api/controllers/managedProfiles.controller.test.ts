@@ -41,13 +41,22 @@ describe("managed profile lifecycle routes", () => {
 
   it("creates idempotently, lists active children, reads, and logically deletes", async () => {
     const { headers } = await createManager();
-    const body = JSON.stringify({ customerType: "individual", externalSubjectId: "customer-1" });
+    const body = JSON.stringify({
+      contactEmail: " Managed.Child@Example.COM ",
+      customerType: "individual",
+      externalSubjectId: "customer-1"
+    });
     const created = await fetch(baseUrl, { body, headers, method: "POST" });
     expect(created.status).toBe(201);
     const createdBody = (await created.json()) as { managedProfile: { profileId: string } };
     const profileId = createdBody.managedProfile.profileId;
     expect(createdBody).toMatchObject({
-      managedProfile: { creationSource: "manager", customerType: "individual", status: "active" }
+      managedProfile: {
+        contactEmail: "managed.child@example.com",
+        creationSource: "manager",
+        customerType: "individual",
+        status: "active"
+      }
     });
 
     expect((await fetch(baseUrl, { body, headers, method: "POST" })).status).toBe(200);
@@ -75,7 +84,11 @@ describe("managed profile lifecycle routes", () => {
     const first = await createManager();
     const second = await createManager();
     const created = await fetch(baseUrl, {
-      body: JSON.stringify({ customerType: "business", externalSubjectId: "customer-private" }),
+      body: JSON.stringify({
+        contactEmail: "private@example.com",
+        customerType: "business",
+        externalSubjectId: "customer-private"
+      }),
       headers: first.headers,
       method: "POST"
     });
@@ -85,12 +98,80 @@ describe("managed profile lifecycle routes", () => {
     expect((await fetch(`${baseUrl}/${profileId}`, { headers: second.headers, method: "DELETE" })).status).toBe(404);
   });
 
+  it("creates, lists, and idempotently revokes child-owned credentials", async () => {
+    const first = await createManager();
+    const second = await createManager();
+    const createdChild = await fetch(baseUrl, {
+      body: JSON.stringify({
+        contactEmail: "credential-child@example.com",
+        customerType: "individual",
+        externalSubjectId: "credential-child"
+      }),
+      headers: first.headers,
+      method: "POST"
+    });
+    const profileId = ((await createdChild.json()) as { managedProfile: { profileId: string } }).managedProfile.profileId;
+    const credentialResponse = await fetch(`${baseUrl}/${profileId}/api-credentials`, {
+      body: JSON.stringify({ name: "Child integration" }),
+      headers: first.headers,
+      method: "POST"
+    });
+    expect(credentialResponse.status).toBe(201);
+    const credential = (await credentialResponse.json()) as {
+      id: string;
+      partnerId: string | null;
+      profileId: string;
+      secretKey: string;
+    };
+    expect(credential).toMatchObject({ partnerId: null, profileId, secretKey: expect.stringMatching(/^sk_/) });
+
+    const listed = await fetch(`${baseUrl}/${profileId}/api-credentials`, { headers: first.headers });
+    const listedBody = (await listed.json()) as { credentials: Array<Record<string, unknown>> };
+    expect(listedBody.credentials).toHaveLength(1);
+    expect(listedBody.credentials[0]).toMatchObject({ id: credential.id, partnerId: null, profileId });
+    expect(listedBody.credentials[0]).not.toHaveProperty("secretKey");
+
+    expect((await fetch(`${baseUrl}/${profileId}/api-credentials`, { headers: second.headers })).status).toBe(404);
+    const revokeUrl = `${baseUrl}/${profileId}/api-credentials/${credential.id}`;
+    expect((await fetch(revokeUrl, { headers: first.headers, method: "DELETE" })).status).toBe(204);
+    expect((await fetch(revokeUrl, { headers: first.headers, method: "DELETE" })).status).toBe(204);
+  });
+
+  it("denies child credential lifecycle for inactive managers and deleted children", async () => {
+    const owner = await createManager();
+    const createdChild = await fetch(baseUrl, {
+      body: JSON.stringify({
+        contactEmail: "disabled-child@example.com",
+        customerType: "business",
+        externalSubjectId: "disabled-child"
+      }),
+      headers: owner.headers,
+      method: "POST"
+    });
+    const profileId = ((await createdChild.json()) as { managedProfile: { profileId: string } }).managedProfile.profileId;
+
+    await ManagedProfileManager.update({ isActive: false }, { where: { profileId: owner.manager.id } });
+    expect((await fetch(`${baseUrl}/${profileId}/api-credentials`, { headers: owner.headers })).status).toBe(403);
+    await ManagedProfileManager.update({ isActive: true }, { where: { profileId: owner.manager.id } });
+    expect((await fetch(`${baseUrl}/${profileId}`, { headers: owner.headers, method: "DELETE" })).status).toBe(204);
+    expect((await fetch(`${baseUrl}/${profileId}/api-credentials`, { headers: owner.headers })).status).toBe(404);
+  });
+
   it("validates creation and list inputs", async () => {
     const { headers } = await createManager();
     expect(
       (
         await fetch(baseUrl, {
-          body: JSON.stringify({ customerType: "technical", externalSubjectId: "customer" }),
+          body: JSON.stringify({ contactEmail: "customer@example.com", customerType: "technical", externalSubjectId: "customer" }),
+          headers,
+          method: "POST"
+        })
+      ).status
+    ).toBe(400);
+    expect(
+      (
+        await fetch(baseUrl, {
+          body: JSON.stringify({ customerType: "individual", externalSubjectId: "customer" }),
           headers,
           method: "POST"
         })

@@ -20,6 +20,7 @@ async function createManagedProfile(managerProfileId: string, externalSubjectId:
     );
     await ManagedProfile.create(
       {
+        contactEmail: "child@example.com",
         creationSource: "manager",
         externalSubjectId,
         managerProfileId,
@@ -50,6 +51,7 @@ describe("managed profile schema", () => {
     expect(child.email).toBeNull();
     expect(child.kind).toBe("managed");
     expect(relationship?.managerProfileId).toBe(manager.id);
+    expect(relationship?.contactEmail).toBe("child@example.com");
     expect(relationship?.status).toBe("active");
   });
 
@@ -69,6 +71,16 @@ describe("managed profile schema", () => {
     );
     await expect(managedProfile.update({ email: "claimed@example.com", kind: "authenticated" })).rejects.toThrow(
       "Profile kind cannot be changed after creation"
+    );
+  });
+
+  it("does not allow a managed profile contact email to change", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "immutable-email");
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    await expect(relationship?.update({ contactEmail: "other@example.com" })).rejects.toThrow(
+      "Managed profile contact email cannot be changed after creation"
     );
   });
 

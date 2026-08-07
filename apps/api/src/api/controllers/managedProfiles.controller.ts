@@ -1,9 +1,16 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import type { CustomerEntityType } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
+import {
+  ApiCredentialServiceError,
+  createManagedProfileCredential,
+  listManagedProfileCredentials,
+  revokeManagedProfileCredential
+} from "../services/apiCredential.service";
 import {
   createManagedProfile,
   deleteManagedProfile,
@@ -23,6 +30,18 @@ function managerProfileId(req: Request): string {
 }
 
 function sendError(res: Response, error: unknown): void {
+  if (error instanceof ApiCredentialServiceError) {
+    const status =
+      error.code === "CREDENTIAL_ACCESS_DENIED"
+        ? httpStatus.FORBIDDEN
+        : error.code === "CREDENTIAL_NOT_FOUND" || error.code === "CREDENTIAL_SUBJECT_REQUIRED"
+          ? httpStatus.NOT_FOUND
+          : error.code === "CREDENTIAL_LIMIT_REACHED"
+            ? httpStatus.CONFLICT
+            : httpStatus.BAD_REQUEST;
+    res.status(status).json({ error: { code: error.code, message: error.message, status } });
+    return;
+  }
   if (error instanceof ManagedProfileLifecycleError || error instanceof ManagedProfileProvisioningError) {
     const status =
       error.code === "MANAGED_PROFILE_INVALID_INPUT"
@@ -45,22 +64,30 @@ function sendError(res: Response, error: unknown): void {
   });
 }
 
+function requireProfileId(profileId: string): void {
+  if (!UUID_PATTERN.test(profileId)) {
+    throw new ManagedProfileLifecycleError("MANAGED_PROFILE_INVALID_INPUT", "profileId must be a UUID");
+  }
+}
+
 export async function postManagedProfile(req: Request, res: Response): Promise<void> {
   try {
-    const { customerType, externalSubjectId } = req.body ?? {};
+    const { contactEmail, customerType, externalSubjectId } = req.body ?? {};
     if (
       typeof externalSubjectId !== "string" ||
       externalSubjectId.trim().length === 0 ||
       externalSubjectId.trim().length > 255 ||
+      typeof contactEmail !== "string" ||
       !CUSTOMER_TYPES.includes(customerType)
     ) {
       throw new ManagedProfileLifecycleError(
         "MANAGED_PROFILE_INVALID_INPUT",
-        "externalSubjectId (1-255 characters) and customerType (individual|business) are required"
+        "contactEmail, externalSubjectId (1-255 characters), and customerType (individual|business) are required"
       );
     }
 
     const result = await createManagedProfile({
+      contactEmail,
       creationSource: "manager",
       customerType,
       externalSubjectId,
@@ -107,9 +134,7 @@ export async function readManagedProfiles(req: Request, res: Response): Promise<
 
 export async function readManagedProfile(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
-    if (!UUID_PATTERN.test(req.params.profileId)) {
-      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_INVALID_INPUT", "profileId must be a UUID");
-    }
+    requireProfileId(req.params.profileId);
     const managedProfile = await getManagedProfile(managerProfileId(req), req.params.profileId);
     res.status(httpStatus.OK).json({ managedProfile });
   } catch (error) {
@@ -119,10 +144,50 @@ export async function readManagedProfile(req: Request<{ profileId: string }>, re
 
 export async function removeManagedProfile(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
-    if (!UUID_PATTERN.test(req.params.profileId)) {
-      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_INVALID_INPUT", "profileId must be a UUID");
-    }
+    requireProfileId(req.params.profileId);
     await deleteManagedProfile(managerProfileId(req), req.params.profileId);
+    res.status(httpStatus.NO_CONTENT).send();
+  } catch (error) {
+    sendError(res, error);
+  }
+}
+
+export async function postManagedProfileApiCredential(req: Request<{ profileId: string }>, res: Response): Promise<void> {
+  try {
+    requireProfileId(req.params.profileId);
+    const credential = await createManagedProfileCredential({
+      environment: config.sandboxEnabled ? "test" : "live",
+      expiresAt: req.body?.expiresAt,
+      managerProfileId: managerProfileId(req),
+      name: req.body?.name,
+      profileId: req.params.profileId
+    });
+    res.status(httpStatus.CREATED).json(credential);
+  } catch (error) {
+    sendError(res, error);
+  }
+}
+
+export async function readManagedProfileApiCredentials(req: Request<{ profileId: string }>, res: Response): Promise<void> {
+  try {
+    requireProfileId(req.params.profileId);
+    const credentials = await listManagedProfileCredentials(managerProfileId(req), req.params.profileId);
+    res.status(httpStatus.OK).json({ credentials });
+  } catch (error) {
+    sendError(res, error);
+  }
+}
+
+export async function removeManagedProfileApiCredential(
+  req: Request<{ credentialId: string; profileId: string }>,
+  res: Response
+): Promise<void> {
+  try {
+    requireProfileId(req.params.profileId);
+    if (!UUID_PATTERN.test(req.params.credentialId)) {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_INVALID_INPUT", "credentialId must be a UUID");
+    }
+    await revokeManagedProfileCredential(managerProfileId(req), req.params.profileId, req.params.credentialId);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     sendError(res, error);

@@ -1,9 +1,12 @@
+import type { CorridorCountry } from "@vortexfi/shared";
 import crypto from "crypto";
-import { Op, QueryTypes } from "sequelize";
+import { Op, QueryTypes, Transaction } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import ApiCredential, { ApiCredentialEnvironment } from "../../models/apiCredential.model";
 import ApiKey from "../../models/apiKey.model";
+import ManagedProfile from "../../models/managedProfile.model";
+import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 
@@ -12,11 +15,16 @@ const DEFAULT_EXPIRY_MS = 365 * 24 * 60 * 60 * 1000;
 const MAX_EXPIRY_MS = 2 * DEFAULT_EXPIRY_MS;
 
 export interface CredentialContext {
-  credentialId: string;
-  environment: ApiCredentialEnvironment;
-  profileId: string;
-  partnerId: string | null;
-  strength: "public" | "secret";
+  readonly credentialId: string;
+  readonly environment: ApiCredentialEnvironment;
+  readonly managedProfile?: Readonly<{
+    allowedCorridors: readonly CorridorCountry[];
+    controllingManagerProfileId: string;
+    relationshipId: string;
+  }>;
+  readonly profileId: string;
+  readonly partnerId: string | null;
+  readonly strength: "public" | "secret";
 }
 
 export interface ApiCredentialDto {
@@ -39,8 +47,10 @@ export class ApiCredentialServiceError extends Error {
   constructor(
     public readonly code:
       | "CREDENTIAL_LIMIT_REACHED"
+      | "CREDENTIAL_ACCESS_DENIED"
       | "CREDENTIAL_NOT_FOUND"
       | "CREDENTIAL_SUBJECT_REQUIRED"
+      | "INVALID_CREDENTIAL_SUBJECT"
       | "INVALID_CREDENTIAL_EXPIRY"
       | "INVALID_CREDENTIAL_NAME",
     message: string
@@ -110,41 +120,121 @@ export async function createCredential(input: {
 
   const credential = await sequelize.transaction(async transaction => {
     const profile = await User.findByPk(input.profileId, {
-      attributes: ["id"],
+      attributes: ["id", "kind"],
       lock: transaction.LOCK.UPDATE,
       transaction
     });
     if (!profile) {
       throw new ApiCredentialServiceError("CREDENTIAL_SUBJECT_REQUIRED", "Profile was not found");
     }
-
-    const activeCount = await ApiCredential.count({
-      transaction,
-      where: { expiresAt: { [Op.gt]: new Date() }, profileId: input.profileId, revokedAt: null }
-    });
-    if (activeCount >= MAX_ACTIVE_CREDENTIALS_PER_PROFILE) {
+    if (profile.kind === "managed" && input.partnerId) {
       throw new ApiCredentialServiceError(
-        "CREDENTIAL_LIMIT_REACHED",
-        `Active API credential limit reached (${MAX_ACTIVE_CREDENTIALS_PER_PROFILE})`
+        "INVALID_CREDENTIAL_SUBJECT",
+        "Partner API credentials cannot be issued for managed profiles"
       );
     }
 
-    return ApiCredential.create(
-      {
-        environment: input.environment,
-        expiresAt: validated.expiresAt,
-        name: validated.name,
-        partnerId: input.partnerId ?? null,
-        profileId: input.profileId,
-        publicKeyValue: publicKey,
-        secretKeyDigest: digestApiKey(secretKey),
-        secretKeyPrefix: getSecretKeyLookupPrefix(secretKey)
-      },
-      { transaction }
-    );
+    return insertCredential(input, validated, publicKey, secretKey, transaction);
   });
 
   return { ...toDto(credential), secretKey };
+}
+
+export async function createManagedProfileCredential(input: {
+  environment: ApiCredentialEnvironment;
+  expiresAt?: unknown;
+  managerProfileId: string;
+  name?: unknown;
+  profileId: string;
+}): Promise<ApiCredentialDto & { secretKey: string }> {
+  const validated = validateInput(input.name, input.expiresAt);
+  const publicKey = generateApiKey("public", input.environment);
+  const secretKey = generateApiKey("secret", input.environment);
+  const credential = await sequelize.transaction(async transaction => {
+    const profile = await User.findByPk(input.profileId, {
+      attributes: ["id", "kind"],
+      lock: transaction.LOCK.UPDATE,
+      transaction
+    });
+    if (profile?.kind !== "managed") {
+      throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
+    }
+    const relationship = await ManagedProfile.findOne({
+      lock: transaction.LOCK.UPDATE,
+      transaction,
+      where: { managerProfileId: input.managerProfileId, profileId: input.profileId, status: "active" }
+    });
+    if (!relationship) {
+      throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
+    }
+    const manager = await ManagedProfileManager.findByPk(input.managerProfileId, { transaction });
+    if (!manager?.isActive) {
+      throw new ApiCredentialServiceError("CREDENTIAL_ACCESS_DENIED", "Managed-profile manager is not active");
+    }
+    return insertCredential({ ...input, partnerId: null }, validated, publicKey, secretKey, transaction);
+  });
+  return { ...toDto(credential), secretKey };
+}
+
+async function insertCredential(
+  input: { environment: ApiCredentialEnvironment; partnerId?: string | null; profileId: string },
+  validated: { expiresAt: Date; name: string },
+  publicKey: string,
+  secretKey: string,
+  transaction: Transaction
+): Promise<ApiCredential> {
+  const activeCount = await ApiCredential.count({
+    transaction,
+    where: { expiresAt: { [Op.gt]: new Date() }, profileId: input.profileId, revokedAt: null }
+  });
+  if (activeCount >= MAX_ACTIVE_CREDENTIALS_PER_PROFILE) {
+    throw new ApiCredentialServiceError(
+      "CREDENTIAL_LIMIT_REACHED",
+      `Active API credential limit reached (${MAX_ACTIVE_CREDENTIALS_PER_PROFILE})`
+    );
+  }
+  return ApiCredential.create(
+    {
+      environment: input.environment,
+      expiresAt: validated.expiresAt,
+      name: validated.name,
+      partnerId: input.partnerId ?? null,
+      profileId: input.profileId,
+      publicKeyValue: publicKey,
+      secretKeyDigest: digestApiKey(secretKey),
+      secretKeyPrefix: getSecretKeyLookupPrefix(secretKey)
+    },
+    { transaction }
+  );
+}
+
+async function requireManagedCredentialSubject(managerProfileId: string, profileId: string): Promise<void> {
+  const [manager, relationship, profile] = await Promise.all([
+    ManagedProfileManager.findByPk(managerProfileId),
+    ManagedProfile.findOne({ where: { managerProfileId, profileId, status: "active" } }),
+    User.findByPk(profileId, { attributes: ["kind"] })
+  ]);
+  if (!manager?.isActive) {
+    throw new ApiCredentialServiceError("CREDENTIAL_ACCESS_DENIED", "Managed-profile manager is not active");
+  }
+  if (!relationship || profile?.kind !== "managed") {
+    throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
+  }
+}
+
+export async function listManagedProfileCredentials(managerProfileId: string, profileId: string): Promise<ApiCredentialDto[]> {
+  await requireManagedCredentialSubject(managerProfileId, profileId);
+  return listCredentials({ profileId });
+}
+
+export async function revokeManagedProfileCredential(
+  managerProfileId: string,
+  profileId: string,
+  credentialId: string
+): Promise<void> {
+  await requireManagedCredentialSubject(managerProfileId, profileId);
+  const [updated] = await ApiCredential.update({ revokedAt: new Date() }, { where: { id: credentialId, profileId } });
+  if (updated === 0) throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
 }
 
 export async function listCredentials(filter: { partnerId?: string | null; profileId: string }): Promise<ApiCredentialDto[]> {
@@ -171,14 +261,30 @@ export async function revokeCredential(id: string, filter: { partnerId?: string 
   if (updated === 0) throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
 }
 
-function context(credential: ApiCredential, strength: "public" | "secret"): CredentialContext {
-  return {
+async function context(credential: ApiCredential, strength: "public" | "secret"): Promise<CredentialContext | null> {
+  const profile = await User.findByPk(credential.profileId, { attributes: ["kind"] });
+  if (!profile) return null;
+  let managedProfile: CredentialContext["managedProfile"];
+  if (profile.kind === "managed") {
+    if (credential.partnerId !== null) return null;
+    const relationship = await ManagedProfile.findOne({ where: { profileId: credential.profileId, status: "active" } });
+    if (!relationship) return null;
+    const manager = await ManagedProfileManager.findByPk(relationship.managerProfileId);
+    if (!manager?.isActive) return null;
+    managedProfile = Object.freeze({
+      allowedCorridors: Object.freeze([...manager.allowedCorridors]),
+      controllingManagerProfileId: relationship.managerProfileId,
+      relationshipId: relationship.id
+    });
+  }
+  return Object.freeze({
     credentialId: credential.id,
     environment: credential.environment,
+    ...(managedProfile ? { managedProfile } : {}),
     partnerId: credential.partnerId,
     profileId: credential.profileId,
     strength
-  };
+  });
 }
 
 export async function validatePublicKey(publicKey: string): Promise<CredentialContext | null> {
@@ -186,10 +292,12 @@ export async function validatePublicKey(publicKey: string): Promise<CredentialCo
     where: { expiresAt: { [Op.gt]: new Date() }, publicKeyValue: publicKey, revokedAt: null }
   });
   if (!credential) return null;
+  const credentialContext = await context(credential, "public");
+  if (!credentialContext) return null;
   credential
     .update({ publicLastUsedAt: new Date() })
     .catch(error => logger.error("Failed to update public credential usage", error));
-  return context(credential, "public");
+  return credentialContext;
 }
 
 export async function validateSecretKey(secretKey: string): Promise<CredentialContext | null> {
@@ -203,10 +311,12 @@ export async function validateSecretKey(secretKey: string): Promise<CredentialCo
     return stored.length === presented.length && crypto.timingSafeEqual(stored, presented);
   });
   if (!credential) return null;
+  const credentialContext = await context(credential, "secret");
+  if (!credentialContext) return null;
   credential
     .update({ secretLastUsedAt: new Date() })
     .catch(error => logger.error("Failed to update secret credential usage", error));
-  return context(credential, "secret");
+  return credentialContext;
 }
 
 export async function assertApiCredentialSchemaReady(): Promise<void> {

@@ -98,19 +98,20 @@ export async function readManagedProfileManager(req: Request<{ profileId: string
 
 export async function postManagedProfileForManager(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
-    const { customerType, externalSubjectId } = req.body ?? {};
+    const { contactEmail, customerType, externalSubjectId } = req.body ?? {};
     if (
       !UUID_PATTERN.test(req.params.profileId) ||
       typeof externalSubjectId !== "string" ||
       externalSubjectId.trim().length === 0 ||
       externalSubjectId.trim().length > 255 ||
+      typeof contactEmail !== "string" ||
       !CUSTOMER_TYPES.includes(customerType)
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
           code: "MANAGED_PROFILE_INVALID_INPUT",
           message:
-            "profileId must be a UUID, and externalSubjectId (1-255 characters) and customerType (individual|business) are required",
+            "profileId must be a UUID, and contactEmail, externalSubjectId (1-255 characters), and customerType (individual|business) are required",
           status: httpStatus.BAD_REQUEST
         }
       });
@@ -118,6 +119,7 @@ export async function postManagedProfileForManager(req: Request<{ profileId: str
     }
 
     const result = await createManagedProfile({
+      contactEmail,
       creationSource: "vortex",
       customerType,
       externalSubjectId,

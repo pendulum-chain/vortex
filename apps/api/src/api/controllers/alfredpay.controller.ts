@@ -25,6 +25,8 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
+import CustomerEntity, { type CustomerEntityType } from "../../models/customerEntity.model";
+import ManagedProfile from "../../models/managedProfile.model";
 import { VerificationStatus } from "../../models/providerCustomer.model";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import {
@@ -77,7 +79,59 @@ export function mapFiatAccountProviderRejection(
   }
 }
 
+class AlfredpayCustomerCreationError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 export class AlfredpayController {
+  private static async getCustomerCreationEmail(req: Request, customerType: CustomerEntityType): Promise<string> {
+    if (!req.managedProfileContext) {
+      if (!req.userEmail) {
+        throw new AlfredpayCustomerCreationError(httpStatus.BAD_REQUEST, "User email not available");
+      }
+      return req.userEmail;
+    }
+
+    const [relationship, entity] = await Promise.all([
+      ManagedProfile.findByPk(req.managedProfileContext.managedProfileId, { attributes: ["contactEmail"] }),
+      CustomerEntity.findByPk(req.managedProfileContext.customerEntityId, { attributes: ["type"] })
+    ]);
+    if (entity?.type !== customerType) {
+      throw new AlfredpayCustomerCreationError(httpStatus.BAD_REQUEST, `Managed profile customer type must be ${customerType}`);
+    }
+    if (!relationship?.contactEmail) {
+      throw new AlfredpayCustomerCreationError(httpStatus.BAD_REQUEST, "Managed profile contact email not available");
+    }
+    return relationship.contactEmail;
+  }
+
+  private static verifyConflictingCustomer(
+    customer: { country: string; customerId: string; type: string },
+    country: string,
+    type: AlfredpayCustomerType
+  ): string {
+    if (customer.country.toUpperCase() !== country.toUpperCase() || customer.type.toUpperCase() !== type) {
+      throw new AlfredpayCustomerCreationError(
+        httpStatus.CONFLICT,
+        "Existing Alfredpay customer does not match the requested country and customer type"
+      );
+    }
+    return customer.customerId;
+  }
+
+  private static handleCustomerCreationError(message: string, error: unknown, res: Response) {
+    if (error instanceof AlfredpayCustomerCreationError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    logger.error(message, error);
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
+  }
+
   private static getRequiredUserId(req: Request): string {
     const userId = getEffectiveUserId(req);
     if (!userId) {
@@ -233,11 +287,7 @@ export class AlfredpayController {
     try {
       const { country } = req.body as AlfredpayCreateCustomerRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
-      const userEmail = req.userEmail;
-
-      if (!userEmail) {
-        return res.status(400).json({ error: "User email not available" });
-      }
+      const userEmail = await AlfredpayController.getCustomerCreationEmail(req, "individual");
 
       // Check if customer already exists in our DB
       const existingDbCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
@@ -257,7 +307,11 @@ export class AlfredpayController {
         if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
           logger.info("Customer already exists in Alfredpay, fetching existing customer");
           const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
-          customerId = existingCustomer.customerId;
+          customerId = AlfredpayController.verifyConflictingCustomer(
+            existingCustomer,
+            country,
+            AlfredpayCustomerType.INDIVIDUAL
+          );
         } else {
           throw error;
         }
@@ -276,8 +330,7 @@ export class AlfredpayController {
 
       res.json(response);
     } catch (error) {
-      logger.error("Error creating Alfredpay customer:", error);
-      res.status(500).json({ error: "Internal server error" });
+      AlfredpayController.handleCustomerCreationError("Error creating Alfredpay customer:", error, res);
     }
   }
 
@@ -510,11 +563,7 @@ export class AlfredpayController {
     try {
       const { country } = req.body as { country: string };
       const userId = AlfredpayController.getRequiredUserId(req);
-      const userEmail = req.userEmail;
-
-      if (!userEmail) {
-        return res.status(400).json({ error: "User email not available" });
-      }
+      const userEmail = await AlfredpayController.getCustomerCreationEmail(req, "business");
 
       const type = AlfredpayCustomerType.BUSINESS;
 
@@ -535,7 +584,7 @@ export class AlfredpayController {
         if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
           logger.info("Business customer already exists in Alfredpay, fetching existing customer");
           const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
-          customerId = existingCustomer.customerId;
+          customerId = AlfredpayController.verifyConflictingCustomer(existingCustomer, country, type);
         } else {
           throw error;
         }
@@ -554,8 +603,7 @@ export class AlfredpayController {
 
       res.json(response);
     } catch (error) {
-      logger.error("Error creating Alfredpay business customer:", error);
-      res.status(500).json({ error: "Internal server error" });
+      AlfredpayController.handleCustomerCreationError("Error creating Alfredpay business customer:", error, res);
     }
   }
 

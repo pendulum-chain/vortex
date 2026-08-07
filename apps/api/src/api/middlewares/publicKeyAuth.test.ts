@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import ApiCredential from "../../models/apiCredential.model";
 import Partner from "../../models/partner.model";
+import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "./apiKeyFormat";
 import { apiKeyAuth, enforcePartnerAuth } from "./apiKeyAuth";
 import { optionalPartnerOrUserAuth } from "./dualAuth";
@@ -9,11 +10,13 @@ import { validatePublicKey } from "./publicKeyAuth";
 const originalFindAll = ApiCredential.findAll;
 const originalFindOne = ApiCredential.findOne;
 const originalPartnerFindOne = Partner.findOne;
+const originalUserFindByPk = User.findByPk;
 
 afterEach(() => {
   ApiCredential.findAll = originalFindAll;
   ApiCredential.findOne = originalFindOne;
   Partner.findOne = originalPartnerFindOne;
+  User.findByPk = originalUserFindByPk;
 });
 
 function responseDouble() {
@@ -41,6 +44,7 @@ describe("validatePublicKey", () => {
     });
     ApiCredential.findOne = mock(async () => credential) as never;
     Partner.findOne = mock(async () => null) as typeof Partner.findOne;
+    User.findByPk = mock(async () => ({ kind: "authenticated" })) as never;
     const response = responseDouble();
     const next = mock(() => undefined);
 
@@ -96,6 +100,7 @@ describe("validatePublicKey", () => {
     });
     ApiCredential.findOne = mock(async () => publicCredential) as never;
     ApiCredential.findAll = mock(async () => [secretCredential]) as never;
+    User.findByPk = mock(async () => ({ kind: "authenticated" })) as never;
 
     const request = { body: {}, headers: { "x-api-key": secretKey, "x-public-key": publicKey }, query: {} };
     const publicResponse = responseDouble();

@@ -1,4 +1,4 @@
-import { type CorridorCountry, FIAT_TOKEN_CORRIDOR, FiatToken } from "@vortexfi/shared";
+import { type CorridorCountry, FIAT_TOKEN_CORRIDOR, FiatToken, type LimitsCorridor } from "@vortexfi/shared";
 import { Request } from "express";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -12,6 +12,19 @@ export function getManagedProfileCountryCorridor(req: Request): CorridorCountry 
     ? (country as CorridorCountry)
     : undefined;
 }
+
+export function getManagedProfileLimitsCorridors(req: Request): CorridorCountry[] | undefined {
+  const corridors = req.body?.corridors;
+  if (!Array.isArray(corridors) || corridors.length === 0) {
+    return undefined;
+  }
+  if (corridors.some(corridor => typeof corridor !== "string" || !LIMITS_CORRIDORS.includes(corridor as LimitsCorridor))) {
+    return undefined;
+  }
+  return corridors as CorridorCountry[];
+}
+
+const LIMITS_CORRIDORS: LimitsCorridor[] = ["AR", "BR", "CO", "MX", "US"];
 
 export async function getManagedProfileQuoteCorridor(req: Request): Promise<CorridorCountry | undefined> {
   const quoteId = req.body?.quoteId;

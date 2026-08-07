@@ -5,7 +5,6 @@ import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import { getManagedProfileCountryCorridor } from "../../middlewares/managedProfileCorridor";
-import { requireAuth } from "../../middlewares/supabaseAuth";
 import { validateKybSubmission, validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
@@ -18,7 +17,13 @@ router.get(
   authorizeManagedProfile(),
   AlfredpayController.alfredpayStatus
 );
-router.post("/createIndividualCustomer", requireAuth, validateResultCountry, AlfredpayController.createIndividualCustomer);
+router.post(
+  "/createIndividualCustomer",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  AlfredpayController.createIndividualCustomer
+);
 router.get(
   "/getKycRedirectLink",
   requirePartnerOrUserAuth(),
@@ -54,7 +59,13 @@ router.post(
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
   AlfredpayController.retryKyc
 );
-router.post("/createBusinessCustomer", requireAuth, validateResultCountry, AlfredpayController.createBusinessCustomer);
+router.post(
+  "/createBusinessCustomer",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  AlfredpayController.createBusinessCustomer
+);
 router.get(
   "/getKybRedirectLink",
   requirePartnerOrUserAuth(),

@@ -11,6 +11,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export interface ManagedProfileContext {
   actorProfileId: string;
+  controllingManagerProfileId: string;
   customerEntityId: string;
   managedProfileId: string;
   subjectProfileId: string;
@@ -27,7 +28,9 @@ declare global {
 
 type CorridorResolver =
   | CorridorCountry
-  | ((req: Request) => CorridorCountry | undefined | Promise<CorridorCountry | undefined>);
+  | ((
+      req: Request
+    ) => CorridorCountry | CorridorCountry[] | undefined | Promise<CorridorCountry | CorridorCountry[] | undefined>);
 
 interface ManagedProfileAuthOptions {
   corridor?: CorridorResolver;
@@ -36,8 +39,38 @@ interface ManagedProfileAuthOptions {
 export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {}) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const subjectProfileId = req.get("X-Managed-Profile-Id");
+    const directManagedCredential = req.credential?.managedProfile;
+    const directCredentialProfileId = req.credential?.profileId;
+    if (directManagedCredential && subjectProfileId !== undefined) {
+      sendAccessDenied(res);
+      return;
+    }
     if (subjectProfileId === undefined) {
-      next();
+      if (!directManagedCredential || !directCredentialProfileId) {
+        next();
+        return;
+      }
+
+      try {
+        const resolvedCorridors = typeof options.corridor === "function" ? await options.corridor(req) : options.corridor;
+        const corridors = Array.isArray(resolvedCorridors) ? resolvedCorridors : resolvedCorridors ? [resolvedCorridors] : [];
+        if (
+          options.corridor !== undefined &&
+          (corridors.length === 0 || corridors.some(corridor => !directManagedCredential.allowedCorridors.includes(corridor)))
+        ) {
+          sendAccessDenied(res);
+          return;
+        }
+        await attachManagedProfileContext(req, res, {
+          actorProfileId: directCredentialProfileId,
+          controllingManagerProfileId: directManagedCredential.controllingManagerProfileId,
+          managedProfileId: directManagedCredential.relationshipId,
+          subjectProfileId: directCredentialProfileId
+        });
+        if (req.managedProfileContext) next();
+      } catch (error) {
+        next(error);
+      }
       return;
     }
 
@@ -73,43 +106,78 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         User.findByPk(subjectProfileId, { attributes: ["activeCustomerEntityId", "kind"] })
       ]);
 
-      const corridor = typeof options.corridor === "function" ? await options.corridor(req) : options.corridor;
+      const resolvedCorridors = typeof options.corridor === "function" ? await options.corridor(req) : options.corridor;
+      const corridors = Array.isArray(resolvedCorridors) ? resolvedCorridors : resolvedCorridors ? [resolvedCorridors] : [];
       if (
         !manager?.isActive ||
         !relationship ||
         subject?.kind !== "managed" ||
         !subject.activeCustomerEntityId ||
-        (options.corridor !== undefined && (!corridor || !manager.allowedCorridors.includes(corridor)))
+        (options.corridor !== undefined &&
+          (corridors.length === 0 || corridors.some(corridor => !manager.allowedCorridors.includes(corridor))))
       ) {
         sendAccessDenied(res);
         return;
       }
 
-      const customerEntities = await CustomerEntity.findAll({
-        attributes: ["id", "status"],
-        where: { profileId: subjectProfileId }
-      });
-      const customerEntity = customerEntities[0];
-      if (
-        customerEntities.length !== 1 ||
-        customerEntity.id !== subject.activeCustomerEntityId ||
-        customerEntity.status !== "active"
-      ) {
-        sendAccessDenied(res);
-        return;
-      }
-
-      req.managedProfileContext = Object.freeze({
+      await attachManagedProfileContext(req, res, {
         actorProfileId,
-        customerEntityId: customerEntity.id,
+        controllingManagerProfileId: actorProfileId,
         managedProfileId: relationship.id,
         subjectProfileId
       });
-      next();
+      if (req.managedProfileContext) next();
     } catch (error) {
       next(error);
     }
   };
+}
+
+async function attachManagedProfileContext(
+  req: Request,
+  res: Response,
+  identity: Omit<ManagedProfileContext, "customerEntityId">
+): Promise<void> {
+  const [subject, customerEntities] = await Promise.all([
+    User.findByPk(identity.subjectProfileId, { attributes: ["activeCustomerEntityId", "kind"] }),
+    CustomerEntity.findAll({ attributes: ["id", "status"], where: { profileId: identity.subjectProfileId } })
+  ]);
+  const customerEntity = customerEntities[0];
+  if (
+    subject?.kind !== "managed" ||
+    !subject.activeCustomerEntityId ||
+    customerEntities.length !== 1 ||
+    customerEntity.id !== subject.activeCustomerEntityId ||
+    customerEntity.status !== "active"
+  ) {
+    sendAccessDenied(res);
+    return;
+  }
+  req.managedProfileContext = Object.freeze({ ...identity, customerEntityId: customerEntity.id });
+}
+
+export function rejectManagedProfileSelection(req: Request, res: Response, next: NextFunction): void {
+  if (req.get("X-Managed-Profile-Id") === undefined) {
+    next();
+    return;
+  }
+
+  res.status(httpStatus.BAD_REQUEST).json({
+    error: {
+      code: "MANAGED_PROFILE_UNSUPPORTED",
+      message: "Managed profile selection is not supported for this operation",
+      status: httpStatus.BAD_REQUEST
+    }
+  });
+}
+
+export function rejectDirectManagedCredential(req: Request, res: Response, next: NextFunction): void {
+  if (!req.credential?.managedProfile) {
+    next();
+    return;
+  }
+
+  sendAccessDenied(res);
 }
 
 function sendAccessDenied(res: Response): void {

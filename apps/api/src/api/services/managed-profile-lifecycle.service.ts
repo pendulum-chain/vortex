@@ -7,6 +7,7 @@ import ManagedProfile, {
   type ManagedProfileStatus
 } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import User from "../../models/user.model";
 import { provisionManagedProfile } from "./managed-profile-provisioning.service";
 
 export class ManagedProfileLifecycleError extends Error {
@@ -24,6 +25,7 @@ export class ManagedProfileLifecycleError extends Error {
 }
 
 export interface ManagedProfileLifecycleResult {
+  contactEmail: string | null;
   createdAt: Date;
   creationSource: ManagedProfileCreationSource;
   customerType: CustomerEntityType;
@@ -65,6 +67,7 @@ async function toResult(relationship: ManagedProfile, transaction?: Transaction)
   }
 
   return {
+    contactEmail: relationship.contactEmail,
     createdAt: relationship.createdAt,
     creationSource: relationship.creationSource,
     customerType: entities[0].type,
@@ -77,6 +80,7 @@ async function toResult(relationship: ManagedProfile, transaction?: Transaction)
 }
 
 export async function createManagedProfile(input: {
+  contactEmail: string;
   creationSource: ManagedProfileCreationSource;
   customerType: CustomerEntityType;
   externalSubjectId: string;
@@ -126,6 +130,14 @@ export async function getManagedProfile(managerProfileId: string, profileId: str
 export async function deleteManagedProfile(managerProfileId: string, profileId: string): Promise<void> {
   await sequelize.transaction(async transaction => {
     await requireActiveManager(managerProfileId, transaction);
+    const profile = await User.findByPk(profileId, {
+      attributes: ["id"],
+      lock: Transaction.LOCK.UPDATE,
+      transaction
+    });
+    if (!profile) {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+    }
     const relationship = await ManagedProfile.findOne({
       lock: Transaction.LOCK.UPDATE,
       transaction,

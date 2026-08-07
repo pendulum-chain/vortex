@@ -3,7 +3,8 @@ import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
-import { authorizeManagedProfile, type ManagedProfileContext } from "./managedProfileAuth";
+import type { CredentialContext } from "../services/apiCredential.service";
+import { authorizeManagedProfile, rejectDirectManagedCredential, type ManagedProfileContext } from "./managedProfileAuth";
 
 const MANAGER_ID = "11111111-1111-4111-8111-111111111111";
 const CHILD_ID = "22222222-2222-4222-8222-222222222222";
@@ -112,6 +113,7 @@ describe("authorizeManagedProfile", () => {
     expect(req).toMatchObject({
       managedProfileContext: {
         actorProfileId: MANAGER_ID,
+        controllingManagerProfileId: MANAGER_ID,
         customerEntityId: "entity-1",
         managedProfileId: "relationship-1",
         subjectProfileId: CHILD_ID
@@ -132,6 +134,62 @@ describe("authorizeManagedProfile", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("builds direct child context and enforces the controlling manager corridors", async () => {
+    allowManagedProfile();
+    const req = request({
+      credential: {
+        credentialId: "credential-1",
+        environment: "test",
+        managedProfile: {
+          allowedCorridors: ["BR"],
+          controllingManagerProfileId: MANAGER_ID,
+          relationshipId: "relationship-1"
+        },
+        partnerId: null,
+        profileId: CHILD_ID,
+        strength: "secret"
+      },
+      get: () => undefined,
+      userId: undefined
+    }) as ReturnType<typeof request> & { managedProfileContext?: ManagedProfileContext };
+    const next = mock(() => {});
+
+    await authorizeManagedProfile({ corridor: "BR" })(req as never, response() as never, next);
+
+    expect(req.managedProfileContext).toEqual({
+      actorProfileId: CHILD_ID,
+      controllingManagerProfileId: MANAGER_ID,
+      customerEntityId: "entity-1",
+      managedProfileId: "relationship-1",
+      subjectProfileId: CHILD_ID
+    });
+    expect(next).toHaveBeenCalledTimes(1);
+
+    const denied = response();
+    await authorizeManagedProfile({ corridor: "MX" })(req as never, denied as never, mock(() => {}));
+    expect(denied.statusCode).toBe(403);
+  });
+
+  it("does not let a direct child credential select another managed child", async () => {
+    const res = response();
+    await authorizeManagedProfile()(
+      request({
+        credential: {
+          managedProfile: {
+            allowedCorridors: ["BR"],
+            controllingManagerProfileId: MANAGER_ID,
+            relationshipId: "relationship-1"
+          },
+          profileId: CHILD_ID
+        },
+        userId: undefined
+      }) as never,
+      res as never,
+      mock(() => {})
+    );
+    expect(res.statusCode).toBe(403);
+  });
+
   it("rejects an inactive manager", async () => {
     allowManagedProfile();
     ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: false })) as never;
@@ -147,6 +205,18 @@ describe("authorizeManagedProfile", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it("requires every resolved corridor to be enabled for the manager", async () => {
+    allowManagedProfile();
+    const denied = response();
+    await authorizeManagedProfile({ corridor: () => ["BR", "MX"] })(request() as never, denied as never, mock(() => {}));
+    expect(denied.statusCode).toBe(403);
+
+    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR", "MX"], isActive: true })) as never;
+    const next = mock(() => {});
+    await authorizeManagedProfile({ corridor: () => ["BR", "MX"] })(request() as never, response() as never, next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects a managed child with additional customer entities", async () => {
     allowManagedProfile();
     CustomerEntity.findAll = mock(async () => [
@@ -156,5 +226,35 @@ describe("authorizeManagedProfile", () => {
     const res = response();
     await authorizeManagedProfile()(request() as never, res as never, mock(() => {}));
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe("rejectDirectManagedCredential", () => {
+  it("rejects managed child credentials and preserves ordinary credentials", () => {
+    const managedReq = request() as ReturnType<typeof request> & { credential?: CredentialContext };
+    managedReq.credential = {
+      credentialId: "credential-1",
+      environment: "test",
+      managedProfile: {
+        allowedCorridors: ["BR"],
+        controllingManagerProfileId: MANAGER_ID,
+        relationshipId: "relationship-1"
+      },
+      partnerId: null,
+      profileId: CHILD_ID,
+      strength: "secret"
+    };
+    const managedRes = response();
+    const managedNext = mock(() => undefined);
+
+    rejectDirectManagedCredential(managedReq as never, managedRes as never, managedNext);
+
+    expect(managedRes.statusCode).toBe(403);
+    expect(managedNext).not.toHaveBeenCalled();
+
+    const ordinaryReq = request();
+    const ordinaryNext = mock(() => undefined);
+    rejectDirectManagedCredential(ordinaryReq as never, response() as never, ordinaryNext);
+    expect(ordinaryNext).toHaveBeenCalledTimes(1);
   });
 });

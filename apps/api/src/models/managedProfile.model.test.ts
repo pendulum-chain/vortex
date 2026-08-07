@@ -15,6 +15,7 @@ describe("managed profile models", () => {
     expect(models.User.getAttributes().email.allowNull).toBe(true);
     expect(models.ManagedProfileManager.getAttributes().allowedCorridors.field).toBe("allowed_corridors");
     expect(models.ManagedProfile.getAttributes().externalSubjectId.field).toBe("external_subject_id");
+    expect(models.ManagedProfile.getAttributes().contactEmail.field).toBe("contact_email");
     expect(models.ManagedProfile.getAttributes().managerProfileId.field).toBe("manager_profile_id");
   });
 });
