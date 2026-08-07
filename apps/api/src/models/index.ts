@@ -3,6 +3,7 @@ import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
 import CustomerEntity from "./customerEntity.model";
+import EmailNotification from "./emailNotification.model";
 import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
@@ -39,6 +40,9 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
+
+User.hasMany(EmailNotification, { as: "emailNotifications", foreignKey: "userId" });
+EmailNotification.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
@@ -98,6 +102,7 @@ const models = {
   ApiClientEvent,
   ApiCredential,
   CustomerEntity,
+  EmailNotification,
   FinancialOperation,
   KycCase,
   MaintenanceSchedule,

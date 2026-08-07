@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import type CustomerEntity from "./customerEntity.model";
 import type { ProviderName, VerificationStatus } from "./providerCustomer.model";
 
 export type KycCaseType = "kyc" | "kyb";
@@ -56,6 +57,9 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
   declare rejectedAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
+
+  // Association helper
+  declare customerEntity?: CustomerEntity;
 }
 
 KycCase.init(
