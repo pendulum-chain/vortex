@@ -23,6 +23,7 @@ interface SpreadsheetConfig {
 }
 
 type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
+const DECIMAL_STRING_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 // Identifies which onramp flow this backend instance serves. Two backends
 // share one database; each ignores ramps/quotes belonging to the other flow.
@@ -82,7 +83,7 @@ function readNonNegativeDecimalEnv(name: string): string {
     throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
   }
   const value = Number(rawValue);
-  if (!Number.isFinite(value) || value < 0) {
+  if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
     throw new Error(`${name} must be a non-negative number (got '${rawValue}')`);
   }
   return rawValue;
@@ -106,11 +107,12 @@ function readFractionEnv(name: string, defaultValue: string): number {
 
 function readPositiveDecimalEnv(name: string, defaultValue: string): string {
   const rawValue = process.env[name] ?? defaultValue;
-  const value = Number(rawValue.trim());
-  if (!Number.isFinite(value) || value <= 0 || rawValue.trim() === "") {
+  const trimmedValue = rawValue.trim();
+  const value = Number(trimmedValue);
+  if (!DECIMAL_STRING_PATTERN.test(trimmedValue) || !Number.isFinite(value) || value <= 0) {
     throw new Error(`${name} must be a positive number`);
   }
-  return rawValue.trim();
+  return trimmedValue;
 }
 
 function readEvmDestinationNetworkFeeMarginBps(): number {

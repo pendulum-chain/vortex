@@ -162,4 +162,30 @@ describe("vars deployment environment validation", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("EVM_DESTINATION_MAX_EXECUTION_FEE_USD must be a positive number");
   });
+
+  it("rejects non-decimal EVM destination execution-fee ceilings during startup", async () => {
+    for (const invalidValue of ["0x10", "1e1"]) {
+      const result = await importVarsWithEnv({
+        DEPLOYMENT_ENV: "production",
+        EVM_DESTINATION_MAX_EXECUTION_FEE_USD: invalidValue,
+        NODE_ENV: "production"
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("EVM_DESTINATION_MAX_EXECUTION_FEE_USD must be a positive number");
+    }
+  });
+
+  it("rejects non-decimal Mykobo fallback fees before returning strings to fee arithmetic", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MYKOBO_FALLBACK_DEPOSIT_FEE: "0x10",
+      MYKOBO_FALLBACK_WITHDRAW_FEE: "1",
+      MYKOBO_FEE_FALLBACK_ENABLED: "true",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MYKOBO_FALLBACK_DEPOSIT_FEE must be a non-negative number");
+  });
 });

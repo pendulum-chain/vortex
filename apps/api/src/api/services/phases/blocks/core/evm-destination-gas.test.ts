@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { type EvmNetworks, type EvmTransactionData, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
+import {
+  type EvmNetworks,
+  type EvmTransactionData,
+  Networks,
+  type PresignedTx,
+  QuoteError,
+  RampDirection
+} from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
 import { config } from "../../../../../config/vars";
 import {
@@ -41,11 +48,54 @@ describe("EVM destination gas policy", () => {
     ).toBe(145_200_000_024_000n);
   });
 
-  it("refuses to derive a treasury liability outside the server-issued gas envelope", async () => {
+  it("re-binds every signed payout field before deriving treasury liability", async () => {
     const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
-    const rawTransaction = await account.signTransaction({
+    const unsignedTransaction = destinationTransfer(
+      transaction("1000000000", "1000000000"),
+      account.address,
+      Networks.Polygon
+    );
+    const overrides = [
+      { expected: "'to'", gas: 100_000n, to: "0x0000000000000000000000000000000000000002" },
+      { data: "0x12345678" as const, expected: "data", gas: 100_000n },
+      { expected: "value", gas: 100_000n, value: 1n },
+      { expected: "gas limit", gas: 100_001n },
+      {
+        expected: "below expected minimum",
+        gas: 100_000n,
+        maxFeePerGas: 999_999_999n,
+        maxPriorityFeePerGas: 999_999_999n
+      },
+      { expected: "nonce", gas: 100_000n, nonce: 1 }
+    ];
+
+    for (const override of overrides) {
+      const rawTransaction = await account.signTransaction({
+        chainId: 137,
+        gas: override.gas,
+        maxFeePerGas: override.maxFeePerGas ?? 3_000_000_000n,
+        maxPriorityFeePerGas: override.maxPriorityFeePerGas ?? 1_000_000_000n,
+        nonce: override.nonce ?? 0,
+        to: (override.to ?? "0x0000000000000000000000000000000000000001") as `0x${string}`,
+        type: "eip1559",
+        value: override.value ?? 0n,
+        ...(override.data ? { data: override.data } : {})
+      });
+
+      await expect(
+        calculateBoundedPresignedGasBudgetRaw(
+          destinationTransfer(rawTransaction, account.address, Networks.Polygon),
+          unsignedTransaction
+        )
+      ).rejects.toThrow(override.expected);
+    }
+
+    const foreignAccount = privateKeyToAccount(
+      "0x8b3a350cf5c34c9194ca3a545d44d3b6739b0eeb2e0ec143f7fb926a4f9f9f0d"
+    );
+    const foreignRawTransaction = await foreignAccount.signTransaction({
       chainId: 137,
-      gas: 100_001n,
+      gas: 100_000n,
       maxFeePerGas: 3_000_000_000n,
       maxPriorityFeePerGas: 1_000_000_000n,
       nonce: 0,
@@ -53,10 +103,12 @@ describe("EVM destination gas policy", () => {
       type: "eip1559",
       value: 0n
     });
-
-    expect(() => calculateBoundedPresignedGasBudgetRaw(rawTransaction, transaction("1000000000"))).toThrow(
-      "server-issued gas envelope"
-    );
+    await expect(
+      calculateBoundedPresignedGasBudgetRaw(
+        destinationTransfer(foreignRawTransaction, account.address, Networks.Polygon),
+        unsignedTransaction
+      )
+    ).rejects.toThrow("Recovered signer");
   });
 
   it("adds the persisted Base L1 payout envelope to the presigned liability", async () => {
@@ -73,9 +125,15 @@ describe("EVM destination gas policy", () => {
         type: "eip1559",
         value: 0n
       });
+      const presignedTransfer = destinationTransfer(rawTransaction, account.address, Networks.Base);
+      const unsignedTransfer = destinationTransfer(
+        transaction("1000000000", "1000000000"),
+        account.address,
+        Networks.Base
+      );
 
       expect(
-        calculateQuotedPresignedExecutionBudgetRaw(rawTransaction, Networks.Base, transaction("1000000000"), {
+        await calculateQuotedPresignedExecutionBudgetRaw(presignedTransfer, unsignedTransfer, {
           executionFeeUsd: "0.20",
           fundingGasLimit: "21000",
           isNativeTransfer: false,
@@ -91,7 +149,7 @@ describe("EVM destination gas policy", () => {
         throw new Error("late Base oracle unavailable");
       };
       expect(
-        calculateQuotedPresignedExecutionBudgetRaw(rawTransaction, Networks.Base, transaction("1000000000"), {
+        await calculateQuotedPresignedExecutionBudgetRaw(presignedTransfer, unsignedTransfer, {
           executionFeeUsd: "0.20",
           fundingGasLimit: "21000",
           isNativeTransfer: false,
@@ -292,13 +350,21 @@ describe("EVM destination gas policy", () => {
   });
 });
 
-function transaction(maxFeePerGas: string): EvmTransactionData {
+function transaction(maxFeePerGas: string, maxPriorityFeePerGas = "1"): EvmTransactionData {
   return {
     data: "0x",
     gas: "100000",
     maxFeePerGas,
-    maxPriorityFeePerGas: "1",
+    maxPriorityFeePerGas,
     to: "0x0000000000000000000000000000000000000001",
     value: "0"
   };
+}
+
+function destinationTransfer(
+  txData: PresignedTx["txData"],
+  signer: string,
+  network: EvmNetworks
+): PresignedTx {
+  return { meta: {}, network, nonce: 0, phase: "destinationTransfer", signer, txData };
 }

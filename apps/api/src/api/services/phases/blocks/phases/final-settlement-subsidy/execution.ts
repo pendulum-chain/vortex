@@ -231,6 +231,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           transaction =>
             transaction.phase === "destinationTransfer" &&
             transaction.network === destinationNetwork &&
+            transaction.nonce === presignedTransfer.nonce &&
             transaction.signer.toLowerCase() === presignedTransfer.signer.toLowerCase()
         );
         if (!unsignedTransfer || !isEvmTransactionData(unsignedTransfer.txData)) {
@@ -239,11 +240,8 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           );
         }
         destinationGasReserveRaw = new Big(
-          calculateQuotedPresignedExecutionBudgetRaw(
-            presignedTransfer.txData as `0x${string}`,
-            destinationNetwork,
-            unsignedTransfer.txData,
-            destinationGasQuote
+          (
+            await calculateQuotedPresignedExecutionBudgetRaw(presignedTransfer, unsignedTransfer, destinationGasQuote)
           ).toString()
         );
       } else {

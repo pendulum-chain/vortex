@@ -124,7 +124,14 @@ describe("FundEphemeralExecutor destination gas funding", () => {
       value: 0n
     });
     const handler = Object.create(FundEphemeralExecutor.prototype) as any;
-    handler.getPresignedTransaction = () => ({ network: Networks.Polygon, signer: account.address, txData: rawTx });
+    handler.getPresignedTransaction = () => ({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "destinationTransfer",
+      signer: account.address,
+      txData: rawTx
+    });
     const state = {
       unsignedTxs: [
         {
@@ -145,7 +152,7 @@ describe("FundEphemeralExecutor destination gas funding", () => {
     } as unknown as RampState;
 
     expect(
-      handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon, {
+      await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon, {
         executionFeeUsd: "0.20",
         fundingGasLimit: "21000",
         isNativeTransfer: false,
@@ -154,9 +161,7 @@ describe("FundEphemeralExecutor destination gas funding", () => {
         programVersion: 2,
         transferGasLimit: "100000"
       })
-    ).toBe(
-      3_000_000_000_000_000n
-    );
+    ).toBe(3_000_000_000_000_000n);
   });
 
   it("reserves the persisted Base payout L1 envelope instead of a live early fee", async () => {
@@ -172,7 +177,14 @@ describe("FundEphemeralExecutor destination gas funding", () => {
       value: 0n
     });
     const handler = Object.create(FundEphemeralExecutor.prototype) as any;
-    handler.getPresignedTransaction = () => ({ network: Networks.Base, signer: account.address, txData: rawTx });
+    handler.getPresignedTransaction = () => ({
+      meta: {},
+      network: Networks.Base,
+      nonce: 0,
+      phase: "destinationTransfer",
+      signer: account.address,
+      txData: rawTx
+    });
     const state = {
       unsignedTxs: [
         {
@@ -193,7 +205,7 @@ describe("FundEphemeralExecutor destination gas funding", () => {
     } as unknown as RampState;
 
     expect(
-      handler.getDestinationEvmFundingRequirementRaw(state, Networks.Base, {
+      await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Base, {
         executionFeeUsd: "0.20",
         fundingGasLimit: "21000",
         isNativeTransfer: false,

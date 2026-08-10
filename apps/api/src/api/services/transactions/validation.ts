@@ -35,6 +35,12 @@ interface VerifiedEvmTransaction {
   chainId: number;
 }
 
+export class PresignedEvmTransactionRebindError extends APIError {
+  constructor(message: string) {
+    super({ message, status: httpStatus.BAD_REQUEST });
+  }
+}
+
 function assertSignedEvmFeeWithinBounds(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
   if (expectedMinimumRaw === undefined) {
     return;
@@ -482,6 +488,28 @@ async function validateEvmTransaction(
 
   const evmUnsigned = unsignedTxData && isEvmTransactionData(unsignedTxData) ? unsignedTxData : undefined;
   await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, evmUnsigned);
+}
+
+export async function validatePresignedEvmTransactionAgainstUnsigned(tx: PresignedTx, unsignedTx: PresignedTx): Promise<void> {
+  try {
+    if (
+      tx.phase !== unsignedTx.phase ||
+      tx.network !== unsignedTx.network ||
+      tx.nonce !== unsignedTx.nonce ||
+      tx.signer.toLowerCase() !== unsignedTx.signer.toLowerCase()
+    ) {
+      throw new Error("Presigned EVM transaction identity does not match its server-issued unsigned transaction");
+    }
+    if (!isEvmTransactionData(unsignedTx.txData)) {
+      throw new Error("Server-issued unsigned EVM transaction has invalid transaction data");
+    }
+    await validateEvmTransaction(tx, unsignedTx.signer, unsignedTx.txData);
+  } catch (error) {
+    if (error instanceof PresignedEvmTransactionRebindError) throw error;
+    throw new PresignedEvmTransactionRebindError(
+      error instanceof Error ? error.message : "Presigned EVM transaction does not match its server-issued transaction"
+    );
+  }
 }
 
 function validateSignedTypedData(

@@ -112,8 +112,10 @@ always occur only after all user-facing phases is incorrect.
   subsequently rise. An accepted new transfer carries the checked gas and EIP-1559 fee
   caps explicitly.
 - The native amount delivered to the ephemeral is based on the bounded signed payout
-  liability, not arbitrary client fields. The gas limit must match the server blueprint
-  and the signed fee cap cannot exceed the shared production signer's 3× multiplier.
+  liability, not arbitrary client fields. Before both funding-time and native-settlement
+  reserve calculations, the signed payout's identity, signer, chain, nonce, target,
+  calldata, value, exact gas limit, and lower/upper fee bounds must match the server
+  blueprint through the production EVM validator.
   Base-family payouts reserve the persisted maximum payout L1 fee, rather than an
   early exact oracle value that can become stale before settlement.
 - Funding metadata carries program version 2. Quotes without that metadata execute

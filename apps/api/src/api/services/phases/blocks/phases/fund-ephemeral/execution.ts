@@ -28,6 +28,7 @@ import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { PresignedEvmTransactionRebindError } from "../../../../transactions/validation";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import {
   calculateDestinationFundingShortfallRaw,
@@ -125,7 +126,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!destinationGasQuote) {
           throw new Error(`FundEphemeralExecutor: missing ${dynamicDestinationNetwork} destination gas quote`);
         }
-        destinationFundingRaw = this.getDestinationEvmFundingRequirementRaw(
+        destinationFundingRaw = await this.getDestinationEvmFundingRequirementRaw(
           state,
           dynamicDestinationNetwork,
           destinationGasQuote
@@ -206,6 +207,10 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
 
       if (e instanceof APIError && e.message === QuoteError.NetworkFeesTooHigh) {
         throw this.createRecoverableError(QuoteError.NetworkFeesTooHigh);
+      }
+
+      if (e instanceof PresignedEvmTransactionRebindError) {
+        throw this.createUnrecoverableError(e.message);
       }
 
       throw this.createRecoverableError("Error funding ephemeral account");
@@ -465,11 +470,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     }
   }
 
-  private getDestinationEvmFundingRequirementRaw(
+  private async getDestinationEvmFundingRequirementRaw(
     state: RampState,
     destinationNetwork: EvmNetworks,
     destinationGasQuote: EvmDestinationGasQuote
-  ): bigint {
+  ): Promise<bigint> {
     const presignedTransfer = this.getPresignedTransaction(state, "destinationTransfer");
     if (!presignedTransfer?.txData || presignedTransfer.network !== destinationNetwork) {
       throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination transfer`);
@@ -478,17 +483,13 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       transaction =>
         transaction.phase === "destinationTransfer" &&
         transaction.network === destinationNetwork &&
+        transaction.nonce === presignedTransfer.nonce &&
         transaction.signer.toLowerCase() === presignedTransfer.signer.toLowerCase()
     );
     if (!unsignedTransfer || !isEvmTransactionData(unsignedTransfer.txData)) {
       throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination transfer blueprint`);
     }
-    return calculateQuotedPresignedExecutionBudgetRaw(
-      presignedTransfer.txData as `0x${string}`,
-      destinationNetwork,
-      unsignedTransfer.txData,
-      destinationGasQuote
-    );
+    return calculateQuotedPresignedExecutionBudgetRaw(presignedTransfer, unsignedTransfer, destinationGasQuote);
   }
 
   private async fundLegacyDestinationEvmEphemeralAccount(

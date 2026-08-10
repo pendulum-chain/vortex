@@ -10,7 +10,7 @@ import {
   isNetworkEVM,
   Networks,
   type OnChainToken,
-  PRESIGNED_EVM_FEE_MULTIPLIER,
+  type PresignedTx,
   QuoteError,
   type RampCurrency,
   RampDirection
@@ -21,6 +21,7 @@ import { encodeFunctionData, erc20Abi, formatUnits, parseAbi, parseTransaction, 
 import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
+import { validatePresignedEvmTransactionAgainstUnsigned } from "../../../transactions/validation";
 import type { EvmDestinationGasQuote } from "./metadata";
 import type { PhaseCtx } from "./types";
 
@@ -110,25 +111,15 @@ export function calculatePresignedGasBudgetRaw(rawTransaction: `0x${string}`): b
   return transaction.gas * feePerGas;
 }
 
-export function calculateBoundedPresignedGasBudgetRaw(
-  rawTransaction: `0x${string}`,
-  unsignedTransaction: EvmTransactionData
-): bigint {
-  const transaction = parseTransaction(rawTransaction as TransactionSerialized);
-  const feePerGas = transaction.maxFeePerGas ?? transaction.gasPrice;
-  if (transaction.gas === undefined || feePerGas === undefined) {
-    throw new Error("EVM destination transaction is missing gas or fee data");
+export async function calculateBoundedPresignedGasBudgetRaw(
+  presignedTransaction: PresignedTx,
+  unsignedTransaction: PresignedTx
+): Promise<bigint> {
+  await validatePresignedEvmTransactionAgainstUnsigned(presignedTransaction, unsignedTransaction);
+  if (typeof presignedTransaction.txData !== "string") {
+    throw new Error("EVM destination transaction is not a signed transaction");
   }
-
-  if (!unsignedTransaction.maxFeePerGas) {
-    throw new Error("Server-issued EVM destination transaction is missing maxFeePerGas");
-  }
-  const expectedGas = BigInt(unsignedTransaction.gas);
-  const maximumFeePerGas = BigInt(unsignedTransaction.maxFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER;
-  if (transaction.gas !== expectedGas || feePerGas > maximumFeePerGas) {
-    throw new Error("EVM destination transaction exceeds its server-issued gas envelope");
-  }
-  return transaction.gas * feePerGas;
+  return calculatePresignedGasBudgetRaw(presignedTransaction.txData as `0x${string}`);
 }
 
 function isBaseNetwork(network: EvmNetworks): boolean {
@@ -147,20 +138,19 @@ export async function getBaseL1FeeUpperBoundRaw(network: EvmNetworks, unsignedTx
   })) as bigint;
 }
 
-export function calculateQuotedPresignedExecutionBudgetRaw(
-  rawTransaction: `0x${string}`,
-  network: EvmNetworks,
-  unsignedTransaction: EvmTransactionData,
+export async function calculateQuotedPresignedExecutionBudgetRaw(
+  presignedTransaction: PresignedTx,
+  unsignedTransaction: PresignedTx,
   quote: EvmDestinationGasQuote
-): bigint {
-  if (quote.programVersion !== EVM_DESTINATION_FUNDING_PROGRAM_VERSION || quote.network !== network) {
-    throw new Error(`EVM destination funding quote does not support ${network}`);
+): Promise<bigint> {
+  if (quote.programVersion !== EVM_DESTINATION_FUNDING_PROGRAM_VERSION || quote.network !== presignedTransaction.network) {
+    throw new Error(`EVM destination funding quote does not support ${presignedTransaction.network}`);
   }
-  if (isBaseNetwork(network) && quote.maximumPayoutL1FeeRaw === undefined) {
+  if (isBaseNetwork(presignedTransaction.network) && quote.maximumPayoutL1FeeRaw === undefined) {
     throw new Error("Base destination gas quote is missing its payout L1 fee envelope");
   }
-  const l1ReserveRaw = isBaseNetwork(network) ? BigInt(quote.maximumPayoutL1FeeRaw as string) : 0n;
-  return calculateBoundedPresignedGasBudgetRaw(rawTransaction, unsignedTransaction) + l1ReserveRaw;
+  const l1ReserveRaw = isBaseNetwork(presignedTransaction.network) ? BigInt(quote.maximumPayoutL1FeeRaw as string) : 0n;
+  return (await calculateBoundedPresignedGasBudgetRaw(presignedTransaction, unsignedTransaction)) + l1ReserveRaw;
 }
 
 export function calculateExpectedExecutionFeeRaw(

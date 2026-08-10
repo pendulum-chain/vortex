@@ -630,7 +630,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(final?.currentPhase).toBe("failed");
       expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(final?.errorLogs.some(log => log.error.includes("recipient mismatch"))).toBe(true);
+      expect(final?.errorLogs.some(log => log.error.includes("does not match expected data"))).toBe(true);
 
       // The mismatching transfer must never reach the chain, and nobody gets paid.
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
