@@ -294,10 +294,22 @@ describe("recordInitialKycAttempt", () => {
     KycCase.create = mock(async () => ({})) as unknown as typeof KycCase.create;
 
     const res = createResponse();
-    await recordInitialKycAttempt({ body: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await recordInitialKycAttempt(
+      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "user-1" } as any,
+      res as any
+    );
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(providerCreate.mock.calls[0]?.[0]).toMatchObject({ status: VerificationStatus.Started });
+  });
+
+  it("requires a quote id before recording an Avenia interaction", async () => {
+    const res = createResponse();
+
+    await recordInitialKycAttempt({ body: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ error: "Missing quoteId or taxId body parameter" });
   });
 });
 

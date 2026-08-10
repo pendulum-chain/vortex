@@ -1,5 +1,6 @@
-import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import ApiCredential from "../../models/apiCredential.model";
+import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -49,6 +50,11 @@ describe("managed profile lifecycle", () => {
       profileId: active.profileId,
       status: "active"
     });
+    const entityQueries = spyOn(CustomerEntity, "findAll");
+    const allPage = await listManagedProfiles(manager.id, { limit: 50, offset: 0, status: "all" });
+    expect(allPage.managedProfiles).toHaveLength(2);
+    expect(entityQueries).toHaveBeenCalledTimes(1);
+    entityQueries.mockRestore();
     expect(await getManagedProfile(manager.id, deleted.profileId)).toMatchObject({
       customerType: "business",
       status: "deleted"

@@ -198,7 +198,10 @@ async function authorizeCustomerType(
     return false;
   }
   if (
-    (allowedCustomerTypes !== null && allowedCustomerTypes !== undefined && !allowedCustomerTypes.includes(customerType)) ||
+    ((options.corridor !== undefined || options.customerType !== undefined) &&
+      allowedCustomerTypes !== null &&
+      allowedCustomerTypes !== undefined &&
+      !allowedCustomerTypes.includes(customerType)) ||
     corridors.some(corridor => !isCorridorSupportedForCustomerType(corridor, customerType))
   ) {
     sendAccessDenied(res);

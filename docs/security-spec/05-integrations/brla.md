@@ -169,7 +169,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] PIX deposit details (QR code) generated server-side. **PASS** — comes from Avenia API response.
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
 - [ ] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
-- [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requirePartnerOrUserAuth()` and delegated requests additionally require active BR authorization.
+- [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` requires the public `quoteId` and `taxId` payload fields, uses `requirePartnerOrUserAuth()`, and additionally requires active BR authorization for delegated requests.
 - [x] BRL→BRLA-on-Base on-ramps emit only provider mint, funding, and `destinationTransfer` — no Nabla, fee distribution, Squid, final settlement, or Base cleanup transaction. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] The BRL→BRLA direct flow omits Squid and final settlement rather than relying on executor short-circuits. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] BRL→EVM destination-token precision preserved. **PASS** — block flow simulation preserves Squid destination raw output and destination-token decimals.

@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
@@ -63,6 +64,20 @@ describe("managed profile schema", () => {
     await expect(User.create({ email: null, id: crypto.randomUUID(), kind: "managed" })).rejects.toThrow(
       "Every managed profile must have a managed_profiles relationship"
     );
+  });
+
+  it("scopes deferred invariant queries to affected profile and manager IDs", async () => {
+    const rows = await sequelize.query<{ source: string }>(
+      `SELECT prosrc AS source
+       FROM pg_proc
+       WHERE oid = 'enforce_managed_profile_invariants()'::regprocedure`,
+      { type: QueryTypes.SELECT }
+    );
+    const source = rows[0]?.source;
+
+    expect(source).toContain("WHERE p.id = ANY(affected_profile_ids)");
+    expect(source).toContain("WHERE mp.profile_id = ANY(affected_profile_ids)");
+    expect(source).toContain("WHERE m.profile_id = ANY(affected_manager_profile_ids)");
   });
 
   it("does not allow profile kinds to be converted", async () => {

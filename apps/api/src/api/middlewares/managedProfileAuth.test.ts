@@ -227,6 +227,20 @@ describe("authorizeManagedProfile", () => {
     expect(unsupported.statusCode).toBe(403);
   });
 
+  it("does not apply customer-type narrowing to policy-free reads", async () => {
+    allowManagedProfile();
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: ["business"],
+      isActive: true
+    })) as never;
+    const next = mock(() => {});
+
+    await authorizeManagedProfile()(request() as never, response() as never, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   it("requires the route customer type to match the immutable child entity type", async () => {
     allowManagedProfile();
     const res = response();

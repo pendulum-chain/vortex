@@ -225,12 +225,49 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
     await queryInterface.sequelize.query(
       `CREATE FUNCTION enforce_managed_profile_invariants() RETURNS trigger AS $$
+      DECLARE
+        affected_profile_ids uuid[] := ARRAY[]::uuid[];
+        affected_manager_profile_ids uuid[] := ARRAY[]::uuid[];
       BEGIN
+        IF TG_TABLE_NAME = 'profiles' THEN
+          IF TG_OP = 'INSERT' THEN
+            affected_profile_ids := ARRAY[NEW.id];
+            affected_manager_profile_ids := ARRAY[NEW.id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_profile_ids := ARRAY[OLD.id];
+            affected_manager_profile_ids := ARRAY[OLD.id];
+          ELSE
+            affected_profile_ids := ARRAY[OLD.id, NEW.id];
+            affected_manager_profile_ids := ARRAY[OLD.id, NEW.id];
+          END IF;
+        ELSIF TG_TABLE_NAME = 'managed_profiles' THEN
+          IF TG_OP = 'INSERT' THEN
+            affected_profile_ids := ARRAY[NEW.profile_id];
+            affected_manager_profile_ids := ARRAY[NEW.manager_profile_id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_profile_ids := ARRAY[OLD.profile_id];
+            affected_manager_profile_ids := ARRAY[OLD.manager_profile_id];
+          ELSE
+            affected_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
+            affected_manager_profile_ids := ARRAY[OLD.manager_profile_id, NEW.manager_profile_id];
+          END IF;
+        ELSE
+          IF TG_OP = 'INSERT' THEN
+            affected_manager_profile_ids := ARRAY[NEW.profile_id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_manager_profile_ids := ARRAY[OLD.profile_id];
+          ELSE
+            affected_manager_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
+          END IF;
+        END IF;
+
         IF EXISTS (
           SELECT 1
           FROM profiles p
           LEFT JOIN managed_profiles mp ON mp.profile_id = p.id
-          WHERE p.kind = 'managed' AND mp.id IS NULL
+          WHERE p.id = ANY(affected_profile_ids)
+            AND p.kind = 'managed'
+            AND mp.id IS NULL
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -242,7 +279,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           SELECT 1
           FROM managed_profiles mp
           JOIN profiles p ON p.id = mp.profile_id
-          WHERE p.kind <> 'managed'
+          WHERE mp.profile_id = ANY(affected_profile_ids)
+            AND p.kind <> 'managed'
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -254,7 +292,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           SELECT 1
           FROM managed_profile_managers m
           JOIN profiles p ON p.id = m.profile_id
-          WHERE p.kind <> 'authenticated'
+          WHERE m.profile_id = ANY(affected_manager_profile_ids)
+            AND p.kind <> 'authenticated'
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',

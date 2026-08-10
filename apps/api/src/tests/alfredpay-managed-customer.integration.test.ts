@@ -329,4 +329,34 @@ describe("managed Alfredpay customer creation", () => {
     expect(findCustomer).toHaveBeenCalledWith("child@example.com", "MX");
     expect(await ProviderCustomer.count()).toBe(0);
   });
+
+  it.each([
+    ["missing customer id", { country: "MX", type: AlfredpayCustomerType.INDIVIDUAL }],
+    ["empty customer id", { country: "MX", customerId: "  ", type: AlfredpayCustomerType.INDIVIDUAL }],
+    ["missing country", { customerId: "customer-1", type: AlfredpayCustomerType.INDIVIDUAL }],
+    ["missing type", { country: "MX", customerId: "customer-1" }]
+  ])("does not bind a conflicting provider customer with %s", async (_label, providerCustomer) => {
+    const manager = await createManager();
+    const child = await createChild(manager.id, "individual", "invalid-conflict@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    provider(
+      mock(async () => {
+        throw new Error("409 already registered");
+      }),
+      mock(async () => providerCustomer as never)
+    );
+
+    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(502);
+    expect(await ProviderCustomer.count()).toBe(0);
+  });
 });

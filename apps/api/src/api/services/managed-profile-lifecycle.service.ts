@@ -66,11 +66,18 @@ async function toResult(relationship: ManagedProfile, transaction?: Transaction)
     );
   }
 
+  return toResultWithCustomerType(relationship, entities[0].type);
+}
+
+function toResultWithCustomerType(
+  relationship: ManagedProfile,
+  customerType: CustomerEntityType
+): ManagedProfileLifecycleResult {
   return {
     contactEmail: relationship.contactEmail,
     createdAt: relationship.createdAt,
     creationSource: relationship.creationSource,
-    customerType: entities[0].type,
+    customerType,
     deletedAt: relationship.deletedAt,
     externalSubjectId: relationship.externalSubjectId,
     profileId: relationship.profileId,
@@ -109,10 +116,30 @@ export async function listManagedProfiles(
     order: [["createdAt", "DESC"]],
     where
   });
+  const entities = await CustomerEntity.findAll({
+    attributes: ["profileId", "type"],
+    where: { profileId: { [Op.in]: rows.map(relationship => relationship.profileId) } }
+  });
+  const entitiesByProfileId = new Map<string, CustomerEntity[]>();
+  for (const entity of entities) {
+    if (!entity.profileId) continue;
+    const profileEntities = entitiesByProfileId.get(entity.profileId) ?? [];
+    profileEntities.push(entity);
+    entitiesByProfileId.set(entity.profileId, profileEntities);
+  }
 
   return {
     limit: options.limit,
-    managedProfiles: await Promise.all(rows.map(relationship => toResult(relationship))),
+    managedProfiles: rows.map(relationship => {
+      const profileEntities = entitiesByProfileId.get(relationship.profileId) ?? [];
+      if (profileEntities.length !== 1) {
+        throw new ManagedProfileLifecycleError(
+          "MANAGED_PROFILE_CONFLICT",
+          "The managed profile does not have exactly one customer entity"
+        );
+      }
+      return toResultWithCustomerType(relationship, profileEntities[0].type);
+    }),
     offset: options.offset,
     total: count
   };

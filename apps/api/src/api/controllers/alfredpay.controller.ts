@@ -141,18 +141,29 @@ export class AlfredpayController {
     return relationship.contactEmail;
   }
 
-  private static verifyConflictingCustomer(
-    customer: { country: string; customerId: string; type: string },
-    country: string,
-    type: AlfredpayCustomerType
-  ): string {
+  private static verifyConflictingCustomer(customer: unknown, country: string, type: AlfredpayCustomerType): string {
+    if (
+      typeof customer !== "object" ||
+      customer === null ||
+      !("country" in customer) ||
+      typeof customer.country !== "string" ||
+      customer.country.trim() === "" ||
+      !("customerId" in customer) ||
+      typeof customer.customerId !== "string" ||
+      customer.customerId.trim() === "" ||
+      !("type" in customer) ||
+      typeof customer.type !== "string" ||
+      customer.type.trim() === ""
+    ) {
+      throw new AlfredpayCustomerCreationError(httpStatus.BAD_GATEWAY, "Alfredpay returned an invalid customer response");
+    }
     if (customer.country.toUpperCase() !== country.toUpperCase() || customer.type.toUpperCase() !== type) {
       throw new AlfredpayCustomerCreationError(
         httpStatus.CONFLICT,
         "Existing Alfredpay customer does not match the requested country and customer type"
       );
     }
-    return customer.customerId;
+    return customer.customerId.trim();
   }
 
   private static handleCustomerCreationError(message: string, error: unknown, res: Response) {
