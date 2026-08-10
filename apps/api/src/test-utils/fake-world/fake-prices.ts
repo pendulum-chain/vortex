@@ -49,7 +49,12 @@ export class FakePrices {
   }
 }
 
-type PatchedMethods = "getCryptoPrice" | "getFiatToUsdExchangeRate" | "getUsdToFiatExchangeRate" | "convertCurrency";
+type PatchedMethods =
+  | "getCryptoPrice"
+  | "getFiatToUsdExchangeRate"
+  | "getUsdToFiatExchangeRate"
+  | "getUsdToFiatExchangeRateSnapshot"
+  | "convertCurrency";
 
 export function installFakePrices(): { fakePrices: FakePrices; restore: () => void } {
   const fakePrices = new FakePrices();
@@ -57,13 +62,22 @@ export function installFakePrices(): { fakePrices: FakePrices; restore: () => vo
     convertCurrency: priceFeedService.convertCurrency,
     getCryptoPrice: priceFeedService.getCryptoPrice,
     getFiatToUsdExchangeRate: priceFeedService.getFiatToUsdExchangeRate,
-    getUsdToFiatExchangeRate: priceFeedService.getUsdToFiatExchangeRate
+    getUsdToFiatExchangeRate: priceFeedService.getUsdToFiatExchangeRate,
+    getUsdToFiatExchangeRateSnapshot: priceFeedService.getUsdToFiatExchangeRateSnapshot
   };
 
   priceFeedService.getCryptoPrice = async (tokenId: string) => fakePrices.getCryptoUsd(tokenId);
   priceFeedService.getFiatToUsdExchangeRate = async (fromCurrency: RampCurrency) =>
     new Big(1).div(fakePrices.getPerUsd(fromCurrency as string));
   priceFeedService.getUsdToFiatExchangeRate = async (toCurrency: RampCurrency) => fakePrices.getPerUsd(toCurrency as string);
+  priceFeedService.getUsdToFiatExchangeRateSnapshot = async (toCurrency: RampCurrency) => {
+    const normalizedCurrency = toCurrency.toLowerCase();
+    return {
+      observedAt: new Date(0),
+      rate: fakePrices.getPerUsd(normalizedCurrency),
+      source: normalizedCurrency === "usd" ? "identity" : ["brl", "cop"].includes(normalizedCurrency) ? "binance" : "fastforex"
+    };
+  };
   priceFeedService.convertCurrency = async (
     amount: string,
     fromCurrency: RampCurrency,

@@ -35,7 +35,38 @@ import {
   normalizeAlfredpayProviderStatus,
   resolveAlfredpayKybSubmissionId
 } from "../services/alfredpay/alfredpay-customer.service";
+import { enqueueAlfredpayVerificationNotification } from "../services/alfredpay/verification-notifications";
 import { ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE } from "../services/quote/alfredpay-customer";
+
+async function enqueueObservedAlfredpayOutcome({
+  failureReason,
+  isBusiness,
+  status,
+  submissionId,
+  updatedAt,
+  userId
+}: {
+  failureReason?: string;
+  isBusiness: boolean;
+  status: string;
+  submissionId: string;
+  updatedAt: string;
+  userId: string;
+}): Promise<void> {
+  const providerStatus = normalizeAlfredpayProviderStatus(status);
+  if (providerStatus !== AlfredpayKycStatus.COMPLETED && providerStatus !== AlfredpayKycStatus.FAILED) {
+    return;
+  }
+
+  await enqueueAlfredpayVerificationNotification({
+    reason: failureReason ?? null,
+    status: providerStatus,
+    subject: isBusiness ? "business" : "individual",
+    submissionId,
+    updatedAt,
+    userId
+  });
+}
 
 /**
  * Maps an Alfredpay 4xx rejection on the fiat-account routes to a sanitized caller-facing
@@ -250,8 +281,31 @@ export class AlfredpayController {
             updateData.lastFailureReasons = [statusResponse.metadata.failureReason];
           }
 
-          if (Object.keys(updateData).length > 0) {
-            await alfredPayCustomer.update(updateData);
+          // Queue before persisting a terminal status. Once the row becomes terminal both
+          // status pollers exclude it, so doing this afterwards could lose the email forever.
+          // Own catch: these are local DB writes, and the upstream-404 staleness heuristic
+          // below must never fire on their errors — an enqueue failure whose message happens
+          // to contain "not found" would otherwise wipe the observed status.
+          try {
+            await enqueueObservedAlfredpayOutcome({
+              failureReason: statusResponse.metadata?.failureReason,
+              isBusiness,
+              status: statusResponse.status,
+              submissionId,
+              updatedAt: statusResponse.updatedAt,
+              userId
+            });
+
+            if (Object.keys(updateData).length > 0) {
+              await alfredPayCustomer.update(updateData);
+            }
+          } catch (error) {
+            // Skipping the update keeps enqueue-before-persist: the next refresh
+            // re-observes the outcome and the enqueue dedupes on the submission id.
+            logger.error(
+              `Error queuing/persisting observed Alfredpay outcome for customer ${alfredPayCustomer.alfredPayId}:`,
+              error
+            );
           }
         }
       } catch (error) {
@@ -478,6 +532,17 @@ export class AlfredpayController {
       if (newStatus === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason) {
         updateData.lastFailureReasons = [statusResponse.metadata.failureReason];
       }
+
+      // See alfredpayStatus above: terminal persistence must never get ahead of
+      // the durable, idempotent notification enqueue.
+      await enqueueObservedAlfredpayOutcome({
+        failureReason: statusResponse.metadata?.failureReason,
+        isBusiness,
+        status: statusResponse.status,
+        submissionId,
+        updatedAt: statusResponse.updatedAt,
+        userId
+      });
 
       if (Object.keys(updateData).length > 0) {
         await alfredPayCustomer.update(updateData);

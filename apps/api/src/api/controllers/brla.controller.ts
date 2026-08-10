@@ -49,6 +49,7 @@ import {
   updateAveniaKycOutcome,
   upsertAveniaKycCase
 } from "../services/avenia/avenia-customer.service";
+import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
@@ -812,6 +813,8 @@ export const initiateKybLevel1 = async (
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
     // once Avenia reports PROCESSING.
     await record.update({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING });
+    // The attempt id persisted here is what the KYB status worker polls; without it the
+    // outcome is never observed and no verification email is sent.
     await upsertAveniaKycCase(record, VerificationStatus.Pending, KycAttemptStatus.PENDING, response.attemptId);
 
     res.status(httpStatus.OK).json(response);
@@ -897,6 +900,13 @@ export const getKybAttemptStatus = async (
       ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
       ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
     };
+
+    // Queue before persisting a terminal status: once the case is Approved/Rejected the
+    // short-circuit above and the KYB worker's filters both stop observing the attempt,
+    // so enqueuing afterwards could lose the email forever if the webhook never fired.
+    // Keyed on the attempt id, so the webhook or worker racing this poll cannot
+    // double-send; a failed enqueue fails the request and leaves the case pollable.
+    await enqueueVerificationNotification(attempt, effectiveUserId, "business");
 
     await record.update({
       lastFailureReasons: failureReason ? [failureReason] : [],

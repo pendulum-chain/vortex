@@ -60,7 +60,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   await expect(sendButton).toContainText(DISPLAY_PAYIN_USDC);
   await expect(page.getByText("1 USDC = 18.69 MXN", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fee details" }).click();
-  await expect(page.getByText("1 USDC = 18.50 MXN", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 USDC = 18.5 MXN", { exact: true })).toBeVisible();
 
   // Stage 3: submitting runs register -> presign -> user signing -> start. The form toasts and
   // navigates once the machine reaches Tracking.

@@ -11,6 +11,7 @@ import morgan from "morgan";
 import { converter, handler, notFound } from "../api/middlewares/error";
 import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
+import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
 
 import { buildDashboardPreviewOriginRegex, parseDashboardOrigins } from "./corsOrigins";
 import { config } from "./vars";
@@ -83,6 +84,12 @@ app.use(requestContext);
 
 // request logging. dev: console | production: file
 app.use(morgan(logs));
+
+// Mounted ahead of the JSON parser: Avenia signs the raw request body, and a payload
+// that has been parsed and re-serialised does not reproduce those bytes exactly.
+// Own, small limit: webhook events are a few KB, and this unauthenticated route should
+// not buffer the 20mb the JSON API allows before the signature is even checked.
+app.use("/v1/webhooks/avenia", bodyParser.raw({ limit: "100kb", type: "*/*" }), aveniaWebhookRoutes);
 
 // parse body params and attach them to req.body
 app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));

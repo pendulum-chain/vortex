@@ -27,6 +27,7 @@ export interface FakeSupabaseAuth {
 export function installFakeSupabaseAuth(): FakeSupabaseAuth {
   const originals = {
     checkUserExists: SupabaseAuthService.checkUserExists,
+    getUserLocale: SupabaseAuthService.getUserLocale,
     refreshToken: SupabaseAuthService.refreshToken,
     sendOTP: SupabaseAuthService.sendOTP,
     verifyOTP: SupabaseAuthService.verifyOTP,
@@ -56,6 +57,10 @@ export function installFakeSupabaseAuth(): FakeSupabaseAuth {
   };
 
   SupabaseAuthService.checkUserExists = async (email: string) => existingEmails.has(email);
+
+  // Notification enqueues resolve the recipient locale; without this stub every enqueue in
+  // an integration test dials the neutralized Supabase host and falls back via its error path.
+  SupabaseAuthService.getUserLocale = async () => "en-US";
 
   SupabaseAuthService.sendOTP = async (email: string) => {
     otpRequests.push(email);
@@ -93,6 +98,7 @@ export function installFakeSupabaseAuth(): FakeSupabaseAuth {
     restore: () => {
       SupabaseAuthService.verifyToken = originals.verifyToken;
       SupabaseAuthService.checkUserExists = originals.checkUserExists;
+      SupabaseAuthService.getUserLocale = originals.getUserLocale;
       SupabaseAuthService.sendOTP = originals.sendOTP;
       SupabaseAuthService.verifyOTP = originals.verifyOTP;
       SupabaseAuthService.refreshToken = originals.refreshToken;

@@ -84,7 +84,7 @@ suits attribution; the secret is stored hashed and authenticates requests as the
 profile. There is no partner-only credential: a partner-managed credential still acts
 for exactly one profile, and ramp registration stays user-gated per
 [`ADR 0001`](adr-0001-user-gated-ramp-registration.md). The legacy `api_keys` table is
-retired; startup fails closed while any active row remains.
+removed by migration 061; startup fails closed if the table still exists.
 
 `partner_managed_profiles` records that a partner provisioned a Supabase-backed profile
 (normalized source and external subject ID) for provenance and idempotency; it is not an
@@ -166,7 +166,7 @@ quote cannot be claimed by another user.
 - Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,managedProfileAuth,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
-- Migration 060 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
+- Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 
 Update this document only when the cross-module shape changes. Provider-specific flows,

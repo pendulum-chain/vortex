@@ -11,4 +11,5 @@ export interface EphemeralAccount {
   address: string;
 }
 
+export * from "./types/emailNotifications";
 export * from "./types/rampDirection";
