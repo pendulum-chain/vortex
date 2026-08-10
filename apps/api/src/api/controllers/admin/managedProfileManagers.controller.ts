@@ -1,8 +1,8 @@
-import { CORRIDOR_CAPABILITIES, type CorridorCountry, type CorridorCustomerType } from "@vortexfi/shared";
+import { CORRIDOR_CAPABILITIES, type CorridorCountry } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
-import type { CustomerEntityType } from "../../../models/customerEntity.model";
+import { CUSTOMER_ENTITY_TYPES } from "../../../models/customerEntity.model";
 import { createManagedProfile } from "../../services/managed-profile-lifecycle.service";
 import {
   configureManagedProfileManager,
@@ -13,8 +13,6 @@ import { ManagedProfileProvisioningError } from "../../services/managed-profile-
 
 const SUPPORTED_CORRIDORS = Object.keys(CORRIDOR_CAPABILITIES) as CorridorCountry[];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CUSTOMER_TYPES: CustomerEntityType[] = ["individual", "business"];
-const MANAGER_CUSTOMER_TYPES: CorridorCustomerType[] = ["individual", "business"];
 
 function isCorridorCountry(value: unknown): value is CorridorCountry {
   return typeof value === "string" && SUPPORTED_CORRIDORS.includes(value as CorridorCountry);
@@ -28,7 +26,7 @@ export async function putManagedProfileManager(req: Request<{ profileId: string 
       allowedCustomerTypes === null ||
       (Array.isArray(allowedCustomerTypes) &&
         allowedCustomerTypes.length > 0 &&
-        allowedCustomerTypes.every(value => MANAGER_CUSTOMER_TYPES.includes(value)) &&
+        allowedCustomerTypes.every(value => CUSTOMER_ENTITY_TYPES.includes(value)) &&
         new Set(allowedCustomerTypes).size === allowedCustomerTypes.length);
     if (
       !UUID_PATTERN.test(req.params.profileId) ||
@@ -115,7 +113,7 @@ export async function postManagedProfileForManager(req: Request<{ profileId: str
       externalSubjectId.trim().length === 0 ||
       externalSubjectId.trim().length > 255 ||
       typeof contactEmail !== "string" ||
-      !CUSTOMER_TYPES.includes(customerType)
+      !CUSTOMER_ENTITY_TYPES.includes(customerType)
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {

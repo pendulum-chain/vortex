@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
-import type { CustomerEntityType } from "../../models/customerEntity.model";
+import { CUSTOMER_ENTITY_TYPES } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
 import {
@@ -21,8 +21,6 @@ import {
 import { ManagedProfileProvisioningError } from "../services/managed-profile-provisioning.service";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CUSTOMER_TYPES: CustomerEntityType[] = ["individual", "business"];
-
 function managerProfileId(req: Request): string {
   const profileId = getAuthenticatedProfileId(req);
   if (!profileId) throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Authentication is required");
@@ -78,7 +76,7 @@ export async function postManagedProfile(req: Request, res: Response): Promise<v
       externalSubjectId.trim().length === 0 ||
       externalSubjectId.trim().length > 255 ||
       typeof contactEmail !== "string" ||
-      !CUSTOMER_TYPES.includes(customerType)
+      !CUSTOMER_ENTITY_TYPES.includes(customerType)
     ) {
       throw new ManagedProfileLifecycleError(
         "MANAGED_PROFILE_INVALID_INPUT",
