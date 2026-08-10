@@ -22,7 +22,7 @@ import ts from "typescript";
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 const SNAPSHOT_FILE = resolve(REPO_ROOT, "docs/api/wire-contract.snapshot.md");
 
-const MAX_DEPTH = 9;
+const MAX_DEPTH = 12;
 const INDENT = "  ";
 
 interface SurfaceEntry {
@@ -94,7 +94,25 @@ function serializeEnum(ctx: SerializerContext, symbol: ts.Symbol): string {
   return `enum ${symbol.name} { ${members.join(", ")} }`;
 }
 
+function serializeTypeParameterNodes(
+  ctx: SerializerContext,
+  nodes: readonly ts.TypeParameterDeclaration[] | undefined,
+  depth: number
+): string {
+  if (!nodes || nodes.length === 0) return "";
+  const parts = nodes.map(node => {
+    let text = node.name.text;
+    if (node.constraint) text += ` extends ${serializeType(ctx, ctx.checker.getTypeAtLocation(node.constraint), depth + 1)}`;
+    if (node.default) text += ` = ${serializeType(ctx, ctx.checker.getTypeAtLocation(node.default), depth + 1)}`;
+    return text;
+  });
+  return `<${parts.join(", ")}>`;
+}
+
 function serializeSignature(ctx: SerializerContext, signature: ts.Signature, depth: number): string {
+  const declaration = signature.declaration;
+  const typeParameters =
+    declaration && !ts.isJSDocSignature(declaration) ? serializeTypeParameterNodes(ctx, declaration.typeParameters, depth) : "";
   const parameters = signature.parameters.map(parameter => {
     const declaration = parameter.valueDeclaration;
     const optional =
@@ -106,7 +124,7 @@ function serializeSignature(ctx: SerializerContext, signature: ts.Signature, dep
     return `${rest ? "..." : ""}${parameter.name}${optional ? "?" : ""}: ${parameterType}`;
   });
   const returnType = serializeType(ctx, signature.getReturnType(), depth + 1);
-  return `(${parameters.join(", ")}) => ${returnType}`;
+  return `${typeParameters}(${parameters.join(", ")}) => ${returnType}`;
 }
 
 function serializeObject(ctx: SerializerContext, type: ts.Type, depth: number): string {
@@ -136,8 +154,9 @@ function serializeObject(ctx: SerializerContext, type: ts.Type, depth: number): 
       continue;
     }
     const optional = (property.flags & ts.SymbolFlags.Optional) !== 0;
+    const isReadonly = modifiers.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword);
     const propertyType = serializeType(ctx, typeOfSymbol(ctx, property), depth + 1, { dropUndefined: optional });
-    lines.push(`${property.name}${optional ? "?" : ""}: ${propertyType};`);
+    lines.push(`${isReadonly ? "readonly " : ""}${property.name}${optional ? "?" : ""}: ${propertyType};`);
   }
 
   if (lines.length === 0) return "{}";
@@ -230,6 +249,23 @@ function serializeType(ctx: SerializerContext, type: ts.Type, depth: number, opt
     return `${name}<${typeArguments.map(argument => serializeType(ctx, argument, depth + 1)).join(", ")}>`;
   }
 
+  if (flags & ts.TypeFlags.Conditional) {
+    if (depth > MAX_DEPTH) return symbolDisplayName(type);
+    if (ctx.stack.has(type)) return `<circular ${symbolDisplayName(type)}>`;
+    ctx.stack.add(type);
+    try {
+      const conditional = type as ts.ConditionalType;
+      const node = conditional.root.node;
+      const checkText = serializeType(ctx, conditional.checkType, depth + 1);
+      const extendsText = serializeType(ctx, conditional.extendsType, depth + 1);
+      const trueText = serializeType(ctx, checker.getTypeAtLocation(node.trueType), depth + 1);
+      const falseText = serializeType(ctx, checker.getTypeAtLocation(node.falseType), depth + 1);
+      return `${checkText} extends ${extendsText} ? ${trueText} : ${falseText}`;
+    } finally {
+      ctx.stack.delete(type);
+    }
+  }
+
   if (flags & ts.TypeFlags.Object) {
     if (depth > MAX_DEPTH) return symbolDisplayName(type);
     if (ctx.stack.has(type)) return `<circular ${symbolDisplayName(type)}>`;
@@ -282,7 +318,13 @@ function serializeExport(ctx: SerializerContext, symbol: ts.Symbol): string {
   if (resolved.flags & ts.SymbolFlags.Enum) return serializeEnum(ctx, resolved);
   if (resolved.flags & ts.SymbolFlags.Class) return serializeClass(ctx, resolved);
   if (resolved.flags & (ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias)) {
-    return serializeType(ctx, ctx.checker.getDeclaredTypeOfSymbol(resolved), 0);
+    const declaration = resolved.declarations?.find(
+      (candidate): candidate is ts.TypeAliasDeclaration | ts.InterfaceDeclaration =>
+        ts.isTypeAliasDeclaration(candidate) || ts.isInterfaceDeclaration(candidate)
+    );
+    const typeParameters = serializeTypeParameterNodes(ctx, declaration?.typeParameters, 0);
+    const body = serializeType(ctx, ctx.checker.getDeclaredTypeOfSymbol(resolved), 0);
+    return typeParameters ? `${typeParameters} ${body}` : body;
   }
   return serializeType(ctx, typeOfSymbol(ctx, resolved), 0);
 }

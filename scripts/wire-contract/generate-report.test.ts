@@ -10,18 +10,26 @@ const EXPECTED_FIXTURE_REPORT = `FixtureClient: class FixtureClient {
     amounts: Record<"ars" | "brl" | "eur", {
       amountRaw: string;
       direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+      readonly id: string;
     }>;
     currency: "ars" | "brl" | "eur";
     memo?: string;
     nested: {
       amountRaw: string;
       direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+      readonly id: string;
     };
     next?: <circular FixtureRequest>;
     tags: Array<string>;
     tuple: [string, number];
     verbose?: boolean;
   }>;
+  merge: <T extends {
+    amountRaw: string;
+    direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+    readonly id: string;
+  }>(base: T, patch?: Partial<T>) => T;
+  readonly retries: number;
 }
 
 FixtureCurrency: "ars" | "brl" | "eur"
@@ -31,18 +39,46 @@ FixtureDirection: enum FixtureDirection { BUY = "buy", SELL = "sell" }
 FixtureNested: {
   amountRaw: string;
   direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+  readonly id: string;
 }
 
-FixtureRequest: {
+FixtureOutcome: <T extends {
   amounts: Record<"ars" | "brl" | "eur", {
     amountRaw: string;
     direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+    readonly id: string;
   }>;
   currency: "ars" | "brl" | "eur";
   memo?: string;
   nested: {
     amountRaw: string;
     direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+    readonly id: string;
+  };
+  next?: <circular FixtureRequest>;
+  tags: Array<string>;
+  tuple: [string, number];
+  verbose?: boolean;
+}> T extends {
+  verbose: true;
+} ? {
+  amountRaw: string;
+  direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+  readonly id: string;
+} : "ars" | "brl" | "eur"
+
+FixtureRequest: {
+  amounts: Record<"ars" | "brl" | "eur", {
+    amountRaw: string;
+    direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+    readonly id: string;
+  }>;
+  currency: "ars" | "brl" | "eur";
+  memo?: string;
+  nested: {
+    amountRaw: string;
+    direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+    readonly id: string;
   };
   next?: <circular FixtureRequest>;
   tags: Array<string>;
@@ -53,6 +89,7 @@ FixtureRequest: {
 FixtureResult: null | {
   amountRaw: string;
   direction: enum FixtureDirection { BUY = "buy", SELL = "sell" };
+  readonly id: string;
 }`;
 
 describe("wire-contract surface serializer", () => {
