@@ -2227,7 +2227,7 @@ VALID_CRYPTO_CURRENCIES: Array<AssetHubToken.DOT | AssetHubToken.USDC | AssetHub
 
 VALID_FIAT_CURRENCIES: Array<FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD>
 
-VALID_PROVIDERS: ["alchemypay", "moonpay", "transak", "vortex"]
+VALID_PROVIDERS: readonly ["alchemypay", "moonpay", "transak", "vortex"]
 
 ValidateSiweRequest: {
   nonce: string;

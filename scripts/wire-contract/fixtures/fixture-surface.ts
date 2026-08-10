@@ -7,6 +7,10 @@ export enum FixtureDirection {
 
 export type FixtureCurrency = "ars" | "brl" | "eur";
 
+export interface FixtureIndexed {
+  readonly [key: string]: string;
+}
+
 export interface FixtureNested {
   amountRaw: string;
   direction: FixtureDirection;
@@ -19,6 +23,7 @@ export interface FixtureRequest {
   memo?: string;
   nested: FixtureNested;
   next?: FixtureRequest;
+  roTuple: readonly [string, number];
   tags: string[];
   tuple: [string, number];
   verbose?: boolean;

@@ -133,7 +133,7 @@ function serializeObject(ctx: SerializerContext, type: ts.Type, depth: number): 
   for (const info of ctx.checker.getIndexInfosOfType(type)) {
     const keyType = serializeType(ctx, info.keyType, depth + 1);
     const valueType = serializeType(ctx, info.type, depth + 1);
-    lines.push(`[key: ${keyType}]: ${valueType};`);
+    lines.push(`${info.isReadonly ? "readonly " : ""}[key: ${keyType}]: ${valueType};`);
   }
 
   const properties = [...ctx.checker.getPropertiesOfType(type)].sort((a, b) =>
@@ -232,7 +232,7 @@ function serializeType(ctx: SerializerContext, type: ts.Type, depth: number, opt
 
   if (checker.isTupleType(type)) {
     const elements = checker.getTypeArguments(type as ts.TypeReference).map(element => serializeType(ctx, element, depth + 1));
-    return `[${elements.join(", ")}]`;
+    return `${(type as ts.TupleTypeReference).target.readonly ? "readonly " : ""}[${elements.join(", ")}]`;
   }
 
   // Named external types (lib utility types, viem/polkadot types, ...): keep the name, expand in-repo type arguments.

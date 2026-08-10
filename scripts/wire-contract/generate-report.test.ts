@@ -20,6 +20,7 @@ const EXPECTED_FIXTURE_REPORT = `FixtureClient: class FixtureClient {
       readonly id: string;
     };
     next?: <circular FixtureRequest>;
+    roTuple: readonly [string, number];
     tags: Array<string>;
     tuple: [string, number];
     verbose?: boolean;
@@ -35,6 +36,10 @@ const EXPECTED_FIXTURE_REPORT = `FixtureClient: class FixtureClient {
 FixtureCurrency: "ars" | "brl" | "eur"
 
 FixtureDirection: enum FixtureDirection { BUY = "buy", SELL = "sell" }
+
+FixtureIndexed: {
+  readonly [key: string]: string;
+}
 
 FixtureNested: {
   amountRaw: string;
@@ -56,6 +61,7 @@ FixtureOutcome: <T extends {
     readonly id: string;
   };
   next?: <circular FixtureRequest>;
+  roTuple: readonly [string, number];
   tags: Array<string>;
   tuple: [string, number];
   verbose?: boolean;
@@ -81,6 +87,7 @@ FixtureRequest: {
     readonly id: string;
   };
   next?: <circular FixtureRequest>;
+  roTuple: readonly [string, number];
   tags: Array<string>;
   tuple: [string, number];
   verbose?: boolean;
