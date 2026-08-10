@@ -14,8 +14,10 @@ PR and never resolves business decisions on its own.
 - Make sure the PR branch is checked out and the tree is clean; stop and report if there
   is unrelated uncommitted work.
 - Record a baseline to diff against on every wake-up (persist it in a scratch state
-  file): head SHA, review ids, review-comment ids, issue-comment ids, CI runs —
-  `gh pr view <n> --json headRefOid,reviews,comments,statusCheckRollup`.
+  file): head SHA, review ids, issue-comment ids, and CI runs from
+  `gh pr view <n> --json headRefOid,reviews,comments,statusCheckRollup` (its `comments`
+  field is issue comments only), plus the inline review-comment ids from
+  `gh api repos/{owner}/{repo}/pulls/<n>/comments --paginate`.
 - If no Copilot review exists yet, request one:
   `gh api repos/{owner}/{repo}/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`.
   If the API rejects the bot reviewer, note it in the report and continue — the user can

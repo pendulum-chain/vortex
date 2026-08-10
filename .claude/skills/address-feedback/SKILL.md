@@ -11,10 +11,12 @@ Turns one review round into one command: fetch → verify → fix → gate → p
 
 - `.../pull/<n>#pullrequestreview-<id>` URL →
   `gh api repos/{owner}/{repo}/pulls/<n>/reviews/<id>` for the body and
-  `gh api repos/{owner}/{repo}/pulls/<n>/comments` filtered by `pull_request_review_id`
-  for the inline comments.
-- Bare PR number → fetch all reviews and review comments submitted since the last push
-  (`gh pr view <n> --json reviews,commits`).
+  `gh api repos/{owner}/{repo}/pulls/<n>/reviews/<id>/comments --paginate` for the
+  inline comments (always paginate — large reviews span pages).
+- Bare PR number → `gh pr view <n> --json reviews,commits` for the review summaries,
+  plus `gh api repos/{owner}/{repo}/pulls/<n>/comments --paginate` for the inline
+  comments (`gh pr view` does not return them); keep the ones whose
+  `pull_request_review_id` belongs to a review submitted since the last push.
 - Pasted findings text → use as-is.
 - Make sure the PR branch is checked out and current (`gh pr checkout <n>` — never mix
   with uncommitted local work; stop and say so if the tree is dirty with unrelated
