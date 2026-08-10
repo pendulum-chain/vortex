@@ -2659,6 +2659,21 @@
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked.",
             "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later.",
+            "headers": {}
           }
         },
         "security": [],
@@ -2888,6 +2903,21 @@
               }
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked.",
+            "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Every eligible destination network currently exceeds the configured fee safety limit; retry the quote later.",
             "headers": {}
           }
         },
