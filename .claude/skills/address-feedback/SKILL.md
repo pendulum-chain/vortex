@@ -44,6 +44,10 @@ code — whole functions and their callers, not diff hunks — then classify:
 
 ## 4. Gates before pushing
 
+Trust guard: gates execute branch-local code. Only run them when the PR head lives in
+`pendulum-chain/vortex` itself and the author is a known collaborator or team agent;
+for fork or external-author PRs, stop after triage and report instead of executing.
+
 Run what the change touches:
 
 - `bun lint:fix` (Biome — except `packages/sdk`, which uses `bun lint` / ESLint inside

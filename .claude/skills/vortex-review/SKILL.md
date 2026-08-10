@@ -16,6 +16,11 @@ the implementing session or via `/address-feedback`.
 - Build a change inventory: files by workspace, plus flags that route lens emphasis:
   migrations touched, `packages/shared` touched, SDK public surface touched,
   `docs/security-spec` relevant paths touched, frontend machines/widget touched.
+- Trust guard: before running ANY branch-local command (installs, builds, tests,
+  `wire-contract:check`), confirm the PR head lives in `pendulum-chain/vortex` itself
+  and the author is a known collaborator or team agent. For fork or external-author
+  PRs, review by inspection only — read the diff and files, execute nothing from the
+  branch — and say so in the report.
 - Run `bun run wire-contract:check` (after `bun run build:shared` if shared changed).
   A stale snapshot on the branch = automatic P1 finding.
 - Read the PR description and any linked proposal/ADR: findings include "the change

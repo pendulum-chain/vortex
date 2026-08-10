@@ -11,6 +11,10 @@ PR and never resolves business decisions on its own.
 ## Setup
 
 - Resolve the PR: argument, or the current branch's PR via `gh pr view`.
+- Trust guard: this loop runs branch-local code (gates, fixes). Only babysit PRs whose
+  head lives in `pendulum-chain/vortex` itself with a known collaborator or team agent
+  as author; for fork or external-author PRs, watch and report only — never execute
+  branch code.
 - Make sure the PR branch is checked out and the tree is clean; stop and report if there
   is unrelated uncommitted work.
 - Record a baseline to diff against on every wake-up (persist it in a scratch state
