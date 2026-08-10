@@ -97,13 +97,20 @@ always occur only after all user-facing phases is incorrect.
   maxima. Runtime acceptance never reconstructs a ceiling from current deployment
   configuration. Arbitrum gas limits add the NodeInterface parent-chain poster-gas
   component; a plain transfer is not assumed to fit in 21,000 gas there.
+- The persisted-metadata read boundary validates every funding-program-v2 field before
+  treasury arithmetic: the version and EVM network, transfer kind, positive bounded
+  decimal-integer fee/gas fields, positive execution-fee decimal, and paired Base-family
+  L1 maxima. An absent envelope remains the legacy static program.
 - Registration preflights the persisted envelope before provider registration hooks
   can create an independently durable payment ticket, then checks the exact prepared
   payout against the same absolute limits.
 - Immediately before the treasury funding transfer, execution re-estimates the L2 fee
   and both Base L1 upper bounds (funding and payout). If any exceeds the persisted absolute envelope,
-  the phase pauses recoverably before claiming or broadcasting a financial operation.
-  An accepted transfer carries the checked gas and EIP-1559 fee caps explicitly.
+  the phase pauses recoverably before claiming or broadcasting a new financial operation.
+  The journal resolves an already-confirmed operation before this preflight, so a
+  receipt-confirmed send remains replayable after a balance-poll timeout even if fees
+  subsequently rise. An accepted new transfer carries the checked gas and EIP-1559 fee
+  caps explicitly.
 - The native amount delivered to the ephemeral is based on the bounded signed payout
   liability, not arbitrary client fields. The gas limit must match the server blueprint
   and the signed fee cap cannot exceed the shared production signer's 3× multiplier.

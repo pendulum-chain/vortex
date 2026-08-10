@@ -180,7 +180,7 @@ function buildCtx(includeDynamicFunding = true): PhaseCtx {
     ...(includeDynamicFunding
       ? {
           evmDestinationGas: {
-            executionFeeUsd: "0",
+            executionFeeUsd: "0.01",
             fundingGasLimit: "21000",
             isNativeTransfer: false,
             maximumFeePerGas: "1",
@@ -242,7 +242,7 @@ describe("BRL cross-chain onramp flow metadata ownership", () => {
     const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow);
     const { blocks, globals } = metadata;
 
-    expect(globals.fees.usd).toMatchObject({ anchor: "1.5", network: "0.1", total: "1.700000", vortex: "0.1" });
+    expect(globals.fees.usd).toMatchObject({ anchor: "1.5", network: "0.11", total: "1.710000", vortex: "0.1" });
     expect(Object.keys(blocks)).toEqual([
       "aveniaMint",
       "fundEphemeral",
@@ -258,7 +258,7 @@ describe("BRL cross-chain onramp flow metadata ownership", () => {
     const aveniaMint = getBlockMetadata(metadata, AveniaMintContext).mint;
     expect(aveniaMint).toBeDefined();
     expect(aveniaMint.currency).toBe(FiatToken.BRL);
-    // 100 BRL in, 99 BRLA quoted -> 1 BRL mint fee, 0.2 gas fee deducted from delivery
+    // 100 BRL in, 99 BRLA quoted -> 1 BRL mint fee, 0.2 provider gas fee deducted from delivery
     expect(Big(aveniaMint.fee).toFixed()).toBe("1");
     expect(Big(aveniaMint.inputAmountDecimal).toFixed()).toBe("100");
     expect(Big(aveniaMint.outputAmountDecimal).toFixed()).toBe("98.8");
@@ -285,8 +285,8 @@ describe("BRL cross-chain onramp flow metadata ownership", () => {
     expect(evmToEvm.networkFeeUSD).toBe("0.1");
 
     const distributeFees = getBlockMetadata(metadata, DistributeFeesContext);
-    expect(distributeFees.networkFeeUsd).toBe("0.1");
-    expect(distributeFees.totalFeesUsd).toBe("0.2");
+    expect(distributeFees.networkFeeUsd).toBe("0.11");
+    expect(distributeFees.totalFeesUsd).toBe("0.21");
 
     const subsidy = getBlockMetadata(metadata, FinalSettlementSubsidyContext);
     expect(subsidy).toBeDefined();
@@ -296,7 +296,7 @@ describe("BRL cross-chain onramp flow metadata ownership", () => {
     expect(getBlockMetadata(metadata, SubsidizePreContext).inputCurrency).toBe(EvmToken.BRLA);
     const subsidizePost = getBlockMetadata(metadata, SubsidizePostContext);
     expect(subsidizePost.outputCurrency).toBe(EvmToken.USDC);
-    expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe("17.8");
+    expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe("17.79");
     expect(getBlockMetadata(metadata, DestinationTransferContext).amountRaw).toBe("17500000");
   });
 });

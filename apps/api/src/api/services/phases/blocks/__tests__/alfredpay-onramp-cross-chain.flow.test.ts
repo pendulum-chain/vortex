@@ -99,7 +99,7 @@ function buildCtx(): PhaseCtx {
   return {
     addNote: () => undefined,
     evmDestinationGas: {
-      executionFeeUsd: "0",
+      executionFeeUsd: "0.01",
       fundingGasLimit: "21000",
       isNativeTransfer: false,
       maximumFeePerGas: "1",
@@ -159,12 +159,12 @@ describe("Alfredpay cross-chain onramp flow", () => {
 
     expect(output.token).toBe(EvmToken.USDC);
     expect(output.chain).toBe(Networks.Arbitrum);
-    expect(output.amount.toFixed()).toBe("95");
+    expect(output.amount.toFixed()).toBe("94.99");
     expect(metadata.globals.fees.usd).toEqual({
       anchor: "2",
-      network: "0",
+      network: "0.01",
       partnerMarkup: "1",
-      total: "4.000000",
+      total: "4.010000",
       vortex: "1"
     });
     expect(Object.keys(metadata.blocks)).toEqual([
@@ -177,7 +177,7 @@ describe("Alfredpay cross-chain onramp flow", () => {
       "distributeFees"
     ]);
     expect(getBlockMetadata(metadata, AlfredpayMintContext).outputAmountRaw).toBe("98000000");
-    expect(getBlockMetadata(metadata, SubsidizePreContext).targetInputAmountRaw).toBe("96000000");
-    expect(getBlockMetadata(metadata, SquidRouterSwapContext).inputAmountRaw).toBe("96000000");
+    expect(getBlockMetadata(metadata, SubsidizePreContext).targetInputAmountRaw).toBe("95990000");
+    expect(getBlockMetadata(metadata, SquidRouterSwapContext).inputAmountRaw).toBe("95990000");
   });
 });

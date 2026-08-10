@@ -46,6 +46,8 @@ The cleanup worker (`cleanup.worker.ts`) selects ramps where `currentPhase ∈ {
 11. **Dynamic treasury transfers MUST carry explicit fee caps** — The funding transaction must use the checked gas limit, `maxFeePerGas`, and `maxPriorityFeePerGas`; relying on wallet defaults after performing the quote-envelope check would create a time-of-check/time-of-use mismatch.
 12. **Funding retries MUST bind a stable target** — A dynamic funding operation's request hash must bind the required target balance and v2 program identity, not a live balance-derived shortfall that can change after a confirmed send.
 13. **Funding-program rollout MUST be two phase** — New quote production stays disabled until every API and worker replica supports both legacy static metadata and program v2.
+14. **A confirmed funding operation MUST replay before live-fee preflight** — Fee movement after a receipt-confirmed send must not prevent the journal from returning that persisted result; the live envelope guard applies only before a genuinely new treasury broadcast.
+15. **Persisted funding envelopes MUST be validated at runtime** — Presence selects program v2 only after all version, network, transfer-kind, bounded positive fee/gas, and Base-family L1 fields pass structural validation. Absence alone selects the legacy program.
 
 ## Threat Vectors & Mitigations
 

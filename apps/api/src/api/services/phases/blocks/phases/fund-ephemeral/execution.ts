@@ -298,16 +298,24 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
 
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
-      const fees = destinationGasQuote ? await networkClient.estimateFeesPerGas() : undefined;
-      if (fees && destinationGasQuote) {
-        await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, network, fees.maxFeePerGas);
-      }
+      let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
 
       await this.runFinancialOperation(state, {
         attemptClass: destinationGasQuote ? "source-evm-native-funding-v2" : "source-evm-native-funding",
+        beforePerform: destinationGasQuote
+          ? async () => {
+              const fees = await networkClient.estimateFeesPerGas();
+              await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, network, fees.maxFeePerGas);
+              checkedFees = fees;
+            }
+          : undefined,
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
+          const fees = checkedFees;
+          if (destinationGasQuote && !fees) {
+            throw new Error(`FundEphemeralExecutor: missing checked ${network} funding fees`);
+          }
           const hash = await abortableCall(signal, () =>
             walletClient.sendTransaction({
               ...(fees && destinationGasQuote
@@ -393,14 +401,22 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       if (!destinationGasQuote) {
         throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination gas quote`);
       }
-      const fees = await destinationClient.estimateFeesPerGas();
-      await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
+      let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
 
       await this.runFinancialOperation(state, {
         attemptClass: "destination-evm-native-funding-v2",
+        beforePerform: async () => {
+          const fees = await destinationClient.estimateFeesPerGas();
+          await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
+          checkedFees = fees;
+        },
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
+          const fees = checkedFees;
+          if (!fees) {
+            throw new Error(`FundEphemeralExecutor: missing checked ${destinationNetwork} funding fees`);
+          }
           const hash = await abortableCall(signal, () =>
             walletClient.sendTransaction({
               gas: BigInt(destinationGasQuote.fundingGasLimit),

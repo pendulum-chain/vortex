@@ -86,7 +86,7 @@ function buildCtx(outputCurrency: EvmToken): PhaseCtx {
   return {
     addNote: () => undefined,
     evmDestinationGas: {
-      executionFeeUsd: "0",
+      executionFeeUsd: "0.01",
       fundingGasLimit: "21000",
       isNativeTransfer: false,
       maximumFeePerGas: "1",
@@ -144,12 +144,12 @@ describe("Alfredpay direct onramp flow", () => {
 
     expect(squidCalculations).toBe(0);
     expect(capturedProviderRequests[0]?.metadata.customerId).toBe("anonymous");
-    expect(output).toMatchObject({ amountRaw: "96000000", chain: Networks.Polygon, token: ALFREDPAY_EVM_TOKEN });
+    expect(output).toMatchObject({ amountRaw: "95990000", chain: Networks.Polygon, token: ALFREDPAY_EVM_TOKEN });
     expect(metadata.blocks.squidRouterSwap).toMatchObject({
       effectiveExchangeRate: "1",
-      inputAmountRaw: "96000000",
+      inputAmountRaw: "95990000",
       networkFeeUSD: "0",
-      outputAmountRaw: "96000000"
+      outputAmountRaw: "95990000"
     });
   });
 
@@ -158,10 +158,10 @@ describe("Alfredpay direct onramp flow", () => {
     const { metadata, output } = await makeAlfredpayOnrampDirectFlow(EvmToken.USDC).simulate(buildCtx(EvmToken.USDC));
 
     expect(squidCalculations).toBe(1);
-    expect(output).toMatchObject({ amountRaw: "95000000", chain: Networks.Polygon, token: EvmToken.USDC });
+    expect(output).toMatchObject({ amountRaw: "94990000", chain: Networks.Polygon, token: EvmToken.USDC });
     expect(metadata.blocks.squidRouterSwap).toMatchObject({
-      inputAmountRaw: "96000000",
-      outputAmountRaw: "95000000"
+      inputAmountRaw: "95990000",
+      outputAmountRaw: "94990000"
     });
   });
 });

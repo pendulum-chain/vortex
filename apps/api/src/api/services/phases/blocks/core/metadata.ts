@@ -1,5 +1,12 @@
-import type { CreateQuoteRequest, EvmNetworks, QuoteFeeStructure, RampCurrency } from "@vortexfi/shared";
-import type { Big } from "big.js";
+import {
+  type CreateQuoteRequest,
+  type EvmNetworks,
+  isNetworkEVM,
+  Networks,
+  type QuoteFeeStructure,
+  type RampCurrency
+} from "@vortexfi/shared";
+import Big from "big.js";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../../quote/core/types";
 import type { FlowIdentity } from "./identity";
@@ -53,6 +60,68 @@ export interface FlowMetadata<Blocks extends Record<string, unknown> = Record<st
   globals: FlowGlobals;
 }
 
+const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
+const POSITIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+const MAX_UINT64 = 2n ** 64n - 1n;
+const MAX_UINT256 = 2n ** 256n - 1n;
+
+function assertPositiveIntegerField(
+  value: Record<string, unknown>,
+  field: keyof EvmDestinationGasQuote,
+  maximum: bigint
+): void {
+  const fieldValue = value[field];
+  if (
+    typeof fieldValue !== "string" ||
+    !POSITIVE_INTEGER_PATTERN.test(fieldValue) ||
+    fieldValue.length > maximum.toString().length ||
+    BigInt(fieldValue) > maximum
+  ) {
+    throw new Error(`Invalid EVM destination gas quote ${field}`);
+  }
+}
+
+function assertEvmDestinationGasQuote(value: unknown): asserts value is EvmDestinationGasQuote {
+  if (!isRecord(value)) {
+    throw new Error("Invalid EVM destination gas quote envelope");
+  }
+  if (value.programVersion !== 2) {
+    throw new Error(`Unsupported EVM destination funding program ${String(value.programVersion)}`);
+  }
+  if (typeof value.network !== "string" || !isNetworkEVM(value.network as Networks)) {
+    throw new Error("Invalid EVM destination gas quote network");
+  }
+  if (typeof value.isNativeTransfer !== "boolean") {
+    throw new Error("Invalid EVM destination gas quote transfer type");
+  }
+  if (
+    typeof value.executionFeeUsd !== "string" ||
+    value.executionFeeUsd.length > 128 ||
+    !POSITIVE_DECIMAL_PATTERN.test(value.executionFeeUsd) ||
+    !new Big(value.executionFeeUsd).gt(0)
+  ) {
+    throw new Error("Invalid EVM destination gas quote executionFeeUsd");
+  }
+
+  assertPositiveIntegerField(value, "fundingGasLimit", MAX_UINT64);
+  assertPositiveIntegerField(value, "transferGasLimit", MAX_UINT64);
+  assertPositiveIntegerField(value, "maximumFeePerGas", MAX_UINT256);
+
+  const hasFundingL1Maximum = value.maximumFundingL1FeeRaw !== undefined;
+  const hasPayoutL1Maximum = value.maximumPayoutL1FeeRaw !== undefined;
+  if (hasFundingL1Maximum !== hasPayoutL1Maximum) {
+    throw new Error("Incomplete EVM destination gas quote L1 fee envelope");
+  }
+  const isBase = value.network === Networks.Base || value.network === Networks.BaseSepolia;
+  if (isBase && !hasFundingL1Maximum) {
+    throw new Error("Base destination gas quote is missing its L1 fee envelope");
+  }
+  if (hasFundingL1Maximum) {
+    assertPositiveIntegerField(value, "maximumFundingL1FeeRaw", MAX_UINT256);
+    assertPositiveIntegerField(value, "maximumPayoutL1FeeRaw", MAX_UINT256);
+  }
+}
+
 export function getFlowMetadata(metadata: unknown): FlowMetadata {
   const value = metadata as Partial<FlowMetadata> | null;
   if (
@@ -64,6 +133,9 @@ export function getFlowMetadata(metadata: unknown): FlowMetadata {
     !isRecord(value.globals.fees.usd)
   ) {
     throw new Error("Quote does not contain block flow metadata");
+  }
+  if (value.globals.evmDestinationGas !== undefined) {
+    assertEvmDestinationGasQuote(value.globals.evmDestinationGas);
   }
   return value as FlowMetadata;
 }

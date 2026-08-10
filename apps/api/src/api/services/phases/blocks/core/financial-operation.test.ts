@@ -75,6 +75,40 @@ describe("runFinancialOperation", () => {
     expect(replayed.amountRaw).toBe("100");
   });
 
+  it("replays a confirmed operation before running a new-side-effect preflight", async () => {
+    let feesInsideEnvelope = true;
+    const beforePerform = mock(async () => {
+      if (!feesInsideEnvelope) throw new Error("network fees too high");
+    });
+    const perform = mock(async () => ({ id: "funding-1" }));
+
+    const first = await runFinancialOperation({ ...baseOperation, beforePerform, perform });
+    feesInsideEnvelope = false;
+    const replayed = await runFinancialOperation({ ...baseOperation, beforePerform, perform });
+
+    expect(replayed).toEqual(first);
+    expect(beforePerform).toHaveBeenCalledTimes(1);
+    expect(perform).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an operation unclaimed when its preflight rejects a new side effect", async () => {
+    let feesInsideEnvelope = false;
+    const beforePerform = mock(async () => {
+      if (!feesInsideEnvelope) throw new Error("network fees too high");
+    });
+    const perform = mock(async () => ({ id: "funding-1" }));
+
+    await expect(runFinancialOperation({ ...baseOperation, beforePerform, perform })).rejects.toThrow(
+      "network fees too high"
+    );
+    expect(await FinancialOperation.findOne()).toMatchObject({ status: "not_started" });
+
+    feesInsideEnvelope = true;
+    await expect(runFinancialOperation({ ...baseOperation, beforePerform, perform })).resolves.toEqual({ id: "funding-1" });
+    expect(beforePerform).toHaveBeenCalledTimes(2);
+    expect(perform).toHaveBeenCalledTimes(1);
+  });
+
   it("halts retries after an ambiguous provider failure", async () => {
     const perform = mock(async () => {
       throw new Error("connection reset after submission");
