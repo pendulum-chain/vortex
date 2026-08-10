@@ -30,13 +30,11 @@ const CORE_PHASES: RampPhase[] = [
 ];
 
 describe("Alfredpay offramp flow", () => {
-  it("fails closed for persisted v1 identities (drain-then-deploy contract)", () => {
-    // Version 2 added the fee-collection phase. v1 is deliberately NOT kept
-    // dispatchable: deploys are gated on draining v1 quotes and in-flight ramps,
-    // and anything that slips through must fail closed for manual recovery.
-    expect(alfredpayOfframpFlow.identity.version).toBe(2);
-    expect(() => getBlockFlowByIdentity({ ...alfredpayOfframpFlow.identity, version: 1 })).toThrow(
-      /Unsupported persisted flow AlfredpayOfframp@1/
+  it("fails closed for persisted pre-v3 identities (drain-then-deploy contract)", () => {
+    expect(alfredpayOfframpFlow.identity.version).toBe(3);
+    expect(alfredpayOfframpFlow.identity.blockSchemaVersions.alfredpayOfframp).toBe(2);
+    expect(() => getBlockFlowByIdentity({ ...alfredpayOfframpFlow.identity, version: 2 })).toThrow(
+      /Unsupported persisted flow AlfredpayOfframp@2/
     );
   });
 

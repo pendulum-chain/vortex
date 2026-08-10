@@ -94,7 +94,7 @@ One central delegated-authorization function first requires the request to be au
 as the manager through an accepted existing authentication path. It then performs these
 checks and returns a request context containing both `actorProfileId` and
 `subjectProfileId`. Downstream services use the subject for ownership and provider
-resolution while retaining the actor for audit.
+resolution while retaining the actor for authorization throughout the request.
 
 The header is only a selector. It has no effect until route-level delegated authorization
 validates it, and it is never copied into `req.userId`. A public API key is attribution,
@@ -111,19 +111,30 @@ effectiveUserId                = childId
 
 Authorization uses the authenticated manager and its direct relationship to the child.
 Existing ownership and provider resolution use the effective child. Both values remain
-available for audit attribution; the effective child must never erase the manager actor.
-The implementation must not replace the authenticated manager ID globally or introduce
-a generic impersonation mode.
+available throughout the request; the effective child must never erase the manager actor.
+The implementation must not replace the authenticated manager ID globally or introduce a
+generic impersonation mode.
+
+The first iteration does not require a separate operation-level audit record containing
+both IDs. A managed child has exactly one immutable manager relationship and retains that
+relationship after logical deletion, so its controlling manager remains derivable without
+duplicating the relationship on every operation. Child-owned credentials authenticate the
+child directly; distinguishing manager-delegated requests from direct child-credential
+requests in durable operation records is not a first-iteration requirement. This decision
+must be revisited before manager transfer, multiple managers, or credential- or
+request-level attribution is required.
 
 Existing Supabase sessions and API credentials are both accepted according to each
 endpoint's current authentication requirements. This does not introduce a dedicated
 manager session, credential type, or generic impersonation mode.
 
 The first route retrofit covers child-oriented quote creation; ramp registration,
-mutation, status, history, and errors; aggregate onboarding status; Avenia customer/KYC
-operations; and Alfredpay KYC/KYB and fiat-account operations. Email-bound Mykobo,
-Monerium, and Alfredpay customer creation remain outside delegation until managed children
-have an explicit provider contact-email contract.
+mutation, status, history, errors, limits, and sanitized ramp info; aggregate onboarding
+status; Avenia customer/KYC operations; and Alfredpay customer, KYC/KYB, and fiat-account
+operations. Mykobo, Monerium, recipient invitations, and active-entity selection remain
+outside delegation. Managed children receive an immutable provider contact email at
+provisioning while `profiles.email` remains null. A manager cannot assign the same
+normalized contact email to multiple children because Alfredpay keys customers by email.
 
 ### Manager control
 
@@ -135,7 +146,8 @@ An enabled manager may perform these operations for its directly managed childre
 - start, submit, update, and read customer-level KYC/KYB operations;
 - upload KYC/KYB documents through supported provider flows;
 - create quotes and register, update, start, and read ramps;
-- read the child's ramp history and operational errors.
+- read the child's ramp history, operational errors, limits, and sanitized ramp info;
+- create, list, and revoke child-owned API credentials.
 
 KYC/KYB control means the operations normally available to that customer. It does not
 allow a manager to approve KYC, override provider decisions, edit normalized compliance
@@ -146,20 +158,17 @@ perform an operation outside its enabled corridors.
 
 ### Authentication in the first iteration
 
-The first iteration uses existing Supabase sessions or API credentials whose subject is
-the manager; it does not introduce a special manager authentication mechanism.
-Profile-managed credentials, including ones self-created by the manager, and
-partner-managed credentials are both eligible. A credential's public or secret strength
-must still satisfy the existing requirement for the requested operation. The manager
-selects an authorized child through delegated request context. Managers do not create
-child API credentials in this iteration. This keeps one delegated-authorization path while
-the delegated model is introduced.
+Managers use existing Supabase sessions or secret API credentials; no special manager
+authentication mechanism is introduced. The manager selects an authorized child through
+delegated request context and may issue profile-managed credentials for that child.
 
-Child-owned credentials may be added when a concrete integration needs per-child key
-isolation. Before that feature ships, each child credential must be linked to the managed
-relationship, denied whenever the manager, relationship, or corridor is inactive, and
-revoked when the child is logically deleted. It must not provide a second path around
-manager authorization.
+A child-owned credential authenticates directly as the child without
+`X-Managed-Profile-Id`. Credential validation derives the child's unique controlling
+relationship and fails when the relationship or manager is inactive. Corridor-bound
+routes enforce the controlling manager's current corridors for direct child credentials
+exactly as they do for manager-delegated requests. Child credentials cannot select another
+managed child, cannot carry partner attribution, and are revoked when the relationship is
+logically deleted.
 
 ### Corridor authorization
 
@@ -259,6 +268,7 @@ managed_profiles
     manager_profile_id  FK -> managed_profile_managers.profile_id
     profile_id          FK -> profiles.id
     external_subject_id NOT NULL
+    contact_email       provider contact, not a login identity
     status              active | deleted
     creation_source     manager | vortex
     created_at
@@ -271,12 +281,16 @@ Required constraints:
 ```text
 UNIQUE (profile_id)
 UNIQUE (manager_profile_id, external_subject_id)
+UNIQUE (manager_profile_id, contact_email)
 CHECK (manager_profile_id <> profile_id)
 ```
 
-The manager and external subject ID provide ownership provenance and idempotency. A
-separate free-form source namespace is unnecessary for manager-created profiles. If a
-future provider import needs additional provenance, add it only to that import contract.
+The manager and external subject ID provide ownership provenance and idempotency. Contact
+email uniqueness prevents one manager from provisioning multiple children against the
+same provider customer identity. Both manager-scoped pairs remain reserved after logical
+deletion. A separate free-form source namespace is unnecessary for manager-created
+profiles. If a future provider import needs additional provenance, add it only to that
+import contract.
 
 Do not duplicate `customer_entity_id` on `managed_profiles`. The child profile and its
 active `customer_entities` relationship already identify the compliance subject.
@@ -331,7 +345,7 @@ accepted existing authentication establishes the manager actor
     -> corridor-bound operations verify manager corridor permission
     -> service resolves the child's active customer entity
     -> operation executes and persists resources under the child profile
-    -> audit records manager actor and child subject
+    -> retained manager-child relationship provides manager-level attribution
 ```
 
 ### Logical deletion
@@ -372,7 +386,6 @@ requirement needs one.
 The following are intentionally outside the first iteration and should be introduced only
 when a concrete integration requires them:
 
-- child-owned API credential issuance and its relationship-bound revocation rules;
 - normalized per-corridor grant rows or operation-specific permissions;
 - manager credential scopes or separate management and runtime credentials;
 - a dedicated manager session or authentication mechanism;

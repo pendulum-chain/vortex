@@ -45,6 +45,9 @@ jspm_packages
 # Optional REPL history
 .node_repl_history
 
+# Rendered email template previews
+.email-previews
+
 # testing artifacts
 */failedRampStateRecovery.json
 */lastRampState.json

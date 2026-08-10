@@ -10,13 +10,23 @@ import {
   KycAttemptStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
+import { reconcileMissedRampCompletedEmails } from "../api/services/email";
 import { emitNotification } from "../api/services/notifications/notification.service";
+import KybStatusWorker from "../api/workers/kyb-status.worker";
+import ApiCredential from "../models/apiCredential.model";
 import CustomerEntity from "../models/customerEntity.model";
+import EmailNotification, { NotificationProvider, NotificationStatus, NotificationType } from "../models/emailNotification.model";
 import KycCase from "../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestAlfredpayCustomer, createTestTaxId, createTestUser } from "../test-utils/factories";
+import {
+  createTestAlfredpayCustomer,
+  createTestQuote,
+  createTestRampState,
+  createTestTaxId,
+  createTestUser
+} from "../test-utils/factories";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -64,6 +74,134 @@ describe("GET /v1/notifications", () => {
     expect(body.unreadCount).toBe(2);
     expect(body.notifications).toHaveLength(1);
     expect(body.notifications[0].title).toBe("Second");
+  });
+});
+
+describe("ramp completion notification reconciliation", () => {
+  it("re-enqueues exactly the completed ramps that have no notification row", async () => {
+    const { user } = await createAuthedUser("reconcile@example.com");
+    const missed = await createTestRampState({ currentPhase: "complete", userId: user.id });
+    const already = await createTestRampState({ currentPhase: "complete", userId: user.id });
+    await EmailNotification.create({
+      locale: "en-US",
+      provider: NotificationProvider.Vortex,
+      resourceId: already.id,
+      status: NotificationStatus.Sent,
+      type: NotificationType.RampCompleted,
+      userId: user.id
+    });
+    await createTestRampState({ currentPhase: "nablaSwap", userId: user.id });
+    await createTestRampState({ currentPhase: "complete", userId: null });
+
+    await reconcileMissedRampCompletedEmails();
+
+    const missedRow = await EmailNotification.findOne({ where: { resourceId: missed.id } });
+    expect(missedRow?.status).toBe(NotificationStatus.Pending);
+    expect(missedRow?.userId).toBe(user.id);
+    expect(await EmailNotification.count()).toBe(2);
+
+    // A second sweep must be a no-op: the freshly written row now satisfies the anti-join.
+    await reconcileMissedRampCompletedEmails();
+    expect(await EmailNotification.count()).toBe(2);
+  });
+
+  it("polls only undecided KYB cases whose attempt has no queued outcome", async () => {
+    const fresh = await createAuthedUser("kyb-poll-fresh@example.com");
+    const freshBusiness = await createTestTaxId(fresh.user.id, {
+      customerType: "business",
+      subAccountId: "kyb-poll-fresh-sub",
+      taxId: "11222333000181"
+    });
+    await KycCase.create({
+      customerEntityId: freshBusiness.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-fresh",
+      providerCustomerId: freshBusiness.id,
+      status: VerificationStatus.InReview,
+      type: "kyb"
+    });
+
+    // Partner-owned: an entity with no profile has nobody to email and must not
+    // occupy a batch slot (the worker filters it in the join).
+    const partnerEntity = await CustomerEntity.create({ profileId: null, status: "active", type: "business" });
+    await KycCase.create({
+      customerEntityId: partnerEntity.id,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-partner",
+      providerCustomerId: null,
+      status: VerificationStatus.InReview,
+      type: "kyb"
+    });
+
+    const settled = await createAuthedUser("kyb-poll-settled@example.com");
+    const settledBusiness = await createTestTaxId(settled.user.id, {
+      customerType: "business",
+      subAccountId: "kyb-poll-settled-sub",
+      taxId: "22333444000162"
+    });
+    await KycCase.create({
+      customerEntityId: settledBusiness.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-settled",
+      providerCustomerId: settledBusiness.id,
+      status: VerificationStatus.InReview,
+      type: "kyb"
+    });
+    await EmailNotification.create({
+      locale: "en-US",
+      provider: NotificationProvider.Avenia,
+      resourceId: "attempt-settled",
+      status: NotificationStatus.Sent,
+      type: NotificationType.VerificationApproved,
+      userId: settled.user.id
+    });
+
+    const polled: string[] = [];
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async (attemptId: string) => {
+            polled.push(attemptId);
+            return { attempt: { id: attemptId, status: KycAttemptStatus.PENDING, updatedAt: "2026-08-06" } };
+          })
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const worker = new KybStatusWorker() as unknown as { poll: () => Promise<void> };
+      await worker.poll();
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    expect(polled).toEqual(["attempt-fresh"]);
+  });
+
+  it("tombstones a completed partner-API ramp instead of enqueuing mail", async () => {
+    const { user } = await createAuthedUser("partner-ramp@example.com");
+    const credential = await ApiCredential.create({
+      environment: "live",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      name: "partner credential",
+      partnerId: null,
+      profileId: user.id,
+      publicKeyValue: "pk_test_reconcile",
+      secretKeyDigest: "a".repeat(64),
+      secretKeyPrefix: "sk_test_12345678"
+    });
+    const quote = await createTestQuote({ apiCredentialId: credential.id, userId: user.id });
+    const ramp = await createTestRampState({ currentPhase: "complete", quoteId: quote.id, userId: user.id });
+
+    await reconcileMissedRampCompletedEmails();
+
+    const rows = await EmailNotification.findAll({ where: { resourceId: ramp.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe(NotificationStatus.Skipped);
+    expect(rows[0].lastError).toContain("Partner-API ramp");
   });
 });
 

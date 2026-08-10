@@ -91,6 +91,7 @@ describe("managed profile manager admin routes", () => {
     const manager = await createTestUser();
     expect((await put(manager.id, { allowedCorridors: ["BR"], isActive: true })).status).toBe(201);
     const child = await provisionManagedProfile({
+      contactEmail: "child@example.com",
       creationSource: "vortex",
       customerType: "individual",
       externalSubjectId: "child-subject",
@@ -110,5 +111,30 @@ describe("managed profile manager admin routes", () => {
     const profile = await createTestUser();
     const read = await fetch(`${baseUrl}/${profile.id}`, { headers: ADMIN_HEADERS });
     expect(read.status).toBe(404);
+  });
+
+  it("provisions a headless profile for an active manager without using the legacy admin route", async () => {
+    const manager = await createTestUser();
+    expect((await put(manager.id, { allowedCorridors: ["BR"], isActive: true })).status).toBe(201);
+
+    const response = await fetch(`${baseUrl}/${manager.id}/managed-profiles`, {
+      body: JSON.stringify({
+        contactEmail: " Vortex.Customer@Example.COM ",
+        customerType: "business",
+        externalSubjectId: "vortex-customer"
+      }),
+      headers: ADMIN_HEADERS,
+      method: "POST"
+    });
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      managedProfile: {
+        creationSource: "vortex",
+        contactEmail: "vortex.customer@example.com",
+        customerType: "business",
+        externalSubjectId: "vortex-customer",
+        status: "active"
+      }
+    });
   });
 });

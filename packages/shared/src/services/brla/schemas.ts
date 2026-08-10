@@ -14,6 +14,9 @@ import {
   AveniaSubaccountWallet,
   AveniaTicketStatus,
   AveniaUboResponse,
+  AveniaWebhook,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   DocumentUploadResponse,
   GetKycAttemptResponse,
   KybLevel1Response,
@@ -212,3 +215,20 @@ export const aveniaKycAttemptsSchema = z.looseObject({
 export const aveniaKybAttemptStatusSchema = z.looseObject({
   attempt: aveniaAttemptSchema
 }) satisfies z.ZodType<AveniaKybAttemptStatusResponse>;
+
+/** The body returned after POST /v2/notifications/webhooks. */
+export const aveniaWebhookRegistrationSchema = z.looseObject({
+  webhookId: z.string().min(1)
+}) satisfies z.ZodType<AveniaWebhookRegistration>;
+
+/** An entry in the GET /v2/notifications/webhooks response. */
+export const aveniaWebhookSchema = z.looseObject({
+  id: z.string().min(1),
+  subscriptions: z.array(z.string().min(1)),
+  url: z.string().url()
+}) satisfies z.ZodType<AveniaWebhook>;
+
+/** The body returned by GET /v2/notifications/webhooks. */
+export const aveniaWebhooksListSchema = z.looseObject({
+  webhooks: z.array(aveniaWebhookSchema)
+}) satisfies z.ZodType<AveniaWebhooksListResponse>;

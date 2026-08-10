@@ -47,7 +47,7 @@ test("Onramp prefills the connected wallet but keeps a manually edited destinati
   await expect(destination).toHaveValue(DESTINATION);
   await expect(page.getByText("1 MXN = 0.2022 USDC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fee details" }).click();
-  await expect(page.getByText("1 MXN = 0.1820 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 MXN = 0.182 USDC", { exact: true })).toBeVisible();
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

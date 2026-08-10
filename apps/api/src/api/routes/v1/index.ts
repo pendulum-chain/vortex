@@ -3,7 +3,7 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
-import managedProfilesRoutes from "./admin/managed-profiles.route";
+import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
@@ -19,6 +19,7 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import limitsRoutes from "./limits.route";
 import maintenanceRoutes from "./maintenance.route";
+import managedProfilesRoutes from "./managed-profiles.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
 import mykoboRoutes from "./mykobo.route";
@@ -216,6 +217,7 @@ router.use("/onboarding", onboardingRoutes);
 
 /** One-record API credential management for authenticated Supabase users. */
 router.use("/api-credentials", apiCredentialsRoutes);
+router.use("/managed-profiles", managedProfilesRoutes);
 
 /**
  * Admin routes for partner-managed API credentials. The partner is addressed by
@@ -255,7 +257,7 @@ router.use("/admin/profile-roles", profileRolesRoutes);
  * GET /v1/admin/managed-profile-managers/:profileId
  */
 router.use("/admin/managed-profile-managers", managedProfileManagersRoutes);
-router.use("/admin/managed-profiles", managedProfilesRoutes);
+router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
 
 /**
  * Admin routes for API client observability dashboards

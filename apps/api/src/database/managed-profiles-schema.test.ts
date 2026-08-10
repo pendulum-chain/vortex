@@ -12,7 +12,11 @@ async function createManager(): Promise<User> {
   return profile;
 }
 
-async function createManagedProfile(managerProfileId: string, externalSubjectId: string): Promise<User> {
+async function createManagedProfile(
+  managerProfileId: string,
+  externalSubjectId: string,
+  contactEmail = "child@example.com"
+): Promise<User> {
   return sequelize.transaction(async transaction => {
     const profile = await User.create(
       { email: null, id: crypto.randomUUID(), kind: "managed" },
@@ -20,6 +24,7 @@ async function createManagedProfile(managerProfileId: string, externalSubjectId:
     );
     await ManagedProfile.create(
       {
+        contactEmail,
         creationSource: "manager",
         externalSubjectId,
         managerProfileId,
@@ -50,6 +55,7 @@ describe("managed profile schema", () => {
     expect(child.email).toBeNull();
     expect(child.kind).toBe("managed");
     expect(relationship?.managerProfileId).toBe(manager.id);
+    expect(relationship?.contactEmail).toBe("child@example.com");
     expect(relationship?.status).toBe("active");
   });
 
@@ -70,6 +76,25 @@ describe("managed profile schema", () => {
     await expect(managedProfile.update({ email: "claimed@example.com", kind: "authenticated" })).rejects.toThrow(
       "Profile kind cannot be changed after creation"
     );
+  });
+
+  it("does not allow a managed profile contact email to change", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "immutable-email");
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    await expect(relationship?.update({ contactEmail: "other@example.com" })).rejects.toThrow(
+      "Managed profile contact email cannot be changed after creation"
+    );
+  });
+
+  it("requires contact emails to be unique within each manager", async () => {
+    const manager = await createManager();
+    const otherManager = await createManager();
+    await createManagedProfile(manager.id, "first-child", "shared@example.com");
+
+    await expect(createManagedProfile(manager.id, "second-child", "shared@example.com")).rejects.toThrow();
+    await expect(createManagedProfile(otherManager.id, "other-child", "shared@example.com")).resolves.toBeInstanceOf(User);
   });
 
   it("rejects authenticated children and managed managers", async () => {

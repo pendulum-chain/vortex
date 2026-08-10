@@ -1,6 +1,7 @@
 import { AveniaAccountType, BrlaApiService, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
 import logger from "../../../config/logger";
+import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 
@@ -32,6 +33,26 @@ export async function findAveniaCustomerBySubaccountId(subAccountId: string): Pr
   return ProviderCustomer.findOne({
     where: { provider: "avenia", providerSubaccountId: subAccountId }
   });
+}
+
+/**
+ * The profile owning a subaccount, or null when the subaccount is unknown or is
+ * partner-owned — the latter has no profile behind it and so nobody to notify.
+ */
+export async function findAveniaOwnerBySubaccountId(
+  subAccountId: string
+): Promise<{ accountType: AveniaAccountType; profileId: string } | null> {
+  const customer = await findAveniaCustomerBySubaccountId(subAccountId);
+  if (!customer) {
+    return null;
+  }
+
+  const entity = await CustomerEntity.findByPk(customer.customerEntityId);
+  if (!entity?.profileId) {
+    return null;
+  }
+
+  return { accountType: customerTypeToAccountType(customer.customerType), profileId: entity.profileId };
 }
 
 /**

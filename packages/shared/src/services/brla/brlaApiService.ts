@@ -2,7 +2,7 @@ import * as forge from "node-forge";
 import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
-import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
+import { Endpoint, EndpointMethod, EndpointRequestBody, EndpointResponse, Endpoints } from "./mappings";
 import {
   aveniaDocumentResponseSchema,
   aveniaDocumentUploadResponseSchema,
@@ -25,10 +25,13 @@ import {
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
+  AveniaPublicKeyResponse,
   AveniaQuoteResponse,
   AveniaSwapTicket,
   AveniaUboPayload,
   AveniaUboResponse,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
@@ -52,6 +55,10 @@ interface CachedQuote {
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+export const AVENIA_PUBLIC_KEY_TIMEOUT_MS = 10_000;
+// Bound on every signed API request. A hung connection would otherwise stall callers
+// indefinitely — cron workers with waitForCompletion never run their next cycle.
+export const BRLA_REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
@@ -122,17 +129,19 @@ export class BrlaApiService {
     return BrlaApiService.instance;
   }
 
-  public async sendRequest<M extends Methods, E extends Endpoints>(
+  public async sendRequest<E extends Endpoints, M extends EndpointMethod<E>>(
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]["body"],
+    payload?: EndpointRequestBody<E, M>,
     pathParam?: string
-  ): Promise<EndpointMapping[E][M]["response"]> {
+  ): Promise<EndpointResponse<E, M>> {
     const timestamp = Date.now().toString();
     const body = payload ? JSON.stringify(payload) : "";
     let requestUri = endpoint as string;
 
+    // Endpoints that carry a {placeholder} interpolate it; the rest append the segment.
+    // Appending to a templated path would sign and request a literal "{attemptId}".
     if (pathParam) {
       const encodedPathParam = encodeURIComponent(pathParam);
       requestUri = requestUri.includes("{")
@@ -163,7 +172,8 @@ export class BrlaApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(BRLA_REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
@@ -202,9 +212,9 @@ export class BrlaApiService {
       });
     }
     try {
-      return await response.json();
+      return (await response.json()) as EndpointResponse<E, M>;
     } catch {
-      return undefined;
+      return undefined as EndpointResponse<E, M>;
     }
   }
 
@@ -434,6 +444,45 @@ export class BrlaApiService {
     return aveniaKybAttemptStatusSchema.parse(
       await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
     );
+  }
+
+  public async listWebhooks(): Promise<AveniaWebhooksListResponse> {
+    return await this.sendRequest(Endpoint.Webhooks, "GET");
+  }
+
+  public async createWebhook(webhookUrl: string, subscriptions: string[]): Promise<AveniaWebhookRegistration> {
+    return await this.sendRequest(Endpoint.Webhooks, "POST", undefined, { subscriptions, webhookUrl });
+  }
+
+  public async updateWebhook(webhookId: string, webhookUrl: string, subscriptions: string[]): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "PATCH", undefined, { subscriptions, webhookId, webhookUrl });
+  }
+
+  public async deleteWebhook(webhookId: string): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "DELETE", undefined, undefined, webhookId);
+  }
+
+  /**
+   * Avenia's webhook-signing public key. Unauthenticated, and Avenia's guide warns it
+   * rotates, so it is fetched rather than pinned in config.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  public async getAveniaPublicKey(): Promise<string> {
+    const response = await fetch(`${BRLA_BASE_URL}/v2/public-key`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(AVENIA_PUBLIC_KEY_TIMEOUT_MS)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Avenia public key: status '${response.status}'`);
+    }
+
+    const { publicKey } = (await response.json()) as AveniaPublicKeyResponse;
+    if (!publicKey) {
+      throw new Error("Avenia public key response contained no key");
+    }
+
+    return publicKey;
   }
 
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {

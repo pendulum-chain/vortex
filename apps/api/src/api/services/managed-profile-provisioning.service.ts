@@ -1,3 +1,4 @@
+import Joi from "joi";
 import { Transaction } from "sequelize";
 import sequelize from "../../config/database";
 import type { CustomerEntityType } from "../../models/customerEntity.model";
@@ -21,6 +22,7 @@ export class ManagedProfileProvisioningError extends Error {
 }
 
 export interface ProvisionManagedProfileInput {
+  contactEmail: string;
   creationSource: ManagedProfileCreationSource;
   customerType: CustomerEntityType;
   externalSubjectId: string;
@@ -28,6 +30,7 @@ export interface ProvisionManagedProfileInput {
 }
 
 export interface ProvisionManagedProfileResult {
+  contactEmail: string;
   created: boolean;
   creationSource: ManagedProfileCreationSource;
   customerEntityId: string;
@@ -40,6 +43,7 @@ export interface ProvisionManagedProfileResult {
 
 async function existingResult(
   relationship: ManagedProfile,
+  contactEmail: string,
   customerType: CustomerEntityType,
   transaction: Transaction
 ): Promise<ProvisionManagedProfileResult> {
@@ -51,7 +55,12 @@ async function existingResult(
       })
     : null;
 
-  if (relationship.status !== "active" || !customerEntity || customerEntity.type !== customerType) {
+  if (
+    relationship.status !== "active" ||
+    relationship.contactEmail !== contactEmail ||
+    !customerEntity ||
+    customerEntity.type !== customerType
+  ) {
     throw new ManagedProfileProvisioningError(
       "MANAGED_PROFILE_CONFLICT",
       "The external subject ID is already associated with different profile data"
@@ -59,6 +68,7 @@ async function existingResult(
   }
 
   return {
+    contactEmail,
     created: false,
     creationSource: relationship.creationSource,
     customerEntityId: customerEntity.id,
@@ -72,8 +82,12 @@ async function existingResult(
 
 export async function provisionManagedProfile(input: ProvisionManagedProfileInput): Promise<ProvisionManagedProfileResult> {
   const externalSubjectId = input.externalSubjectId.trim();
-  if (!externalSubjectId) {
-    throw new ManagedProfileProvisioningError("MANAGED_PROFILE_INVALID_INPUT", "externalSubjectId must be a non-empty string");
+  const contactEmail = input.contactEmail.trim().toLowerCase();
+  if (!externalSubjectId || Joi.string().email().max(255).required().validate(contactEmail).error) {
+    throw new ManagedProfileProvisioningError(
+      "MANAGED_PROFILE_INVALID_INPUT",
+      "externalSubjectId must be non-empty and contactEmail must be a valid email address"
+    );
   }
 
   return sequelize.transaction(async transaction => {
@@ -92,7 +106,18 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
       transaction,
       where: { externalSubjectId, managerProfileId: input.managerProfileId }
     });
-    if (existing) return existingResult(existing, input.customerType, transaction);
+    if (existing) return existingResult(existing, contactEmail, input.customerType, transaction);
+
+    const existingContactEmail = await ManagedProfile.findOne({
+      transaction,
+      where: { contactEmail, managerProfileId: input.managerProfileId }
+    });
+    if (existingContactEmail) {
+      throw new ManagedProfileProvisioningError(
+        "MANAGED_PROFILE_CONFLICT",
+        "The contact email is already associated with another managed profile"
+      );
+    }
 
     const profile = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
     const customerEntity = await CustomerEntity.create(
@@ -102,6 +127,7 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
     await profile.update({ activeCustomerEntityId: customerEntity.id }, { transaction });
     const relationship = await ManagedProfile.create(
       {
+        contactEmail,
         creationSource: input.creationSource,
         externalSubjectId,
         managerProfileId: input.managerProfileId,
@@ -111,6 +137,7 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
     );
 
     return {
+      contactEmail,
       created: true,
       creationSource: relationship.creationSource,
       customerEntityId: customerEntity.id,

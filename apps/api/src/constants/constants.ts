@@ -9,6 +9,7 @@ const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = "0.1"; // Amount to send to th
 const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = "1"; // Amount to send to the new moonbeam ephemeral account created
 const POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS = "1.5"; // Amount to send to the new polygon ephemeral account created
 const BASE_EPHEMERAL_STARTING_BALANCE_UNITS = "0.00015"; // Amount to send to the new base ephemeral account created
+const ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS = "0.005"; // Conservative reserve for destination transfer and fallback gas
 
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = "50000000000000000";
@@ -39,6 +40,7 @@ export {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   DEFAULT_LOGIN_EXPIRATION_TIME_HOURS,
   DEFAULT_POLLING_INTERVAL,
+  ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   MAX_FINAL_SETTLEMENT_SUBSIDY_USD,
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,

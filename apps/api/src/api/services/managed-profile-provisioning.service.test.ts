@@ -24,6 +24,7 @@ describe("managed profile provisioning", () => {
     const manager = await createManager();
 
     const result = await provisionManagedProfile({
+      contactEmail: "  Child@Example.COM ",
       creationSource: "manager",
       customerType: "business",
       externalSubjectId: "  customer-1  ",
@@ -33,6 +34,7 @@ describe("managed profile provisioning", () => {
     expect(result.created).toBe(true);
     expect(result.externalSubjectId).toBe("customer-1");
     expect(result.customerType).toBe("business");
+    expect(result.contactEmail).toBe("child@example.com");
     expect(await User.findByPk(result.profileId)).toMatchObject({
       activeCustomerEntityId: result.customerEntityId,
       email: null,
@@ -44,6 +46,7 @@ describe("managed profile provisioning", () => {
       type: "business"
     });
     expect(await ManagedProfile.findByPk(result.id)).toMatchObject({
+      contactEmail: "child@example.com",
       creationSource: "manager",
       managerProfileId: manager.id,
       profileId: result.profileId,
@@ -54,6 +57,7 @@ describe("managed profile provisioning", () => {
   it("returns the existing profile for an idempotent retry", async () => {
     const manager = await createManager();
     const input = {
+      contactEmail: "child-2@example.com",
       creationSource: "manager" as const,
       customerType: "individual" as const,
       externalSubjectId: "customer-2",
@@ -72,6 +76,7 @@ describe("managed profile provisioning", () => {
   it("serializes concurrent retries for the same external subject", async () => {
     const manager = await createManager();
     const input = {
+      contactEmail: "concurrent@example.com",
       creationSource: "manager" as const,
       customerType: "individual" as const,
       externalSubjectId: "customer-concurrent",
@@ -90,6 +95,7 @@ describe("managed profile provisioning", () => {
   it("rejects an idempotency key reused with a different customer type", async () => {
     const manager = await createManager();
     const input = {
+      contactEmail: "child-3@example.com",
       creationSource: "manager" as const,
       customerType: "individual" as const,
       externalSubjectId: "customer-3",
@@ -108,12 +114,14 @@ describe("managed profile provisioning", () => {
     const secondManager = await createManager();
 
     const first = await provisionManagedProfile({
+      contactEmail: "first@example.com",
       creationSource: "manager",
       customerType: "individual",
       externalSubjectId: "shared-subject",
       managerProfileId: firstManager.id
     });
     const second = await provisionManagedProfile({
+      contactEmail: "second@example.com",
       creationSource: "manager",
       customerType: "business",
       externalSubjectId: "shared-subject",
@@ -124,11 +132,43 @@ describe("managed profile provisioning", () => {
     expect(await ManagedProfile.count()).toBe(2);
   });
 
+  it("rejects contact email reuse within one manager but permits it across managers", async () => {
+    const firstManager = await createManager();
+    const secondManager = await createManager();
+    await provisionManagedProfile({
+      contactEmail: " Shared@Example.com ",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "first-child",
+      managerProfileId: firstManager.id
+    });
+
+    await expect(
+      provisionManagedProfile({
+        contactEmail: "shared@example.com",
+        creationSource: "manager",
+        customerType: "business",
+        externalSubjectId: "second-child",
+        managerProfileId: firstManager.id
+      })
+    ).rejects.toMatchObject({ code: "MANAGED_PROFILE_CONFLICT" });
+    await expect(
+      provisionManagedProfile({
+        contactEmail: "shared@example.com",
+        creationSource: "manager",
+        customerType: "business",
+        externalSubjectId: "other-manager-child",
+        managerProfileId: secondManager.id
+      })
+    ).resolves.toMatchObject({ contactEmail: "shared@example.com", created: true });
+  });
+
   it("rejects missing, inactive, and invalid manager requests without partial records", async () => {
     const inactiveManager = await createManager(false);
 
     await expect(
       provisionManagedProfile({
+        contactEmail: "missing@example.com",
         creationSource: "vortex",
         customerType: "individual",
         externalSubjectId: "customer-4",
@@ -137,6 +177,7 @@ describe("managed profile provisioning", () => {
     ).rejects.toBeInstanceOf(ManagedProfileProvisioningError);
     await expect(
       provisionManagedProfile({
+        contactEmail: "inactive@example.com",
         creationSource: "vortex",
         customerType: "individual",
         externalSubjectId: "customer-4",
@@ -145,6 +186,7 @@ describe("managed profile provisioning", () => {
     ).rejects.toMatchObject({ code: "MANAGED_PROFILE_MANAGER_INACTIVE" });
     await expect(
       provisionManagedProfile({
+        contactEmail: "invalid@example.com",
         creationSource: "vortex",
         customerType: "individual",
         externalSubjectId: "   ",
@@ -154,5 +196,24 @@ describe("managed profile provisioning", () => {
 
     expect(await User.count({ where: { kind: "managed" } })).toBe(0);
     expect(await ManagedProfile.count()).toBe(0);
+  });
+
+  it("rejects invalid email and an idempotent retry with a different contact email", async () => {
+    const manager = await createManager();
+    const input = {
+      contactEmail: "child@example.com",
+      creationSource: "manager" as const,
+      customerType: "individual" as const,
+      externalSubjectId: "email-child",
+      managerProfileId: manager.id
+    };
+    await provisionManagedProfile(input);
+
+    await expect(provisionManagedProfile({ ...input, contactEmail: "other@example.com" })).rejects.toMatchObject({
+      code: "MANAGED_PROFILE_CONFLICT"
+    });
+    await expect(provisionManagedProfile({ ...input, externalSubjectId: "invalid-email", contactEmail: "invalid" })).rejects.toMatchObject({
+      code: "MANAGED_PROFILE_INVALID_INPUT"
+    });
   });
 });

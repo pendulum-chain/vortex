@@ -1,8 +1,15 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, it, mock, test } from "bun:test";
+import { generateKeyPairSync } from "crypto";
 import * as forge from "node-forge";
 import { BrlaApiService } from "./brlaApiService";
 import { Endpoint } from "./mappings";
 import { AveniaDocumentType, type AveniaKybLevel1Payload, type AveniaUboPayload } from "./types";
+
+const realFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 function serviceWithMockedRequest() {
   const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
@@ -135,5 +142,69 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     Object.assign(service, { sendRequest: mock(async () => ({})) });
 
     await expect(service.submitKybLevel1(kyb, "sub-1")).rejects.toThrow();
+  });
+});
+
+describe("BrlaApiService.getAveniaPublicKey", () => {
+  it("bounds the public-key request with an abort signal", async () => {
+    let signal: AbortSignal | null | undefined;
+    globalThis.fetch = mock(async (_input: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return new Response(JSON.stringify({ publicKey: "test-public-key" }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    });
+
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+
+    await expect(service.getAveniaPublicKey()).resolves.toBe("test-public-key");
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("BrlaApiService.sendRequest path templating", () => {
+  // GetKybAttempt is "/v2/kyc/attempts/{attemptId}". Before templating, the path param
+  // was appended, signing and requesting a literal "/{attemptId}/<id>" URL.
+  it("interpolates the {attemptId} template instead of appending the path param", async () => {
+    let requestedUrl: string | undefined;
+    let signal: AbortSignal | null | undefined;
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      requestedUrl = String(input);
+      signal = init?.signal;
+      return new Response(
+        JSON.stringify({
+          attempt: {
+            createdAt: "2026-08-06T12:00:00.000Z",
+            id: "attempt-9",
+            levelName: "kyb-level-1",
+            resultMessage: "",
+            retryable: false,
+            status: "PENDING",
+            updatedAt: "2026-08-06T12:00:00.000Z"
+          }
+        }),
+        {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+        }
+      );
+    });
+
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { format: "pem", type: "pkcs1" },
+      publicKeyEncoding: { format: "pem", type: "pkcs1" }
+    });
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-api-key", privateKey });
+
+    await service.getKybAttemptStatus("attempt-9");
+
+    expect(requestedUrl).toContain("/v2/kyc/attempts/attempt-9");
+    expect(requestedUrl).not.toContain("{attemptId}");
+    // A hung connection must not stall callers forever — cron workers with
+    // waitForCompletion would otherwise never run another cycle.
+    expect(signal).toBeInstanceOf(AbortSignal);
   });
 });

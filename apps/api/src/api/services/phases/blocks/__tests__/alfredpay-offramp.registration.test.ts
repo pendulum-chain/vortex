@@ -1,5 +1,12 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type EvmNetworks, EvmToken, FiatToken, Networks } from "@vortexfi/shared";
+import {
+  AlfredpayFeeType,
+  AlfredpayOnChainCurrency,
+  type EvmNetworks,
+  EvmToken,
+  FiatToken,
+  Networks
+} from "@vortexfi/shared";
 import { registerAlfredpayOfframp } from "../phases/alfredpay-offramp/registration";
 import type { AlfredpayOfframpMetadata } from "../phases/alfredpay-offramp/simulation";
 
@@ -19,6 +26,28 @@ const metadata: AlfredpayOfframpMetadata = {
   network: Networks.Polygon,
   outputAmountDecimal: "1980",
   outputAmountRaw: "198000",
+  pricing: {
+    customer: { allInRate: "19.8", inputAmountUsd: "100", referenceDifferenceBps: "-100" },
+    provider: {
+      baseCurrency: AlfredpayOnChainCurrency.USDT,
+      feeAmount: "1",
+      fees: [{ amount: "1", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }],
+      grossRate: "20",
+      grossReferenceDifferenceBps: "0",
+      netRate: "20",
+      netReferenceDifferenceBps: "0",
+      quoteCurrency: FiatToken.MXN,
+      quotedAt: new Date("2026-01-01T00:00:00Z"),
+      source: "alfredpay"
+    },
+    reference: {
+      baseCurrency: "USD",
+      observedAt: new Date("2026-01-01T00:00:00Z"),
+      quoteCurrency: FiatToken.MXN,
+      rate: "20",
+      source: "fastforex"
+    }
+  },
   quoteId: "quote-old",
   subsidyAmountDecimal: "0",
   subsidyAmountRaw: "0",

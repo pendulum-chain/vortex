@@ -44,6 +44,7 @@ import { Op } from "sequelize";
 import { ZodError } from "zod";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
+import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
@@ -68,6 +69,7 @@ import {
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
 } from "../services/avenia/avenia-kyb.service";
+import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
@@ -381,6 +383,14 @@ export const createSubaccount = async (
     const normalizedTaxId = normalizeTaxId(taxId);
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
+
+    if (req.managedProfileContext) {
+      const entity = await CustomerEntity.findByPk(req.managedProfileContext.customerEntityId, { attributes: ["type"] });
+      if (entity?.type !== accountTypeToCustomerType(accountType)) {
+        res.status(httpStatus.CONFLICT).json({ error: "The account type does not match the managed profile" });
+        return;
+      }
+    }
 
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
@@ -1011,6 +1021,8 @@ export const initiateKybLevel1 = async (
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
     // once Avenia reports PROCESSING.
     await record.update({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING });
+    // The attempt id persisted here is what the KYB status worker polls; without it the
+    // outcome is never observed and no verification email is sent.
     await upsertAveniaKycCase(record, VerificationStatus.Pending, KycAttemptStatus.PENDING, response.attemptId);
 
     res.status(httpStatus.OK).json(response);
@@ -1133,6 +1145,10 @@ export const getKybAttemptStatus = async (
       if (updatedCases !== 1) {
         return false;
       }
+
+      // Queue only after proving this is still the bound attempt. A queue failure rolls
+      // back the terminal state so a later poll can retry the notification.
+      await enqueueVerificationNotification(attempt, effectiveUserId, "business");
       await record.update(
         {
           lastFailureReasons: failureReason ? [failureReason] : [],

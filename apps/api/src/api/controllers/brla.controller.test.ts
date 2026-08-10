@@ -4,11 +4,13 @@ import httpStatus from "http-status";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
+import EmailNotification, { NotificationProvider, NotificationType } from "../../models/emailNotification.model";
 import KycCase from "../../models/kycCase.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { hashAveniaKybSubmission } from "../services/avenia/avenia-kyb.service";
+import { SupabaseAuthService } from "../services/auth";
 import {
   createSubaccount,
   createKybDocument,
@@ -840,22 +842,7 @@ describe("Avenia company KYB", () => {
     expect(strayCreate).not.toHaveBeenCalled();
   });
 
-  it("persists an approved provider result and returns only normalized browser fields", async () => {
-    mockEntityPerProfile();
-    const caseUpdate = mock(async () => undefined);
-    KycCase.findOne = mock(async () => ({
-      customerEntityId: "entity-user-1",
-      id: "case-1",
-      providerCustomerId: "customer-1",
-      update: caseUpdate
-    })) as unknown as typeof KycCase.findOne;
-    const customerUpdate = mock(async () => undefined);
-    ProviderCustomer.findByPk = mock(async () => ({
-      customerEntityId: "entity-user-1",
-      provider: "avenia",
-      providerSubaccountId: "subaccount-1",
-      update: customerUpdate
-    })) as unknown as typeof ProviderCustomer.findByPk;
+  function mockApprovedAttempt() {
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -874,23 +861,106 @@ describe("Avenia company KYB", () => {
           }))
         }) as unknown as BrlaApiService
     );
+  }
 
-    const res = createResponse();
-    await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "user-1" } as any, res as any);
-
-    expect(res.body).toEqual({
-      result: KycAttemptResult.APPROVED,
-      retryable: false,
-      status: KycAttemptStatus.COMPLETED
+  it("persists an approved provider result and returns only normalized browser fields", async () => {
+    mockEntityPerProfile();
+    const events: string[] = [];
+    staticCaseUpdate.mockImplementation(async () => {
+      events.push("caseUpdate");
+      return [1];
     });
-    expect(customerUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED }),
-      expect.anything()
-    );
-    expect(staticCaseUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED }),
-      expect.objectContaining({ where: expect.objectContaining({ id: "case-1", providerCaseId: "attempt-1" }) })
-    );
+    KycCase.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      id: "case-1",
+      providerCaseId: "attempt-1",
+      providerCustomerId: "customer-1",
+    })) as unknown as typeof KycCase.findOne;
+    const customerUpdate = mock(async () => {
+      events.push("customerUpdate");
+    });
+    ProviderCustomer.findByPk = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1",
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findByPk;
+    mockApprovedAttempt();
+
+    const realNotificationFindOne = EmailNotification.findOne;
+    const realNotificationFindOrCreate = EmailNotification.findOrCreate;
+    const realGetUserLocale = SupabaseAuthService.getUserLocale;
+    const queuedKeys: Record<string, unknown>[] = [];
+    EmailNotification.findOne = mock(async () => null) as unknown as typeof EmailNotification.findOne;
+    SupabaseAuthService.getUserLocale = mock(async () => "en-US") as typeof SupabaseAuthService.getUserLocale;
+    EmailNotification.findOrCreate = mock(async ({ defaults, where }: { defaults: unknown; where: Record<string, unknown> }) => {
+      events.push("enqueue");
+      queuedKeys.push(where);
+      return [defaults as EmailNotification, true];
+    }) as unknown as typeof EmailNotification.findOrCreate;
+
+    try {
+      const res = createResponse();
+      await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "user-1" } as any, res as any);
+
+      expect(res.body).toEqual({
+        result: KycAttemptResult.APPROVED,
+        retryable: false,
+        status: KycAttemptStatus.COMPLETED
+      });
+      expect(customerUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED }),
+        expect.anything()
+      );
+      expect(staticCaseUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED }),
+        expect.objectContaining({ where: expect.objectContaining({ id: "case-1", providerCaseId: "attempt-1" }) })
+      );
+      expect(events).toEqual(["caseUpdate", "enqueue", "customerUpdate"]);
+      expect(queuedKeys[0]).toEqual({
+        provider: NotificationProvider.Avenia,
+        resourceId: "attempt-1",
+        type: NotificationType.VerificationApproved
+      });
+    } finally {
+      EmailNotification.findOne = realNotificationFindOne;
+      EmailNotification.findOrCreate = realNotificationFindOrCreate;
+      SupabaseAuthService.getUserLocale = realGetUserLocale;
+    }
+  });
+
+  it("fails the request and skips the terminal writes when the outcome cannot be queued", async () => {
+    mockEntityPerProfile();
+    KycCase.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      id: "case-1",
+      providerCaseId: "attempt-1",
+      providerCustomerId: "customer-1",
+    })) as unknown as typeof KycCase.findOne;
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findByPk = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1",
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findByPk;
+    mockApprovedAttempt();
+
+    const realNotificationFindOne = EmailNotification.findOne;
+    EmailNotification.findOne = mock(async () => {
+      throw new Error("queue unavailable");
+    }) as unknown as typeof EmailNotification.findOne;
+
+    try {
+      const res = createResponse();
+      await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "user-1" } as any, res as any);
+
+      // The case stays non-terminal, so the next poll re-observes the outcome and retries.
+      expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+      expect(customerUpdate).not.toHaveBeenCalled();
+    } finally {
+      EmailNotification.findOne = realNotificationFindOne;
+    }
   });
 
   it("does not let an old attempt poll overwrite its replacement", async () => {
@@ -937,6 +1007,7 @@ describe("createSubaccount", () => {
   const originalProviderCreate = ProviderCustomer.create;
   const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
+  const originalEntityFindByPk = CustomerEntity.findByPk;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
   const originalGetInstance = BrlaApiService.getInstance;
@@ -955,6 +1026,7 @@ describe("createSubaccount", () => {
     ProviderCustomer.create = originalProviderCreate;
     CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
+    CustomerEntity.findByPk = originalEntityFindByPk;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
     BrlaApiService.getInstance = originalGetInstance;
@@ -979,6 +1051,29 @@ describe("createSubaccount", () => {
     name: "Attacker",
     taxId: "08786985906"
   };
+
+  it("rejects a managed child's mismatched account type before provider access", async () => {
+    mockBrlaApi();
+    createAveniaSubaccountMock.mockClear();
+    CustomerEntity.findByPk = mock(async () => ({ type: "individual" })) as unknown as typeof CustomerEntity.findByPk;
+
+    const res = createResponse();
+    await createSubaccount(
+      {
+        body: { accountType: AveniaAccountType.COMPANY, name: "Wrong Type", taxId: "11222333000181" },
+        managedProfileContext: {
+          actorProfileId: "manager-1",
+          customerEntityId: "entity-child-1",
+          managedProfileId: "relationship-1",
+          subjectProfileId: "child-1"
+        }
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+  });
 
   it("rejects when the canonical provider customer belongs to a different Supabase user", async () => {
     mockBrlaApi();

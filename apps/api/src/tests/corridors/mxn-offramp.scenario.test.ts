@@ -302,6 +302,32 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
             alfredpayOfframp?: {
               bridgeInputAmountRaw?: string;
               bridgeOutputAmountRaw?: string;
+              pricing?: {
+                customer: {
+                  allInRate: string;
+                  inputAmountUsd: string;
+                  referenceDifferenceBps: string;
+                };
+                provider: {
+                  baseCurrency: string;
+                  feeAmount: string;
+                  fees: Array<{ amount: string; currency: string; type: string }>;
+                  grossRate: string;
+                  grossReferenceDifferenceBps: string;
+                  netRate: string;
+                  netReferenceDifferenceBps: string;
+                  quoteCurrency: string;
+                  quotedAt: string;
+                  source: string;
+                };
+                reference: {
+                  baseCurrency: string;
+                  observedAt: string;
+                  quoteCurrency: string;
+                  rate: string;
+                  source: string;
+                };
+              };
             };
           };
         }
@@ -310,6 +336,31 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
     expect(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw).toBe(expectedRaw);
     expect(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw).toBe(expectedRaw);
+
+    const pricing = metadata?.blocks.alfredpayOfframp?.pricing;
+    expect(pricing?.reference).toEqual({
+      baseCurrency: "USD",
+      observedAt: "1970-01-01T00:00:00.000Z",
+      quoteCurrency: FiatToken.MXN,
+      rate: "17",
+      source: "fastforex"
+    });
+    expect(pricing?.provider).toMatchObject({
+      baseCurrency: EvmToken.USDT,
+      feeAmount: "0",
+      fees: [],
+      grossRate: "20",
+      netRate: "20",
+      quoteCurrency: FiatToken.MXN,
+      source: "alfredpay"
+    });
+    expect(Number(pricing?.provider.grossReferenceDifferenceBps)).toBeCloseTo((20 / 17 - 1) * 10_000);
+    expect(Number(pricing?.provider.netReferenceDifferenceBps)).toBeCloseTo((20 / 17 - 1) * 10_000);
+    expect(Number(pricing?.customer.inputAmountUsd)).toBe(Number(quote.inputAmount));
+    expect(Number(pricing?.customer.allInRate)).toBeCloseTo(Number(quote.outputAmount) / Number(quote.inputAmount));
+    expect(Number(pricing?.customer.referenceDifferenceBps)).toBeCloseTo(
+      (Number(pricing?.customer.allInRate) / Number(pricing?.reference.rate) - 1) * 10_000
+    );
   });
 
   it(

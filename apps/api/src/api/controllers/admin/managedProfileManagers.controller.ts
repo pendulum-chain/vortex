@@ -2,14 +2,18 @@ import { CORRIDOR_CAPABILITIES, type CorridorCountry } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import type { CustomerEntityType } from "../../../models/customerEntity.model";
+import { createManagedProfile } from "../../services/managed-profile-lifecycle.service";
 import {
   configureManagedProfileManager,
   getManagedProfileManager,
   ManagedProfileManagerError
 } from "../../services/managed-profile-manager.service";
+import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 
 const SUPPORTED_CORRIDORS = Object.keys(CORRIDOR_CAPABILITIES) as CorridorCountry[];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CUSTOMER_TYPES: CustomerEntityType[] = ["individual", "business"];
 
 function isCorridorCountry(value: unknown): value is CorridorCountry {
   return typeof value === "string" && SUPPORTED_CORRIDORS.includes(value as CorridorCountry);
@@ -86,6 +90,61 @@ export async function readManagedProfileManager(req: Request<{ profileId: string
       error: {
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to read managed profile manager",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      }
+    });
+  }
+}
+
+export async function postManagedProfileForManager(req: Request<{ profileId: string }>, res: Response): Promise<void> {
+  try {
+    const { contactEmail, customerType, externalSubjectId } = req.body ?? {};
+    if (
+      !UUID_PATTERN.test(req.params.profileId) ||
+      typeof externalSubjectId !== "string" ||
+      externalSubjectId.trim().length === 0 ||
+      externalSubjectId.trim().length > 255 ||
+      typeof contactEmail !== "string" ||
+      !CUSTOMER_TYPES.includes(customerType)
+    ) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "MANAGED_PROFILE_INVALID_INPUT",
+          message:
+            "profileId must be a UUID, and contactEmail, externalSubjectId (1-255 characters), and customerType (individual|business) are required",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    const result = await createManagedProfile({
+      contactEmail,
+      creationSource: "vortex",
+      customerType,
+      externalSubjectId,
+      managerProfileId: req.params.profileId
+    });
+    res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ managedProfile: result.managedProfile });
+  } catch (error) {
+    if (error instanceof ManagedProfileProvisioningError) {
+      const status =
+        error.code === "MANAGED_PROFILE_CONFLICT"
+          ? httpStatus.CONFLICT
+          : error.code === "MANAGED_PROFILE_INVALID_INPUT"
+            ? httpStatus.BAD_REQUEST
+            : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND"
+              ? httpStatus.NOT_FOUND
+              : httpStatus.CONFLICT;
+      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      return;
+    }
+
+    logger.error("Error provisioning headless managed profile:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to provision managed profile",
         status: httpStatus.INTERNAL_SERVER_ERROR
       }
     });

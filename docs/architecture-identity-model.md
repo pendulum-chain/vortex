@@ -84,7 +84,7 @@ suits attribution; the secret is stored hashed and authenticates requests as the
 profile. There is no partner-only credential: a partner-managed credential still acts
 for exactly one profile, and ramp registration stays user-gated per
 [`ADR 0001`](adr-0001-user-gated-ramp-registration.md). The legacy `api_keys` table is
-retired; startup fails closed while any active row remains.
+removed by migration 061; startup fails closed if the table still exists.
 
 `partner_managed_profiles` records that a partner provisioned a Supabase-backed profile
 (normalized source and external subject ID) for provenance and idempotency; it is not an
@@ -93,15 +93,22 @@ authentication or pricing principal. Normative credential rules live in
 
 The additive `managed_profile_managers` and `managed_profiles` schema is the foundation
 for headless delegated profiles. It records manager enablement, allowed corridors, and
-the unique manager-to-child relationship. Database constraints require every managed
-profile to have exactly one relationship and prevent managed profiles from becoming
-managers. The internal provisioning service atomically creates a managed profile, its
-active customer entity, and the relationship, with idempotency scoped by manager and
-external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
-allowed corridors without deleting manager history. Manager-facing routes and delegated
-profile lifecycle routes are not active yet. Delegated authorization is active on the
-existing child-oriented quote, ramp, onboarding-status, Avenia, and Alfredpay routes; the
-legacy partner-managed flow remains operational during the transition.
+the unique manager-to-child relationship and immutable provider contact email. The contact
+email is not a login identity: `profiles.email` remains null. Database constraints require
+every managed profile to have exactly one relationship, keep normalized contact emails
+unique within each manager, and prevent managed profiles from becoming managers. The
+internal provisioning service atomically creates a managed profile, its active customer
+entity, and the relationship, with idempotency scoped by manager and external subject ID.
+Admin-only `PUT` and `GET` routes configure manager activation and allowed corridors
+without deleting manager history. Active managers create, list, read, and logically delete
+their children through `/v1/managed-profiles`; Vortex administrators use
+`/v1/admin/managed-profile-managers/:profileId/managed-profiles` for the same headless
+provisioning with `creation_source = vortex`. Managers also issue, list, and revoke
+child-owned credentials through nested lifecycle routes. Logical deletion retains the
+profile and its financial/compliance records, permanently reserves the manager-scoped
+external-subject and contact-email pairs, and revokes all child credentials. Delegated authorization
+is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
+routes; recipient invitations remain unavailable to managed children.
 
 ### Recipients
 
@@ -132,10 +139,22 @@ Current product behavior and acknowledged gaps are in
    match the server-derived identity.
 
 The derived request context retains `actorProfileId`, `subjectProfileId`,
-`customerEntityId`, and the manager-child relationship ID. It never overwrites
-`req.userId`, and a public API key cannot authenticate a manager. Email-bound Mykobo,
-Monerium, and Alfredpay customer-creation routes do not accept delegation because managed
-children have no canonical email.
+`controllingManagerProfileId`, `customerEntityId`, and the manager-child relationship ID.
+It never overwrites `req.userId`, and a public API key cannot authenticate a manager.
+Alfredpay customer creation uses the child's immutable provider contact email, never the
+manager's login email. Email-bound Mykobo and Monerium routes remain unsupported.
+
+Child-owned credentials authenticate directly as the child. Public and secret validation
+derive the unique active manager relationship on every request; corridor-bound route
+authorization applies the controlling manager's current grants. Each child has one
+immutable relationship retained after logical deletion, so child-owned resources remain
+attributable to their controlling manager without a duplicate operation-level
+actor/subject record. Distinguishing direct child-credential requests from delegated
+manager requests in durable operation records is not required by the current model.
+Generic profile and admin partner credential creation reject managed subjects; only the
+controlling manager's child-credential route may issue one. A committed manager,
+relationship, or corridor policy change blocks subsequent authorization decisions but
+does not cancel a request that was already authorized and remains in flight.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
@@ -147,7 +166,7 @@ quote cannot be claimed by another user.
 - Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,managedProfileAuth,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
-- Migration 060 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
+- Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 
 Update this document only when the cross-module shape changes. Provider-specific flows,

@@ -148,6 +148,7 @@ describe("assertQuoteOwnership", () => {
           },
           managedProfileContext: {
             actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
             subjectProfileId: "managed-user"
@@ -169,6 +170,7 @@ describe("assertQuoteOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
             subjectProfileId: "managed-user"
@@ -321,6 +323,7 @@ describe("assertRampOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
             subjectProfileId: "managed-user"
@@ -343,6 +346,7 @@ describe("assertRampOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
             subjectProfileId: "managed-user"

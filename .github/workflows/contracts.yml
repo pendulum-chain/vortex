@@ -13,6 +13,9 @@ jobs:
   contracts:
     name: External API contracts (live)
     runs-on: ubuntu-latest
+    concurrency:
+      group: external-api-contracts-avenia-sandbox
+      cancel-in-progress: false
     env:
       CI: true
       RUN_LIVE_TESTS: "1"
@@ -50,6 +53,7 @@ jobs:
           BRLA_API_KEY: ${{ secrets.CONTRACT_BRLA_API_KEY }}
           BRLA_PRIVATE_KEY: ${{ secrets.CONTRACT_BRLA_PRIVATE_KEY }}
           AVENIA_CONTRACT_SUBACCOUNT_ID: ${{ secrets.CONTRACT_AVENIA_SUBACCOUNT_ID }}
+          AVENIA_CONTRACT_WEBHOOK_URL: ${{ secrets.CONTRACT_AVENIA_WEBHOOK_URL }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
         run: bun test src/tests/contracts/
 
