@@ -47,23 +47,34 @@ describe("managed profile manager admin routes", () => {
   it("creates, reads, and updates manager configuration", async () => {
     const profile = await createTestUser();
 
-    const created = await put(profile.id, { allowedCorridors: ["BR", "EU"], isActive: true });
+    const created = await put(profile.id, {
+      allowedCorridors: ["BR", "EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true
+    });
     expect(created.status).toBe(201);
     expect(await created.json()).toMatchObject({
-      manager: { allowedCorridors: ["BR", "EU"], isActive: true, profileId: profile.id }
+      manager: {
+        allowedCorridors: ["BR", "EU"],
+        allowedCustomerTypes: ["business"],
+        isActive: true,
+        profileId: profile.id
+      }
     });
 
     const read = await fetch(`${baseUrl}/${profile.id}`, { headers: ADMIN_HEADERS });
     expect(read.status).toBe(200);
     expect(await read.json()).toMatchObject({
-      manager: { allowedCorridors: ["BR", "EU"], isActive: true, profileId: profile.id }
+      manager: { allowedCorridors: ["BR", "EU"], allowedCustomerTypes: ["business"], isActive: true, profileId: profile.id }
     });
 
-    const updated = await put(profile.id, { allowedCorridors: ["US"], isActive: false });
+    const updated = await put(profile.id, { allowedCorridors: ["US"], allowedCustomerTypes: null, isActive: false });
     expect(updated.status).toBe(200);
     expect(await updated.json()).toMatchObject({
-      manager: { allowedCorridors: ["US"], isActive: false, profileId: profile.id }
+      manager: { allowedCorridors: ["US"], allowedCustomerTypes: null, isActive: false, profileId: profile.id }
     });
+    const omitted = await put(profile.id, { allowedCorridors: ["MX"], isActive: true });
+    expect(await omitted.json()).toMatchObject({ manager: { allowedCustomerTypes: null } });
     expect(await ManagedProfileManager.count({ where: { profileId: profile.id } })).toBe(1);
   });
 
@@ -74,6 +85,9 @@ describe("managed profile manager admin routes", () => {
       { allowedCorridors: [], isActive: true },
       { allowedCorridors: ["BR", "BR"], isActive: true },
       { allowedCorridors: ["ZZ"], isActive: true },
+      { allowedCorridors: ["BR"], allowedCustomerTypes: [], isActive: true },
+      { allowedCorridors: ["BR"], allowedCustomerTypes: ["unknown"], isActive: true },
+      { allowedCorridors: ["BR"], allowedCustomerTypes: ["business", "business"], isActive: true },
       { allowedCorridors: ["BR"] }
     ]) {
       const response = await put(profile.id, body);

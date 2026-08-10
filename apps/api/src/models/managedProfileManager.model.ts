@@ -1,10 +1,11 @@
-import type { CorridorCountry } from "@vortexfi/shared";
+import type { CorridorCountry, CorridorCustomerType } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export interface ManagedProfileManagerAttributes {
   profileId: string;
   allowedCorridors: CorridorCountry[];
+  allowedCustomerTypes: CorridorCustomerType[] | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -12,7 +13,7 @@ export interface ManagedProfileManagerAttributes {
 
 type ManagedProfileManagerCreationAttributes = Optional<
   ManagedProfileManagerAttributes,
-  "isActive" | "createdAt" | "updatedAt"
+  "allowedCustomerTypes" | "isActive" | "createdAt" | "updatedAt"
 >;
 
 class ManagedProfileManager
@@ -21,6 +22,7 @@ class ManagedProfileManager
 {
   declare profileId: string;
   declare allowedCorridors: CorridorCountry[];
+  declare allowedCustomerTypes: CorridorCustomerType[] | null;
   declare isActive: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -32,6 +34,12 @@ ManagedProfileManager.init(
       allowNull: false,
       field: "allowed_corridors",
       type: DataTypes.ARRAY(DataTypes.STRING(2))
+    },
+    allowedCustomerTypes: {
+      allowNull: true,
+      defaultValue: null,
+      field: "allowed_customer_types",
+      type: DataTypes.ARRAY(DataTypes.STRING(10))
     },
     createdAt: {
       allowNull: false,

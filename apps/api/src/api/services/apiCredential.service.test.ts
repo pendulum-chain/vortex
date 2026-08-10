@@ -133,18 +133,45 @@ describe("api credential service", () => {
     ApiCredential.findOne = mock(async () => credential) as never;
     User.findByPk = mock(async () => ({ kind: "managed" })) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
-    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR", "MX"], isActive: true })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR", "MX"],
+      allowedCustomerTypes: ["individual"],
+      isActive: true
+    })) as never;
 
     const result = await validatePublicKey(credential.publicKeyValue);
 
     expect(result?.managedProfile).toEqual({
       allowedCorridors: ["BR", "MX"],
+      allowedCustomerTypes: ["individual"],
       controllingManagerProfileId: "manager-1",
       relationshipId: "relationship-1"
     });
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile?.allowedCorridors)).toBe(true);
+    expect(Object.isFrozen(result?.managedProfile?.allowedCustomerTypes)).toBe(true);
+  });
+
+  it("represents a missing manager customer-type restriction as null", async () => {
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    User.findByPk = mock(async () => ({ kind: "managed" })) as never;
+    ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["AR"],
+      allowedCustomerTypes: null,
+      isActive: true
+    })) as never;
+
+    expect((await validatePublicKey(credential.publicKeyValue))?.managedProfile?.allowedCustomerTypes).toBeNull();
   });
 
   it("refuses startup while the legacy api_keys table remains", async () => {

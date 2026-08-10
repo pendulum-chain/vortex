@@ -1,5 +1,17 @@
 {
   "components": {
+    "parameters": {
+      "ManagedProfileId": {
+        "description": "Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`.",
+        "in": "header",
+        "name": "X-Managed-Profile-Id",
+        "required": false,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      }
+    },
     "responses": {
       "InvalidInput": {
         "content": {
@@ -245,7 +257,11 @@
             "format": "date-time",
             "type": "string"
           },
-          "name": { "default": "API Credential", "maxLength": 100, "type": "string" }
+          "name": {
+            "description": "Optional credential display name. The server uses `API Credential` when omitted.",
+            "maxLength": 100,
+            "type": "string"
+          }
         },
         "type": "object"
       },
@@ -315,6 +331,25 @@
           }
         },
         "required": ["rampType", "inputAmount", "inputCurrency", "outputCurrency"],
+        "type": "object"
+      },
+      "CreateManagedProfileRequest": {
+        "properties": {
+          "contactEmail": {
+            "description": "Provider contact email. It is normalized to lowercase and remains permanently reserved within the manager, including after deletion.",
+            "format": "email",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "customerType": { "enum": ["individual", "business"], "type": "string" },
+          "externalSubjectId": {
+            "description": "Immutable idempotency key for this subject within the authenticated manager.",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["contactEmail", "customerType", "externalSubjectId"],
         "type": "object"
       },
       "CreateQuoteRequest": {
@@ -823,6 +858,85 @@
           }
         },
         "required": ["credentials"],
+        "type": "object"
+      },
+      "ListManagedProfilesResponse": {
+        "properties": {
+          "managedProfiles": {
+            "items": { "$ref": "#/components/schemas/ManagedProfile" },
+            "type": "array"
+          },
+          "pagination": { "$ref": "#/components/schemas/ManagedProfilePagination" }
+        },
+        "required": ["managedProfiles", "pagination"],
+        "type": "object"
+      },
+      "ManagedProfile": {
+        "properties": {
+          "contactEmail": {
+            "description": "Normalized immutable provider contact email. It is not a Supabase login identity.",
+            "format": "email",
+            "type": ["string", "null"]
+          },
+          "createdAt": { "format": "date-time", "type": "string" },
+          "creationSource": { "enum": ["manager", "vortex"], "type": "string" },
+          "customerType": { "enum": ["individual", "business"], "type": "string" },
+          "deletedAt": { "format": "date-time", "type": ["string", "null"] },
+          "externalSubjectId": {
+            "description": "Immutable manager-scoped subject identifier.",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "profileId": { "format": "uuid", "type": "string" },
+          "status": { "enum": ["active", "deleted"], "type": "string" },
+          "updatedAt": { "format": "date-time", "type": "string" }
+        },
+        "required": [
+          "contactEmail",
+          "createdAt",
+          "creationSource",
+          "customerType",
+          "deletedAt",
+          "externalSubjectId",
+          "profileId",
+          "status",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ManagedProfileErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable error code. Managed-profile lifecycle codes include `MANAGED_PROFILE_INVALID_INPUT`, `MANAGED_PROFILE_ACCESS_DENIED`, `MANAGED_PROFILE_NOT_FOUND`, `MANAGED_PROFILE_CONFLICT`, `MANAGED_PROFILE_MANAGER_NOT_FOUND`, and `MANAGED_PROFILE_MANAGER_INACTIVE`. Credential codes include `INVALID_CREDENTIAL_NAME`, `INVALID_CREDENTIAL_EXPIRY`, `CREDENTIAL_ACCESS_DENIED`, `CREDENTIAL_NOT_FOUND`, and `CREDENTIAL_LIMIT_REACHED`. Authentication middleware may return `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `INVALID_PUBLIC_KEY`, or `CREDENTIAL_MISMATCH`.",
+                "type": "string"
+              },
+              "message": { "type": "string" },
+              "status": { "type": "integer" }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "ManagedProfilePagination": {
+        "properties": {
+          "limit": { "maximum": 100, "minimum": 1, "type": "integer" },
+          "offset": { "minimum": 0, "type": "integer" },
+          "total": { "minimum": 0, "type": "integer" }
+        },
+        "required": ["limit", "offset", "total"],
+        "type": "object"
+      },
+      "ManagedProfileResponse": {
+        "properties": {
+          "managedProfile": { "$ref": "#/components/schemas/ManagedProfile" }
+        },
+        "required": ["managedProfile"],
         "type": "object"
       },
       "Networks": {
@@ -1499,7 +1613,7 @@
     }
   },
   "info": {
-    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**API credentials:** one credential contains a public (`pk_*`) and secret (`sk_*`) value for one profile subject. Send public values through `X-Public-Key` and server-side secret values through `X-API-Key`. If both are sent, they must belong to the same credential or the request returns `403 CREDENTIAL_MISMATCH`. Public capability is limited to attribution and explicitly sanitized reads; secret capability is required for sensitive and state-changing partner operations.\n\n`Authorization: Bearer <Supabase JWT>` represents a first-party user session and is required for profile-managed credential lifecycle endpoints.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**API credentials:** one credential contains a public (`pk_*`) and secret (`sk_*`) value for one profile subject. Send public values through `X-Public-Key` and server-side secret values through `X-API-Key`. If both are sent, they must belong to the same credential or the request returns `403 CREDENTIAL_MISMATCH`. Public capability is limited to attribution and explicitly sanitized reads; secret capability is required for sensitive and state-changing partner operations.\n\n`Authorization: Bearer <Supabase JWT>` represents a first-party user session. It is required for a profile's own credential lifecycle and is accepted as an alternative to a manager secret key for managed-profile lifecycle operations.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
     "title": "Vortex API",
     "version": "1.1.0"
   },
@@ -1862,9 +1976,9 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "createSubaccount",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1910,7 +2024,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create user or retry KYC",
         "tags": ["Account Management"]
       }
@@ -1918,9 +2032,10 @@
     "/v1/brla/getKycStatus": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "fetchSubaccountKycStatus",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The user's Tax ID.",
             "in": "query",
@@ -1977,7 +2092,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's KYC status",
         "tags": ["Account Management"]
       }
@@ -1985,9 +2100,10 @@
     "/v1/brla/getSelfieLivenessUrl": {
       "get": {
         "deprecated": false,
-        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaGetSelfieLivenessUrl",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "CPF or CNPJ.",
             "in": "query",
@@ -2038,7 +2154,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get selfie liveness URL",
         "tags": ["Account Management"]
       }
@@ -2046,8 +2162,9 @@
     "/v1/brla/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaGetUploadUrls",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2093,7 +2210,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get KYC document upload URLs",
         "tags": ["Account Management"]
       }
@@ -2101,9 +2218,10 @@
     "/v1/brla/getUser": {
       "get": {
         "deprecated": false,
-        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level. Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUser",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The user's Tax ID.",
             "in": "query",
@@ -2160,7 +2278,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user information",
         "tags": ["Account Management"]
       }
@@ -2168,9 +2286,10 @@
     "/v1/brla/getUserRemainingLimit": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUserRemainingLimit",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The user's Tax ID.",
             "in": "query",
@@ -2227,7 +2346,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's remaining transaction limits",
         "tags": ["Account Management"]
       }
@@ -2235,8 +2354,9 @@
     "/v1/brla/newKyc": {
       "post": {
         "deprecated": false,
-        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** uses `optionalAuth`.",
+        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaNewKyc",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2282,7 +2402,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Submit KYC level 1 data",
         "tags": ["Account Management"]
       }
@@ -2353,6 +2473,7 @@
         "deprecated": false,
         "description": "Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.\n\n**Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.",
         "operationId": "getUserLimits",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2390,6 +2511,427 @@
         "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user ramp limits",
         "tags": ["Account Management"]
+      }
+    },
+    "/v1/managed-profiles": {
+      "get": {
+        "description": "Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.",
+        "operationId": "listManagedProfiles",
+        "parameters": [
+          {
+            "description": "Maximum records to return.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": { "default": 50, "maximum": 100, "minimum": 1, "type": "integer" }
+          },
+          {
+            "description": "Number of records to skip.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": { "default": 0, "minimum": 0, "type": "integer" }
+          },
+          {
+            "description": "Lifecycle records to include.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": { "default": "active", "enum": ["active", "deleted", "all"], "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ListManagedProfilesResponse" } }
+            },
+            "description": "A page of owned managed profiles and offset pagination metadata."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: invalid pagination or status filter."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: a retained child has an invalid customer-entity layout."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "List managed profiles",
+        "tags": ["Managed Profiles"]
+      },
+      "post": {
+        "description": "Creates one headless individual or business child for the authenticated active manager. `externalSubjectId`, normalized `contactEmail`, and `customerType` are immutable. An exact retry for the same external subject is idempotent and returns the existing active child with `200`; the first creation returns `201`. Reusing either reserved identifier with different data returns `409`, including after deletion. No corridor grant is accepted.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.",
+        "operationId": "createManagedProfile",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateManagedProfileRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Idempotent retry returned the existing active managed profile."
+          },
+          "201": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Managed profile created."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: required input is missing or invalid."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_MANAGER_NOT_FOUND`, `MANAGED_PROFILE_MANAGER_INACTIVE`, or `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active managed-profile manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: an immutable external subject or contact email is reserved with different profile data."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create a managed profile",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}": {
+      "delete": {
+        "description": "Logically deletes an owned child and atomically revokes all of its credentials. Customer, provider, KYC, ramp, external-subject, and contact-email records are retained. Repeating deletion of the same owned child is idempotent and returns `204`.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "deleteManagedProfile",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Managed profile is logically deleted and its credentials are revoked." },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Delete a managed profile",
+        "tags": ["Managed Profiles"]
+      },
+      "get": {
+        "description": "Returns one owned child, including a retained logically deleted child. Foreign children are hidden with `404`.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "getManagedProfile",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Owned active or deleted managed profile."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: the retained child has an invalid customer-entity layout."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get a managed profile",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}/api-credentials": {
+      "get": {
+        "description": "Lists all credentials owned by one active child, newest first, including revoked and expired records. Public values and safe secret prefixes are returned; secret values are never returned.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "listManagedProfileApiCredentials",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ListApiCredentialsResponse" } }
+            },
+            "description": "Child credentials without secret values."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "List a managed profile's API credentials",
+        "tags": ["Managed Profiles"]
+      },
+      "post": {
+        "description": "Issues one child-owned public/secret credential pair. The secret is returned only in this creation response and cannot be retrieved later. Expiry defaults to one year and cannot exceed two years. The child's shared cap is five active, non-expired credentials.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "createManagedProfileApiCredential",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiCredentialRequest" } }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiCredentialResponse" } }
+            },
+            "description": "Credential created. This is the only response containing `secretKey`."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Invalid profileId, credential name, or expiry."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_LIMIT_REACHED`: the child already holds five active, non-expired credentials."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create a managed profile API credential",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}": {
+      "delete": {
+        "description": "Revokes one credential owned by an active child, disabling both its public and secret values. Repeating revocation of the same owned credential is idempotent and returns `204`.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "revokeManagedProfileApiCredential",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          },
+          {
+            "description": "Child credential ID.",
+            "in": "path",
+            "name": "credentialId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Credential is revoked; both values are unusable. Repeated revocation also returns this status."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId or credentialId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child or credential does not exist, or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Revoke a managed profile API credential",
+        "tags": ["Managed Profiles"]
       }
     },
     "/v1/public-key": {
@@ -2430,7 +2972,7 @@
         "deprecated": false,
         "description": "Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.",
         "operationId": "createQuote",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2661,7 +3203,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "PublicApiKey": [] }, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create a new quote",
         "tags": ["Quotes"]
       }
@@ -2704,7 +3246,7 @@
         "deprecated": false,
         "description": "Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output. ",
         "operationId": "createBestQuote",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2891,7 +3433,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "PublicApiKey": [] }, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create a quote for the best network",
         "tags": ["Quotes"]
       }
@@ -2899,9 +3441,9 @@
     "/v1/ramp-info": {
       "get": {
         "deprecated": false,
-        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
+        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. A manager secret may select one directly managed child with `X-Managed-Profile-Id`; public keys cannot use the selector. The endpoint never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
         "operationId": "getRampInfo",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "responses": {
           "200": {
             "content": {
@@ -2938,6 +3480,7 @@
         "deprecated": false,
         "description": "Fetches an updated ramp process.",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "Ramp ID.",
             "in": "path",
@@ -3107,7 +3650,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp status",
         "tags": ["Ramp"]
       }
@@ -3118,6 +3661,7 @@
         "description": "Returns the chronological error log for a ramp.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
         "operationId": "getRampErrorLogs",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "Ramp ID.",
             "in": "path",
@@ -3156,7 +3700,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp error logs",
         "tags": ["Ramp"]
       }
@@ -3166,6 +3710,7 @@
         "deprecated": false,
         "description": "Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The maximum count of transaction items returned in this query. The maximum value is `100`.",
             "in": "query",
@@ -3200,7 +3745,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get authenticated user ramp history",
         "tags": ["Ramp"]
       }
@@ -3210,6 +3755,7 @@
         "deprecated": false,
         "description": "Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters. ",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The wallet address for which the ramp history is queried for.",
             "in": "path",
@@ -3253,7 +3799,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp history for wallet address",
         "tags": ["Ramp"]
       }
@@ -3263,7 +3809,7 @@
         "deprecated": false,
         "description": "Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.",
         "operationId": "registerRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3561,7 +4107,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Register new ramp process",
         "tags": ["Ramp"]
       }
@@ -3571,7 +4117,7 @@
         "deprecated": false,
         "description": "Starts a ramp process. \n\nIt is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.",
         "operationId": "startRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3796,7 +4342,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Start ramp process ",
         "tags": ["Ramp"]
       }
@@ -3806,7 +4352,7 @@
         "deprecated": false,
         "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. \n\nFor onramps, no additional data is required after registering the ramp.",
         "operationId": "updateRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4044,7 +4590,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Update ramp process",
         "tags": ["Ramp"]
       }

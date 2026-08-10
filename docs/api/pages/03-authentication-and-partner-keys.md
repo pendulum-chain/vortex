@@ -30,14 +30,14 @@ Ramp registration requires a real profile subject in every corridor. KYC and pro
 
 ## Act For A Managed Child
 
-An administrator may enable an authenticated profile as a managed-profile manager and assign its allowed corridors. On supported child-oriented endpoints, that manager can select one directly managed headless child:
+Vortex may enable an authenticated profile as a managed-profile manager and assign its allowed corridors and, optionally, a narrower set of customer types. On supported child-oriented endpoints, that manager can select one directly managed headless child:
 
 ```http
 X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 ```
 
-A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, and the allowed country for corridor-bound mutations. The manager remains the authenticated actor; ownership, KYC/provider lookup, quote pricing, and ramp history resolve from the child subject.
+A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, quote pricing, and ramp history resolve from the child subject.
 
 The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BRLA customer/KYC operations; and Alfredpay customer creation, KYC/KYB, and fiat-account operations. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. Email-bound Mykobo and Monerium flows and all recipient-invitation routes do not support managed children.
 
@@ -57,13 +57,13 @@ An active manager may use its Supabase session or profile-bound secret credentia
 | `GET /v1/managed-profiles/:profileId/api-credentials` | List the child's credentials without secret values |
 | `DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId` | Revoke one child credential |
 
-Creation is not tied to one corridor. Every later corridor-bound operation checks the manager's current allowed corridors, so removing a corridor immediately blocks new child mutations there. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, blocks unstarted ramp mutations, and does not interrupt background processing for ramps that already started.
+Creation is not tied to one corridor and may create only an `individual` or `business` child. Every later corridor-bound operation checks the manager's current corridors, optional customer-type narrowing, and Vortex's canonical corridor/type support. Tightening policy blocks later authorization decisions but does not cancel a request already authorized or background processing for a ramp that already started. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, and blocks new child activity.
 
 Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
 
-The child contact email is normalized and immutable, is unique among the manager's children, is used for provider customer creation, and never becomes a Supabase login identity. A deleted child's contact email remains reserved for that manager. A child-owned credential authenticates directly as that child without `X-Managed-Profile-Id`. Every use dynamically requires the active manager relationship; corridor-bound mutations and exact-limit reads use the controlling manager's current corridors. A direct child credential cannot select another managed child. Logical deletion immediately invalidates and revokes both halves.
+The child contact email is normalized and immutable, is unique among the manager's children, is used for provider customer creation, and never becomes a Supabase login identity. A deleted child's contact email remains reserved for that manager. Partners must supply an email identity they are authorized to use; uniqueness is not global across managers. A child-owned credential authenticates directly as that child without `X-Managed-Profile-Id`. Every use dynamically requires the active manager relationship; corridor-bound mutations and exact-limit reads use the controlling manager's current corridor/type policy. A direct child credential cannot select another managed child. Logical deletion immediately invalidates and revokes both halves.
 
-Partners must provision one genuine managed profile per individual, business, or technical subject when interactive signup is unavailable. Vortex's admin workflow binds the profile to immutable partner and external-user IDs and allows the same identity to be claimed later through OTP. Individual and business subjects receive the corresponding customer entity. Technical subjects receive no customer entity and cannot perform customer or ramp operations. Do not share dummy profiles between customers or infer a subject from a credential display name.
+Provision one genuine managed profile per individual or business when interactive signup is unavailable. Managed profiles are headless: they have no Supabase login, OTP, or later claiming lifecycle. Do not share dummy profiles between customers or infer a subject from a credential display name.
 
 ## Secret Handling
 

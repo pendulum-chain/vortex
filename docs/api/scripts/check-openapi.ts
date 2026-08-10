@@ -1,6 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const OPENAPI_FILE = "docs/api/openapi/vortex.openapi.json";
+const GENERATED_TYPES_FILE = "docs/api/openapi/vortex.openapi.d.ts";
+const GENERATOR_FILE = "docs/api/scripts/generate-openapi-types.ts";
 const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 
 const REQUIRED_PATHS = [
@@ -14,6 +16,10 @@ const REQUIRED_PATHS = [
   "/v1/brla/getUserRemainingLimit",
   "/v1/brla/newKyc",
   "/v1/brla/validatePixKey",
+  "/v1/managed-profiles",
+  "/v1/managed-profiles/{profileId}",
+  "/v1/managed-profiles/{profileId}/api-credentials",
+  "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}",
   "/v1/public-key",
   "/v1/quotes",
   "/v1/quotes/best",
@@ -34,6 +40,46 @@ const REQUIRED_PATHS = [
   "/v1/webhook",
   "/v1/webhook/{id}"
 ];
+
+const MANAGED_PROFILE_OPERATIONS = [
+  ["/v1/managed-profiles", "get", ["200", "400", "401", "403", "409", "500"]],
+  ["/v1/managed-profiles", "post", ["200", "201", "400", "401", "403", "409", "500"]],
+  ["/v1/managed-profiles/{profileId}", "get", ["200", "400", "401", "403", "404", "409", "500"]],
+  ["/v1/managed-profiles/{profileId}", "delete", ["204", "400", "401", "403", "404", "500"]],
+  ["/v1/managed-profiles/{profileId}/api-credentials", "get", ["200", "400", "401", "403", "404", "500"]],
+  ["/v1/managed-profiles/{profileId}/api-credentials", "post", ["201", "400", "401", "403", "404", "409", "500"]],
+  ["/v1/managed-profiles/{profileId}/api-credentials/{credentialId}", "delete", ["204", "400", "401", "403", "404", "500"]]
+] as const;
+
+const MANAGED_PROFILE_SECURITY = [{ SecretApiKey: [] }, { BearerAuth: [] }] as const;
+
+const MANAGED_PROFILE_PATHS = [
+  "/v1/managed-profiles",
+  "/v1/managed-profiles/{profileId}",
+  "/v1/managed-profiles/{profileId}/api-credentials",
+  "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}"
+] as const;
+
+const DELEGATED_OPERATIONS = [
+  ["/v1/brla/createSubaccount", "post"],
+  ["/v1/brla/getKycStatus", "get"],
+  ["/v1/brla/getSelfieLivenessUrl", "get"],
+  ["/v1/brla/getUploadUrls", "post"],
+  ["/v1/brla/getUser", "get"],
+  ["/v1/brla/getUserRemainingLimit", "get"],
+  ["/v1/brla/newKyc", "post"],
+  ["/v1/limits", "post"],
+  ["/v1/quotes", "post"],
+  ["/v1/quotes/best", "post"],
+  ["/v1/ramp-info", "get"],
+  ["/v1/ramp/{id}", "get"],
+  ["/v1/ramp/{id}/errors", "get"],
+  ["/v1/ramp/history", "get"],
+  ["/v1/ramp/history/{walletAddress}", "get"],
+  ["/v1/ramp/register", "post"],
+  ["/v1/ramp/start", "post"],
+  ["/v1/ramp/update", "post"]
+] as const;
 
 type JsonObject = Record<string, unknown>;
 
@@ -84,6 +130,30 @@ function collectRefs(value: unknown, refs: string[] = []): string[] {
   }
 
   return refs;
+}
+
+async function checkGeneratedTypes(): Promise<void> {
+  const currentDeclarations = readFileSync(GENERATED_TYPES_FILE, "utf8");
+  const proc = Bun.spawn(["bun", GENERATOR_FILE], { stderr: "pipe", stdout: "pipe" });
+  const [exitCode, stderr, stdout] = await Promise.all([
+    proc.exited,
+    new Response(proc.stderr).text(),
+    new Response(proc.stdout).text()
+  ]);
+
+  let generatedDeclarations: string;
+  try {
+    generatedDeclarations = readFileSync(GENERATED_TYPES_FILE, "utf8");
+  } finally {
+    writeFileSync(GENERATED_TYPES_FILE, currentDeclarations);
+  }
+
+  if (exitCode !== 0) {
+    throw new Error(`OpenAPI type generation failed during freshness check:\n${stderr || stdout}`);
+  }
+  if (generatedDeclarations !== currentDeclarations) {
+    throw new Error(`${GENERATED_TYPES_FILE} is stale. Run \`bun run docs:api:types\` and commit the generated result.`);
+  }
 }
 
 function findSensitiveMatches(filePath: string): string[] {
@@ -144,10 +214,142 @@ if (missingPaths.length > 0) {
   throw new Error(`OpenAPI file is missing required documented paths:\n${missingPaths.join("\n")}`);
 }
 
+const exposedAdminPaths = paths.filter(path => path.startsWith("/v1/admin/"));
+if (exposedAdminPaths.length > 0) {
+  throw new Error(`OpenAPI file must not expose admin routes:\n${exposedAdminPaths.join("\n")}`);
+}
+
+const unexpectedManagedProfilePaths = paths.filter(
+  path =>
+    path.startsWith("/v1/managed-profiles") && !MANAGED_PROFILE_PATHS.includes(path as (typeof MANAGED_PROFILE_PATHS)[number])
+);
+if (unexpectedManagedProfilePaths.length > 0) {
+  throw new Error(`OpenAPI file exposes unexpected managed-profile paths:\n${unexpectedManagedProfilePaths.join("\n")}`);
+}
+
+const httpMethods = new Set(["delete", "get", "head", "options", "patch", "post", "put", "trace"]);
+const documentedManagedProfileOperations = MANAGED_PROFILE_PATHS.flatMap(path => {
+  const pathItem = (openapi.paths as JsonObject)[path] as JsonObject;
+  return Object.keys(pathItem)
+    .filter(method => httpMethods.has(method))
+    .map(method => `${method.toUpperCase()} ${path}`);
+});
+const requiredManagedProfileOperations = MANAGED_PROFILE_OPERATIONS.map(
+  ([path, method]) => `${method.toUpperCase()} ${path}`
+).sort();
+if (JSON.stringify(documentedManagedProfileOperations.sort()) !== JSON.stringify(requiredManagedProfileOperations)) {
+  throw new Error("OpenAPI file must expose exactly the seven approved public managed-profile operations.");
+}
+
+function operationAt(path: string, method: string): JsonObject {
+  const pathItem = (openapi.paths as JsonObject)[path];
+  const operation = pathItem && typeof pathItem === "object" ? (pathItem as JsonObject)[method] : undefined;
+  if (!operation || typeof operation !== "object") {
+    throw new Error(`OpenAPI file is missing required operation: ${method.toUpperCase()} ${path}`);
+  }
+  return operation as JsonObject;
+}
+
+for (const [path, method, requiredStatuses] of MANAGED_PROFILE_OPERATIONS) {
+  const operation = operationAt(path, method);
+  const responses = operation.responses as JsonObject | undefined;
+  const actualStatuses = responses ? Object.keys(responses).sort() : [];
+  const expectedStatuses = [...requiredStatuses].sort();
+  if (JSON.stringify(actualStatuses) !== JSON.stringify(expectedStatuses)) {
+    throw new Error(
+      `${method.toUpperCase()} ${path} must document exactly responses ${expectedStatuses.join(", ")}; received ${actualStatuses.join(", ") || "none"}.`
+    );
+  }
+
+  const actualSecurity = Array.isArray(operation.security)
+    ? operation.security.map(requirement => JSON.stringify(requirement)).sort()
+    : [];
+  const expectedSecurity = MANAGED_PROFILE_SECURITY.map(requirement => JSON.stringify(requirement)).sort();
+  if (JSON.stringify(actualSecurity) !== JSON.stringify(expectedSecurity)) {
+    throw new Error(
+      `${method.toUpperCase()} ${path} must allow exactly manager secret-key or Bearer authentication alternatives.`
+    );
+  }
+}
+
+const createManagedProfile = operationAt("/v1/managed-profiles", "post");
+const createManagedProfileResponses = createManagedProfile.responses as JsonObject;
+if (
+  JSON.stringify(createManagedProfile.requestBody).includes("#/components/schemas/CreateManagedProfileRequest") === false ||
+  JSON.stringify(createManagedProfileResponses["200"]).includes("#/components/schemas/ManagedProfileResponse") === false ||
+  JSON.stringify(createManagedProfileResponses["201"]).includes("#/components/schemas/ManagedProfileResponse") === false
+) {
+  throw new Error("POST /v1/managed-profiles must document its request and both idempotent response schemas.");
+}
+
+const listManagedProfiles = operationAt("/v1/managed-profiles", "get");
+const listParameters = Array.isArray(listManagedProfiles.parameters) ? listManagedProfiles.parameters : [];
+const listParameter = (name: string): JsonObject | undefined =>
+  listParameters.find(parameter => parameter && typeof parameter === "object" && (parameter as JsonObject).name === name) as
+    | JsonObject
+    | undefined;
+const limitSchema = listParameter("limit")?.schema as JsonObject | undefined;
+const offsetSchema = listParameter("offset")?.schema as JsonObject | undefined;
+const statusSchema = listParameter("status")?.schema as JsonObject | undefined;
+if (
+  limitSchema?.default !== 50 ||
+  limitSchema.maximum !== 100 ||
+  limitSchema.minimum !== 1 ||
+  offsetSchema?.default !== 0 ||
+  offsetSchema.minimum !== 0 ||
+  statusSchema?.default !== "active" ||
+  JSON.stringify(statusSchema.enum) !== JSON.stringify(["active", "deleted", "all"])
+) {
+  throw new Error("GET /v1/managed-profiles must document the controller's pagination and status defaults.");
+}
+
+const createCredential = operationAt("/v1/managed-profiles/{profileId}/api-credentials", "post");
+const createCredentialResponses = createCredential.responses as JsonObject;
+const listCredentialResponses = operationAt("/v1/managed-profiles/{profileId}/api-credentials", "get").responses as JsonObject;
+const schemas = ((openapi.components as JsonObject).schemas ?? {}) as JsonObject;
+const apiCredentialProperties = ((schemas.ApiCredential as JsonObject).properties ?? {}) as JsonObject;
+const createCredentialRequestSchema = schemas.CreateApiCredentialRequest as JsonObject;
+const createCredentialRequestProperties = (createCredentialRequestSchema.properties ?? {}) as JsonObject;
+const credentialNameSchema = (createCredentialRequestProperties.name ?? {}) as JsonObject;
+const createCredentialRequestRequired = Array.isArray(createCredentialRequestSchema.required)
+  ? createCredentialRequestSchema.required
+  : [];
+if (
+  JSON.stringify(createCredential.requestBody).includes("#/components/schemas/CreateApiCredentialRequest") === false ||
+  JSON.stringify(createCredentialResponses["201"]).includes("#/components/schemas/CreateApiCredentialResponse") === false ||
+  JSON.stringify(listCredentialResponses["200"]).includes("#/components/schemas/ListApiCredentialsResponse") === false ||
+  "default" in credentialNameSchema ||
+  createCredentialRequestRequired.includes("name") ||
+  "secretKey" in apiCredentialProperties ||
+  JSON.stringify(schemas.CreateApiCredentialResponse).includes('"secretKey":') === false
+) {
+  throw new Error(
+    "Managed-profile credential operations must document optional names, create-once secrets, and secret-free list schemas."
+  );
+}
+
+const managedProfileHeaderRef = "#/components/parameters/ManagedProfileId";
+if (!pointerExists(openapi, managedProfileHeaderRef)) {
+  throw new Error(`OpenAPI file is missing reusable managed-profile header: ${managedProfileHeaderRef}`);
+}
+for (const [path, method] of DELEGATED_OPERATIONS) {
+  const parameters = operationAt(path, method).parameters;
+  if (
+    !Array.isArray(parameters) ||
+    !parameters.some(parameter =>
+      Boolean(parameter && typeof parameter === "object" && (parameter as JsonObject).$ref === managedProfileHeaderRef)
+    )
+  ) {
+    throw new Error(`${method.toUpperCase()} ${path} must reference ${managedProfileHeaderRef}.`);
+  }
+}
+
 const unresolvedRefs = collectRefs(openapi).filter(ref => !pointerExists(openapi, ref));
 if (unresolvedRefs.length > 0) {
   throw new Error(`OpenAPI file has unresolved local refs:\n${unresolvedRefs.join("\n")}`);
 }
+
+await checkGeneratedTypes();
 
 const manifest = readJson(MANIFEST_FILE);
 if (!Array.isArray(manifest.pages)) {

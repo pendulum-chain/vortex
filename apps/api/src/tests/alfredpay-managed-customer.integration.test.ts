@@ -11,6 +11,7 @@ import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestUser } from "../test-utils/factories";
 import alfredpayRoutes from "../api/routes/v1/alfredpay.route";
 import { SupabaseAuthService } from "../api/services/auth";
+import { createManagedProfileCredential } from "../api/services/apiCredential.service";
 import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
 
 const BASE_PATH = "/v1/alfredpay";
@@ -39,9 +40,12 @@ describe("managed Alfredpay customer creation", () => {
     SupabaseAuthService.verifyToken = originalVerifyToken;
   });
 
-  async function createManager(allowedCorridors = ["MX"] as Array<"CO" | "MX" | "US">) {
+  async function createManager(
+    allowedCorridors = ["MX"] as Array<"AR" | "CO" | "MX" | "US">,
+    allowedCustomerTypes: Array<"business" | "individual"> | null = null
+  ) {
     const manager = await createTestUser({ email: "manager@example.com" });
-    await ManagedProfileManager.create({ allowedCorridors, isActive: true, profileId: manager.id });
+    await ManagedProfileManager.create({ allowedCorridors, allowedCustomerTypes, isActive: true, profileId: manager.id });
     return manager;
   }
 
@@ -156,6 +160,109 @@ describe("managed Alfredpay customer creation", () => {
         .status
     ).toBe(403);
     expect(createCustomer).not.toHaveBeenCalled();
+  });
+
+  it("enforces manager customer-type narrowing before provider access", async () => {
+    const manager = await createManager(["MX"], ["individual"]);
+    const child = await createChild(manager.id, "business", "business@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
+    provider(createCustomer);
+
+    const response = await fetch(`${baseUrl}/createBusinessCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(403);
+    expect(createCustomer).not.toHaveBeenCalled();
+  });
+
+  it("rejects AR business through the canonical matrix before provider access", async () => {
+    const manager = await createManager(["AR"]);
+    const child = await createChild(manager.id, "business", "business-ar@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
+    provider(createCustomer);
+
+    const response = await fetch(`${baseUrl}/createBusinessCustomer`, {
+      body: JSON.stringify({ country: "AR" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(403);
+    expect(createCustomer).not.toHaveBeenCalled();
+  });
+
+  it("applies policy updates to direct child credentials before provider access", async () => {
+    const manager = await createManager(["MX"], ["business"]);
+    const child = await createChild(manager.id, "business", "direct-business@example.com");
+    const credential = await createManagedProfileCredential({
+      environment: "test",
+      managerProfileId: manager.id,
+      profileId: child.profileId
+    });
+    await ManagedProfileManager.update(
+      { allowedCustomerTypes: ["individual"] },
+      { where: { profileId: manager.id } }
+    );
+    const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
+    provider(createCustomer);
+
+    const response = await fetch(`${baseUrl}/createBusinessCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: { "Content-Type": "application/json", "X-API-Key": credential.secretKey },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(403);
+    expect(createCustomer).not.toHaveBeenCalled();
+  });
+
+  it("checks multipart entity type before buffering and country policy after parsing", async () => {
+    const manager = await createManager(["MX"], ["business"]);
+    const child = await createChild(manager.id, "business", "multipart-business@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
+    provider(createCustomer);
+    const form = new FormData();
+    form.set("country", "MX");
+    form.set("file", new Blob(["document"]), "document.pdf");
+
+    const response = await fetch(`${baseUrl}/submitKycFile`, {
+      body: form,
+      headers: { "X-API-Key": credential.plaintextKey, "X-Managed-Profile-Id": child.profileId },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH" } });
+    expect(createCustomer).not.toHaveBeenCalled();
+
+    const individual = await createChild(manager.id, "individual", "multipart-individual@example.com");
+    await ManagedProfileManager.update(
+      { allowedCustomerTypes: ["individual"] },
+      { where: { profileId: manager.id } }
+    );
+    const parsedForm = new FormData();
+    parsedForm.set("country", "US");
+    parsedForm.set("file", new Blob(["document"]), "document.pdf");
+    const deniedAfterParsing = await fetch(`${baseUrl}/submitKycFile`, {
+      body: parsedForm,
+      headers: { "X-API-Key": credential.plaintextKey, "X-Managed-Profile-Id": individual.profileId },
+      method: "POST"
+    });
+    expect(deniedAfterParsing.status).toBe(403);
   });
 
   it("rejects a legacy managed child without contact email before provider access", async () => {

@@ -30,6 +30,7 @@ describe("managed child webhook access", () => {
         environment: "test",
         managedProfile: {
           allowedCorridors: ["BR"],
+          allowedCustomerTypes: null,
           controllingManagerProfileId: "11111111-1111-4111-8111-111111111111",
           relationshipId: "relationship-1"
         },

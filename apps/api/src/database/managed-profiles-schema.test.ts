@@ -15,7 +15,7 @@ async function createManager(): Promise<User> {
 async function createManagedProfile(
   managerProfileId: string,
   externalSubjectId: string,
-  contactEmail = "child@example.com"
+  contactEmail: string | null = "child@example.com"
 ): Promise<User> {
   return sequelize.transaction(async transaction => {
     const profile = await User.create(
@@ -88,6 +88,14 @@ describe("managed profile schema", () => {
     );
   });
 
+  it("allows a managed profile contact email to be null", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "nullable-email", null);
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    expect(relationship?.contactEmail).toBeNull();
+  });
+
   it("requires contact emails to be unique within each manager", async () => {
     const manager = await createManager();
     const otherManager = await createManager();
@@ -135,5 +143,22 @@ describe("managed profile schema", () => {
     await expect(
       ManagedProfile.update({ status: "deleted" }, { where: { profileId: child.id } })
     ).rejects.toThrow();
+  });
+
+  it("allows null customer-type policy and rejects empty, unknown, or duplicate restrictions", async () => {
+    const unrestricted = await createTestUser();
+    await expect(
+      ManagedProfileManager.create({ allowedCorridors: ["AR"], allowedCustomerTypes: null, profileId: unrestricted.id })
+    ).resolves.toBeInstanceOf(ManagedProfileManager);
+
+    for (const allowedCustomerTypes of [[], ["unknown"], ["individual", "individual"]]) {
+      await expect(
+        ManagedProfileManager.create({
+          allowedCorridors: ["MX"],
+          allowedCustomerTypes: allowedCustomerTypes as ["individual"],
+          profileId: (await createTestUser()).id
+        })
+      ).rejects.toThrow();
+    }
   });
 });

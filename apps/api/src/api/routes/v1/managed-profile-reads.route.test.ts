@@ -35,10 +35,10 @@ describe("managed profile read routes", () => {
   afterAll(() => server.close());
 
   function allowManagedProfile(allowedCorridors = ["BR", "MX", "US"]): void {
-    spyOn(ManagedProfileManager, "findByPk").mockResolvedValue({ allowedCorridors, isActive: true } as never);
+    spyOn(ManagedProfileManager, "findByPk").mockResolvedValue({ allowedCorridors, allowedCustomerTypes: null, isActive: true } as never);
     spyOn(ManagedProfile, "findOne").mockResolvedValue({ id: "relationship-1" } as never);
     spyOn(User, "findByPk").mockResolvedValue({ activeCustomerEntityId: "entity-1", kind: "managed" } as never);
-    spyOn(CustomerEntity, "findAll").mockResolvedValue([{ id: "entity-1", status: "active" }] as never);
+    spyOn(CustomerEntity, "findAll").mockResolvedValue([{ id: "entity-1", status: "active", type: "individual" }] as never);
   }
 
   it("returns exact child limits through a manager Bearer session", async () => {

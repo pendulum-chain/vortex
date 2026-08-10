@@ -1,4 +1,4 @@
-import type { CorridorCountry } from "@vortexfi/shared";
+import type { CorridorCountry, CorridorCustomerType } from "@vortexfi/shared";
 import crypto from "crypto";
 import { Op, QueryTypes, Transaction } from "sequelize";
 import sequelize from "../../config/database";
@@ -18,6 +18,7 @@ export interface CredentialContext {
   readonly environment: ApiCredentialEnvironment;
   readonly managedProfile?: Readonly<{
     allowedCorridors: readonly CorridorCountry[];
+    allowedCustomerTypes: readonly CorridorCustomerType[] | null;
     controllingManagerProfileId: string;
     relationshipId: string;
   }>;
@@ -272,6 +273,7 @@ async function context(credential: ApiCredential, strength: "public" | "secret")
     if (!manager?.isActive) return null;
     managedProfile = Object.freeze({
       allowedCorridors: Object.freeze([...manager.allowedCorridors]),
+      allowedCustomerTypes: manager.allowedCustomerTypes ? Object.freeze([...manager.allowedCustomerTypes]) : null,
       controllingManagerProfileId: relationship.managerProfileId,
       relationshipId: relationship.id
     });

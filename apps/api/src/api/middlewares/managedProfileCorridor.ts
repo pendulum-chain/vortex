@@ -1,5 +1,12 @@
-import { type CorridorCountry, FIAT_TOKEN_CORRIDOR, FiatToken, type LimitsCorridor } from "@vortexfi/shared";
+import {
+  AlfredpayCustomerType,
+  type CorridorCountry,
+  FIAT_TOKEN_CORRIDOR,
+  FiatToken,
+  type LimitsCorridor
+} from "@vortexfi/shared";
 import { Request } from "express";
+import type { CustomerEntityType } from "../../models/customerEntity.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { getTargetFiatCurrency } from "../services/phases/blocks/core/helpers";
@@ -11,6 +18,13 @@ export function getManagedProfileCountryCorridor(req: Request): CorridorCountry 
   return typeof country === "string" && ALFREDPAY_CORRIDORS.includes(country as CorridorCountry)
     ? (country as CorridorCountry)
     : undefined;
+}
+
+export function getManagedProfileAlfredpayCustomerType(req: Request): CustomerEntityType | undefined {
+  const customerType = req.query.type ?? req.body?.type ?? AlfredpayCustomerType.INDIVIDUAL;
+  if (customerType === AlfredpayCustomerType.INDIVIDUAL) return "individual";
+  if (customerType === AlfredpayCustomerType.BUSINESS) return "business";
+  return undefined;
 }
 
 export function getManagedProfileLimitsCorridors(req: Request): CorridorCountry[] | undefined {
