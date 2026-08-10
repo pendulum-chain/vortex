@@ -102,8 +102,13 @@ function buildCtx(outputCurrency: EvmToken): PhaseCtx {
     },
     evmDestinationGas: {
       executionFeeUsd: "0",
-      maxFeePerGas: "1",
+      fundingGasLimit: "21000",
+      isNativeTransfer: false,
+      maximumFeePerGas: "1",
+      maximumFundingL1FeeRaw: "0",
+      maximumPayoutL1FeeRaw: "0",
       network: Networks.Base,
+      programVersion: 2,
       transferGasLimit: "100000"
     },
     notes: [],

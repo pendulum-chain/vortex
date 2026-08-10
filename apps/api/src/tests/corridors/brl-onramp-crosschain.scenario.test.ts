@@ -5,6 +5,7 @@ import {
   evmTokenConfig,
   FiatToken,
   Networks,
+  QuoteError,
   RampDirection,
   type RampPhase,
   signUnsignedTransactions,
@@ -14,6 +15,7 @@ import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { config } from "../../config/vars";
 import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
@@ -221,7 +223,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
    * blueprint with the shared production signer (including backups), and
    * submits the result through the real /v1/ramp/update validation path.
    */
-  async function setUpRegisteredRamp(): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { legacyDestinationFunding?: boolean } = {}): Promise<CorridorSetup> {
     const ephemeralSecret = generatePrivateKey();
     const ephemeral = privateKeyToAccount(ephemeralSecret);
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
@@ -230,6 +232,17 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const quote = await createQuoteViaApi();
     expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
+    if (options.legacyDestinationFunding) {
+      const legacyQuote = await QuoteTicket.findByPk(quote.id);
+      if (!legacyQuote) throw new Error("Quote not found before legacy compatibility setup");
+      const legacyMetadata = getFlowMetadata(legacyQuote.metadata);
+      const { evmDestinationGas: _dynamicFunding, ...legacyGlobals } = legacyMetadata.globals;
+      await legacyQuote.update({
+        metadata: { ...legacyMetadata, globals: legacyGlobals } as unknown as QuoteTicket["metadata"]
+      });
+      // The historical 0.0002 ETH reserve covers this signed 100k-gas payout.
+      world.evm.setFeeEstimate(Networks.Arbitrum, 500_000_000n);
+    }
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -420,6 +433,64 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     }
   });
 
+  it("returns the typed 503 for normal and all-high best-quote requests", async () => {
+    const originalCeiling = config.evmDestinationGas.maxExecutionFeeUsd;
+    config.evmDestinationGas.maxExecutionFeeUsd = "0.000001";
+    try {
+      const request = {
+        from: "pix",
+        inputAmount: "500",
+        inputCurrency: FiatToken.BRL,
+        outputCurrency: EvmToken.USDC,
+        rampType: RampDirection.BUY
+      };
+      const quoteResponse = await app.request("/v1/quotes", {
+        body: JSON.stringify({ ...request, network: Networks.Arbitrum, to: Networks.Arbitrum }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(quoteResponse.status).toBe(503);
+      expect(await quoteResponse.json()).toMatchObject({ message: QuoteError.NetworkFeesTooHigh });
+
+      const bestResponse = await app.request("/v1/quotes/best", {
+        body: JSON.stringify({ ...request, networks: [Networks.Arbitrum] }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(bestResponse.status).toBe(503);
+      expect(await bestResponse.json()).toMatchObject({ message: QuoteError.NetworkFeesTooHigh });
+    } finally {
+      config.evmDestinationGas.maxExecutionFeeUsd = originalCeiling;
+    }
+  });
+
+  it("rejects moved fees before creating an Avenia registration ticket", async () => {
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+    const ticketsBefore = world.brla.pixInputTickets.length;
+    world.evm.setFeeEstimate(Networks.Arbitrum, 1_200_000_001n);
+
+    const response = await app.request("/v1/ramp/register", {
+      body: JSON.stringify({
+        additionalData: { destinationAddress: destination, taxId: TAX_ID },
+        quoteId: quote.id,
+        signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ message: QuoteError.NetworkFeesTooHigh });
+    expect(world.brla.pixInputTickets).toHaveLength(ticketsBefore);
+  });
+
   it(
     "dynamically funds the signed payout shortfall, then submits the full cross-chain payout",
     async () => {
@@ -466,7 +537,10 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       );
       expect(destinationFundingTxs).toHaveLength(1);
       expect(destinationFundingTxs[0].value).toBe(destinationFunding.shortfallRaw);
-      expect(destinationFundingTxs[0].gas).toBe(21_000n);
+      const gasQuote = getFlowMetadata(quote?.metadata).globals.evmDestinationGas;
+      expect(gasQuote?.fundingGasLimit).toBe("21624");
+      expect(gasQuote?.transferGasLimit).toBe("100624");
+      expect(destinationFundingTxs[0].gas).toBe(BigInt(gasQuote?.fundingGasLimit ?? "0"));
       expect(destinationFundingTxs[0].maxFeePerGas).toBe(1_000_000_000n);
       expect(destinationFundingTxs[0].maxPriorityFeePerGas).toBe(1_000_000_000n);
       expect(destinationFunding.initialBalanceRaw + (destinationFundingTxs[0].value ?? 0n)).toBe(
@@ -474,6 +548,31 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       );
       expect(world.evm.nativeBalance(Networks.Arbitrum, setup.ephemeral.address)).toBe(0n);
       expect(world.evm.erc20Balance(Networks.Arbitrum, USDC_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "completes an in-flight legacy cross-chain quote without dynamic funding metadata",
+    async () => {
+      const setup = await setUpRegisteredRamp({ legacyDestinationFunding: true });
+      const destinationFunding = scriptHappyWorld(setup);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      const destinationFundingTxs = world.evm.sentTransactions.filter(
+        tx =>
+          !tx.serialized &&
+          tx.network === Networks.Arbitrum &&
+          tx.to?.toLowerCase() === setup.ephemeral.address.toLowerCase() &&
+          tx.value !== undefined
+      );
+      expect(destinationFundingTxs).toHaveLength(1);
+      expect(destinationFundingTxs[0].gas).toBeUndefined();
+      expect(destinationFunding.initialBalanceRaw + (destinationFundingTxs[0].value ?? 0n)).toBe(parseUnits("0.0002", 18));
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
     },
     30000
   );
@@ -499,6 +598,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       ).toHaveLength(0);
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
       expect(paused?.errorLogs.some(log => log.phase === "fundEphemeral" && log.recoverable)).toBe(true);
+      expect(paused?.errorLogs.at(-1)?.error).toBe(QuoteError.NetworkFeesTooHigh);
     },
     30000
   );

@@ -20,6 +20,21 @@ import {
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 
+// Compatibility program for quotes created before dynamic destination funding
+// metadata existed. Keep these values and operation identities stable until all
+// such quotes/ramps have expired or completed.
+export const LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [Networks.Arbitrum]: "0.0002",
+  [Networks.Avalanche]: "0.0034",
+  [Networks.Base]: "0.000034",
+  [Networks.BaseSepolia]: "0.000034",
+  [Networks.BSC]: "0.000115",
+  [Networks.Ethereum]: "0.005",
+  [Networks.Moonbeam]: "0.34",
+  [Networks.Polygon]: "0.6",
+  [Networks.PolygonAmoy]: "0.2"
+};
+
 export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();

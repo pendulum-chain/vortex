@@ -33,6 +33,7 @@ export async function prepareDestinationTransferTxs(ctx: PrepareCtx<DestinationT
   const finalDestinationTransfer = await createDestinationTransferTransaction({
     amountRaw: ownMetadata.amountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
+    gasLimit: ctx.globals.evmDestinationGas?.transferGasLimit,
     isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,
     toToken: outputTokenDetails.erc20AddressSourceChain

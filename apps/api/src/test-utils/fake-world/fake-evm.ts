@@ -63,6 +63,7 @@ export class FakeEvm {
   readonly revertedReceiptHashes = new Set<string>();
   baseL1FeeRaw = 8_000_000_000_000n;
   baseL1FeeUpperBoundRaw = 10_000_000_000_000n;
+  arbitrumL1GasComponent = 520n;
 
   private key(network: string, token: string, holder: string): string {
     return `${network}:${token.toLowerCase()}:${holder.toLowerCase()}`;
@@ -130,6 +131,8 @@ export class FakeEvm {
         return this.baseL1FeeRaw;
       case "getL1FeeUpperBound":
         return this.baseL1FeeUpperBoundRaw;
+      case "gasEstimateL1Component":
+        return [this.arbitrumL1GasComponent, 1_000_000_000n, 1_000_000_000n] as const;
       default:
         throw new Error(
           `FakeEvm: readContract '${params.functionName}' on ${network} is not implemented — ` +

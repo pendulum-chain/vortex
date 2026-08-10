@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import Big from "big.js";
 import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import { config } from "../../../../../config/vars";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 
 const partnerPricingReal = { ...partnerPricingNamespace };
@@ -166,7 +167,7 @@ describe("BRL cross-chain onramp flow compile-time adjacency", () => {
   });
 });
 
-function buildCtx(): PhaseCtx {
+function buildCtx(includeDynamicFunding = true): PhaseCtx {
   const notes: string[] = [];
   return {
     addNote: (note: string) => {
@@ -176,12 +177,19 @@ function buildCtx(): PhaseCtx {
       displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" },
       usd: { anchor: "0.1", network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" }
     },
-    evmDestinationGas: {
-      executionFeeUsd: "0",
-      maxFeePerGas: "1",
-      network: Networks.Arbitrum,
-      transferGasLimit: "100000"
-    },
+    ...(includeDynamicFunding
+      ? {
+          evmDestinationGas: {
+            executionFeeUsd: "0",
+            fundingGasLimit: "21000",
+            isNativeTransfer: false,
+            maximumFeePerGas: "1",
+            network: Networks.Arbitrum,
+            programVersion: 2 as const,
+            transferGasLimit: "100000"
+          }
+        }
+      : {}),
     notes,
     now: new Date(),
     partner: null,
@@ -197,7 +205,7 @@ function buildCtx(): PhaseCtx {
   };
 }
 
-async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow) {
+async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow, includeDynamicFunding = true) {
   BrlaApiService.getInstance = mock(() => ({
     createPayInQuote: mock(async (request: { inputCurrency: string }) => ({
       appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
@@ -206,7 +214,7 @@ async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow) {
     }))
   })) as unknown as typeof BrlaApiService.getInstance;
 
-  return flow.simulate(buildCtx());
+  return flow.simulate(buildCtx(includeDynamicFunding));
 }
 
 describe("BRL cross-chain onramp flow simulation", () => {
@@ -215,6 +223,17 @@ describe("BRL cross-chain onramp flow simulation", () => {
     expect(output.amount.gt(0)).toBe(true);
     expect(output.token).toBe(EvmToken.USDC);
     expect(output.chain).toBe(Networks.Arbitrum);
+  });
+
+  it("keeps producing legacy-compatible metadata until the rollout flag is enabled", async () => {
+    const originalEnabled = config.evmDestinationGas.dynamicFundingEnabled;
+    config.evmDestinationGas.dynamicFundingEnabled = false;
+    try {
+      const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow, false);
+      expect(metadata.globals.evmDestinationGas).toBeUndefined();
+    } finally {
+      config.evmDestinationGas.dynamicFundingEnabled = originalEnabled;
+    }
   });
 });
 

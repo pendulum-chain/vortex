@@ -8,6 +8,7 @@ import {
   isEvmTransactionData,
   multiplyByPowerOfTen,
   Networks,
+  QuoteError,
   RampDirection,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -21,6 +22,7 @@ import {
 } from "../../../../../../constants/constants";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
+import { APIError } from "../../../../../errors/api-error";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
@@ -32,12 +34,13 @@ import {
   calculateSourceEvmFundingRequirementRaw,
   getDynamicDestinationEvmFundingNetwork,
   isDestinationEvmEphemeralFunded,
-  isPendulumEphemeralFunded
+  isPendulumEphemeralFunded,
+  LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS
 } from "../../core/destination-funding";
 import {
   assertEvmTreasuryFundingFeeWithinQuote,
-  calculatePresignedExecutionBudgetRaw,
-  EVM_NATIVE_TRANSFER_GAS_LIMIT
+  calculateQuotedPresignedExecutionBudgetRaw,
+  EVM_DESTINATION_FUNDING_PROGRAM_VERSION
 } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
@@ -59,6 +62,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     const flowMetadata = getFlowMetadata(quote.metadata);
     const blocks = flowMetadata.blocks;
     const destinationGasQuote = flowMetadata.globals.evmDestinationGas;
+    if (destinationGasQuote && destinationGasQuote.programVersion !== EVM_DESTINATION_FUNDING_PROGRAM_VERSION) {
+      throw new Error(`Unsupported EVM destination funding program ${String(destinationGasQuote.programVersion)}`);
+    }
     if (blocks[AssethubOfframpSourceContext.key]) {
       await this.verifyAssethubSourceTransaction(state);
       const substrateAddress = state.state.substrateEphemeralAddress;
@@ -100,19 +106,31 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         sourceNetwork === Networks.Polygon
           ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
           : sourceNetwork === Networks.Moonbeam
-            ? MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS
+            ? destinationGasQuote
+              ? MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS
+              : LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Moonbeam]
             : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
       const destinationNetwork = getNetworkFromDestination(state.to);
-      const dynamicDestinationNetwork = getDynamicDestinationEvmFundingNetwork(
-        destinationNetwork,
-        state.type === RampDirection.BUY,
-        state.state.isDirectTransfer
-      );
-      const destinationFundingRaw = dynamicDestinationNetwork
-        ? await this.getDestinationEvmFundingRequirementRaw(state, dynamicDestinationNetwork)
-        : 0n;
+      const dynamicDestinationNetwork = destinationGasQuote
+        ? getDynamicDestinationEvmFundingNetwork(
+            destinationNetwork,
+            state.type === RampDirection.BUY,
+            state.state.isDirectTransfer
+          )
+        : undefined;
+      let destinationFundingRaw = 0n;
+      if (dynamicDestinationNetwork) {
+        if (!destinationGasQuote) {
+          throw new Error(`FundEphemeralExecutor: missing ${dynamicDestinationNetwork} destination gas quote`);
+        }
+        destinationFundingRaw = this.getDestinationEvmFundingRequirementRaw(
+          state,
+          dynamicDestinationNetwork,
+          destinationGasQuote
+        );
+      }
       const sameNetworkDestinationLiabilityRaw = dynamicDestinationNetwork === sourceNetwork ? destinationFundingRaw : 0n;
       const requiredFundingRaw = calculateSourceEvmFundingRequirementRaw(
         fixedFundingRaw,
@@ -154,11 +172,40 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           logger.info(`EVM ephemeral account already funded on ${dynamicDestinationNetwork}.`);
         }
       }
+
+      const legacyDestinationNetwork = destinationGasQuote
+        ? undefined
+        : getDynamicDestinationEvmFundingNetwork(
+            destinationNetwork,
+            state.type === RampDirection.BUY,
+            state.state.isDirectTransfer
+          );
+      if (legacyDestinationNetwork) {
+        const legacyClient = EvmClientManager.getInstance().getClient(legacyDestinationNetwork);
+        const legacyChain = legacyClient.chain;
+        if (!legacyChain) {
+          throw new Error(`FundEphemeralExecutor: Could not get chain info for ${legacyDestinationNetwork}`);
+        }
+        const legacyRequiredRaw = BigInt(
+          multiplyByPowerOfTen(
+            LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[legacyDestinationNetwork],
+            legacyChain.nativeCurrency.decimals
+          ).toFixed()
+        );
+        if (!(await isDestinationEvmEphemeralFunded(evmEphemeralAddress, legacyDestinationNetwork, legacyRequiredRaw))) {
+          logger.info(`Legacy-funding EVM ephemeral account ${evmEphemeralAddress} on ${legacyDestinationNetwork}`);
+          await this.fundLegacyDestinationEvmEphemeralAccount(state, legacyDestinationNetwork, legacyRequiredRaw, signal);
+        }
+      }
     } catch (e) {
       logger.error("Error in FundEphemeralExecutor:", e);
 
       if (e instanceof PhaseError) {
         throw e;
+      }
+
+      if (e instanceof APIError && e.message === QuoteError.NetworkFeesTooHigh) {
+        throw this.createRecoverableError(QuoteError.NetworkFeesTooHigh);
       }
 
       throw this.createRecoverableError("Error funding ephemeral account");
@@ -257,15 +304,15 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
 
       await this.runFinancialOperation(state, {
-        attemptClass: "source-evm-native-funding",
+        attemptClass: destinationGasQuote ? "source-evm-native-funding-v2" : "source-evm-native-funding",
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
             walletClient.sendTransaction({
-              ...(fees
+              ...(fees && destinationGasQuote
                 ? {
-                    gas: EVM_NATIVE_TRANSFER_GAS_LIMIT,
+                    gas: BigInt(destinationGasQuote.fundingGasLimit),
                     maxFeePerGas: fees.maxFeePerGas,
                     maxPriorityFeePerGas: fees.maxPriorityFeePerGas
                   }
@@ -286,7 +333,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         },
         provider: network,
         request: {
-          amountRaw: fundingAmountRaw.toString(),
+          ...(destinationGasQuote
+            ? { targetBalanceRaw: requiredFundingRaw.toString() }
+            : { amountRaw: fundingAmountRaw.toString() }),
           destination: ephemeralAddress,
           network,
           source: fundingAccount.address
@@ -311,7 +360,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${network} ephemeral:`, error);
-      if (error instanceof PhaseError) throw error;
+      if (error instanceof PhaseError || error instanceof APIError) throw error;
       throw new Error(`FundEphemeralExecutor: Error during funding ${network} ephemeral: ` + error);
     }
   }
@@ -348,13 +397,13 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
 
       await this.runFinancialOperation(state, {
-        attemptClass: "destination-evm-native-funding",
+        attemptClass: "destination-evm-native-funding-v2",
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
             walletClient.sendTransaction({
-              gas: EVM_NATIVE_TRANSFER_GAS_LIMIT,
+              gas: BigInt(destinationGasQuote.fundingGasLimit),
               maxFeePerGas: fees.maxFeePerGas,
               maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
               to: ephemeralAddress as `0x${string}`,
@@ -373,10 +422,10 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         },
         provider: destinationNetwork,
         request: {
-          amountRaw: fundingAmountRaw.toString(),
           destination: ephemeralAddress,
           network: destinationNetwork,
-          source: fundingAccount.address
+          source: fundingAccount.address,
+          targetBalanceRaw: requiredFundingRaw.toString()
         },
         signal
       });
@@ -395,12 +444,16 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral:`, error);
-      if (error instanceof PhaseError) throw error;
+      if (error instanceof PhaseError || error instanceof APIError) throw error;
       throw new Error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral: ` + error);
     }
   }
 
-  private async getDestinationEvmFundingRequirementRaw(state: RampState, destinationNetwork: EvmNetworks): Promise<bigint> {
+  private getDestinationEvmFundingRequirementRaw(
+    state: RampState,
+    destinationNetwork: EvmNetworks,
+    destinationGasQuote: EvmDestinationGasQuote
+  ): bigint {
     const presignedTransfer = this.getPresignedTransaction(state, "destinationTransfer");
     if (!presignedTransfer?.txData || presignedTransfer.network !== destinationNetwork) {
       throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination transfer`);
@@ -414,10 +467,60 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     if (!unsignedTransfer || !isEvmTransactionData(unsignedTransfer.txData)) {
       throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination transfer blueprint`);
     }
-    return calculatePresignedExecutionBudgetRaw(
+    return calculateQuotedPresignedExecutionBudgetRaw(
       presignedTransfer.txData as `0x${string}`,
       destinationNetwork,
-      unsignedTransfer.txData
+      unsignedTransfer.txData,
+      destinationGasQuote
+    );
+  }
+
+  private async fundLegacyDestinationEvmEphemeralAccount(
+    state: RampState,
+    destinationNetwork: EvmNetworks,
+    requiredFundingRaw: bigint,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const destinationClient = evmClientManager.getClient(destinationNetwork);
+    const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
+    const currentBalanceRaw = await destinationClient.getBalance({ address: ephemeralAddress });
+    const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
+    if (fundingAmountRaw === 0n) return;
+
+    const fundingAccount = getEvmFundingAccount(destinationNetwork);
+    const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
+    await this.runFinancialOperation(state, {
+      attemptClass: "destination-evm-native-funding",
+      externalId: result => result.hash,
+      perform: async () => {
+        throwIfAborted(signal);
+        const hash = await abortableCall(signal, () =>
+          walletClient.sendTransaction({ to: ephemeralAddress, value: fundingAmountRaw })
+        );
+        const receipt = await abortableCall(signal, () =>
+          destinationClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
+        );
+        if (!receipt || receipt.status !== "success") {
+          throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
+        }
+        return { hash };
+      },
+      provider: destinationNetwork,
+      request: {
+        amountRaw: fundingAmountRaw.toString(),
+        destination: ephemeralAddress,
+        network: destinationNetwork,
+        source: fundingAccount.address
+      },
+      signal
+    });
+
+    await waitUntilTrueWithTimeout(
+      () => isDestinationEvmEphemeralFunded(ephemeralAddress, destinationNetwork, requiredFundingRaw),
+      1000,
+      30000,
+      signal
     );
   }
 

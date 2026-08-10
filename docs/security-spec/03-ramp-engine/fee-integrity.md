@@ -92,16 +92,31 @@ always occur only after all user-facing phases is incorrect.
   additionally query the GasPriceOracle for each transaction's L1 security fee upper
   bound; omitting this component underprices a fee charged on every normal Base-family
   transaction.
-- The quote persists the destination network, transfer gas, L2 fee estimate, and the
-  Base L1 upper bounds. Registration may accept only a prepared payout inside that
-  estimate plus `EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS`.
+- The quote applies `EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS` once and persists the
+  resulting absolute `maximumFeePerGas`, funding/payout gas limits, and Base L1
+  maxima. Runtime acceptance never reconstructs a ceiling from current deployment
+  configuration. Arbitrum gas limits add the NodeInterface parent-chain poster-gas
+  component; a plain transfer is not assumed to fit in 21,000 gas there.
+- Registration preflights the persisted envelope before provider registration hooks
+  can create an independently durable payment ticket, then checks the exact prepared
+  payout against the same absolute limits.
 - Immediately before the treasury funding transfer, execution re-estimates the L2 fee
-  and both Base L1 upper bounds (funding and payout). If any exceeds the persisted envelope plus margin,
+  and both Base L1 upper bounds (funding and payout). If any exceeds the persisted absolute envelope,
   the phase pauses recoverably before claiming or broadcasting a financial operation.
   An accepted transfer carries the checked gas and EIP-1559 fee caps explicitly.
 - The native amount delivered to the ephemeral is based on the bounded signed payout
   liability, not arbitrary client fields. The gas limit must match the server blueprint
   and the signed fee cap cannot exceed the shared production signer's 3× multiplier.
+  Base-family payouts reserve the persisted maximum payout L1 fee, rather than an
+  early exact oracle value that can become stale before settlement.
+- Funding metadata carries program version 2. Quotes without that metadata execute
+  the historical static-funding program and operation identities. Dynamic financial
+  operations use v2 attempt classes and bind their request hash to the stable target
+  balance, so a confirmed send can be replayed after an RPC-balance polling timeout.
+- Dynamic quote production is opt-in through
+  `EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED`. Deploy the dual-reader/dual-executor code
+  to every API and worker replica while disabled, then enable quote production. This
+  prevents an old worker from consuming v2 metadata during a rolling deployment.
 - The residual between a signed/quoted cap and the effective fee is accepted native
   dust for now. It is not solved by this policy and remains documented in
   `ephemeral-accounts.md`; a future smart-contract or paymaster flow can eliminate it.

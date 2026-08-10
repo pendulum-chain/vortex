@@ -247,6 +247,7 @@ interface Config {
     vortexEvmPayoutAddress: string | undefined;
   };
   evmDestinationGas: {
+    dynamicFundingEnabled: boolean;
     maxExecutionFeeUsd: string;
     networkFeeMarginBps: number;
   };
@@ -271,6 +272,9 @@ export const config: Config = {
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
   evmDestinationGas: {
+    // Two-phase rollout guard: deploy readers/executors first, then enable quote
+    // production only after every worker understands funding program v2.
+    dynamicFundingEnabled: process.env.EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED === "true",
     maxExecutionFeeUsd: readPositiveDecimalEnv("EVM_DESTINATION_MAX_EXECUTION_FEE_USD", "5"),
     networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
   },

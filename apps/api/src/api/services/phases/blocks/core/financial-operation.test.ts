@@ -57,6 +57,24 @@ describe("runFinancialOperation", () => {
     });
   });
 
+  it("replays a confirmed target-balance operation when the observed shortfall changes", async () => {
+    let observedShortfallRaw = "100";
+    const perform = mock(async () => ({ amountRaw: observedShortfallRaw, id: "funding-1" }));
+    const operation = {
+      ...baseOperation,
+      attemptClass: "destination-evm-native-funding-v2",
+      request: { destination: "ephemeral-1", network: "base", targetBalanceRaw: "1000" }
+    };
+
+    const first = await runFinancialOperation({ ...operation, perform });
+    observedShortfallRaw = "20";
+    const replayed = await runFinancialOperation({ ...operation, perform });
+
+    expect(perform).toHaveBeenCalledTimes(1);
+    expect(replayed).toEqual(first);
+    expect(replayed.amountRaw).toBe("100");
+  });
+
   it("halts retries after an ambiguous provider failure", async () => {
     const perform = mock(async () => {
       throw new Error("connection reset after submission");

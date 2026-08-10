@@ -35,16 +35,17 @@ export async function createDestinationTransferTransaction(params: {
   toToken: `0x${string}`;
   amountRaw: string;
   destinationNetwork: EvmNetworks;
+  gasLimit?: string;
   isNativeToken?: boolean;
 }): Promise<EvmTransactionData> {
-  const { toAddress, amountRaw, destinationNetwork, toToken, isNativeToken } = params;
+  const { toAddress, amountRaw, destinationNetwork, gasLimit, toToken, isNativeToken } = params;
   const publicClient = EvmClientManager.getInstance().getClient(destinationNetwork);
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   if (isNativeToken) {
     return {
       data: "0x",
-      gas: EVM_NATIVE_TRANSFER_GAS_LIMIT.toString(),
+      gas: gasLimit ?? EVM_NATIVE_TRANSFER_GAS_LIMIT.toString(),
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
       to: toAddress as `0x${string}`,
@@ -54,7 +55,7 @@ export async function createDestinationTransferTransaction(params: {
 
   return {
     data: encodeFunctionData({ abi: erc20ABI, args: [toAddress, amountRaw], functionName: "transfer" }),
-    gas: EVM_ERC20_TRANSFER_GAS_LIMIT.toString(),
+    gas: gasLimit ?? EVM_ERC20_TRANSFER_GAS_LIMIT.toString(),
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     to: toToken,

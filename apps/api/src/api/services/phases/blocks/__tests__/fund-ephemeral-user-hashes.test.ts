@@ -144,8 +144,66 @@ describe("FundEphemeralExecutor destination gas funding", () => {
       ]
     } as unknown as RampState;
 
-    expect(await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon)).toBe(
+    expect(
+      handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon, {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "12000000000",
+        network: Networks.Polygon,
+        programVersion: 2,
+        transferGasLimit: "100000"
+      })
+    ).toBe(
       3_000_000_000_000_000n
     );
+  });
+
+  it("reserves the persisted Base payout L1 envelope instead of a live early fee", async () => {
+    const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
+    const rawTx = await account.signTransaction({
+      chainId: 8453,
+      gas: 100_000n,
+      maxFeePerGas: 3_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+      to: "0x0000000000000000000000000000000000000001",
+      type: "eip1559",
+      value: 0n
+    });
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+    handler.getPresignedTransaction = () => ({ network: Networks.Base, signer: account.address, txData: rawTx });
+    const state = {
+      unsignedTxs: [
+        {
+          network: Networks.Base,
+          nonce: 0,
+          phase: "destinationTransfer",
+          signer: account.address,
+          txData: {
+            data: "0x",
+            gas: "100000",
+            maxFeePerGas: "1000000000",
+            maxPriorityFeePerGas: "1000000000",
+            to: "0x0000000000000000000000000000000000000001",
+            value: "0"
+          }
+        }
+      ]
+    } as unknown as RampState;
+
+    expect(
+      handler.getDestinationEvmFundingRequirementRaw(state, Networks.Base, {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        maximumFundingL1FeeRaw: "12000000000000",
+        maximumPayoutL1FeeRaw: "15000000000000",
+        network: Networks.Base,
+        programVersion: 2,
+        transferGasLimit: "100000"
+      })
+    ).toBe(315_000_000_000_000n);
   });
 });

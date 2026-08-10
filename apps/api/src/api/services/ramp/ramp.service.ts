@@ -44,6 +44,7 @@ import {
 } from "../../services/phases/blocks/core/discount";
 import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers";
 import { accountCapabilities } from "../phases/blocks/core/accounts";
+import { preflightEvmDestinationFeeWithinQuote } from "../phases/blocks/core/evm-destination-gas";
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
 import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -936,6 +937,11 @@ export class RampService extends BaseRampService {
     const metadata = getFlowMetadata(quote.metadata);
     const flow = resolvePersistedBlockFlow(metadata);
     const quoteFields = quote.get({ plain: true });
+    if (metadata.globals.evmDestinationGas) {
+      // Run the same persisted-envelope guard before provider registration can
+      // create an independently durable ticket. prepareTxs keeps its exact check.
+      await preflightEvmDestinationFeeWithinQuote(metadata.globals.evmDestinationGas);
+    }
     const registered = await flow.register({
       authenticatedUser: { id: userId },
       input: additionalData ?? {},

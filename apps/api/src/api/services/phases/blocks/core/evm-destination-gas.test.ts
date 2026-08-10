@@ -1,12 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { type EvmNetworks, type EvmTransactionData, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
+import { config } from "../../../../../config/vars";
 import {
   assertPreparedEvmDestinationFeeWithinQuote,
   assertEvmTreasuryFundingFeeWithinQuote,
   calculateBoundedPresignedGasBudgetRaw,
   calculateExpectedExecutionFeeRaw,
-  calculatePresignedExecutionBudgetRaw,
+  calculateQuotedPresignedExecutionBudgetRaw,
   EVM_ERC20_TRANSFER_GAS_LIMIT,
   EVM_ERC20_UNSIGNED_TRANSACTION_SIZE_BYTES,
   EVM_NATIVE_UNSIGNED_TRANSACTION_SIZE_BYTES,
@@ -19,16 +20,25 @@ import { privateKeyToAccount } from "viem/accounts";
 import { installFakeEvm } from "../../../../../test-utils/fake-world/fake-evm";
 
 describe("EVM destination gas policy", () => {
-  it("prices the funding transfer and ERC-20 payout with the configured margin", () => {
-    expect(calculateExpectedExecutionFeeRaw(1_000_000_000n, EVM_ERC20_TRANSFER_GAS_LIMIT, 12_000)).toBe(
-      145_200_000_000_000n
-    );
+  it("prices the persisted funding and ERC-20 payout gas envelopes", () => {
+    expect(
+      calculateExpectedExecutionFeeRaw(
+        1_200_000_000n,
+        21_000n,
+        EVM_ERC20_TRANSFER_GAS_LIMIT
+      )
+    ).toBe(145_200_000_000_000n);
   });
 
-  it("includes Base L1 security fees before applying the configured margin", () => {
-    expect(calculateExpectedExecutionFeeRaw(1_000_000_000n, EVM_ERC20_TRANSFER_GAS_LIMIT, 12_000, 20_000n)).toBe(
-      145_200_000_024_000n
-    );
+  it("adds the persisted Base L1 security-fee envelopes", () => {
+    expect(
+      calculateExpectedExecutionFeeRaw(
+        1_200_000_000n,
+        21_000n,
+        EVM_ERC20_TRANSFER_GAS_LIMIT,
+        24_000n
+      )
+    ).toBe(145_200_000_024_000n);
   });
 
   it("refuses to derive a treasury liability outside the server-issued gas envelope", async () => {
@@ -49,7 +59,7 @@ describe("EVM destination gas policy", () => {
     );
   });
 
-  it("adds the exact Base L1 fee to the presigned payout liability", async () => {
+  it("adds the persisted Base L1 payout envelope to the presigned liability", async () => {
     const { fakeEvm, restore } = installFakeEvm();
     try {
       const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
@@ -64,9 +74,36 @@ describe("EVM destination gas policy", () => {
         value: 0n
       });
 
-      expect(await calculatePresignedExecutionBudgetRaw(rawTransaction, Networks.Base)).toBe(
-        300_000_000_000_000n + fakeEvm.baseL1FeeRaw
-      );
+      expect(
+        calculateQuotedPresignedExecutionBudgetRaw(rawTransaction, Networks.Base, transaction("1000000000"), {
+          executionFeeUsd: "0.20",
+          fundingGasLimit: "21000",
+          isNativeTransfer: false,
+          maximumFeePerGas: "1200000000",
+          maximumFundingL1FeeRaw: "12000000000000",
+          maximumPayoutL1FeeRaw: "13000000000000",
+          network: Networks.Base,
+          programVersion: 2,
+          transferGasLimit: "100000"
+        })
+      ).toBe(300_000_000_000_000n + 13_000_000_000_000n);
+      fakeEvm.onReadContract = () => {
+        throw new Error("late Base oracle unavailable");
+      };
+      expect(
+        calculateQuotedPresignedExecutionBudgetRaw(rawTransaction, Networks.Base, transaction("1000000000"), {
+          executionFeeUsd: "0.20",
+          fundingGasLimit: "21000",
+          isNativeTransfer: false,
+          maximumFeePerGas: "1200000000",
+          maximumFundingL1FeeRaw: "12000000000000",
+          maximumPayoutL1FeeRaw: "13000000000000",
+          network: Networks.Base,
+          programVersion: 2,
+          transferGasLimit: "100000"
+        })
+      ).toBe(313_000_000_000_000n);
+      fakeEvm.onReadContract = undefined;
       expect(await getBaseL1FeeUpperBoundRaw(Networks.Base, EVM_NATIVE_UNSIGNED_TRANSACTION_SIZE_BYTES)).toBe(
         fakeEvm.baseL1FeeUpperBoundRaw
       );
@@ -84,10 +121,13 @@ describe("EVM destination gas policy", () => {
     try {
       const quote = {
         executionFeeUsd: "0.20",
-        fundingL1FeeUpperBoundRaw: fakeEvm.baseL1FeeUpperBoundRaw.toString(),
-        maxFeePerGas: "1000000000",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        maximumFundingL1FeeRaw: "12000000000000",
+        maximumPayoutL1FeeRaw: "12000000000000",
         network: Networks.Base as EvmNetworks,
-        payoutL1FeeUpperBoundRaw: fakeEvm.baseL1FeeUpperBoundRaw.toString(),
+        programVersion: 2 as const,
         transferGasLimit: "100000"
       };
       fakeEvm.baseL1FeeUpperBoundRaw = 12_000_000_000_001n;
@@ -105,10 +145,13 @@ describe("EVM destination gas policy", () => {
     try {
       const quote = {
         executionFeeUsd: "0.20",
-        fundingL1FeeUpperBoundRaw: fakeEvm.baseL1FeeUpperBoundRaw.toString(),
-        maxFeePerGas: "1000000000",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        maximumFundingL1FeeRaw: "12000000000000",
+        maximumPayoutL1FeeRaw: "12000000000000",
         network: Networks.Base as EvmNetworks,
-        payoutL1FeeUpperBoundRaw: fakeEvm.baseL1FeeUpperBoundRaw.toString(),
+        programVersion: 2 as const,
         transferGasLimit: EVM_ERC20_TRANSFER_GAS_LIMIT.toString()
       };
       fakeEvm.onReadContract = (_network, params) => {
@@ -121,6 +164,34 @@ describe("EVM destination gas policy", () => {
       await expect(assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Base, 1_000_000_000n)).rejects.toThrow(
         QuoteError.NetworkFeesTooHigh
       );
+    } finally {
+      restore();
+    }
+  });
+
+  it("requires Arbitrum funding gas to include the parent-chain poster component", async () => {
+    const { fakeEvm, restore } = installFakeEvm();
+    try {
+      fakeEvm.arbitrumL1GasComponent = 520n;
+      const quote = {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        network: Networks.Arbitrum as EvmNetworks,
+        programVersion: 2 as const,
+        transferGasLimit: "100000"
+      };
+
+      await expect(assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Arbitrum, 1_000_000_000n)).rejects.toThrow(
+        QuoteError.NetworkFeesTooHigh
+      );
+
+      quote.fundingGasLimit = "21520";
+      quote.transferGasLimit = "100520";
+      await expect(
+        assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Arbitrum, 1_000_000_000n)
+      ).resolves.toBeUndefined();
     } finally {
       restore();
     }
@@ -157,18 +228,58 @@ describe("EVM destination gas policy", () => {
   it("allows registration-time fee movement inside the quote margin", () => {
     expect(() =>
       assertPreparedEvmDestinationFeeWithinQuote(
-        { executionFeeUsd: "0.20", maxFeePerGas: "100", network: Networks.Arbitrum, transferGasLimit: "100000" },
+        {
+          executionFeeUsd: "0.20",
+          fundingGasLimit: "21000",
+          isNativeTransfer: false,
+          maximumFeePerGas: "120",
+          network: Networks.Arbitrum,
+          programVersion: 2,
+          transferGasLimit: "100000"
+        },
         Networks.Arbitrum,
         transaction("120")
       )
     ).not.toThrow();
   });
 
+  it("uses the persisted absolute ceiling after deployment margin configuration changes", () => {
+    const originalMargin = config.evmDestinationGas.networkFeeMarginBps;
+    config.evmDestinationGas.networkFeeMarginBps = 30_000;
+    try {
+      expect(() =>
+        assertPreparedEvmDestinationFeeWithinQuote(
+          {
+            executionFeeUsd: "0.20",
+            fundingGasLimit: "21000",
+            isNativeTransfer: false,
+            maximumFeePerGas: "120",
+            network: Networks.BSC,
+            programVersion: 2,
+            transferGasLimit: "100000"
+          },
+          Networks.BSC,
+          transaction("121")
+        )
+      ).toThrow(QuoteError.NetworkFeesTooHigh);
+    } finally {
+      config.evmDestinationGas.networkFeeMarginBps = originalMargin;
+    }
+  });
+
   it("rejects registration when the destination fee moved beyond the quote margin", () => {
     let thrown: unknown;
     try {
       assertPreparedEvmDestinationFeeWithinQuote(
-        { executionFeeUsd: "0.20", maxFeePerGas: "100", network: Networks.BSC, transferGasLimit: "100000" },
+        {
+          executionFeeUsd: "0.20",
+          fundingGasLimit: "21000",
+          isNativeTransfer: false,
+          maximumFeePerGas: "120",
+          network: Networks.BSC,
+          programVersion: 2,
+          transferGasLimit: "100000"
+        },
         Networks.BSC,
         transaction("121")
       );

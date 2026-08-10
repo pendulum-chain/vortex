@@ -8,6 +8,7 @@ import {
   getNetworkId,
   getOnChainTokenDetails,
   getRoute,
+  isEvmTransactionData,
   isNativeEvmToken,
   multiplyByPowerOfTen,
   NATIVE_TOKEN_ADDRESS,
@@ -30,9 +31,11 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import { calculatePresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
+import { LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
+import { calculateQuotedPresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
+import { getFlowMetadata } from "../../core/metadata";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -221,14 +224,34 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
     let destinationGasReserveRaw = new Big(0);
     if (isNative) {
-      destinationGasReserveRaw = new Big(
-        (
-          await calculatePresignedExecutionBudgetRaw(
-            this.getPresignedTransaction(state, "destinationTransfer").txData as `0x${string}`,
-            destinationNetwork
-          )
-        ).toString()
-      );
+      const destinationGasQuote = getFlowMetadata(quote.metadata).globals.evmDestinationGas;
+      if (destinationGasQuote) {
+        const presignedTransfer = this.getPresignedTransaction(state, "destinationTransfer");
+        const unsignedTransfer = state.unsignedTxs.find(
+          transaction =>
+            transaction.phase === "destinationTransfer" &&
+            transaction.network === destinationNetwork &&
+            transaction.signer.toLowerCase() === presignedTransfer.signer.toLowerCase()
+        );
+        if (!unsignedTransfer || !isEvmTransactionData(unsignedTransfer.txData)) {
+          throw this.createUnrecoverableError(
+            `FinalSettlementSubsidyExecutor: missing ${destinationNetwork} destination transfer blueprint`
+          );
+        }
+        destinationGasReserveRaw = new Big(
+          calculateQuotedPresignedExecutionBudgetRaw(
+            presignedTransfer.txData as `0x${string}`,
+            destinationNetwork,
+            unsignedTransfer.txData,
+            destinationGasQuote
+          ).toString()
+        );
+      } else {
+        destinationGasReserveRaw = multiplyByPowerOfTen(
+          LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork],
+          outTokenDetails.decimals
+        );
+      }
     }
     const requiredBalanceRaw = expectedAmountRaw.plus(destinationGasReserveRaw);
     const subsidyAmountRaw = calculateSettlementSubsidyRaw(

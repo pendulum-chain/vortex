@@ -1,4 +1,5 @@
 import { EphemeralAccountType, type RampPhase } from "@vortexfi/shared";
+import { config } from "../../../../../config/vars";
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import { computeFees } from "./fees";
@@ -298,7 +299,8 @@ export class FlowBuilder<O extends PhaseIO> {
       async simulate(ctx: PhaseCtx) {
         // Exact provider-token payouts do not have a fee-distribution phase;
         // their same-chain gas remains part of the existing source reserve.
-        ctx.priceEvmDestinationGas = staticStateMeta.isDirectTransfer !== true;
+        ctx.priceEvmDestinationGas =
+          config.evmDestinationGas.dynamicFundingEnabled && staticStateMeta.isDirectTransfer !== true;
         await computeFees(ctx);
         if (!ctx.fees?.usd) {
           throw new Error("Flow simulation requires computed USD fees");
