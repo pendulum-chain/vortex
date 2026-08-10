@@ -5,12 +5,14 @@ import {
   AlfredPayCountry,
   AlfredpayOfframpStatus,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
   multiplyByPowerOfTen,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -263,20 +265,19 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
 
   /** Signs a blueprint exactly as issued; the nonce may be overridden for backups. */
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx, nonce?: number): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     const chainId = CHAIN_IDS[blueprint.network];
     if (!chainId) {
       throw new Error(`No chain id mapped for ${blueprint.network}`);
     }
     return ephemeral.signTransaction({
       chainId,
-      data: txData.data,
-      gas: 600_000n,
-      // validatePresignedTxs enforces the blueprint's fee minimums (3 gwei floor on Polygon).
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: nonce ?? blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });
@@ -363,14 +364,19 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+    const registered = await RampState.findByPk(ramp.id);
+    const transferBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!transferBlueprint) throw new Error("destinationTransfer blueprint missing");
+    const transferTxData = transferBlueprint.txData as EvmTransactionData;
 
     const signTransfer = (nonce: number) =>
       ephemeral.signTransaction({
         chainId: 137,
         data: encodeFunctionData({ abi: erc20Abi, args: [destination, amountRaw], functionName: "transfer" }),
-        gas: 100_000n,
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(transferTxData.gas),
+        maxFeePerGas: BigInt(transferTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(transferTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: ALFREDPAY_ERC20_TOKEN,
         type: "eip1559"
@@ -453,17 +459,18 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     expect(userTransferBlueprint).toBeDefined();
     expect(offrampTransferBlueprint).toBeDefined();
     const userTxData = userTransferBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
-    const offrampTxData = offrampTransferBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+    const offrampTxData = offrampTransferBlueprint?.txData as EvmTransactionData;
 
     const signOfframpTransfer = (nonce: number) =>
       ephemeral.signTransaction({
         chainId: 137,
-        data: offrampTxData.data,
-        gas: 100_000n,
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        data: offrampTxData.data as `0x${string}`,
+        gas: BigInt(offrampTxData.gas),
+        maxFeePerGas: BigInt(offrampTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(offrampTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
-        to: offrampTxData.to,
+        to: offrampTxData.to as `0x${string}`,
         type: "eip1559"
       });
     const backups: Record<string, { nonce: number; txData: `0x${string}` }> = {};

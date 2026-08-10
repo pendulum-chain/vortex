@@ -18,6 +18,7 @@ The smaller set of general project documents stays directly in `docs/`:
 |---|---|
 | [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
 | [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md) | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution |
+| [`architecture-email-notifications.md`](architecture-email-notifications.md) | Current transactional/auth email architecture: queue, dispatch, producers |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |

@@ -3,6 +3,11 @@ import { EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
 import * as userTxVerifier from "../../../phases/helpers/user-tx-verifier";
+import { privateKeyToAccount } from "viem/accounts";
+
+// Snapshot before mocking: mock.module mutates the imported namespace in place, so
+// spreading `userTxVerifier` at restore time would copy the stub back.
+const userTxVerifierReal = { ...userTxVerifier };
 
 const verifyUserSubmittedTxByHash = mock(async () => undefined);
 mock.module("../../../phases/helpers/user-tx-verifier", () => ({
@@ -12,7 +17,7 @@ mock.module("../../../phases/helpers/user-tx-verifier", () => ({
 const { FundEphemeralExecutor } = await import("../phases/fund-ephemeral/execution");
 
 afterAll(() => {
-  mock.module("../../../phases/helpers/user-tx-verifier", () => ({ ...userTxVerifier }));
+  mock.module("../../../phases/helpers/user-tx-verifier", () => userTxVerifierReal);
 });
 
 function makeQuote(outputCurrency: FiatToken = FiatToken.BRL) {
@@ -102,5 +107,115 @@ describe("FundEphemeralExecutor user hash verification", () => {
     await handler.verifyUserSubmittedSourceTransactions(assethubState, makeQuote());
 
     expect(verifyUserSubmittedTxByHash).not.toHaveBeenCalled();
+  });
+});
+
+describe("FundEphemeralExecutor destination gas funding", () => {
+  it("uses the signed payout liability for non-Ethereum EVM destinations", async () => {
+    const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
+    const rawTx = await account.signTransaction({
+      chainId: 137,
+      gas: 100_000n,
+      maxFeePerGas: 30_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+      to: "0x0000000000000000000000000000000000000001",
+      type: "eip1559",
+      value: 0n
+    });
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+    handler.getPresignedTransaction = () => ({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "destinationTransfer",
+      signer: account.address,
+      txData: rawTx
+    });
+    const state = {
+      unsignedTxs: [
+        {
+          network: Networks.Polygon,
+          nonce: 0,
+          phase: "destinationTransfer",
+          signer: account.address,
+          txData: {
+            data: "0x",
+            gas: "100000",
+            maxFeePerGas: "10000000000",
+            maxPriorityFeePerGas: "1000000000",
+            to: "0x0000000000000000000000000000000000000001",
+            value: "0"
+          }
+        }
+      ]
+    } as unknown as RampState;
+
+    expect(
+      await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Polygon, {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "12000000000",
+        network: Networks.Polygon,
+        programVersion: 2,
+        transferGasLimit: "100000"
+      })
+    ).toBe(3_000_000_000_000_000n);
+  });
+
+  it("reserves the persisted Base payout L1 envelope instead of a live early fee", async () => {
+    const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
+    const rawTx = await account.signTransaction({
+      chainId: 8453,
+      gas: 100_000n,
+      maxFeePerGas: 3_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+      to: "0x0000000000000000000000000000000000000001",
+      type: "eip1559",
+      value: 0n
+    });
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+    handler.getPresignedTransaction = () => ({
+      meta: {},
+      network: Networks.Base,
+      nonce: 0,
+      phase: "destinationTransfer",
+      signer: account.address,
+      txData: rawTx
+    });
+    const state = {
+      unsignedTxs: [
+        {
+          network: Networks.Base,
+          nonce: 0,
+          phase: "destinationTransfer",
+          signer: account.address,
+          txData: {
+            data: "0x",
+            gas: "100000",
+            maxFeePerGas: "1000000000",
+            maxPriorityFeePerGas: "1000000000",
+            to: "0x0000000000000000000000000000000000000001",
+            value: "0"
+          }
+        }
+      ]
+    } as unknown as RampState;
+
+    expect(
+      await handler.getDestinationEvmFundingRequirementRaw(state, Networks.Base, {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        maximumFundingL1FeeRaw: "12000000000000",
+        maximumPayoutL1FeeRaw: "15000000000000",
+        network: Networks.Base,
+        programVersion: 2,
+        transferGasLimit: "100000"
+      })
+    ).toBe(315_000_000_000_000n);
   });
 });

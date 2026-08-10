@@ -39,8 +39,8 @@ content is rendered verbatim to users and may later be emailed, so it is a PII-l
   (`notifications-onboarding.integration.test.ts`).
 - **Client-forged notifications (phishing inside the product UI)**: no write endpoint exists;
   emission is server-side only (invariant 2).
-- **PII leakage via feed or future email**: content rules (invariant 4) apply to every emitter;
-  the planned invite email must contain the invite **link only**, never payout or identity data.
+- **PII leakage via feed or email**: content rules (invariant 4) apply to every emitter;
+  a future invite email must contain the invite **link only**, never payout or identity data.
 - **Unbounded query cost**: limit clamp + indexed `(profile_id, created_at)` reads.
 
 ## Audit Checklist
@@ -50,7 +50,12 @@ content is rendered verbatim to users and may later be emailed, so it is a PII-l
       services/controllers acting on server-derived events.
 - [ ] `emitNotification` cannot throw into its caller.
 - [ ] Existing emitters carry no PII in `title`/`body`/`metadata`.
-- [ ] **Email dispatch is NOT implemented** (plan D7 — Supabase SMTP/edge function pending):
-      `email_enabled` is a stored preference with no effect yet. When the transport lands it must
-      gate on preferences, be server-side triggered only, and follow the content rules — update
-      this spec in the same change.
+- [ ] **Email dispatch is implemented and gates on these preferences at delivery time**
+      (see [`05-integrations/resend.md`](../05-integrations/resend.md) for the transport,
+      queue, and its own invariants). Before every send the dispatch worker re-reads
+      `notification_preferences`: `email_enabled` is the master switch, and
+      `prefs[<stored type>] === false` mutes one type — the stored type strings are the
+      shared `EmailNotificationType` enum consumed by both the worker and the dashboard's
+      Settings toggles. A muted row is recorded `skipped`, never sent. Sending remains
+      server-side triggered only; the `email_notifications` queue is unrelated to the
+      in-app `notifications` table this spec covers, and no client can write either.

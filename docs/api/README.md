@@ -5,6 +5,7 @@ This directory is the repository source of truth for the partner-facing Vortex A
 ## Structure
 
 - `openapi/vortex.openapi.json` is the OpenAPI reference used for the Apidog endpoint catalog.
+- `wire-contract.snapshot.md` is the generated snapshot of the typed partner-facing surface (shared endpoint types + public SDK API). CI fails when it is stale; regenerate with `bun run wire-contract:update` and review the diff for backward compatibility.
 - `pages/*.md` contains the pure Markdown guide pages that sit around the endpoint reference.
 - `apidog/page-manifest.json` records the intended page order, source files, current Apidog project ID, and endpoint grouping decisions.
 - `scripts/*.ts` contains the local export, validation, and type-generation helpers for this docs source.
