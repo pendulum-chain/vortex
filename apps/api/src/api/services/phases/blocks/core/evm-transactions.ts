@@ -1,6 +1,7 @@
 import { EvmClientManager, type EvmNetworks, type EvmTransactionData } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem/utils";
 import erc20ABI from "../../../../../contracts/ERC20";
+import { EVM_ERC20_TRANSFER_GAS_LIMIT, EVM_NATIVE_TRANSFER_GAS_LIMIT } from "./evm-destination-gas";
 
 export function encodeEvmTransactionData(data: unknown) {
   return data;
@@ -34,18 +35,19 @@ export async function createDestinationTransferTransaction(params: {
   toToken: `0x${string}`;
   amountRaw: string;
   destinationNetwork: EvmNetworks;
+  gasLimit?: string;
   isNativeToken?: boolean;
 }): Promise<EvmTransactionData> {
-  const { toAddress, amountRaw, destinationNetwork, toToken, isNativeToken } = params;
+  const { toAddress, amountRaw, destinationNetwork, gasLimit, toToken, isNativeToken } = params;
   const publicClient = EvmClientManager.getInstance().getClient(destinationNetwork);
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   if (isNativeToken) {
     return {
       data: "0x",
-      gas: "21000",
-      maxFeePerGas: String(maxFeePerGas * 3n),
-      maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
+      gas: gasLimit ?? EVM_NATIVE_TRANSFER_GAS_LIMIT.toString(),
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
       to: toAddress as `0x${string}`,
       value: amountRaw
     };
@@ -53,9 +55,9 @@ export async function createDestinationTransferTransaction(params: {
 
   return {
     data: encodeFunctionData({ abi: erc20ABI, args: [toAddress, amountRaw], functionName: "transfer" }),
-    gas: "100000",
-    maxFeePerGas: String(maxFeePerGas * 3n),
-    maxPriorityFeePerGas: String(maxPriorityFeePerGas * 3n),
+    gas: gasLimit ?? EVM_ERC20_TRANSFER_GAS_LIMIT.toString(),
+    maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     to: toToken,
     value: "0"
   };

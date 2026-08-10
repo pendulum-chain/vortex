@@ -23,6 +23,7 @@ interface SpreadsheetConfig {
 }
 
 type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
+const DECIMAL_STRING_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 // Identifies which onramp flow this backend instance serves. Two backends
 // share one database; each ignores ramps/quotes belonging to the other flow.
@@ -82,7 +83,7 @@ function readNonNegativeDecimalEnv(name: string): string {
     throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
   }
   const value = Number(rawValue);
-  if (!Number.isFinite(value) || value < 0) {
+  if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
     throw new Error(`${name} must be a non-negative number (got '${rawValue}')`);
   }
   return rawValue;
@@ -101,6 +102,26 @@ function readFractionEnv(name: string, defaultValue: string): number {
     throw new Error(`${name} must be a finite number between 0 and 1`);
   }
 
+  return value;
+}
+
+function readPositiveDecimalEnv(name: string, defaultValue: string): string {
+  const rawValue = process.env[name] ?? defaultValue;
+  const trimmedValue = rawValue.trim();
+  const value = Number(trimmedValue);
+  if (!DECIMAL_STRING_PATTERN.test(trimmedValue) || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
+  }
+  return trimmedValue;
+}
+
+function readEvmDestinationNetworkFeeMarginBps(): number {
+  const name = "EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS";
+  const rawValue = process.env[name] ?? "12000";
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value < 10_000 || value > 30_000 || rawValue.trim() === "") {
+    throw new Error(`${name} must be an integer between 10000 and 30000`);
+  }
   return value;
 }
 
@@ -227,6 +248,11 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
+  evmDestinationGas: {
+    dynamicFundingEnabled: boolean;
+    maxExecutionFeeUsd: string;
+    networkFeeMarginBps: number;
+  };
 }
 
 export const config: Config = {
@@ -247,6 +273,13 @@ export const config: Config = {
   },
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
+  evmDestinationGas: {
+    // Two-phase rollout guard: deploy readers/executors first, then enable quote
+    // production only after every worker understands funding program v2.
+    dynamicFundingEnabled: process.env.EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED === "true",
+    maxExecutionFeeUsd: readPositiveDecimalEnv("EVM_DESTINATION_MAX_EXECUTION_FEE_USD", "5"),
+    networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
+  },
   flowVariant: readFlowVariant(),
 
   integrations: {

@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { EvmToken, FiatToken, Networks, RampDirection, type PresignedTx, type UnsignedTx } from "@vortexfi/shared";
+import {
+  type EvmTransactionData,
+  EvmToken,
+  FiatToken,
+  Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
+  RampDirection,
+  type PresignedTx,
+  type UnsignedTx
+} from "@vortexfi/shared";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
@@ -76,15 +85,15 @@ describe("quote consumption invariants (BRL onramp)", () => {
   }
 
   async function signBlueprint(account: PrivateKeyAccount, blueprint: UnsignedTx, nonce: number): Promise<`0x${string}`> {
-    const txData = blueprint.txData as { data: `0x${string}`; to: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     return account.signTransaction({
       chainId: 8453,
-      data: txData.data,
-      gas: 600_000n,
-      maxFeePerGas: 10_000_000_000n,
-      maxPriorityFeePerGas: 10_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });

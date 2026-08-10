@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { WalletClient } from "viem";
-import { polygonAmoy } from "viem/chains";
+import { parseTransaction, type WalletClient } from "viem";
+import { baseSepolia, polygonAmoy } from "viem/chains";
 import type { UnsignedTx } from "../endpoints/ramp.endpoints";
 
 // Importing ./signUnsigned pulls in the package barrel, which freezes src/constants.ts from
@@ -10,7 +10,7 @@ process.env.ALFREDPAY_API_KEY ||= "test-key";
 process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
 const { Networks } = await import("./networks");
-const { createEvmClient, groupUnsignedTxsForSigning } = await import("./signUnsigned");
+const { createEvmClient, groupUnsignedTxsForSigning, signUnsignedTransactions } = await import("./signUnsigned");
 
 const EPHEMERAL = {
   address: "0x0000000000000000000000000000000000000000",
@@ -67,13 +67,13 @@ describe("groupUnsignedTxsForSigning", () => {
     expect(groups.destinationNetworkTxs).toEqual([]);
   });
 
-  it("keeps destination-phase transactions on other networks in the destination group", () => {
+  it("assigns Base Sepolia destination transactions to the EVM group", () => {
     const tx = makeTx(Networks.BaseSepolia, "destinationTransfer");
 
     const groups = groupUnsignedTxsForSigning([tx]);
 
-    expect(groups.destinationNetworkTxs).toEqual([tx]);
-    expect(groups.evmTxs).toEqual([]);
+    expect(groups.evmTxs).toEqual([tx]);
+    expect(groups.destinationNetworkTxs).toEqual([]);
   });
 
   it("never assigns a transaction to both the EVM and destination groups", () => {
@@ -89,6 +89,34 @@ describe("groupUnsignedTxsForSigning", () => {
 
     for (const tx of txs) {
       expect(groups.evmTxs.includes(tx) && groups.destinationNetworkTxs.includes(tx)).toBe(false);
+    }
+  });
+});
+
+describe("Base Sepolia signing", () => {
+  it("signs the primary transaction and all nonce backups for Base Sepolia", async () => {
+    const tx = makeTx(Networks.BaseSepolia, "destinationTransfer");
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { id: number; method: string };
+      expect(request.method).toBe("eth_chainId");
+      return new Response(JSON.stringify({ id: request.id, jsonrpc: "2.0", result: `0x${baseSepolia.id.toString(16)}` }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }) as typeof fetch;
+
+    try {
+      const [primaryTx] = await signUnsignedTransactions([tx], { evmEphemeral: EPHEMERAL });
+      const signedVariants = [primaryTx, ...Object.values(primaryTx.meta.additionalTxs ?? {})];
+      const parsedVariants = signedVariants.map(variant => parseTransaction(variant.txData as `0x${string}`));
+
+      expect(signedVariants).toHaveLength(5);
+      expect(parsedVariants.map(parsed => parsed.chainId)).toEqual(Array(5).fill(baseSepolia.id));
+      expect(parsedVariants.map(parsed => parsed.nonce)).toEqual([0, 1, 2, 3, 4]);
+      expect(parsedVariants.map(parsed => parsed.maxFeePerGas)).toEqual(Array(5).fill(3n));
+      expect(parsedVariants.map(parsed => parsed.maxPriorityFeePerGas)).toEqual(Array(5).fill(3n));
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 });

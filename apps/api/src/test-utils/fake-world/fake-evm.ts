@@ -5,6 +5,9 @@ export interface RecordedEvmTx {
   from?: string;
   to?: string;
   data?: string;
+  gas?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
   value?: bigint;
   serialized?: string;
   hash: `0x${string}`;
@@ -40,6 +43,7 @@ const MAX_UINT256 = 2n ** 256n - 1n;
  */
 export class FakeEvm {
   private balances = new Map<string, bigint>();
+  private feeEstimates = new Map<string, { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }>();
   private nonces = new Map<string, number>();
   private txCounter = 0;
   readonly sentTransactions: RecordedEvmTx[] = [];
@@ -57,6 +61,9 @@ export class FakeEvm {
   sendFailureMessage = "FakeEvm: scripted transaction failure";
   /** Hashes whose receipts report a mined-but-reverted transaction. */
   readonly revertedReceiptHashes = new Set<string>();
+  baseL1FeeRaw = 8_000_000_000_000n;
+  baseL1FeeUpperBoundRaw = 10_000_000_000_000n;
+  arbitrumL1GasComponent = 520n;
 
   private key(network: string, token: string, holder: string): string {
     return `${network}:${token.toLowerCase()}:${holder.toLowerCase()}`;
@@ -76,6 +83,10 @@ export class FakeEvm {
 
   nativeBalance(network: string, holder: string): bigint {
     return this.balances.get(this.key(network, "native", holder)) ?? 0n;
+  }
+
+  setFeeEstimate(network: string, maxFeePerGas: bigint, maxPriorityFeePerGas = maxFeePerGas): void {
+    this.feeEstimates.set(network, { maxFeePerGas, maxPriorityFeePerGas });
   }
 
   /**
@@ -116,6 +127,12 @@ export class FakeEvm {
         return MAX_UINT256;
       case "getAmountOut":
         return this.onGetAmountOut(network, params.address, params.args?.[0] as bigint);
+      case "getL1Fee":
+        return this.baseL1FeeRaw;
+      case "getL1FeeUpperBound":
+        return this.baseL1FeeUpperBoundRaw;
+      case "gasEstimateL1Component":
+        return [this.arbitrumL1GasComponent, 1_000_000_000n, 1_000_000_000n] as const;
       default:
         throw new Error(
           `FakeEvm: readContract '${params.functionName}' on ${network} is not implemented — ` +
@@ -162,7 +179,8 @@ export class FakeEvm {
         // Dry-runs (eth_call) succeed generically; scripted failures go through failNextSends instead.
         call: async () => ({ data: "0x" as `0x${string}` }),
         chain: { id: CHAIN_IDS[network] ?? 0, name: network, nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" } },
-        estimateFeesPerGas: async () => ({ maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n }),
+        estimateFeesPerGas: async () =>
+          this.feeEstimates.get(network) ?? { maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n },
         estimateGas: async () => 21_000n,
         getBalance: async ({ address }: { address: string }) => this.nativeBalance(network, address),
         getGasPrice: async () => 1_000_000_000n,
@@ -195,8 +213,24 @@ export class FakeEvm {
     return this.makeUnimplementedProxy(
       {
         account,
-        sendTransaction: async (params: { to?: string; data?: string; value?: bigint }) =>
-          this.recordTransaction({ data: params.data, from: account.address, network, to: params.to, value: params.value }),
+        sendTransaction: async (params: {
+          to?: string;
+          data?: string;
+          gas?: bigint;
+          maxFeePerGas?: bigint;
+          maxPriorityFeePerGas?: bigint;
+          value?: bigint;
+        }) =>
+          this.recordTransaction({
+            data: params.data,
+            from: account.address,
+            gas: params.gas,
+            maxFeePerGas: params.maxFeePerGas,
+            maxPriorityFeePerGas: params.maxPriorityFeePerGas,
+            network,
+            to: params.to,
+            value: params.value
+          }),
         writeContract: async (params: { address: string; functionName: string }) =>
           this.recordTransaction({ data: params.functionName, from: account.address, network, to: params.address })
       },
