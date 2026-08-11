@@ -1,4 +1,4 @@
-import {AveniaAccountType, AveniaDocumentType, BrlaApiError, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
+import {AveniaAccountType, AveniaDocumentType, BrlaApiError, BrlaApiService, FiatToken, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import httpStatus from "http-status";
 import sequelize from "../../config/database";
@@ -9,6 +9,7 @@ import FinancialOperation from "../../models/financialOperation.model";
 import KycCase from "../../models/kycCase.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
+import QuoteTicket from "../../models/quoteTicket.model";
 import User from "../../models/user.model";
 import { SupabaseAuthService } from "../services/auth";
 import {
@@ -280,6 +281,17 @@ describe("recordInitialKycAttempt", () => {
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
+  const originalQuoteFindByPk = QuoteTicket.findByPk;
+
+  // A Brazil onramp quote owned by user-1, so the ownership + corridor guards pass.
+  const mockOwnedBrlQuote = () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      inputCurrency: FiatToken.BRL,
+      outputCurrency: "USDC",
+      partnerId: null,
+      userId: "user-1"
+    })) as unknown as typeof QuoteTicket.findByPk;
+  };
 
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
@@ -288,10 +300,12 @@ describe("recordInitialKycAttempt", () => {
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
+    QuoteTicket.findByPk = originalQuoteFindByPk;
   });
 
   it("records the first valid Avenia interaction as started", async () => {
     mockEntityPerProfile();
+    mockOwnedBrlQuote();
     ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
     const providerCreate = mock(async (values: Record<string, unknown>) => ({ id: "customer-1", ...values }));
     ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
@@ -315,6 +329,48 @@ describe("recordInitialKycAttempt", () => {
 
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(res.body).toEqual({ error: "Missing quoteId or taxId body parameter" });
+  });
+
+  it("rejects a marker against a quote the caller does not own", async () => {
+    // quote belongs to a different user: assertQuoteOwnership must reject and no marker is created.
+    QuoteTicket.findByPk = mock(async () => ({
+      inputCurrency: FiatToken.BRL,
+      outputCurrency: "USDC",
+      partnerId: null,
+      userId: "other-user"
+    })) as unknown as typeof QuoteTicket.findByPk;
+    const providerCreate = mock(async () => ({ id: "customer-1" }));
+    ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
+
+    const res = createResponse();
+    await recordInitialKycAttempt(
+      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "attacker" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
+    expect(providerCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a marker when the owned quote is not a Brazil corridor", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      inputCurrency: "USDC",
+      outputCurrency: FiatToken.ARS,
+      partnerId: null,
+      userId: "user-1"
+    })) as unknown as typeof QuoteTicket.findByPk;
+    const providerCreate = mock(async () => ({ id: "customer-1" }));
+    ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
+
+    const res = createResponse();
+    await recordInitialKycAttempt(
+      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ error: "quoteId does not reference a Brazil onboarding quote" });
+    expect(providerCreate).not.toHaveBeenCalled();
   });
 });
 

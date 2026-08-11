@@ -26,6 +26,7 @@ import {
   BrlaValidatePixKeyResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
+  FiatToken,
   isValidCnpj,
   isValidCpf,
   KybAttemptStatusResponse,
@@ -47,8 +48,10 @@ import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
+import QuoteTicket from "../../models/quoteTicket.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { assertQuoteOwnership } from "../middlewares/ownershipAuth";
 import {
   accountTypeToCustomerType,
   customerTypeToAccountType,
@@ -233,6 +236,15 @@ export const recordInitialKycAttempt = async (
 
     if (!quoteId || !taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing quoteId or taxId body parameter" });
+      return;
+    }
+
+    // Bind the marker to a Brazil quote the caller owns. Without this an attacker could
+    // plant a Consulted marker on another profile's tax id and block their subaccount creation.
+    await assertQuoteOwnership(req, quoteId);
+    const quote = await QuoteTicket.findByPk(quoteId);
+    if (quote?.inputCurrency !== FiatToken.BRL && quote?.outputCurrency !== FiatToken.BRL) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "quoteId does not reference a Brazil onboarding quote" });
       return;
     }
 
