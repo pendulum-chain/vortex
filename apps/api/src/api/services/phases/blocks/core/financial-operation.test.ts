@@ -109,6 +109,28 @@ describe("runFinancialOperation", () => {
     expect(perform).toHaveBeenCalledTimes(1);
   });
 
+  it("allows a not-started operation to adopt a stable corrected request", async () => {
+    const beforePerform = mock(async () => {
+      throw new Error("preflight unavailable");
+    });
+    const perform = mock(async () => ({ id: "funding-1" }));
+
+    await expect(runFinancialOperation({ ...baseOperation, beforePerform, perform })).rejects.toThrow(
+      "preflight unavailable"
+    );
+    expect(await FinancialOperation.findOne()).toMatchObject({ status: "not_started" });
+
+    const result = await runFinancialOperation({
+      ...baseOperation,
+      perform,
+      request: { acquisitionCapUsd: "11", destination: "recipient-1" }
+    });
+
+    expect(result).toEqual({ id: "funding-1" });
+    expect(perform).toHaveBeenCalledTimes(1);
+    expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
+  });
+
   it("halts retries after an ambiguous provider failure", async () => {
     const perform = mock(async () => {
       throw new Error("connection reset after submission");
@@ -136,6 +158,37 @@ describe("runFinancialOperation", () => {
         request: { amount: "11", recipient: "recipient-1" }
       })
     ).rejects.toThrow("different inputs");
+  });
+
+  it("replays a confirmed legacy request shape when compatibility is explicit", async () => {
+    const perform = mock(async () => ({ id: "external-1" }));
+    const first = await runFinancialOperation({ ...baseOperation, perform });
+    const replayed = await runFinancialOperation({
+      ...baseOperation,
+      allowExistingRequestMismatch: true,
+      perform,
+      request: { acquisitionCapUsd: "11", destination: "recipient-1" }
+    });
+
+    expect(replayed).toEqual(first);
+    expect(perform).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces reconciliation for an ambiguous legacy request shape", async () => {
+    const perform = mock(async () => {
+      throw new Error("receipt timeout");
+    });
+    await expect(runFinancialOperation({ ...baseOperation, perform })).rejects.toThrow("receipt timeout");
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        allowExistingRequestMismatch: true,
+        perform,
+        request: { acquisitionCapUsd: "11", destination: "recipient-1" }
+      })
+    ).rejects.toThrow("requires reconciliation");
+    expect(perform).toHaveBeenCalledTimes(1);
   });
 
   it("allows corrected input after a definitive rejection without a side effect", async () => {

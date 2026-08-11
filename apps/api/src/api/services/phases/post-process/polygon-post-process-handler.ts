@@ -1,4 +1,12 @@
-import { CleanupPhase, EvmClientManager, EvmNetworks, Networks, PresignedTx, RampDirection } from "@vortexfi/shared";
+import {
+  ALFREDPAY_ERC20_TOKEN,
+  CleanupPhase,
+  EvmClientManager,
+  EvmNetworks,
+  Networks,
+  PresignedTx,
+  RampDirection
+} from "@vortexfi/shared";
 import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
@@ -88,11 +96,21 @@ export class PolygonPostProcessHandler extends BasePostProcessHandler {
 
       const fundingAccount = getEvmFundingAccount(polygonNetwork);
       const walletClient = evmClientManager.getWalletClient(polygonNetwork, fundingAccount);
+      const isAlfredpayUsdtResidual =
+        state.type === RampDirection.SELL && tokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
+      const alfredpayWalletAddress = (state.state.blockState?.alfredpayOfframp as { walletAddress?: string } | undefined)
+        ?.walletAddress;
+      const recipient = (
+        isAlfredpayUsdtResidual ? (alfredpayWalletAddress ?? state.state.walletAddress) : fundingAccount.address
+      ) as `0x${string}` | undefined;
+      if (!recipient) {
+        return [false, this.createErrorObject(`No wallet address found for AlfredPay USDT cleanup on ramp ${state.id}`)];
+      }
 
       const transferFromHash = await walletClient.writeContract({
         abi: erc20Abi,
         address: tokenAddress,
-        args: [ephemeralAddress, fundingAccount.address, balance],
+        args: [ephemeralAddress, recipient, balance],
         functionName: "transferFrom"
       });
 
@@ -101,7 +119,7 @@ export class PolygonPostProcessHandler extends BasePostProcessHandler {
         return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`)];
       }
 
-      logger.info(`Successfully swept ${balance} tokens for Polygon cleanup ${phase} on ramp ${state.id}`);
+      logger.info(`Successfully swept ${balance} tokens to ${recipient} for Polygon cleanup ${phase} on ramp ${state.id}`);
       return [true, null];
     } catch (e) {
       return [false, this.createErrorObject(`Error in Polygon cleanup ${phase}: ${e}`)];

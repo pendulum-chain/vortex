@@ -14,6 +14,13 @@ export interface RunFinancialOperationArgs<Result> {
   attemptClass: string;
   provider: string;
   request: unknown;
+  /**
+   * Recovery-only compatibility for an existing durable operation whose prior
+   * request shape changed across a deployment. The original claim remains
+   * authoritative: confirmed replays and ambiguous outcomes are handled by
+   * status, while only not_started rows may adopt the new request hash.
+   */
+  allowExistingRequestMismatch?: boolean;
   retryFailed?: boolean;
   signal?: AbortSignal;
   /** Runs only after replay/reconciliation is exhausted and immediately before claiming a new side effect. */
@@ -78,6 +85,7 @@ export async function runFinancialOperation<Result>({
   attemptClass,
   provider,
   request,
+  allowExistingRequestMismatch = false,
   beforePerform,
   perform,
   reconcile,
@@ -111,11 +119,18 @@ export async function runFinancialOperation<Result>({
     where: { operationKey }
   });
 
-  if (operation.requestHash !== requestHash && !(operation.status === "failed" && retryFailed)) {
-    throw new APIError({
-      message: `Financial operation ${operation.id} was already claimed with different inputs`,
-      status: httpStatus.CONFLICT
-    });
+  if (operation.requestHash !== requestHash) {
+    if (operation.status === "not_started") {
+      // No financial side effect has been claimed yet. Refreshing a preflight's
+      // request is safe and lets legacy/live observations converge on the stable
+      // authorization used by the current executor.
+      await operation.update({ requestHash });
+    } else if (!(operation.status === "failed" && retryFailed) && !allowExistingRequestMismatch) {
+      throw new APIError({
+        message: `Financial operation ${operation.id} was already claimed with different inputs`,
+        status: httpStatus.CONFLICT
+      });
+    }
   }
   if (!created) {
     if (operation.status === "confirmed" && operation.response !== null) {
