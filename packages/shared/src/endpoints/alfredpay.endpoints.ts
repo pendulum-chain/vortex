@@ -12,6 +12,7 @@ import {
 // GET /alfredpay/alfredpayStatus?country=:country
 export interface AlfredpayStatusRequest {
   country: string;
+  type?: AlfredpayCustomerType;
 }
 
 export interface AlfredpayStatusResponse {
@@ -32,7 +33,6 @@ export interface AlfredpayCreateCustomerResponse {
 // GET /alfredpay/getKycRedirectLink?country=:country
 export interface AlfredpayGetKycRedirectLinkRequest {
   country: string;
-  type?: AlfredpayCustomerType;
 }
 
 export type AlfredpayGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;

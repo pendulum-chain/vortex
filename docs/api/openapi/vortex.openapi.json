@@ -56,6 +56,157 @@
         "required": ["address", "type"],
         "type": "object"
       },
+      "AlfredpayCountry": {
+        "enum": ["AR", "CO", "MX", "US"],
+        "type": "string"
+      },
+      "AlfredpayCreateCustomerRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" }
+        },
+        "required": ["country"],
+        "type": "object"
+      },
+      "AlfredpayCreateCustomerResponse": {
+        "properties": {
+          "createdAt": { "format": "date-time", "type": "string" }
+        },
+        "required": ["createdAt"],
+        "type": "object"
+      },
+      "AlfredpayCustomerType": {
+        "enum": ["INDIVIDUAL", "BUSINESS"],
+        "type": "string"
+      },
+      "AlfredpayKybDetailsResponse": {
+        "items": {
+          "properties": {
+            "relatedPersons": {
+              "items": {
+                "properties": { "idRelatedPerson": { "type": "string" } },
+                "required": ["idRelatedPerson"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "submissionId": { "type": "string" }
+          },
+          "required": ["submissionId", "relatedPersons"],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "AlfredpayKybFileUploadRequest": {
+        "properties": {
+          "country": { "enum": ["CO", "MX"], "type": "string" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": {
+            "enum": [
+              "taxIdDocument",
+              "articlesIncorporation",
+              "proofAddress",
+              "shareholderRegistry",
+              "businessLicense",
+              "uploadAmlPolicy"
+            ],
+            "type": "string"
+          },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "submissionId", "fileType", "file"],
+        "type": "object"
+      },
+      "AlfredpayKybRelatedPerson": {
+        "properties": {
+          "cpf": { "type": "string" },
+          "dateOfBirth": { "format": "date", "type": "string" },
+          "dni": { "type": "string" },
+          "email": { "format": "email", "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "nationalities": { "items": { "type": "string" }, "minItems": 1, "type": "array" },
+          "pep": { "type": "boolean" }
+        },
+        "required": ["firstName", "lastName", "email", "dateOfBirth", "nationalities"],
+        "type": "object"
+      },
+      "AlfredpayKybRelatedPersonFileUploadRequest": {
+        "properties": {
+          "country": { "enum": ["CO", "MX"], "type": "string" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": { "enum": ["docFront", "docBack"], "type": "string" },
+          "relatedPersonId": { "type": "string" }
+        },
+        "required": ["country", "relatedPersonId", "fileType", "file"],
+        "type": "object"
+      },
+      "AlfredpayKycFileUploadRequest": {
+        "properties": {
+          "country": { "enum": ["AR", "CO", "MX"], "type": "string" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": { "enum": ["National ID Front", "National ID Back", "Selfie"], "type": "string" },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "submissionId", "fileType", "file"],
+        "type": "object"
+      },
+      "AlfredpayKycStatusResponse": {
+        "properties": {
+          "alfred_pay_id": { "type": "string" },
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "lastFailure": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/AlfredpayStatus" },
+          "updated_at": { "format": "date-time", "type": "string" }
+        },
+        "required": ["status", "updated_at", "alfred_pay_id", "country"],
+        "type": "object"
+      },
+      "AlfredpayRedirectLinkResponse": {
+        "properties": {
+          "submissionId": { "type": "string" },
+          "verification_url": { "format": "uri", "type": "string" }
+        },
+        "required": ["verification_url", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayRedirectNotificationRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "type": { "$ref": "#/components/schemas/AlfredpayCustomerType" }
+        },
+        "required": ["country"],
+        "type": "object"
+      },
+      "AlfredpayRetryRequest": {
+        "$ref": "#/components/schemas/AlfredpayRedirectNotificationRequest"
+      },
+      "AlfredpayRetryResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" },
+          { "$ref": "#/components/schemas/SuccessResponse" }
+        ]
+      },
+      "AlfredpaySendSubmissionRequest": {
+        "properties": {
+          "country": { "enum": ["AR", "CO", "MX"], "type": "string" },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayStatus": {
+        "enum": ["CONSULTED", "LINK_OPENED", "USER_COMPLETED", "VERIFYING", "FAILED", "SUCCESS", "UPDATE_REQUIRED"],
+        "type": "string"
+      },
+      "AlfredpayStatusResponse": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "creationTime": { "format": "date-time", "type": "string" },
+          "status": { "$ref": "#/components/schemas/AlfredpayStatus" }
+        },
+        "required": ["status", "country", "creationTime"],
+        "type": "object"
+      },
       "ApiCredential": {
         "properties": {
           "createdAt": { "format": "date-time", "type": "string" },
@@ -121,13 +272,26 @@
         "type": "object"
       },
       "AveniaDocumentType": {
-        "enum": ["ID", "DRIVERS-LICENSE", "PASSPORT", "SELFIE", "SELFIE-FROM-LIVENESS"],
+        "enum": [
+          "ID",
+          "DRIVERS-LICENSE",
+          "PASSPORT",
+          "RESIDENCE-PERMIT",
+          "SELFIE",
+          "SELFIE-FROM-LIVENESS",
+          "CERTIFICATE-OF-INCORPORATION",
+          "COMPANY-TAX-IDENTIFICATION-DOCUMENT"
+        ],
         "type": "string"
       },
       "AveniaKYCDataUploadRequest": {
         "properties": {
           "documentType": {
-            "$ref": "#/components/schemas/AveniaDocumentType"
+            "enum": ["ID", "DRIVERS-LICENSE"],
+            "type": "string"
+          },
+          "isDoubleSided": {
+            "type": "boolean"
           },
           "taxId": {
             "description": "CPF or CNPJ.",
@@ -147,6 +311,220 @@
           }
         },
         "required": ["idUpload", "selfieUpload"],
+        "type": "object"
+      },
+      "AveniaKybAttemptStatusResponse": {
+        "properties": {
+          "failureReason": { "type": "string" },
+          "result": { "enum": ["APPROVED", "REJECTED"], "type": "string" },
+          "retryable": { "type": "boolean" },
+          "status": { "enum": ["PENDING", "PROCESSING", "COMPLETED", "EXPIRED"], "type": "string" }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
+      "AveniaKybDocumentRequest": {
+        "properties": {
+          "documentType": { "$ref": "#/components/schemas/AveniaDocumentType" },
+          "isDoubleSided": { "type": "boolean" }
+        },
+        "required": ["documentType"],
+        "type": "object"
+      },
+      "AveniaKybDocumentResponse": {
+        "properties": {
+          "document": {
+            "properties": {
+              "documentType": { "$ref": "#/components/schemas/AveniaDocumentType" },
+              "id": { "type": "string" },
+              "ready": { "type": "boolean" },
+              "uploadErrorBack": { "type": "string" },
+              "uploadErrorFront": { "type": "string" },
+              "uploadStatusBack": { "type": "string" },
+              "uploadStatusFront": { "type": "string" }
+            },
+            "required": ["id", "documentType", "uploadStatusFront", "ready"],
+            "type": "object"
+          }
+        },
+        "required": ["document"],
+        "type": "object"
+      },
+      "AveniaKybDocumentUploadResponse": {
+        "properties": {
+          "id": { "type": "string" },
+          "livenessUrl": { "format": "uri", "type": "string" },
+          "uploadURLBack": { "format": "uri", "type": "string" },
+          "uploadURLFront": { "format": "uri", "type": "string" },
+          "validateLivenessToken": { "type": "string" }
+        },
+        "required": ["id", "uploadURLFront"],
+        "type": "object"
+      },
+      "AveniaKybHostedResponse": {
+        "properties": {
+          "attemptId": { "type": "string" },
+          "authorizedRepresentativeUrl": { "format": "uri", "type": "string" },
+          "basicCompanyDataUrl": { "format": "uri", "type": "string" }
+        },
+        "required": ["attemptId", "authorizedRepresentativeUrl", "basicCompanyDataUrl"],
+        "type": "object"
+      },
+      "AveniaKybLevel1Payload": {
+        "additionalProperties": false,
+        "properties": {
+          "businessActivityDescription": { "type": "string" },
+          "certificateOfIncorporationDocumentId": { "type": "string" },
+          "companyCity": { "type": "string" },
+          "companyCountry": { "type": "string" },
+          "companyLegalName": { "type": "string" },
+          "companyRegistrationNumber": { "type": "string" },
+          "companyState": { "type": "string" },
+          "companyStreetLine1": { "type": "string" },
+          "companyStreetLine2": { "type": "string" },
+          "companyStreetLine3": { "type": "string" },
+          "companyZipCode": { "type": "string" },
+          "countrySubdivisionTaxResidence": { "type": "string" },
+          "countryTaxResidence": { "type": "string" },
+          "emailPixKey": { "format": "email", "type": "string" },
+          "estimatedAnnualRevenueUsd": {
+            "enum": ["less_than_100k", "100k_to_1m", "1m_to_10m", "10m_to_50m", "50m_to_100m", "more_than_100m"],
+            "type": "string"
+          },
+          "estimatedMonthlyVolumeUsd": { "pattern": "^[1-9][0-9]*$", "type": "string" },
+          "numberOfEmployees": { "enum": ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001+"], "type": "string" },
+          "reasonForAccountOpening": {
+            "enum": [
+              "charitable_donations",
+              "ecommerce_retail_payments",
+              "investment_purposes",
+              "other",
+              "payments_to_friends_or_family_abroad",
+              "payroll",
+              "personal_or_living_expenses",
+              "protect_wealth",
+              "purchase_goods_and_services",
+              "receive_payments_for_goods_and_services",
+              "tax_optimization",
+              "third_party_money_transmission",
+              "treasury_management"
+            ],
+            "type": "string"
+          },
+          "sandboxReject": { "type": "boolean" },
+          "socialMedia": { "format": "uri", "type": "string" },
+          "sourceOfFundsAndIncome": {
+            "enum": [
+              "business_loans",
+              "grants",
+              "inter_company_funds",
+              "investment_proceeds",
+              "legal_settlement",
+              "owners_capital",
+              "pension_retirement",
+              "sale_of_assets",
+              "sales_of_goods_and_services",
+              "third_party_funds",
+              "treasury_reserves"
+            ],
+            "type": "string"
+          },
+          "taxIdentificationDocumentId": { "type": "string" },
+          "taxIdentificationNumberTin": { "type": "string" },
+          "uboIds": { "items": { "type": "string" }, "maxItems": 50, "minItems": 1, "type": "array" },
+          "website": { "format": "uri", "type": "string" }
+        },
+        "required": [
+          "uboIds",
+          "companyLegalName",
+          "companyRegistrationNumber",
+          "taxIdentificationNumberTin",
+          "businessActivityDescription",
+          "reasonForAccountOpening",
+          "sourceOfFundsAndIncome",
+          "numberOfEmployees",
+          "estimatedAnnualRevenueUsd",
+          "estimatedMonthlyVolumeUsd",
+          "countryTaxResidence",
+          "companyStreetLine1",
+          "companyCity",
+          "companyState",
+          "companyZipCode",
+          "companyCountry",
+          "certificateOfIncorporationDocumentId",
+          "taxIdentificationDocumentId"
+        ],
+        "type": "object"
+      },
+      "AveniaUboControlRole": {
+        "enum": [
+          "CEO",
+          "CFO",
+          "COO",
+          "CTO",
+          "President",
+          "Vice President",
+          "Director",
+          "Managing Director",
+          "Managing Partner",
+          "General Partner",
+          "Partner",
+          "Secretary",
+          "Treasurer",
+          "Chairman",
+          "Board Member",
+          "Authorized Signatory",
+          "General Counsel",
+          "Owner",
+          "Founder",
+          "Manager",
+          "Member",
+          "Comptroller",
+          "Chief Compliance Officer"
+        ],
+        "type": "string"
+      },
+      "AveniaUboPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "city": { "type": "string" },
+          "country": { "type": "string" },
+          "countryOfTaxId": { "type": "string" },
+          "dateOfBirth": { "format": "date", "type": "string" },
+          "documentCountry": { "type": "string" },
+          "email": { "format": "email", "type": "string" },
+          "fullName": { "type": "string" },
+          "hasControl": { "$ref": "#/components/schemas/AveniaUboControlRole" },
+          "percentageOfOwnership": { "type": "string" },
+          "phone": { "type": "string" },
+          "state": { "type": "string" },
+          "streetLine1": { "type": "string" },
+          "streetLine2": { "type": "string" },
+          "streetLine3": { "type": "string" },
+          "taxIdNumber": { "type": "string" },
+          "uploadedIdentificationId": { "type": "string" },
+          "uploadedSelfieId": { "type": "string" },
+          "zipCode": { "type": "string" }
+        },
+        "required": [
+          "fullName",
+          "dateOfBirth",
+          "countryOfTaxId",
+          "taxIdNumber",
+          "percentageOfOwnership",
+          "uploadedIdentificationId",
+          "documentCountry",
+          "streetLine1",
+          "city",
+          "state",
+          "zipCode",
+          "country"
+        ],
+        "type": "object"
+      },
+      "AveniaUboResponse": {
+        "properties": { "id": { "type": "string" } },
+        "required": ["id"],
         "type": "object"
       },
       "BrlaAddress": {
@@ -367,52 +745,36 @@
       },
       "CreateSubaccountRequest": {
         "properties": {
-          "address": {
-            "$ref": "#/components/schemas/BrlaAddress"
-          },
-          "birthdate": {
-            "description": "Date must be in format YYYY-MMM-DD.",
-            "format": "date",
+          "accountType": {
+            "enum": ["INDIVIDUAL", "COMPANY"],
             "type": "string"
           },
-          "cnpj": {
-            "type": ["string", "null"]
-          },
-          "companyName": {
-            "type": ["string", "null"]
-          },
-          "cpf": {
-            "type": "string"
-          },
-          "fullName": {
-            "type": "string"
-          },
-          "phone": {
+          "name": {
+            "description": "Individual full name or company legal name.",
             "type": "string"
           },
           "quoteId": {
-            "description": "Optional. The quote that triggered onboarding. Omit it for the quote-less KYB deep link (`?kyb` / `?kybLocked` widget entry), where business verification starts before any quote exists. Stored only as onboarding provenance; it is not an authorization input.",
-            "type": ["string", "null"]
+            "type": "string"
           },
-          "startDate": {
-            "description": "Date must be in format YYYY-MMM-DD.",
-            "format": "date",
-            "type": ["string", "null"]
+          "sessionId": {
+            "type": "string"
           },
-          "taxIdType": {
-            "$ref": "#/components/schemas/TaxIdType"
+          "taxId": {
+            "description": "CPF for an individual or CNPJ for a company.",
+            "type": "string"
           }
         },
-        "required": ["phone", "taxIdType", "address", "fullName", "cpf", "birthdate"],
+        "required": ["accountType", "name", "taxId"],
         "type": "object"
       },
       "CreateSubaccountResponse": {
         "properties": {
-          "subaccountId": {
+          "subAccountId": {
             "description": "The ID of the created or processed subaccount.",
             "type": "string"
           }
         },
+        "required": ["subAccountId"],
         "type": "object"
       },
       "DestinationType": {
@@ -491,13 +853,21 @@
       },
       "GetKycStatusResponse": {
         "properties": {
+          "failureReason": {
+            "enum": ["face", "name", "birthdate", "unknown", "tax_id"],
+            "type": "string"
+          },
           "level": {
             "description": "The KYC level achieved.",
-            "type": "number"
+            "type": "string"
+          },
+          "result": {
+            "enum": ["APPROVED", "REJECTED"],
+            "type": "string"
           },
           "status": {
             "description": "The KYC status.",
-            "enum": ["PENDING", "APPROVED", "REJECTED"],
+            "enum": ["PENDING", "PROCESSING", "COMPLETED", "EXPIRED"],
             "type": "string"
           },
           "type": {
@@ -506,6 +876,7 @@
             "type": "string"
           }
         },
+        "required": ["type", "level", "status"],
         "type": "object"
       },
       "GetRampErrorLogsResponse": {
@@ -624,17 +995,13 @@
       },
       "GetUserRemainingLimitResponse": {
         "properties": {
-          "remainingLimitOfframp": {
-            "description": "The remaining limit for offramp operations.",
-            "format": "double",
-            "type": "number"
-          },
-          "remainingLimitOnramp": {
-            "description": "The remaining limit for onramp operations.",
+          "remainingLimit": {
+            "description": "The remaining limit for the requested direction.",
             "format": "double",
             "type": "number"
           }
         },
+        "required": ["remainingLimit"],
         "type": "object"
       },
       "GetUserResponse": {
@@ -643,12 +1010,19 @@
             "description": "The user's EVM wallet address.",
             "type": "string"
           },
+          "identityStatus": {
+            "enum": ["NOT-IDENTIFIED", "CONFIRMED"],
+            "type": "string"
+          },
           "kycLevel": {
             "description": "The user's KYC level.",
-            "enum": [1, 2],
             "type": "number"
+          },
+          "subAccountId": {
+            "type": "string"
           }
         },
+        "required": ["evmAddress", "kycLevel", "identityStatus", "subAccountId"],
         "type": "object"
       },
       "GetWidgetUrlLocked": {
@@ -829,6 +1203,216 @@
         "description": "Supported blockchain networks.",
         "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
         "type": "string"
+      },
+      "OnboardingApiErrorResponse": {
+        "properties": {
+          "error": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "properties": {
+                  "code": { "type": "string" },
+                  "message": { "type": "string" },
+                  "status": { "type": "integer" }
+                },
+                "required": ["code", "message", "status"],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "OnboardingDocumentRequirement": {
+        "properties": {
+          "acceptedMediaTypes": { "items": { "type": "string" }, "type": "array" },
+          "collection": { "enum": ["direct-upload", "hosted"], "type": "string" },
+          "description": { "type": "string" },
+          "required": { "type": "boolean" },
+          "requiredWhen": { "type": "string" },
+          "type": { "type": "string" }
+        },
+        "required": ["type", "required"],
+        "type": "object"
+      },
+      "OnboardingRequirementField": {
+        "properties": {
+          "allowedValues": { "items": { "type": "string" }, "type": "array" },
+          "description": { "type": "string" },
+          "format": { "type": "string" },
+          "path": { "type": "string" },
+          "required": { "type": "boolean" },
+          "requiredWhen": { "type": "string" },
+          "type": { "enum": ["array", "boolean", "number", "string"], "type": "string" }
+        },
+        "required": ["path", "required", "type"],
+        "type": "object"
+      },
+      "OnboardingRequirementStep": {
+        "properties": {
+          "condition": { "type": "string" },
+          "derivedValues": { "additionalProperties": { "type": "string" }, "type": "object" },
+          "description": { "type": "string" },
+          "fixedBody": { "additionalProperties": { "type": "string" }, "type": "object" },
+          "fixedQuery": { "additionalProperties": { "type": "string" }, "type": "object" },
+          "kind": { "enum": ["api", "direct-upload", "hosted"], "type": "string" },
+          "method": { "enum": ["GET", "POST", "PUT"], "type": "string" },
+          "operationId": { "type": "string" },
+          "order": { "minimum": 1, "type": "integer" },
+          "path": { "type": "string" },
+          "repeatFor": { "type": "string" },
+          "requestSchema": { "type": "string" }
+        },
+        "required": ["order", "kind", "description"],
+        "type": "object"
+      },
+      "OnboardingRequirementsErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "enum": ["INVALID_ONBOARDING_REQUIREMENTS_QUERY", "ONBOARDING_REQUIREMENTS_NOT_FOUND"],
+                "type": "string"
+              },
+              "message": { "type": "string" },
+              "status": { "enum": [400, 404], "type": "integer" }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "OnboardingRequirementsResponse": {
+        "properties": {
+          "country": { "enum": ["AR", "BR", "CO", "MX", "US"], "type": "string" },
+          "customerType": { "enum": ["individual", "business"], "type": "string" },
+          "documentationUrl": { "format": "uri", "type": "string" },
+          "documents": { "items": { "$ref": "#/components/schemas/OnboardingDocumentRequirement" }, "type": "array" },
+          "fields": { "items": { "$ref": "#/components/schemas/OnboardingRequirementField" }, "type": "array" },
+          "flow": { "type": "string" },
+          "mode": { "enum": ["api", "hosted", "hybrid"], "type": "string" },
+          "openapiUrl": { "format": "uri", "type": "string" },
+          "provider": { "enum": ["alfredpay", "avenia"], "type": "string" },
+          "requirementsVersion": { "type": "string" },
+          "steps": { "items": { "$ref": "#/components/schemas/OnboardingRequirementStep" }, "type": "array" }
+        },
+        "required": [
+          "country",
+          "customerType",
+          "documentationUrl",
+          "documents",
+          "fields",
+          "flow",
+          "mode",
+          "openapiUrl",
+          "provider",
+          "requirementsVersion",
+          "steps"
+        ],
+        "type": "object"
+      },
+      "OnboardingStatusResponse": {
+        "properties": {
+          "activeEntityId": { "type": ["string", "null"] },
+          "entities": {
+            "items": {
+              "properties": {
+                "accounts": {
+                  "items": {
+                    "properties": {
+                      "companyName": { "type": ["string", "null"] },
+                      "country": { "type": ["string", "null"] },
+                      "customerType": { "enum": ["individual", "business"], "type": "string" },
+                      "error": {
+                        "oneOf": [
+                          { "type": "null" },
+                          {
+                            "properties": {
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["code", "message"],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "id": { "type": "string" },
+                      "kycCase": {
+                        "oneOf": [
+                          { "type": "null" },
+                          {
+                            "properties": {
+                              "approvedAt": { "format": "date-time", "type": ["string", "null"] },
+                              "failureReasons": { "items": { "type": "string" }, "type": ["array", "null"] },
+                              "level": { "type": ["string", "null"] },
+                              "rejectedAt": { "format": "date-time", "type": ["string", "null"] },
+                              "status": {
+                                "enum": ["pending", "started", "in_review", "approved", "rejected"],
+                                "type": "string"
+                              },
+                              "statusExternal": { "type": ["string", "null"] },
+                              "submittedAt": { "format": "date-time", "type": ["string", "null"] },
+                              "type": { "enum": ["kyc", "kyb"], "type": "string" }
+                            },
+                            "required": [
+                              "approvedAt",
+                              "failureReasons",
+                              "level",
+                              "rejectedAt",
+                              "status",
+                              "statusExternal",
+                              "submittedAt",
+                              "type"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "provider": { "enum": ["alfredpay", "avenia", "monerium", "mykobo"], "type": "string" },
+                      "rail": { "type": ["string", "null"] },
+                      "state": { "enum": ["pending", "started", "in_review", "approved", "rejected"], "type": "string" },
+                      "status": { "enum": ["pending", "started", "in_review", "approved", "rejected"], "type": "string" },
+                      "statusExternal": { "type": ["string", "null"] },
+                      "taxReference": {
+                        "description": "Business tax ID only; individual tax IDs remain private.",
+                        "type": ["string", "null"]
+                      }
+                    },
+                    "required": [
+                      "companyName",
+                      "country",
+                      "customerType",
+                      "error",
+                      "id",
+                      "kycCase",
+                      "provider",
+                      "rail",
+                      "state",
+                      "status",
+                      "statusExternal",
+                      "taxReference"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "id": { "type": "string" },
+                "status": { "enum": ["active", "archived", "blocked"], "type": "string" },
+                "type": { "enum": ["individual", "business"], "type": "string" }
+              },
+              "required": ["accounts", "id", "status", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roles": { "items": { "type": "string" }, "type": "array" },
+          "selectionRequired": { "type": "boolean" }
+        },
+        "required": ["activeEntityId", "entities", "roles", "selectionRequired"],
+        "type": "object"
       },
       "OnChainToken": {
         "enum": ["USDC", "USDT", "ETH", "USDC.E"],
@@ -1219,6 +1803,15 @@
         ],
         "type": "object"
       },
+      "RecordInitialKycAttemptRequest": {
+        "properties": {
+          "quoteId": { "type": "string" },
+          "sessionId": { "type": "string" },
+          "taxId": { "type": "string" }
+        },
+        "required": ["taxId"],
+        "type": "object"
+      },
       "RegisterRampRequest": {
         "properties": {
           "additionalData": {
@@ -1285,6 +1878,22 @@
         "required": ["quoteId", "signingAccounts"],
         "type": "object"
       },
+      "SelectActiveCustomerEntityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "type": { "enum": ["individual", "business"], "type": "string" }
+        },
+        "required": ["type"],
+        "type": "object"
+      },
+      "SelectActiveCustomerEntityResponse": {
+        "properties": {
+          "activeEntityId": { "type": "string" },
+          "type": { "enum": ["individual", "business"], "type": "string" }
+        },
+        "required": ["activeEntityId", "type"],
+        "type": "object"
+      },
       "SimpleStatus": {
         "description": "`PENDING`, `FAILED`, `COMPLETED`",
         "type": "string"
@@ -1316,6 +1925,118 @@
           }
         },
         "required": ["rampId"],
+        "type": "object"
+      },
+      "SubmitInformationResponse": {
+        "properties": {
+          "submissionId": { "type": "string" }
+        },
+        "required": ["submissionId"],
+        "type": "object"
+      },
+      "SubmitKybInformationRequest": {
+        "allOf": [
+          {
+            "if": { "properties": { "transmitsCustomerFunds": { "const": true } } },
+            "then": { "required": ["conductsComplianceScreening"] }
+          },
+          {
+            "if": {
+              "properties": { "conductsComplianceScreening": { "const": true } },
+              "required": ["conductsComplianceScreening"]
+            },
+            "then": { "required": ["complianceScreeningDescription"] }
+          }
+        ],
+        "properties": {
+          "accountPurpose": { "type": "string" },
+          "address": { "type": "string" },
+          "businessActivities": { "type": "string" },
+          "businessName": { "type": "string" },
+          "city": { "type": "string" },
+          "complianceScreeningDescription": { "type": "string" },
+          "conductsComplianceScreening": { "type": "boolean" },
+          "country": { "enum": ["CO", "MX"], "type": "string" },
+          "expectedMonthlyTransactions": { "minimum": 0, "type": "integer" },
+          "expectedMonthlyVolumeUsd": { "minimum": 0, "type": "number" },
+          "isRegulatedBusiness": { "type": "boolean" },
+          "operatesInSanctionedCountries": { "type": "boolean" },
+          "relatedPersons": {
+            "items": { "$ref": "#/components/schemas/AlfredpayKybRelatedPerson" },
+            "minItems": 1,
+            "type": "array"
+          },
+          "sourceOfFunds": { "type": "string" },
+          "state": { "type": "string" },
+          "taxId": { "type": "string" },
+          "transmitsCustomerFunds": { "type": "boolean" },
+          "walletAddresses": { "type": "string" },
+          "website": { "format": "uri", "type": "string" },
+          "zipCode": { "type": "string" }
+        },
+        "required": [
+          "businessName",
+          "taxId",
+          "country",
+          "address",
+          "state",
+          "city",
+          "zipCode",
+          "website",
+          "relatedPersons",
+          "walletAddresses",
+          "sourceOfFunds",
+          "transmitsCustomerFunds",
+          "operatesInSanctionedCountries",
+          "isRegulatedBusiness",
+          "businessActivities",
+          "accountPurpose",
+          "expectedMonthlyVolumeUsd",
+          "expectedMonthlyTransactions"
+        ],
+        "type": "object"
+      },
+      "SubmitKycInformationRequest": {
+        "oneOf": [
+          {
+            "properties": { "country": { "const": "MX" } },
+            "required": ["email"]
+          },
+          {
+            "properties": { "country": { "const": "CO" } },
+            "required": ["typeDocumentCol", "phoneNumber"]
+          },
+          {
+            "properties": { "country": { "const": "AR" } },
+            "required": ["email", "phoneNumber", "countryCode", "nationalities", "typeDocumentAr", "pep"]
+          }
+        ],
+        "properties": {
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "country": { "enum": ["AR", "CO", "MX"], "type": "string" },
+          "countryCode": { "type": "string" },
+          "cuit": { "pattern": "^[0-9]{11}$", "type": "string" },
+          "dateOfBirth": { "format": "date", "type": "string" },
+          "dni": { "type": "string" },
+          "email": { "format": "email", "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "nationalities": { "items": { "type": "string" }, "type": "array" },
+          "pep": { "type": "boolean" },
+          "phoneNumber": { "type": "string" },
+          "state": { "type": "string" },
+          "typeDocument": { "type": "string" },
+          "typeDocumentAr": { "enum": ["DNI"], "type": "string" },
+          "typeDocumentCol": { "enum": ["CC", "CE"], "type": "string" },
+          "zipCode": { "type": "string" }
+        },
+        "required": ["firstName", "lastName", "dateOfBirth", "country", "city", "state", "zipCode", "address", "dni"],
+        "type": "object"
+      },
+      "SuccessResponse": {
+        "properties": { "success": { "const": true, "type": "boolean" } },
+        "required": ["success"],
         "type": "object"
       },
       "TaxIdType": {
@@ -1505,6 +2226,414 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/alfredpay/alfredpayStatus": {
+      "get": {
+        "description": "Reads and, when applicable, refreshes the effective profile's Alfredpay onboarding status.",
+        "operationId": "getAlfredpayStatus",
+        "parameters": [
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } },
+          {
+            "description": "Selects the individual or business customer. When omitted, the active customer entity is used for backward compatibility.",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/AlfredpayCustomerType" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayStatusResponse" } } },
+            "description": "Current onboarding status."
+          },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "No Alfredpay customer exists." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay onboarding status",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/createBusinessCustomer": {
+      "post": {
+        "description": "Creates the effective profile's Alfredpay business customer.",
+        "operationId": "createAlfredpayBusinessCustomer",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerResponse" } } },
+            "description": "Customer created."
+          },
+          "400": { "description": "Invalid country or customer state." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create Alfredpay business customer",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/createIndividualCustomer": {
+      "post": {
+        "description": "Creates the effective profile's Alfredpay individual customer.",
+        "operationId": "createAlfredpayIndividualCustomer",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerResponse" } } },
+            "description": "Customer created."
+          },
+          "400": { "description": "Invalid country or customer state." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create Alfredpay individual customer",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/findKybCustomerAndBusiness": {
+      "get": {
+        "description": "Returns the submission and related-person identifiers needed for representative document uploads.",
+        "operationId": "findAlfredpayKybCustomerAndBusiness",
+        "parameters": [
+          { "in": "query", "name": "country", "required": true, "schema": { "enum": ["CO", "MX"], "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayKybDetailsResponse" } } },
+            "description": "Matching KYB submissions."
+          },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer or submission not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Find Alfredpay KYB submission identifiers",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/getKybRedirectLink": {
+      "get": {
+        "description": "Creates or reads the provider-hosted business KYB session.",
+        "operationId": "getAlfredpayKybRedirectLink",
+        "parameters": [
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" } } },
+            "description": "Hosted verification URL."
+          },
+          "400": { "description": "Verification is already in review or completed." },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay KYB redirect link",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/getKycRedirectLink": {
+      "get": {
+        "description": "Creates or reads the provider-hosted individual KYC session.",
+        "operationId": "getAlfredpayKycRedirectLink",
+        "parameters": [
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" } } },
+            "description": "Hosted verification URL."
+          },
+          "400": { "description": "Verification is already in review or completed." },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay KYC redirect link",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/getKycStatus": {
+      "get": {
+        "description": "Reads individual KYC or business KYB status. `type` defaults to `INDIVIDUAL`.",
+        "operationId": "getAlfredpayKycStatus",
+        "parameters": [
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/AlfredpayCustomerType" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayKycStatusResponse" } } },
+            "description": "Current KYC or KYB status."
+          },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer or submission not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay KYC or KYB status",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/kycRedirectFinished": {
+      "post": {
+        "description": "Records customer-reported completion of the provider-hosted form. Provider status remains authoritative.",
+        "operationId": "notifyAlfredpayKycRedirectFinished",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectNotificationRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "Event recorded."
+          },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Record Alfredpay hosted form completion",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/kycRedirectOpened": {
+      "post": {
+        "description": "Records that the customer opened the provider-hosted form. This is not a compliance decision.",
+        "operationId": "notifyAlfredpayKycRedirectOpened",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectNotificationRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "Event recorded."
+          },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Record Alfredpay hosted form opened",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/retryKyc": {
+      "post": {
+        "description": "Restarts the existing API-based or hosted Alfredpay verification flow.",
+        "operationId": "retryAlfredpayKyc",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRetryRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRetryResponse" } } },
+            "description": "Retry started. Hosted flows return a link; API flows return success."
+          },
+          "400": { "description": "No failed submission exists or the current status cannot be retried." },
+          "401": { "description": "Authentication required." },
+          "404": { "description": "Customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Retry Alfredpay verification",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/sendKybSubmission": {
+      "post": {
+        "description": "Finalizes an API-driven Alfredpay business KYB submission.",
+        "operationId": "sendAlfredpayKybSubmission",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySendSubmissionRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "Submission finalized."
+          },
+          "400": { "description": "Invalid or incomplete submission." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Business customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Finalize Alfredpay KYB submission",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/sendKycSubmission": {
+      "post": {
+        "description": "Finalizes an API-driven Alfredpay individual KYC submission.",
+        "operationId": "sendAlfredpayKycSubmission",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySendSubmissionRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "Submission finalized."
+          },
+          "400": { "description": "Invalid or incomplete submission." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Individual customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Finalize Alfredpay KYC submission",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/submitKybFile": {
+      "post": {
+        "description": "Uploads one company KYB file. Files are limited to 5 MiB.",
+        "operationId": "submitAlfredpayKybFile",
+        "requestBody": {
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayKybFileUploadRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": { "description": "Invalid multipart request." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Business customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload Alfredpay KYB file",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/submitKybInformation": {
+      "post": {
+        "description": "Creates or updates an API-driven Alfredpay business KYB submission for MX or CO.",
+        "operationId": "submitAlfredpayKybInformation",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitKybInformationRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitInformationResponse" } } },
+            "description": "Submission created or updated."
+          },
+          "400": { "description": "Invalid company, representative, or questionnaire data." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Business customer not found." },
+          "409": { "description": "KYB is already in review or completed." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Submit Alfredpay KYB information",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/submitKybRelatedPersonFile": {
+      "post": {
+        "description": "Uploads one identity-document side for an Alfredpay KYB related person. Files are limited to 5 MiB.",
+        "operationId": "submitAlfredpayKybRelatedPersonFile",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayKybRelatedPersonFileUploadRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": { "description": "Invalid multipart request." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Business customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload Alfredpay related-person file",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/submitKycFile": {
+      "post": {
+        "description": "Uploads one individual KYC file. Files are limited to 5 MiB.",
+        "operationId": "submitAlfredpayKycFile",
+        "requestBody": {
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayKycFileUploadRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": { "description": "Invalid multipart request." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Individual customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload Alfredpay KYC file",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/alfredpay/submitKycInformation": {
+      "post": {
+        "description": "Creates an API-driven Alfredpay individual KYC submission for MX, CO, or AR.",
+        "operationId": "submitAlfredpayKycInformation",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitKycInformationRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitInformationResponse" } } },
+            "description": "Submission created."
+          },
+          "400": { "description": "Invalid identity data." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Individual customer not found." },
+          "500": { "description": "Alfredpay request failed." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Submit Alfredpay KYC information",
+        "tags": ["KYC and KYB"]
+      }
+    },
     "/v1/api-credentials": {
       "get": {
         "deprecated": false,
@@ -1862,7 +2991,7 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Creates the Avenia individual or company subaccount owned by the effective profile. `quoteId` and `sessionId` are optional provenance fields. A managed-profile manager supplies `X-Managed-Profile-Id` and must have the BR corridor.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "createSubaccount",
         "parameters": [],
         "requestBody": {
@@ -1910,7 +3039,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create user or retry KYC",
         "tags": ["Account Management"]
       }
@@ -1918,7 +3047,7 @@
     "/v1/brla/getKycStatus": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the latest Avenia KYC attempt status owned by the effective profile.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "fetchSubaccountKycStatus",
         "parameters": [
           {
@@ -1977,7 +3106,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's KYC status",
         "tags": ["Account Management"]
       }
@@ -1985,7 +3114,7 @@
     "/v1/brla/getSelfieLivenessUrl": {
       "get": {
         "deprecated": false,
-        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the Avenia selfie/liveness-check URL for the owned subaccount.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "brlaGetSelfieLivenessUrl",
         "parameters": [
           {
@@ -2038,7 +3167,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get selfie liveness URL",
         "tags": ["Account Management"]
       }
@@ -2046,7 +3175,7 @@
     "/v1/brla/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Returns presigned upload URLs for the owned user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "brlaGetUploadUrls",
         "requestBody": {
           "content": {
@@ -2093,7 +3222,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get KYC document upload URLs",
         "tags": ["Account Management"]
       }
@@ -2101,14 +3230,14 @@
     "/v1/brla/getUser": {
       "get": {
         "deprecated": false,
-        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Fetches the effective profile's Avenia subaccount information. `taxId` is an optional ownership cross-check.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "getBrlaUser",
         "parameters": [
           {
             "description": "The user's Tax ID.",
             "in": "query",
             "name": "taxId",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -2160,7 +3289,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user information",
         "tags": ["Account Management"]
       }
@@ -2168,15 +3297,25 @@
     "/v1/brla/getUserRemainingLimit": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the remaining Avenia limit for one ramp direction. `taxId` is an optional ownership cross-check.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "getBrlaUserRemainingLimit",
         "parameters": [
           {
             "description": "The user's Tax ID.",
             "in": "query",
             "name": "taxId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Ramp direction whose remaining limit should be returned.",
+            "in": "query",
+            "name": "direction",
             "required": true,
             "schema": {
+              "enum": ["BUY", "SELL"],
               "type": "string"
             }
           }
@@ -2227,15 +3366,182 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's remaining transaction limits",
         "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/kyb/attempt-status": {
+      "get": {
+        "description": "Reads an Avenia KYB attempt after binding it to the effective profile's company account.",
+        "operationId": "getAveniaKybAttemptStatus",
+        "parameters": [{ "in": "query", "name": "attemptId", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybAttemptStatusResponse" } } },
+            "description": "KYB attempt status."
+          },
+          "400": { "description": "Invalid attempt identifier." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Attempt does not belong to the effective profile." },
+          "404": { "description": "Attempt not found." },
+          "409": { "description": "The attempt is no longer the current bound KYB attempt." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Avenia KYB attempt status",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyb/documents": {
+      "post": {
+        "description": "Creates an Avenia document and returns presigned upload targets. Upload bytes directly to the returned URLs.",
+        "operationId": "createAveniaKybDocument",
+        "parameters": [{ "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybDocumentRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybDocumentUploadResponse" } } },
+            "description": "Document upload targets created."
+          },
+          "400": { "description": "Invalid document request." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Subaccount not found." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create Avenia KYB document",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyb/documents/{documentId}": {
+      "get": {
+        "description": "Reads readiness and upload status for an owned Avenia KYB document.",
+        "operationId": "getAveniaKybDocument",
+        "parameters": [
+          { "in": "path", "name": "documentId", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybDocumentResponse" } } },
+            "description": "Document status."
+          },
+          "400": { "description": "Invalid document identifier." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Document does not belong to the effective profile." },
+          "404": { "description": "Document not found." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Avenia KYB document",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyb/new-level-1/api": {
+      "post": {
+        "description": "Submits the API-driven Avenia Level 1 KYB attempt after validating the owned corporate documents and UBO references.",
+        "operationId": "submitAveniaKybLevel1Api",
+        "parameters": [{ "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybLevel1Payload" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KycLevel1Response" } } },
+            "description": "KYB attempt submitted."
+          },
+          "400": { "description": "Invalid submission or document state." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Subaccount or referenced document not found." },
+          "409": { "description": "A different KYB submission is already in progress." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Submit API-driven Avenia KYB",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyb/new-level-1/web-sdk": {
+      "post": {
+        "description": "Starts the existing provider-hosted Avenia Level 1 KYB flow for an owned company subaccount.",
+        "operationId": "startAveniaKybLevel1Hosted",
+        "parameters": [{ "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaKybHostedResponse" } } },
+            "description": "Hosted KYB URLs created."
+          },
+          "400": { "description": "Invalid company account or KYB state." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Subaccount not found." },
+          "409": { "description": "KYB is already active, approved, or conflicts with an API submission." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Start hosted Avenia KYB",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyb/ubos": {
+      "post": {
+        "description": "Registers a UBO after verifying that referenced identity documents are ready and owned by the company subaccount.",
+        "operationId": "createAveniaKybUbo",
+        "parameters": [{ "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaUboPayload" } } },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AveniaUboResponse" } } },
+            "description": "UBO registered."
+          },
+          "400": { "description": "Invalid UBO or document state." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." },
+          "404": { "description": "Subaccount or referenced document not found." },
+          "409": { "description": "A referenced document is not ready." },
+          "502": { "description": "Avenia is unavailable or returned an invalid response." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create Avenia KYB UBO",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/brla/kyc/record-attempt": {
+      "post": {
+        "description": "Records the initial Avenia KYC consultation for the effective profile.",
+        "operationId": "recordInitialAveniaKycAttempt",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecordInitialKycAttemptRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "additionalProperties": false, "type": "object" } } },
+            "description": "Attempt recorded."
+          },
+          "400": { "description": "Invalid request." },
+          "401": { "description": "Authentication required." },
+          "403": { "description": "Managed profile or corridor is not authorized." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Record initial Avenia KYC attempt",
+        "tags": ["KYC and KYB"]
       }
     },
     "/v1/brla/newKyc": {
       "post": {
         "deprecated": false,
-        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** uses `optionalAuth`.",
+        "description": "Submits the owned user's KYC Level 1 payload after documents have been uploaded via `/v1/brla/getUploadUrls`.\n\n**Auth:** Supabase Bearer or profile-bound secret API key.",
         "operationId": "brlaNewKyc",
         "requestBody": {
           "content": {
@@ -2282,7 +3588,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Submit KYC level 1 data",
         "tags": ["Account Management"]
       }
@@ -2326,11 +3632,6 @@
             "description": "Missing or invalid pix key.",
             "headers": {}
           },
-          "401": {
-            "content": {},
-            "description": "Supabase Bearer required.",
-            "headers": {}
-          },
           "500": {
             "content": {
               "application/json": {
@@ -2344,7 +3645,7 @@
           }
         },
         "security": [],
-        "summary": "Validate Pix key",
+        "summary": "Validate PIX key",
         "tags": ["Account Management"]
       }
     },
@@ -2390,6 +3691,90 @@
         "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user ramp limits",
         "tags": ["Account Management"]
+      }
+    },
+    "/v1/onboarding/active-entity": {
+      "put": {
+        "description": "Selects the authenticated profile's immutable active customer-entity type. Managed-child delegation is not supported.",
+        "operationId": "selectActiveCustomerEntity",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SelectActiveCustomerEntityRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SelectActiveCustomerEntityResponse" } }
+            },
+            "description": "Active customer entity selected."
+          },
+          "400": { "description": "Invalid customer-entity type." },
+          "401": { "description": "Supabase Bearer authentication required." },
+          "404": { "description": "No active owned entity of the requested type exists." },
+          "409": { "description": "The selection conflicts with an existing selection or is ambiguous." },
+          "500": { "description": "Selection could not be completed." }
+        },
+        "security": [{ "BearerAuth": [] }],
+        "summary": "Select active customer entity",
+        "tags": ["KYC and KYB"]
+      }
+    },
+    "/v1/onboarding/requirements": {
+      "get": {
+        "description": "Returns versioned field, document, and ordered-operation metadata for an existing Avenia or Alfredpay onboarding flow. This endpoint does not return profile state or customer PII and does not replace the provider-specific operations it references. Monerium is outside this discovery proposal.",
+        "operationId": "getOnboardingRequirements",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "country",
+            "required": true,
+            "schema": { "enum": ["AR", "BR", "CO", "MX", "US"], "type": "string" }
+          },
+          {
+            "in": "query",
+            "name": "customerType",
+            "required": true,
+            "schema": { "enum": ["individual", "business"], "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingRequirementsResponse" } } },
+            "description": "Requirements and existing operation sequence."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingRequirementsErrorResponse" } }
+            },
+            "description": "Missing or invalid query."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingRequirementsErrorResponse" } }
+            },
+            "description": "No published flow exists for the country and customer type."
+          }
+        },
+        "security": [],
+        "summary": "Discover KYC or KYB requirements",
+        "tags": ["KYC and KYB", "Reference Data"]
+      }
+    },
+    "/v1/onboarding/status": {
+      "get": {
+        "description": "Returns the effective profile's aggregate customer entities, provider accounts, and KYC/KYB cases. A manager may select an authorized child with `X-Managed-Profile-Id`.",
+        "operationId": "getOnboardingStatus",
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingStatusResponse" } } },
+            "description": "Aggregate onboarding status."
+          },
+          "401": { "description": "Authentication required." },
+          "500": { "description": "Onboarding state could not be read." }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get aggregate onboarding status",
+        "tags": ["KYC and KYB"]
       }
     },
     "/v1/public-key": {
@@ -4616,6 +6001,10 @@
     {
       "description": "User account, KYC, and BRLA subaccount operations.",
       "name": "Account Management"
+    },
+    {
+      "description": "Provider-specific identity and business verification operations and discovery metadata.",
+      "name": "KYC and KYB"
     },
     {
       "description": "Email OTP sign-in and user-linked API key provisioning.",

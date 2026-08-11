@@ -127,7 +127,6 @@ AlfredpayGetKybStatusResponse: {
 
 AlfredpayGetKycRedirectLinkRequest: {
   country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
 }
 
 AlfredpayGetKycRedirectLinkResponse: {
@@ -210,6 +209,7 @@ AlfredpayRetryKycRequest: {
 
 AlfredpayStatusRequest: {
   country: string;
+  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
 }
 
 AlfredpayStatusResponse: {
@@ -386,7 +386,7 @@ AveniaKYCDataUpload: {
 }
 
 AveniaKYCDataUploadRequest: {
-  documentType: enum AveniaDocumentType { DRIVERS_LICENSE = "DRIVERS-LICENSE", ID = "ID", PASSPORT = "PASSPORT", SELFIE = "SELFIE", SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS" };
+  documentType: enum AveniaDocumentType { CERTIFICATE_OF_INCORPORATION = "CERTIFICATE-OF-INCORPORATION", COMPANY_TAX_IDENTIFICATION_DOCUMENT = "COMPANY-TAX-IDENTIFICATION-DOCUMENT", DRIVERS_LICENSE = "DRIVERS-LICENSE", ID = "ID", PASSPORT = "PASSPORT", RESIDENCE_PERMIT = "RESIDENCE-PERMIT", SELFIE = "SELFIE", SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS" };
   isDoubleSided?: boolean;
   taxId: string;
 }
@@ -427,7 +427,7 @@ BrlaGetKycStatusRequest: {
 BrlaGetKycStatusResponse: {
   failureReason?: KycFailureReason.BIRTHDATE | KycFailureReason.FACE | KycFailureReason.NAME | KycFailureReason.TAX_ID | KycFailureReason.UNKNOWN;
   level: string;
-  result: enum KycAttemptResult { APPROVED = "APPROVED", REJECTED = "REJECTED" };
+  result?: KycAttemptResult.APPROVED | KycAttemptResult.REJECTED;
   status: enum KycAttemptStatus { COMPLETED = "COMPLETED", EXPIRED = "EXPIRED", PENDING = "PENDING", PROCESSING = "PROCESSING" };
   type: "KYC";
 }
@@ -475,7 +475,7 @@ BrlaGetUserResponse: {
 BrlaKYCDocType: enum BrlaKYCDocType { CNH = "CNH", RG = "RG" }
 
 BrlaPostRecordInitialKycAttemptRequest: {
-  quoteId: string;
+  quoteId?: string;
   sessionId?: string;
   taxId: string;
 }
@@ -639,6 +639,56 @@ EvmTransactionData: {
 FiatCurrency: FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD
 
 FlowType: OfframpHandlerType.ASSETHUB_TO_BRLA | OfframpHandlerType.EVM_TO_BRLA | OnrampHandlerType.BRLA_TO_ASSETHUB | OnrampHandlerType.BRLA_TO_EVM
+
+GetOnboardingRequirementsErrorResponse: {
+  error: {
+    code: "INVALID_ONBOARDING_REQUIREMENTS_QUERY" | "ONBOARDING_REQUIREMENTS_NOT_FOUND";
+    message: string;
+    status: 400 | 404;
+  };
+}
+
+GetOnboardingRequirementsResponse: {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  fields: Array<{
+    allowedValues?: Array<string>;
+    description?: string;
+    format?: string;
+    path: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: "array" | "boolean" | "number" | "string";
+  }>;
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  provider: "alfredpay" | "avenia";
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "GET" | "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
+}
 
 GetQuoteRequest: {
   id: string;
@@ -998,7 +1048,91 @@ MoonpayPriceResponse: {
   totalFee: number;
 }
 
+ONBOARDING_REQUIREMENTS: Record<"AR" | "BR" | "CO" | "MX" | "US", Partial<Record<"business" | "individual", {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  fields: Array<{
+    allowedValues?: Array<string>;
+    description?: string;
+    format?: string;
+    path: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: "array" | "boolean" | "number" | "string";
+  }>;
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  provider: "alfredpay" | "avenia";
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "GET" | "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
+}>>>
+
 OfframpHandlerType: enum OfframpHandlerType { ASSETHUB_TO_BRLA = "assethub-to-brla", EVM_TO_BRLA = "evm-to-brla" }
+
+OnboardingDocumentRequirement: {
+  acceptedMediaTypes?: Array<string>;
+  collection?: "direct-upload" | "hosted";
+  description?: string;
+  required: boolean;
+  requiredWhen?: string;
+  type: string;
+}
+
+OnboardingFlowMode: "api" | "hosted" | "hybrid"
+
+OnboardingRequirementField: {
+  allowedValues?: Array<string>;
+  description?: string;
+  format?: string;
+  path: string;
+  required: boolean;
+  requiredWhen?: string;
+  type: "array" | "boolean" | "number" | "string";
+}
+
+OnboardingRequirementFieldType: "array" | "boolean" | "number" | "string"
+
+OnboardingRequirementStep: {
+  condition?: string;
+  derivedValues?: Record<string, string>;
+  description: string;
+  fixedBody?: Record<string, string>;
+  fixedQuery?: Record<string, string>;
+  kind: "api" | "direct-upload" | "hosted";
+  method?: "GET" | "POST" | "PUT";
+  operationId?: string;
+  order: number;
+  path?: string;
+  repeatFor?: string;
+  requestSchema?: string;
+}
+
+OnboardingRequirementsCountry: "AR" | "BR" | "CO" | "MX" | "US"
+
+OnboardingStepKind: "api" | "direct-upload" | "hosted"
 
 OnrampHandlerType: enum OnrampHandlerType { BRLA_TO_ASSETHUB = "brla-to-assethub", BRLA_TO_EVM = "brla-to-evm" }
 
@@ -2310,6 +2444,48 @@ WebhookPayloadBase: {
   transactionId: string;
   transactionStatus: enum TransactionStatus { COMPLETE = "COMPLETE", FAILED = "FAILED", PENDING = "PENDING" };
   transactionType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+}
+
+getOnboardingRequirements: (country: "AR" | "BR" | "CO" | "MX" | "US", customerType: "business" | "individual") => undefined | {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  fields: Array<{
+    allowedValues?: Array<string>;
+    description?: string;
+    format?: string;
+    path: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: "array" | "boolean" | "number" | "string";
+  }>;
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  provider: "alfredpay" | "avenia";
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "GET" | "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
 }
 
 isEvmTransactionData: (data: Array<{

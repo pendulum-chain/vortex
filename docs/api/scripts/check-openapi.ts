@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { ONBOARDING_REQUIREMENTS } from "../../../packages/shared/src/endpoints/onboarding-requirements.endpoints";
 
 const OPENAPI_FILE = "docs/api/openapi/vortex.openapi.json";
 const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
@@ -6,14 +7,41 @@ const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 const REQUIRED_PATHS = [
   "/v1/api-credentials",
   "/v1/api-credentials/{credentialId}",
+  "/v1/alfredpay/alfredpayStatus",
+  "/v1/alfredpay/createBusinessCustomer",
+  "/v1/alfredpay/createIndividualCustomer",
+  "/v1/alfredpay/findKybCustomerAndBusiness",
+  "/v1/alfredpay/getKybRedirectLink",
+  "/v1/alfredpay/getKycRedirectLink",
+  "/v1/alfredpay/getKycStatus",
+  "/v1/alfredpay/kycRedirectFinished",
+  "/v1/alfredpay/kycRedirectOpened",
+  "/v1/alfredpay/retryKyc",
+  "/v1/alfredpay/sendKybSubmission",
+  "/v1/alfredpay/sendKycSubmission",
+  "/v1/alfredpay/submitKybFile",
+  "/v1/alfredpay/submitKybInformation",
+  "/v1/alfredpay/submitKybRelatedPersonFile",
+  "/v1/alfredpay/submitKycFile",
+  "/v1/alfredpay/submitKycInformation",
   "/v1/brla/createSubaccount",
   "/v1/brla/getKycStatus",
   "/v1/brla/getSelfieLivenessUrl",
   "/v1/brla/getUploadUrls",
   "/v1/brla/getUser",
   "/v1/brla/getUserRemainingLimit",
+  "/v1/brla/kyb/attempt-status",
+  "/v1/brla/kyb/documents",
+  "/v1/brla/kyb/documents/{documentId}",
+  "/v1/brla/kyb/new-level-1/api",
+  "/v1/brla/kyb/new-level-1/web-sdk",
+  "/v1/brla/kyb/ubos",
+  "/v1/brla/kyc/record-attempt",
   "/v1/brla/newKyc",
   "/v1/brla/validatePixKey",
+  "/v1/onboarding/requirements",
+  "/v1/onboarding/active-entity",
+  "/v1/onboarding/status",
   "/v1/public-key",
   "/v1/quotes",
   "/v1/quotes/best",
@@ -147,6 +175,41 @@ if (missingPaths.length > 0) {
 const unresolvedRefs = collectRefs(openapi).filter(ref => !pointerExists(openapi, ref));
 if (unresolvedRefs.length > 0) {
   throw new Error(`OpenAPI file has unresolved local refs:\n${unresolvedRefs.join("\n")}`);
+}
+
+const documentedOperations = new Map<string, { method: string; path: string }>();
+for (const [path, pathItem] of Object.entries(openapi.paths as JsonObject)) {
+  if (!pathItem || typeof pathItem !== "object") continue;
+  for (const [method, operation] of Object.entries(pathItem as JsonObject)) {
+    if (!operation || typeof operation !== "object") continue;
+    const operationId = (operation as JsonObject).operationId;
+    if (typeof operationId !== "string") continue;
+    if (documentedOperations.has(operationId)) {
+      throw new Error(`OpenAPI operationId is duplicated: ${operationId}`);
+    }
+    documentedOperations.set(operationId, { method: method.toUpperCase(), path });
+  }
+}
+
+for (const flows of Object.values(ONBOARDING_REQUIREMENTS)) {
+  for (const requirements of Object.values(flows)) {
+    if (!requirements) continue;
+    for (const step of requirements.steps) {
+      if (step.kind !== "api" || !step.operationId || !step.method || !step.path) continue;
+      const operation = documentedOperations.get(step.operationId);
+      if (!operation) {
+        throw new Error(`Onboarding discovery references missing OpenAPI operationId: ${step.operationId}`);
+      }
+      if (operation.method !== step.method || operation.path !== step.path) {
+        throw new Error(
+          `Onboarding discovery operation ${step.operationId} maps to ${step.method} ${step.path}, not ${operation.method} ${operation.path}`
+        );
+      }
+      if (step.requestSchema && !pointerExists(openapi, step.requestSchema)) {
+        throw new Error(`Onboarding discovery references missing OpenAPI schema: ${step.requestSchema}`);
+      }
+    }
+  }
 }
 
 const manifest = readJson(MANIFEST_FILE);

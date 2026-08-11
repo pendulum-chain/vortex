@@ -232,10 +232,10 @@ export class AlfredpayController {
 
   static async alfredpayStatus(req: Request, res: Response) {
     try {
-      const { country } = req.query as unknown as AlfredpayStatusRequest;
+      const { country, type } = req.query as unknown as AlfredpayStatusRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, type);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });

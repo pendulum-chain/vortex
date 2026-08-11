@@ -1,4 +1,11 @@
-import { BrlaApiService, KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
+import {
+  BrlaApiService,
+  getOnboardingRequirements as findOnboardingRequirements,
+  KycAttemptResult,
+  KycAttemptStatus,
+  ONBOARDING_REQUIREMENTS,
+  OnboardingRequirementsCountry
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -19,6 +26,48 @@ import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../servic
 // concurrent polls. In-memory on purpose: per instance, the cap just multiplies by instance count.
 const PROVIDER_REFRESH_TTL_MS = 60_000;
 const lastProviderRefreshAt = new Map<string, number>();
+
+/** GET /v1/onboarding/requirements - public metadata for an existing provider-specific flow. */
+export function getOnboardingRequirements(req: Request, res: Response): void {
+  const country = typeof req.query.country === "string" ? req.query.country.toUpperCase() : "";
+  const customerType = typeof req.query.customerType === "string" ? req.query.customerType.toLowerCase() : "";
+
+  if (!country || (customerType !== "individual" && customerType !== "business")) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: {
+        code: "INVALID_ONBOARDING_REQUIREMENTS_QUERY",
+        message: "country and customerType (individual or business) are required",
+        status: httpStatus.BAD_REQUEST
+      }
+    });
+    return;
+  }
+
+  if (!(country in ONBOARDING_REQUIREMENTS)) {
+    res.status(httpStatus.NOT_FOUND).json({
+      error: {
+        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
+        status: httpStatus.NOT_FOUND
+      }
+    });
+    return;
+  }
+
+  const requirements = findOnboardingRequirements(country as OnboardingRequirementsCountry, customerType);
+  if (!requirements) {
+    res.status(httpStatus.NOT_FOUND).json({
+      error: {
+        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
+        status: httpStatus.NOT_FOUND
+      }
+    });
+    return;
+  }
+
+  res.status(httpStatus.OK).json(requirements);
+}
 
 function shouldRefreshProviderStatus(customerId: string): boolean {
   const now = Date.now();

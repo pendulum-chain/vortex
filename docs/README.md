@@ -25,7 +25,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md) | Active proposal for delegated management of headless customer profiles |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
-| [`proposal-unified-kyc-kyb-api.md`](proposal-unified-kyc-kyb-api.md) | Early proposal for API-driven, provider-neutral customer verification |
+| [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
 repository wayfinding, and `CLAUDE.md` files contain instructions for coding agents.

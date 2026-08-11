@@ -370,6 +370,21 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       const buyIds = (buyMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id);
       expect(buyIds.sort()).toEqual(["ach", "pix", "spei"]);
 
+      const requirements = await requestJson("/v1/onboarding/requirements?country=BR&customerType=business");
+      expect(requirements.status).toBe(200);
+      expect(requirements.body).toMatchObject({
+        country: "BR",
+        customerType: "business",
+        flow: "avenia-br-business-level-1-api-kyb",
+        provider: "avenia"
+      });
+      expect((requirements.body.steps as Array<{ operationId?: string }>).map(step => step.operationId).filter(Boolean)).toContain(
+        "submitAveniaKybLevel1Api"
+      );
+
+      const unsupportedRequirements = await requestJson("/v1/onboarding/requirements?country=AR&customerType=business");
+      expect(unsupportedRequirements.status).toBe(404);
+
       const mxnMethods = await requestJson("/v1/supported-payment-methods?fiat=MXN");
       expect(mxnMethods.status).toBe(200);
       expect((mxnMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id)).toEqual(["spei"]);

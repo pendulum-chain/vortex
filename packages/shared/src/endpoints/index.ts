@@ -5,6 +5,7 @@ export * from "./contact.endpoints";
 export * from "./email.endpoints";
 export * from "./limits.endpoints";
 export * from "./moonbeam.endpoints";
+export * from "./onboarding-requirements.endpoints";
 export * from "./payment-methods.endpoints";
 export * from "./pendulum.endpoints";
 export * from "./price.endpoints";
