@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { CUSTOMER_ENTITY_TYPES } from "../../../models/customerEntity.model";
-import { createManagedProfile } from "../../services/managed-profile-lifecycle.service";
+import { createManagedProfile, ManagedProfileLifecycleError } from "../../services/managed-profile-lifecycle.service";
 import {
   configureManagedProfileManager,
   getManagedProfileManager,
@@ -135,13 +135,14 @@ export async function postManagedProfileForManager(req: Request<{ profileId: str
     });
     res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ managedProfile: result.managedProfile });
   } catch (error) {
-    if (error instanceof ManagedProfileProvisioningError) {
+    // createManagedProfile provisions and then re-reads the result, so it raises both classes.
+    if (error instanceof ManagedProfileProvisioningError || error instanceof ManagedProfileLifecycleError) {
       const status =
         error.code === "MANAGED_PROFILE_CONFLICT"
           ? httpStatus.CONFLICT
           : error.code === "MANAGED_PROFILE_INVALID_INPUT"
             ? httpStatus.BAD_REQUEST
-            : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND"
+            : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND" || error.code === "MANAGED_PROFILE_NOT_FOUND"
               ? httpStatus.NOT_FOUND
               : httpStatus.CONFLICT;
       res.status(status).json({ error: { code: error.code, message: error.message, status } });

@@ -101,6 +101,14 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
     if (!manager.isActive) {
       throw new ManagedProfileProvisioningError("MANAGED_PROFILE_MANAGER_INACTIVE", "Managed profile manager is inactive");
     }
+    // Operations are narrowed at request time too, but a child the manager could never operate
+    // is only a dead record, so refuse it at the point of creation.
+    if (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes(input.customerType)) {
+      throw new ManagedProfileProvisioningError(
+        "MANAGED_PROFILE_INVALID_INPUT",
+        "The manager is not allowed to provision this customer type"
+      );
+    }
 
     const existing = await ManagedProfile.findOne({
       transaction,

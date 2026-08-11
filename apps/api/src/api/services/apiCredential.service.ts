@@ -233,8 +233,15 @@ export async function revokeManagedProfileCredential(
   credentialId: string
 ): Promise<void> {
   await requireManagedCredentialSubject(managerProfileId, profileId);
-  const [updated] = await ApiCredential.update({ revokedAt: new Date() }, { where: { id: credentialId, profileId } });
-  if (updated === 0) throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
+  // Revocation stays idempotent, but only the first one writes: a repeat must not rewrite when
+  // the credential actually stopped being valid.
+  const [updated] = await ApiCredential.update(
+    { revokedAt: new Date() },
+    { where: { id: credentialId, profileId, revokedAt: null } }
+  );
+  if (updated === 0 && (await ApiCredential.count({ where: { id: credentialId, profileId } })) === 0) {
+    throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
+  }
 }
 
 export async function listCredentials(filter: { partnerId?: string | null; profileId: string }): Promise<ApiCredentialDto[]> {
@@ -261,8 +268,12 @@ export async function revokeCredential(id: string, filter: { partnerId?: string 
   if (updated === 0) throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
 }
 
+// The profile association is loaded with the credential, so ordinary partner and widget
+// traffic authenticates without a second round-trip just to learn the profile kind.
+const PROFILE_KIND_INCLUDE = [{ as: "profile", attributes: ["kind"], model: User, required: true }];
+
 async function context(credential: ApiCredential, strength: "public" | "secret"): Promise<CredentialContext | null> {
-  const profile = await User.findByPk(credential.profileId, { attributes: ["kind"] });
+  const profile = credential.profile;
   if (!profile) return null;
   let managedProfile: CredentialContext["managedProfile"];
   if (profile.kind === "managed") {
@@ -290,6 +301,7 @@ async function context(credential: ApiCredential, strength: "public" | "secret")
 
 export async function validatePublicKey(publicKey: string): Promise<CredentialContext | null> {
   const credential = await ApiCredential.findOne({
+    include: PROFILE_KIND_INCLUDE,
     where: { expiresAt: { [Op.gt]: new Date() }, publicKeyValue: publicKey, revokedAt: null }
   });
   if (!credential) return null;
@@ -303,6 +315,7 @@ export async function validatePublicKey(publicKey: string): Promise<CredentialCo
 
 export async function validateSecretKey(secretKey: string): Promise<CredentialContext | null> {
   const candidates = await ApiCredential.findAll({
+    include: PROFILE_KIND_INCLUDE,
     where: { expiresAt: { [Op.gt]: new Date() }, revokedAt: null, secretKeyPrefix: getSecretKeyLookupPrefix(secretKey) }
   });
   const presented = Buffer.from(digestApiKey(secretKey), "hex");

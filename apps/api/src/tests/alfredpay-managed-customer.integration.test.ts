@@ -164,8 +164,11 @@ describe("managed Alfredpay customer creation", () => {
   });
 
   it("enforces manager customer-type narrowing before provider access", async () => {
-    const manager = await createManager(["MX"], ["individual"]);
+    // The child predates the narrowing: provisioning refuses a type the manager cannot operate,
+    // so this state only arises when policy is tightened after the child exists.
+    const manager = await createManager(["MX"]);
     const child = await createChild(manager.id, "business", "business@example.com");
+    await ManagedProfileManager.update({ allowedCustomerTypes: ["individual"] }, { where: { profileId: manager.id } });
     const credential = await createTestApiKey({ userId: manager.id });
     const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
     provider(createCustomer);
@@ -250,11 +253,11 @@ describe("managed Alfredpay customer creation", () => {
     expect(await response.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH" } });
     expect(createCustomer).not.toHaveBeenCalled();
 
-    const individual = await createChild(manager.id, "individual", "multipart-individual@example.com");
     await ManagedProfileManager.update(
       { allowedCustomerTypes: ["individual"] },
       { where: { profileId: manager.id } }
     );
+    const individual = await createChild(manager.id, "individual", "multipart-individual@example.com");
     const parsedForm = new FormData();
     parsedForm.set("country", "US");
     parsedForm.set("file", new Blob(["document"]), "document.pdf");

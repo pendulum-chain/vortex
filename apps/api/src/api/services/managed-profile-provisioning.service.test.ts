@@ -16,6 +16,17 @@ async function createManager(isActive = true): Promise<User> {
   return profile;
 }
 
+async function createNarrowedManager(allowedCustomerTypes: Array<"business" | "individual">): Promise<User> {
+  const profile = await createTestUser();
+  await ManagedProfileManager.create({
+    allowedCorridors: ["BR"],
+    allowedCustomerTypes,
+    isActive: true,
+    profileId: profile.id
+  });
+  return profile;
+}
+
 describe("managed profile provisioning", () => {
   beforeAll(setupTestDatabase);
   beforeEach(resetTestDatabase);
@@ -103,10 +114,40 @@ describe("managed profile provisioning", () => {
     };
     await provisionManagedProfile(input);
 
-    expect(provisionManagedProfile({ ...input, customerType: "business" })).rejects.toMatchObject({
+    await expect(provisionManagedProfile({ ...input, customerType: "business" })).rejects.toMatchObject({
       code: "MANAGED_PROFILE_CONFLICT"
     });
     expect(await User.count({ where: { kind: "managed" } })).toBe(1);
+  });
+
+  it("refuses a customer type the manager is not allowed to provision", async () => {
+    const manager = await createNarrowedManager(["individual"]);
+
+    await expect(
+      provisionManagedProfile({
+        contactEmail: "narrowed@example.com",
+        creationSource: "manager",
+        customerType: "business",
+        externalSubjectId: "customer-narrowed",
+        managerProfileId: manager.id
+      })
+    ).rejects.toMatchObject({ code: "MANAGED_PROFILE_INVALID_INPUT" });
+    expect(await User.count({ where: { kind: "managed" } })).toBe(0);
+  });
+
+  it("provisions a customer type within the manager's narrowing", async () => {
+    const manager = await createNarrowedManager(["individual"]);
+
+    const result = await provisionManagedProfile({
+      contactEmail: "allowed@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "customer-allowed",
+      managerProfileId: manager.id
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.customerType).toBe("individual");
   });
 
   it("uses a separate external-subject namespace for each manager", async () => {
