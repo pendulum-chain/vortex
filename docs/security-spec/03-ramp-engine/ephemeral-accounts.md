@@ -4,7 +4,7 @@
 
 Every ramp operation creates temporary blockchain accounts (ephemeral accounts) on one or more chains. These accounts hold user funds in transit as tokens move between chains during the ramp. The lifecycle is: **create → fund → use during ramp phases → clean up residual tokens and reclaim balances**. If any step in this lifecycle fails or is incomplete, user or platform funds can become permanently stuck on an ephemeral account that nobody monitors.
 
-The cleanup process runs as a background worker (`cleanup.worker.ts`) on a 5-minute cron. After a ramp completes, chain-specific post-process handlers sweep residual tokens and reclaim native balances from the ephemeral accounts back to the platform funding accounts.
+The cleanup process runs as a background worker (`cleanup.worker.ts`) on a 5-minute cron. After a ramp completes, chain-specific post-process handlers sweep residual tokens. Most platform-owned dust returns to the platform funding accounts; AlfredPay SELL's positive Squid USDT execution variance returns to the user's registered source wallet.
 
 ### Chains Involved
 
@@ -23,7 +23,7 @@ Post-process handlers registered in `apps/api/src/api/services/phases/post-proce
 
 - **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
 - **MoonbeamPostProcessHandler** — Waits 3 hours for SquidRouter refunds to land, then submits `moonbeamCleanup` to sweep Moonbeam ephemeral tokens.
-- **PolygonPostProcessHandler** — On Polygon-routed ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero. This is active for Alfredpay corridors and also protects any still-in-flight legacy Polygon ramps.
+- **PolygonPostProcessHandler** — On completed Polygon-routed ramps with a cleanup approval, broadcasts the user's pre-signed `approve` and runs `transferFrom` from the funding key. Platform-owned/legacy dust goes to the funding account. For AlfredPay SELL USDT, which can remain when Squid executes above its guaranteed minimum, the recipient is the user's registered wallet. Cleanup is skipped when the ephemeral balance is zero. If the provider reports failure after the main transfer, unused fee nonces precede the cleanup approval; automatic post-processing therefore remains disabled and residual tokens stay accessible through the client-custodied ephemeral key for manual reconciliation. This is active for Alfredpay corridors and also protects still-in-flight legacy Polygon ramps.
 - **HydrationPostProcessHandler** — On BUY ramps with a `hydrationCleanup` presigned extrinsic, submits the cleanup extrinsic.
 - **AssetHubPostProcessHandler** — Registered but inert. `shouldProcess` returns `false` unconditionally; `process` returns `[true, null]`. No on-chain action is performed. Effectively a placeholder for future AssetHub cleanup.
 
