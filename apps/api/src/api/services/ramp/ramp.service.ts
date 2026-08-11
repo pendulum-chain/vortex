@@ -523,6 +523,22 @@ export class RampService extends BaseRampService {
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
   public async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
+    return this.startRampWithOptions(request, { enforceDeadline: true, requirePaidAveniaTicket: false });
+  }
+
+  /**
+   * Resume a provider-confirmed Avenia payment whose client never reached /ramp/start.
+   * Payment is an irreversible external commitment, so recovery is allowed after the
+   * client start deadline while retaining every state/transaction validation.
+   */
+  public async recoverPaidAveniaRamp(rampId: string): Promise<StartRampResponse> {
+    return this.startRampWithOptions({ rampId }, { enforceDeadline: false, requirePaidAveniaTicket: true });
+  }
+
+  private async startRampWithOptions(
+    request: StartRampRequest,
+    options: { enforceDeadline: boolean; requirePaidAveniaTicket: boolean }
+  ): Promise<StartRampResponse> {
     return this.withTransaction(async transaction => {
       const rampState = await RampState.findByPk(request.rampId, { lock: Transaction.LOCK.UPDATE, transaction });
 
@@ -552,7 +568,15 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
-      RampService.assertStartDeadlineNotExceeded(rampState);
+      if (options.requirePaidAveniaTicket && !rampState.state.aveniaTicketId) {
+        throw new APIError({
+          message: "Ramp does not have an Avenia payment ticket",
+          status: httpStatus.CONFLICT
+        });
+      }
+      if (options.enforceDeadline) {
+        RampService.assertStartDeadlineNotExceeded(rampState);
+      }
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {

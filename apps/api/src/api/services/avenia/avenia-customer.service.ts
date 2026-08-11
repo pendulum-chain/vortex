@@ -1,5 +1,6 @@
 import { AveniaAccountType, BrlaApiService, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
+import type { Transaction } from "sequelize";
 import logger from "../../../config/logger";
 import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
@@ -23,8 +24,9 @@ export function customerTypeToAccountType(customerType: ProviderCustomerType): A
 }
 
 /** Looks up the Avenia provider account by (raw or normalized) tax id via its sha256 hash. */
-export async function findAveniaCustomerByTaxId(taxId: string): Promise<ProviderCustomer | null> {
+export async function findAveniaCustomerByTaxId(taxId: string, transaction?: Transaction): Promise<ProviderCustomer | null> {
   return ProviderCustomer.findOne({
+    ...(transaction ? { transaction } : {}),
     where: { provider: "avenia", taxReferenceHash: hashTaxReference(taxId) }
   });
 }
@@ -64,7 +66,8 @@ export async function upsertAveniaKycCase(
   record: ProviderCustomer,
   status: VerificationStatus,
   statusExternal: string | null = record.statusExternal,
-  providerCaseId?: string
+  providerCaseId?: string,
+  transaction?: Transaction
 ): Promise<void> {
   const lifecycle = {
     ...(status === VerificationStatus.InReview ? { submittedAt: new Date() } : {}),
@@ -72,22 +75,27 @@ export async function upsertAveniaKycCase(
     ...(status === VerificationStatus.Rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
   };
 
-  const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
+  const existing = await KycCase.findOne({
+    ...(transaction ? { transaction } : {}),
+    where: { providerCustomerId: record.id }
+  });
   if (existing) {
-    await existing.update({ ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle });
+    const values = { ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle };
+    await (transaction ? existing.update(values, { transaction }) : existing.update(values));
     return;
   }
-  await KycCase.create({
+  const values = {
     customerEntityId: record.customerEntityId,
     level: "level_1",
-    provider: "avenia",
+    provider: "avenia" as const,
     providerCaseId,
     providerCustomerId: record.id,
     status,
     statusExternal,
-    type: record.customerType === "business" ? "kyb" : "kyc",
+    type: record.customerType === "business" ? ("kyb" as const) : ("kyc" as const),
     ...lifecycle
-  });
+  };
+  await (transaction ? KycCase.create(values, { transaction }) : KycCase.create(values));
 }
 
 /**

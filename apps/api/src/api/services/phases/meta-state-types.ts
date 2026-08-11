@@ -37,6 +37,7 @@ export interface StateMetadata {
   distributeFeeHash: string;
   // Only used in onramp - brla
   aveniaTicketId: string;
+  subAccountId?: string;
   onHold?: boolean;
   taxId: string;
   pixDestination: string;

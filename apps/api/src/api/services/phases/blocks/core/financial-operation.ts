@@ -7,9 +7,9 @@ import { abortableCall, throwIfAborted } from "./cancellation";
 import type { FlowIdentity } from "./identity";
 
 export interface RunFinancialOperationArgs<Result> {
-  scopeType: "quote" | "ramp";
+  scopeType: "profile" | "quote" | "ramp";
   scopeId: string;
-  flow: FlowIdentity;
+  flow: Pick<FlowIdentity, "id" | "version">;
   phase: string;
   attemptClass: string;
   provider: string;
