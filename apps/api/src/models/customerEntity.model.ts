@@ -1,7 +1,8 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-export type CustomerEntityType = "individual" | "business";
+export const CUSTOMER_ENTITY_TYPES = ["individual", "business"] as const;
+export type CustomerEntityType = (typeof CUSTOMER_ENTITY_TYPES)[number];
 export type CustomerEntityStatus = "active" | "archived" | "blocked";
 
 // The legal/compliance customer — the owner anchor for provider accounts and KYC cases.

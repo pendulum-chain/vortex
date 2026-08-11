@@ -230,11 +230,11 @@ export const recordInitialKycAttempt = async (
   res: Response<Record<string, never> | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId } = req.body;
+    const { quoteId, taxId } = req.body;
     const effectiveUserId = getEffectiveUserId(req);
 
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
+    if (!quoteId || !taxId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing quoteId or taxId body parameter" });
       return;
     }
 

@@ -1,4 +1,4 @@
-import type { CorridorCountry } from "@vortexfi/shared";
+import type { CorridorCountry, CorridorCustomerType } from "@vortexfi/shared";
 import { Transaction } from "sequelize";
 import sequelize from "../../config/database";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
@@ -16,6 +16,7 @@ export class ManagedProfileManagerError extends Error {
 
 export interface ManagedProfileManagerResult {
   allowedCorridors: CorridorCountry[];
+  allowedCustomerTypes: CorridorCustomerType[] | null;
   createdAt: Date;
   isActive: boolean;
   profileId: string;
@@ -25,6 +26,7 @@ export interface ManagedProfileManagerResult {
 function result(manager: ManagedProfileManager): ManagedProfileManagerResult {
   return {
     allowedCorridors: manager.allowedCorridors,
+    allowedCustomerTypes: manager.allowedCustomerTypes,
     createdAt: manager.createdAt,
     isActive: manager.isActive,
     profileId: manager.profileId,
@@ -34,6 +36,7 @@ function result(manager: ManagedProfileManager): ManagedProfileManagerResult {
 
 export async function configureManagedProfileManager(input: {
   allowedCorridors: CorridorCountry[];
+  allowedCustomerTypes: CorridorCustomerType[] | null;
   isActive: boolean;
   profileId: string;
 }): Promise<{ created: boolean; manager: ManagedProfileManagerResult }> {
@@ -54,7 +57,14 @@ export async function configureManagedProfileManager(input: {
 
     const existing = await ManagedProfileManager.findByPk(input.profileId, { transaction });
     if (existing) {
-      await existing.update({ allowedCorridors: input.allowedCorridors, isActive: input.isActive }, { transaction });
+      await existing.update(
+        {
+          allowedCorridors: input.allowedCorridors,
+          allowedCustomerTypes: input.allowedCustomerTypes,
+          isActive: input.isActive
+        },
+        { transaction }
+      );
       return { created: false, manager: result(existing) };
     }
 

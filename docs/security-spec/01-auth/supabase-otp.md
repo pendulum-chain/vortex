@@ -16,13 +16,15 @@ Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
 - **`optionalAuth`** — Attaches `userId` if a token is present and valid, continues anonymously only when the header is absent, returns `401` for a present invalid credential, and returns `503` when verification is indeterminate.
 
+Routes that accept either a Supabase session or a secret API credential verify the Bearer token through `requirePartnerOrUserAuth`, which applies the same outcome distinction: an indeterminate provider failure is `503`, never an internal error.
+
 ## Security Invariants
 
 1. **JWT verification MUST use authoritative Supabase Auth validation** — The API MUST call `SupabaseAuthService.verifyToken()` over a server-controlled channel. The configured Supabase project URL and anon key identify the trusted Auth project; the presented bearer token is authoritatively introspected by Supabase Auth. Service-role credentials are required only for operations that need service-role privileges and MUST NOT be a prerequisite merely to verify an access token.
 2. **Token extraction MUST require the `Bearer` prefix** — The middleware MUST reject tokens that don't start with `Bearer ` (note trailing space). Raw tokens in the header MUST be rejected.
 3. **`userId` MUST only be set by auth middleware** — No controller or service may set `req.userId` directly. It MUST originate exclusively from the middleware's JWT verification result.
 4. **Optional authentication MUST NOT downgrade a presented credential** — No authorization header on an anonymous-eligible route continues anonymously. A present malformed, invalid, expired, or revoked credential returns `401`; it MUST NOT be converted into an anonymous request.
-5. **Verification outcomes MUST remain distinct** — Missing credentials on protected routes and definitively invalid credentials return `401`; a valid identity without authority returns `403`; a provider/network failure that makes verification indeterminate returns `503`. Neither middleware may proceed anonymously after an indeterminate result.
+5. **Verification outcomes MUST remain distinct** — Missing credentials on protected routes and definitively invalid credentials return `401`; a valid identity without authority returns `403`; a provider/network failure that makes verification indeterminate returns `503`. Neither middleware may proceed anonymously after an indeterminate result. This distinction is a property of Bearer verification itself, so it holds identically on the dual-auth routes that accept a session or a secret credential; an indeterminate failure there MUST NOT surface as a `500`, which would tell callers nothing about whether the session is still good.
 6. **Auth errors MUST NOT leak token content** — Error responses use generic messages. Logs contain request ID, path, and an error category/message, but no full or truncated bearer-token fragment.
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.

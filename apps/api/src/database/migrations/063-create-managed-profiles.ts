@@ -56,6 +56,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           field: "allowed_corridors",
           type: DataTypes.ARRAY(DataTypes.STRING(2))
         },
+        allowedCustomerTypes: {
+          allowNull: true,
+          defaultValue: null,
+          field: "allowed_customer_types",
+          type: DataTypes.ARRAY(DataTypes.STRING(10))
+        },
         createdAt: {
           allowNull: false,
           defaultValue: DataTypes.NOW,
@@ -91,6 +97,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
         ADD CONSTRAINT chk_managed_profile_managers_allowed_corridors CHECK (
           allowed_corridors <@ ARRAY['AR', 'BR', 'CO', 'EU', 'MX', 'US']::varchar[]
           AND array_position(allowed_corridors, NULL) IS NULL
+        ),
+        ADD CONSTRAINT chk_managed_profile_managers_allowed_customer_types CHECK (
+          allowed_customer_types IS NULL
+          OR (
+            allowed_customer_types <@ ARRAY['individual', 'business']::varchar[]
+            AND array_position(allowed_customer_types, NULL) IS NULL
+            AND cardinality(allowed_customer_types) BETWEEN 1 AND 2
+            AND (
+              cardinality(allowed_customer_types) = 1
+              OR allowed_customer_types @> ARRAY['individual', 'business']::varchar[]
+            )
+          )
         )`,
       { transaction }
     );
@@ -98,6 +116,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     await queryInterface.createTable(
       "managed_profiles",
       {
+        contactEmail: {
+          allowNull: true,
+          field: "contact_email",
+          type: DataTypes.STRING(255)
+        },
         createdAt: {
           allowNull: false,
           defaultValue: DataTypes.NOW,
@@ -165,6 +188,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       transaction,
       unique: true
     });
+    await queryInterface.addIndex("managed_profiles", ["manager_profile_id", "contact_email"], {
+      name: "uq_managed_profiles_manager_contact_email",
+      transaction,
+      unique: true
+    });
     await queryInterface.sequelize.query(
       `ALTER TABLE managed_profiles
         ADD CONSTRAINT chk_managed_profiles_not_self_managed CHECK (manager_profile_id <> profile_id),
@@ -176,15 +204,88 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
         )`,
       { transaction }
     );
+    await queryInterface.sequelize.query(
+      `CREATE FUNCTION enforce_managed_profile_contact_email_immutable() RETURNS trigger AS $$
+      BEGIN
+        IF OLD.contact_email IS DISTINCT FROM NEW.contact_email THEN
+          RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            CONSTRAINT = 'chk_managed_profiles_contact_email_immutable',
+            MESSAGE = 'Managed profile contact email cannot be changed after creation';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER trg_managed_profiles_contact_email_immutable
+        BEFORE UPDATE OF contact_email ON managed_profiles
+        FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_contact_email_immutable();`,
+      { transaction }
+    );
+    await queryInterface.sequelize.query(
+      `CREATE FUNCTION enforce_managed_profile_external_subject_immutable() RETURNS trigger AS $$
+      BEGIN
+        IF OLD.external_subject_id IS DISTINCT FROM NEW.external_subject_id THEN
+          RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            CONSTRAINT = 'chk_managed_profiles_external_subject_immutable',
+            MESSAGE = 'Managed profile external subject id cannot be changed after creation';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER trg_managed_profiles_external_subject_immutable
+        BEFORE UPDATE OF external_subject_id ON managed_profiles
+        FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_external_subject_immutable();`,
+      { transaction }
+    );
 
     await queryInterface.sequelize.query(
       `CREATE FUNCTION enforce_managed_profile_invariants() RETURNS trigger AS $$
+      DECLARE
+        affected_profile_ids uuid[] := ARRAY[]::uuid[];
+        affected_manager_profile_ids uuid[] := ARRAY[]::uuid[];
       BEGIN
+        IF TG_TABLE_NAME = 'profiles' THEN
+          IF TG_OP = 'INSERT' THEN
+            affected_profile_ids := ARRAY[NEW.id];
+            affected_manager_profile_ids := ARRAY[NEW.id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_profile_ids := ARRAY[OLD.id];
+            affected_manager_profile_ids := ARRAY[OLD.id];
+          ELSE
+            affected_profile_ids := ARRAY[OLD.id, NEW.id];
+            affected_manager_profile_ids := ARRAY[OLD.id, NEW.id];
+          END IF;
+        ELSIF TG_TABLE_NAME = 'managed_profiles' THEN
+          IF TG_OP = 'INSERT' THEN
+            affected_profile_ids := ARRAY[NEW.profile_id];
+            affected_manager_profile_ids := ARRAY[NEW.manager_profile_id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_profile_ids := ARRAY[OLD.profile_id];
+            affected_manager_profile_ids := ARRAY[OLD.manager_profile_id];
+          ELSE
+            affected_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
+            affected_manager_profile_ids := ARRAY[OLD.manager_profile_id, NEW.manager_profile_id];
+          END IF;
+        ELSE
+          IF TG_OP = 'INSERT' THEN
+            affected_manager_profile_ids := ARRAY[NEW.profile_id];
+          ELSIF TG_OP = 'DELETE' THEN
+            affected_manager_profile_ids := ARRAY[OLD.profile_id];
+          ELSE
+            affected_manager_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
+          END IF;
+        END IF;
+
         IF EXISTS (
           SELECT 1
           FROM profiles p
           LEFT JOIN managed_profiles mp ON mp.profile_id = p.id
-          WHERE p.kind = 'managed' AND mp.id IS NULL
+          WHERE p.id = ANY(affected_profile_ids)
+            AND p.kind = 'managed'
+            AND mp.id IS NULL
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -196,7 +297,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           SELECT 1
           FROM managed_profiles mp
           JOIN profiles p ON p.id = mp.profile_id
-          WHERE p.kind <> 'managed'
+          WHERE mp.profile_id = ANY(affected_profile_ids)
+            AND p.kind <> 'managed'
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -208,7 +310,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           SELECT 1
           FROM managed_profile_managers m
           JOIN profiles p ON p.id = m.profile_id
-          WHERE p.kind <> 'authenticated'
+          WHERE m.profile_id = ANY(affected_manager_profile_ids)
+            AND p.kind <> 'authenticated'
         ) THEN
           RAISE EXCEPTION USING
             ERRCODE = '23514',
@@ -258,6 +361,18 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
       transaction
     });
     await queryInterface.sequelize.query("DROP TRIGGER trg_profiles_kind_immutable ON profiles;", { transaction });
+    await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_contact_email_immutable ON managed_profiles;", {
+      transaction
+    });
+    await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_external_subject_immutable ON managed_profiles;", {
+      transaction
+    });
+    await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_contact_email_immutable();", {
+      transaction
+    });
+    await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_external_subject_immutable();", {
+      transaction
+    });
     await queryInterface.dropTable("managed_profiles", { transaction });
     await queryInterface.dropTable("managed_profile_managers", { transaction });
     await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_invariants();", { transaction });

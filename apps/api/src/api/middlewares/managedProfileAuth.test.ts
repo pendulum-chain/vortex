@@ -47,10 +47,14 @@ describe("authorizeManagedProfile", () => {
   });
 
   function allowManagedProfile() {
-    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: true })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: null,
+      isActive: true
+    })) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1" })) as never;
     User.findByPk = mock(async () => ({ activeCustomerEntityId: "entity-1", kind: "managed" })) as never;
-    CustomerEntity.findAll = mock(async () => [{ id: "entity-1", status: "active" }]) as never;
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-1", status: "active", type: "individual" }]) as never;
   }
 
   it("does nothing when the managed profile header is absent", async () => {
@@ -205,6 +209,50 @@ describe("authorizeManagedProfile", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it("applies customer-type narrowing and the canonical corridor matrix", async () => {
+    allowManagedProfile();
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["AR", "BR"],
+      allowedCustomerTypes: ["business"],
+      isActive: true
+    })) as never;
+
+    const narrowed = response();
+    await authorizeManagedProfile({ corridor: "BR" })(request() as never, narrowed as never, mock(() => {}));
+    expect(narrowed.statusCode).toBe(403);
+
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-1", status: "active", type: "business" }]) as never;
+    const unsupported = response();
+    await authorizeManagedProfile({ corridor: "AR" })(request() as never, unsupported as never, mock(() => {}));
+    expect(unsupported.statusCode).toBe(403);
+  });
+
+  it("does not apply customer-type narrowing to policy-free reads", async () => {
+    allowManagedProfile();
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: ["business"],
+      isActive: true
+    })) as never;
+    const next = mock(() => {});
+
+    await authorizeManagedProfile()(request() as never, response() as never, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires the route customer type to match the immutable child entity type", async () => {
+    allowManagedProfile();
+    const res = response();
+    await authorizeManagedProfile({ corridor: "BR", customerType: "business" })(
+      request() as never,
+      res as never,
+      mock(() => {})
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH" } });
+  });
+
   it("requires every resolved corridor to be enabled for the manager", async () => {
     allowManagedProfile();
     const denied = response();
@@ -220,8 +268,8 @@ describe("authorizeManagedProfile", () => {
   it("rejects a managed child with additional customer entities", async () => {
     allowManagedProfile();
     CustomerEntity.findAll = mock(async () => [
-      { id: "entity-1", status: "active" },
-      { id: "entity-2", status: "archived" }
+      { id: "entity-1", status: "active", type: "individual" },
+      { id: "entity-2", status: "archived", type: "individual" }
     ]) as never;
     const res = response();
     await authorizeManagedProfile()(request() as never, res as never, mock(() => {}));
@@ -237,6 +285,7 @@ describe("rejectDirectManagedCredential", () => {
       environment: "test",
       managedProfile: {
         allowedCorridors: ["BR"],
+        allowedCustomerTypes: null,
         controllingManagerProfileId: MANAGER_ID,
         relationshipId: "relationship-1"
       },

@@ -32,6 +32,7 @@ import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import {
   createAlfredpayCustomer,
   findAlfredpayCustomer,
+  isAlfredpayCustomerClaimedByAnotherProfile,
   normalizeAlfredpayProviderStatus,
   resolveAlfredpayKybSubmissionId
 } from "../services/alfredpay/alfredpay-customer.service";
@@ -141,18 +142,46 @@ export class AlfredpayController {
     return relationship.contactEmail;
   }
 
-  private static verifyConflictingCustomer(
-    customer: { country: string; customerId: string; type: string },
-    country: string,
-    type: AlfredpayCustomerType
-  ): string {
+  private static verifyConflictingCustomer(customer: unknown, country: string, type: AlfredpayCustomerType): string {
+    if (
+      typeof customer !== "object" ||
+      customer === null ||
+      !("country" in customer) ||
+      typeof customer.country !== "string" ||
+      customer.country.trim() === "" ||
+      !("customerId" in customer) ||
+      typeof customer.customerId !== "string" ||
+      customer.customerId.trim() === "" ||
+      !("type" in customer) ||
+      typeof customer.type !== "string" ||
+      customer.type.trim() === ""
+    ) {
+      throw new AlfredpayCustomerCreationError(httpStatus.BAD_GATEWAY, "Alfredpay returned an invalid customer response");
+    }
     if (customer.country.toUpperCase() !== country.toUpperCase() || customer.type.toUpperCase() !== type) {
       throw new AlfredpayCustomerCreationError(
         httpStatus.CONFLICT,
         "Existing Alfredpay customer does not match the requested country and customer type"
       );
     }
-    return customer.customerId;
+    return customer.customerId.trim();
+  }
+
+  private static async resolveConflictingCustomerId(
+    userId: string,
+    userEmail: string,
+    country: string,
+    type: AlfredpayCustomerType
+  ): Promise<string> {
+    const existingCustomer = await AlfredpayApiService.getInstance().findCustomer(userEmail, country);
+    const customerId = AlfredpayController.verifyConflictingCustomer(existingCustomer, country, type);
+    if (await isAlfredpayCustomerClaimedByAnotherProfile(customerId, userId)) {
+      throw new AlfredpayCustomerCreationError(
+        httpStatus.CONFLICT,
+        "The existing Alfredpay customer for this email belongs to another profile"
+      );
+    }
+    return customerId;
   }
 
   private static handleCustomerCreationError(message: string, error: unknown, res: Response) {
@@ -360,9 +389,9 @@ export class AlfredpayController {
         const errorMessage = (error as Error)?.message || "";
         if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
           logger.info("Customer already exists in Alfredpay, fetching existing customer");
-          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
-          customerId = AlfredpayController.verifyConflictingCustomer(
-            existingCustomer,
+          customerId = await AlfredpayController.resolveConflictingCustomerId(
+            userId,
+            userEmail,
             country,
             AlfredpayCustomerType.INDIVIDUAL
           );
@@ -648,8 +677,7 @@ export class AlfredpayController {
         const errorMessage = (error as Error)?.message || "";
         if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
           logger.info("Business customer already exists in Alfredpay, fetching existing customer");
-          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
-          customerId = AlfredpayController.verifyConflictingCustomer(existingCustomer, country, type);
+          customerId = await AlfredpayController.resolveConflictingCustomerId(userId, userEmail, country, type);
         } else {
           throw error;
         }

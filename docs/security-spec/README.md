@@ -9,9 +9,9 @@ Use documents in this order:
 1. **Module specifications** define normative current behavior.
 2. **`RISK-REGISTER.md`** is the only authority for current accepted, deferred, or
    deployment-dependent exceptions to those requirements.
-3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md` and
-   `PUBLIC-RELEASE-READINESS.md`) is non-normative. It remains only while its review or
-   remediation context is still useful; status claims may be stale.
+3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md`) is non-normative. It
+   remains only while its review or remediation context is still useful; status claims may
+   be stale.
 4. **Older audit results, findings trackers, and spec deltas** are kept in Git history,
    not alongside the maintained specification.
 5. **Implementation-side notes** such as
@@ -78,7 +78,6 @@ documents win.
 | Document | Why it remains |
 |---|---|
 | `REVIEW-POST-1232-2026-07-30.md` | Latest full spec-first review of the block-flow architecture and the evidence that drove its remediation |
-| `PUBLIC-RELEASE-READINESS.md` | Repository-history secret exposure review with remediation actions that still require operational confirmation |
 
 ## Checklist Semantics
 

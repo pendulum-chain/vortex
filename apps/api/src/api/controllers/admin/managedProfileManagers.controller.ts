@@ -2,8 +2,8 @@ import { CORRIDOR_CAPABILITIES, type CorridorCountry } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
-import type { CustomerEntityType } from "../../../models/customerEntity.model";
-import { createManagedProfile } from "../../services/managed-profile-lifecycle.service";
+import { CUSTOMER_ENTITY_TYPES } from "../../../models/customerEntity.model";
+import { createManagedProfile, ManagedProfileLifecycleError } from "../../services/managed-profile-lifecycle.service";
 import {
   configureManagedProfileManager,
   getManagedProfileManager,
@@ -13,7 +13,6 @@ import { ManagedProfileProvisioningError } from "../../services/managed-profile-
 
 const SUPPORTED_CORRIDORS = Object.keys(CORRIDOR_CAPABILITIES) as CorridorCountry[];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CUSTOMER_TYPES: CustomerEntityType[] = ["individual", "business"];
 
 function isCorridorCountry(value: unknown): value is CorridorCountry {
   return typeof value === "string" && SUPPORTED_CORRIDORS.includes(value as CorridorCountry);
@@ -21,19 +20,27 @@ function isCorridorCountry(value: unknown): value is CorridorCountry {
 
 export async function putManagedProfileManager(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
-    const { allowedCorridors, isActive } = req.body ?? {};
+    const { allowedCorridors, allowedCustomerTypes, isActive } = req.body ?? {};
+    const hasValidCustomerTypes =
+      allowedCustomerTypes === undefined ||
+      allowedCustomerTypes === null ||
+      (Array.isArray(allowedCustomerTypes) &&
+        allowedCustomerTypes.length > 0 &&
+        allowedCustomerTypes.every(value => CUSTOMER_ENTITY_TYPES.includes(value)) &&
+        new Set(allowedCustomerTypes).size === allowedCustomerTypes.length);
     if (
       !UUID_PATTERN.test(req.params.profileId) ||
       !Array.isArray(allowedCorridors) ||
       allowedCorridors.length === 0 ||
       !allowedCorridors.every(isCorridorCountry) ||
       new Set(allowedCorridors).size !== allowedCorridors.length ||
+      !hasValidCustomerTypes ||
       typeof isActive !== "boolean"
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
           code: "INVALID_MANAGED_PROFILE_MANAGER_INPUT",
-          message: `profileId must be a UUID, isActive must be a boolean, and allowedCorridors must be a non-empty, duplicate-free array containing: ${SUPPORTED_CORRIDORS.join(", ")}`,
+          message: `profileId must be a UUID, isActive must be a boolean, allowedCorridors must be a non-empty duplicate-free array containing ${SUPPORTED_CORRIDORS.join(", ")}, and allowedCustomerTypes must be null or a non-empty duplicate-free array containing individual and/or business`,
           status: httpStatus.BAD_REQUEST
         }
       });
@@ -42,6 +49,7 @@ export async function putManagedProfileManager(req: Request<{ profileId: string 
 
     const configured = await configureManagedProfileManager({
       allowedCorridors,
+      allowedCustomerTypes: allowedCustomerTypes ?? null,
       isActive,
       profileId: req.params.profileId
     });
@@ -105,7 +113,7 @@ export async function postManagedProfileForManager(req: Request<{ profileId: str
       externalSubjectId.trim().length === 0 ||
       externalSubjectId.trim().length > 255 ||
       typeof contactEmail !== "string" ||
-      !CUSTOMER_TYPES.includes(customerType)
+      !CUSTOMER_ENTITY_TYPES.includes(customerType)
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
@@ -127,13 +135,14 @@ export async function postManagedProfileForManager(req: Request<{ profileId: str
     });
     res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ managedProfile: result.managedProfile });
   } catch (error) {
-    if (error instanceof ManagedProfileProvisioningError) {
+    // createManagedProfile provisions and then re-reads the result, so it raises both classes.
+    if (error instanceof ManagedProfileProvisioningError || error instanceof ManagedProfileLifecycleError) {
       const status =
         error.code === "MANAGED_PROFILE_CONFLICT"
           ? httpStatus.CONFLICT
           : error.code === "MANAGED_PROFILE_INVALID_INPUT"
             ? httpStatus.BAD_REQUEST
-            : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND"
+            : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND" || error.code === "MANAGED_PROFILE_NOT_FOUND"
               ? httpStatus.NOT_FOUND
               : httpStatus.CONFLICT;
       res.status(status).json({ error: { code: error.code, message: error.message, status } });

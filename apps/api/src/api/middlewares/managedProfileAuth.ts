@@ -1,7 +1,7 @@
-import type { CorridorCountry } from "@vortexfi/shared";
+import { type CorridorCountry, type CorridorCustomerType, isCorridorSupportedForCustomerType } from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
-import CustomerEntity from "../../models/customerEntity.model";
+import CustomerEntity, { type CustomerEntityType } from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
@@ -32,8 +32,13 @@ type CorridorResolver =
       req: Request
     ) => CorridorCountry | CorridorCountry[] | undefined | Promise<CorridorCountry | CorridorCountry[] | undefined>);
 
+type CustomerTypeResolver =
+  | CustomerEntityType
+  | ((req: Request) => CustomerEntityType | undefined | Promise<CustomerEntityType | undefined>);
+
 interface ManagedProfileAuthOptions {
   corridor?: CorridorResolver;
+  customerType?: CustomerTypeResolver;
 }
 
 export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {}) {
@@ -61,13 +66,26 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
           sendAccessDenied(res);
           return;
         }
-        await attachManagedProfileContext(req, res, {
+        const customerType = await attachManagedProfileContext(req, res, {
           actorProfileId: directCredentialProfileId,
           controllingManagerProfileId: directManagedCredential.controllingManagerProfileId,
           managedProfileId: directManagedCredential.relationshipId,
           subjectProfileId: directCredentialProfileId
         });
-        if (req.managedProfileContext) next();
+        if (!customerType) return;
+        if (
+          !(await authorizeCustomerType(
+            req,
+            res,
+            options,
+            corridors,
+            customerType,
+            directManagedCredential.allowedCustomerTypes
+          ))
+        ) {
+          return;
+        }
+        next();
       } catch (error) {
         next(error);
       }
@@ -120,13 +138,15 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         return;
       }
 
-      await attachManagedProfileContext(req, res, {
+      const customerType = await attachManagedProfileContext(req, res, {
         actorProfileId,
         controllingManagerProfileId: actorProfileId,
         managedProfileId: relationship.id,
         subjectProfileId
       });
-      if (req.managedProfileContext) next();
+      if (!customerType) return;
+      if (!(await authorizeCustomerType(req, res, options, corridors, customerType, manager.allowedCustomerTypes))) return;
+      next();
     } catch (error) {
       next(error);
     }
@@ -137,10 +157,10 @@ async function attachManagedProfileContext(
   req: Request,
   res: Response,
   identity: Omit<ManagedProfileContext, "customerEntityId">
-): Promise<void> {
+): Promise<CustomerEntityType | null> {
   const [subject, customerEntities] = await Promise.all([
     User.findByPk(identity.subjectProfileId, { attributes: ["activeCustomerEntityId", "kind"] }),
-    CustomerEntity.findAll({ attributes: ["id", "status"], where: { profileId: identity.subjectProfileId } })
+    CustomerEntity.findAll({ attributes: ["id", "status", "type"], where: { profileId: identity.subjectProfileId } })
   ]);
   const customerEntity = customerEntities[0];
   if (
@@ -151,9 +171,43 @@ async function attachManagedProfileContext(
     customerEntity.status !== "active"
   ) {
     sendAccessDenied(res);
-    return;
+    return null;
   }
   req.managedProfileContext = Object.freeze({ ...identity, customerEntityId: customerEntity.id });
+  return customerEntity.type;
+}
+
+async function authorizeCustomerType(
+  req: Request,
+  res: Response,
+  options: ManagedProfileAuthOptions,
+  corridors: CorridorCountry[],
+  customerType: CustomerEntityType,
+  allowedCustomerTypes: readonly CorridorCustomerType[] | null | undefined
+): Promise<boolean> {
+  const expectedCustomerType =
+    typeof options.customerType === "function" ? await options.customerType(req) : options.customerType;
+  if (options.customerType !== undefined && expectedCustomerType !== customerType) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: {
+        code: "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH",
+        message: "The operation customer type does not match the managed profile customer type",
+        status: httpStatus.BAD_REQUEST
+      }
+    });
+    return false;
+  }
+  if (
+    ((options.corridor !== undefined || options.customerType !== undefined) &&
+      allowedCustomerTypes !== null &&
+      allowedCustomerTypes !== undefined &&
+      !allowedCustomerTypes.includes(customerType)) ||
+    corridors.some(corridor => !isCorridorSupportedForCustomerType(corridor, customerType))
+  ) {
+    sendAccessDenied(res);
+    return false;
+  }
+  return true;
 }
 
 export function rejectManagedProfileSelection(req: Request, res: Response, next: NextFunction): void {

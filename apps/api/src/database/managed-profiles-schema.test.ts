@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
@@ -15,7 +16,7 @@ async function createManager(): Promise<User> {
 async function createManagedProfile(
   managerProfileId: string,
   externalSubjectId: string,
-  contactEmail = "child@example.com"
+  contactEmail: string | null = "child@example.com"
 ): Promise<User> {
   return sequelize.transaction(async transaction => {
     const profile = await User.create(
@@ -65,6 +66,20 @@ describe("managed profile schema", () => {
     );
   });
 
+  it("scopes deferred invariant queries to affected profile and manager IDs", async () => {
+    const rows = await sequelize.query<{ source: string }>(
+      `SELECT prosrc AS source
+       FROM pg_proc
+       WHERE oid = 'enforce_managed_profile_invariants()'::regprocedure`,
+      { type: QueryTypes.SELECT }
+    );
+    const source = rows[0]?.source;
+
+    expect(source).toContain("WHERE p.id = ANY(affected_profile_ids)");
+    expect(source).toContain("WHERE mp.profile_id = ANY(affected_profile_ids)");
+    expect(source).toContain("WHERE m.profile_id = ANY(affected_manager_profile_ids)");
+  });
+
   it("does not allow profile kinds to be converted", async () => {
     const authenticatedProfile = await createTestUser();
     const manager = await createManager();
@@ -86,6 +101,24 @@ describe("managed profile schema", () => {
     await expect(relationship?.update({ contactEmail: "other@example.com" })).rejects.toThrow(
       "Managed profile contact email cannot be changed after creation"
     );
+  });
+
+  it("does not allow a managed profile external subject id to change", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "immutable-subject");
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    await expect(relationship?.update({ externalSubjectId: "reassigned-subject" })).rejects.toThrow(
+      "Managed profile external subject id cannot be changed after creation"
+    );
+  });
+
+  it("allows a managed profile contact email to be null", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "nullable-email", null);
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    expect(relationship?.contactEmail).toBeNull();
   });
 
   it("requires contact emails to be unique within each manager", async () => {
@@ -135,5 +168,28 @@ describe("managed profile schema", () => {
     await expect(
       ManagedProfile.update({ status: "deleted" }, { where: { profileId: child.id } })
     ).rejects.toThrow();
+  });
+
+  it("allows an empty corridor grant so every corridor can be revoked", async () => {
+    await expect(
+      ManagedProfileManager.create({ allowedCorridors: [], profileId: (await createTestUser()).id })
+    ).resolves.toBeInstanceOf(ManagedProfileManager);
+  });
+
+  it("allows null customer-type policy and rejects empty, unknown, or duplicate restrictions", async () => {
+    const unrestricted = await createTestUser();
+    await expect(
+      ManagedProfileManager.create({ allowedCorridors: ["AR"], allowedCustomerTypes: null, profileId: unrestricted.id })
+    ).resolves.toBeInstanceOf(ManagedProfileManager);
+
+    for (const allowedCustomerTypes of [[], ["unknown"], ["individual", "individual"]]) {
+      await expect(
+        ManagedProfileManager.create({
+          allowedCorridors: ["MX"],
+          allowedCustomerTypes: allowedCustomerTypes as ["individual"],
+          profileId: (await createTestUser()).id
+        })
+      ).rejects.toThrow();
+    }
   });
 });

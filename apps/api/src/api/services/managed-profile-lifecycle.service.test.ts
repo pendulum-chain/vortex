@@ -1,11 +1,12 @@
-import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import ApiCredential from "../../models/apiCredential.model";
+import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestApiKey, createTestUser } from "../../test-utils/factories";
 import { getOrCreateCustomerEntityForProfile } from "./customer-entity.service";
-import { createCredential, createManagedProfileCredential } from "./apiCredential.service";
+import { createCredential, createManagedProfileCredential, revokeManagedProfileCredential } from "./apiCredential.service";
 import {
   deleteManagedProfile,
   getManagedProfile,
@@ -49,6 +50,11 @@ describe("managed profile lifecycle", () => {
       profileId: active.profileId,
       status: "active"
     });
+    const entityQueries = spyOn(CustomerEntity, "findAll");
+    const allPage = await listManagedProfiles(manager.id, { limit: 50, offset: 0, status: "all" });
+    expect(allPage.managedProfiles).toHaveLength(2);
+    expect(entityQueries).toHaveBeenCalledTimes(1);
+    entityQueries.mockRestore();
     expect(await getManagedProfile(manager.id, deleted.profileId)).toMatchObject({
       customerType: "business",
       status: "deleted"
@@ -142,6 +148,33 @@ describe("managed profile lifecycle", () => {
 
     expect(await ApiCredential.count({ where: { profileId: child.profileId, revokedAt: null } })).toBe(0);
     expect(await ManagedProfile.findOne({ where: { profileId: child.profileId } })).toMatchObject({ status: "deleted" });
+  });
+
+  it("keeps the original revocation time when a child credential is revoked twice", async () => {
+    const manager = await createManager();
+    const child = await provisionManagedProfile({
+      contactEmail: "revoke-twice@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "revoke-twice",
+      managerProfileId: manager.id
+    });
+    const credential = await createManagedProfileCredential({
+      environment: "test",
+      managerProfileId: manager.id,
+      profileId: child.profileId
+    });
+
+    await revokeManagedProfileCredential(manager.id, child.profileId, credential.id);
+    const firstRevokedAt = (await ApiCredential.findByPk(credential.id))?.revokedAt;
+
+    // Repeating the revoke stays idempotent, but must not move the recorded revocation time.
+    await revokeManagedProfileCredential(manager.id, child.profileId, credential.id);
+    expect((await ApiCredential.findByPk(credential.id))?.revokedAt).toEqual(firstRevokedAt as Date);
+
+    await expect(revokeManagedProfileCredential(manager.id, child.profileId, crypto.randomUUID())).rejects.toMatchObject({
+      code: "CREDENTIAL_NOT_FOUND"
+    });
   });
 
   it("requires managed child credentials to use the controlling-manager issuance path", async () => {

@@ -4,7 +4,10 @@ import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
-import { getManagedProfileCountryCorridor } from "../../middlewares/managedProfileCorridor";
+import {
+  getManagedProfileAlfredpayCustomerType,
+  getManagedProfileCountryCorridor
+} from "../../middlewares/managedProfileCorridor";
 import { validateKybSubmission, validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
@@ -21,28 +24,28 @@ router.post(
   "/createIndividualCustomer",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   AlfredpayController.createIndividualCustomer
 );
 router.get(
   "/getKycRedirectLink",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   AlfredpayController.getKycRedirectLink
 );
 router.post(
   "/kycRedirectOpened",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
   AlfredpayController.kycRedirectOpened
 );
 router.post(
   "/kycRedirectFinished",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
   AlfredpayController.kycRedirectFinished
 );
 router.get(
@@ -56,21 +59,21 @@ router.post(
   "/retryKyc",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
   AlfredpayController.retryKyc
 );
 router.post(
   "/createBusinessCustomer",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.createBusinessCustomer
 );
 router.get(
   "/getKybRedirectLink",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.getKybRedirectLink
 );
 
@@ -79,24 +82,26 @@ router.post(
   "/submitKycInformation",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   validateKycSubmission,
   AlfredpayController.submitKycInformation
 );
 router.post(
   "/submitKycFile",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  // Authenticate the relationship and immutable entity type before buffering. The country
+  // corridor can only be authorized after multer exposes the multipart body.
+  authorizeManagedProfile({ customerType: "individual" }),
   upload.single("file"),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   AlfredpayController.submitKycFile
 );
 router.post(
   "/sendKycSubmission",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   AlfredpayController.sendKycSubmission
 );
 
@@ -105,17 +110,18 @@ router.post(
   "/submitKybInformation",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   validateKybSubmission,
   AlfredpayController.submitKybInformation
 );
 router.post(
   "/submitKybFile",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
+  authorizeManagedProfile({ customerType: "business" }),
   upload.single("file"),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.submitKybFile
 );
 router.get(
@@ -128,17 +134,18 @@ router.get(
 router.post(
   "/submitKybRelatedPersonFile",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
+  authorizeManagedProfile({ customerType: "business" }),
   upload.single("file"),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.submitKybRelatedPersonFile
 );
 router.post(
   "/sendKybSubmission",
   requirePartnerOrUserAuth(),
   validateResultCountry,
-  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.sendKybSubmission
 );
 
