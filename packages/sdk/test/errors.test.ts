@@ -1,9 +1,11 @@
 import {describe, expect, test} from "bun:test";
 import {
   AlfredpayOnrampKycRequiredError,
+  BrlKycStatusError,
   MissingAlfredpayOfframpParametersError,
   MissingBrlOfframpParametersError,
   MissingBrlParametersError,
+  MykoboKycRequiredError,
   parseAPIError,
   VortexSdkError
 } from "../src/errors";
@@ -83,5 +85,26 @@ describe("parseAPIError", () => {
   test("named BRL parameter errors default to the current backend messages", () => {
     expect(new MissingBrlParametersError().message).toBe("Parameter destinationAddress is required for onramp");
     expect(new MissingBrlOfframpParametersError().message).toBe("pixDestination is required for offramp to BRL");
+  });
+
+  // Regression: the backend qualified this message when headless managed profiles made
+  // "no profile" and "profile without an email" distinct outcomes.
+  test("maps the current Mykobo unresolvable-profile message", () => {
+    const error = parseAPIError({
+      code: 400,
+      message: "No email-authenticated profile found for this user; cannot resolve the Mykobo customer."
+    });
+
+    expect(error).toBeInstanceOf(MykoboKycRequiredError);
+    expect(error.status).toBe(400);
+  });
+
+  // Regression: recordInitialKycAttempt moved taxId from the query string to the body and
+  // added quoteId, retiring the legacy message the parser used to match.
+  test("maps the current BRL KYC-attempt missing-parameter messages", () => {
+    expect(parseAPIError({ code: 400, message: "Missing quoteId or taxId body parameter" })).toBeInstanceOf(
+      BrlKycStatusError
+    );
+    expect(parseAPIError({ code: 400, message: "Missing taxId" })).toBeInstanceOf(BrlKycStatusError);
   });
 });
