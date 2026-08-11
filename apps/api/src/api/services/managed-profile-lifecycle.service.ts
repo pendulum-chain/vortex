@@ -43,8 +43,11 @@ export interface ManagedProfileListResult {
   total: number;
 }
 
-async function requireActiveManager(managerProfileId: string, transaction?: Transaction): Promise<void> {
-  const manager = await ManagedProfileManager.findByPk(managerProfileId, { transaction });
+async function requireActiveManager(managerProfileId: string, transaction?: Transaction, lock = false): Promise<void> {
+  const manager = await ManagedProfileManager.findByPk(managerProfileId, {
+    ...(lock ? { lock: Transaction.LOCK.UPDATE } : {}),
+    transaction
+  });
   if (!manager?.isActive) {
     throw new ManagedProfileLifecycleError(
       "MANAGED_PROFILE_ACCESS_DENIED",
@@ -156,7 +159,9 @@ export async function getManagedProfile(managerProfileId: string, profileId: str
 
 export async function deleteManagedProfile(managerProfileId: string, profileId: string): Promise<void> {
   await sequelize.transaction(async transaction => {
-    await requireActiveManager(managerProfileId, transaction);
+    // Provisioning serializes on the manager row, so taking it here too keeps a concurrent
+    // re-provision from observing this child mid-deletion. Manager first in both paths.
+    await requireActiveManager(managerProfileId, transaction, true);
     const profile = await User.findByPk(profileId, {
       attributes: ["id"],
       lock: Transaction.LOCK.UPDATE,
