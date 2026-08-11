@@ -121,6 +121,36 @@ describe("api credential service", () => {
     expect(credential.update).not.toHaveBeenCalled();
   });
 
+  it("dynamically invalidates both values when the managed relationship is deleted", async () => {
+    const secret = generateApiKey("secret", "test");
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      secretKeyDigest: digestApiKey(secret),
+      secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "managed" },
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    ApiCredential.findAll = mock(async () => [credential]) as never;
+    const findRelationship = mock(async (options: { where?: { status?: string } }) =>
+      options.where?.status === "active" ? null : { id: "relationship-1", managerProfileId: "manager-1" }
+    );
+    ManagedProfile.findOne = findRelationship as never;
+    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: true })) as never;
+
+    expect(await validatePublicKey(credential.publicKeyValue)).toBeNull();
+    expect(await validateSecretKey(secret)).toBeNull();
+    expect(findRelationship).toHaveBeenCalledTimes(2);
+    for (const [options] of findRelationship.mock.calls) {
+      expect(options).toMatchObject({ where: { profileId: "profile-1", status: "active" } });
+    }
+    expect(credential.update).not.toHaveBeenCalled();
+  });
+
   it("attaches immutable managed control metadata to valid credentials", async () => {
     const credential = Object.assign(new ApiCredential(), {
       environment: "test",

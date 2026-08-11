@@ -48,6 +48,18 @@ describe("dual authentication Bearer verification", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("forwards an unexpected verifier failure instead of misclassifying it as an invalid token", async () => {
+    const error = new Error("unexpected SDK failure");
+    spyOn(SupabaseAuthService, "verifyToken").mockRejectedValue(error);
+    const res = response();
+    const next = mock(() => undefined) as NextFunction;
+
+    await requirePartnerOrUserAuth()(request("Bearer valid-looking"), res, next);
+
+    expect(next).toHaveBeenCalledWith(error);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("attaches the verified identity when the provider answers", async () => {
     spyOn(SupabaseAuthService, "verifyToken").mockResolvedValue({
       email: "user@example.com",

@@ -3,6 +3,7 @@ import ApiCredential from "../../models/apiCredential.model";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import User from "../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestApiKey, createTestUser } from "../../test-utils/factories";
 import { getOrCreateCustomerEntityForProfile } from "./customer-entity.service";
@@ -86,6 +87,25 @@ describe("managed profile lifecycle", () => {
     expect(await ApiCredential.findByPk(secondCredential.record.id)).toMatchObject({ revokedAt: expect.any(Date) });
   });
 
+  it("preserves the original logical deletion timestamp on retry", async () => {
+    const manager = await createManager();
+    const child = await provisionManagedProfile({
+      contactEmail: "delete-timestamp@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "delete-timestamp",
+      managerProfileId: manager.id
+    });
+
+    await deleteManagedProfile(manager.id, child.profileId);
+    const firstDeletedAt = (await ManagedProfile.findOne({ where: { profileId: child.profileId } }))?.deletedAt;
+
+    await deleteManagedProfile(manager.id, child.profileId);
+    expect((await ManagedProfile.findOne({ where: { profileId: child.profileId } }))?.deletedAt).toEqual(
+      firstDeletedAt as Date
+    );
+  });
+
   it("hides another manager's children and denies inactive managers all lifecycle access", async () => {
     const manager = await createManager();
     const otherManager = await createManager();
@@ -141,10 +161,56 @@ describe("managed profile lifecycle", () => {
       managerProfileId: manager.id
     });
 
-    await Promise.allSettled([
-      createManagedProfileCredential({ environment: "test", managerProfileId: manager.id, profileId: child.profileId }),
-      deleteManagedProfile(manager.id, child.profileId)
-    ]);
+    let releaseCreate: () => void = () => undefined;
+    const createBarrier = new Promise<void>(resolve => {
+      releaseCreate = resolve;
+    });
+    let creationReachedInsert: () => void = () => undefined;
+    const creationAtInsert = new Promise<void>(resolve => {
+      creationReachedInsert = resolve;
+    });
+    const profileQueries = spyOn(User, "findByPk");
+    const relationshipQueries = spyOn(ManagedProfile, "findOne");
+    ApiCredential.addHook("beforeCreate", "managed-profile-delete-race", async () => {
+      creationReachedInsert();
+      await createBarrier;
+    });
+
+    let deletionSettled = false;
+    try {
+      const creation = createManagedProfileCredential({
+        environment: "test",
+        managerProfileId: manager.id,
+        profileId: child.profileId
+      });
+      await creationAtInsert;
+      const deletion = deleteManagedProfile(manager.id, child.profileId).finally(() => {
+        deletionSettled = true;
+      });
+      await new Promise(resolve => setTimeout(resolve, 25));
+      const deletionWaitedForCreation = !deletionSettled;
+      releaseCreate();
+
+      const outcomes = await Promise.allSettled([creation, deletion]);
+      expect(deletionWaitedForCreation).toBe(true);
+      expect(outcomes.map(outcome => outcome.status)).toEqual(["fulfilled", "fulfilled"]);
+      expect(profileQueries).toHaveBeenCalledWith(
+        child.profileId,
+        expect.objectContaining({ lock: expect.anything(), transaction: expect.anything() })
+      );
+      expect(relationshipQueries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lock: expect.anything(),
+          transaction: expect.anything(),
+          where: { managerProfileId: manager.id, profileId: child.profileId, status: "active" }
+        })
+      );
+    } finally {
+      releaseCreate();
+      ApiCredential.removeHook("beforeCreate", "managed-profile-delete-race");
+      profileQueries.mockRestore();
+      relationshipQueries.mockRestore();
+    }
 
     expect(await ApiCredential.count({ where: { profileId: child.profileId, revokedAt: null } })).toBe(0);
     expect(await ManagedProfile.findOne({ where: { profileId: child.profileId } })).toMatchObject({ status: "deleted" });

@@ -93,13 +93,18 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
         try {
           result = await SupabaseAuthService.verifyToken(token);
         } catch (error) {
+          if (!(error instanceof AccessTokenVerificationError)) {
+            logger.error("Unexpected Supabase access-token verifier failure", error);
+            next(error);
+            return;
+          }
           // Callers distinguish "the provider is briefly unreachable" from "this token is
           // rejected"; only the latter should end their session, so a transient failure keeps
           // the 503 the Supabase-only middleware returns instead of surfacing as a 500.
-          const unavailable = error instanceof AccessTokenVerificationError && error.transient;
+          const unavailable = error.transient;
           logger.warn("Supabase access-token verification failed", {
             category: unavailable ? "provider_unavailable" : "verification_error",
-            error: error instanceof Error ? error.message : String(error),
+            error: error.message,
             path: req.path,
             requestId: req.headers["x-request-id"]
           });
