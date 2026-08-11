@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredpayApiService, AlfredpayCustomerType } from "@vortexfi/shared";
+import { AlfredPayStatus, AlfredpayApiService, AlfredpayCustomerType } from "@vortexfi/shared";
 import express from "express";
 import sequelize from "../config/database";
 import CustomerEntity from "../models/customerEntity.model";
@@ -11,6 +11,7 @@ import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestUser } from "../test-utils/factories";
 import alfredpayRoutes from "../api/routes/v1/alfredpay.route";
 import { SupabaseAuthService } from "../api/services/auth";
+import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { createManagedProfileCredential } from "../api/services/apiCredential.service";
 import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
 
@@ -327,6 +328,105 @@ describe("managed Alfredpay customer creation", () => {
 
     expect(response.status).toBe(409);
     expect(findCustomer).toHaveBeenCalledWith("child@example.com", "MX");
+    expect(await ProviderCustomer.count()).toBe(0);
+  });
+
+  it("does not adopt a provider customer that already belongs to another profile", async () => {
+    const victimManager = await createManager();
+    const victim = await createChild(victimManager.id, "individual", "victim@example.com");
+    await createAlfredpayCustomer(victim.profileId, {
+      alfredPayId: "victim-customer",
+      country: "MX" as never,
+      status: AlfredPayStatus.Success,
+      type: AlfredpayCustomerType.INDIVIDUAL
+    });
+
+    // A second manager picks the victim's email as its child's unverified contact email.
+    const attackerManager = await createTestUser({ email: "attacker@example.com" });
+    await ManagedProfileManager.create({
+      allowedCorridors: ["MX"],
+      allowedCustomerTypes: null,
+      isActive: true,
+      profileId: attackerManager.id
+    });
+    const attackerChild = await createChild(attackerManager.id, "individual", "victim@example.com");
+    const credential = await createTestApiKey({ userId: attackerManager.id });
+    const createCustomer = mock(async () => {
+      throw new Error("409 already registered");
+    });
+    const findCustomer = mock(async () => ({
+      country: "MX",
+      createdAt: new Date().toISOString(),
+      customerId: "victim-customer",
+      type: AlfredpayCustomerType.INDIVIDUAL
+    }));
+    provider(createCustomer, findCustomer);
+
+    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": attackerChild.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(409);
+    const attackerEntities = await CustomerEntity.findAll({ where: { profileId: attackerChild.profileId } });
+    expect(
+      await ProviderCustomer.count({ where: { customerEntityId: attackerEntities.map(entity => entity.id) } })
+    ).toBe(0);
+  });
+
+  it("still adopts a conflicting provider customer that nothing else claims", async () => {
+    const manager = await createManager();
+    const child = await createChild(manager.id, "individual", "retry@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    const createCustomer = mock(async () => {
+      throw new Error("409 already registered");
+    });
+    const findCustomer = mock(async () => ({
+      country: "MX",
+      createdAt: new Date().toISOString(),
+      customerId: "unclaimed-customer",
+      type: AlfredpayCustomerType.INDIVIDUAL
+    }));
+    provider(createCustomer, findCustomer);
+
+    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    expect(await ProviderCustomer.count({ where: { providerCustomerId: "unclaimed-customer" } })).toBe(1);
+  });
+
+  it("denies a corridor presented in the query but operated from the body", async () => {
+    const manager = await createManager(["MX"]);
+    const child = await createChild(manager.id, "individual", "desync@example.com");
+    const credential = await createTestApiKey({ userId: manager.id });
+    const createCustomer = mock(async () => ({ customerId: "alfred-desync", createdAt: new Date().toISOString() }));
+    provider(createCustomer);
+
+    const response = await fetch(`${baseUrl}/createIndividualCustomer?country=MX`, {
+      body: JSON.stringify({ country: "CO" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": credential.plaintextKey,
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(createCustomer).not.toHaveBeenCalled();
     expect(await ProviderCustomer.count()).toBe(0);
   });
 
