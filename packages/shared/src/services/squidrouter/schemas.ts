@@ -13,7 +13,7 @@ import type { SquidRouterPayResponse, SquidrouterRoute, SquidrouterRouteEstimate
 // Consumed subsets of the full shared types. Deriving them via Pick ties the schemas to
 // the types: renaming a consumed field in route.ts breaks compilation here.
 // aggregateSlippage is optional because getRoute reads it defensively (`estimate?.aggregateSlippage !== undefined`).
-type ConsumedRouteEstimate = Pick<SquidrouterRouteEstimate, "toAmount" | "toToken"> &
+type ConsumedRouteEstimate = Pick<SquidrouterRouteEstimate, "toAmount" | "toAmountMin" | "toToken"> &
   Partial<Pick<SquidrouterRouteEstimate, "aggregateSlippage">>;
 type ConsumedRoute = Pick<SquidrouterRoute, "quoteId" | "transactionRequest"> & { estimate: ConsumedRouteEstimate };
 type ConsumedPayStatus = Pick<SquidRouterPayResponse, "isGMPTransaction" | "status">;
@@ -25,14 +25,28 @@ const BIGINT_STRING = /^(?:\d+|0x[0-9a-fA-F]+)$/;
 const HEX_DATA = /^0x[0-9a-fA-F]*$/;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
+const squidrouterRouteEstimateSchema = z
+  .looseObject({
+    aggregateSlippage: z.number().optional(),
+    toAmount: z.string().regex(RAW_UNITS),
+    toAmountMin: z.string().regex(RAW_UNITS),
+    toToken: z.looseObject({ decimals: z.number().int().positive() })
+  })
+  .superRefine((estimate, ctx) => {
+    if (!RAW_UNITS.test(estimate.toAmount) || !RAW_UNITS.test(estimate.toAmountMin)) return;
+    if (BigInt(estimate.toAmountMin) > BigInt(estimate.toAmount)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "toAmountMin must not exceed toAmount",
+        path: ["toAmountMin"]
+      });
+    }
+  });
+
 /** The body of a POST /v2/route response (`data` after JSON parsing). */
 export const squidrouterRouteResponseSchema = z.looseObject({
   route: z.looseObject({
-    estimate: z.looseObject({
-      aggregateSlippage: z.number().optional(),
-      toAmount: z.string().regex(RAW_UNITS),
-      toToken: z.looseObject({ decimals: z.number().int().positive() })
-    }),
+    estimate: squidrouterRouteEstimateSchema,
     quoteId: z.string().min(1),
     transactionRequest: z.looseObject({
       data: z.string().regex(HEX_DATA),

@@ -1,17 +1,20 @@
 import { z } from "zod";
 import { AlfredpayCustomerType } from "../../tokens/types/base";
 import {
+  AlfredpayChain,
   AlfredpayConfigPair,
   AlfredpayFee,
   AlfredpayFeeType,
   AlfredpayFiatAccount,
   AlfredpayFiatAccountType,
+  AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
   AlfredpayKybCustomerAndBusiness,
   AlfredpayKybRelatedPersonDetails,
   AlfredpayKycStatus,
   AlfredpayOfframpStatus,
   AlfredpayOfframpTransaction,
+  AlfredpayOnChainCurrency,
   AlfredpayOnrampQuote,
   AlfredpayOnrampStatus,
   AlfredpayOnrampTransaction,
@@ -36,14 +39,27 @@ type ConsumedConfigPair = Pick<
 >;
 type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency" | "type">;
 type ConsumedQuote = Pick<AlfredpayOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration" | "rate"> & {
+  chain?: AlfredpayChain;
   fees: ConsumedFee[];
+  fromCurrency: AlfredpayFiatCurrency | AlfredpayOnChainCurrency;
+  toCurrency: AlfredpayFiatCurrency | AlfredpayOnChainCurrency;
 };
 type ConsumedOnrampTransaction = Pick<AlfredpayOnrampTransaction, "status"> & {
   metadata?: { txHash?: string; failureReason?: string } | null;
 };
 type ConsumedOfframpTransaction = Pick<
   AlfredpayOfframpTransaction,
-  "transactionId" | "status" | "depositAddress" | "expiration" | "toCurrency" | "fromAmount"
+  | "transactionId"
+  | "status"
+  | "chain"
+  | "customerId"
+  | "depositAddress"
+  | "expiration"
+  | "fromAmount"
+  | "fromCurrency"
+  | "fiatAccountId"
+  | "toAmount"
+  | "toCurrency"
 >;
 type ConsumedFiatAccount = Pick<AlfredpayFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
   metadata?: { accountHolderName?: string };
@@ -84,11 +100,11 @@ export const alfredpayConfigsResponseSchema = z.looseObject({
 }) satisfies z.ZodType<{ supportedPairs: ConsumedConfigPair[] }>;
 
 /**
- * The body of a POST …/quotes response, BUY and SELL alike — the consumed fields are
- * direction-independent (`fromCurrency`/`toCurrency` are never read back; Vortex trusts
- * its own request there).
+ * The body of a POST …/quotes response, BUY and SELL alike. SELL pricing and
+ * registration validate the returned currency pair before accepting amounts.
  */
 export const alfredpayQuoteResponseSchema = z.looseObject({
+  chain: z.enum(AlfredpayChain).optional(),
   expiration: parseableTimestamp,
   fees: z.array(
     z.looseObject({
@@ -98,9 +114,11 @@ export const alfredpayQuoteResponseSchema = z.looseObject({
     })
   ),
   fromAmount: z.string().regex(DECIMAL_STRING),
+  fromCurrency: z.union([z.enum(AlfredpayFiatCurrency), z.enum(AlfredpayOnChainCurrency)]),
   quoteId: z.string().min(1),
   rate: z.string().regex(DECIMAL_STRING),
-  toAmount: z.string().regex(DECIMAL_STRING)
+  toAmount: z.string().regex(DECIMAL_STRING),
+  toCurrency: z.union([z.enum(AlfredpayFiatCurrency), z.enum(AlfredpayOnChainCurrency)])
 }) satisfies z.ZodType<ConsumedQuote>;
 
 /**
@@ -131,10 +149,15 @@ export const alfredpayOnrampTransactionSchema = z.looseObject({
 
 /** The body of a POST …/offramp and GET …/offramp/{id} response (same transaction shape). */
 export const alfredpayOfframpTransactionSchema = z.looseObject({
+  chain: z.enum(AlfredpayChain),
+  customerId: z.string().min(1),
   depositAddress: z.string().regex(EVM_ADDRESS),
   expiration: parseableTimestamp,
+  fiatAccountId: z.string().min(1),
   fromAmount: z.string().regex(DECIMAL_STRING),
+  fromCurrency: z.string().min(1),
   status: z.enum(AlfredpayOfframpStatus),
+  toAmount: z.string().regex(DECIMAL_STRING),
   toCurrency: z.string().min(1),
   transactionId: z.string().min(1)
 }) satisfies z.ZodType<ConsumedOfframpTransaction>;
