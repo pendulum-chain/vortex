@@ -199,8 +199,8 @@ const aveniaAttemptSchema = z.looseObject({
   id: z.string().min(1),
   levelName: z.string().min(1),
   result: z.enum(KycAttemptResult).optional(),
-  resultMessage: z.string(),
-  retryable: z.boolean(),
+  resultMessage: z.string().optional(),
+  retryable: z.boolean().optional(),
   status: z.enum(KycAttemptStatus),
   submissionData: z.record(z.string(), z.unknown()).optional(),
   updatedAt: z.string().datetime({ offset: true })

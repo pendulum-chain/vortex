@@ -483,7 +483,7 @@ export interface AveniaVerificationAttempt {
   status: KycAttemptStatus;
   result?: KycAttemptResult;
   resultMessage?: string;
-  retryable: boolean;
+  retryable?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -496,7 +496,7 @@ export interface KybAttemptStatusResponse {
 }
 
 export interface AveniaKybAttemptStatusResponse {
-  attempt: AveniaVerificationAttempt & { resultMessage: string };
+  attempt: AveniaVerificationAttempt;
 }
 
 export enum AveniaDocumentType {
@@ -559,8 +559,8 @@ export interface KycAttempt {
   submissionData?: unknown;
   status: KycAttemptStatus;
   result?: KycAttemptResult;
-  resultMessage: string;
-  retryable: boolean;
+  resultMessage?: string;
+  retryable?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -5,6 +5,7 @@ import {
   aveniaAccountLimitsSchema,
   aveniaDocumentResponseSchema,
   aveniaKybAttemptStatusSchema,
+  aveniaKycAttemptsSchema,
   aveniaLevel1ResponseSchema,
   aveniaPayinTicketsSchema,
   aveniaPayoutTicketSchema,
@@ -177,6 +178,20 @@ describe("Avenia KYB Level 1 response schemas", () => {
       aveniaKybAttemptStatusSchema.parse({ attempt: { ...attempt, result: undefined, status: "PENDING" } })
     ).not.toThrow();
     expect(() => aveniaKybAttemptStatusSchema.parse({ attempt: { ...attempt, status: "APPROVED" } })).toThrow();
+  });
+
+  test("accepts an unsettled attempt with resultMessage and retryable absent", () => {
+    // Avenia omits resultMessage and retryable until an attempt settles, so a PENDING poll
+    // must parse instead of raising a ZodError that would surface as a 502.
+    const pending = {
+      createdAt: "2026-03-19T22:09:52.629984Z",
+      id: "attempt-1",
+      levelName: "kyb-level-1",
+      status: "PENDING",
+      updatedAt: "2026-03-19T22:09:52.629984Z"
+    };
+    expect(() => aveniaKybAttemptStatusSchema.parse({ attempt: pending })).not.toThrow();
+    expect(() => aveniaKycAttemptsSchema.parse({ attempts: [pending] })).not.toThrow();
   });
 });
 
