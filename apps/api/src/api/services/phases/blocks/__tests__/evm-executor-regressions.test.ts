@@ -13,9 +13,29 @@ const sharedReal = { ...sharedNamespace };
 const quoteTicketReal = { ...quoteTicketNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
 const financialOperationReal = { ...financialOperationNamespace };
+const financialOperationOutcomes = new Map<
+  string,
+  { response?: unknown; status: "confirmed" | "unknown" }
+>();
 const findQuote = mock(async () => undefined as unknown);
 const checkBalance = mock(async () => new Big(0));
 const getFundingBalance = mock(async () => new Big("1000000000"));
+const getRoute = mock(async (request: { fromAmount: string }) => ({
+  data: {
+    route: {
+      estimate: {
+        toAmount: new Big(request.fromAmount).div("1000000000000").toFixed(0),
+        toAmountMin: new Big(request.fromAmount).div("1000000000000").toFixed(0)
+      },
+      transactionRequest: {
+        data: "0x",
+        gasLimit: "100000",
+        target: "0x3333333333333333333333333333333333333333",
+        value: request.fromAmount
+      }
+    }
+  }
+}));
 const getOnrampTransaction = mock(
   async (): Promise<{ metadata?: { txHash?: string }; status: AlfredpayOnrampStatus }> => ({
     status: AlfredpayOnrampStatus.CREATED
@@ -41,7 +61,8 @@ mock.module("@vortexfi/shared", () => ({
       sendTransactionWithBlindRetry: sendTransaction
     })
   },
-  getEvmBalance: getFundingBalance
+  getEvmBalance: getFundingBalance,
+  getRoute
 }));
 mock.module("../../../../../models/quoteTicket.model", () => ({
   ...quoteTicketReal,
@@ -54,10 +75,36 @@ mock.module("../core/evm-funding", () => ({
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
-  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+  runFinancialOperation: async ({
+    attemptClass,
+    beforePerform,
+    perform
+  }: {
+    attemptClass: string;
+    beforePerform?(): Promise<void>;
+    perform(key: string): Promise<unknown>;
+  }) => {
+    const existing = financialOperationOutcomes.get(attemptClass);
+    if (existing?.status === "confirmed") return existing.response;
+    if (existing?.status === "unknown") {
+      throw Object.assign(new Error("financial operation requires reconciliation"), {
+        requiresManualReconciliation: true
+      });
+    }
+    await beforePerform?.();
+    try {
+      const response = await perform(`test-operation:${attemptClass}`);
+      financialOperationOutcomes.set(attemptClass, { response, status: "confirmed" });
+      return response;
+    } catch (error) {
+      financialOperationOutcomes.set(attemptClass, { status: "unknown" });
+      throw error;
+    }
+  }
 }));
 const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution");
 const { FinalSettlementSubsidyExecutor } = await import("../phases/final-settlement-subsidy/execution");
+const { getAlfredpayExecutableBridgeOutputRaw } = await import("../phases/alfredpay-offramp/simulation");
 const { AlfredpayOnrampMintExecutor } = await import("../phases/alfredpay-mint/execution");
 
 afterAll(() => {
@@ -69,8 +116,11 @@ afterAll(() => {
 
 beforeEach(() => {
   findQuote.mockClear();
+  financialOperationOutcomes.clear();
   checkBalance.mockClear();
   getFundingBalance.mockClear();
+  getFundingBalance.mockResolvedValue(new Big("1000000000"));
+  getRoute.mockClear();
   getOnrampTransaction.mockClear();
   sendTransaction.mockClear();
   waitForTransactionReceipt.mockClear();
@@ -199,10 +249,21 @@ describe("EVM block executor regressions", () => {
     expect(sendTransaction).not.toHaveBeenCalled();
   });
 
-  it("records AlfredPay SELL settlement subsidy as Polygon USDT", async () => {
+  it("uses AlfredPay SELL's guaranteed bridge minimum and records the subsidy as Polygon USDT", async () => {
     checkBalance.mockResolvedValue(new Big("900000"));
     findQuote.mockResolvedValue({
-      metadata: { blocks: { alfredpayOfframp: { inputAmountRaw: "1000000" } } },
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: "1000000",
+            executableBridgeOutputRaw: "800000",
+            inputAmountRaw: "1000000",
+            subsidyAmountRaw: "200000"
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 4 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
       network: Networks.Polygon,
       outputAmount: "1",
       outputCurrency: FiatToken.MXN
@@ -212,6 +273,16 @@ describe("EVM block executor regressions", () => {
       quoteId: "quote-1",
       state: {
         evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        squidRouterDeliveryEvidence: {
+          baselineRaw: "0",
+          destinationNetwork: Networks.Polygon,
+          destinationToken: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+          expectedAmountRaw: "800000",
+          kind: "destination-balance",
+          minimumRatioBps: 9000,
+          observedAt: "2026-01-01T00:00:00.000Z",
+          sourceTransactionHash: "legacy-unavailable"
+        },
         transactionPlan: {
           settlementBaselines: {
             "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "0"
@@ -232,7 +303,388 @@ describe("EVM block executor regressions", () => {
       priceFeedService.convertCurrency = originalConvertCurrency;
     }
 
+    expect(checkBalance).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "720000" }));
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
+  });
+
+  it.each([
+    ["exact cap", "10000000", "0", "11000000000000000000"],
+    ["15 bps staging case", "9431953", "0", "10375148300000000000"],
+    ["partial inventory", "10000000", "4000000", "6600000000000000000"]
+  ])(
+    "acquires only the treasury shortfall and transfers the full subsidy (%s)",
+    async (_caseName, subsidyAmountRaw, fundingInventoryRaw, expectedNativeInputRaw) => {
+      const executableBridgeOutputRaw = "1000000000";
+      const inputAmountRaw = new Big(executableBridgeOutputRaw).plus(subsidyAmountRaw).toFixed(0);
+      checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+      getFundingBalance.mockResolvedValue(new Big(fundingInventoryRaw));
+      findQuote.mockResolvedValue({
+        metadata: {
+          blocks: {
+            alfredpayOfframp: {
+              bridgeOutputAmountRaw: executableBridgeOutputRaw,
+              executableBridgeOutputRaw,
+              inputAmountRaw,
+              subsidyAmountRaw
+            }
+          },
+          flow: { id: "AlfredpayOfframp", version: 4 },
+          globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+        },
+        network: Networks.Polygon,
+        outputAmount: "1",
+        outputCurrency: FiatToken.MXN
+      });
+      const state = {
+        id: `ramp-acquire-${subsidyAmountRaw}`,
+        quoteId: `quote-acquire-${subsidyAmountRaw}`,
+        state: {
+          evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+          transactionPlan: {
+            settlementBaselines: {
+              "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f":
+                "0"
+            }
+          }
+        },
+        type: RampDirection.SELL,
+        update: mock(async () => state)
+      } as unknown as RampState;
+      const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+      executor.createSubsidy = mock(async () => undefined);
+      const originalConvertCurrency = priceFeedService.convertCurrency;
+      priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+      try {
+        await executor.executePhase(state);
+      } finally {
+        priceFeedService.convertCurrency = originalConvertCurrency;
+      }
+
+      expect(getRoute).toHaveBeenCalledTimes(2);
+      expect(getRoute.mock.calls[1]?.[0]).toMatchObject({ fromAmount: expectedNativeInputRaw });
+      expect(sendTransaction).toHaveBeenCalledTimes(2);
+      expect(executor.createSubsidy).toHaveBeenCalledWith(
+        state,
+        new Big(subsidyAmountRaw).div(1_000_000).toNumber(),
+        EvmToken.USDT,
+        fundingAccount.address,
+        expect.any(String)
+      );
+    }
+  );
+
+  it("does not broadcast an acquisition whose guaranteed output leaves treasury inventory insolvent", async () => {
+    const executableBridgeOutputRaw = "1000000000";
+    const subsidyAmountRaw = "10000000";
+    checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+    getFundingBalance.mockResolvedValue(new Big(0));
+    getRoute
+      .mockResolvedValueOnce({
+        data: {
+          route: {
+            estimate: { toAmount: "1000000", toAmountMin: "1000000" },
+            transactionRequest: {
+              data: "0x",
+              gasLimit: "100000",
+              target: "0x3333333333333333333333333333333333333333",
+              value: "1000000000000000000"
+            }
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        data: {
+          route: {
+            estimate: { toAmount: "11000000", toAmountMin: "7000000" },
+            transactionRequest: {
+              data: "0x",
+              gasLimit: "100000",
+              target: "0x3333333333333333333333333333333333333333",
+              value: "11000000000000000000"
+            }
+          }
+        }
+      });
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: executableBridgeOutputRaw,
+            executableBridgeOutputRaw,
+            inputAmountRaw: "1010000000",
+            subsidyAmountRaw
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 4 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-insolvent-acquisition",
+      quoteId: "quote-insolvent-acquisition",
+      state: {
+        evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        transactionPlan: {
+          settlementBaselines: {
+            "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f":
+              "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+    try {
+      await expect(executor.executePhase(state)).rejects.toMatchObject({
+        isRecoverable: true,
+        message: expect.stringContaining("below funding shortfall")
+      });
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+
+    getRoute
+      .mockResolvedValueOnce({
+        data: {
+          route: {
+            estimate: { toAmount: "1000000", toAmountMin: "1000000" },
+            transactionRequest: {
+              data: "0x",
+              gasLimit: "100000",
+              target: "0x3333333333333333333333333333333333333333",
+              value: "1000000000000000000"
+            }
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        data: {
+          route: {
+            estimate: { toAmount: "11000000", toAmountMin: "10000000" },
+            transactionRequest: {
+              data: "0x",
+              gasLimit: "100000",
+              target: "0x3333333333333333333333333333333333333333",
+              value: "100000000000000000000"
+            }
+          }
+        }
+      });
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+    try {
+      await expect(executor.executePhase(state)).rejects.toMatchObject({
+        isRecoverable: true,
+        message: expect.stringContaining("executable value")
+      });
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+    expect(sendTransaction).not.toHaveBeenCalled();
+
+    getRoute.mockResolvedValueOnce({
+      data: {
+        route: {
+          estimate: { toAmount: "900000", toAmountMin: "900000" },
+          transactionRequest: {
+            data: "0x",
+            gasLimit: "100000",
+            target: "0x3333333333333333333333333333333333333333",
+            value: "1000000000000000000"
+          }
+        }
+      }
+    });
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+    try {
+      await expect(executor.executePhase(state)).rejects.toThrow("exceeds maximum allowed $11");
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("replays a confirmed acquisition before fresh route data after a balance-wait failure", async () => {
+    const executableBridgeOutputRaw = "1000000000";
+    checkBalance
+      .mockResolvedValueOnce(new Big(executableBridgeOutputRaw))
+      .mockRejectedValueOnce(new Error("balance RPC timeout"))
+      .mockResolvedValue(new Big(executableBridgeOutputRaw));
+    getFundingBalance.mockResolvedValue(new Big(0));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: executableBridgeOutputRaw,
+            executableBridgeOutputRaw,
+            inputAmountRaw: "1010000000",
+            subsidyAmountRaw: "10000000"
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 4 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-acquisition-replay",
+      quoteId: "quote-acquisition-replay",
+      state: {
+        evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        transactionPlan: {
+          settlementBaselines: {
+            "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f":
+              "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+    try {
+      await expect(executor.executePhase(state)).rejects.toMatchObject({ isRecoverable: true });
+      await expect(executor.executePhase(state)).resolves.toBe(state);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(getRoute).toHaveBeenCalledTimes(2);
+    const financialCalls = sendTransaction.mock.calls as unknown as [unknown, unknown, { value: bigint }][];
+    expect(financialCalls.filter(([, , transaction]) => transaction.value > 0n)).toHaveLength(1);
+    expect(sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("classifies acquisition route and ambiguous receipt failures as recoverable without duplicate broadcast", async () => {
+    const executableBridgeOutputRaw = "1000000000";
+    checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+    getFundingBalance.mockResolvedValue(new Big(0));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: executableBridgeOutputRaw,
+            executableBridgeOutputRaw,
+            inputAmountRaw: "1010000000",
+            subsidyAmountRaw: "10000000"
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 4 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-acquisition-errors",
+      quoteId: "quote-acquisition-errors",
+      state: {
+        evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        transactionPlan: {
+          settlementBaselines: {
+            "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f":
+              "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+    try {
+      getRoute.mockRejectedValueOnce(new Error("Squid temporarily unavailable"));
+      await expect(executor.executePhase(state)).rejects.toMatchObject({
+        isRecoverable: true,
+        message: expect.stringContaining("Squid temporarily unavailable")
+      });
+      expect(sendTransaction).not.toHaveBeenCalled();
+
+      waitForTransactionReceipt.mockRejectedValueOnce(new Error("receipt RPC timeout"));
+      await expect(executor.executePhase(state)).rejects.toMatchObject({
+        isRecoverable: true,
+        message: expect.stringContaining("receipt RPC timeout")
+      });
+      expect(sendTransaction).toHaveBeenCalledTimes(1);
+
+      await expect(executor.executePhase(state)).rejects.toThrow("requires reconciliation");
+      expect(sendTransaction).toHaveBeenCalledTimes(1);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+  });
+
+  it("fails closed when schema-3 executable minimum metadata disagrees with settlement arithmetic", () => {
+    expect(() =>
+      getAlfredpayExecutableBridgeOutputRaw(
+        { executableBridgeOutputRaw: "800001", inputAmountRaw: "1000000", subsidyAmountRaw: "200000" },
+        { network: "0", partnerMarkup: "0", vortex: "0" }
+      )
+    ).toThrow("executable bridge minimum mismatch");
+  });
+
+  it("does not fund AlfredPay bridge under-delivery beyond the quoted subsidy", async () => {
+    checkBalance.mockResolvedValue(new Big("900000"));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: "1000000",
+            executableBridgeOutputRaw: "1000000",
+            inputAmountRaw: "1000000",
+            subsidyAmountRaw: "0"
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 4 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-under-delivery",
+      quoteId: "quote-under-delivery",
+      state: {
+        evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        transactionPlan: {
+          settlementBaselines: {
+            "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+
+    await expect(executor.executePhase(state)).rejects.toMatchObject({
+      isRecoverable: true,
+      message: expect.stringContaining("subsidy cap")
+    });
+
+    expect(checkBalance).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "900000" }));
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
   });
 
   it("propagates rejected AlfredPay statuses and records on-chain completion while balance confirmation continues", async () => {
