@@ -579,7 +579,7 @@ export interface paths {
         };
         /**
          * Get user information
-         * @description Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level. Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.
+         * @description Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
          */
         get: operations["getBrlaUser"];
         put?: never;
@@ -599,7 +599,7 @@ export interface paths {
         };
         /**
          * Get user's remaining transaction limits
-         * @description Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.
+         * @description Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
          */
         get: operations["getBrlaUserRemainingLimit"];
         put?: never;
@@ -1805,7 +1805,9 @@ export interface paths {
          *
          *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
          *
-         *     Webhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.
+         *     Managed profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`. An unselected manager key remains manager-owned and cannot subscribe to a child-owned quote.
+         *
+         *     Webhooks are bound to the non-managed account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.
          */
         post: {
             parameters: {
@@ -1865,6 +1867,33 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Managed-profile selection is unsupported on webhook endpoints. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid secret API key. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                    };
+                };
+                /** @description Direct managed-child credentials are unsupported, or supplied credentials conflict. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -1889,7 +1918,9 @@ export interface paths {
          *
          *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
          *
-         *     Deletion is scoped to your account: a webhook registered by another account returns `404`.
+         *     Managed profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`.
+         *
+         *     Deletion is scoped to your non-managed account: a webhook registered by another account returns `404`.
          */
         delete: {
             parameters: {
@@ -1911,6 +1942,33 @@ export interface paths {
                             message: string;
                             success: boolean;
                         };
+                    };
+                };
+                /** @description Managed-profile selection is unsupported on webhook endpoints. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid secret API key. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                    };
+                };
+                /** @description Direct managed-child credentials are unsupported, or supplied credentials conflict. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
                     };
                 };
             };
@@ -2976,7 +3034,7 @@ export interface components {
             walletAddress?: string;
         };
         RecordInitialKycAttemptRequest: {
-            quoteId?: string;
+            quoteId: string;
             sessionId?: string;
             taxId: string;
         };
@@ -4873,7 +4931,10 @@ export interface operations {
     getBrlaUser: {
         parameters: {
             query?: {
-                /** @description The user's Tax ID. */
+                /**
+                 * @deprecated
+                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.
+                 */
                 taxId?: string;
             };
             header?: {
@@ -4894,11 +4955,7 @@ export interface operations {
                     "application/json": components["schemas"]["GetUserResponse"];
                 };
             };
-            /**
-             * @description Bad Request. Possible reasons:
-             *     - Missing taxId query parameter
-             *     - KYC invalid
-             */
+            /** @description Missing/invalid authentication, ambiguous canonical Avenia account, or invalid KYC state. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4932,10 +4989,13 @@ export interface operations {
     getBrlaUserRemainingLimit: {
         parameters: {
             query: {
-                /** @description The user's Tax ID. */
+                /**
+                 * @deprecated
+                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.
+                 */
                 taxId?: string;
                 /** @description Ramp direction whose remaining limit should be returned. */
-                direction: "BUY" | "SELL";
+                direction: components["schemas"]["RampDirection"];
             };
             header?: {
                 /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
@@ -4955,7 +5015,7 @@ export interface operations {
                     "application/json": components["schemas"]["GetUserRemainingLimitResponse"];
                 };
             };
-            /** @description Missing taxId query parameter or other invalid request. */
+            /** @description Missing direction, missing/invalid authentication, ambiguous canonical Avenia account, or other invalid request. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6383,6 +6443,21 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": 503,
+                     *       "message": "Destination network fees are temporarily too high. Please try again later."
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     createBestQuote: {
@@ -6491,6 +6566,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable. Every eligible destination network currently exceeds the configured fee safety limit; retry the quote later. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": 503,
+                     *       "message": "Destination network fees are temporarily too high. Please try again later."
+                     *     }
+                     */
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };

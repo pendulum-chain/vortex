@@ -4,6 +4,7 @@ import {
   checkEvmNativeBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
+  isNetworkEVM,
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -12,13 +13,27 @@ import { base, polygon } from "viem/chains";
 import logger from "../../../../../config/logger";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
-  ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../../constants/constants";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
+
+// Compatibility program for quotes created before dynamic destination funding
+// metadata existed. Keep these values and operation identities stable until all
+// such quotes/ramps have expired or completed.
+export const LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
+  [Networks.Arbitrum]: "0.0002",
+  [Networks.Avalanche]: "0.0034",
+  [Networks.Base]: "0.000034",
+  [Networks.BaseSepolia]: "0.000034",
+  [Networks.BSC]: "0.000115",
+  [Networks.Ethereum]: "0.005",
+  [Networks.Moonbeam]: "0.34",
+  [Networks.Polygon]: "0.6",
+  [Networks.PolygonAmoy]: "0.2"
+};
 
 export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
@@ -55,21 +70,39 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
-export const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
-  [Networks.Ethereum]: ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  [Networks.Arbitrum]: "0.0002",
-  [Networks.Base]: "0.000034",
-  [Networks.Polygon]: "0.6",
-  [Networks.BSC]: "0.000115",
-  [Networks.Avalanche]: "0.0034",
-  [Networks.Moonbeam]: "0.34",
-  [Networks.PolygonAmoy]: "0.2",
-  [Networks.BaseSepolia]: "0.000034"
-};
+export function calculateDestinationFundingShortfallRaw(requiredFundingRaw: bigint, currentBalanceRaw: bigint): bigint {
+  return requiredFundingRaw > currentBalanceRaw ? requiredFundingRaw - currentBalanceRaw : 0n;
+}
+
+export function calculateSourceEvmFundingRequirementRaw(
+  fixedFundingRaw: bigint,
+  plannedNativeValueRaw: bigint,
+  sameNetworkDestinationLiabilityRaw = 0n
+): bigint {
+  // A same-chain payout spends from the same balance as the source phases, so its signed
+  // fee liability must remain additive instead of reusing the fixed source reserve.
+  return fixedFundingRaw + plannedNativeValueRaw + sameNetworkDestinationLiabilityRaw;
+}
+
+export function getDynamicDestinationEvmFundingNetwork(
+  destinationNetwork: Networks | undefined,
+  isBuy: boolean,
+  isDirectTransfer: boolean | undefined
+): EvmNetworks | undefined {
+  // Direct provider-mint flows intentionally have no destination fee envelope. Their
+  // execution therefore keeps the existing fixed source reserve rather than adding an
+  // unquoted dynamic treasury transfer.
+  if (!isBuy || isDirectTransfer === true || !destinationNetwork || !isNetworkEVM(destinationNetwork)) {
+    return undefined;
+  }
+
+  return destinationNetwork;
+}
 
 export async function isDestinationEvmEphemeralFunded(
   evmEphemeralAddress: string,
-  destinationNetwork: EvmNetworks
+  destinationNetwork: EvmNetworks,
+  requiredFundingRaw: bigint
 ): Promise<boolean> {
   const destinationClient = EvmClientManager.getInstance().getClient(destinationNetwork);
   const chain = destinationClient.chain;
@@ -78,11 +111,7 @@ export async function isDestinationEvmEphemeralFunded(
   }
 
   const balance = await destinationClient.getBalance({ address: evmEphemeralAddress as `0x${string}` });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork], chain.nativeCurrency.decimals).toFixed()
-  );
-
-  return Big(balance.toString()).gte(fundingAmountRaw);
+  return Big(balance.toString()).gte(requiredFundingRaw.toString());
 }
 
 const PRESIGNED_TRANSFER_BALANCE_POLL_MS = 5000;

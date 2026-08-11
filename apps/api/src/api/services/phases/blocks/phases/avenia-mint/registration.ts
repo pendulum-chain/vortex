@@ -9,6 +9,7 @@ export interface AveniaMintRegistrationInput extends Record<string, unknown> {
 
 export interface AveniaMintRegistrationFacts {
   aveniaTicketId: string;
+  subAccountId?: string;
   taxId: string;
 }
 
@@ -33,7 +34,11 @@ export function createRegisterAveniaMint(
     const aveniaAccount = await dependencies.resolveAccount(ctx.authenticatedUser.id, ctx.input.taxId);
     const ticket = await dependencies.createTicket(aveniaAccount.taxId, ctx.quote, ctx.quote.inputAmount);
     return {
-      facts: { aveniaTicketId: ticket.aveniaTicketId, taxId: aveniaAccount.taxId },
+      facts: {
+        aveniaTicketId: ticket.aveniaTicketId,
+        subAccountId: ticket.subAccountId,
+        taxId: aveniaAccount.taxId
+      },
       responseArtifacts: { depositQrCode: ticket.brCode } satisfies AveniaMintResponseArtifacts
     };
   };

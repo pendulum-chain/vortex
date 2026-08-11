@@ -17,12 +17,13 @@ export enum KycFailureReason {
 
 // GET /brla/getUser?taxId=:taxId
 export interface BrlaGetUserRequest {
-  taxId: string;
+  taxId?: string;
 }
 
 export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
-  quoteId?: string;
+  quoteId: string;
   sessionId?: string;
+  taxId: string;
 }
 export interface BrlaGetUserResponse {
   evmAddress: string;
@@ -77,7 +78,7 @@ export interface BrlaValidatePixKeyResponse {
 }
 
 export interface BrlaGetUserRemainingLimitRequest {
-  taxId: string;
+  taxId?: string;
   direction: RampDirection;
 }
 

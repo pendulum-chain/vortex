@@ -114,6 +114,10 @@ external-subject and contact-email pairs, and revokes all child credentials. Del
 is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
 routes; recipient invitations remain unavailable to managed children.
 
+Migration 063 rollback locks both managed tables and refuses to proceed while either a
+child relationship or manager configuration exists, so manager policy cannot be silently
+discarded by a down/up cycle.
+
 The durable rationale and intentionally excluded capabilities are recorded in
 [`ADR 0003`](adr-0003-managed-headless-profiles.md).
 

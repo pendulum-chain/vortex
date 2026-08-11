@@ -506,8 +506,11 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "KYC invalid") {
         return new KycInvalidError();
       }
-      if (errorMessage === "Missing taxId" || errorMessage === "Missing quoteId or taxId body parameter") {
+      if (errorMessage === "Missing taxId") {
         return new BrlKycStatusError("Tax ID is required", 400);
+      }
+      if (errorMessage === "Missing quoteId or taxId body parameter") {
+        return new BrlKycStatusError(errorMessage, 400);
       }
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();

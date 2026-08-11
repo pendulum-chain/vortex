@@ -7,15 +7,17 @@ import { abortableCall, throwIfAborted } from "./cancellation";
 import type { FlowIdentity } from "./identity";
 
 export interface RunFinancialOperationArgs<Result> {
-  scopeType: "quote" | "ramp";
+  scopeType: "profile" | "quote" | "ramp";
   scopeId: string;
-  flow: FlowIdentity;
+  flow: Pick<FlowIdentity, "id" | "version">;
   phase: string;
   attemptClass: string;
   provider: string;
   request: unknown;
   retryFailed?: boolean;
   signal?: AbortSignal;
+  /** Runs only after replay/reconciliation is exhausted and immediately before claiming a new side effect. */
+  beforePerform?(): Promise<void>;
   perform(idempotencyKey: string): Promise<Result>;
   reconcile?: (operation: FinancialOperation) => Promise<Result | null>;
   externalId?: (result: Result) => string | undefined;
@@ -76,6 +78,7 @@ export async function runFinancialOperation<Result>({
   attemptClass,
   provider,
   request,
+  beforePerform,
   perform,
   reconcile,
   externalId,
@@ -152,6 +155,8 @@ export async function runFinancialOperation<Result>({
       throw new FinancialOperationReconciliationRequiredError(operation, `has ${operation.status} outcome`);
     }
   }
+
+  await beforePerform?.();
 
   const [claimed] = await FinancialOperation.update(
     { errorMessage: null, status: "submitted" },

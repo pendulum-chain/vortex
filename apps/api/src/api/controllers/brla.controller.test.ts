@@ -5,6 +5,7 @@ import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import EmailNotification, { NotificationProvider, NotificationType } from "../../models/emailNotification.model";
+import FinancialOperation from "../../models/financialOperation.model";
 import KycCase from "../../models/kycCase.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
@@ -924,15 +925,42 @@ describe("createSubaccount", () => {
   const originalEntityFindByPk = CustomerEntity.findByPk;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
+  const originalFinancialOperationFindOrCreate = FinancialOperation.findOrCreate;
+  const originalFinancialOperationUpdate = FinancialOperation.update;
   const originalGetInstance = BrlaApiService.getInstance;
   const originalLoggerError = logger.error;
+  const originalTransaction = sequelize.transaction;
+  const originalQuery = sequelize.query;
 
   beforeEach(() => {
     logger.error = mock(() => logger) as typeof logger.error;
     mockEntityPerProfile();
+    sequelize.transaction = mock(async callback => callback({} as never)) as never;
+    sequelize.query = mock(async () => []) as never;
     // No pre-existing kyc case; case creation is fire-and-forget for these scenarios.
     KycCase.findOne = mock(async () => null) as typeof KycCase.findOne;
     KycCase.create = mock(async () => ({})) as unknown as typeof KycCase.create;
+    createAveniaSubaccountMock.mockClear();
+    subaccountInfoMock.mockClear();
+
+    let operation: Record<string, unknown> | null = null;
+    FinancialOperation.findOrCreate = mock(async (options: { defaults: Record<string, unknown> }) => {
+      if (operation) return [operation, false];
+      operation = {
+        ...options.defaults,
+        id: "operation-1",
+        response: null,
+        update: mock(async (values: Record<string, unknown>) => {
+          Object.assign(operation as object, values);
+        })
+      };
+      return [operation, true];
+    }) as unknown as typeof FinancialOperation.findOrCreate;
+    FinancialOperation.update = mock(async values => {
+      if (operation?.status !== "not_started") return [0];
+      Object.assign(operation, values);
+      return [1];
+    }) as unknown as typeof FinancialOperation.update;
   });
 
   afterEach(() => {
@@ -943,8 +971,12 @@ describe("createSubaccount", () => {
     CustomerEntity.findByPk = originalEntityFindByPk;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
+    FinancialOperation.findOrCreate = originalFinancialOperationFindOrCreate;
+    FinancialOperation.update = originalFinancialOperationUpdate;
     BrlaApiService.getInstance = originalGetInstance;
     logger.error = originalLoggerError;
+    sequelize.transaction = originalTransaction;
+    sequelize.query = originalQuery;
   });
 
   const createAveniaSubaccountMock = mock(async () => ({ id: "new-subaccount" }));
@@ -1039,18 +1071,24 @@ describe("createSubaccount", () => {
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(res.body).toEqual({ subAccountId: "new-subaccount" });
-    expect(existingUpdate).toHaveBeenCalledWith(expect.objectContaining({ providerSubaccountId: "new-subaccount" }));
+    expect(existingUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ providerSubaccountId: "new-subaccount" }),
+      expect.anything()
+    );
     // The retry updates the existing row in place — typed-entity creation must not run.
     expect(strayCreate).not.toHaveBeenCalled();
   });
 
-  it("allows an authenticated user to (re)create their own subaccount", async () => {
+  it("returns an authenticated user's canonical subaccount without recreating or resetting it", async () => {
     mockBrlaApi();
-    createAveniaSubaccountMock.mockClear();
     const updateMock = mock(async () => undefined);
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-same-user",
+      customerType: "individual",
+      id: "customer-1",
+      providerSubaccountId: "existing-subaccount",
       status: VerificationStatus.Approved,
+      statusExternal: "APPROVED",
       update: updateMock
     })) as typeof ProviderCustomer.findOne;
 
@@ -1064,9 +1102,92 @@ describe("createSubaccount", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.OK);
-    expect(res.body).toEqual({ subAccountId: "new-subaccount" });
-    expect(createAveniaSubaccountMock).toHaveBeenCalled();
-    expect(updateMock).toHaveBeenCalled();
+    expect(res.body).toEqual({ subAccountId: "existing-subaccount" });
+    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("serializes concurrent first-time creation by tax id", async () => {
+    let canonicalCustomer: Record<string, unknown> | null = null;
+    let lockTail = Promise.resolve();
+    const providerCreate = mock(async (values: Record<string, unknown>) => {
+      canonicalCustomer = { id: "customer-1", ...values };
+      return canonicalCustomer;
+    });
+    let providerStartedResolve: () => void = () => undefined;
+    const providerStarted = new Promise<void>(resolve => {
+      providerStartedResolve = resolve;
+    });
+    let releaseProvider: () => void = () => undefined;
+    const providerBarrier = new Promise<void>(resolve => {
+      releaseProvider = resolve;
+    });
+    const providerCreateSubaccount = mock(async () => {
+      providerStartedResolve();
+      await providerBarrier;
+      return { id: "new-subaccount" };
+    });
+
+    sequelize.transaction = mock(async callback => {
+      const transaction: { release?: () => void } = {};
+      try {
+        return await callback(transaction as never);
+      } finally {
+        transaction.release?.();
+      }
+    }) as never;
+    sequelize.query = mock(async (_sql, options: { transaction: { release?: () => void } }) => {
+      const previous = lockTail;
+      let releaseLock: () => void = () => undefined;
+      lockTail = new Promise<void>(resolve => {
+        releaseLock = resolve;
+      });
+      await previous;
+      options.transaction.release = releaseLock;
+      return [];
+    }) as never;
+    ProviderCustomer.findOne = mock(async () => canonicalCustomer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
+    BrlaApiService.getInstance = mock(
+      () => ({ createAveniaSubaccount: providerCreateSubaccount }) as unknown as BrlaApiService
+    );
+
+    const first = createResponse();
+    const second = createResponse();
+    const firstRequest = createSubaccount({ body: validBody, userId: "same-user" } as any, first as any);
+    await providerStarted;
+    await createSubaccount({ body: validBody, userId: "same-user" } as any, second as any);
+    releaseProvider();
+    await firstRequest;
+
+    expect(first.statusCode).toBe(httpStatus.OK);
+    expect(second.statusCode).toBe(httpStatus.SERVICE_UNAVAILABLE);
+    expect(first.body).toEqual({ subAccountId: "new-subaccount" });
+    expect(providerCreateSubaccount).toHaveBeenCalledTimes(1);
+    expect(providerCreate).toHaveBeenCalledTimes(1);
+    expect(sequelize.query).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not repeat an ambiguous provider creation after a crash-like failure", async () => {
+    const providerCreateSubaccount = mock(async () => {
+      throw new Error("connection reset after provider submission");
+    });
+    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
+    const providerCreate = mock(async () => ({}));
+    ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
+    BrlaApiService.getInstance = mock(
+      () => ({ createAveniaSubaccount: providerCreateSubaccount }) as unknown as BrlaApiService
+    );
+
+    const first = createResponse();
+    await createSubaccount({ body: validBody, userId: "same-user" } as any, first as any);
+    const retry = createResponse();
+    await createSubaccount({ body: validBody, userId: "same-user" } as any, retry as any);
+
+    expect(first.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    expect(retry.statusCode).toBe(httpStatus.SERVICE_UNAVAILABLE);
+    expect(providerCreateSubaccount).toHaveBeenCalledTimes(1);
+    expect(providerCreate).not.toHaveBeenCalled();
   });
 
   it("creates a canonical provider customer when none exists", async () => {
@@ -1094,7 +1215,8 @@ describe("createSubaccount", () => {
         provider: "avenia",
         providerSubaccountId: "new-subaccount",
         taxReference: "08786985906"
-      })
+      }),
+      expect.anything()
     );
   });
 

@@ -349,12 +349,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.transaction(async transaction => {
-    await queryInterface.sequelize.query("LOCK TABLE managed_profiles IN ACCESS EXCLUSIVE MODE;", { transaction });
-    const [managedProfiles] = await queryInterface.sequelize.query("SELECT id FROM managed_profiles LIMIT 1", {
+    await queryInterface.sequelize.query("LOCK TABLE managed_profiles, managed_profile_managers IN ACCESS EXCLUSIVE MODE;", {
       transaction
     });
-    if (managedProfiles.length > 0) {
-      throw new Error("Cannot revert managed-profile schema while managed profiles exist");
+    const [managedState] = await queryInterface.sequelize.query(
+      `SELECT
+         EXISTS (SELECT 1 FROM managed_profiles) AS "hasProfiles",
+         EXISTS (SELECT 1 FROM managed_profile_managers) AS "hasManagers"`,
+      { transaction }
+    );
+    const state = managedState[0] as { hasManagers?: boolean; hasProfiles?: boolean } | undefined;
+    if (state?.hasProfiles || state?.hasManagers) {
+      throw new Error("Cannot revert managed-profile schema while managed profiles or manager configuration exist");
     }
 
     await queryInterface.sequelize.query("DROP TRIGGER trg_profiles_managed_profile_invariants ON profiles;", {

@@ -590,12 +590,67 @@ if (
 }
 
 const recordAttempt = operationAt("/v1/brla/kyc/record-attempt", "post");
-const recordAttemptSchema = (
+const recordAttemptSchemaRef = (
   ((recordAttempt.requestBody as JsonObject).content as JsonObject)["application/json"] as JsonObject
 ).schema as JsonObject;
-const recordAttemptRequired = recordAttemptSchema.required as unknown[];
+if (recordAttemptSchemaRef.$ref !== "#/components/schemas/RecordInitialKycAttemptRequest") {
+  throw new Error("POST /v1/brla/kyc/record-attempt must reference the RecordInitialKycAttemptRequest schema.");
+}
+const recordAttemptRequired = (schemas.RecordInitialKycAttemptRequest as JsonObject).required as unknown[];
 if (!recordAttemptRequired.includes("quoteId") || !recordAttemptRequired.includes("taxId")) {
   throw new Error("POST /v1/brla/kyc/record-attempt must require the shared quoteId and taxId request fields.");
+}
+
+function queryParameter(path: string, name: string): JsonObject | undefined {
+  const parameters = operationAt(path, "get").parameters;
+  if (!Array.isArray(parameters)) return undefined;
+  return parameters.find(
+    parameter =>
+      parameter &&
+      typeof parameter === "object" &&
+      (parameter as JsonObject).in === "query" &&
+      (parameter as JsonObject).name === name
+  ) as JsonObject | undefined;
+}
+
+const getUserTaxId = queryParameter("/v1/brla/getUser", "taxId");
+const remainingLimitTaxId = queryParameter("/v1/brla/getUserRemainingLimit", "taxId");
+const remainingLimitDirection = queryParameter("/v1/brla/getUserRemainingLimit", "direction");
+if (
+  !getUserTaxId ||
+  getUserTaxId.required !== false ||
+  getUserTaxId.deprecated !== true ||
+  !remainingLimitTaxId ||
+  remainingLimitTaxId.required !== false ||
+  remainingLimitTaxId.deprecated !== true ||
+  !remainingLimitDirection ||
+  remainingLimitDirection.required !== true ||
+  JSON.stringify(remainingLimitDirection.schema).includes("#/components/schemas/RampDirection") === false
+) {
+  throw new Error(
+    "BRLA account reads must document optional deprecated taxId and a required RampDirection for remaining limits."
+  );
+}
+
+for (const [path, method] of [
+  ["/v1/webhook", "post"],
+  ["/v1/webhook/{id}", "delete"]
+] as const) {
+  const operation = operationAt(path, method);
+  if (JSON.stringify(operation.security) !== JSON.stringify([{ SecretApiKey: [] }])) {
+    throw new Error(`${method.toUpperCase()} ${path} must require only secret API-key authentication.`);
+  }
+  const responses = operation.responses as JsonObject;
+  if (
+    !transitivelyReferences(responses["400"], "#/components/schemas/ManagedSelectorErrorResponse") ||
+    !transitivelyReferences(responses["401"], "#/components/schemas/ApiCredentialErrorResponse") ||
+    !transitivelyReferences(responses["403"], "#/components/schemas/ManagedSelectorErrorResponse")
+  ) {
+    throw new Error(`${method.toUpperCase()} ${path} must document managed-profile 400/403 and secret-key 401 errors.`);
+  }
+  if (!String(operation.description).includes("Managed profiles are polling-only")) {
+    throw new Error(`${method.toUpperCase()} ${path} must document the managed-profile polling-only contract.`);
+  }
 }
 for (const path of ["/v1/alfredpay/submitKycFile", "/v1/alfredpay/submitKybFile", "/v1/alfredpay/submitKybRelatedPersonFile"]) {
   const requestBody = operationAt(path, "post").requestBody;

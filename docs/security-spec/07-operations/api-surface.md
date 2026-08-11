@@ -39,7 +39,9 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - During an active window, mutable quote/ramp operations return HTTP `503 Service Unavailable` before controller/service work starts.
 - Rejections include `Retry-After`, `Cache-Control: no-store`, and downtime metadata (`maintenance_start`, `maintenance_end`, affected operations) in the error payload so direct API clients can pause and retry after the window.
 
-**Route structure:** 27 TypeScript route files under `api/routes/v1/` including `index.ts`, each mounting controllers with appropriate auth middleware.
+**Route structure:** 40 `*.route.ts` files under `api/routes/` (33 under `v1/`), plus `v1/index.ts`, each mounting controllers with appropriate auth middleware. `api/routes/api-surface-inventory.test.ts` derives this count from the tree so the audit inventory cannot silently stale.
+
+**Multipart uploads:** Four operations use in-memory Multer buffering. Alfredpay's `POST /v1/alfredpay/submitKycFile`, `submitKybFile`, and `submitKybRelatedPersonFile` allow one file up to 5MB; secret/Bearer authentication and the managed relationship/entity-type gate run before buffering, while multipart country authorization runs after parsing. Mykobo's `POST /v1/mykobo/profiles` is Supabase-authenticated before buffering and accepts up to four named files (`front`, `back`, `face`, `utility_bill`), each up to 10MB. These routes bound individual file size but do not currently configure a MIME/type `fileFilter`; the Mykobo request can buffer up to 40MB in aggregate.
 
 ## Security Invariants
 
@@ -111,7 +113,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [x] Public onboarding discovery exposes static action metadata without GET operations or duplicated request fields, rejects unsupported country/customer-type combinations, and has no authentication-derived response branch. **PASS** — the controller reads only the reviewed shared mapping and the documentation gate verifies every advertised operation and schema reference.
 - [ ] Check whether Supabase auth cookies use `SameSite=Strict` or `SameSite=Lax` — and whether CSRF tokens are required for state-changing operations. **PARTIAL** — cookie parser enabled but cookie attributes not explicitly configured for `SameSite`.
 - [x] Verify the 404 handler does not reveal Express version or framework information. **PASS** — custom 404 handler returns generic JSON error.
-- [x] Check all 27 route files for endpoints that accept file uploads — verify file size limits and type validation if present. **PASS** — no file upload endpoints found.
+- [ ] Check every route file for endpoints that accept file uploads — verify file size limits, aggregate limits, authentication order, and type validation. **PARTIAL** — all four current upload operations authenticate before in-memory buffering and bound each file (5MB Alfredpay; 10MB Mykobo), but no Multer MIME/type filter is configured and Mykobo permits four files (40MB aggregate). The derived route/upload inventory is pinned by `api/routes/api-surface-inventory.test.ts`.
 - [ ] Verify request ID middleware runs before routes and returns `X-Request-ID` without using request IDs for authorization.
 - [ ] Verify partner-facing API observability writes are best-effort and cannot alter response status, response body, or quote/ramp state.
 - [x] Verify active maintenance windows are enforced by the backend on quote creation and ramp register/update/start, not only by frontend UI state.

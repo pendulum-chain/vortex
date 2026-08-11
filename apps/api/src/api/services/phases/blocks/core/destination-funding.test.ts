@@ -1,9 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
-import { ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../../constants/constants";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import { DESTINATION_EVM_FUNDING_AMOUNTS, ensurePresignedTransferFunded } from "./destination-funding";
+import {
+  calculateDestinationFundingShortfallRaw,
+  calculateSourceEvmFundingRequirementRaw,
+  ensurePresignedTransferFunded,
+  getDynamicDestinationEvmFundingNetwork
+} from "./destination-funding";
+import { calculatePresignedGasBudgetRaw } from "./evm-destination-gas";
 
 const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
 const recipient = "0x0000000000000000000000000000000000000001";
@@ -31,8 +36,34 @@ describe("ensurePresignedTransferFunded", () => {
   });
 });
 
-describe("destination EVM funding amounts", () => {
-  it("uses the static Ethereum ephemeral funding constant", () => {
-    expect(DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Ethereum]).toBe(ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS);
+describe("EVM destination gas funding", () => {
+  it("derives the funding requirement from the signed transaction fee cap", async () => {
+    const rawTx = await account.signTransaction({
+      chainId: 1,
+      gas: 100_000n,
+      maxFeePerGas: 3_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+      to: recipient,
+      type: "eip1559",
+      value: 0n
+    });
+
+    expect(calculatePresignedGasBudgetRaw(rawTx)).toBe(300_000_000_000_000n);
+  });
+
+  it("funds only the shortfall below the signed gas requirement", () => {
+    expect(calculateDestinationFundingShortfallRaw(300n, 125n)).toBe(175n);
+    expect(calculateDestinationFundingShortfallRaw(300n, 300n)).toBe(0n);
+    expect(calculateDestinationFundingShortfallRaw(300n, 400n)).toBe(0n);
+  });
+
+  it("keeps a same-network payout liability additive to source reserves", () => {
+    expect(calculateSourceEvmFundingRequirementRaw(100n, 25n, 300n)).toBe(425n);
+  });
+
+  it("does not dynamically fund destination gas for direct-transfer flows", () => {
+    expect(getDynamicDestinationEvmFundingNetwork(Networks.Base, true, true)).toBeUndefined();
+    expect(getDynamicDestinationEvmFundingNetwork(Networks.Base, true, false)).toBe(Networks.Base);
   });
 });

@@ -3,12 +3,15 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
@@ -195,6 +198,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     expect(mintAmountRaw).toBeGreaterThan(0n);
 
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+    const registered = await RampState.findByPk(ramp.id);
+    const transferBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!transferBlueprint) throw new Error("destinationTransfer blueprint missing");
+    const transferTxData = transferBlueprint.txData as EvmTransactionData;
     async function signTransfer(recipient: `0x${string}`, nonce: number): Promise<`0x${string}`> {
       return ephemeral.signTransaction({
         chainId: 137,
@@ -203,10 +210,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
           args: [recipient, amountRaw],
           functionName: "transfer"
         }),
-        gas: 100_000n,
-        // validatePresignedTxs enforces a 3 gwei floor on Polygon fees.
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(transferTxData.gas),
+        maxFeePerGas: BigInt(transferTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(transferTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: ALFREDPAY_ERC20_TOKEN,
         type: "eip1559"
@@ -244,16 +251,17 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     const feeBlueprints = (rampState.unsignedTxs ?? []).filter(tx => tx.phase === "distributeFees");
     const signedFeeTransfers: `0x${string}`[] = [];
     for (const blueprint of feeBlueprints) {
-      const blueprintData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const blueprintData = blueprint.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         ephemeral.signTransaction({
           chainId: 137,
-          data: blueprintData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: blueprintData.data as `0x${string}`,
+          gas: BigInt(blueprintData.gas),
+          maxFeePerGas: BigInt(blueprintData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(blueprintData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: blueprintData.to,
+          to: blueprintData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
@@ -386,18 +394,20 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       const setup = await setUpRegisteredRamp();
 
       // Quote: 2000 MXN mints 100 USDT. A 1% target promises the user 101 USDT
-      // after fees, so Vortex contributes 2 USDT: 1 for the rate improvement and
-      // 1 that economically offsets the separately collected fee.
+      // after fees, so Vortex contributes 2 USDT plus the dynamic destination
+      // network fee: 1 for the rate improvement and the rest to offset fees.
       const quote = await QuoteTicket.findByPk(setup.quoteId);
       const metadata = getFlowMetadata(quote?.metadata);
+      const networkFeeUsd = new Big(metadata.globals.fees.usd.network);
       expect(Number(quote?.outputAmount)).toBe(101);
+      expect(networkFeeUsd.gt(0)).toBe(true);
       expect(Number(metadata.globals.fees?.usd?.vortex)).toBe(1);
       const preSwap = metadata.blocks.subsidizePreSwap as { subsidyAmountInOutputTokenDecimal: string; feeReserveRaw: string };
-      expect(Number(preSwap.subsidyAmountInOutputTokenDecimal)).toBe(2);
-      expect(preSwap.feeReserveRaw).toBe(parseUnits("1", 6).toString());
+      expect(new Big(preSwap.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(networkFeeUsd.plus(2).toFixed(6));
+      expect(preSwap.feeReserveRaw).toBe(parseUnits(networkFeeUsd.plus(1).toFixed(6), 6).toString());
 
       // Registration prepared ONE Polygon distributeFees transfer (vortex only)
-      // paying the 1 USDT residual; setUpRegisteredRamp presigned it.
+      // paying the 1 USDT fee plus the network fee; setUpRegisteredRamp presigned it.
       expect(setup.signedFeeTransfers).toHaveLength(1);
 
       scriptHappyWorld(setup);
@@ -407,10 +417,12 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(final?.currentPhase).toBe("complete");
       expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
 
-      // Destination received the promised net 101 USDT; the fee metadata and
-      // on-chain collection remain the full 1 USDT.
+      // Destination received the promised net 101 USDT; Vortex receives its
+      // full 1 USDT fee plus the priced destination network fee.
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("101", 6));
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
       expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
     },
     30000
@@ -439,7 +451,9 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       // used to collapse the two distributeFees transfers into one.
       const setup = await setUpRegisteredRamp({ pricingPartner: partner });
       const quote = await QuoteTicket.findByPk(setup.quoteId);
-      expect(Number(quote?.outputAmount)).toBe(98);
+      const networkFeeUsd = new Big(getFlowMetadata(quote?.metadata).globals.fees.usd.network);
+      expect(networkFeeUsd.gt(0)).toBe(true);
+      expect(new Big(quote?.outputAmount ?? 0).toFixed(6)).toBe(new Big(98).minus(networkFeeUsd).toFixed(6));
       expect(setup.signedFeeTransfers).toHaveLength(2);
       const merged = await RampState.findByPk(setup.rampId);
       expect(merged?.presignedTxs?.filter(tx => tx.phase === "distributeFees")).toHaveLength(2);
@@ -463,7 +477,9 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(afterFirstRun?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
       // The first transfer was paid exactly once; the second never credited anyone.
       expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, partnerPayout)).toBe(0n);
       const operations = await FinancialOperation.findAll({
         where: { phase: "distributeFees", scopeId: setup.rampId, scopeType: "ramp" }
@@ -477,7 +493,9 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       // halts on the ambiguous one again — no recipient is ever double-paid.
       await phaseProcessor.processRamp(setup.rampId);
       expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
     },
     30000
   );
@@ -612,7 +630,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(final?.currentPhase).toBe("failed");
       expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(final?.errorLogs.some(log => log.error.includes("recipient mismatch"))).toBe(true);
+      expect(final?.errorLogs.some(log => log.error.includes("does not match expected data"))).toBe(true);
 
       // The mismatching transfer must never reach the chain, and nobody gets paid.
       expect(submissionsOf(setup.signedTransfer)).toBe(0);

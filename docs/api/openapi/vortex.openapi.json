@@ -3118,7 +3118,7 @@
             "type": "string"
           }
         },
-        "required": ["taxId"],
+        "required": ["quoteId", "taxId"],
         "type": "object"
       },
       "RegisterRampRequest": {
@@ -5991,14 +5991,15 @@
     "/v1/brla/getUser": {
       "get": {
         "deprecated": false,
-        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level. Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.",
+        "description": "Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUser",
         "parameters": [
           {
             "$ref": "#/components/parameters/ManagedProfileId"
           },
           {
-            "description": "The user's Tax ID.",
+            "deprecated": true,
+            "description": "Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.",
             "in": "query",
             "name": "taxId",
             "required": false,
@@ -6027,7 +6028,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing taxId query parameter\n- KYC invalid",
+            "description": "Missing/invalid authentication, ambiguous canonical Avenia account, or invalid KYC state.",
             "headers": {}
           },
           "401": {
@@ -6074,14 +6075,15 @@
     "/v1/brla/getUserRemainingLimit": {
       "get": {
         "deprecated": false,
-        "description": "Anonymous access is retained when no profile selector is supplied; managed-profile selection requires the manager's secret key or Bearer session.",
+        "description": "Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUserRemainingLimit",
         "parameters": [
           {
             "$ref": "#/components/parameters/ManagedProfileId"
           },
           {
-            "description": "The user's Tax ID.",
+            "deprecated": true,
+            "description": "Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.",
             "in": "query",
             "name": "taxId",
             "required": false,
@@ -6095,8 +6097,7 @@
             "name": "direction",
             "required": true,
             "schema": {
-              "enum": ["BUY", "SELL"],
-              "type": "string"
+              "$ref": "#/components/schemas/RampDirection"
             }
           }
         ],
@@ -6120,7 +6121,7 @@
                 }
               }
             },
-            "description": "Missing taxId query parameter or other invalid request.",
+            "description": "Missing direction, missing/invalid authentication, ambiguous canonical Avenia account, or other invalid request.",
             "headers": {}
           },
           "401": {
@@ -6610,20 +6611,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RecordInitialKycAttemptRequest",
-                "properties": {
-                  "quoteId": {
-                    "type": "string"
-                  },
-                  "sessionId": {
-                    "type": "string"
-                  },
-                  "taxId": {
-                    "type": "string"
-                  }
-                },
-                "required": ["quoteId", "taxId"],
-                "type": "object"
+                "$ref": "#/components/schemas/RecordInitialKycAttemptRequest"
               }
             }
           },
@@ -8033,6 +8021,21 @@
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked.",
             "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later.",
+            "headers": {}
           }
         },
         "security": [
@@ -8297,6 +8300,21 @@
               }
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked.",
+            "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Every eligible destination network currently exceeds the configured fee safety limit; retry the quote later.",
             "headers": {}
           }
         },
@@ -10110,7 +10128,7 @@
     "/v1/webhook": {
       "post": {
         "deprecated": false,
-        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nWebhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
+        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nManaged profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`. An unselected manager key remains manager-owned and cannot subscribe to a child-owned quote.\n\nWebhooks are bound to the non-managed account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -10198,9 +10216,24 @@
             },
             "description": "",
             "headers": {}
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Managed-profile selection is unsupported on webhook endpoints.",
+            "headers": {}
+          },
+          "401": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "description": "Missing or invalid secret API key.",
+            "headers": {}
+          },
+          "403": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }],
         "summary": "Register Webhook",
         "tags": ["Webhooks"]
       }
@@ -10208,7 +10241,7 @@
     "/v1/webhook/{id}": {
       "delete": {
         "deprecated": false,
-        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nDeletion is scoped to your account: a webhook registered by another account returns `404`.",
+        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nManaged profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`.\n\nDeletion is scoped to your non-managed account: a webhook registered by another account returns `404`.",
         "parameters": [
           {
             "description": "",
@@ -10240,9 +10273,24 @@
             },
             "description": "",
             "headers": {}
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Managed-profile selection is unsupported on webhook endpoints.",
+            "headers": {}
+          },
+          "401": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "description": "Missing or invalid secret API key.",
+            "headers": {}
+          },
+          "403": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }],
         "summary": "Delete Webhook",
         "tags": ["Webhooks"]
       }

@@ -69,6 +69,7 @@ import {
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { runFinancialOperation } from "../services/phases/blocks/core/financial-operation";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
@@ -389,21 +390,65 @@ export const createSubaccount = async (
       }
     }
 
-    // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
-    // on every conflict and to prevent account-takeover via subAccountId overwrite.
-    // Ownership is profile-level, not typed-entity-level: migration 040 left business rows
-    // on the profile's individual entity, and comparing against the typed entity 409'd the
-    // legitimate owner's own retry.
-    let existing = await findAveniaCustomerByTaxId(normalizedTaxId);
-    if (existing && !(await findCustomerEntityIdsForProfile(effectiveUserId)).includes(existing.customerEntityId)) {
-      res.status(httpStatus.CONFLICT).json({
-        error: "A subaccount already exists for this taxId"
+    const taxReferenceHash = hashTaxReference(normalizedTaxId);
+    const existingSubaccount = await sequelize.transaction(async transaction => {
+      // A tax id has no row to lock on the first request. A transaction-scoped advisory
+      // lock keeps ownership/canonical-account inspection consistent with persistence.
+      await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+        replacements: { key: `avenia-subaccount:${taxReferenceHash}` },
+        transaction
       });
+
+      // Read only after acquiring the lock. Ownership is profile-level, not typed-entity-level:
+      // migration 040 left business rows on the profile's individual entity.
+      const existing = await findAveniaCustomerByTaxId(normalizedTaxId, transaction);
+      if (
+        existing &&
+        !(await findCustomerEntityIdsForProfile(effectiveUserId, transaction)).includes(existing.customerEntityId)
+      ) {
+        throw new APIError({
+          isPublic: true,
+          message: "A subaccount already exists for this taxId",
+          status: httpStatus.CONFLICT
+        });
+      }
+
+      // The provider subaccount is the canonical external identity. Normal retries repair
+      // missing local KYC state but must never create a replacement or reset verification.
+      if (existing?.providerSubaccountId) {
+        await upsertAveniaKycCase(existing, existing.status, existing.statusExternal, undefined, transaction);
+        return existing.providerSubaccountId;
+      }
+      return null;
+    });
+
+    if (existingSubaccount) {
+      res.status(httpStatus.OK).json({ subAccountId: existingSubaccount });
       return;
     }
 
+    // Avenia does not accept an idempotency key for subaccount creation. The durable
+    // operation claim therefore acts as the exactly-once boundary: confirmed results can
+    // repair local persistence, while submitted/unknown outcomes require reconciliation
+    // instead of issuing a second provider POST.
     const brlaApiService = BrlaApiService.getInstance();
-    const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
+    const { id } = await runFinancialOperation({
+      attemptClass: "provider-account-create",
+      externalId: result => result.id,
+      flow: { id: "avenia-subaccount-provisioning", version: 1 },
+      perform: () => brlaApiService.createAveniaSubaccount(accountType, name),
+      phase: "createSubaccount",
+      provider: "avenia",
+      request: {
+        accountType,
+        name: name.trim(),
+        ownerProfileId: effectiveUserId,
+        taxReferenceHash
+      },
+      scopeId: taxReferenceHash,
+      scopeType: "profile"
+    });
+
     let companyName: string | null = null;
     if (accountType === AveniaAccountType.COMPANY) {
       companyName = name.trim();
@@ -415,38 +460,75 @@ export const createSubaccount = async (
       }
     }
 
-    // A company has no verification attempt yet at this point — the hosted KYB links are issued in
-    // a follow-up call — so it starts pending (resumable). Individuals keep the legacy Requested
-    // semantics (in_review until the outcome poll decides).
-    const initialStatus = accountType === AveniaAccountType.COMPANY ? VerificationStatus.Pending : VerificationStatus.InReview;
-    if (existing) {
-      await existing.update({
-        companyName,
-        customerType: accountTypeToCustomerType(accountType),
-        providerSubaccountId: id,
-        status: initialStatus,
-        statusExternal: null
+    const subAccountId = await sequelize.transaction(async transaction => {
+      await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+        replacements: { key: `avenia-subaccount:${taxReferenceHash}` },
+        transaction
       });
-    } else {
-      // The entry should have been created the very first a new cpf/cnpj is consulted.
-      // We leave this as is for now to avoid breaking changes.
-      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
-      existing = await ProviderCustomer.create({
-        companyName,
-        country: "BR",
-        customerEntityId: entity.id,
-        customerType: accountTypeToCustomerType(accountType),
-        provider: "avenia",
-        providerSubaccountId: id,
-        rail: "brl",
-        status: initialStatus,
-        taxReference: normalizedTaxId,
-        taxReferenceHash: hashTaxReference(normalizedTaxId)
-      });
-    }
-    await upsertAveniaKycCase(existing, initialStatus, null);
 
-    res.status(httpStatus.OK).json({ subAccountId: id });
+      let existing = await findAveniaCustomerByTaxId(normalizedTaxId, transaction);
+      if (
+        existing &&
+        !(await findCustomerEntityIdsForProfile(effectiveUserId, transaction)).includes(existing.customerEntityId)
+      ) {
+        throw new APIError({
+          isPublic: true,
+          message: "A subaccount already exists for this taxId",
+          status: httpStatus.CONFLICT
+        });
+      }
+      if (existing?.providerSubaccountId) {
+        if (existing.providerSubaccountId !== id) {
+          throw new APIError({
+            isPublic: true,
+            message: "The canonical Avenia subaccount differs from the confirmed creation result",
+            status: httpStatus.CONFLICT
+          });
+        }
+        await upsertAveniaKycCase(existing, existing.status, existing.statusExternal, undefined, transaction);
+        return existing.providerSubaccountId;
+      }
+
+      const initialStatus =
+        accountType === AveniaAccountType.COMPANY ? VerificationStatus.Pending : VerificationStatus.InReview;
+      if (existing) {
+        await existing.update(
+          {
+            companyName,
+            customerType: accountTypeToCustomerType(accountType),
+            providerSubaccountId: id,
+            status: initialStatus,
+            statusExternal: null
+          },
+          { transaction }
+        );
+      } else {
+        const entity = await getOrCreateCustomerEntityForProfile(
+          effectiveUserId,
+          accountTypeToCustomerType(accountType),
+          transaction
+        );
+        existing = await ProviderCustomer.create(
+          {
+            companyName,
+            country: "BR",
+            customerEntityId: entity.id,
+            customerType: accountTypeToCustomerType(accountType),
+            provider: "avenia",
+            providerSubaccountId: id,
+            rail: "brl",
+            status: initialStatus,
+            taxReference: normalizedTaxId,
+            taxReferenceHash
+          },
+          { transaction }
+        );
+      }
+      await upsertAveniaKycCase(existing, initialStatus, null, undefined, transaction);
+      return id;
+    });
+
+    res.status(httpStatus.OK).json({ subAccountId });
   } catch (error) {
     logger.error("Error creating subaccount:", error);
     handleApiError(error, res, "createSubaccount");

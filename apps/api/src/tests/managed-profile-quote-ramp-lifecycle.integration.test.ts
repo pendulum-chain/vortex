@@ -110,6 +110,29 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     const siblingCredential = await createCredential(siblingId, "sibling primary");
     const delegatedHeaders = { ...managerHeaders, "X-Managed-Profile-Id": childId };
 
+    const delegatedOnboarding = await jsonRequest("/v1/onboarding/status", {
+      headers: delegatedHeaders,
+      method: "GET"
+    });
+    const directOnboarding = await jsonRequest("/v1/onboarding/status", {
+      headers: { "X-API-Key": childCredential.secretKey },
+      method: "GET"
+    });
+    for (const response of [delegatedOnboarding, directOnboarding]) {
+      expect(response.status).toBe(200);
+      const accounts = (response.body.entities as Array<{ accounts: Array<{ provider: string }> }>).flatMap(
+        entity => entity.accounts
+      );
+      expect(accounts.map(account => account.provider)).toEqual(["avenia"]);
+    }
+
+    const directRemainingLimit = await jsonRequest("/v1/brla/getUserRemainingLimit?direction=BUY", {
+      headers: { "X-API-Key": childCredential.secretKey },
+      method: "GET"
+    });
+    expect(directRemainingLimit.status).toBe(200);
+    expect(directRemainingLimit.body.remainingLimit).toBeDefined();
+
     const createQuote = async (headers: Record<string, string>) => {
       const response = await jsonRequest("/v1/quotes", { body: quoteBody(), headers, method: "POST" });
       expect(response.status).toBe(201);
