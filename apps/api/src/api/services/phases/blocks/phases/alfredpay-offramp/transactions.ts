@@ -4,9 +4,7 @@ import {
   EphemeralAccountType,
   EvmClientManager,
   type EvmNetworks,
-  EvmToken,
   type EvmTokenDetails,
-  evmTokenConfig,
   getNetworkId,
   getOnChainTokenDetails,
   Networks,
@@ -24,7 +22,7 @@ import { createDestinationTransferTransaction, encodeEvmTransactionData } from "
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
 import { ALFREDPAY_RELAYER_ADDRESSES, resolveAlfredpayPermitDomain } from "./permit";
 import type { AlfredpayOfframpRegistrationFacts } from "./registration";
-import type { AlfredpayOfframpMetadata } from "./simulation";
+import { type AlfredpayOfframpMetadata, getAlfredpayExecutableBridgeOutputRaw } from "./simulation";
 
 const permitProbeAbi = [
   {
@@ -70,6 +68,24 @@ export function classifyAlfredpayOfframpSource(
   if (direct) return supportsPermit ? "direct-permit" : "direct-no-permit";
   const prefix = fromNetwork === Networks.Polygon ? "same-chain-squid" : "cross-chain-squid";
   return `${prefix}-${supportsPermit ? "permit" : "no-permit"}`;
+}
+
+function assertExecutableBridgeMinimum(
+  freshEstimateRaw: string,
+  freshMinimumRaw: string,
+  ctx: PrepareCtx<AlfredpayOfframpMetadata, AlfredpayOfframpRegistrationFacts>
+): void {
+  if (new Big(freshMinimumRaw).gt(freshEstimateRaw)) {
+    throw new Error(
+      `Alfredpay offramp route minimum exceeds its estimate: estimate=${freshEstimateRaw}, minimum=${freshMinimumRaw}`
+    );
+  }
+  const quotedMinimumRaw = new Big(getAlfredpayExecutableBridgeOutputRaw(ctx.ownMetadata, ctx.globals.fees.usd));
+  if (new Big(freshMinimumRaw).lt(quotedMinimumRaw)) {
+    throw new Error(
+      `Alfredpay offramp route minimum drifted below the quote: expected at least ${quotedMinimumRaw.toFixed(0)}, fresh=${freshMinimumRaw}`
+    );
+  }
 }
 
 function permitTypedData(
@@ -169,6 +185,7 @@ export async function prepareAlfredpayOfframpTxs(
         toNetwork: Networks.Polygon,
         toToken: ALFREDPAY_ERC20_TOKEN
       });
+      assertExecutableBridgeMinimum(bridge.route.estimate.toAmount, bridge.route.estimate.toAmountMin, ctx);
       const relayer = ALFREDPAY_RELAYER_ADDRESSES[fromNetwork];
       if (!relayer) throw new Error(`Alfredpay offramp permit flow is not supported on ${fromNetwork}`);
       const payloadNonce = BigInt(Math.floor(now / 1000));
@@ -238,6 +255,7 @@ export async function prepareAlfredpayOfframpTxs(
       toNetwork: Networks.Polygon,
       toToken: ALFREDPAY_ERC20_TOKEN
     });
+    assertExecutableBridgeMinimum(bridge.route.estimate.toAmount, bridge.route.estimate.toAmountMin, ctx);
     squidRouterPermitExecutionValue = bridge.swapData.value;
     intents.push(
       {
@@ -263,13 +281,10 @@ export async function prepareAlfredpayOfframpTxs(
     toAddress: facts.depositAddress as `0x${string}`,
     toToken: ALFREDPAY_ERC20_TOKEN
   });
-  // The fallback refunds the user's full bridged value: deposit plus charged
-  // vortex/partner fees MINUS any platform subsidy. bridgeOutputAmountRaw is exactly
-  // that — for undiscounted quotes it equals deposit + fees, while the net-rate
-  // deposit of a discounted quote additionally contains the platform subsidy, which
-  // must never be paid out to the user on a failed ramp.
+  // Size the fallback from the guaranteed bridge minimum, excluding the
+  // platform-funded subsidy that is not part of the user's principal.
   const fallbackTransfer = await createDestinationTransferTransaction({
-    amountRaw: ctx.ownMetadata.bridgeOutputAmountRaw,
+    amountRaw: getAlfredpayExecutableBridgeOutputRaw(ctx.ownMetadata, ctx.globals.fees.usd),
     destinationNetwork: Networks.Polygon,
     toAddress: facts.walletAddress,
     toToken: ALFREDPAY_ERC20_TOKEN
@@ -291,10 +306,11 @@ export async function prepareAlfredpayOfframpTxs(
       txData: fallbackTransfer
     }
   );
-  const axlUsdc = evmTokenConfig[Networks.Polygon][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
-  if (!axlUsdc) throw new Error("Invalid Polygon AXLUSDC configuration");
+  // Squid may deliver above its guaranteed minimum. The provider deposit and
+  // fee transfers consume only the guaranteed quote obligations, so authorize
+  // post-processing to return any residual USDT to the user's source wallet.
   const cleanup = await preparePolygonCleanupApproval(
-    axlUsdc as `0x${string}`,
+    ALFREDPAY_ERC20_TOKEN,
     getEvmFundingAccount(Networks.Polygon).address,
     Networks.Polygon
   );

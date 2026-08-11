@@ -188,12 +188,25 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
   const routeData = routeResult.data;
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
+  const minimumOutputAmountRaw = routeData.route.estimate.toAmountMin;
+  if (BigInt(minimumOutputAmountRaw) > BigInt(outputAmountRaw)) {
+    throw new APIError({
+      message: "Invalid Squidrouter response: minimum output exceeds estimated output",
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
+  const minimumOutputAmountDecimal = parseContractBalanceResponse(
+    outputTokenDecimals,
+    BigInt(minimumOutputAmountRaw)
+  ).preciseBigDecimal;
   const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork);
 
   return {
     fromToken: routeParams.fromToken,
     inputAmountRaw: routeParams.fromAmount,
+    minimumOutputAmountDecimal,
+    minimumOutputAmountRaw,
     networkFeeUSD,
     outputAmountDecimal,
     outputAmountRaw,

@@ -175,7 +175,7 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     await resetTestDatabase();
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
-    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.CREATED;
     // The quote simulator asks Squid for the USDT settlement leg even on the
     // direct Polygon corridor. Squid therefore reports 6-decimal output.
     world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
@@ -275,6 +275,9 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
         recipient,
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
+      if (recipient.toLowerCase() === world.alfredpay.offrampDepositAddress.toLowerCase()) {
+        world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+      }
     };
     return { inputAmountRaw };
   }
