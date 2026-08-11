@@ -25,6 +25,19 @@ describe("getManagedProfileCountryCorridor", () => {
   it("rejects supported countries served by another provider", () => {
     expect(getManagedProfileCountryCorridor({ body: { country: "BR" }, query: {} } as never)).toBeUndefined();
   });
+
+  it("reads the country a GET handler will use", () => {
+    expect(getManagedProfileCountryCorridor({ body: {}, query: { country: "MX" } } as never)).toBe("MX");
+  });
+
+  it("fails closed when query and body disagree", () => {
+    expect(getManagedProfileCountryCorridor({ body: { country: "CO" }, query: { country: "MX" } } as never)).toBeUndefined();
+    expect(getManagedProfileCountryCorridor({ body: { country: "MX" }, query: { country: "CO" } } as never)).toBeUndefined();
+  });
+
+  it("accepts an agreeing query and body", () => {
+    expect(getManagedProfileCountryCorridor({ body: { country: "MX" }, query: { country: "MX" } } as never)).toBe("MX");
+  });
 });
 
 describe("getManagedProfileAlfredpayCustomerType", () => {
@@ -32,6 +45,12 @@ describe("getManagedProfileAlfredpayCustomerType", () => {
     expect(getManagedProfileAlfredpayCustomerType({ body: {}, query: {} } as never)).toBe("individual");
     expect(getManagedProfileAlfredpayCustomerType({ body: { type: "BUSINESS" }, query: {} } as never)).toBe("business");
     expect(getManagedProfileAlfredpayCustomerType({ body: { type: "unknown" }, query: {} } as never)).toBeUndefined();
+  });
+
+  it("fails closed when query and body disagree", () => {
+    expect(
+      getManagedProfileAlfredpayCustomerType({ body: { type: "BUSINESS" }, query: { type: "INDIVIDUAL" } } as never)
+    ).toBeUndefined();
   });
 });
 
