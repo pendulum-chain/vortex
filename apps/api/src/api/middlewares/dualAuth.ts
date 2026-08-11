@@ -6,7 +6,7 @@ import {
   observeApiClientEvent
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
-import { SupabaseAuthService } from "../services/auth";
+import { AccessTokenVerificationError, SupabaseAuthService } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validatePublicApiKey, validateSecretApiKey } from "./apiKeyAuth.helpers";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
@@ -89,7 +89,29 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
 
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.slice(7);
-        const result = await SupabaseAuthService.verifyToken(token);
+        let result: Awaited<ReturnType<typeof SupabaseAuthService.verifyToken>>;
+        try {
+          result = await SupabaseAuthService.verifyToken(token);
+        } catch (error) {
+          // Callers distinguish "the provider is briefly unreachable" from "this token is
+          // rejected"; only the latter should end their session, so a transient failure keeps
+          // the 503 the Supabase-only middleware returns instead of surfacing as a 500.
+          const unavailable = error instanceof AccessTokenVerificationError && error.transient;
+          logger.warn("Supabase access-token verification failed", {
+            category: unavailable ? "provider_unavailable" : "verification_error",
+            error: error instanceof Error ? error.message : String(error),
+            path: req.path,
+            requestId: req.headers["x-request-id"]
+          });
+          recordDualAuthFailure(req, unavailable ? 503 : 401, unavailable ? "service_unavailable" : "auth_invalid_api_key");
+          return res.status(unavailable ? 503 : 401).json({
+            error: {
+              code: unavailable ? "AUTH_SERVICE_UNAVAILABLE" : "INVALID_BEARER_TOKEN",
+              message: unavailable ? "Authentication service unavailable" : "Authentication failed",
+              status: unavailable ? 503 : 401
+            }
+          });
+        }
         if (!result.valid) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key");
           return res.status(401).json({
@@ -128,7 +150,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
 function recordDualAuthFailure(
   req: Request,
   httpStatus: number,
-  errorType: "auth_missing_api_key" | "auth_invalid_api_key",
+  errorType: "auth_missing_api_key" | "auth_invalid_api_key" | "service_unavailable",
   apiKeyPrefix?: string | null
 ): void {
   observeApiClientEvent({
