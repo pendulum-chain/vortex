@@ -454,7 +454,7 @@ BrlaGetSelfieLivenessUrlResponse: {
 
 BrlaGetUserRemainingLimitRequest: {
   direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  taxId: string;
+  taxId?: string;
 }
 
 BrlaGetUserRemainingLimitResponse: {
@@ -462,7 +462,7 @@ BrlaGetUserRemainingLimitResponse: {
 }
 
 BrlaGetUserRequest: {
-  taxId: string;
+  taxId?: string;
 }
 
 BrlaGetUserResponse: {

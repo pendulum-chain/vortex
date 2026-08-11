@@ -102,9 +102,12 @@ describe("parseAPIError", () => {
   // Regression: recordInitialKycAttempt moved taxId from the query string to the body and
   // added quoteId, retiring the legacy message the parser used to match.
   test("maps the current BRL KYC-attempt missing-parameter messages", () => {
-    expect(parseAPIError({ code: 400, message: "Missing quoteId or taxId body parameter" })).toBeInstanceOf(
-      BrlKycStatusError
-    );
-    expect(parseAPIError({ code: 400, message: "Missing taxId" })).toBeInstanceOf(BrlKycStatusError);
+    const missingQuoteOrTaxId = parseAPIError({ code: 400, message: "Missing quoteId or taxId body parameter" });
+    expect(missingQuoteOrTaxId).toBeInstanceOf(BrlKycStatusError);
+    expect(missingQuoteOrTaxId.message).toBe("Missing quoteId or taxId body parameter");
+
+    const missingTaxId = parseAPIError({ code: 400, message: "Missing taxId" });
+    expect(missingTaxId).toBeInstanceOf(BrlKycStatusError);
+    expect(missingTaxId.message).toBe("Tax ID is required");
   });
 });

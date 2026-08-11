@@ -17,7 +17,7 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Ramp register/update/start/status/history/errors | No | Yes | Yes |
 | Act for an authorized managed child | No | Yes | Yes |
 | Manage a directly owned child's credentials | No | Yes | Yes |
-| Webhook management | No | Yes | No |
+| Webhook management (non-managed subjects only) | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
 `GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A manager secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
@@ -40,6 +40,8 @@ X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, quote pricing, and ramp history resolve from the child subject.
 
 The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; and customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. The EUR corridor's flows are bound to a verified login email, so they and all recipient-invitation routes do not support managed children.
+
+Webhook registration and deletion do not support managed children. `X-Managed-Profile-Id` returns `400 MANAGED_PROFILE_UNSUPPORTED`, and a direct child credential returns `403 MANAGED_PROFILE_ACCESS_DENIED`. Managed-child integrations must poll the child-scoped ramp status/history endpoints. A manager credential without the selector remains manager-owned and therefore cannot register a webhook for a child-owned quote.
 
 `X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
