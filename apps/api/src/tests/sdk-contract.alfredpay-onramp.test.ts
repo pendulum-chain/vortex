@@ -278,6 +278,7 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         for (const fee of feeFields) {
           expect(Number.isFinite(Number(fee))).toBe(true);
         }
+        expect(Number(quote.networkFeeUsd)).toBeGreaterThan(0);
         expect(quote.feeCurrency).toBeTruthy();
 
         // registerRamp runs the SDK's full internal Alfredpay BUY flow: ephemeral
@@ -303,9 +304,9 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(rampProcess.achPaymentData?.reference).toBeTruthy();
 
         // The ephemeral surface of the direct Alfredpay BUY route: the
-        // destination transfer plus the Polygon dust cleanup.
+        // destination and network-fee transfers plus Polygon dust cleanup.
         const unsigned = rampProcess.unsignedTxs ?? [];
-        expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
+        expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "distributeFees", "polygonCleanup"]);
         expect(unsigned.every(tx => tx.network === Networks.Polygon)).toBe(true);
         const destinationTransferTx = unsigned.find(tx => tx.phase === "destinationTransfer");
         if (!destinationTransferTx) {
@@ -320,7 +321,7 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(stored?.userId).toBe(userId);
         expect(stored?.state.alfredpayTransactionId).toBeTruthy();
         const presigned = stored?.presignedTxs ?? [];
-        expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
+        expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "distributeFees", "polygonCleanup"]);
         const presignedTransfer = presigned.find(tx => tx.phase === "destinationTransfer");
         if (!presignedTransfer) {
           throw new Error("No presigned destinationTransfer");
