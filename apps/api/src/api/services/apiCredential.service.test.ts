@@ -85,11 +85,11 @@ describe("api credential service", () => {
       revokedAt: null,
       secretKeyDigest: digestApiKey(secret),
       secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "authenticated" },
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
     ApiCredential.findAll = mock(async () => [credential]) as never;
-    User.findByPk = mock(async () => ({ kind: "authenticated" })) as never;
 
     const publicContext = await validatePublicKey(credential.publicKeyValue);
     const secretContext = await validateSecretKey(secret);
@@ -108,11 +108,11 @@ describe("api credential service", () => {
       publicKeyValue: generateApiKey("public", "test"),
       secretKeyDigest: digestApiKey(secret),
       secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "managed" },
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
     ApiCredential.findAll = mock(async () => [credential]) as never;
-    User.findByPk = mock(async () => ({ kind: "managed" })) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
     ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: false })) as never;
 
@@ -128,10 +128,10 @@ describe("api credential service", () => {
       partnerId: null,
       profileId: "profile-1",
       publicKeyValue: generateApiKey("public", "test"),
+      profile: { kind: "managed" },
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
-    User.findByPk = mock(async () => ({ kind: "managed" })) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
     ManagedProfileManager.findByPk = mock(async () => ({
       allowedCorridors: ["BR", "MX"],
@@ -160,10 +160,10 @@ describe("api credential service", () => {
       partnerId: null,
       profileId: "profile-1",
       publicKeyValue: generateApiKey("public", "test"),
+      profile: { kind: "managed" },
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
-    User.findByPk = mock(async () => ({ kind: "managed" })) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
     ManagedProfileManager.findByPk = mock(async () => ({
       allowedCorridors: ["AR"],
