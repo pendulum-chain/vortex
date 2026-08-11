@@ -222,6 +222,24 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
         FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_contact_email_immutable();`,
       { transaction }
     );
+    await queryInterface.sequelize.query(
+      `CREATE FUNCTION enforce_managed_profile_external_subject_immutable() RETURNS trigger AS $$
+      BEGIN
+        IF OLD.external_subject_id IS DISTINCT FROM NEW.external_subject_id THEN
+          RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            CONSTRAINT = 'chk_managed_profiles_external_subject_immutable',
+            MESSAGE = 'Managed profile external subject id cannot be changed after creation';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER trg_managed_profiles_external_subject_immutable
+        BEFORE UPDATE OF external_subject_id ON managed_profiles
+        FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_external_subject_immutable();`,
+      { transaction }
+    );
 
     await queryInterface.sequelize.query(
       `CREATE FUNCTION enforce_managed_profile_invariants() RETURNS trigger AS $$
@@ -346,7 +364,13 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
     await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_contact_email_immutable ON managed_profiles;", {
       transaction
     });
+    await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_external_subject_immutable ON managed_profiles;", {
+      transaction
+    });
     await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_contact_email_immutable();", {
+      transaction
+    });
+    await queryInterface.sequelize.query("DROP FUNCTION enforce_managed_profile_external_subject_immutable();", {
       transaction
     });
     await queryInterface.dropTable("managed_profiles", { transaction });

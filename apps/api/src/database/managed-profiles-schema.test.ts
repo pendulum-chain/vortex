@@ -103,6 +103,16 @@ describe("managed profile schema", () => {
     );
   });
 
+  it("does not allow a managed profile external subject id to change", async () => {
+    const manager = await createManager();
+    const child = await createManagedProfile(manager.id, "immutable-subject");
+    const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
+
+    await expect(relationship?.update({ externalSubjectId: "reassigned-subject" })).rejects.toThrow(
+      "Managed profile external subject id cannot be changed after creation"
+    );
+  });
+
   it("allows a managed profile contact email to be null", async () => {
     const manager = await createManager();
     const child = await createManagedProfile(manager.id, "nullable-email", null);
@@ -158,6 +168,12 @@ describe("managed profile schema", () => {
     await expect(
       ManagedProfile.update({ status: "deleted" }, { where: { profileId: child.id } })
     ).rejects.toThrow();
+  });
+
+  it("allows an empty corridor grant so every corridor can be revoked", async () => {
+    await expect(
+      ManagedProfileManager.create({ allowedCorridors: [], profileId: (await createTestUser()).id })
+    ).resolves.toBeInstanceOf(ManagedProfileManager);
   });
 
   it("allows null customer-type policy and rejects empty, unknown, or duplicate restrictions", async () => {
