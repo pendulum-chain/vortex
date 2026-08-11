@@ -3,7 +3,7 @@
 Status: proposed direction, with the initial requirements discovery contract and KYC/KYB
 OpenAPI coverage implemented. This document records the intended direction for API-driven
 customer verification while preserving the provider-specific endpoints and workflows used by
-current Vortex consumers. Last updated: 2026-08-10.
+current Vortex consumers. Last updated: 2026-08-11.
 
 Related material:
 
@@ -24,10 +24,10 @@ sequences. They already support the Dashboard and other first-party consumers, a
 them with a provider-neutral execution API would create migration risk without improving the
 underlying provider workflows.
 
-To make these existing flows usable by external API clients, Vortex will expose a discovery
-endpoint that describes the requirements and ordered operations for a country and customer
-type. The discovery response guides an integrator through the existing API; it does not
-introduce a second execution layer or alter the operations themselves.
+To make these existing flows usable by external API clients, Vortex exposes a discovery
+endpoint that identifies the flow, documents, and ordered operations for a country and customer
+type. Request fields and bodies remain exclusively defined by OpenAPI, so the response does not
+introduce a second schema or execution layer.
 
 ## Scope
 
@@ -35,8 +35,8 @@ introduce a second execution layer or alter the operations themselves.
 - Support both self-service profiles and manager-to-child delegated operations.
 - Complete API credential support for provider operations that currently depend on a browser
   session, where provider capabilities permit a headless flow.
-- Publish machine-readable field, document, and operation requirements for each supported
-  country and customer type.
+- Publish machine-readable document and operation requirements for each supported country and
+  customer type without duplicating request fields.
 - Keep OpenAPI and corridor-specific integration documentation authoritative for complete
   request and response contracts.
 - Continue using the existing provider customer and KYC/KYB case records for ownership and
@@ -83,7 +83,7 @@ proposal applies those controls to the existing provider operations.
   migrating to a new endpoint family or reordered sequence.
 - Existing provider-specific endpoint names and request contracts remain compatibility
   contracts. Changes follow the normal public API compatibility policy.
-- Discovery metadata describes the existing operations; it does not proxy, combine, or
+- Discovery references identify the existing operations; discovery does not proxy, combine, or
   replace them.
 - The authenticated profile, or authorized managed child, remains the owner of every provider
   customer, verification case, and uploaded document.
@@ -93,9 +93,9 @@ proposal applies those controls to the existing provider operations.
   case approved.
 - Side-effecting operations must define retry-safe behavior so a client timeout cannot
   silently create duplicate provider-side resources or submissions.
-- Requirements may differ by country, customer type, provider, and verification level. Vortex
-  will represent those differences explicitly instead of forcing them into a common request
-  schema.
+- Requirements may differ by country, customer type, provider, and verification level. The
+  referenced provider-specific OpenAPI operations represent those differences instead of a
+  common request schema.
 
 ## Requirements discovery
 
@@ -110,19 +110,17 @@ GET /v1/onboarding/requirements?country=BR&customerType=business
 verification levels, the final contract must also define how the requested or applicable level
 is selected.
 
-The response contains:
+The response contains stable flow/provider metadata, document requirements, and ordered action
+steps. API steps identify the OpenAPI `operationId`, method, path, and request-schema reference.
+Non-HTTP direct-upload and hosted steps remain explicit so clients can preserve the complete
+submission sequence. Discovery intentionally omits every `GET` operation, including initial
+resource reads, intermediate readiness checks, redirect/status getters, and final polling.
+Integration documentation and OpenAPI remain authoritative for those reads and for determining
+completion.
 
-- a stable flow identifier and requirements version;
-- required fields, formats, constraints, and conditional applicability;
-- required document types, accepted media types, and multiplicity;
-- the existing operations in their required order, identified by OpenAPI `operationId`, HTTP
-  method, and path;
-- a stable, machine-readable URL for the OpenAPI document against which schema fragments
-  resolve;
-- links or references to canonical OpenAPI request schemas;
-- repeat or conditional execution rules where a step applies to each document or UBO;
-- the corridor-specific integration guide; and
-- any unavoidable hosted continuation, liveness, or asynchronous status behavior.
+The response intentionally has no top-level `fields` array and does not reproduce request-body
+properties. Clients resolve each step's `requestSchema` against `openapiUrl` and use OpenAPI as
+the sole machine-readable body contract.
 
 For example:
 
@@ -130,61 +128,49 @@ For example:
 {
   "country": "BR",
   "customerType": "business",
-  "flow": "avenia-kyb-level-1-api",
-  "version": "2026-08-10",
+  "documentationUrl": "https://api-docs.vortexfinance.co/fiat-corridors",
+  "flow": "avenia-br-business-level-1-api-kyb",
+  "mode": "api",
+  "provider": "avenia",
+  "requirementsVersion": "2026-08-10",
   "openapiUrl": "https://raw.githubusercontent.com/pendulum-chain/vortex/main/docs/api/openapi/vortex.openapi.json",
-  "requirements": {
-    "fields": [
-      { "name": "legalName", "required": true, "type": "string" },
-      { "name": "taxId", "required": true, "format": "cnpj" }
-    ],
-    "documents": [
-      {
-        "type": "articlesOfAssociation",
-        "required": true,
-        "acceptedMediaTypes": ["application/pdf"]
-      }
-    ]
-  },
+  "documents": [
+    {
+      "collection": "direct-upload",
+      "required": true,
+      "type": "CERTIFICATE-OF-INCORPORATION"
+    }
+  ],
   "steps": [
     {
       "order": 1,
       "operationId": "createSubaccount",
       "method": "POST",
       "path": "/v1/brla/createSubaccount",
-      "requestSchema": "#/components/schemas/CreateSubaccountRequest"
+      "requestSchema": "#/components/schemas/CreateSubaccountRequest",
+      "kind": "api",
+      "description": "Create the company Avenia subaccount."
     },
     {
       "order": 2,
       "operationId": "createAveniaKybDocument",
       "method": "POST",
       "path": "/v1/brla/kyb/documents",
-      "repeatFor": "requirements.documents",
-      "requestSchema": "#/components/schemas/AveniaKybDocumentRequest"
-    },
-    {
-      "order": 3,
-      "operationId": "submitAveniaKybLevel1",
-      "method": "POST",
-      "path": "/v1/brla/kyb/new-level-1/api",
-      "requestSchema": "#/components/schemas/AveniaKybLevel1Request"
+      "requestSchema": "#/components/schemas/AveniaKybDocumentRequest",
+      "kind": "api",
+      "description": "Create an upload target for each company and UBO document."
     }
-  ],
-  "documentationUrl": "https://api-docs.vortexfinance.co/kyb/br"
+  ]
 }
 ```
 
-The example is illustrative rather than the final BR schema or complete BR sequence. The
-implemented metadata must be derived from the actual route and provider requirements.
-
-The endpoint does not return populated request bodies or customer PII. Returning example
-values as if they were executable bodies would blur required fields with actual customer data
-and duplicate the OpenAPI contract. Clients use the referenced schema to construct each body
-from data they collect.
+The example is abbreviated. The endpoint does not return fields, populated request bodies,
+customer PII, or duplicate schemas. Clients resolve each API step's request schema and construct
+the body from data they collect.
 
 ## Contract authority and synchronization
 
-The requirements response is a discovery index, not a second schema source. OpenAPI remains
+The requirements response is a discovery index, not a second schema source. OpenAPI is
 authoritative for each operation's complete request, response, and error contract. The
 corridor-specific guide remains authoritative for behavioral details such as sequencing,
 branching, retries, custody, and asynchronous completion.
@@ -194,25 +180,18 @@ discovery, including API credential and managed-profile authentication. Discover
 reviewed repository document through its stable raw GitHub URL while Apidog remains the
 human-facing endpoint catalog.
 
-Every published discovery step must resolve to an OpenAPI operation and request schema. CI
-fails when a referenced operation or schema is absent or when its method or path differs from
-the mapping. Requirement metadata, runtime validators, OpenAPI, and documentation must be
-reviewed together when a provider requirement changes.
-
-The requirements version identifies the exact metadata revision returned to a client. The
-implementation must define its compatibility policy before release, including whether old
-versions remain queryable and how clients learn that a previously fetched version is no longer
-accepted.
+Every published non-GET API step must resolve to an operation in the reviewed OpenAPI document,
+and every request-schema pointer must resolve. The documentation gate fails when an operation
+ID, method, path, or schema reference is stale.
 
 ## Authentication and state
 
-Requirements that contain only public provider and corridor metadata may be exposed without
-authentication. The final design must confirm that responses contain no private provider
-configuration, account state, or PII before making the endpoint public.
+Requirements metadata is public and requires no authentication. Responses contain no private
+provider configuration, account state, or PII.
 
-Requirements discovery is not a profile status API. It describes the complete flow for a
-country and customer type, not which steps a particular profile has completed. Clients must use
-the existing provider status operations and `GET /v1/onboarding/status` where applicable.
+Requirements discovery is not a profile status API. It selects a static flow for a country and
+customer type, not which operations a particular profile has completed. Clients
+must use the existing provider status operations and `GET /v1/onboarding/status` where applicable.
 Profile-specific next-action guidance is outside this proposal and may be considered later if
 static requirements plus documented status behavior prove insufficient.
 
@@ -221,29 +200,24 @@ static requirements plus documented status behavior prove insufficient.
 ### Benefits
 
 - Existing first-party consumers avoid a risky endpoint and state-machine migration.
-- External API clients can discover required data, documents, and call order without reverse
+- External API clients can discover the applicable submission actions without reverse
   engineering a Dashboard workflow.
-- OpenAPI schemas and integration guides remain reusable instead of embedding full duplicate
-  request bodies in discovery responses.
+- OpenAPI is the sole machine-readable source for request-field and body-schema details.
 - Provider-specific differences remain visible and accurately modeled.
-- A requirements version gives clients and Vortex support a concrete contract revision to
-  discuss when provider rules change.
 
 ### Costs and constraints
 
 - Integrators must implement country- and provider-specific operation sequences, statuses,
   errors, retries, and hosted-flow branches. Vortex does not provide one portable execution
   client across providers.
-- Publishing an ordered operation makes that route and its position in the flow part of the
-  external compatibility surface.
-- Discovery metadata can drift from route validation, OpenAPI, or provider behavior unless the
-  sources share validation and CI checks.
+- Publishing an ordered step makes that route and its position in the flow part of the external
+  compatibility surface.
+- The operation list can drift from provider behavior unless it is reviewed with OpenAPI and
+  runtime changes.
 - Completing and maintaining KYC/KYB OpenAPI coverage becomes a prerequisite for reliable
   discovery.
-- Static discovery cannot account for a profile's current progress or every provider-requested
-  remediation. Status responses and provider-specific documentation remain necessary.
-- Provider requirement changes need an explicit versioning and compatibility process rather
-  than an undocumented metadata replacement.
+- Discovery does not advertise resource reads, readiness checks, or status polling. Integrators
+  must use provider-specific documentation, OpenAPI, and status responses for completion.
 
 ## Delivery order
 
@@ -252,8 +226,7 @@ static requirements plus documented status behavior prove insufficient.
 2. Reconcile the public OpenAPI document with the implemented Avenia and Alfredpay KYC/KYB
    endpoints, authentication, request schemas, responses, and errors, then publish it at a
    stable machine-readable URL. Implemented.
-3. Define the requirements response schema and synchronization checks. Implemented. The
-   long-term version compatibility policy remains open.
+3. Define the requirements response schema and synchronization checks. Implemented.
 4. Implement requirements discovery for Avenia Level 1 KYC/KYB in Brazil using the existing
    BRLA operations and sequence. Implemented.
 5. Add Alfredpay countries using their existing API-based or hosted-flow operations without
@@ -270,8 +243,8 @@ static requirements plus documented status behavior prove insufficient.
 - Reordering, combining, proxying, or retiring existing provider-specific operations.
 - Migrating the Dashboard, Widget, or shared KYC/KYB state machines to a new workflow.
 - Letting callers select arbitrary provider accounts or write compliance decisions.
-- Returning customer PII or pre-populated executable request bodies from requirements
-  discovery.
+- Returning customer PII, duplicated request-field catalogs, or pre-populated executable request
+  bodies from requirements discovery.
 - Profile-specific next-action orchestration.
 
 ## Open decisions
@@ -279,13 +252,5 @@ static requirements plus documented status behavior prove insufficient.
 - Should discovery use `country=BR`, which matches current onboarding selection, or a fiat
   corridor such as `corridor=BRL`? The contract must use one term consistently.
 - How is a verification level selected when a country supports more than one level?
-- Is static requirements metadata safe and useful to expose without authentication?
-- Which JSON Schema vocabulary will represent conditional fields, repeated UBO data, and file
-  requirements without duplicating complete OpenAPI request schemas?
-- How long are old requirements versions queryable, and what response tells a client that a
-  version has expired?
-- Which CI check guarantees that every discovery `operationId` and schema reference exists in
-  the reviewed OpenAPI document?
-- Should operation metadata be maintained beside runtime validators and generated into both
-  discovery and OpenAPI in the future, or is reviewed manual synchronization sufficient for
-  the first release?
+- Should operation metadata be generated from a flow definition rather than maintained beside
+  runtime orchestration?

@@ -15,12 +15,14 @@ describe("GET /v1/onboarding/requirements", () => {
       const response = await fetch(`http://127.0.0.1:${port}/v1/onboarding/requirements?country=MX&customerType=business`);
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body).toMatchObject({
         country: "MX",
         customerType: "business",
         flow: "alfredpay-mx-business-api-kyb",
         provider: "alfredpay"
       });
+      expect(body).not.toHaveProperty("fields");
     } finally {
       server.close();
     }

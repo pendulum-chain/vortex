@@ -378,9 +378,11 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
         flow: "avenia-br-business-level-1-api-kyb",
         provider: "avenia"
       });
+      expect(requirements.body).not.toHaveProperty("fields");
       expect((requirements.body.steps as Array<{ operationId?: string }>).map(step => step.operationId).filter(Boolean)).toContain(
         "submitAveniaKybLevel1Api"
       );
+      expect((requirements.body.steps as Array<{ method?: string }>).some(step => step.method === "GET")).toBe(false);
 
       const unsupportedRequirements = await requestJson("/v1/onboarding/requirements?country=AR&customerType=business");
       expect(unsupportedRequirements.status).toBe(404);

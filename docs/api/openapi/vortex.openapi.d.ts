@@ -951,7 +951,7 @@ export interface paths {
         };
         /**
          * Discover KYC or KYB requirements
-         * @description Returns versioned field, document, and ordered-operation metadata for an existing Avenia or Alfredpay onboarding flow. This endpoint does not return profile state or customer PII and does not replace the provider-specific operations it references. Monerium is outside this discovery proposal.
+         * @description Returns versioned document and ordered action metadata for an existing Avenia or Alfredpay onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.
          */
         get: operations["getOnboardingRequirements"];
         put?: never;
@@ -2669,16 +2669,6 @@ export interface components {
             requiredWhen?: string;
             type: string;
         };
-        OnboardingRequirementField: {
-            allowedValues?: string[];
-            description?: string;
-            format?: string;
-            path: string;
-            required: boolean;
-            requiredWhen?: string;
-            /** @enum {string} */
-            type: "array" | "boolean" | "number" | "string";
-        };
         OnboardingRequirementStep: {
             condition?: string;
             derivedValues?: {
@@ -2694,7 +2684,7 @@ export interface components {
             /** @enum {string} */
             kind: "api" | "direct-upload" | "hosted";
             /** @enum {string} */
-            method?: "GET" | "POST" | "PUT";
+            method?: "POST" | "PUT";
             operationId?: string;
             order: number;
             path?: string;
@@ -2718,7 +2708,6 @@ export interface components {
             /** Format: uri */
             documentationUrl: string;
             documents: components["schemas"]["OnboardingDocumentRequirement"][];
-            fields: components["schemas"]["OnboardingRequirementField"][];
             flow: string;
             /** @enum {string} */
             mode: "api" | "hosted" | "hybrid";
@@ -6174,7 +6163,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Requirements and existing operation sequence. */
+            /** @description Flow metadata and ordered non-GET action sequence. */
             200: {
                 headers: {
                     [name: string]: unknown;

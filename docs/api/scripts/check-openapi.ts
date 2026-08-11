@@ -626,6 +626,12 @@ for (const [path, pathItem] of Object.entries(openapi.paths as JsonObject)) {
 for (const flows of Object.values(ONBOARDING_REQUIREMENTS)) {
   for (const requirements of Object.values(flows)) {
     if (!requirements) continue;
+    if ("fields" in requirements) {
+      throw new Error("Onboarding discovery must not duplicate request fields outside OpenAPI.");
+    }
+    if (requirements.steps.some(step => step.method === "GET")) {
+      throw new Error("Onboarding discovery must not advertise GET operations.");
+    }
     for (const step of requirements.steps) {
       if (step.kind !== "api" || !step.operationId || !step.method || !step.path) continue;
       const operation = documentedOperations.get(step.operationId);

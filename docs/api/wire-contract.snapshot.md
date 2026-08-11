@@ -660,15 +660,6 @@ GetOnboardingRequirementsResponse: {
     requiredWhen?: string;
     type: string;
   }>;
-  fields: Array<{
-    allowedValues?: Array<string>;
-    description?: string;
-    format?: string;
-    path: string;
-    required: boolean;
-    requiredWhen?: string;
-    type: "array" | "boolean" | "number" | "string";
-  }>;
   flow: string;
   mode: "api" | "hosted" | "hybrid";
   openapiUrl: string;
@@ -681,7 +672,7 @@ GetOnboardingRequirementsResponse: {
     fixedBody?: Record<string, string>;
     fixedQuery?: Record<string, string>;
     kind: "api" | "direct-upload" | "hosted";
-    method?: "GET" | "POST" | "PUT";
+    method?: "POST" | "PUT";
     operationId?: string;
     order: number;
     path?: string;
@@ -1060,15 +1051,6 @@ ONBOARDING_REQUIREMENTS: Record<"AR" | "BR" | "CO" | "MX" | "US", Partial<Record
     requiredWhen?: string;
     type: string;
   }>;
-  fields: Array<{
-    allowedValues?: Array<string>;
-    description?: string;
-    format?: string;
-    path: string;
-    required: boolean;
-    requiredWhen?: string;
-    type: "array" | "boolean" | "number" | "string";
-  }>;
   flow: string;
   mode: "api" | "hosted" | "hybrid";
   openapiUrl: string;
@@ -1081,7 +1063,7 @@ ONBOARDING_REQUIREMENTS: Record<"AR" | "BR" | "CO" | "MX" | "US", Partial<Record
     fixedBody?: Record<string, string>;
     fixedQuery?: Record<string, string>;
     kind: "api" | "direct-upload" | "hosted";
-    method?: "GET" | "POST" | "PUT";
+    method?: "POST" | "PUT";
     operationId?: string;
     order: number;
     path?: string;
@@ -1103,18 +1085,6 @@ OnboardingDocumentRequirement: {
 
 OnboardingFlowMode: "api" | "hosted" | "hybrid"
 
-OnboardingRequirementField: {
-  allowedValues?: Array<string>;
-  description?: string;
-  format?: string;
-  path: string;
-  required: boolean;
-  requiredWhen?: string;
-  type: "array" | "boolean" | "number" | "string";
-}
-
-OnboardingRequirementFieldType: "array" | "boolean" | "number" | "string"
-
 OnboardingRequirementStep: {
   condition?: string;
   derivedValues?: Record<string, string>;
@@ -1122,7 +1092,7 @@ OnboardingRequirementStep: {
   fixedBody?: Record<string, string>;
   fixedQuery?: Record<string, string>;
   kind: "api" | "direct-upload" | "hosted";
-  method?: "GET" | "POST" | "PUT";
+  method?: "POST" | "PUT";
   operationId?: string;
   order: number;
   path?: string;
@@ -2458,15 +2428,6 @@ getOnboardingRequirements: (country: "AR" | "BR" | "CO" | "MX" | "US", customerT
     requiredWhen?: string;
     type: string;
   }>;
-  fields: Array<{
-    allowedValues?: Array<string>;
-    description?: string;
-    format?: string;
-    path: string;
-    required: boolean;
-    requiredWhen?: string;
-    type: "array" | "boolean" | "number" | "string";
-  }>;
   flow: string;
   mode: "api" | "hosted" | "hybrid";
   openapiUrl: string;
@@ -2479,7 +2440,7 @@ getOnboardingRequirements: (country: "AR" | "BR" | "CO" | "MX" | "US", customerT
     fixedBody?: Record<string, string>;
     fixedQuery?: Record<string, string>;
     kind: "api" | "direct-upload" | "hosted";
-    method?: "GET" | "POST" | "PUT";
+    method?: "POST" | "PUT";
     operationId?: string;
     order: number;
     path?: string;

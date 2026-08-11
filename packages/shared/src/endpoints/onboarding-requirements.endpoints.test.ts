@@ -12,12 +12,14 @@ describe("ONBOARDING_REQUIREMENTS", () => {
     });
   });
 
-  test("uses unique ordered steps and OpenAPI component references", () => {
+  test("uses unique ordered steps and OpenAPI component references without duplicating request fields", () => {
     for (const flows of Object.values(ONBOARDING_REQUIREMENTS)) {
       for (const requirements of Object.values(flows)) {
         expect(requirements).toBeDefined();
         if (!requirements) continue;
 
+        expect("fields" in requirements).toBe(false);
+        expect(requirements.steps.some(step => step.method === "GET")).toBe(false);
         expect(requirements.steps.map(step => step.order)).toEqual(
           Array.from({ length: requirements.steps.length }, (_, index) => index + 1)
         );
@@ -31,23 +33,30 @@ describe("ONBOARDING_REQUIREMENTS", () => {
 
   test("keeps provider-hosted collection explicit", () => {
     expect(ONBOARDING_REQUIREMENTS.US.individual?.mode).toBe("hosted");
-    expect(ONBOARDING_REQUIREMENTS.US.business?.fields).toEqual([]);
+    expect(ONBOARDING_REQUIREMENTS.US.business?.documents).toEqual([]);
     expect(ONBOARDING_REQUIREMENTS.BR.individual?.mode).toBe("hybrid");
   });
 
-  test("includes fixed provider discriminators needed to execute business flows", () => {
-    const mxBusinessStatus = ONBOARDING_REQUIREMENTS.MX.business?.steps.find(
-      step => step.operationId === "getAlfredpayKycStatus"
+  test("includes fixed provider discriminators needed to execute action steps", () => {
+    const mxBusinessCreation = ONBOARDING_REQUIREMENTS.MX.business?.steps.find(
+      step => step.operationId === "createAlfredpayBusinessCustomer"
     );
-    expect(mxBusinessStatus?.fixedQuery).toEqual({ country: "MX", type: "BUSINESS" });
+    expect(mxBusinessCreation?.fixedBody).toEqual({ country: "MX" });
 
     const usBusinessOpened = ONBOARDING_REQUIREMENTS.US.business?.steps.find(
       step => step.operationId === "notifyAlfredpayKycRedirectOpened"
     );
     expect(usBusinessOpened?.fixedBody).toEqual({ country: "US", type: "BUSINESS" });
+  });
 
-    const brBusinessFields = ONBOARDING_REQUIREMENTS.BR.business?.fields.map(field => field.path);
-    expect(brBusinessFields).toContain("fullName");
-    expect(brBusinessFields).not.toContain("ubo.fullName");
+  test("returns the complete Avenia business operation sequence", () => {
+    expect(ONBOARDING_REQUIREMENTS.BR.business?.steps.map(step => step.operationId ?? step.kind)).toEqual([
+      "createSubaccount",
+      "createAveniaKybDocument",
+      "direct-upload",
+      "hosted",
+      "createAveniaKybUbo",
+      "submitAveniaKybLevel1Api"
+    ]);
   });
 });

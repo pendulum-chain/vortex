@@ -2335,37 +2335,6 @@
         "required": ["type", "required"],
         "type": "object"
       },
-      "OnboardingRequirementField": {
-        "properties": {
-          "allowedValues": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "description": {
-            "type": "string"
-          },
-          "format": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          },
-          "required": {
-            "type": "boolean"
-          },
-          "requiredWhen": {
-            "type": "string"
-          },
-          "type": {
-            "enum": ["array", "boolean", "number", "string"],
-            "type": "string"
-          }
-        },
-        "required": ["path", "required", "type"],
-        "type": "object"
-      },
       "OnboardingRequirementStep": {
         "properties": {
           "condition": {
@@ -2397,7 +2366,7 @@
             "type": "string"
           },
           "method": {
-            "enum": ["GET", "POST", "PUT"],
+            "enum": ["POST", "PUT"],
             "type": "string"
           },
           "operationId": {
@@ -2458,20 +2427,10 @@
             "type": "string"
           },
           "documents": {
-            "items": {
-              "$ref": "#/components/schemas/OnboardingDocumentRequirement"
-            },
+            "items": { "$ref": "#/components/schemas/OnboardingDocumentRequirement" },
             "type": "array"
           },
-          "fields": {
-            "items": {
-              "$ref": "#/components/schemas/OnboardingRequirementField"
-            },
-            "type": "array"
-          },
-          "flow": {
-            "type": "string"
-          },
+          "flow": { "type": "string" },
           "mode": {
             "enum": ["api", "hosted", "hybrid"],
             "type": "string"
@@ -2484,13 +2443,9 @@
             "enum": ["alfredpay", "avenia"],
             "type": "string"
           },
-          "requirementsVersion": {
-            "type": "string"
-          },
+          "requirementsVersion": { "type": "string" },
           "steps": {
-            "items": {
-              "$ref": "#/components/schemas/OnboardingRequirementStep"
-            },
+            "items": { "$ref": "#/components/schemas/OnboardingRequirementStep" },
             "type": "array"
           }
         },
@@ -2499,7 +2454,6 @@
           "customerType",
           "documentationUrl",
           "documents",
-          "fields",
           "flow",
           "mode",
           "openapiUrl",
@@ -7669,7 +7623,7 @@
     },
     "/v1/onboarding/requirements": {
       "get": {
-        "description": "Returns versioned field, document, and ordered-operation metadata for an existing Avenia or Alfredpay onboarding flow. This endpoint does not return profile state or customer PII and does not replace the provider-specific operations it references. Monerium is outside this discovery proposal.",
+        "description": "Returns versioned document and ordered action metadata for an existing Avenia or Alfredpay onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.",
         "operationId": "getOnboardingRequirements",
         "parameters": [
           {
@@ -7700,7 +7654,7 @@
                 }
               }
             },
-            "description": "Requirements and existing operation sequence."
+            "description": "Flow metadata and ordered non-GET action sequence."
           },
           "400": {
             "content": {

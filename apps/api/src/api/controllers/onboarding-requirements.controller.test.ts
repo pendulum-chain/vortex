@@ -34,6 +34,10 @@ describe("getOnboardingRequirements", () => {
       flow: "avenia-br-business-level-1-api-kyb",
       provider: "avenia"
     });
+    expect(response.body).not.toHaveProperty("fields");
+    const steps = (response.body as { steps: Array<{ method?: string; operationId?: string }> }).steps;
+    expect(steps.map(step => step.operationId).filter(Boolean)).toContain("submitAveniaKybLevel1Api");
+    expect(steps.some(step => step.method === "GET")).toBe(false);
   });
 
   it("rejects incomplete queries", () => {
