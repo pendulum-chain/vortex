@@ -149,7 +149,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **Unknown-subaccount probing** | Attacker uses signed events to enumerate which subaccounts Vortex knows | Requires a valid Avenia signature, so it is not reachable by an external attacker; responses are an identical `200 {received:true}` for known, unknown, and partner-owned subaccounts. |
 | **Destination-token decimal under-delivery** | A BRL on-ramp targets an 18-decimal token such as BSC USDT, but the quote output is truncated to 6 decimals before `destinationTransfer` raw amount construction. | On-ramp finalization uses destination-token decimals for BRL EVM outputs; Squid metadata preserves destination raw output from `route.estimate.toAmount`. |
 | **Company KYB status bypass or cross-user attempt lookup** | A browser asserts that hosted verification finished, or probes another user's Avenia attempt ID and receives provider submission metadata. | Initiation binds the attempt to the authenticated user's KYB case; status lookup checks that binding before the provider call, minimizes its response, and the client/parent accept only provider-confirmed `COMPLETED` + `APPROVED`. |
-| **Duplicate API KYB attempt after timeout** | A caller retries final KYB submission after Avenia accepted the first call but its response was lost, creating parallel provider attempts. | The case is claimed before the provider call. Ambiguous failures persist `submission_status = 'unknown'` and return an upstream error; an identical retry reconciles Avenia's attempt list before it can replay the submission. Provider-confirmed retryable rejection is the only normal resubmission path. |
+| **Duplicate KYB attempt while provider processing is active** | A caller starts another API or hosted KYB attempt while Avenia is already processing one for the company. | Before either creation call, Vortex lists the subaccount's Avenia attempts and rejects when any `kyb-level-1` attempt is `PENDING` or `PROCESSING`. Terminal attempts are left to Avenia's own retry rules; Vortex does not maintain a parallel submission state machine. |
 
 ## Audit Checklist
 
@@ -172,7 +172,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
 - [ ] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
 - [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` requires the public `quoteId` and `taxId` payload fields, uses `requirePartnerOrUserAuth()`, and delegated requests additionally require active BR authorization.
-- [x] Avenia API KYB operations enforce effective-profile ownership, company account type, document readiness/type, and provider-confirmed retryability before final submission.
+- [x] Avenia API KYB operations enforce effective-profile ownership, company account type, document readiness/type, and reject new attempts while Avenia reports a `PENDING` or `PROCESSING` KYB attempt.
 - [x] BRL→BRLA-on-Base on-ramps emit only provider mint, funding, and `destinationTransfer` — no Nabla, fee distribution, Squid, final settlement, or Base cleanup transaction. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] The BRL→BRLA direct flow omits Squid and final settlement rather than relying on executor short-circuits. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] BRL→EVM destination-token precision preserved. **PASS** — block flow simulation preserves Squid destination raw output and destination-token decimals.
@@ -199,8 +199,10 @@ Key properties:
   canonical terminal status. The initial `Consulted` interaction maps to `started`, while
   `Requested` and active attempt processing map to `in_review`; a missing or expired attempt maps
   to `pending`. For company KYB, subaccount creation and a still-`PENDING` attempt also map to
-  `pending` (resumable — the user has not completed the hosted steps); only `PROCESSING` maps to
-  `in_review` (invariant 22).
+  `pending`; only `PROCESSING` maps to `in_review` (invariant 22). New API and hosted attempts are
+  blocked while either provider state is active. Because hosted continuation URLs are returned only
+  at creation time, a client that loses them must retain or recover that response rather than create
+  a replacement attempt while Avenia still reports `PENDING`.
 - Business rows may store a nullable `company_name`. It is set from the name accepted during
   subaccount creation and missing legacy values are lazily refreshed from Avenia account info.
 - Migration 060 permanently deletes `tax_ids`, including ownerless/quarantined rows and any

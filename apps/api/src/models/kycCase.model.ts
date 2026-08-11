@@ -4,7 +4,6 @@ import type CustomerEntity from "./customerEntity.model";
 import type { ProviderName, VerificationStatus } from "./providerCustomer.model";
 
 export type KycCaseType = "kyc" | "kyb";
-export type KycSubmissionStatus = "not_started" | "submitting" | "submitted" | "unknown";
 
 // Unified KYC/KYB verification attempts, independent of the provider account row.
 // Replaces the dead kyc_level_2 table (no data conversion — it had no readers).
@@ -19,9 +18,6 @@ export interface KycCaseAttributes {
   statusExternal: string | null;
   providerCaseId: string | null;
   failureReasons: string[] | null;
-  submissionStatus: KycSubmissionStatus;
-  submissionRequestHash: string | null;
-  submissionStartedAt: Date | null;
   submittedAt: Date | null;
   approvedAt: Date | null;
   rejectedAt: Date | null;
@@ -38,9 +34,6 @@ type KycCaseCreationAttributes = Optional<
   | "statusExternal"
   | "providerCaseId"
   | "failureReasons"
-  | "submissionStatus"
-  | "submissionRequestHash"
-  | "submissionStartedAt"
   | "submittedAt"
   | "approvedAt"
   | "rejectedAt"
@@ -59,9 +52,6 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
   declare statusExternal: string | null;
   declare providerCaseId: string | null;
   declare failureReasons: string[] | null;
-  declare submissionStatus: KycSubmissionStatus;
-  declare submissionRequestHash: string | null;
-  declare submissionStartedAt: Date | null;
   declare submittedAt: Date | null;
   declare approvedAt: Date | null;
   declare rejectedAt: Date | null;
@@ -145,23 +135,6 @@ KycCase.init(
       field: "status_external",
       type: DataTypes.STRING(255)
     },
-    submissionRequestHash: {
-      allowNull: true,
-      field: "submission_request_hash",
-      type: DataTypes.STRING(64)
-    },
-    submissionStartedAt: {
-      allowNull: true,
-      field: "submission_started_at",
-      type: DataTypes.DATE
-    },
-    submissionStatus: {
-      allowNull: false,
-      defaultValue: "not_started",
-      field: "submission_status",
-      type: DataTypes.STRING(16),
-      validate: { isIn: [["not_started", "submitting", "submitted", "unknown"]] }
-    },
     submittedAt: {
       allowNull: true,
       field: "submitted_at",
@@ -188,12 +161,6 @@ KycCase.init(
       {
         fields: ["provider_customer_id"],
         name: "idx_kyc_cases_provider_customer_id"
-      },
-      {
-        fields: ["provider_customer_id"],
-        name: "uniq_kyc_cases_avenia_provider_customer",
-        unique: true,
-        where: { provider: "avenia" }
       }
     ],
     modelName: "KycCase",

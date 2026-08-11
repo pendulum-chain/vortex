@@ -62,10 +62,7 @@ import {
 import {
   AVENIA_IDENTITY_DOCUMENT_TYPES,
   assertAveniaKybCanSubmit,
-  claimAveniaKybSubmission,
   getOrCreateAveniaKybCase,
-  hashAveniaKybSubmission,
-  reconcileAveniaKybSubmission,
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
 } from "../services/avenia/avenia-kyb.service";
@@ -842,14 +839,8 @@ export const submitKybLevel1Api = async (
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
     const subAccountId = record.providerSubaccountId as string;
     const brlaApiService = BrlaApiService.getInstance();
+    await assertAveniaKybCanSubmit(brlaApiService, record, subAccountId);
     const kycCase = await getOrCreateAveniaKybCase(record);
-    const requestHash = hashAveniaKybSubmission(req.body);
-    const reconciledAttemptId = await reconcileAveniaKybSubmission(brlaApiService, record, kycCase, subAccountId, requestHash);
-    if (reconciledAttemptId) {
-      res.status(httpStatus.OK).json({ id: reconciledAttemptId });
-      return;
-    }
-    await assertAveniaKybCanSubmit(brlaApiService, record, kycCase, subAccountId);
     await Promise.all([
       requireReadyAveniaDocument(brlaApiService, subAccountId, req.body.certificateOfIncorporationDocumentId, [
         AveniaDocumentType.CERTIFICATE_OF_INCORPORATION
@@ -859,48 +850,31 @@ export const submitKybLevel1Api = async (
       ])
     ]);
 
-    await claimAveniaKybSubmission(kycCase, requestHash);
-    let response: KycLevel1Response;
-    try {
-      response = await brlaApiService.submitKybLevel1(req.body, subAccountId);
-    } catch (error) {
-      const knownRejection = error instanceof BrlaApiError && error.status === httpStatus.BAD_REQUEST;
-      await kycCase.update({
-        submissionStatus: knownRejection && !kycCase.providerCaseId ? "not_started" : knownRejection ? "submitted" : "unknown"
-      });
-      throw error;
-    }
+    const response = await brlaApiService.submitKybLevel1(req.body, subAccountId);
 
     const now = new Date();
-    try {
-      await sequelize.transaction(async transaction => {
-        await record.update(
-          {
-            lastFailureReasons: [],
-            status: VerificationStatus.Pending,
-            statusExternal: KycAttemptStatus.PENDING
-          },
-          { transaction }
-        );
-        await kycCase.update(
-          {
-            approvedAt: null,
-            failureReasons: [],
-            providerCaseId: response.id,
-            rejectedAt: null,
-            status: VerificationStatus.Pending,
-            statusExternal: KycAttemptStatus.PENDING,
-            submissionStatus: "submitted",
-            submittedAt: now
-          },
-          { transaction }
-        );
-      });
-    } catch (error) {
-      logger.error("Failed to persist the accepted Avenia KYB attempt", { attemptId: response.id, error });
-      await kycCase.update({ submissionStatus: "unknown" });
-      throw error;
-    }
+    await sequelize.transaction(async transaction => {
+      await record.update(
+        {
+          lastFailureReasons: [],
+          status: VerificationStatus.Pending,
+          statusExternal: KycAttemptStatus.PENDING
+        },
+        { transaction }
+      );
+      await kycCase.update(
+        {
+          approvedAt: null,
+          failureReasons: [],
+          providerCaseId: response.id,
+          rejectedAt: null,
+          status: VerificationStatus.Pending,
+          statusExternal: KycAttemptStatus.PENDING,
+          submittedAt: now
+        },
+        { transaction }
+      );
+    });
     res.status(httpStatus.OK).json(response);
   } catch (error) {
     handleApiError(error, res, "submitKybLevel1Api");
@@ -958,65 +932,9 @@ export const initiateKybLevel1 = async (
       return;
     }
 
-    const existingKybCase = await KycCase.findOne({
-      where: { providerCustomerId: record.id, type: "kyb" }
-    });
     const brlaApiService = BrlaApiService.getInstance();
-    const kycCase = existingKybCase ?? (await getOrCreateAveniaKybCase(record));
-    const requestHash = hashAveniaKybSubmission({ flow: "web-sdk" });
-    if (kycCase.submissionRequestHash && kycCase.submissionRequestHash !== requestHash) {
-      res.status(httpStatus.CONFLICT).json({ error: "An API-based KYB attempt is already bound to this company" });
-      return;
-    }
-    await reconcileAveniaKybSubmission(brlaApiService, record, kycCase, subAccountId, requestHash);
-    // A PENDING attempt means the user never completed Avenia's hosted steps. The hosted URLs are
-    // not stored, so re-initiation is the only way to surface them again — allow it and rebind the
-    // case to the fresh attempt. Only an attempt Avenia is processing (or has decided) blocks.
-    if (
-      kycCase.providerCaseId &&
-      record.status !== VerificationStatus.Rejected &&
-      kycCase.statusExternal !== KycAttemptStatus.EXPIRED &&
-      kycCase.statusExternal !== KycAttemptStatus.PENDING
-    ) {
-      res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
-      return;
-    }
-
-    // The stored status can lag (the hosted steps may have just been finished in another tab):
-    // probe the live attempt before re-initiating so a processing/approved attempt is not
-    // orphaned by rebinding the case to a fresh one. A rejected decision stays re-initiable
-    // (that is the retry path). A failed probe must fail closed because rebinding could orphan
-    // an API or hosted attempt that Avenia already accepted.
-    if (kycCase.providerCaseId) {
-      try {
-        const { attempt } = await brlaApiService.getKybAttemptStatus(kycCase.providerCaseId, subAccountId);
-        const decidedRejected =
-          attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED && attempt.retryable;
-        const resumable =
-          attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED || decidedRejected;
-        if (!resumable) {
-          res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
-          return;
-        }
-      } catch {
-        throw new APIError({
-          message: "Unable to verify the existing KYB attempt before re-initiation",
-          status: httpStatus.BAD_GATEWAY
-        });
-      }
-    }
-
-    await claimAveniaKybSubmission(kycCase, requestHash);
-    let response: KybLevel1Response;
-    try {
-      response = await brlaApiService.initiateKybLevel1(subAccountId);
-    } catch (error) {
-      const knownRejection = error instanceof BrlaApiError && error.status === httpStatus.BAD_REQUEST;
-      await kycCase.update({
-        submissionStatus: knownRejection && !kycCase.providerCaseId ? "not_started" : knownRejection ? "submitted" : "unknown"
-      });
-      throw error;
-    }
+    await assertAveniaKybCanSubmit(brlaApiService, record, subAccountId);
+    const response = await brlaApiService.initiateKybLevel1(subAccountId);
     // The attempt starts PENDING at Avenia — nothing is submitted until the user finishes the hosted
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
     // once Avenia reports PROCESSING.
