@@ -13,8 +13,8 @@ import type {
   UpdateRampRequest,
   UpdateRampResponse
 } from "@vortexfi/shared";
-import { handleAPIResponse } from "../errors";
-import type { BrlKycResponse } from "../types";
+import { handleAPIResponse } from "../errors.js";
+import type { BrlKycResponse } from "../types.js";
 
 export class ApiService {
   constructor(
