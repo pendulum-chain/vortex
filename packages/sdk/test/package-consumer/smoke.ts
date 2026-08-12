@@ -1,4 +1,4 @@
-import { FiatToken, VortexSdk } from "../../dist/index.js";
+import { FiatToken, VortexSdk } from "@vortexfi/sdk";
 
 const sdk = new VortexSdk({
   apiBaseUrl: "https://api-sandbox.vortexfinance.co",
