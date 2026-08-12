@@ -107,6 +107,79 @@ describe("resolveQuotePartner", () => {
     expect(result.ownerPartnerId).toBeNull();
   });
 
+  it("uses the child assignment before the controlling manager assignment", async () => {
+    const assignmentLookups: string[] = [];
+    ProfilePartnerAssignment.findOne = mock(async ({ where }: { where: { userId: string } }) => {
+      assignmentLookups.push(where.userId);
+      return where.userId === "child-1" ? { partnerId: "child-partner-id" } : { partnerId: "manager-partner-id" };
+    }) as unknown as typeof ProfilePartnerAssignment.findOne;
+    Partner.findOne = mock(async ({ where }: { where: { id?: string } }) =>
+      where.id === "child-partner-id" ? stubPartner("child-partner-id", "ChildPartner") : null
+    ) as typeof Partner.findOne;
+    PartnerPricingConfig.findOne = mock(async ({ where }: { where: { partnerId?: string; rampType?: RampDirection } }) =>
+      where.partnerId === "child-partner-id" && where.rampType === RampDirection.BUY
+        ? stubConfig("child-partner-id", RampDirection.BUY)
+        : null
+    ) as typeof PartnerPricingConfig.findOne;
+
+    const result = await resolveQuotePartner({
+      ...baseRequest,
+      controllingManagerProfileId: "manager-1",
+      userId: "child-1"
+    });
+
+    expect(result.source).toBe("profileAssignment");
+    expect(result.pricingPartnerId).toBe("child-partner-id");
+    expect(result.ownerPartnerId).toBeNull();
+    expect(assignmentLookups).toEqual(["child-1"]);
+  });
+
+  it("uses the controlling manager assignment when the child has no assignment", async () => {
+    const assignmentLookups: string[] = [];
+    ProfilePartnerAssignment.findOne = mock(async ({ where }: { where: { userId: string } }) => {
+      assignmentLookups.push(where.userId);
+      return where.userId === "manager-1" ? { partnerId: "manager-partner-id" } : null;
+    }) as unknown as typeof ProfilePartnerAssignment.findOne;
+    Partner.findOne = mock(async ({ where }: { where: { id?: string } }) =>
+      where.id === "manager-partner-id" ? stubPartner("manager-partner-id", "ManagerPartner") : null
+    ) as typeof Partner.findOne;
+    PartnerPricingConfig.findOne = mock(async ({ where }: { where: { partnerId?: string; rampType?: RampDirection } }) =>
+      where.partnerId === "manager-partner-id" && where.rampType === RampDirection.BUY
+        ? stubConfig("manager-partner-id", RampDirection.BUY)
+        : null
+    ) as typeof PartnerPricingConfig.findOne;
+
+    const result = await resolveQuotePartner({
+      ...baseRequest,
+      controllingManagerProfileId: "manager-1",
+      userId: "child-1"
+    });
+
+    expect(result.source).toBe("managerProfileAssignment");
+    expect(result.pricingPartnerId).toBe("manager-partner-id");
+    expect(result.ownerPartnerId).toBeNull();
+    expect(assignmentLookups).toEqual(["child-1", "manager-1"]);
+  });
+
+  it("does not expose manager pricing when an active child assignment is invalid", async () => {
+    const assignmentLookups: string[] = [];
+    ProfilePartnerAssignment.findOne = mock(async ({ where }: { where: { userId: string } }) => {
+      assignmentLookups.push(where.userId);
+      return where.userId === "child-1" ? { partnerId: null } : { partnerId: "manager-partner-id" };
+    }) as unknown as typeof ProfilePartnerAssignment.findOne;
+
+    const result = await resolveQuotePartner({
+      ...baseRequest,
+      controllingManagerProfileId: "manager-1",
+      userId: "child-1"
+    });
+
+    expect(result.source).toBe("none");
+    expect(result.pricingPartnerId).toBeNull();
+    expect(result.ownerPartnerId).toBeNull();
+    expect(assignmentLookups).toEqual(["child-1"]);
+  });
+
   it("resolves the sell-direction pricing config for sell users", async () => {
     ProfilePartnerAssignment.findOne = mock(async () => ({
       partnerId: "assigned-id"
