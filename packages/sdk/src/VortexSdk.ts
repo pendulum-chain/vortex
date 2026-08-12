@@ -58,11 +58,13 @@ export class VortexSdk {
   private alfredpayHandler: AlfredpayHandler;
   private mykoboHandler: MykoboHandler;
   private storeEphemeralKeys: boolean;
+  private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
 
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
+    this.offrampFundingMode = config.offrampFundingMode ?? "prefunded";
     this.publicKey = config.publicKey;
     this.secretKey = config.secretKey;
 
@@ -155,8 +157,11 @@ export class VortexSdk {
     } else if (quote.rampType === RampDirection.SELL) {
       // Every offramp corridor moves quote.inputAmount out of the user's wallet on-chain. Check
       // the balance up front so we never register a ramp whose user transactions can only revert
-      // (or request a single-use permit the backend cannot execute).
-      await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
+      // (or request a single-use permit the backend cannot execute), unless the integrator funds
+      // its source wallet after registration. The backend still checks before moving funds.
+      if (this.offrampFundingMode !== "deferred") {
+        await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
+      }
       if (isAlfredpayToken(quote.outputCurrency)) {
         const offrampData = additionalData as AlfredpayOfframpAdditionalData;
         rampProcess = await this.alfredpayHandler.registerAlfredpayOfframp(quote.id, offrampData);

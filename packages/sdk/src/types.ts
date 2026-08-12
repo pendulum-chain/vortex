@@ -224,6 +224,8 @@ export interface NetworkConfig {
   wsUrl: string;
 }
 
+export type OfframpFundingMode = "prefunded" | "deferred";
+
 export interface VortexSdkConfig {
   apiBaseUrl: string;
   /**
@@ -247,6 +249,13 @@ export interface VortexSdkConfig {
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
+  /**
+   * Controls whether `registerRamp` checks that the source wallet holds the
+   * quoted offramp amount. Deferred integrations must fund the wallet before
+   * submitting user transactions and starting the ramp.
+   * @default "prefunded"
+   */
+  offrampFundingMode?: OfframpFundingMode;
 }
 
 // Handler interface for ramp-specific operations
