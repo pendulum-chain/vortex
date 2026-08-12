@@ -769,6 +769,10 @@ export const getUploadUrls = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
+    if (record.customerType !== "individual") {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      return;
+    }
 
     const subAccountId = record.providerSubaccountId ?? "";
     const brlaApiService = BrlaApiService.getInstance();
@@ -804,7 +808,6 @@ export const newKyc = async (
   res: Response<KycLevel1Response | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const brlaApiService = BrlaApiService.getInstance();
     const subAccountId = req.body.subAccountId;
 
     if (!subAccountId) {
@@ -829,7 +832,12 @@ export const newKyc = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
+    if (record.customerType !== "individual") {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      return;
+    }
 
+    const brlaApiService = BrlaApiService.getInstance();
     // Wait for previously uploaded documents to propagate before submitting KYC
     await new Promise(resolve => setTimeout(resolve, 5000));
     await brlaApiService.getUploadedDocuments(subAccountId);

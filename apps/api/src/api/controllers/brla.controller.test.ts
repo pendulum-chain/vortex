@@ -21,6 +21,7 @@ import {
   getKybAttemptStatus,
   getUploadUrls,
   initiateKybLevel1,
+  newKyc,
   recordInitialKycAttempt,
   submitKybLevel1Api
 } from "./brla.controller";
@@ -1351,9 +1352,9 @@ describe("getUploadUrls", () => {
     );
   }
 
-  // Migration 040 attached business rows to the profile's individual entity; the ownership
-  // check compared against the typed business entity and 403'd the legitimate owner.
-  it("serves upload URLs for a business row on the legacy individual entity without creating entities", async () => {
+  // Migration 040 attached rows to the profile's individual entity; the ownership check
+  // must enumerate existing entities without creating another one.
+  it("serves upload URLs for an individual row without creating entities", async () => {
     mockBrlaApi();
     uploadUrlsMock.mockClear();
     CustomerEntity.findAll = mock(async () => [
@@ -1363,6 +1364,7 @@ describe("getUploadUrls", () => {
     CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1-individual",
+      customerType: "individual",
       providerSubaccountId: "subaccount-1"
     })) as unknown as typeof ProviderCustomer.findOne;
 
@@ -1385,6 +1387,7 @@ describe("getUploadUrls", () => {
     ]) as unknown as typeof CustomerEntity.findAll;
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-victim",
+      customerType: "individual",
       providerSubaccountId: "subaccount-1"
     })) as unknown as typeof ProviderCustomer.findOne;
 
@@ -1396,6 +1399,53 @@ describe("getUploadUrls", () => {
 
     expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
     expect(uploadUrlsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an owned business customer before requesting upload URLs", async () => {
+    mockBrlaApi();
+    uploadUrlsMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-business" }]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-business",
+      customerType: "business",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+
+    const res = createResponse();
+    await getUploadUrls(
+      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "business-user" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(uploadUrlsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("newKyc", () => {
+  const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalGetInstance = BrlaApiService.getInstance;
+
+  afterEach(() => {
+    ProviderCustomer.findOne = originalProviderFindOne;
+    BrlaApiService.getInstance = originalGetInstance;
+  });
+
+  it("rejects an owned business customer before submitting KYC", async () => {
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-business" }]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-business",
+      customerType: "business",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+    const getInstance = mock(() => ({} as BrlaApiService));
+    BrlaApiService.getInstance = getInstance;
+
+    const res = createResponse();
+    await newKyc({ body: { subAccountId: "subaccount-1" }, userId: "business-user" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(getInstance).not.toHaveBeenCalled();
   });
 });
 

@@ -63,11 +63,17 @@ router
   .post(
     validateStartKyc2,
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
     brlaController.getUploadUrls
   );
 
-router.route("/newKyc").post(requirePartnerOrUserAuth(), authorizeManagedProfile({ corridor: "BR" }), brlaController.newKyc);
+router
+  .route("/newKyc")
+  .post(
+    requirePartnerOrUserAuth(),
+    authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
+    brlaController.newKyc
+  );
 
 router
   .route("/kyb/new-level-1/web-sdk")
