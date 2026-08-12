@@ -55,6 +55,15 @@ import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
 
+const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
+  "assethubToPendulumHash",
+  "squidRouterApproveHash",
+  "squidRouterNoPermitApproveHash",
+  "squidRouterNoPermitSwapHash",
+  "squidRouterNoPermitTransferHash",
+  "squidRouterSwapHash"
+]);
+
 function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   for (const record of records) {
@@ -440,6 +449,16 @@ export class RampService extends BaseRampService {
       }
 
       RampService.assertStartDeadlineNotExceeded(rampState);
+
+      const unsupportedAdditionalDataField = Object.keys(additionalData ?? {}).find(
+        key => !CLIENT_WRITABLE_RAMP_STATE_FIELDS.has(key)
+      );
+      if (unsupportedAdditionalDataField) {
+        throw new APIError({
+          message: `Ramp additionalData field '${unsupportedAdditionalDataField}' cannot be updated by clients`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
