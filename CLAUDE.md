@@ -110,6 +110,11 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
   change for a reviewer (e.g. "Add searchable token selection to the dashboard"). The
   conventional format applies to commits only; PRs are merged with merge commits, so
   every individual commit lands in history — format each one.
+- **PR base branch** — all feature, fix, documentation, refactor, and maintenance PRs
+  MUST target `staging`, never `main`. The only PRs allowed to target `main` are explicit
+  staging-to-production promotion/release PRs requested by the user. When creating a PR,
+  pass `--base staging` explicitly and verify the resulting PR's base branch before
+  reporting completion.
 
 Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
