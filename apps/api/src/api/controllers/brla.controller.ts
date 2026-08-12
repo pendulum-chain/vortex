@@ -860,6 +860,52 @@ async function resolveAveniaKybAccount(
   return resolveOwnedAveniaBusinessAccount(effectiveUserId, subAccountId);
 }
 
+async function reconcileActiveAveniaKybAttempt(
+  brlaApiService: BrlaApiService,
+  record: ProviderCustomer,
+  subAccountId: string
+): Promise<KycLevel1Response | null> {
+  const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
+  const activeAttempts = attempts.filter(
+    attempt =>
+      attempt.levelName === "kyb-level-1" &&
+      (attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.PROCESSING)
+  );
+  if (activeAttempts.length === 0) {
+    return null;
+  }
+  if (activeAttempts.length !== 1) {
+    throw new APIError({ message: "Multiple active KYB attempts found", status: httpStatus.CONFLICT });
+  }
+
+  const attempt = activeAttempts[0];
+  const status = attempt.status === KycAttemptStatus.PENDING ? VerificationStatus.Pending : VerificationStatus.InReview;
+  const kycCase = await getOrCreateAveniaKybCase(record);
+  await sequelize.transaction(async transaction => {
+    await record.update(
+      {
+        lastFailureReasons: [],
+        status,
+        statusExternal: attempt.status
+      },
+      { transaction }
+    );
+    await kycCase.update(
+      {
+        approvedAt: null,
+        failureReasons: [],
+        providerCaseId: attempt.id,
+        rejectedAt: null,
+        status,
+        statusExternal: attempt.status,
+        submittedAt: new Date(attempt.createdAt)
+      },
+      { transaction }
+    );
+  });
+  return { id: attempt.id };
+}
+
 export const createKybDocument = async (
   req: Request<unknown, unknown, DocumentUploadRequest, { subAccountId?: string }>,
   res: Response<DocumentUploadResponse | BrlaErrorResponse>
@@ -941,7 +987,14 @@ export const submitKybLevel1Api = async (
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
     const subAccountId = record.providerSubaccountId as string;
     const brlaApiService = BrlaApiService.getInstance();
-    await assertAveniaKybCanSubmit(brlaApiService, record, subAccountId);
+    if (record.status === VerificationStatus.Approved) {
+      throw new APIError({ message: "This company is already approved", status: httpStatus.CONFLICT });
+    }
+    const reconciledAttempt = await reconcileActiveAveniaKybAttempt(brlaApiService, record, subAccountId);
+    if (reconciledAttempt) {
+      res.status(httpStatus.OK).json(reconciledAttempt);
+      return;
+    }
     const kycCase = await getOrCreateAveniaKybCase(record);
     await Promise.all([
       requireReadyAveniaDocument(brlaApiService, subAccountId, req.body.certificateOfIncorporationDocumentId, [
@@ -952,7 +1005,20 @@ export const submitKybLevel1Api = async (
       ])
     ]);
 
-    const response = await brlaApiService.submitKybLevel1(req.body, subAccountId);
+    let response: KycLevel1Response;
+    try {
+      response = await brlaApiService.submitKybLevel1(req.body, subAccountId);
+    } catch (error) {
+      if (!(error instanceof BrlaApiError) || error.status !== httpStatus.CONFLICT) {
+        throw error;
+      }
+      const reconciledConflict = await reconcileActiveAveniaKybAttempt(brlaApiService, record, subAccountId);
+      if (!reconciledConflict) {
+        throw error;
+      }
+      res.status(httpStatus.OK).json(reconciledConflict);
+      return;
+    }
 
     const now = new Date();
     await sequelize.transaction(async transaction => {

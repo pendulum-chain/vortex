@@ -1725,22 +1725,153 @@ describe("Avenia API KYB", () => {
     expect(submit).toHaveBeenCalledWith(validSubmission, "subaccount-1");
   });
 
-  it("rejects submission while Avenia reports an ongoing KYB attempt", async () => {
+  it("repairs a missing local binding after Avenia accepted the first submission", async () => {
+    const customerUpdate = mockBusinessAccount();
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOrCreate = mock(async () => [
+      { id: "case-1", providerCaseId: null, update: caseUpdate },
+      false
+    ]) as unknown as typeof KycCase.findOrCreate;
+    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    const getKycAttempts = mock(async () => ({ attempts: [] as any[] }));
+    const submit = mock(async () => ({ id: "accepted-attempt" }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts,
+          getUploadedDocument: mock(async (id: string) => documentResponse(id)),
+          submitKybLevel1: submit
+        }) as unknown as BrlaApiService
+    );
+
+    const failedResponse = createResponse();
+    caseUpdate.mockImplementationOnce(async () => {
+      throw new Error("database unavailable");
+    });
+    await submitKybLevel1Api(
+      { body: validSubmission, query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any,
+      failedResponse as any
+    );
+    expect(failedResponse.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+
+    getKycAttempts.mockImplementation(async () => ({
+      attempts: [
+        {
+          createdAt: "2026-08-12T10:00:00.000Z",
+          id: "accepted-attempt",
+          levelName: "kyb-level-1",
+          status: KycAttemptStatus.PENDING,
+          updatedAt: "2026-08-12T10:00:00.000Z"
+        }
+      ]
+    }));
+    const repairedResponse = createResponse();
+    await submitKybLevel1Api(
+      { body: validSubmission, query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any,
+      repairedResponse as any
+    );
+
+    expect(repairedResponse.statusCode).toBe(httpStatus.OK);
+    expect(repairedResponse.body).toEqual({ id: "accepted-attempt" });
+    expect(getKycAttempts).toHaveBeenLastCalledWith("subaccount-1");
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(customerUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING }),
+      expect.anything()
+    );
+    expect(caseUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        providerCaseId: "accepted-attempt",
+        status: VerificationStatus.Pending,
+        statusExternal: KycAttemptStatus.PENDING
+      }),
+      expect.anything()
+    );
+  });
+
+  it("reconciles one processing attempt after the submit POST conflicts", async () => {
+    const customerUpdate = mockBusinessAccount();
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOrCreate = mock(async () => [
+      { id: "case-1", providerCaseId: null, update: caseUpdate },
+      false
+    ]) as unknown as typeof KycCase.findOrCreate;
+    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    const getKycAttempts = mock()
+      .mockResolvedValueOnce({ attempts: [] })
+      .mockResolvedValueOnce({
+        attempts: [
+          {
+            createdAt: "2026-08-12T10:00:00.000Z",
+            id: "conflicting-attempt",
+            levelName: "kyb-level-1",
+            status: KycAttemptStatus.PROCESSING,
+            updatedAt: "2026-08-12T10:01:00.000Z"
+          }
+        ]
+      });
+    const submit = mock(async () => {
+      throw new BrlaApiError({
+        endpoint: "/v2/kyc/new-level-1/api",
+        method: "POST",
+        responseBody: JSON.stringify({ message: "Existing attempt" }),
+        status: httpStatus.CONFLICT
+      });
+    });
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts,
+          getUploadedDocument: mock(async (id: string) => documentResponse(id)),
+          submitKybLevel1: submit
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await submitKybLevel1Api(
+      { body: validSubmission, query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(res.body).toEqual({ id: "conflicting-attempt" });
+    expect(getKycAttempts).toHaveBeenCalledTimes(2);
+    expect(getKycAttempts).toHaveBeenNthCalledWith(1, "subaccount-1");
+    expect(getKycAttempts).toHaveBeenNthCalledWith(2, "subaccount-1");
+    expect(customerUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING }),
+      expect.anything()
+    );
+    expect(caseUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        providerCaseId: "conflicting-attempt",
+        status: VerificationStatus.InReview,
+        statusExternal: KycAttemptStatus.PROCESSING
+      }),
+      expect.anything()
+    );
+  });
+
+  it("fails closed when Avenia reports multiple active KYB attempts", async () => {
     mockBusinessAccount();
     KycCase.findOrCreate = mock(async () => {
-      throw new Error("A local case must not be created before the provider preflight");
+      throw new Error("Ambiguous attempts must not be bound");
     }) as unknown as typeof KycCase.findOrCreate;
     const submit = mock(async () => ({ id: "duplicate-attempt" }));
+    const activeAttempt = (id: string, status: KycAttemptStatus) => ({
+      createdAt: "2026-08-12T10:00:00.000Z",
+      id,
+      levelName: "kyb-level-1",
+      status,
+      updatedAt: "2026-08-12T10:00:00.000Z"
+    });
     BrlaApiService.getInstance = mock(
       () =>
         ({
           getKycAttempts: mock(async () => ({
             attempts: [
-              {
-                id: "ongoing-attempt",
-                levelName: "kyb-level-1",
-                status: KycAttemptStatus.PENDING
-              }
+              activeAttempt("pending-attempt", KycAttemptStatus.PENDING),
+              activeAttempt("processing-attempt", KycAttemptStatus.PROCESSING)
             ]
           })),
           submitKybLevel1: submit
@@ -1755,5 +1886,41 @@ describe("Avenia API KYB", () => {
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("propagates an unrelated provider submission failure without reconciliation", async () => {
+    mockBusinessAccount();
+    KycCase.findOrCreate = mock(async () => [
+      { id: "case-1", providerCaseId: null, update: mock(async () => undefined) },
+      false
+    ]) as unknown as typeof KycCase.findOrCreate;
+    const getKycAttempts = mock(async () => ({ attempts: [] }));
+    const submitError = new BrlaApiError({
+      endpoint: "/v2/kyc/new-level-1/api",
+      method: "POST",
+      responseBody: JSON.stringify({ message: "Service unavailable" }),
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+    const submit = mock(async () => {
+      throw submitError;
+    });
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts,
+          getUploadedDocument: mock(async (id: string) => documentResponse(id)),
+          submitKybLevel1: submit
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await submitKybLevel1Api(
+      { body: validSubmission, query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
+    expect(res.body).toEqual({ error: "Avenia request failed" });
+    expect(getKycAttempts).toHaveBeenCalledTimes(1);
   });
 });
