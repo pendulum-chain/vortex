@@ -31,14 +31,16 @@ import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
-const USDT_ON_ARBITRUM = evmTokenConfig[Networks.Arbitrum][EvmToken.USDT]?.erc20AddressSourceChain as `0x${string}`;
-if (!USDT_ON_ARBITRUM) {
+const USDT_ON_ARBITRUM_CONFIG = evmTokenConfig[Networks.Arbitrum][EvmToken.USDT];
+if (!USDT_ON_ARBITRUM_CONFIG?.erc20AddressSourceChain) {
   throw new Error("USDT token config missing for Arbitrum");
 }
-const USDT_ON_BSC = evmTokenConfig[Networks.BSC][EvmToken.USDT]?.erc20AddressSourceChain as `0x${string}`;
-if (!USDT_ON_BSC) {
+const USDT_ON_ARBITRUM = USDT_ON_ARBITRUM_CONFIG.erc20AddressSourceChain as `0x${string}`;
+const USDT_ON_BSC_CONFIG = evmTokenConfig[Networks.BSC][EvmToken.USDT];
+if (!USDT_ON_BSC_CONFIG?.erc20AddressSourceChain) {
   throw new Error("USDT token config missing for BSC");
 }
+const USDT_ON_BSC = USDT_ON_BSC_CONFIG.erc20AddressSourceChain as `0x${string}`;
 
 const CHAIN_IDS: Partial<Record<Networks, number>> = {
   [Networks.Arbitrum]: 42161,
@@ -156,6 +158,35 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
   }
 ];
 
+interface CrossChainOfframpSource {
+  chainId: string;
+  label: "Arbitrum" | "BSC";
+  network: typeof Networks.Arbitrum | typeof Networks.BSC;
+  token: `0x${string}`;
+  tokenDecimals: number;
+}
+
+const ARBITRUM_OFFRAMP_SOURCE = {
+  chainId: "42161",
+  label: "Arbitrum",
+  network: Networks.Arbitrum,
+  token: USDT_ON_ARBITRUM,
+  tokenDecimals: USDT_ON_ARBITRUM_CONFIG.decimals
+} satisfies CrossChainOfframpSource;
+
+const BSC_OFFRAMP_SOURCE = {
+  chainId: "56",
+  label: "BSC",
+  network: Networks.BSC,
+  token: USDT_ON_BSC,
+  tokenDecimals: USDT_ON_BSC_CONFIG.decimals
+} satisfies CrossChainOfframpSource;
+
+const CROSS_CHAIN_OFFRAMP_TEST_CASES = [
+  ...CROSS_CHAIN_OFFRAMP_CASES.map(currency => ({ currency, source: ARBITRUM_OFFRAMP_SOURCE })),
+  { currency: CURRENCY_CASES[0], source: BSC_OFFRAMP_SOURCE }
+];
+
 /**
  * Parameterized scenarios for the Alfredpay corridors beyond MXN: USD (ach),
  * COP (ach) and ARS (cbu), each in both directions. The deeper security and
@@ -166,8 +197,9 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
  * The cross-chain legs run here per currency too: BUY bridges the Polygon mint
  * to Arbitrum via squid (mirroring the MXN cross-chain corridor) and SELL
  * takes the no-permit cross-chain fallback (user-broadcast squid approve+swap
- * on BSC, verified by hash before the Polygon deposit transfer) — the
- * latter including MXN, whose own files only cover the direct Polygon path.
+ * on Arbitrum, verified by hash before the Polygon deposit transfer) — the
+ * latter including MXN, whose own files only cover the direct Polygon path —
+ * plus a focused BSC case for its 18-to-6-decimal permit-probe regression.
  */
 describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
   let world: FakeWorld;
@@ -199,6 +231,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
     // Both direct and cross-chain Alfredpay SELL simulations price a
     // Squid-delivered Polygon USDT settlement leg.
+    world.squidRouter.computeToAmount = params => params.fromAmount;
     world.squidRouter.toTokenDecimals = 6;
     world.squidRouter.bridgeStatus = "success";
   });
@@ -618,15 +651,20 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
   /**
    * Cross-chain SELL setup via the HTTP API on the no-permit fallback (the
    * Alfredpay analog of the BRL cross-chain offramp's squid-hash flow): the
-   * user broadcasts the squid approve + swap from their own wallet on BSC,
+   * user broadcasts the squid approve + swap from their own wallet on the source chain,
    * the hashes are reported through /v1/ramp/update together with
    * the presigned Polygon deposit transfer, and squidRouterPermitExecute
    * verifies them against the blueprints before any ephemeral funds move.
    */
-  async function setUpCrossChainOfframpRamp(currency: CurrencyCase): Promise<CrossChainOfframpSetup> {
+  async function setUpCrossChainOfframpRamp(
+    currency: CurrencyCase,
+    source: CrossChainOfframpSource
+  ): Promise<CrossChainOfframpSetup> {
     world.alfredpay.offrampRate = currency.offrampRate;
-    // The user's squid leg swaps 18-decimal BSC USDT into 6-decimal Polygon
-    // USDT; the fake route must report destination decimals.
+    // The fake route is a decimal 1:1 swap, so convert source raw units into
+    // 6-decimal Polygon USDT raw units instead of re-labelling them.
+    world.squidRouter.computeToAmount = params =>
+      (BigInt(params.fromAmount) / 10n ** BigInt(source.tokenDecimals - ALFREDPAY_ERC20_DECIMALS)).toString();
     world.squidRouter.toTokenDecimals = 6;
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
@@ -636,10 +674,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id, { country: currency.country });
     const quote = await createQuoteViaApi({
-      from: Networks.BSC,
+      from: source.network,
       inputAmount: currency.offrampInputAmount,
       inputCurrency: EvmToken.USDT,
-      network: Networks.BSC,
+      network: source.network,
       outputCurrency: currency.fiat,
       rampType: RampDirection.SELL,
       to: currency.rail
@@ -651,9 +689,21 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
     const metadata = persistedQuote?.metadata as unknown as
-      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | {
+          blocks: {
+            alfredpayOfframp?: {
+              bridgeInputAmountRaw?: string;
+              bridgeOutputAmountRaw?: string;
+              inputAmountRaw?: string;
+            };
+          };
+        }
       | undefined;
+    const bridgeInputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw ?? "0");
+    const bridgeOutputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw ?? "0");
     const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
+    expect(bridgeInputAmountRaw).toBe(parseUnits(currency.offrampInputAmount, source.tokenDecimals));
+    expect(bridgeOutputAmountRaw).toBe(parseUnits(currency.offrampInputAmount, ALFREDPAY_ERC20_DECIMALS));
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -664,8 +714,8 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const approveBlueprint = blueprintOf(allUnsignedTxs, "squidRouterNoPermitApprove");
     const swapBlueprint = blueprintOf(allUnsignedTxs, "squidRouterNoPermitSwap");
     const offrampTransferBlueprint = blueprintOf(allUnsignedTxs, "alfredpayOfframpTransfer");
-    expect(approveBlueprint.network).toBe(Networks.BSC);
-    expect(swapBlueprint.network).toBe(Networks.BSC);
+    expect(approveBlueprint.network).toBe(source.network);
+    expect(swapBlueprint.network).toBe(source.network);
     expect(approveBlueprint.signer.toLowerCase()).toBe(userWallet.address.toLowerCase());
     expect(swapBlueprint.signer.toLowerCase()).toBe(userWallet.address.toLowerCase());
 
@@ -864,23 +914,26 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     );
   }
 
-  for (const currency of CROSS_CHAIN_OFFRAMP_CASES) {
+  for (const { currency, source } of CROSS_CHAIN_OFFRAMP_TEST_CASES) {
     it(
-      `${currency.fiat} cross-chain offramp (USDT on BSC → squid → Polygon → ${currency.rail}) verifies the user's squid txs and completes`,
+      `${currency.fiat} cross-chain offramp (USDT on ${source.label} → squid → Polygon → ${currency.rail}) verifies the user's squid txs and completes`,
       async () => {
         const offrampOrdersBefore = world.alfredpay.offrampOrders.length;
-        const setup = await setUpCrossChainOfframpRamp(currency);
+        const setup = await setUpCrossChainOfframpRamp(currency, source);
 
-        // Registration requested a BSC USDT → Polygon USDT route from
+        // Registration requested a source-chain USDT → Polygon USDT route from
         // the user's wallet, delivering to the ephemeral.
         const registrationRoute = world.squidRouter.requestedRoutes.find(
           route =>
-            route.fromToken.toLowerCase() === USDT_ON_BSC.toLowerCase() &&
+            route.fromToken.toLowerCase() === source.token.toLowerCase() &&
             route.toToken.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase() &&
             route.toAddress?.toLowerCase() === setup.ephemeralAddress.toLowerCase()
         );
-        expect(registrationRoute, "registration should request a BSC→Polygon USDT route to the ephemeral").toBeDefined();
-        expect(registrationRoute?.fromChain).toBe("56");
+        expect(
+          registrationRoute,
+          `registration should request a ${source.label}→Polygon USDT route to the ephemeral`
+        ).toBeDefined();
+        expect(registrationRoute?.fromChain).toBe(source.chainId);
         expect(registrationRoute?.toChain).toBe("137");
         expect(registrationRoute?.fromAddress.toLowerCase()).toBe(setup.userWalletAddress.toLowerCase());
 
