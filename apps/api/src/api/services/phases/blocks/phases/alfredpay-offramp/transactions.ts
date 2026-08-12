@@ -13,7 +13,7 @@ import {
   type SignedTypedData
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { ContractFunctionExecutionError, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../../config/vars";
 import erc20ABI from "../../../../../../contracts/ERC20";
@@ -135,7 +135,7 @@ export async function prepareAlfredpayOfframpTxs(
           })) as string;
           return { domain: await resolveAlfredpayPermitDomain(publicClient, inputToken, chainId, tokenName), nonce };
         } catch (error) {
-          if (error instanceof ContractFunctionExecutionError) return null;
+          if (error instanceof Error && error.name === "ContractFunctionExecutionError") return null;
           throw error;
         }
       })();
