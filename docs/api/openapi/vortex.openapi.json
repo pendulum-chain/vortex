@@ -3543,19 +3543,27 @@
       "UpdateRampRequest": {
         "properties": {
           "additionalData": {
-            "additionalProperties": true,
-            "description": "Optional additional data, like transaction hashes from external services.",
+            "additionalProperties": false,
+            "description": "Optional client-reported transaction hashes used to continue the ramp.",
             "properties": {
-              "assetHubToPendulumHash": {
+              "assethubToPendulumHash": {
                 "description": "Transaction hash for AssetHub to Pendulum transfer, if applicable.",
                 "type": ["string", "null"]
               },
-              "moneriumOfframpSignature": {
-                "description": "Signed message to trigger a Monerium offramp.\n",
-                "type": "string"
-              },
               "squidRouterApproveHash": {
                 "description": "Transaction hash for Squid Router approval. Optional: omit when the wallet already holds a sufficient allowance and no approval transaction was submitted.",
+                "type": ["string", "null"]
+              },
+              "squidRouterNoPermitApproveHash": {
+                "description": "Transaction hash for Squid Router no-permit approval, if applicable.",
+                "type": ["string", "null"]
+              },
+              "squidRouterNoPermitSwapHash": {
+                "description": "Transaction hash for Squid Router no-permit swap, if applicable.",
+                "type": ["string", "null"]
+              },
+              "squidRouterNoPermitTransferHash": {
+                "description": "Transaction hash for Squid Router no-permit transfer, if applicable.",
                 "type": ["string", "null"]
               },
               "squidRouterSwapHash": {
@@ -3563,7 +3571,6 @@
                 "type": ["string", "null"]
               }
             },
-            "required": ["moneriumOfframpSignature"],
             "type": ["object", "null"]
           },
           "presignedTxs": {
@@ -6256,6 +6263,9 @@
         "operationId": "createAveniaKybDocument",
         "parameters": [
           {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
+          {
             "in": "query",
             "name": "subAccountId",
             "required": true,
@@ -6286,12 +6296,21 @@
             "description": "Document upload targets created."
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
+                }
+              }
+            },
             "description": "Invalid document request."
           },
           "401": {
+            "$ref": "#/components/responses/ManagedSelectorUnauthorized",
             "description": "Authentication required."
           },
           "403": {
+            "$ref": "#/components/responses/BrlaManagedSelectorForbidden",
             "description": "Managed profile or corridor is not authorized."
           },
           "404": {
@@ -6318,6 +6337,9 @@
         "description": "Reads readiness and upload status for an owned Avenia KYB document.",
         "operationId": "getAveniaKybDocument",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
           {
             "in": "path",
             "name": "documentId",
@@ -6347,12 +6369,21 @@
             "description": "Document status."
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
+                }
+              }
+            },
             "description": "Invalid document identifier."
           },
           "401": {
+            "$ref": "#/components/responses/ManagedSelectorUnauthorized",
             "description": "Authentication required."
           },
           "403": {
+            "$ref": "#/components/responses/BrlaManagedSelectorForbidden",
             "description": "Document does not belong to the effective profile."
           },
           "404": {
@@ -6379,6 +6410,9 @@
         "description": "Submits the API-driven Avenia Level 1 KYB attempt after validating the owned corporate documents and UBO references.",
         "operationId": "submitAveniaKybLevel1Api",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
           {
             "in": "query",
             "name": "subAccountId",
@@ -6410,12 +6444,21 @@
             "description": "KYB attempt submitted."
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
+                }
+              }
+            },
             "description": "Invalid submission or document state."
           },
           "401": {
+            "$ref": "#/components/responses/ManagedSelectorUnauthorized",
             "description": "Authentication required."
           },
           "403": {
+            "$ref": "#/components/responses/BrlaManagedSelectorForbidden",
             "description": "Managed profile or corridor is not authorized."
           },
           "404": {
@@ -6538,6 +6581,9 @@
         "operationId": "createAveniaKybUbo",
         "parameters": [
           {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
+          {
             "in": "query",
             "name": "subAccountId",
             "required": true,
@@ -6568,12 +6614,21 @@
             "description": "UBO registered."
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
+                }
+              }
+            },
             "description": "Invalid UBO or document state."
           },
           "401": {
+            "$ref": "#/components/responses/ManagedSelectorUnauthorized",
             "description": "Authentication required."
           },
           "403": {
+            "$ref": "#/components/responses/BrlaManagedSelectorForbidden",
             "description": "Managed profile or corridor is not authorized."
           },
           "404": {
@@ -9450,7 +9505,7 @@
     "/v1/ramp/update": {
       "post": {
         "deprecated": false,
-        "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. \n\nFor onramps, no additional data is required after registering the ramp.",
+        "description": "Submits presigned transactions and supported client-reported transaction hashes to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and `additionalData`, existing properties will be overridden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the initial transaction in which the user sends the funds.  \nIf the originating chain is `AssetHub`, then `assethubToPendulumHash` must be provided. \nIf the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.\n\nFor onramps, no additional data is required after registering the ramp.",
         "operationId": "updateRamp",
         "parameters": [
           {

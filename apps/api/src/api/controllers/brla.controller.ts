@@ -63,7 +63,7 @@ import {
 } from "../services/avenia/avenia-customer.service";
 import {
   AVENIA_IDENTITY_DOCUMENT_TYPES,
-  assertAveniaKybCanSubmit,
+  assertAveniaHostedKybCanInitiate,
   createAveniaUboOnce,
   getOrCreateAveniaKybCase,
   requireReadyAveniaDocument,
@@ -1080,7 +1080,7 @@ export const initiateKybLevel1 = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    await assertAveniaKybCanSubmit(brlaApiService, record, subAccountId);
+    await assertAveniaHostedKybCanInitiate(brlaApiService, record, subAccountId);
     const response = await brlaApiService.initiateKybLevel1(subAccountId);
     // The attempt starts PENDING at Avenia — nothing is submitted until the user finishes the hosted
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only

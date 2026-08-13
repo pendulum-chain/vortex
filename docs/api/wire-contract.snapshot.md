@@ -2113,7 +2113,6 @@ UnsignedTx: {
 
 UpdateRampRequest: {
   additionalData?: {
-    [key: string]: unknown;
     assethubToPendulumHash?: string;
     squidRouterApproveHash?: string;
     squidRouterNoPermitApproveHash?: string;

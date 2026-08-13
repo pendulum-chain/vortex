@@ -93,25 +93,33 @@ describe("RampService.updateRamp additionalData", () => {
     });
   }
 
-  it("preserves partial updates of supported client-reported transaction hashes", async () => {
-    const service = new TestRampService();
-    Object.assign(service, {
-      ephemeralPresignChecksPass: mock(async () => false),
-      startPersistedFlow: mock(async () => ({})),
-      tryReleaseDepositQr: mock(async () => false)
-    });
+  for (const field of [
+    "assethubToPendulumHash",
+    "squidRouterApproveHash",
+    "squidRouterNoPermitApproveHash",
+    "squidRouterNoPermitSwapHash",
+    "squidRouterNoPermitTransferHash",
+    "squidRouterSwapHash"
+  ] as const) {
+    it(`preserves partial updates of supported client-reported ${field}`, async () => {
+      const service = new TestRampService();
+      Object.assign(service, {
+        ephemeralPresignChecksPass: mock(async () => false),
+        startPersistedFlow: mock(async () => ({})),
+        tryReleaseDepositQr: mock(async () => false)
+      });
 
-    await service.updateRamp({
-      additionalData: { squidRouterSwapHash: "0xnew" },
-      presignedTxs: [],
-      rampId: ramp.id
-    });
+      await service.updateRamp({
+        additionalData: { [field]: "0xnew" },
+        presignedTxs: [],
+        rampId: ramp.id
+      });
 
-    expect(ramp.state).toMatchObject({
-      ...identities.rampA,
-      blockState: { aveniaMint: identities.rampA },
-      squidRouterApproveHash: "0xexisting",
-      squidRouterSwapHash: "0xnew"
+      expect(ramp.state).toMatchObject({
+        ...identities.rampA,
+        [field]: "0xnew",
+        blockState: { aveniaMint: identities.rampA }
+      });
     });
-  });
+  }
 });

@@ -208,10 +208,10 @@ Key properties:
   canonical terminal status. Legacy `Consulted` rows map to `started`, while `Requested`
   and active attempt processing map to `in_review`; a missing or expired attempt maps
   to `pending`. For company KYB, subaccount creation and a still-`PENDING` attempt also map to
-  `pending`; only `PROCESSING` maps to `in_review` (invariant 22). New API and hosted attempts are
-  blocked while either provider state is active. API submission retries reconcile exactly one active
-  provider attempt into the local case; hosted continuation URLs are returned only at creation time,
-  so a client that loses them must retain that response rather than create a replacement hosted attempt.
+  `pending`; only `PROCESSING` maps to `in_review` (invariant 22). API submission retries reconcile
+  exactly one active provider attempt into the local case. Hosted re-initiation remains available while
+  the provider reports `PENDING`, because continuation URLs are not stored and re-initiation is the only
+  resume path; a `PROCESSING` attempt blocks re-initiation.
 - Business rows may store a nullable `company_name`. It is set from the name accepted during
   subaccount creation and missing legacy values are lazily refreshed from Avenia account info.
 - Migration 060 permanently deletes `tax_ids`, including ownerless/quarantined rows and any

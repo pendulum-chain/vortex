@@ -1456,16 +1456,16 @@ export interface paths {
         put?: never;
         /**
          * Update ramp process
-         * @description Submits presigned transactions and additional data to an existing ramp process before starting it.
+         * @description Submits presigned transactions and supported client-reported transaction hashes to an existing ramp process before starting it.
          *     This endpoint can be called many times, and data can be incrementally added to the ramp.
          *
-         *     Note: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.
+         *     Note: For both pre-signed transactions and `additionalData`, existing properties will be overridden by new values.
          *
          *     ### Required data for ramps.
          *     The signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.
-         *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.
-         *     If the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided.
-         *     If the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted.
+         *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the initial transaction in which the user sends the funds.
+         *     If the originating chain is `AssetHub`, then `assethubToPendulumHash` must be provided.
+         *     If the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.
          *
          *     For onramps, no additional data is required after registering the ramp.
          */
@@ -3200,19 +3200,21 @@ export interface components {
             [key: string]: unknown;
         };
         UpdateRampRequest: {
-            /** @description Optional additional data, like transaction hashes from external services. */
-            additionalData?: ({
+            /** @description Optional client-reported transaction hashes used to continue the ramp. */
+            additionalData?: {
                 /** @description Transaction hash for AssetHub to Pendulum transfer, if applicable. */
-                assetHubToPendulumHash?: string | null;
-                /** @description Signed message to trigger a Monerium offramp. */
-                moneriumOfframpSignature: string;
+                assethubToPendulumHash?: string | null;
                 /** @description Transaction hash for Squid Router approval. Optional: omit when the wallet already holds a sufficient allowance and no approval transaction was submitted. */
                 squidRouterApproveHash?: string | null;
+                /** @description Transaction hash for Squid Router no-permit approval, if applicable. */
+                squidRouterNoPermitApproveHash?: string | null;
+                /** @description Transaction hash for Squid Router no-permit swap, if applicable. */
+                squidRouterNoPermitSwapHash?: string | null;
+                /** @description Transaction hash for Squid Router no-permit transfer, if applicable. */
+                squidRouterNoPermitTransferHash?: string | null;
                 /** @description Transaction hash for Squid Router swap, if applicable. */
                 squidRouterSwapHash?: string | null;
-            } & {
-                [key: string]: unknown;
-            }) | null;
+            } | null;
             /** @description An array of transactions that have been pre-signed by the user. */
             presignedTxs: components["schemas"]["PresignedTx"][];
             /**
@@ -5121,7 +5123,10 @@ export interface operations {
             query: {
                 subAccountId: string;
             };
-            header?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -5145,22 +5150,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                };
             };
             /** @description Authentication required. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
             /** @description Managed profile or corridor is not authorized. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount not found. */
             404: {
                 headers: {
@@ -5182,7 +5179,10 @@ export interface operations {
             query: {
                 subAccountId: string;
             };
-            header?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path: {
                 documentId: string;
             };
@@ -5204,22 +5204,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                };
             };
             /** @description Authentication required. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
             /** @description Document does not belong to the effective profile. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Document not found. */
             404: {
                 headers: {
@@ -5241,7 +5233,10 @@ export interface operations {
             query: {
                 subAccountId: string;
             };
-            header?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -5265,22 +5260,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                };
             };
             /** @description Authentication required. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
             /** @description Managed profile or corridor is not authorized. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount or referenced document not found. */
             404: {
                 headers: {
@@ -5381,7 +5368,10 @@ export interface operations {
             query: {
                 subAccountId: string;
             };
-            header?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -5405,22 +5395,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                };
             };
             /** @description Authentication required. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
             /** @description Managed profile or corridor is not authorized. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+            403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount or referenced document not found. */
             404: {
                 headers: {

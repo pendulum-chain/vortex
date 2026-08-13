@@ -120,7 +120,11 @@ const MANAGED_SELECTOR_SECURITY_OPERATIONS = [
   ["/v1/brla/getSelfieLivenessUrl", "get"],
   ["/v1/brla/getUploadUrls", "post"],
   ["/v1/brla/kyb/attempt-status", "get"],
+  ["/v1/brla/kyb/documents", "post"],
+  ["/v1/brla/kyb/documents/{documentId}", "get"],
+  ["/v1/brla/kyb/new-level-1/api", "post"],
   ["/v1/brla/kyb/new-level-1/web-sdk", "post"],
+  ["/v1/brla/kyb/ubos", "post"],
   ["/v1/brla/kyc/record-attempt", "post"],
   ["/v1/brla/newKyc", "post"],
   ["/v1/onboarding/status", "get"]
@@ -154,7 +158,11 @@ const DELEGATED_OPERATIONS = [
   ["/v1/brla/getUser", "get"],
   ["/v1/brla/getUserRemainingLimit", "get"],
   ["/v1/brla/kyb/attempt-status", "get"],
+  ["/v1/brla/kyb/documents", "post"],
+  ["/v1/brla/kyb/documents/{documentId}", "get"],
+  ["/v1/brla/kyb/new-level-1/api", "post"],
   ["/v1/brla/kyb/new-level-1/web-sdk", "post"],
+  ["/v1/brla/kyb/ubos", "post"],
   ["/v1/brla/kyc/record-attempt", "post"],
   ["/v1/brla/newKyc", "post"],
   ["/v1/limits", "post"],
@@ -491,6 +499,25 @@ if (
   throw new Error(
     "Managed-profile credential operations must document optional names, create-once secrets, and secret-free list schemas."
   );
+}
+
+const updateRampAdditionalData = ((schemas.UpdateRampRequest as JsonObject).properties as JsonObject)
+  .additionalData as JsonObject;
+const updateRampAdditionalDataProperties = (updateRampAdditionalData.properties ?? {}) as JsonObject;
+const expectedUpdateRampAdditionalDataFields = [
+  "assethubToPendulumHash",
+  "squidRouterApproveHash",
+  "squidRouterNoPermitApproveHash",
+  "squidRouterNoPermitSwapHash",
+  "squidRouterNoPermitTransferHash",
+  "squidRouterSwapHash"
+];
+if (
+  updateRampAdditionalData.additionalProperties !== false ||
+  JSON.stringify(Object.keys(updateRampAdditionalDataProperties).sort()) !==
+    JSON.stringify(expectedUpdateRampAdditionalDataFields.sort())
+) {
+  throw new Error("UpdateRampRequest.additionalData must exactly match the runtime client-writable hash allowlist.");
 }
 
 const managedProfileHeaderRef = "#/components/parameters/ManagedProfileId";

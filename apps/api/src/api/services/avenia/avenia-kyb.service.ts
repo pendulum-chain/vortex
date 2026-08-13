@@ -207,7 +207,7 @@ export async function requireReadyAveniaDocument(
   return document;
 }
 
-export async function assertAveniaKybCanSubmit(
+export async function assertAveniaHostedKybCanInitiate(
   brlaApiService: BrlaApiService,
   record: ProviderCustomer,
   subAccountId: string
@@ -216,12 +216,11 @@ export async function assertAveniaKybCanSubmit(
     throw new APIError({ message: "This company is already approved", status: httpStatus.CONFLICT });
   }
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
-  const hasOngoingKybAttempt = attempts.some(
+  const hasProcessingKybAttempt = attempts.some(
     attempt =>
-      attempt.levelName === "kyb-level-1" &&
-      (attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.PROCESSING)
+      attempt.levelName === "kyb-level-1" && attempt.status === KycAttemptStatus.PROCESSING
   );
-  if (hasOngoingKybAttempt) {
+  if (hasProcessingKybAttempt) {
     throw new APIError({
       message: "A KYB attempt is already in progress",
       status: httpStatus.CONFLICT

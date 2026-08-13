@@ -222,7 +222,6 @@ export interface UpdateRampRequest {
     squidRouterNoPermitApproveHash?: string;
     squidRouterNoPermitSwapHash?: string;
     assethubToPendulumHash?: string;
-    [key: string]: unknown;
   };
 }
 

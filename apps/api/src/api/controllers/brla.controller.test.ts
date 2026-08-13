@@ -623,7 +623,7 @@ describe("Avenia company KYB", () => {
     expect(strayCreate).not.toHaveBeenCalled();
   });
 
-  it("rejects re-initiation while Avenia reports a pending KYB attempt", async () => {
+  it("re-issues KYB links while Avenia reports a pending KYB attempt", async () => {
     mockEntityPerProfile();
     const customerUpdate = mock(async () => undefined);
     ProviderCustomer.findOne = mock(async () => ({
@@ -635,6 +635,8 @@ describe("Avenia company KYB", () => {
       statusExternal: KycAttemptStatus.PENDING,
       update: customerUpdate
     })) as unknown as typeof ProviderCustomer.findOne;
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOne = mock(async () => ({ update: caseUpdate })) as unknown as typeof KycCase.findOne;
     const initiateMock = mock(async () => ({
       attemptId: "attempt-2",
       authorizedRepresentativeUrl: "https://avenia.example/representative",
@@ -653,8 +655,11 @@ describe("Avenia company KYB", () => {
     const res = createResponse();
     await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
 
-    expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect(initiateMock).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(initiateMock).toHaveBeenCalledWith("subaccount-1");
+    expect(caseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ providerCaseId: "attempt-2", status: VerificationStatus.Pending })
+    );
   });
 
   it("rejects re-initiation when the stored PENDING is stale and Avenia is already processing", async () => {
