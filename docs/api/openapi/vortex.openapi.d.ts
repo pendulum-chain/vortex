@@ -3334,7 +3334,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlfredpayStatusResponse"];
                 };
             };
-            /** @description Invalid or missing country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            /** @description Invalid or missing country, invalid customer type, invalid selector UUID, or managed-profile customer-type mismatch. */
             400: {
                 headers: {
                     [name: string]: unknown;

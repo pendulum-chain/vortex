@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { AlfredpayController } from "../../controllers/alfredpay.controller";
-import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
+import { validateAlfredpayCustomerType, validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import {
@@ -17,6 +17,7 @@ router.get(
   "/alfredpayStatus",
   requirePartnerOrUserAuth(),
   validateResultCountry,
+  validateAlfredpayCustomerType,
   authorizeManagedProfile(),
   AlfredpayController.alfredpayStatus
 );

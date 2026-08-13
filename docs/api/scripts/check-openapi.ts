@@ -245,6 +245,44 @@ function transitivelyReferences(value: unknown, target: string, seen = new Set<s
   return false;
 }
 
+function schemaHasProperty(schema: unknown, property: string, seen = new Set<string>()): boolean {
+  if (!schema || typeof schema !== "object") return false;
+
+  const schemaObject = schema as JsonObject;
+  const ref = schemaObject.$ref;
+  if (typeof ref === "string" && !seen.has(ref)) {
+    seen.add(ref);
+    if (schemaHasProperty(valueAtPointer(openapi, ref), property, seen)) return true;
+  }
+
+  const properties = schemaObject.properties;
+  if (properties && typeof properties === "object" && property in properties) return true;
+
+  for (const composition of [schemaObject.allOf, schemaObject.anyOf, schemaObject.oneOf]) {
+    if (Array.isArray(composition) && composition.some(part => schemaHasProperty(part, property, seen))) return true;
+  }
+
+  return false;
+}
+
+function operationHasQueryParameter(operation: JsonObject, name: string): boolean {
+  const parameters = operation.parameters;
+  if (!Array.isArray(parameters)) return false;
+
+  return parameters.some(parameter => {
+    const resolved =
+      parameter && typeof parameter === "object" && typeof (parameter as JsonObject).$ref === "string"
+        ? valueAtPointer(openapi, (parameter as JsonObject).$ref as string)
+        : parameter;
+    return Boolean(
+      resolved &&
+        typeof resolved === "object" &&
+        (resolved as JsonObject).in === "query" &&
+        (resolved as JsonObject).name === name
+    );
+  });
+}
+
 async function checkGeneratedTypes(): Promise<void> {
   const currentDeclarations = readFileSync(GENERATED_TYPES_FILE, "utf8");
   const proc = Bun.spawn(["bun", GENERATOR_FILE], { stderr: "pipe", stdout: "pipe" });
@@ -700,6 +738,31 @@ for (const flows of Object.values(ONBOARDING_REQUIREMENTS)) {
       }
       if (step.requestSchema && !pointerExists(openapi, step.requestSchema)) {
         throw new Error(`Onboarding discovery references missing OpenAPI schema: ${step.requestSchema}`);
+      }
+      for (const field of Object.keys(step.fixedBody ?? {})) {
+        if (!step.requestSchema || !schemaHasProperty(valueAtPointer(openapi, step.requestSchema), field)) {
+          throw new Error(`Onboarding discovery operation ${step.operationId} fixes unknown body field: ${field}`);
+        }
+      }
+      for (const field of Object.keys(step.fixedQuery ?? {})) {
+        if (!operationHasQueryParameter(operationAt(step.path, step.method.toLowerCase()), field)) {
+          throw new Error(`Onboarding discovery operation ${step.operationId} fixes unknown query field: ${field}`);
+        }
+      }
+      for (const target of Object.keys(step.derivedValues ?? {})) {
+        const [location, field, ...rest] = target.split(".");
+        const validBodyTarget =
+          location === "body" &&
+          rest.length === 0 &&
+          step.requestSchema &&
+          schemaHasProperty(valueAtPointer(openapi, step.requestSchema), field);
+        const validQueryTarget =
+          location === "query" &&
+          rest.length === 0 &&
+          operationHasQueryParameter(operationAt(step.path, step.method.toLowerCase()), field);
+        if (!validBodyTarget && !validQueryTarget) {
+          throw new Error(`Onboarding discovery operation ${step.operationId} derives unknown request target: ${target}`);
+        }
       }
     }
   }

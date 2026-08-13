@@ -3710,7 +3710,7 @@
                 }
               }
             },
-            "description": "Invalid or missing country, invalid selector UUID, or managed-profile customer-type mismatch."
+            "description": "Invalid or missing country, invalid customer type, invalid selector UUID, or managed-profile customer-type mismatch."
           },
           "401": {
             "$ref": "#/components/responses/ManagedSelectorUnauthorized",

@@ -26,8 +26,10 @@ underlying provider workflows.
 
 To make these existing flows usable by external API clients, Vortex exposes a discovery
 endpoint that identifies the flow, documents, and ordered operations for a country and customer
-type. Request fields and bodies remain exclusively defined by OpenAPI, so the response does not
-introduce a second schema or execution layer.
+type. OpenAPI remains authoritative for request schemas. Discovery may additionally identify
+fixed discriminator values and values derived from earlier steps so clients can connect those
+schemas into an executable sequence; the documentation gate verifies those target fields against
+OpenAPI.
 
 ## Scope
 
@@ -36,7 +38,7 @@ introduce a second schema or execution layer.
 - Complete API credential support for provider operations that currently depend on a browser
   session, where provider capabilities permit a headless flow.
 - Publish machine-readable document and operation requirements for each supported country and
-  customer type without duplicating request fields.
+  customer type, including the fixed and derived values needed to connect ordered operations.
 - Keep OpenAPI and corridor-specific integration documentation authoritative for complete
   request and response contracts.
 - Continue using the existing provider customer and KYC/KYB case records for ownership and
@@ -118,9 +120,11 @@ resource reads, intermediate readiness checks, redirect/status getters, and fina
 Integration documentation and OpenAPI remain authoritative for those reads and for determining
 completion.
 
-The response intentionally has no top-level `fields` array and does not reproduce request-body
-properties. Clients resolve each step's `requestSchema` against `openapiUrl` and use OpenAPI as
-the sole machine-readable body contract.
+The response intentionally has no top-level `fields` array or independent request schema. Clients
+resolve each step's `requestSchema` against `openapiUrl`; OpenAPI defines the accepted fields and
+types. A step may provide `fixedBody` or `fixedQuery` values and `derivedValues` mappings for
+fields defined by that operation, allowing clients to connect provider discriminators and prior
+step outputs without redefining their schemas.
 
 For example:
 
@@ -164,16 +168,17 @@ For example:
 }
 ```
 
-The example is abbreviated. The endpoint does not return fields, populated request bodies,
-customer PII, or duplicate schemas. Clients resolve each API step's request schema and construct
-the body from data they collect.
+The example is abbreviated. The endpoint does not return customer PII, an independent field
+catalog, or duplicate schemas. Clients resolve each API step's request schema and construct the
+request from collected data plus any fixed or derived workflow values on the step.
 
 ## Contract authority and synchronization
 
-The requirements response is a discovery index, not a second schema source. OpenAPI is
-authoritative for each operation's complete request, response, and error contract. The
-corridor-specific guide remains authoritative for behavioral details such as sequencing,
-branching, retries, custody, and asynchronous completion.
+The requirements response is an executable workflow index, not a second schema source. OpenAPI
+is authoritative for each operation's complete request, response, and error contract. Discovery
+adds only sequencing and fixed/derived value bindings to fields that OpenAPI already defines. The
+corridor-specific guide remains authoritative for behavioral details such as branching, retries,
+custody, and asynchronous completion.
 
 The OpenAPI document covers the existing Avenia and Alfredpay KYC/KYB operations advertised by
 discovery, including API credential and managed-profile authentication. Discovery links to the
@@ -181,8 +186,9 @@ reviewed repository document through its stable raw GitHub URL while Apidog rema
 human-facing endpoint catalog.
 
 Every published non-GET API step must resolve to an operation in the reviewed OpenAPI document,
-and every request-schema pointer must resolve. The documentation gate fails when an operation
-ID, method, path, or schema reference is stale.
+and every request-schema pointer must resolve. Fixed body/query keys and derived-value targets
+must identify fields accepted by that operation in the stated location. The documentation gate
+fails when an operation ID, method, path, schema reference, or workflow binding is stale.
 
 ## Authentication and state
 
@@ -202,7 +208,8 @@ static requirements plus documented status behavior prove insufficient.
 - Existing first-party consumers avoid a risky endpoint and state-machine migration.
 - External API clients can discover the applicable submission actions without reverse
   engineering a Dashboard workflow.
-- OpenAPI is the sole machine-readable source for request-field and body-schema details.
+- OpenAPI is the authoritative machine-readable source for request-field types and body schemas;
+  discovery supplies only workflow bindings to those fields.
 - Provider-specific differences remain visible and accurately modeled.
 
 ### Costs and constraints
@@ -243,8 +250,8 @@ static requirements plus documented status behavior prove insufficient.
 - Reordering, combining, proxying, or retiring existing provider-specific operations.
 - Migrating the Dashboard, Widget, or shared KYC/KYB state machines to a new workflow.
 - Letting callers select arbitrary provider accounts or write compliance decisions.
-- Returning customer PII, duplicated request-field catalogs, or pre-populated executable request
-  bodies from requirements discovery.
+- Returning customer PII, independent request-field catalogs or schemas, or customer-populated
+  executable request bodies from requirements discovery.
 - Profile-specific next-action orchestration.
 
 ## Open decisions
