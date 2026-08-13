@@ -217,8 +217,7 @@ export async function assertAveniaHostedKybCanInitiate(
   }
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
   const hasProcessingKybAttempt = attempts.some(
-    attempt =>
-      attempt.levelName === "kyb-level-1" && attempt.status === KycAttemptStatus.PROCESSING
+    attempt => attempt.levelName === "kyb-level-1" && attempt.status === KycAttemptStatus.PROCESSING
   );
   if (hasProcessingKybAttempt) {
     throw new APIError({
