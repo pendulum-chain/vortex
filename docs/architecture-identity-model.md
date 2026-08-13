@@ -61,7 +61,7 @@ the normalized lifecycle `started`, `pending`, `in_review`, `approved`, or `reje
 while `status_external` preserves a provider's original value when one exists.
 
 Legacy placement caveat: the migration 040 backfill attached pre-cutover provider rows to
-the profile's 038-backfilled *individual* entity — including business-typed rows. The
+the profile's 038-backfilled _individual_ entity — including business-typed rows. The
 row's `customer_type` is therefore authoritative for type-scoped lookups; the owning
 entity's `type` is not. Typed provider lookups and ownership checks scope by profile, and
 new alfredpay rows co-locate with a profile's existing rows of the same `customer_type`.
@@ -112,7 +112,10 @@ child-owned credentials through nested lifecycle routes. Logical deletion retain
 profile and its financial/compliance records, permanently reserves the manager-scoped
 external-subject and contact-email pairs, and revokes all child credentials. Delegated authorization
 is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
-routes; recipient invitations remain unavailable to managed children.
+routes, plus sender-side recipient list, invitation creation/archive, relationship mutation,
+and eligibility. Invite preview and acceptance remain bearer-invitee operations and reject a
+managed-child selector. The managed-profile list response includes the active manager's profile ID
+and current corridor/customer-type policy even when no children match the list query.
 
 Migration 063 rollback locks both managed tables and refuses to proceed while either a
 child relationship or manager configuration exists, so manager policy cannot be silently

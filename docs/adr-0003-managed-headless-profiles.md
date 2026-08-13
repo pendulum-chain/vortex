@@ -39,9 +39,11 @@ than introduce a parallel tenant or impersonation model.
 
 Manager, relationship, corridor, and customer-type policy is re-evaluated for new
 authorization decisions; a committed policy change does not cancel already-authorized
-requests. Historical and status reads remain available where reconciliation requires
-them. Email-bound Mykobo and Monerium operations and recipient invitations are not
-delegated.
+requests. Historical and status reads remain available where reconciliation requires them.
+Sender-side recipient operations are delegated to the child's sender entity, with invite creation
+constrained by current manager corridor policy and privileged invite discounts constrained by the
+manager actor's role. Invite preview and acceptance remain bearer-invitee operations and reject
+managed selection. Email-bound Mykobo and Monerium operations remain unsupported.
 
 The accepted Alfredpay cross-manager email-identity exception is tracked as RISK-019 in
 the [security risk register](security-spec/RISK-REGISTER.md). Normative behavior is defined by

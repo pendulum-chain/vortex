@@ -394,6 +394,7 @@ for (const [path, method, requiredStatuses] of MANAGED_PROFILE_OPERATIONS) {
 
 const createManagedProfile = operationAt("/v1/managed-profiles", "post");
 const createManagedProfileResponses = createManagedProfile.responses as JsonObject;
+const schemas = ((openapi.components as JsonObject).schemas ?? {}) as JsonObject;
 if (
   JSON.stringify(createManagedProfile.requestBody).includes("#/components/schemas/CreateManagedProfileRequest") === false ||
   JSON.stringify(createManagedProfileResponses["200"]).includes("#/components/schemas/ManagedProfileResponse") === false ||
@@ -411,6 +412,14 @@ const listParameter = (name: string): JsonObject | undefined =>
 const limitSchema = listParameter("limit")?.schema as JsonObject | undefined;
 const offsetSchema = listParameter("offset")?.schema as JsonObject | undefined;
 const statusSchema = listParameter("status")?.schema as JsonObject | undefined;
+const listManagedProfilesResponseSchema = schemas.ListManagedProfilesResponse as JsonObject;
+const listManagedProfilesResponseProperties = (listManagedProfilesResponseSchema.properties ?? {}) as JsonObject;
+const listManagedProfilesResponseRequired = Array.isArray(listManagedProfilesResponseSchema.required)
+  ? listManagedProfilesResponseSchema.required
+  : [];
+const managerPolicySchema = schemas.ManagedProfileManagerPolicy as JsonObject;
+const managerPolicyProperties = (managerPolicySchema.properties ?? {}) as JsonObject;
+const managerPolicyRequired = Array.isArray(managerPolicySchema.required) ? managerPolicySchema.required : [];
 if (
   limitSchema?.default !== 50 ||
   limitSchema.maximum !== 100 ||
@@ -422,11 +431,25 @@ if (
 ) {
   throw new Error("GET /v1/managed-profiles must document the controller's pagination and status defaults.");
 }
+if (
+  JSON.stringify(listManagedProfilesResponseProperties.manager) !==
+    JSON.stringify({ $ref: "#/components/schemas/ManagedProfileManagerPolicy" }) ||
+  !listManagedProfilesResponseRequired.includes("manager") ||
+  JSON.stringify(managerPolicyRequired.sort()) !==
+    JSON.stringify(["allowedCorridors", "allowedCustomerTypes", "profileId"].sort()) ||
+  JSON.stringify((managerPolicyProperties.profileId as JsonObject)?.format) !== JSON.stringify("uuid") ||
+  JSON.stringify(((managerPolicyProperties.allowedCorridors as JsonObject)?.items as JsonObject)?.enum) !==
+    JSON.stringify(["AR", "BR", "CO", "EU", "MX", "US"]) ||
+  JSON.stringify((managerPolicyProperties.allowedCustomerTypes as JsonObject)?.type) !== JSON.stringify(["array", "null"]) ||
+  JSON.stringify(((managerPolicyProperties.allowedCustomerTypes as JsonObject)?.items as JsonObject)?.enum) !==
+    JSON.stringify(["individual", "business"])
+) {
+  throw new Error("GET /v1/managed-profiles must return the required manager-scoped policy contract.");
+}
 
 const createCredential = operationAt("/v1/managed-profiles/{profileId}/api-credentials", "post");
 const createCredentialResponses = createCredential.responses as JsonObject;
 const listCredentialResponses = operationAt("/v1/managed-profiles/{profileId}/api-credentials", "get").responses as JsonObject;
-const schemas = ((openapi.components as JsonObject).schemas ?? {}) as JsonObject;
 const apiCredentialProperties = ((schemas.ApiCredential as JsonObject).properties ?? {}) as JsonObject;
 const createCredentialRequestSchema = schemas.CreateApiCredentialRequest as JsonObject;
 const createCredentialRequestProperties = (createCredentialRequestSchema.properties ?? {}) as JsonObject;
