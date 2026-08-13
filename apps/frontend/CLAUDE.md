@@ -10,6 +10,9 @@ frontend-scoped architecture, conventions, and commands. Run commands from
 - **Forms**: React Hook Form with Zod validation (not Yup).
 - **Data fetching**: TanStack Query.
 - **Routing**: TanStack Router — route tree auto-generated in `src/routeTree.gen.ts` (do not hand-edit).
+- **Rendering**: TanStack Start. Marketing routes are prerendered to static HTML at build time
+  (`dist/client`); `/widget` sets `ssr: false` and is served from the `_shell.html` SPA shell.
+  See [`docs/adr-0004-landing-page-ssr.md`](../../docs/adr-0004-landing-page-ssr.md).
 - **State machines**: XState machines in `src/machines/` for complex flows (KYC, ramp process).
 - **Wallets**: Wagmi/AppKit (EVM) + Talisman (Polkadot).
 
@@ -20,6 +23,17 @@ frontend-scoped architecture, conventions, and commands. Run commands from
 - Avoid `setTimeout` (always comment why if used).
 - Extract complex conditional rendering into new components.
 - Skip useless comments; only comment race conditions, TODOs, or genuinely confusing code.
+
+### Server-safe code (marketing routes)
+
+Anything rendered by a marketing route is prerendered in a DOM-less environment, so:
+
+- `useSyncExternalStore` must be given a server snapshot (third argument).
+- Probe browser globals with `typeof` — `localStorage` is *undeclared* on the server, so
+  `!localStorage` and `localStorage?.x` both throw a `ReferenceError`.
+- Size from CSS, not from a measured viewport, or the layout shifts on hydration.
+
+`src/tests/ssr-safety.test.tsx` guards these; keep it in the default `node` environment.
 
 ### XState v5
 
