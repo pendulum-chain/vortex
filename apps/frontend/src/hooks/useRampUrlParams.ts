@@ -6,7 +6,6 @@ import {
   EvmToken,
   FiatToken,
   getEvmTokenConfig,
-  getEvmTokensLoadedSnapshot,
   isNetworkEVM,
   logger,
   mapFiatToDestination,
@@ -15,11 +14,10 @@ import {
   OnChainTokenSymbol,
   PaymentMethod,
   QuoteResponse,
-  RampDirection,
-  subscribeEvmTokensLoaded
+  RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { isFrontendNetworkEnabled } from "../config/networkAvailability";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
@@ -31,6 +29,7 @@ import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
 import { RampSearchParams } from "../types/searchParams";
+import { useEvmTokensLoaded } from "./useEvmTokensLoaded";
 import { useWidgetMode } from "./useWidgetMode";
 
 interface RampUrlParams {
@@ -180,7 +179,7 @@ export const useRampUrlParams = (): RampUrlParams => {
   const searchParams = useSearch({ strict: false }) as RampSearchParams;
   const { selectedNetwork } = useNetwork();
   const rampDirectionStore = useRampDirection();
-  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
+  const evmTokensLoaded = useEvmTokensLoaded();
 
   const urlParams = useMemo(() => {
     const rampDirectionParam = searchParams.rampType?.toUpperCase();
