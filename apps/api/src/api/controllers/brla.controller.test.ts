@@ -276,12 +276,7 @@ describe("getAveniaUser", () => {
 });
 
 describe("recordInitialKycAttempt", () => {
-  const originalProviderFindOne = ProviderCustomer.findOne;
   const originalProviderCreate = ProviderCustomer.create;
-  const originalEntityFindOne = CustomerEntity.findOne;
-  const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
-  const originalKycCaseFindOne = KycCase.findOne;
-  const originalKycCaseCreate = KycCase.create;
   const originalQuoteFindByPk = QuoteTicket.findByPk;
 
   // A Brazil onramp quote owned by user-1, so the ownership + corridor guards pass.
@@ -295,23 +290,14 @@ describe("recordInitialKycAttempt", () => {
   };
 
   afterEach(() => {
-    ProviderCustomer.findOne = originalProviderFindOne;
     ProviderCustomer.create = originalProviderCreate;
-    CustomerEntity.findOne = originalEntityFindOne;
-    CustomerEntity.findOrCreate = originalEntityFindOrCreate;
-    KycCase.findOne = originalKycCaseFindOne;
-    KycCase.create = originalKycCaseCreate;
     QuoteTicket.findByPk = originalQuoteFindByPk;
   });
 
-  it("records the first valid Avenia interaction as started", async () => {
-    mockEntityPerProfile();
+  it("does not let an attacker-owned quote reserve a victim's valid tax ID", async () => {
     mockOwnedBrlQuote();
-    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
-    const providerCreate = mock(async (values: Record<string, unknown>) => ({ id: "customer-1", ...values }));
+    const providerCreate = mock(async () => ({ id: "customer-1" }));
     ProviderCustomer.create = providerCreate as unknown as typeof ProviderCustomer.create;
-    KycCase.findOne = mock(async () => null) as typeof KycCase.findOne;
-    KycCase.create = mock(async () => ({})) as unknown as typeof KycCase.create;
 
     const res = createResponse();
     await recordInitialKycAttempt(
@@ -320,7 +306,8 @@ describe("recordInitialKycAttempt", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.OK);
-    expect(providerCreate.mock.calls[0]?.[0]).toMatchObject({ status: VerificationStatus.Started });
+    expect(res.body).toEqual({});
+    expect(providerCreate).not.toHaveBeenCalled();
   });
 
   it("requires a quote id before recording an Avenia interaction", async () => {

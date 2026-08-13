@@ -741,7 +741,7 @@ export interface paths {
         put?: never;
         /**
          * Record an initial Avenia KYC attempt
-         * @description Records the first observed KYC attempt for a CPF or CNPJ when no provider-customer record exists yet.
+         * @description Validates an authenticated BRL onboarding preflight event. The asserted CPF or CNPJ is not persisted because quote ownership does not prove tax-ID ownership.
          */
         post: operations["recordInitialAveniaKycAttempt"];
         delete?: never;
@@ -5460,7 +5460,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Attempt marker recorded or already present. */
+            /** @description Preflight event accepted without reserving the asserted tax identity. */
             200: {
                 headers: {
                     [name: string]: unknown;

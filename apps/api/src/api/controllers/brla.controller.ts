@@ -28,7 +28,6 @@ import {
   DocumentUploadResponse,
   FiatToken,
   isValidCnpj,
-  isValidCpf,
   KybAttemptStatusResponse,
   KybLevel1Response,
   KycAttemptResult,
@@ -232,48 +231,18 @@ export const recordInitialKycAttempt = async (
 ): Promise<void> => {
   try {
     const { quoteId, taxId } = req.body;
-    const effectiveUserId = getEffectiveUserId(req);
-
     if (!quoteId || !taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing quoteId or taxId body parameter" });
       return;
     }
 
-    // Bind the marker to a Brazil quote the caller owns. Without this an attacker could
-    // plant a Consulted marker on another profile's tax id and block their subaccount creation.
+    // Keep the legacy preflight endpoint ownership-bound, but do not persist the asserted
+    // tax ID: quote ownership is not proof of CPF/CNPJ ownership.
     await assertQuoteOwnership(req, quoteId);
     const quote = await QuoteTicket.findByPk(quoteId);
     if (quote?.inputCurrency !== FiatToken.BRL && quote?.outputCurrency !== FiatToken.BRL) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "quoteId does not reference a Brazil onboarding quote" });
       return;
-    }
-
-    const existing = await findAveniaCustomerByTaxId(taxId);
-
-    // provider_customers rows always have an owner, so anonymous callers cannot persist a
-    // Consulted marker (the route requires auth in practice).
-    if (!existing && effectiveUserId) {
-      const accountType = isValidCnpj(taxId)
-        ? AveniaAccountType.COMPANY
-        : isValidCpf(taxId)
-          ? AveniaAccountType.INDIVIDUAL
-          : undefined;
-
-      // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
-      if (accountType) {
-        const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-        const record = await ProviderCustomer.create({
-          country: "BR",
-          customerEntityId: entity.id,
-          customerType: accountTypeToCustomerType(accountType),
-          provider: "avenia",
-          rail: "brl",
-          status: VerificationStatus.Started,
-          taxReference: normalizeTaxId(taxId),
-          taxReferenceHash: hashTaxReference(taxId)
-        });
-        await upsertAveniaKycCase(record, VerificationStatus.Started);
-      }
     }
 
     res.status(httpStatus.OK).json({});

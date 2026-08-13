@@ -6,6 +6,8 @@ import { APIError } from "../../errors/api-error";
 import { findCustomerEntityIdsForProfile } from "../customer-entity.service";
 import { findAveniaCustomerBySubaccountId } from "./avenia-customer.service";
 
+const kybCaseCreations = new Map<string, Promise<KycCase>>();
+
 export async function resolveOwnedAveniaBusinessAccount(
   profileId: string,
   subAccountId: string | undefined
@@ -29,7 +31,10 @@ export async function resolveOwnedAveniaBusinessAccount(
 }
 
 export async function getOrCreateAveniaKybCase(record: ProviderCustomer): Promise<KycCase> {
-  const [kycCase] = await KycCase.findOrCreate({
+  const inFlight = kybCaseCreations.get(record.id);
+  if (inFlight) return inFlight;
+
+  const creation = KycCase.findOrCreate({
     defaults: {
       customerEntityId: record.customerEntityId,
       level: "level_1",
@@ -39,8 +44,13 @@ export async function getOrCreateAveniaKybCase(record: ProviderCustomer): Promis
       type: "kyb"
     },
     where: { providerCustomerId: record.id }
-  });
-  return kycCase;
+  }).then(([kycCase]) => kycCase);
+  kybCaseCreations.set(record.id, creation);
+  try {
+    return await creation;
+  } finally {
+    kybCaseCreations.delete(record.id);
+  }
 }
 
 export async function requireReadyAveniaDocument(
