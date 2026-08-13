@@ -595,15 +595,11 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
 9. **AlfredPay SELL reconciliation stays block-owned.** `AlfredpayOfframp`
    derives the fiat target from the exact Vortex reference snapshot, requests
    AlfredPay's executable exact-output terms, and caps the raw settlement top-up.
-   Flow v4/context schema 3 persists Squid's guaranteed `toAmountMin`, and
-   preparation rejects a fresh route whose minimum falls below that funding baseline.
-   Rollout requires no pending AlfredPay flow-v3 quotes or ramps.
    It does not add a cross-reading subsidy block or make the provider rate a
    global price source. `finalSettlementSubsidy` consumes the persisted provider
-   input and persisted executable bridge minimum without recalculating quote economics
-   or exceeding the persisted subsidy. Positive Squid execution variance is returned
-   to the user's wallet by Polygon cleanup. Provider orders
-   remain bound to those persisted terms; if an expired order cannot be replaced
+   input and quoted bridge output without recalculating quote economics or exceeding
+   the persisted subsidy. Provider orders remain bound to those persisted terms; if
+   an expired order cannot be replaced
    without degrading them, execution pauses before the single-use provider transfer
    and leaves the funds on the client-custodied Polygon ephemeral for reconciliation.
 

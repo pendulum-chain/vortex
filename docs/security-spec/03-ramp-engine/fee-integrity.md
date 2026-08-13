@@ -143,18 +143,15 @@ always occur only after all user-facing phases is incorrect.
   `finalSettlementSubsidy` targets that deposit plus the same canonical fee reserve,
   so a short provider leg cannot starve the fee transfers. Quote-time partner/runtime
   caps apply to this full settlement top-up; a binding cap lowers the provider input
-  and payout rather than changing or dropping the fee transfers. Flow-v4/context-schema-3
-  runtime settlement cannot pay above the persisted quoted subsidy if a bridge
-  under-delivers. Rollout requires no pending AlfredPay flow-v3 quotes or ramps.
+  and payout rather than changing or dropping the fee transfers. Runtime settlement
+  cannot pay above the persisted quoted subsidy if a bridge under-delivers.
 - **Failure safety** — fees are collected only after the user-facing leg succeeded.
-  The v4 prepared offramp fallback is sized from the persisted guaranteed bridge minimum and
+  The prepared offramp fallback is sized from the persisted quoted bridge output and
   excludes the platform-funded settlement top-up, so it cannot leak subsidy to the
   user. Automated expired-order recovery does not broadcast that same-nonce
   contingency: when replacement cannot preserve the quote, execution pauses before
   the provider transfer and leaves principal/top-up on the client-custodied Polygon
-  ephemeral for authorized reconciliation. Positive Squid USDT execution variance
-  after a successful offramp returns to the user's wallet during Polygon cleanup.
-  The onramp mint fallback stays full-mint.
+  ephemeral for authorized reconciliation. The onramp mint fallback stays full-mint.
 - **Rollout** — the fee phase shipped as flow version 2 of the three Alfredpay flows
   with a drain-then-deploy gate; persisted v1 identities fail closed at
   registration/dispatch and require manual recovery.
