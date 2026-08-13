@@ -2,21 +2,18 @@
 /api/staging/*     https://api-staging.vortexfinance.co/:splat  200
 /api/sandbox/*     https://api-sandbox.vortexfinance.co/:splat  200
 
-# Known app routes — serve SPA shell with real 200
-/                              /index.html  200
-/business                      /index.html  200
-/payments                      /index.html  200
-/contact                       /index.html  200
-/privacy-policy                /index.html  200
-/terms-and-conditions          /index.html  200
-/terms-and-conditions-full     /index.html  200
-/widget                        /index.html  200
-/en                            /index.html  200
-/en/*                          /index.html  200
-/pt-BR                         /index.html  200
-/pt-BR/*                       /index.html  200
-/pt-br                         /index.html  200
-/pt-br/*                       /index.html  200
+# The marketing routes are prerendered to static HTML (`/business/index.html`, `/pt-BR/...`),
+# and Netlify serves those files before applying any non-forced rule below.
+
+# The widget opts out of SSR, so it renders from the prerendered SPA shell.
+/widget                        /_shell.html  200
+/en/widget                     /_shell.html  200
+/pt-BR/widget                  /_shell.html  200
+
+# `pt-br` is accepted case-insensitively by the locale route but is not prerendered,
+# so the lowercase form renders client-side from the shell.
+/pt-br                         /_shell.html  200
+/pt-br/*                       /_shell.html  200
 
 # Everything else is a real 404
 /*                             /404.html    404
