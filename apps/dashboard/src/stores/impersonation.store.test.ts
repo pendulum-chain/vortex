@@ -1,13 +1,10 @@
-import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { after, beforeEach, describe, it } from "node:test";
 import type { ImpersonationSession } from "@/services/auth";
 
 const originalFetch = globalThis.fetch;
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
-const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const values = new Map<string, string>();
-const storageListeners = new Set<(event: { key: string | null }) => void>();
 
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
@@ -18,61 +15,58 @@ Object.defineProperty(globalThis, "localStorage", {
   }
 });
 
-Object.defineProperty(globalThis, "window", {
-  configurable: true,
-  value: {
-    addEventListener: (type: string, listener: (event: { key: string | null }) => void) => {
-      if (type === "storage") storageListeners.add(listener);
-    },
-    location: { origin: "http://localhost" },
-    removeEventListener: (type: string, listener: (event: { key: string | null }) => void) => {
-      if (type === "storage") storageListeners.delete(listener);
-    }
-  }
-});
-
 let accountStateClears = 0;
-mock.module("@/stores/auth.store", () => ({
-  clearAccountState: () => {
-    accountStateClears += 1;
-  }
-}));
+let identityChangeAllowed = true;
+let activatedOwner: string | null = null;
 
 const { AuthService } = await import("@/services/auth");
-const { enterImpersonation, exitImpersonation } = await import("./impersonation.store");
+const { applyStoredImpersonationForTests, enterImpersonation, exitImpersonation } = await import("./impersonation.store");
+function configureIdentityEffects(): void {
+  AuthService.configureIdentityTransitionEffects({
+    activateTransferOwner: (ownerProfileId: string) => {
+      activatedOwner = ownerProfileId;
+      return true;
+    },
+    canChangeEffectiveIdentity: () => identityChangeAllowed,
+    clearAccountState: () => {
+      accountStateClears += 1;
+    }
+  });
+}
 
 function session(overrides: Partial<ImpersonationSession> = {}): ImpersonationSession {
   return {
     expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     sessionId: "session-1",
     targetEmail: "target@example.com",
+    targetProfileId: "target-1",
     token: "vtx_imp_token-1",
     ...overrides
   };
 }
 
 function dispatchStorage(key: string | null): void {
-  for (const listener of storageListeners) listener({ key });
+  if (key === null || key === AuthService.IMPERSONATION_STORAGE_KEY) applyStoredImpersonationForTests();
 }
 
 beforeEach(() => {
-  AuthService.clearImpersonationSession();
+  configureIdentityEffects();
   values.clear();
+  identityChangeAllowed = true;
+  AuthService.initializeAcceptedIdentitySnapshots();
+  dispatchStorage(AuthService.IMPERSONATION_STORAGE_KEY);
   accountStateClears = 0;
+  activatedOwner = null;
   globalThis.fetch = (() => Promise.resolve(new Response(null, { status: 204 }))) as typeof fetch;
 });
 
 after(() => {
+  AuthService.configureIdentityTransitionEffects();
   globalThis.fetch = originalFetch;
   if (originalLocalStorage) {
     Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
   } else {
     Reflect.deleteProperty(globalThis, "localStorage");
-  }
-  if (originalWindow) {
-    Object.defineProperty(globalThis, "window", originalWindow);
-  } else {
-    Reflect.deleteProperty(globalThis, "window");
   }
 });
 
@@ -84,6 +78,16 @@ describe("impersonation session transitions", () => {
 
     assert.deepEqual(AuthService.getImpersonationSession(), entered);
     assert.equal(accountStateClears, 1);
+    assert.equal(activatedOwner, "target-1");
+  });
+
+  it("does not mutate identity when the transfer guard blocks the transition", () => {
+    identityChangeAllowed = false;
+
+    assert.equal(enterImpersonation(session()), false);
+
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(accountStateClears, 0);
   });
 
   it("exits locally without waiting for the server revocation", async () => {
@@ -152,6 +156,20 @@ describe("impersonation session transitions", () => {
 
     assert.deepEqual(AuthService.getImpersonationSession(), fromOtherTab);
     assert.equal(accountStateClears, 1);
+  });
+
+  it("restores the accepted session when a cross-tab change is blocked", () => {
+    const accepted = session();
+    enterImpersonation(accepted);
+    accountStateClears = 0;
+    identityChangeAllowed = false;
+    values.set(AuthService.IMPERSONATION_STORAGE_KEY, JSON.stringify(session({ sessionId: "session-2", token: "new-token" })));
+
+    dispatchStorage(AuthService.IMPERSONATION_STORAGE_KEY);
+
+    assert.deepEqual(AuthService.getImpersonationSession(), accepted);
+    assert.deepEqual(AuthService.parseImpersonationSessionSnapshot(values.get(AuthService.IMPERSONATION_STORAGE_KEY) ?? null), accepted);
+    assert.equal(accountStateClears, 0);
   });
 
   it("clears the session and account cache when another tab exits", () => {

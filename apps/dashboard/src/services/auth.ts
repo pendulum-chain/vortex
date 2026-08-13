@@ -13,6 +13,25 @@ export interface ImpersonationSession {
   sessionId: string;
   expiresAt: string;
   targetEmail: string;
+  targetProfileId: string;
+}
+
+export interface ManagedProfileSelection {
+  managerProfileId: string;
+  targetProfileId: string;
+  targetEmail: string;
+  externalSubjectId: string;
+  customerType: string;
+}
+
+interface IdentityTransitionEffects {
+  activateTransferOwner: (ownerProfileId: string) => boolean;
+  canChangeEffectiveIdentity: () => boolean;
+  clearAccountState: () => void;
+}
+
+function noop(): void {
+  // Default used before the authenticated app installs account cleanup effects.
 }
 
 /**
@@ -26,12 +45,21 @@ export class AuthService {
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
   // One atomic record prevents readers from combining fields from different cross-tab writes.
   static readonly IMPERSONATION_STORAGE_KEY = "vortex_dashboard_impersonation_session";
+  static readonly MANAGED_PROFILE_STORAGE_KEY = "vortex_dashboard_managed_profile_selection";
   private static readonly LEGACY_IMPERSONATION_TOKEN_KEY = "vortex_dashboard_impersonation_token";
   private static readonly LEGACY_IMPERSONATION_SESSION_ID_KEY = "vortex_dashboard_impersonation_session_id";
   private static readonly LEGACY_IMPERSONATION_EXPIRES_AT_KEY = "vortex_dashboard_impersonation_expires_at";
   private static readonly LEGACY_IMPERSONATION_TARGET_EMAIL_KEY = "vortex_dashboard_impersonation_target_email";
   private static readonly impersonationListeners = new Set<() => void>();
+  private static readonly managedProfileListeners = new Set<() => void>();
+  private static acceptedImpersonationSnapshot: string | null | undefined;
+  private static acceptedManagedProfileSnapshot: string | null | undefined;
   private static sessionGeneration = 0;
+  private static identityTransitionEffects: IdentityTransitionEffects = {
+    activateTransferOwner: () => true,
+    canChangeEffectiveIdentity: () => true,
+    clearAccountState: noop
+  };
   private static refreshFlight: {
     generation: number;
     refreshToken: string;
@@ -46,6 +74,25 @@ export class AuthService {
     if (tokens.userEmail) {
       localStorage.setItem(this.USER_EMAIL_KEY, tokens.userEmail);
     }
+  }
+
+  static configureIdentityTransitionEffects(effects?: IdentityTransitionEffects): void {
+    this.identityTransitionEffects =
+      effects ??
+      ({
+        activateTransferOwner: () => true,
+        canChangeEffectiveIdentity: () => true,
+        clearAccountState: noop
+      } satisfies IdentityTransitionEffects);
+  }
+
+  static canChangeEffectiveIdentity(): boolean {
+    return this.identityTransitionEffects.canChangeEffectiveIdentity();
+  }
+
+  static applyEffectiveIdentity(ownerProfileId: string | null): void {
+    this.identityTransitionEffects.clearAccountState();
+    if (ownerProfileId) this.identityTransitionEffects.activateTransferOwner(ownerProfileId);
   }
 
   static getTokens(): AuthTokens | null {
@@ -69,22 +116,46 @@ export class AuthService {
   }
 
   static storeImpersonationSession(session: ImpersonationSession): void {
-    const previousSnapshot = this.getImpersonationSessionSnapshot();
+    const previousSnapshot = this.getAcceptedImpersonationSessionSnapshot();
     localStorage.setItem(
       this.IMPERSONATION_STORAGE_KEY,
       JSON.stringify({
         expiresAt: session.expiresAt,
         sessionId: session.sessionId,
         targetEmail: session.targetEmail,
+        targetProfileId: session.targetProfileId,
         token: session.token
       })
     );
+    this.acceptedImpersonationSnapshot = this.getImpersonationSessionSnapshot();
     this.clearLegacyImpersonationKeys();
     this.notifyImpersonationListeners(previousSnapshot);
   }
 
   static getImpersonationSession(): ImpersonationSession | null {
-    return this.parseImpersonationSessionSnapshot(this.getImpersonationSessionSnapshot());
+    return this.parseImpersonationSessionSnapshot(this.getAcceptedImpersonationSessionSnapshot());
+  }
+
+  static getAcceptedImpersonationSessionSnapshot(): string | null {
+    if (this.acceptedImpersonationSnapshot === undefined) {
+      this.acceptedImpersonationSnapshot = this.getImpersonationSessionSnapshot();
+    }
+    return this.acceptedImpersonationSnapshot;
+  }
+
+  static initializeAcceptedIdentitySnapshots(): void {
+    this.acceptedImpersonationSnapshot = this.getImpersonationSessionSnapshot();
+    this.acceptedManagedProfileSnapshot = this.getManagedProfileSelectionSnapshot();
+  }
+
+  static acceptImpersonationSessionSnapshot(snapshot: string | null): void {
+    this.acceptedImpersonationSnapshot = snapshot;
+  }
+
+  static restoreAcceptedImpersonationSession(): void {
+    const snapshot = this.getAcceptedImpersonationSessionSnapshot();
+    if (snapshot === null) localStorage.removeItem(this.IMPERSONATION_STORAGE_KEY);
+    else localStorage.setItem(this.IMPERSONATION_STORAGE_KEY, snapshot);
   }
 
   /** Stable serialized snapshot for `useSyncExternalStore`. Also reads complete legacy data. */
@@ -110,7 +181,8 @@ export class AuthService {
         typeof parsed.sessionId !== "string" ||
         typeof parsed.expiresAt !== "string" ||
         !Number.isFinite(Date.parse(parsed.expiresAt)) ||
-        typeof parsed.targetEmail !== "string"
+        typeof parsed.targetEmail !== "string" ||
+        typeof parsed.targetProfileId !== "string"
       ) {
         return null;
       }
@@ -118,6 +190,7 @@ export class AuthService {
         expiresAt: parsed.expiresAt,
         sessionId: parsed.sessionId,
         targetEmail: parsed.targetEmail,
+        targetProfileId: parsed.targetProfileId,
         token: parsed.token
       };
     } catch {
@@ -144,11 +217,97 @@ export class AuthService {
     };
   }
 
-  static clearImpersonationSession(): void {
-    const previousSnapshot = this.getImpersonationSessionSnapshot();
+  static clearImpersonationSession(expectedSnapshot?: string): boolean {
+    const storedSnapshot = this.getImpersonationSessionSnapshot();
+    if (expectedSnapshot !== undefined && storedSnapshot !== expectedSnapshot) return false;
+    const previousSnapshot = this.getAcceptedImpersonationSessionSnapshot();
     localStorage.removeItem(this.IMPERSONATION_STORAGE_KEY);
     this.clearLegacyImpersonationKeys();
+    this.acceptedImpersonationSnapshot = null;
     this.notifyImpersonationListeners(previousSnapshot);
+    return true;
+  }
+
+  static storeManagedProfileSelection(selection: ManagedProfileSelection): void {
+    const previousSnapshot = this.getAcceptedManagedProfileSelectionSnapshot();
+    localStorage.setItem(this.MANAGED_PROFILE_STORAGE_KEY, JSON.stringify(selection));
+    this.acceptedManagedProfileSnapshot = this.getManagedProfileSelectionSnapshot();
+    this.notifyManagedProfileListeners(previousSnapshot);
+  }
+
+  static getAcceptedManagedProfileSelectionSnapshot(): string | null {
+    if (this.acceptedManagedProfileSnapshot === undefined) {
+      this.acceptedManagedProfileSnapshot = this.getManagedProfileSelectionSnapshot();
+    }
+    return this.acceptedManagedProfileSnapshot;
+  }
+
+  static acceptManagedProfileSelectionSnapshot(snapshot: string | null): void {
+    this.acceptedManagedProfileSnapshot = snapshot;
+  }
+
+  static restoreAcceptedManagedProfileSelection(): void {
+    const snapshot = this.getAcceptedManagedProfileSelectionSnapshot();
+    if (snapshot === null) localStorage.removeItem(this.MANAGED_PROFILE_STORAGE_KEY);
+    else localStorage.setItem(this.MANAGED_PROFILE_STORAGE_KEY, snapshot);
+  }
+
+  static getManagedProfileSelectionSnapshot(): string | null {
+    return localStorage.getItem(this.MANAGED_PROFILE_STORAGE_KEY);
+  }
+
+  static parseManagedProfileSelectionSnapshot(snapshot: string | null): ManagedProfileSelection | null {
+    if (!snapshot) return null;
+    try {
+      const parsed = JSON.parse(snapshot) as Partial<ManagedProfileSelection>;
+      if (
+        typeof parsed.managerProfileId !== "string" ||
+        typeof parsed.targetProfileId !== "string" ||
+        typeof parsed.targetEmail !== "string" ||
+        typeof parsed.externalSubjectId !== "string" ||
+        typeof parsed.customerType !== "string"
+      ) {
+        return null;
+      }
+      return parsed as ManagedProfileSelection;
+    } catch {
+      return null;
+    }
+  }
+
+  static getManagedProfileSelection(): ManagedProfileSelection | null {
+    const selection = this.parseManagedProfileSelectionSnapshot(this.getAcceptedManagedProfileSelectionSnapshot());
+    return selection?.managerProfileId === this.getEffectiveBearerProfileId() ? selection : null;
+  }
+
+  static subscribeManagedProfileSelection(listener: () => void): () => void {
+    this.managedProfileListeners.add(listener);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === this.MANAGED_PROFILE_STORAGE_KEY) listener();
+    };
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("storage", handleStorage);
+    }
+    return () => {
+      this.managedProfileListeners.delete(listener);
+      if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+        window.removeEventListener("storage", handleStorage);
+      }
+    };
+  }
+
+  static clearManagedProfileSelection(expectedSnapshot?: string): boolean {
+    const storedSnapshot = this.getManagedProfileSelectionSnapshot();
+    if (expectedSnapshot !== undefined && storedSnapshot !== expectedSnapshot) return false;
+    const previousSnapshot = this.getAcceptedManagedProfileSelectionSnapshot();
+    localStorage.removeItem(this.MANAGED_PROFILE_STORAGE_KEY);
+    this.acceptedManagedProfileSnapshot = null;
+    this.notifyManagedProfileListeners(previousSnapshot);
+    return true;
+  }
+
+  static isManagedProfileSelectionSnapshotCurrent(expectedSnapshot: string): boolean {
+    return this.getManagedProfileSelectionSnapshot() === expectedSnapshot;
   }
 
   /** The bearer token requests should use: the impersonation token takes priority when active. */
@@ -158,6 +317,14 @@ export class AuthService {
       return impersonation.token;
     }
     return this.getTokens()?.accessToken ?? null;
+  }
+
+  static getEffectiveBearerProfileId(): string | null {
+    return this.getImpersonationSession()?.targetProfileId ?? this.getTokens()?.userId ?? null;
+  }
+
+  static getEffectiveProfileId(): string | null {
+    return this.getManagedProfileSelection()?.targetProfileId ?? this.getEffectiveBearerProfileId();
   }
 
   static isAuthenticated(): boolean {
@@ -256,6 +423,7 @@ export class AuthService {
   }
 
   static signOut(): void {
+    this.clearManagedProfileSelection();
     this.clearImpersonationSession();
     this.clearTokens();
   }
@@ -278,9 +446,14 @@ export class AuthService {
   }
 
   private static notifyImpersonationListeners(previousSnapshot: string | null): void {
-    if (this.getImpersonationSessionSnapshot() === previousSnapshot) return;
+    if (this.getAcceptedImpersonationSessionSnapshot() === previousSnapshot) return;
     for (const listener of this.impersonationListeners) {
       listener();
     }
+  }
+
+  private static notifyManagedProfileListeners(previousSnapshot: string | null): void {
+    if (this.getAcceptedManagedProfileSelectionSnapshot() === previousSnapshot) return;
+    for (const listener of this.managedProfileListeners) listener();
   }
 }

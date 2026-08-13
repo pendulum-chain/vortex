@@ -3,6 +3,6 @@ import { apiClient } from "./api-client";
 
 export const BrlaService = {
   getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
-    return apiClient.post<AveniaKYCDataUpload>("/brla/getUploadUrls", request);
+    return apiClient.post<AveniaKYCDataUpload>("/brla/getUploadUrls", request, { managedProfile: true });
   }
 };

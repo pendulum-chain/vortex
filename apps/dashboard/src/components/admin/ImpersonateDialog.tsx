@@ -38,12 +38,17 @@ export function ImpersonateDialog({
           });
         },
         onSuccess: response => {
-          enterImpersonation({
+          const entered = enterImpersonation({
             expiresAt: response.expiresAt,
             sessionId: response.sessionId,
             targetEmail: response.target.email,
+            targetProfileId: response.target.id,
             token: response.token
           });
+          if (!entered) {
+            toast.error("Finish the current transfer step before changing identity");
+            return;
+          }
           handleOpenChange(false);
           navigate({ to: "/overview" });
         }

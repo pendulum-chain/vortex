@@ -31,6 +31,134 @@ const ramp = {
 } as RampProcess;
 
 describe("transferMachine", () => {
+  it("blocks owner activation only during quote, balance, registration, and user signing", async () => {
+    let releaseQuote: (() => void) | undefined;
+    let releaseBalance: (() => void) | undefined;
+    let releaseRegistration: (() => void) | undefined;
+    let releaseSigning: (() => void) | undefined;
+    let releaseStart: (() => void) | undefined;
+    const sellQuote = { ...quote, rampType: RampDirection.SELL } as QuoteResponse;
+    const sellRamp = { ...ramp, type: RampDirection.SELL } as RampProcess;
+    const machine = transferMachine.provide({
+      actors: {
+        checkTransferBalance: fromPromise(
+          () => new Promise<void>(resolve => (releaseBalance = resolve))
+        ),
+        refreshTransferQuote: fromPromise(
+          () => new Promise<{ quote: QuoteResponse }>(resolve => (releaseQuote = () => resolve({ quote: sellQuote })))
+        ),
+        registerTransfer: fromPromise(
+          () =>
+            new Promise<{ ramp: RampProcess; userTxs: UnsignedTx[] }>(resolve =>
+              (releaseRegistration = () => resolve({ ramp: sellRamp, userTxs: [] }))
+            )
+        ),
+        signUserTransactions: fromPromise(
+          () => new Promise<RampProcess>(resolve => (releaseSigning = () => resolve(sellRamp)))
+        ),
+        startRamp: fromPromise(() => new Promise<RampProcess>(resolve => (releaseStart = () => resolve(sellRamp)))),
+        trackRamp: fromPromise(async () => undefined) as never
+      }
+    });
+    const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
+    actor.send({
+      additionalData: { walletAddress: "0x1111111111111111111111111111111111111111" },
+      meta: {
+        accountId: "account-1",
+        amountIn: "100",
+        amountInToken: "USDC",
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        fiatPayoutAmount: "5",
+        ownerProfileId: "profile-1",
+        payinNetwork: "polygon",
+        payoutCurrency: "MXN",
+        recipientEmail: "recipient@example.com",
+        recipientId: "recipient-1",
+        summary: "5 MXN to recipient@example.com"
+      },
+      ownerProfileId: "profile-1",
+      quote: sellQuote,
+      quoteRequest: { ...quoteRequest, params: { ...quoteRequest.params, direction: RampDirection.SELL } },
+      type: "START"
+    });
+
+    for (const [state, release] of [
+      ["CheckingQuote", () => releaseQuote?.()],
+      ["CheckingBalance", () => releaseBalance?.()],
+      ["Registering", () => releaseRegistration?.()],
+      ["SigningUserTxs", () => releaseSigning?.()]
+    ] as const) {
+      await waitFor(actor, snapshot => snapshot.matches(state));
+      actor.send({ ownerProfileId: "profile-2", recovery: null, type: "ACTIVATE_OWNER" });
+      assert.equal(actor.getSnapshot().context.activeOwnerProfileId, "profile-1");
+      assert.equal(actor.getSnapshot().value, state);
+      release();
+    }
+
+    await waitFor(actor, snapshot => snapshot.matches("Starting"));
+    actor.send({ ownerProfileId: "profile-2", recovery: null, type: "ACTIVATE_OWNER" });
+    assert.equal(actor.getSnapshot().context.activeOwnerProfileId, "profile-2");
+    assert.equal(actor.getSnapshot().value, "Idle");
+    releaseStart?.();
+    actor.stop();
+  });
+
+  it("rejects transfer and payment events from a different owner", async () => {
+    let startCalls = 0;
+    const machine = transferMachine.provide({
+      actors: {
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
+        registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
+        startRamp: fromPromise(async () => {
+          startCalls += 1;
+          return ramp;
+        })
+      }
+    });
+    const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
+
+    const meta = {
+      accountId: "account-1",
+      amountIn: "100",
+      amountInToken: "MXN",
+      corridorId: "MX" as const,
+      direction: RampDirection.BUY,
+      fiatPayoutAmount: "5",
+      ownerProfileId: "profile-1",
+      payinNetwork: "polygon",
+      payoutCurrency: "USDC",
+      recipientEmail: "Your wallet",
+      recipientId: "",
+      summary: "5 USDC to your wallet"
+    };
+    actor.send({
+      additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
+      meta,
+      ownerProfileId: "profile-2",
+      quote,
+      quoteRequest,
+      type: "START"
+    });
+    assert.equal(actor.getSnapshot().value, "Idle");
+
+    actor.send({
+      additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
+      meta,
+      ownerProfileId: "profile-1",
+      quote,
+      quoteRequest,
+      type: "START"
+    });
+    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+    actor.send({ ownerProfileId: "profile-2", type: "PAYMENT_CONFIRMED" });
+    assert.equal(actor.getSnapshot().value, "AwaitingPayment");
+    assert.equal(startCalls, 0);
+    actor.stop();
+  });
+
   it("waits for payment confirmation before starting the ramp", async () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
@@ -45,11 +173,13 @@ describe("transferMachine", () => {
       }
     });
     const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
 
     actor.send({
       additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
       meta: {
         accountId: "account-1",
+        ownerProfileId: "profile-1",
         amountIn: "100",
         amountInToken: "MXN",
         corridorId: "MX",
@@ -63,6 +193,7 @@ describe("transferMachine", () => {
       },
       quote,
       quoteRequest,
+      ownerProfileId: "profile-1",
       type: "START"
     });
 
@@ -70,7 +201,7 @@ describe("transferMachine", () => {
     assert.equal(startCalls, 0);
     assert.equal(actor.getSnapshot().context.ramp?.achPaymentData?.clabe, "646180157000000004");
 
-    actor.send({ type: "PAYMENT_CONFIRMED" });
+    actor.send({ ownerProfileId: "profile-1", type: "PAYMENT_CONFIRMED" });
     await waitFor(actor, snapshot => snapshot.matches("Tracking"));
     assert.equal(startCalls, 1);
     actor.stop();
@@ -93,11 +224,13 @@ describe("transferMachine", () => {
       }
     });
     const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
 
     actor.send({
       additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
       meta: {
         accountId: "account-1",
+        ownerProfileId: "profile-1",
         amountIn: "100",
         amountInToken: "MXN",
         corridorId: "MX",
@@ -111,18 +244,19 @@ describe("transferMachine", () => {
       },
       quote,
       quoteRequest,
+      ownerProfileId: "profile-1",
       type: "START"
     });
     await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
 
-    actor.send({ type: "PAYMENT_CONFIRMED" });
+    actor.send({ ownerProfileId: "profile-1", type: "PAYMENT_CONFIRMED" });
     await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment") && snapshot.context.errorMessage !== null);
     const failed = actor.getSnapshot();
     assert.equal(startCalls, 1);
     assert.equal(failed.context.errorMessage, "network blip");
     assert.equal(failed.context.ramp?.id, "ramp-buy");
 
-    actor.send({ type: "PAYMENT_CONFIRMED" });
+    actor.send({ ownerProfileId: "profile-1", type: "PAYMENT_CONFIRMED" });
     await waitFor(actor, snapshot => snapshot.matches("Tracking"));
     assert.equal(startCalls, 2);
     assert.equal(actor.getSnapshot().context.errorMessage, null);
@@ -137,11 +271,13 @@ describe("transferMachine", () => {
       }
     });
     const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
 
     actor.send({
       additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
       meta: {
         accountId: "account-1",
+        ownerProfileId: "profile-1",
         amountIn: "100",
         amountInToken: "MXN",
         corridorId: "MX",
@@ -155,6 +291,7 @@ describe("transferMachine", () => {
       },
       quote,
       quoteRequest,
+      ownerProfileId: "profile-1",
       type: "START"
     });
     await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
@@ -170,7 +307,60 @@ describe("transferMachine", () => {
     assert.deepEqual(snapshot.context.userTxs, []);
     assert.equal(snapshot.context.lastStatus, null);
     assert.equal(snapshot.context.errorMessage, null);
+    assert.equal(snapshot.context.activeOwnerProfileId, "profile-1");
     actor.stop();
+  });
+
+  it("preserves the active owner when resetting terminal states", async () => {
+    for (const terminalState of ["Done", "Failed"] as const) {
+      const machine = transferMachine.provide({
+        actors: {
+          refreshTransferQuote: fromPromise(async ({ input }) => {
+            if (terminalState === "Failed") throw new Error("quote failed");
+            return { quote: input.quote };
+          }),
+          registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
+          startRamp: fromPromise(async () => ramp),
+          trackRamp: fromPromise(async () => undefined) as never
+        }
+      });
+      const actor = createActor(machine).start();
+      actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
+      actor.send({
+        additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
+        meta: {
+          accountId: "account-1",
+          amountIn: "100",
+          amountInToken: "MXN",
+          corridorId: "MX",
+          direction: RampDirection.BUY,
+          fiatPayoutAmount: "5",
+          ownerProfileId: "profile-1",
+          payinNetwork: "polygon",
+          payoutCurrency: "USDC",
+          recipientEmail: "Your wallet",
+          recipientId: "",
+          summary: "5 USDC to your wallet"
+        },
+        ownerProfileId: "profile-1",
+        quote,
+        quoteRequest,
+        type: "START"
+      });
+
+      if (terminalState === "Done") {
+        await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+        actor.send({ ownerProfileId: "profile-1", type: "PAYMENT_CONFIRMED" });
+        await waitFor(actor, snapshot => snapshot.matches("Tracking"));
+        actor.send({ status: { currentPhase: "complete" } as never, type: "TERMINAL" });
+      }
+      await waitFor(actor, snapshot => snapshot.matches(terminalState));
+      actor.send({ type: "RESET" });
+
+      assert.equal(actor.getSnapshot().value, "Idle");
+      assert.equal(actor.getSnapshot().context.activeOwnerProfileId, "profile-1");
+      actor.stop();
+    }
   });
 
   it("registers with a refreshed quote", async () => {
@@ -193,11 +383,13 @@ describe("transferMachine", () => {
       }
     });
     const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
 
     actor.send({
       additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
       meta: {
         accountId: "account-1",
+        ownerProfileId: "profile-1",
         amountIn: "100",
         amountInToken: "MXN",
         corridorId: "MX",
@@ -211,6 +403,7 @@ describe("transferMachine", () => {
       },
       quote,
       quoteRequest,
+      ownerProfileId: "profile-1",
       type: "START"
     });
 
@@ -255,11 +448,13 @@ describe("transferMachine", () => {
       }
     });
     const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
 
     actor.send({
       additionalData: { walletAddress: "0x1111111111111111111111111111111111111111" },
       meta: {
         accountId: "account-1",
+        ownerProfileId: "profile-1",
         amountIn: sellQuote.inputAmount,
         amountInToken: "USDC",
         corridorId: "MX",
@@ -273,6 +468,7 @@ describe("transferMachine", () => {
       },
       quote: sellQuote,
       quoteRequest: sellQuoteRequest,
+      ownerProfileId: "profile-1",
       type: "START"
     });
 
