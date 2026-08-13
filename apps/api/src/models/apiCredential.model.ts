@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import type User from "./user.model";
 
 export type ApiCredentialEnvironment = "live" | "test";
 
@@ -40,6 +41,8 @@ class ApiCredential extends Model<ApiCredentialAttributes, ApiCredentialCreation
   declare revokedAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
+  // Populated only when a query includes the "profile" association.
+  declare profile?: User;
 }
 
 ApiCredential.init(

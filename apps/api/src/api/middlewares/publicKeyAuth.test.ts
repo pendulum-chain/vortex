@@ -36,6 +36,7 @@ describe("validatePublicKey", () => {
       id: "credential-1",
       partnerId: "partner-1",
       profileId: "profile-1",
+      profile: { kind: "authenticated" },
       publicKeyValue: publicKey,
       update: mock(async () => credential)
     });
@@ -82,6 +83,7 @@ describe("validatePublicKey", () => {
       id: "public-credential",
       partnerId: null,
       profileId: "profile-1",
+      profile: { kind: "authenticated" },
       publicKeyValue: publicKey,
       update: mock(async () => publicCredential)
     });
@@ -91,6 +93,7 @@ describe("validatePublicKey", () => {
       partnerId: null,
       profileId: "profile-1",
       secretKeyDigest: digestApiKey(secretKey),
+      profile: { kind: "authenticated" },
       secretKeyPrefix: getSecretKeyLookupPrefix(secretKey),
       update: mock(async () => secretCredential)
     });

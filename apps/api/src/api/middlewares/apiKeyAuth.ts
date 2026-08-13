@@ -117,6 +117,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       }
 
       req.credential = result.credential;
+      req.authenticatedCredentialProfileId = result.credential.profileId;
 
       // Attach authenticated partner to request (null for user-scoped keys, leaving the field unset).
       if (partner) {

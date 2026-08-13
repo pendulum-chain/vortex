@@ -14,8 +14,9 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 class UnhandledPaymentWorker {
   private job: CronJob;
-  private readonly brlaApiService: BrlaApiService;
-  private readonly slackNotifier: SlackNotifier;
+  private readonly brlaApiService: Pick<BrlaApiService, "getAveniaPayinTickets">;
+  private readonly recoverPaidAveniaRamp: (rampId: string) => Promise<unknown>;
+  private readonly slackNotifier: Pick<SlackNotifier, "sendMessage">;
   private alertsThisCycle: string[];
   // Store processed states in memory to save compute and db calls.
   // This worker assumes that checkUnhandledPayments is idempotent on the same state.
@@ -24,12 +25,34 @@ class UnhandledPaymentWorker {
   // Store subaccountIds with timestamps to limit alerts to one per day per subaccount
   private alertedSubaccounts: Map<string, number> = new Map();
 
-  constructor(cronTime = DEFAULT_CRON_TIME) {
-    this.brlaApiService = BrlaApiService.getInstance();
-    this.slackNotifier = new SlackNotifier();
+  constructor(
+    cronTime = DEFAULT_CRON_TIME,
+    dependencies: {
+      brlaApiService?: Pick<BrlaApiService, "getAveniaPayinTickets">;
+      recoverPaidAveniaRamp?: (rampId: string) => Promise<unknown>;
+      runOnInit?: boolean;
+      slackNotifier?: Pick<SlackNotifier, "sendMessage">;
+    } = {}
+  ) {
+    this.brlaApiService = dependencies.brlaApiService ?? BrlaApiService.getInstance();
+    this.recoverPaidAveniaRamp =
+      dependencies.recoverPaidAveniaRamp ??
+      (async rampId => {
+        const { default: rampService } = await import("../services/ramp/ramp.service");
+        return rampService.recoverPaidAveniaRamp(rampId);
+      });
+    this.slackNotifier = dependencies.slackNotifier ?? new SlackNotifier();
     this.alertsThisCycle = [];
 
-    this.job = new CronJob(cronTime, this.checkUnhandledPayments.bind(this), null, false, undefined, null, true);
+    this.job = new CronJob(
+      cronTime,
+      this.checkUnhandledPayments.bind(this),
+      null,
+      false,
+      undefined,
+      null,
+      dependencies.runOnInit ?? true
+    );
   }
 
   public start(): void {
@@ -154,38 +177,69 @@ class UnhandledPaymentWorker {
 
     for (const taxId in statesByTaxId) {
       try {
-        const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
-        if (!aveniaCustomer || !aveniaCustomer.providerSubaccountId) {
-          logger.warn(`No Avenia provider account found for taxId: ${taxId}. Skipping states.`);
-          statesByTaxId[taxId].forEach(state => this.processedStateIds.add(state.id));
-          continue;
+        const statesForTaxId = statesByTaxId[taxId];
+        let legacySubAccountId: string | null = null;
+        if (statesForTaxId.some(state => !state.state.subAccountId)) {
+          const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+          legacySubAccountId = aveniaCustomer?.providerSubaccountId ?? null;
         }
 
-        const subAccountId = aveniaCustomer.providerSubaccountId;
-        const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
-        const aveniaTicketSet = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
-
-        for (const state of statesByTaxId[taxId]) {
-          const ticketIdFromState = state.state.aveniaTicketId;
-
-          if (!ticketIdFromState) {
-            //  should not be hit due to the filter in the reducer.
-            logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing a aveniaTicketId. Skipping.`);
+        const statesBySubAccountId = new Map<string, RampState[]>();
+        for (const state of statesForTaxId) {
+          // New ramps snapshot this identity at registration. The fallback keeps pre-deploy
+          // ramps recoverable without making current mutable identity authoritative for them.
+          const subAccountId = state.state.subAccountId ?? legacySubAccountId;
+          if (!subAccountId) {
+            logger.warn(`No Avenia provider account found for state ${state.id}. Skipping state.`);
             this.processedStateIds.add(state.id);
             continue;
           }
+          const grouped = statesBySubAccountId.get(subAccountId) ?? [];
+          grouped.push(state);
+          statesBySubAccountId.set(subAccountId, grouped);
+        }
 
-          if (aveniaTicketSet.has(ticketIdFromState)) {
-            // Unhandled payment. A paid ticket found for an initial (stale) state or failed state.
-            if (!this.hasRecentAlert(subAccountId)) {
-              const referenceLabel = generateReferenceLabel({ id: ticketIdFromState });
-              const alertMessage = `Unhandled payment detected for stateId: ${state.id}, ticketId: ${ticketIdFromState}. Please investigate. Ref: ${referenceLabel}`;
-              this.alertsThisCycle.push(alertMessage);
-              this.alertedSubaccounts.set(subAccountId, Date.now());
+        for (const [subAccountId, groupedStates] of statesBySubAccountId) {
+          const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
+          const aveniaTicketSet = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
+
+          for (const state of groupedStates) {
+            const ticketIdFromState = state.state.aveniaTicketId;
+
+            if (!ticketIdFromState) {
+              // Should not be hit due to the filter in the reducer.
+              logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing an aveniaTicketId. Skipping.`);
+              this.processedStateIds.add(state.id);
+              continue;
             }
-            await this.updateAlertedState(state);
-          } else {
-            this.processedStateIds.add(state.id);
+
+            if (aveniaTicketSet.has(ticketIdFromState)) {
+              if (state.currentPhase === "initial") {
+                try {
+                  await this.recoverPaidAveniaRamp(state.id);
+                  this.processedStateIds.add(state.id);
+                  logger.info(`Recovered paid initial Avenia ramp ${state.id}.`);
+                  continue;
+                } catch (error) {
+                  // Keep the state eligible for the next cycle. A transient processor/database
+                  // failure must not turn an automatic recovery attempt into a one-shot alert.
+                  logger.error(`Failed to recover paid initial Avenia ramp ${state.id}:`, error);
+                }
+              }
+
+              // Recovery failed, or a paid ramp is already in failed state: alert operations.
+              if (!this.hasRecentAlert(subAccountId)) {
+                const referenceLabel = generateReferenceLabel({ id: ticketIdFromState });
+                const alertMessage = `Unhandled payment detected for stateId: ${state.id}, ticketId: ${ticketIdFromState}. Please investigate. Ref: ${referenceLabel}`;
+                this.alertsThisCycle.push(alertMessage);
+                this.alertedSubaccounts.set(subAccountId, Date.now());
+              }
+              if (state.currentPhase !== "initial") {
+                await this.updateAlertedState(state);
+              }
+            } else {
+              this.processedStateIds.add(state.id);
+            }
           }
         }
       } catch (error) {

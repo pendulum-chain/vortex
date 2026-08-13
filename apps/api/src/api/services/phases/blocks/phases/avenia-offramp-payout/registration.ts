@@ -16,6 +16,7 @@ export interface AveniaOfframpPayoutRegistrationFacts {
   brlaEvmAddress: string;
   pixDestination: string;
   receiverTaxId: string;
+  subAccountId?: string;
   taxId: string;
 }
 
@@ -54,6 +55,7 @@ export function createRegisterAveniaOfframpPayout(
         brlaEvmAddress: subaccount.wallets.evm,
         pixDestination: ctx.input.pixDestination,
         receiverTaxId,
+        subAccountId: aveniaAccount.subAccountId,
         taxId
       },
       responseArtifacts: { depositQrCode: subaccount.brCode } satisfies AveniaOfframpPayoutResponseArtifacts

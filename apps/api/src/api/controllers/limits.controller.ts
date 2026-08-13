@@ -17,6 +17,16 @@ function isValidRequest(body: unknown): body is GetUserLimitsRequest {
   return new Set(record.corridors).size === record.corridors.length;
 }
 
+export function validateLimitsRequest(req: Request, res: Response, next: NextFunction): void {
+  if (!isValidRequest(req.body)) {
+    res
+      .status(httpStatus.BAD_REQUEST)
+      .json({ error: "corridors must be a non-empty, duplicate-free list of AR, BR, CO, MX, or US" });
+    return;
+  }
+  next();
+}
+
 export async function getLimits(
   req: Request<unknown, GetUserLimitsResponse, GetUserLimitsRequest>,
   res: Response<GetUserLimitsResponse | { error: string }>,
@@ -33,7 +43,6 @@ export async function getLimits(
       .json({ error: "corridors must be a non-empty, duplicate-free list of AR, BR, CO, MX, or US" });
     return;
   }
-
   try {
     res.json(await getUserLimits(userId, req.body.corridors));
   } catch (error) {

@@ -361,6 +361,26 @@ export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): 
   }
 }
 
+/**
+ * Alfredpay identifies customers by email, so a creation conflict is resolved by looking the
+ * existing customer up by that email. A managed child's contact email is chosen by its manager and
+ * never verified, so the customer found that way can belong to somebody else; adopting it would
+ * hand the child that customer's KYC state. Adoption stays allowed when nothing in our records
+ * claims the customer — the retry case, where an earlier creation reached Alfredpay but failed to
+ * persist here.
+ */
+export async function isAlfredpayCustomerClaimedByAnotherProfile(providerCustomerId: string, userId: string): Promise<boolean> {
+  const claims = await ProviderCustomer.findAll({
+    attributes: ["customerEntityId"],
+    where: { provider: "alfredpay", providerCustomerId }
+  });
+  if (claims.length === 0) {
+    return false;
+  }
+  const ownEntityIds = await findCustomerEntityIdsForProfile(userId);
+  return claims.some(claim => !ownEntityIds.includes(claim.customerEntityId));
+}
+
 export async function createAlfredpayCustomer(
   userId: string,
   values: { alfredPayId: string; country: AlfredPayCountry; status: AlfredPayStatus; type: AlfredpayCustomerType }

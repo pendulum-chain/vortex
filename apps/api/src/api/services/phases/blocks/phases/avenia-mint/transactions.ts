@@ -7,6 +7,7 @@ import type { AveniaMintRegistrationFacts } from "./registration";
 import type { AveniaMintMetadata } from "./simulation";
 
 export interface AveniaMintPreparation {
+  subAccountId?: string;
   taxId?: string;
 }
 

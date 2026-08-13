@@ -18,7 +18,8 @@ describe("persisted block-flow compatibility scope", () => {
         flowVariant: "mykobo",
         [Op.or]: [
           { currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut", "initial"] } },
-          { createdAt: { [Op.gte]: initialRampCutoff }, currentPhase: "initial" }
+          { createdAt: { [Op.gte]: initialRampCutoff }, currentPhase: "initial" },
+          { currentPhase: "initial", "state.aveniaTicketId": { [Op.ne]: null } }
         ]
       }
     });
