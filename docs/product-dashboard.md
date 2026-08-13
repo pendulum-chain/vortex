@@ -26,9 +26,10 @@ two people.
  self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
  remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo. The API also implements managed
- headless profiles and route-scoped manager delegation. The dashboard experience for selecting and
- acting for those profiles is the next accepted feature described below; it is not yet shipped.
+ onboarding uses Monerium but active EUR ramps resolve Mykobo. The API and dashboard implement
+ managed headless profiles and route-scoped manager delegation: active managers can select a child,
+ act through supported dashboard surfaces, and return to their own account without changing the
+ authenticated manager identity.
 
 
 ## User stories
@@ -143,7 +144,7 @@ two people.
   category — recipient-approval alerts — was dropped for now: no such notification type exists
   in the backend yet.)
 
-### Managed profiles (accepted next feature)
+### Managed profiles (implemented)
 
 This is managed-child delegation, not another login or admin impersonation mechanism. A managed
 child is headless and has no Supabase identity. The manager remains the authenticated actor, and
@@ -167,7 +168,7 @@ and customer-type policy on every delegated authorization decision.
   explicitly stopped, and is bound to the authenticated manager profile so it cannot survive a
   change of login identity.
 - While acting for a child, a persistent yellow banner above the topbar names the child and offers
-  **Stop acting for**. Stopping clears the selection and returns to `/managed-profiles` under the
+  **Stop acting**. Stopping clears the selection and returns to `/managed-profiles` under the
   manager's own account.
 - Entering child mode, switching children, or stopping child mode is blocked while the transfer
   machine is in its client-owned preparation and signing sequence. This sequence starts when a
@@ -353,14 +354,6 @@ provider-shaped rather than UI-shaped.
 
 ## Next steps
 
-- Add the managed-profile selector, persisted delegated identity, child-mode banner, and explicit
-  per-service managed-header handling described above.
-- Add a transfer-state identity guard and owner-keyed resumable payment snapshots. Block manager/
-  child identity changes during client-owned preparation and signing, allow them after signed state
-  is durably submitted, and preserve all manager/child ramp ephemerals and backend ramp references
-  across allowed changes.
-- Expose manager-authorized corridors from `GET /v1/managed-profiles` and extend sender-side
-  recipient routes to managed-child authorization before enabling Recipients in child mode.
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
 - Connect the dashboard notification feed to the backend.
@@ -409,8 +402,7 @@ so an operator can end its own session.
 manager-child relationships now exist as a separate delegation layer. An operator does not
 impersonate a headless child directly: the operator may impersonate its authenticated manager and
 then select the child through the same route-scoped managed-profile authorization used by that
-manager. The dashboard selector and child-mode experience are the accepted next feature described
-above.
+manager. The dashboard implements that selector and child-mode experience as described above.
 
 **Operator surface in this app.** The `/v1/admin-console/*` layer is implemented and covered by
 tests, and the frontend that consumes it ships here: `/admin` (searchable, paginated account
