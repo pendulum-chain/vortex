@@ -64,6 +64,7 @@ import {
 import {
   AVENIA_IDENTITY_DOCUMENT_TYPES,
   assertAveniaKybCanSubmit,
+  createAveniaUboOnce,
   getOrCreateAveniaKybCase,
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
@@ -851,7 +852,16 @@ async function reconcileActiveAveniaKybAttempt(
   const status = attempt.status === KycAttemptStatus.PENDING ? VerificationStatus.Pending : VerificationStatus.InReview;
   const kycCase = await getOrCreateAveniaKybCase(record);
   await sequelize.transaction(async transaction => {
-    await record.update(
+    const lockedRecord = await ProviderCustomer.findByPk(record.id, { lock: transaction.LOCK.UPDATE, transaction });
+    const lockedCase = await KycCase.findByPk(kycCase.id, { lock: transaction.LOCK.UPDATE, transaction });
+    if (!lockedRecord || !lockedCase) throw new Error("KYB state disappeared during reconciliation");
+    if (
+      [VerificationStatus.Approved, VerificationStatus.Rejected].includes(lockedRecord.status) ||
+      [VerificationStatus.Approved, VerificationStatus.Rejected].includes(lockedCase.status)
+    ) {
+      throw new APIError({ message: "This company verification is already terminal", status: httpStatus.CONFLICT });
+    }
+    await lockedRecord.update(
       {
         lastFailureReasons: [],
         status,
@@ -859,7 +869,7 @@ async function reconcileActiveAveniaKybAttempt(
       },
       { transaction }
     );
-    await kycCase.update(
+    await lockedCase.update(
       {
         approvedAt: null,
         failureReasons: [],
@@ -941,7 +951,7 @@ export const createKybUbo = async (
         AveniaDocumentType.SELFIE_FROM_LIVENESS
       ]);
     }
-    const response = await brlaApiService.createUbo(req.body, subAccountId);
+    const response = await createAveniaUboOnce(brlaApiService, record, req.body, subAccountId);
     res.status(httpStatus.CREATED).json(response);
   } catch (error) {
     handleApiError(error, res, "createKybUbo");

@@ -5,6 +5,15 @@ import type { ProviderName, VerificationStatus } from "./providerCustomer.model"
 
 export type KycCaseType = "kyc" | "kyb";
 
+export interface UboSubmission {
+  status: "prepared" | "confirmed" | "ambiguous" | "failed";
+  payloadFingerprint: string;
+  attemptedAt: string;
+  confirmedAt?: string;
+  providerUboId?: string;
+  httpStatus?: number;
+}
+
 // Unified KYC/KYB verification attempts, independent of the provider account row.
 // Replaces the dead kyc_level_2 table (no data conversion — it had no readers).
 export interface KycCaseAttributes {
@@ -21,6 +30,7 @@ export interface KycCaseAttributes {
   submittedAt: Date | null;
   approvedAt: Date | null;
   rejectedAt: Date | null;
+  uboSubmissions: Record<string, UboSubmission>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +47,7 @@ type KycCaseCreationAttributes = Optional<
   | "submittedAt"
   | "approvedAt"
   | "rejectedAt"
+  | "uboSubmissions"
   | "createdAt"
   | "updatedAt"
 >;
@@ -55,6 +66,7 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
   declare submittedAt: Date | null;
   declare approvedAt: Date | null;
   declare rejectedAt: Date | null;
+  declare uboSubmissions: Record<string, UboSubmission>;
   declare createdAt: Date;
   declare updatedAt: Date;
 
@@ -144,6 +156,12 @@ KycCase.init(
       allowNull: false,
       defaultValue: "kyc",
       type: DataTypes.STRING(8)
+    },
+    uboSubmissions: {
+      allowNull: false,
+      defaultValue: {},
+      field: "ubo_submissions",
+      type: DataTypes.JSONB
     },
     updatedAt: {
       allowNull: false,

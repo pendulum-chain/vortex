@@ -524,7 +524,9 @@ describe("Avenia company KYB", () => {
   beforeEach(() => {
     staticCaseUpdate = mock(async () => [1]);
     KycCase.update = staticCaseUpdate as unknown as typeof KycCase.update;
-    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
   });
 
   afterEach(() => {
@@ -1440,10 +1442,12 @@ describe("Avenia API KYB", () => {
   const originals = {
     caseCreate: KycCase.create,
     caseFindOrCreate: KycCase.findOrCreate,
+    caseFindByPk: KycCase.findByPk,
     caseFindOne: KycCase.findOne,
     caseUpdate: KycCase.update,
     getInstance: BrlaApiService.getInstance,
     providerFindOne: ProviderCustomer.findOne,
+    providerFindByPk: ProviderCustomer.findByPk,
     transaction: sequelize.transaction
   };
 
@@ -1476,10 +1480,12 @@ describe("Avenia API KYB", () => {
   afterEach(() => {
     KycCase.create = originals.caseCreate;
     KycCase.findOrCreate = originals.caseFindOrCreate;
+    KycCase.findByPk = originals.caseFindByPk;
     KycCase.findOne = originals.caseFindOne;
     KycCase.update = originals.caseUpdate;
     BrlaApiService.getInstance = originals.getInstance;
     ProviderCustomer.findOne = originals.providerFindOne;
+    ProviderCustomer.findByPk = originals.providerFindByPk;
     sequelize.transaction = originals.transaction;
   });
 
@@ -1519,7 +1525,9 @@ describe("Avenia API KYB", () => {
       },
       false
     ]) as unknown as typeof KycCase.findOrCreate;
-    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
     const submit = mock(async () => ({ id: "attempt-1" }));
     BrlaApiService.getInstance = mock(
       () =>
@@ -1530,6 +1538,11 @@ describe("Avenia API KYB", () => {
         }) as unknown as BrlaApiService
     );
     return { caseUpdate, customerUpdate, submit };
+  }
+
+  function mockReconciliationLocks(record: Record<string, unknown>, kycCase: Record<string, unknown>) {
+    ProviderCustomer.findByPk = mock(async () => record) as unknown as typeof ProviderCustomer.findByPk;
+    KycCase.findByPk = mock(async () => kycCase) as unknown as typeof KycCase.findByPk;
   }
 
   it("creates a company document for a profile-bound secret key", async () => {
@@ -1719,7 +1732,13 @@ describe("Avenia API KYB", () => {
       { id: "case-1", providerCaseId: null, update: caseUpdate },
       false
     ]) as unknown as typeof KycCase.findOrCreate;
-    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    mockReconciliationLocks(
+      { status: VerificationStatus.Pending, update: customerUpdate },
+      { status: VerificationStatus.Pending, update: caseUpdate }
+    );
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
     const getKycAttempts = mock(async () => ({ attempts: [] as any[] }));
     const submit = mock(async () => ({ id: "accepted-attempt" }));
     BrlaApiService.getInstance = mock(
@@ -1783,7 +1802,13 @@ describe("Avenia API KYB", () => {
       { id: "case-1", providerCaseId: null, update: caseUpdate },
       false
     ]) as unknown as typeof KycCase.findOrCreate;
-    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
+    mockReconciliationLocks(
+      { status: VerificationStatus.Pending, update: customerUpdate },
+      { status: VerificationStatus.Pending, update: caseUpdate }
+    );
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
     const getKycAttempts = mock()
       .mockResolvedValueOnce({ attempts: [] })
       .mockResolvedValueOnce({
@@ -1837,6 +1862,51 @@ describe("Avenia API KYB", () => {
       }),
       expect.anything()
     );
+  });
+
+  it("does not overwrite terminal state with a stale active-attempt response", async () => {
+    mockBusinessAccount();
+    const customerUpdate = mock(async () => undefined);
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOrCreate = mock(async () => [
+      { id: "case-1", providerCaseId: "attempt-1", update: caseUpdate },
+      false
+    ]) as unknown as typeof KycCase.findOrCreate;
+    mockReconciliationLocks(
+      { status: VerificationStatus.Approved, update: customerUpdate },
+      { status: VerificationStatus.Approved, update: caseUpdate }
+    );
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    const submit = mock(async () => ({ id: "duplicate-attempt" }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({
+            attempts: [
+              {
+                createdAt: "2026-08-12T10:00:00.000Z",
+                id: "attempt-1",
+                levelName: "kyb-level-1",
+                status: KycAttemptStatus.PROCESSING
+              }
+            ]
+          })),
+          submitKybLevel1: submit
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await submitKybLevel1Api(
+      { body: validSubmission, query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(customerUpdate).not.toHaveBeenCalled();
+    expect(caseUpdate).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it("fails closed when Avenia reports multiple active KYB attempts", async () => {
