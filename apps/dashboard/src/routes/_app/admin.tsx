@@ -15,7 +15,7 @@ function AdminLayout() {
     return <Skeleton className="mx-auto mt-20 h-80 max-w-3xl" />;
   }
   if (!isAdmin) {
-    return <Navigate to="/overview" />;
+    return <Navigate replace to="/overview" />;
   }
   return <Outlet />;
 }
