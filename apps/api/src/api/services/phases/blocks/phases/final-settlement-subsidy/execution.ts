@@ -37,7 +37,6 @@ import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { getFlowMetadata } from "../../core/metadata";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
-import { getAlfredpayExecutableBridgeOutputRaw } from "../alfredpay-offramp/simulation";
 
 const FINAL_SETTLEMENT_ACQUISITION_BUFFER = new Big("1.1");
 const MAX_FINAL_SETTLEMENT_ACQUISITION_USD = new Big(MAX_FINAL_SETTLEMENT_SUBSIDY_USD).mul(FINAL_SETTLEMENT_ACQUISITION_BUFFER);
@@ -62,7 +61,7 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
 
 // Waits for the destination bridge delivery, then tops the ephemeral up to the quoted settlement
 // target. BUY may swap the funding account's native token through Squid; AlfredPay SELL tops up
-// Polygon USDT while enforcing the quote-bound provider-input and subsidy ceilings.
+// Polygon USDT while enforcing the quote-bound subsidy ceiling.
 export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "finalSettlementSubsidy";
@@ -83,7 +82,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         blocks?: {
           alfredpayOfframp?: {
             bridgeOutputAmountRaw: string;
-            executableBridgeOutputRaw?: string;
             inputAmountRaw: string;
             subsidyAmountRaw: string;
           };
@@ -163,10 +161,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       }
     ).blocks?.squidRouterSwap;
     const bridgeExpectedAmountRaw = isAlfredpayOfframp
-      ? getAlfredpayExecutableBridgeOutputRaw(
-          alfredpayMetadata as Parameters<typeof getAlfredpayExecutableBridgeOutputRaw>[0],
-          alfredpayFeesUsd
-        )
+      ? alfredpayMetadata.bridgeOutputAmountRaw
       : (squidMetadata?.outputAmountRaw ?? expectedAmountRaw.toFixed(0));
     const existingEvidence = state.state.squidRouterDeliveryEvidence;
     if (existingEvidence) {

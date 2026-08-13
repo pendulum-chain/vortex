@@ -104,7 +104,6 @@ mock.module("../core/financial-operation", () => ({
 }));
 const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution");
 const { FinalSettlementSubsidyExecutor } = await import("../phases/final-settlement-subsidy/execution");
-const { getAlfredpayExecutableBridgeOutputRaw } = await import("../phases/alfredpay-offramp/simulation");
 const { AlfredpayOnrampMintExecutor } = await import("../phases/alfredpay-mint/execution");
 
 afterAll(() => {
@@ -249,19 +248,18 @@ describe("EVM block executor regressions", () => {
     expect(sendTransaction).not.toHaveBeenCalled();
   });
 
-  it("uses AlfredPay SELL's guaranteed bridge minimum and records the subsidy as Polygon USDT", async () => {
+  it("uses AlfredPay SELL's quoted bridge output and records the subsidy as Polygon USDT", async () => {
     checkBalance.mockResolvedValue(new Big("900000"));
     findQuote.mockResolvedValue({
       metadata: {
         blocks: {
           alfredpayOfframp: {
             bridgeOutputAmountRaw: "1000000",
-            executableBridgeOutputRaw: "800000",
             inputAmountRaw: "1000000",
             subsidyAmountRaw: "200000"
           }
         },
-        flow: { id: "AlfredpayOfframp", version: 4 },
+        flow: { id: "AlfredpayOfframp", version: 3 },
         globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
       },
       network: Networks.Polygon,
@@ -277,7 +275,7 @@ describe("EVM block executor regressions", () => {
           baselineRaw: "0",
           destinationNetwork: Networks.Polygon,
           destinationToken: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
-          expectedAmountRaw: "800000",
+          expectedAmountRaw: "1000000",
           kind: "destination-balance",
           minimumRatioBps: 9000,
           observedAt: "2026-01-01T00:00:00.000Z",
@@ -303,7 +301,7 @@ describe("EVM block executor regressions", () => {
       priceFeedService.convertCurrency = originalConvertCurrency;
     }
 
-    expect(checkBalance).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "720000" }));
+    expect(checkBalance).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "900000" }));
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
   });
 
@@ -314,21 +312,20 @@ describe("EVM block executor regressions", () => {
   ])(
     "acquires only the treasury shortfall and transfers the full subsidy (%s)",
     async (_caseName, subsidyAmountRaw, fundingInventoryRaw, expectedNativeInputRaw) => {
-      const executableBridgeOutputRaw = "1000000000";
-      const inputAmountRaw = new Big(executableBridgeOutputRaw).plus(subsidyAmountRaw).toFixed(0);
-      checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+      const bridgeOutputAmountRaw = "1000000000";
+      const inputAmountRaw = new Big(bridgeOutputAmountRaw).plus(subsidyAmountRaw).toFixed(0);
+      checkBalance.mockResolvedValue(new Big(bridgeOutputAmountRaw));
       getFundingBalance.mockResolvedValue(new Big(fundingInventoryRaw));
       findQuote.mockResolvedValue({
         metadata: {
           blocks: {
             alfredpayOfframp: {
-              bridgeOutputAmountRaw: executableBridgeOutputRaw,
-              executableBridgeOutputRaw,
+              bridgeOutputAmountRaw,
               inputAmountRaw,
               subsidyAmountRaw
             }
           },
-          flow: { id: "AlfredpayOfframp", version: 4 },
+          flow: { id: "AlfredpayOfframp", version: 3 },
           globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
         },
         network: Networks.Polygon,
@@ -375,9 +372,9 @@ describe("EVM block executor regressions", () => {
   );
 
   it("does not broadcast an acquisition whose guaranteed output leaves treasury inventory insolvent", async () => {
-    const executableBridgeOutputRaw = "1000000000";
+    const bridgeOutputAmountRaw = "1000000000";
     const subsidyAmountRaw = "10000000";
-    checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+    checkBalance.mockResolvedValue(new Big(bridgeOutputAmountRaw));
     getFundingBalance.mockResolvedValue(new Big(0));
     getRoute
       .mockResolvedValueOnce({
@@ -410,13 +407,12 @@ describe("EVM block executor regressions", () => {
       metadata: {
         blocks: {
           alfredpayOfframp: {
-            bridgeOutputAmountRaw: executableBridgeOutputRaw,
-            executableBridgeOutputRaw,
+            bridgeOutputAmountRaw,
             inputAmountRaw: "1010000000",
             subsidyAmountRaw
           }
         },
-        flow: { id: "AlfredpayOfframp", version: 4 },
+        flow: { id: "AlfredpayOfframp", version: 3 },
         globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
       },
       network: Networks.Polygon,
@@ -514,23 +510,22 @@ describe("EVM block executor regressions", () => {
   });
 
   it("replays a confirmed acquisition before fresh route data after a balance-wait failure", async () => {
-    const executableBridgeOutputRaw = "1000000000";
+    const bridgeOutputAmountRaw = "1000000000";
     checkBalance
-      .mockResolvedValueOnce(new Big(executableBridgeOutputRaw))
+      .mockResolvedValueOnce(new Big(bridgeOutputAmountRaw))
       .mockRejectedValueOnce(new Error("balance RPC timeout"))
-      .mockResolvedValue(new Big(executableBridgeOutputRaw));
+      .mockResolvedValue(new Big(bridgeOutputAmountRaw));
     getFundingBalance.mockResolvedValue(new Big(0));
     findQuote.mockResolvedValue({
       metadata: {
         blocks: {
           alfredpayOfframp: {
-            bridgeOutputAmountRaw: executableBridgeOutputRaw,
-            executableBridgeOutputRaw,
+            bridgeOutputAmountRaw,
             inputAmountRaw: "1010000000",
             subsidyAmountRaw: "10000000"
           }
         },
-        flow: { id: "AlfredpayOfframp", version: 4 },
+        flow: { id: "AlfredpayOfframp", version: 3 },
         globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
       },
       network: Networks.Polygon,
@@ -571,20 +566,19 @@ describe("EVM block executor regressions", () => {
   });
 
   it("classifies acquisition route and ambiguous receipt failures as recoverable without duplicate broadcast", async () => {
-    const executableBridgeOutputRaw = "1000000000";
-    checkBalance.mockResolvedValue(new Big(executableBridgeOutputRaw));
+    const bridgeOutputAmountRaw = "1000000000";
+    checkBalance.mockResolvedValue(new Big(bridgeOutputAmountRaw));
     getFundingBalance.mockResolvedValue(new Big(0));
     findQuote.mockResolvedValue({
       metadata: {
         blocks: {
           alfredpayOfframp: {
-            bridgeOutputAmountRaw: executableBridgeOutputRaw,
-            executableBridgeOutputRaw,
+            bridgeOutputAmountRaw,
             inputAmountRaw: "1010000000",
             subsidyAmountRaw: "10000000"
           }
         },
-        flow: { id: "AlfredpayOfframp", version: 4 },
+        flow: { id: "AlfredpayOfframp", version: 3 },
         globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
       },
       network: Networks.Polygon,
@@ -632,15 +626,6 @@ describe("EVM block executor regressions", () => {
     }
   });
 
-  it("fails closed when schema-3 executable minimum metadata disagrees with settlement arithmetic", () => {
-    expect(() =>
-      getAlfredpayExecutableBridgeOutputRaw(
-        { executableBridgeOutputRaw: "800001", inputAmountRaw: "1000000", subsidyAmountRaw: "200000" },
-        { network: "0", partnerMarkup: "0", vortex: "0" }
-      )
-    ).toThrow("executable bridge minimum mismatch");
-  });
-
   it("does not fund AlfredPay bridge under-delivery beyond the quoted subsidy", async () => {
     checkBalance.mockResolvedValue(new Big("900000"));
     findQuote.mockResolvedValue({
@@ -648,12 +633,11 @@ describe("EVM block executor regressions", () => {
         blocks: {
           alfredpayOfframp: {
             bridgeOutputAmountRaw: "1000000",
-            executableBridgeOutputRaw: "1000000",
             inputAmountRaw: "1000000",
             subsidyAmountRaw: "0"
           }
         },
-        flow: { id: "AlfredpayOfframp", version: 4 },
+        flow: { id: "AlfredpayOfframp", version: 3 },
         globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
       },
       network: Networks.Polygon,

@@ -4,10 +4,10 @@ import { evmRequestIO } from "../core/io";
 import { AlfredpayOfframp } from "../phases/alfredpay-offramp";
 import { DistributeFees } from "../phases/distribute-fees";
 
-// Version 4 introduces context schema 3 and persists Squid's executable minimum for
-// provider-aware target-discount/cap reconciliation. Deployments must be timed for
-// a window with no pending AlfredPay quotes or ramps from flow v3.
-export const ALFREDPAY_OFFRAMP_FLOW_VERSION = 4;
+// Version 2 appends the Polygon fee-collection phase: the vortex/partner fee residual
+// that AlfredpayOfframp's pricing reserves on the Polygon ephemeral is paid out after
+// the Alfredpay deposit succeeded. Deploys are gated on draining v1 quotes/ramps.
+export const ALFREDPAY_OFFRAMP_FLOW_VERSION = 3;
 
 export function makeAlfredpayOfframpFlow(fromToken: EvmToken, fromNetwork: EvmNetworks) {
   return FlowBuilder.start(evmRequestIO(fromToken, fromNetwork), AlfredpayOfframp(fromToken, fromNetwork))

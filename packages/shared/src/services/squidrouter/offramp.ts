@@ -39,7 +39,6 @@ export interface OfframpTransactionData {
 
 export interface OfframpTransactionDataToEvm {
   approveData: EvmTransactionData;
-  route: SquidrouterRoute;
   swapData: EvmTransactionData;
   squidRouterQuoteId?: string;
 }
@@ -105,13 +104,10 @@ export async function createOfframpSquidrouterTransactionsToEvm(
   const routeResult = await getRoute(routeParams);
   const { route } = routeResult.data;
 
-  return {
-    ...(await createTransactionDataFromRoute({
-      inputTokenErc20Address: params.fromToken,
-      publicClient: fromNetworkClient,
-      rawAmount: params.rawAmount,
-      route
-    })),
+  return createTransactionDataFromRoute({
+    inputTokenErc20Address: params.fromToken,
+    publicClient: fromNetworkClient,
+    rawAmount: params.rawAmount,
     route
-  };
+  });
 }

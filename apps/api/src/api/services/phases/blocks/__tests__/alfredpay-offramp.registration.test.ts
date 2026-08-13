@@ -21,7 +21,6 @@ const metadata: AlfredpayOfframpMetadata = {
   bridgeOutputAmountDecimal: "99",
   bridgeOutputAmountRaw: "99000000",
   currency: FiatToken.MXN,
-  executableBridgeOutputRaw: "99000000",
   expirationDate: new Date("2026-01-01T00:00:00Z"),
   fee: "1",
   fromNetwork: Networks.Base as EvmNetworks,

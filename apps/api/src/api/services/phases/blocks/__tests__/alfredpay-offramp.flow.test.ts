@@ -30,11 +30,11 @@ const CORE_PHASES: RampPhase[] = [
 ];
 
 describe("Alfredpay offramp flow", () => {
-  it("uses v4/schema 3 and rejects pre-rollout flow versions", () => {
-    expect(alfredpayOfframpFlow.identity.version).toBe(4);
-    expect(alfredpayOfframpFlow.identity.blockSchemaVersions.alfredpayOfframp).toBe(3);
-    expect(() => getBlockFlowByIdentity({ ...alfredpayOfframpFlow.identity, version: 3 })).toThrow(
-      /Unsupported persisted flow AlfredpayOfframp@3/
+  it("fails closed for persisted pre-v3 identities (drain-then-deploy contract)", () => {
+    expect(alfredpayOfframpFlow.identity.version).toBe(3);
+    expect(alfredpayOfframpFlow.identity.blockSchemaVersions.alfredpayOfframp).toBe(2);
+    expect(() => getBlockFlowByIdentity({ ...alfredpayOfframpFlow.identity, version: 2 })).toThrow(
+      /Unsupported persisted flow AlfredpayOfframp@2/
     );
   });
 

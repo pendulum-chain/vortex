@@ -39,8 +39,6 @@ export interface AlfredpayOfframpMetadata {
   bridgeOutputAmountRaw: string;
   currency: FiatToken;
   expirationDate: Date;
-  /** Guaranteed Polygon USDT amount. Introduced by context schema 3 / flow v4. */
-  executableBridgeOutputRaw: string;
   fee: SerializableBig;
   fromNetwork: EvmNetworks;
   fromToken: `0x${string}`;
@@ -82,8 +80,7 @@ export interface AlfredpayOfframpMetadata {
   toToken: `0x${string}`;
 }
 
-/** Executable Squid minimum and quote-bound settlement subsidy. */
-export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp", 3);
+export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp", 2);
 
 export const ALFREDPAY_MIN_EXECUTION_LIFETIME_MS = 2 * 60 * 1000;
 export const ALFREDPAY_MIN_QUOTE_LIFETIME_MS = 10 * 1000;
@@ -98,22 +95,6 @@ export function hasSafeAlfredpayExecutionLifetime(expiration: string, nowMs = Da
   return Number.isFinite(expiresAt) && expiresAt > nowMs + ALFREDPAY_MIN_EXECUTION_LIFETIME_MS;
 }
 
-export function getAlfredpayExecutableBridgeOutputRaw(
-  metadata: Pick<AlfredpayOfframpMetadata, "executableBridgeOutputRaw" | "inputAmountRaw" | "subsidyAmountRaw">,
-  feesUsd: Parameters<typeof getEvmFeeTotalRawFromUsd>[0]
-): string {
-  const derivedMinimumRaw = new Big(metadata.inputAmountRaw)
-    .plus(getEvmFeeTotalRawFromUsd(feesUsd, ALFREDPAY_ERC20_DECIMALS))
-    .minus(metadata.subsidyAmountRaw)
-    .toFixed(0);
-  if (!new Big(metadata.executableBridgeOutputRaw).eq(derivedMinimumRaw)) {
-    throw new Error(
-      `Alfredpay executable bridge minimum mismatch: persisted=${metadata.executableBridgeOutputRaw}, derived=${derivedMinimumRaw}`
-    );
-  }
-  return metadata.executableBridgeOutputRaw;
-}
-
 function directAlfredpaySettlementQuote(amountDecimal: string) {
   const outputAmountDecimal = new Big(amountDecimal);
   const amountRaw = multiplyByPowerOfTen(outputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, Big.roundDown);
@@ -121,8 +102,6 @@ function directAlfredpaySettlementQuote(amountDecimal: string) {
   return {
     fromToken: ALFREDPAY_ERC20_TOKEN,
     inputAmountRaw: amountRaw,
-    minimumOutputAmountDecimal: outputAmountDecimal,
-    minimumOutputAmountRaw: amountRaw,
     outputAmountDecimal,
     outputAmountRaw: amountRaw,
     toToken: ALFREDPAY_ERC20_TOKEN
@@ -147,8 +126,6 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
             outputCurrency: ALFREDPAY_EVM_TOKEN,
             toNetwork: Networks.Polygon
           });
-    const executableBridgeOutputDecimal = bridge.minimumOutputAmountDecimal;
-    const executableBridgeOutputRaw = bridge.minimumOutputAmountRaw;
     if (!ctx.fees?.usd) {
       throw new Error("AlfredpayOfframp: Missing fee snapshot");
     }
@@ -163,7 +140,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
     const inputAmountUsd = await getUsdDenominatedInputAmount(
-      Object.assign({}, ctx, { evmToEvm: { outputAmountDecimal: executableBridgeOutputDecimal } }) as never
+      Object.assign({}, ctx, { evmToEvm: { outputAmountDecimal: bridge.outputAmountDecimal } }) as never
     );
     if (!inputAmountUsd.eq(ctx.request.inputAmount)) {
       ctx.addNote(
@@ -178,7 +155,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       throw new Error(`AlfredpayOfframp: Invalid target output ${expectedOutput.toString()}`);
     }
     const feeReserveRaw = new Big(getEvmFeeTotalRawFromUsd(ctx.fees.usd, ALFREDPAY_ERC20_DECIMALS));
-    const bridgeOutputRaw = new Big(executableBridgeOutputRaw);
+    const bridgeOutputRaw = new Big(bridge.outputAmountRaw);
     const baselineProviderInputRaw = bridgeOutputRaw.minus(feeReserveRaw);
     if (baselineProviderInputRaw.lte(0)) {
       throw new Error("AlfredpayOfframp: Platform fees consume the full bridged amount");
@@ -357,14 +334,9 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
         adjustedDifference,
         adjustedTargetDiscount,
         bridgeInputAmountRaw: bridge.inputAmountRaw,
-        // Preserve the v3/schema-2 meaning of these persisted fields: Squid's
-        // estimated output. Executable cap math above uses the guaranteed
-        // minimum, which transaction preparation re-derives from persisted
-        // provider input, fee reserve, and subsidy without reinterpreting them.
         bridgeOutputAmountDecimal: bridge.outputAmountDecimal,
         bridgeOutputAmountRaw: bridge.outputAmountRaw,
         currency: ctx.request.outputCurrency as FiatToken,
-        executableBridgeOutputRaw,
         expirationDate,
         fee: providerFee,
         fromNetwork,

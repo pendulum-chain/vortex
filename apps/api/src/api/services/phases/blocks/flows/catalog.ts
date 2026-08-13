@@ -339,18 +339,18 @@ export function resolveBlockFlow(request: FlowRequest): Flow {
 export function resolvePersistedBlockFlow(metadataValue: unknown): Flow {
   const metadata = getFlowMetadata(metadataValue);
   if (!metadata.flow) {
-    const flow = resolveBlockFlow(metadata.globals.request);
-    flow.assertMetadata(metadata, { allowLegacy: true });
-    return flow;
+    const legacyFlow = resolveBlockFlow(metadata.globals.request);
+    legacyFlow.assertMetadata(metadata, { allowLegacy: true });
+    return legacyFlow;
   }
 
-  const candidates = flowDefinitions.filter(candidate => {
-    const identity = candidate.executorFlow.identity;
+  const candidates = flowDefinitions.filter(definition => {
+    const identity = definition.executorFlow.identity;
     return (
       identity.id === metadata.flow?.id &&
       identity.version === metadata.flow.version &&
       identity.catalogVersion === metadata.flow.catalogVersion &&
-      candidate.matches(metadata.globals.request)
+      definition.matches(metadata.globals.request)
     );
   });
   if (candidates.length !== 1) {

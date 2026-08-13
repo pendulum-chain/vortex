@@ -7,7 +7,6 @@ import {
   AlfredpayOfframpStatus,
   type EvmTransactionData,
   EvmToken,
-  evmTokenConfig,
   FiatToken,
   Networks,
   PRESIGNED_EVM_FEE_MULTIPLIER,
@@ -19,7 +18,6 @@ import {
   BaseError,
   ContractFunctionExecutionError,
   decodeFunctionData,
-  encodeFunctionData,
   erc20Abi,
   parseTransaction
 } from "viem";
@@ -28,7 +26,6 @@ import { parseUnits } from "viem/utils";
 import type { AlfredpayOfframpMetadata } from "../../api/services/phases/blocks/phases/alfredpay-offramp/simulation";
 import { AlfredpayOfframpTransferExecutor } from "../../api/services/phases/blocks/phases/alfredpay-offramp/execution";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { PolygonPostProcessHandler } from "../../api/services/phases/post-process/polygon-post-process-handler";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import logger from "../../config/logger";
 import FinancialOperation from "../../models/financialOperation.model";
@@ -450,7 +447,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     ).toMatchObject({ status: "confirmed" });
   });
 
-  it("cross-chain quotes and prepared routes use Squid's guaranteed minimum", async () => {
+  it("cross-chain quotes keep using Squid's estimated output", async () => {
     world.squidRouter.computeToAmount = () => parseUnits("999", 6).toString();
     world.squidRouter.computeToAmountMin = () => parseUnits("989", 6).toString();
     world.squidRouter.toTokenDecimals = 6;
@@ -471,16 +468,14 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     const quote = (await quoteResponse.json()) as { id: string; outputAmount: string };
     const metadata = await getAlfredpayMetadata(quote.id);
     expect(metadata.bridgeOutputAmountRaw).toBe(parseUnits("999", 6).toString());
-    expect(metadata.executableBridgeOutputRaw).toBe(parseUnits("989", 6).toString());
-    expect(metadata.inputAmountRaw).toBe(parseUnits("989", 6).toString());
-    expect(quote.outputAmount).toBe("19780.00");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(quote.outputAmount).toBe("19980.00");
 
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id);
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
-    world.squidRouter.computeToAmount = () => parseUnits("988", 6).toString();
-    world.squidRouter.computeToAmountMin = () => parseUnits("989", 6).toString();
+    world.squidRouter.computeToAmountMin = () => parseUnits("900", 6).toString();
     const registration = await app.request("/v1/ramp/register", {
       body: JSON.stringify({
         additionalData: { fiatAccountId: FIAT_ACCOUNT_ID, walletAddress: userWallet.address },
@@ -493,32 +488,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       },
       method: "POST"
     });
-    expect(registration.status).not.toBe(201);
-    expect(await RampState.findOne({ where: { quoteId: quote.id } })).toBeNull();
-  });
-
-  it("rejects a Squid route whose guaranteed minimum exceeds its estimate", async () => {
-    world.squidRouter.computeToAmount = () => parseUnits("989", 6).toString();
-    world.squidRouter.computeToAmountMin = () => parseUnits("999", 6).toString();
-    world.squidRouter.toTokenDecimals = 6;
-    const quoteCount = await QuoteTicket.count();
-
-    const response = await app.request("/v1/quotes", {
-      body: JSON.stringify({
-        from: Networks.Base,
-        inputAmount: "1000",
-        inputCurrency: EvmToken.USDT,
-        network: Networks.Polygon,
-        outputCurrency: FiatToken.MXN,
-        rampType: RampDirection.SELL,
-        to: "spei"
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST"
-    });
-
-    expect(response.status).not.toBe(201);
-    expect(await QuoteTicket.count()).toBe(quoteCount);
+    expect(registration.status).toBe(201);
+    expect(await RampState.findOne({ where: { quoteId: quote.id } })).toBeDefined();
   });
 
   it("does not persist an Alfredpay quote that expires before safe registration and signing", async () => {
@@ -568,101 +539,6 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       world.alfredpay.onCreateOfframpQuote = undefined;
       setSystemTime();
     }
-  });
-
-  it("returns positive Polygon USDT execution variance to the user's wallet", async () => {
-    const setup = await setUpRegisteredRamp();
-    const registered = await RampState.findByPk(setup.rampId);
-    expect(registered).toBeDefined();
-    if (!registered) throw new Error("missing registered AlfredPay cleanup state");
-    const cleanupUnsigned = registered?.unsignedTxs.find(tx => tx.phase === "polygonCleanupAxlUsdc");
-    expect(cleanupUnsigned).toBeDefined();
-    if (!cleanupUnsigned) throw new Error("missing AlfredPay Polygon cleanup blueprint");
-    const cleanupBlueprint = cleanupUnsigned.txData as unknown as EvmTxBlueprint;
-    const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
-    const residualRaw = parseUnits("10", ALFREDPAY_ERC20_DECIMALS);
-    expect(cleanupBlueprint.to.toLowerCase()).toBe(ALFREDPAY_ERC20_TOKEN.toLowerCase());
-    expect(decodeFunctionData({ abi: erc20Abi, data: cleanupBlueprint.data })).toEqual({
-      args: [fundingAddress, 2n ** 256n - 1n],
-      functionName: "approve"
-    });
-    const signedApproval = await setup.ephemeral.signTransaction({
-      chainId: 137,
-      data: cleanupBlueprint.data,
-      gas: BigInt(cleanupBlueprint.gas),
-      maxFeePerGas: BigInt(cleanupBlueprint.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
-      maxPriorityFeePerGas:
-        BigInt(cleanupBlueprint.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
-      nonce: cleanupUnsigned.nonce,
-      to: cleanupBlueprint.to,
-      type: "eip1559"
-    });
-    const driftedWallet = privateKeyToAccount(generatePrivateKey()).address;
-    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, residualRaw);
-    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.userWallet.address, 0n);
-    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, driftedWallet, 0n);
-
-    const handler = new PolygonPostProcessHandler() as unknown as {
-      getPresignedTransaction: () => { txData: `0x${string}` };
-      process(state: RampState): Promise<[boolean, Error | null]>;
-    };
-    handler.getPresignedTransaction = () => ({ txData: signedApproval });
-    registered.set({
-      currentPhase: "complete",
-      state: { ...registered.state, walletAddress: driftedWallet }
-    });
-    const [processed, error] = await handler.process(registered);
-
-    expect(processed).toBe(true);
-    expect(error).toBeNull();
-    expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address)).toBe(0n);
-    expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.userWallet.address)).toBe(residualRaw);
-    expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, driftedWallet)).toBe(0n);
-    expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress)).toBe(0n);
-  });
-
-  it("keeps legacy Polygon AXLUSDC cleanup directed to treasury", async () => {
-    const ephemeral = privateKeyToAccount(generatePrivateKey());
-    const userWallet = privateKeyToAccount(generatePrivateKey());
-    const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
-    const axlUsdc = evmTokenConfig[Networks.Polygon][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
-    expect(axlUsdc).toBeTruthy();
-    if (!axlUsdc) throw new Error("missing Polygon AXLUSDC test configuration");
-    const residualRaw = parseUnits("10", 6);
-    const signedApproval = await ephemeral.signTransaction({
-      chainId: 137,
-      data: encodeFunctionData({
-        abi: erc20Abi,
-        args: [fundingAddress, 2n ** 256n - 1n],
-        functionName: "approve"
-      }),
-      gas: 100_000n,
-      maxFeePerGas: 1_000_000_000n,
-      maxPriorityFeePerGas: 1_000_000_000n,
-      nonce: 1,
-      to: axlUsdc,
-      type: "eip1559"
-    });
-    world.evm.setErc20Balance(Networks.Polygon, axlUsdc, ephemeral.address, residualRaw);
-    world.evm.setErc20Balance(Networks.Polygon, axlUsdc, fundingAddress, 0n);
-
-    const handler = new PolygonPostProcessHandler() as unknown as {
-      getPresignedTransaction: () => { txData: `0x${string}` };
-      process(state: RampState): Promise<[boolean, Error | null]>;
-    };
-    handler.getPresignedTransaction = () => ({ txData: signedApproval });
-    const [processed, error] = await handler.process({
-      currentPhase: "complete",
-      id: "legacy-axlusdc-cleanup-test",
-      state: { evmEphemeralAddress: ephemeral.address, walletAddress: userWallet.address },
-      type: RampDirection.SELL
-    } as RampState);
-
-    expect(processed).toBe(true);
-    expect(error).toBeNull();
-    expect(world.evm.erc20Balance(Networks.Polygon, axlUsdc, ephemeral.address)).toBe(0n);
-    expect(world.evm.erc20Balance(Networks.Polygon, axlUsdc, fundingAddress)).toBe(residualRaw);
-    expect(world.evm.erc20Balance(Networks.Polygon, axlUsdc, userWallet.address)).toBe(0n);
   });
 
   it(
