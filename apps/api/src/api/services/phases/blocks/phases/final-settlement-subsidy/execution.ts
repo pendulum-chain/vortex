@@ -334,7 +334,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       try {
         const { hash: txHashIdx } = await this.runFinancialOperation(state, {
-          allowExistingRequestMismatch: true,
           attemptClass: "funding-swap",
           beforePerform: async () => {
             logger.info(
