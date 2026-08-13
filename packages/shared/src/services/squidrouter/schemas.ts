@@ -12,10 +12,6 @@ import type { SquidRouterPayResponse, SquidrouterRoute, SquidrouterRouteEstimate
 
 // Consumed subsets of the full shared types. Deriving them via Pick ties the schemas to
 // the types: renaming a consumed field in route.ts breaks compilation here.
-// aggregateSlippage is optional because getRoute reads it defensively (`estimate?.aggregateSlippage !== undefined`).
-type ConsumedRouteEstimate = Pick<SquidrouterRouteEstimate, "toAmount" | "toAmountMin" | "toToken"> &
-  Partial<Pick<SquidrouterRouteEstimate, "aggregateSlippage">>;
-type ConsumedRoute = Pick<SquidrouterRoute, "quoteId" | "transactionRequest"> & { estimate: ConsumedRouteEstimate };
 type ConsumedPayStatus = Pick<SquidRouterPayResponse, "isGMPTransaction" | "status">;
 
 const RAW_UNITS = /^\d+$/;
@@ -30,6 +26,7 @@ const squidrouterRouteEstimateSchema = z
     aggregateSlippage: z.number().optional(),
     toAmount: z.string().regex(RAW_UNITS),
     toAmountMin: z.string().regex(RAW_UNITS),
+    toAmountUSD: z.string().min(1),
     toToken: z.looseObject({ decimals: z.number().int().positive() })
   })
   .superRefine((estimate, ctx) => {
@@ -55,7 +52,7 @@ export const squidrouterRouteResponseSchema = z.looseObject({
       value: z.string().regex(RAW_UNITS)
     })
   })
-}) satisfies z.ZodType<{ route: ConsumedRoute }>;
+}) satisfies z.ZodType<{ route: SquidrouterRoute }>;
 
 /** The body of a GET /v2/status response. */
 export const squidrouterStatusResponseSchema = z.looseObject({

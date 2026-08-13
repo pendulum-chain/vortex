@@ -23,6 +23,8 @@ export class FakeSquidRouter {
   computeToAmount: (params: RouteParams) => string = params => params.fromAmount;
   /** Guaranteed raw destination amount. Default: the estimated amount. */
   computeToAmountMin: (params: RouteParams) => string = params => this.computeToAmount(params);
+  /** USD value returned with the route estimate. */
+  toAmountUsd = "1";
   toTokenDecimals = 18;
   failNextRoute: Error | null = null;
   readonly requestedRoutes: RouteParams[] = [];
@@ -42,6 +44,7 @@ export class FakeSquidRouter {
           estimate: {
             toAmount: this.computeToAmount(params),
             toAmountMin: this.computeToAmountMin(params),
+            toAmountUSD: this.toAmountUsd,
             toToken: { decimals: this.toTokenDecimals }
           },
           quoteId: "fake-squid-quote",
