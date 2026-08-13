@@ -7,6 +7,7 @@ import {
   AlfredpayKycStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
+import EmailNotification, { NotificationProvider, NotificationType } from "../models/emailNotification.model";
 import KycCase from "../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
@@ -23,6 +24,7 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 let api: TestApp;
 let fakeAuth: FakeSupabaseAuth;
 const realGetInstance = AlfredpayApiService.getInstance;
+const realNotificationFindOrCreate = EmailNotification.findOrCreate;
 
 beforeAll(async () => {
   await setupTestDatabase();
@@ -41,6 +43,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   AlfredpayApiService.getInstance = realGetInstance;
+  EmailNotification.findOrCreate = realNotificationFindOrCreate;
 });
 
 function authHeaders(token: string): Record<string, string> {
@@ -438,6 +441,59 @@ describe("Alfredpay KYB PENDING submission", () => {
     const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
     expect(customer?.status).toBe(VerificationStatus.Pending);
     expect(customer?.statusExternal).toBe("PENDING");
+  });
+
+  it("queues a terminal KYB outcome before getKycStatus stops polling the customer", async () => {
+    const { token, user } = await createBusinessCustomer("kyb-completed-status@example.com");
+
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED, updatedAt: "2026-08-06T10:00:00Z" })),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-completed" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/getKycStatus?country=CO&type=BUSINESS", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(200);
+
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    expect(customer?.status).toBe(VerificationStatus.Approved);
+
+    const notification = await EmailNotification.findOne({
+      where: {
+        provider: NotificationProvider.Alfredpay,
+        resourceId: "kyb-sub-completed",
+        type: NotificationType.VerificationApproved
+      }
+    });
+    expect(notification).not.toBeNull();
+    expect(notification?.userId).toBe(user.id);
+    expect(notification?.payload).toEqual({ reason: null, subject: "business", updatedAt: "2026-08-06T10:00:00Z" });
+  });
+
+  it("does not persist a terminal status when its notification cannot be enqueued", async () => {
+    const { token } = await createBusinessCustomer("kyb-enqueue-failure@example.com");
+    EmailNotification.findOrCreate = (async () => {
+      throw new Error("queue unavailable");
+    }) as unknown as typeof EmailNotification.findOrCreate;
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED, updatedAt: "2026-08-06T10:00:00Z" })),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-retry" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/getKycStatus?country=CO&type=BUSINESS", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(500);
+
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    expect(customer?.status).toBe(VerificationStatus.Started);
   });
 
   it("normalizes a lowercase provider status: re-submit updates the pending submission in place", async () => {

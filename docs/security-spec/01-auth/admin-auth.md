@@ -11,7 +11,11 @@ does not apply to it. The two surfaces are independent: an admin-console operato
 session does not grant `/v1/admin/*` access, and possession of `ADMIN_SECRET` does not by itself
 grant `/v1/admin-console/*` access (Invariant 8).
 
-Admin authentication protects internal/operational endpoints that can mutate system state or manage partners. It uses a single shared secret (`ADMIN_SECRET` env var) compared via Bearer token. Read-only access to client observability endpoints uses a separate `METRICS_DASHBOARD_SECRET` so a metrics token compromise does not grant broader admin access.
+Admin authentication protects internal/operational endpoints that can mutate system state,
+manage partners, or configure managed-profile managers. It uses a single shared secret
+(`ADMIN_SECRET` env var) compared via Bearer token. Read-only access to client
+observability endpoints uses a separate `METRICS_DASHBOARD_SECRET` so a metrics token
+compromise does not grant broader admin access.
 
 The flow:
 1. Admin includes `Authorization: Bearer <ADMIN_SECRET>` header
@@ -50,6 +54,9 @@ the shared credential; individual admin identities are out of scope for this cha
    exempt as a safety valve; removing `vortex_admin` atomically revokes every live
    impersonation session owned by that profile. The sanctioned grant path is
    `apps/api/scripts/grant-vortex-admin.ts`, run as `bun run grant:vortex-admin <email>`.
+9. **Only admin auth may configure managed-profile managers** — `PUT /v1/admin/managed-profile-managers/:profileId` creates or replaces activation and a non-empty set of supported corridors for an existing authenticated profile. It may also set `allowedCustomerTypes` to a non-empty, duplicate-free subset of `individual` and `business`; missing or null leaves customer types unrestricted beyond the canonical corridor capability matrix. `GET` reads that configuration. Deactivation uses `isActive = false`; configuration is retained rather than physically deleted.
+10. **Admin headless provisioning MUST remain separate from legacy managed-user provisioning** — `POST /v1/admin/managed-profile-managers/:profileId/managed-profiles` requires admin auth and invokes the shared null-login-email provisioning service with `creation_source = vortex`. It requires an immutable provider `contactEmail` separate from the child's login identity, and the manager path parameter must identify an active configured manager. This route MUST NOT reuse or alter legacy `POST /v1/admin/managed-profiles`, which provisions an email-backed Supabase identity.
+11. **Managed children MUST NOT become managers** — Manager configuration rejects `profiles.kind = managed`, preserving the direct, non-nested management model.
 
 ## Threat Vectors & Mitigations
 
@@ -77,3 +84,5 @@ the shared credential; individual admin identities are out of scope for this cha
 - [x] Error response for invalid admin token does not include the expected token or any hint about the secret — **PASS**
 - [x] Missing and invalid admin-auth attempts are logged with request IP/path; secret values are not logged. **PASS**
 - [x] `vortex_admin` cannot be granted via `POST /v1/admin/profile-roles` — **PASS**: `addProfileRole` returns `403 ROLE_NOT_HTTP_GRANTABLE` for `vortex_admin` (`profileRoles.controller.test.ts`); the sanctioned grant path is `scripts/grant-vortex-admin.ts`. See Invariant 8.
+- [x] Managed-profile manager configuration routes require `adminAuth`, validate non-empty duplicate-free corridor and optional customer-type sets, and retain deactivated configurations. **PASS**
+- [x] Admin headless provisioning requires `adminAuth`, targets an active configured manager, and remains distinct from legacy email-backed provisioning. **PASS**

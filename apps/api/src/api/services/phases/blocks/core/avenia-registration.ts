@@ -111,7 +111,7 @@ export async function createAveniaOnrampTicket(
   quote: { id: string },
   amount: string,
   dependencies: AveniaRegistrationDependencies = defaultDependencies()
-): Promise<{ brCode: string; aveniaTicketId: string }> {
+): Promise<{ brCode: string; aveniaTicketId: string; subAccountId: string }> {
   const aveniaCustomer = await dependencies.findAveniaCustomer(taxId);
   if (!aveniaCustomer) {
     throw new APIError({ message: "Subaccount not found.", status: httpStatus.BAD_REQUEST });
@@ -142,7 +142,7 @@ export async function createAveniaOnrampTicket(
     subAccountId
   );
 
-  return { aveniaTicketId: ticket.id, brCode: ticket.brCode };
+  return { aveniaTicketId: ticket.id, brCode: ticket.brCode, subAccountId };
 }
 
 export async function validateAveniaOfframpRecipient(

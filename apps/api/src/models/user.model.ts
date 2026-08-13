@@ -2,18 +2,22 @@ import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export interface UserAttributes {
-  id: string; // UUID from Supabase Auth
-  email: string;
+  id: string;
+  email: string | null;
+  kind: ProfileKind;
   activeCustomerEntityId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type UserCreationAttributes = Optional<UserAttributes, "activeCustomerEntityId" | "createdAt" | "updatedAt">;
+export type ProfileKind = "authenticated" | "managed";
+
+type UserCreationAttributes = Optional<UserAttributes, "kind" | "activeCustomerEntityId" | "createdAt" | "updatedAt">;
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
-  declare email: string;
+  declare email: string | null;
+  declare kind: ProfileKind;
   declare activeCustomerEntityId: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -39,15 +43,20 @@ User.init(
       type: DataTypes.DATE
     },
     email: {
-      allowNull: false,
+      allowNull: true,
       type: DataTypes.STRING(255),
       unique: true
     },
     id: {
       allowNull: false,
-      comment: "User ID from Supabase Auth (synced)",
+      comment: "Profile ID; authenticated profiles use the Supabase Auth user ID",
       primaryKey: true,
       type: DataTypes.UUID
+    },
+    kind: {
+      allowNull: false,
+      defaultValue: "authenticated",
+      type: DataTypes.STRING(20)
     },
     updatedAt: {
       allowNull: false,

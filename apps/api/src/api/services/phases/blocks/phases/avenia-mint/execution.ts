@@ -107,14 +107,18 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     if (!preparation.taxId) {
       throw new Error("BrlaOnrampMintExecutor: Missing Avenia tax ID in block state");
     }
-    const aveniaCustomer = await findAveniaCustomerByTaxId(preparation.taxId);
-    if (!aveniaCustomer) {
-      throw new APIError({
-        message: "Subaccount not found",
-        status: httpStatus.BAD_REQUEST
-      });
+    let aveniaSubAccountId = preparation.subAccountId;
+    if (!aveniaSubAccountId) {
+      // Compatibility fallback for ramps registered before subaccount identity was snapshotted.
+      const aveniaCustomer = await findAveniaCustomerByTaxId(preparation.taxId);
+      if (!aveniaCustomer) {
+        throw new APIError({
+          message: "Subaccount not found",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
     }
-    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
     // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.

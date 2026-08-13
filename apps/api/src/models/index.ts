@@ -4,9 +4,12 @@ import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
 import CustomerEntity from "./customerEntity.model";
+import EmailNotification from "./emailNotification.model";
 import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
+import ManagedProfile from "./managedProfile.model";
+import ManagedProfileManager from "./managedProfileManager.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -41,6 +44,9 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
 
+User.hasMany(EmailNotification, { as: "emailNotifications", foreignKey: "userId" });
+EmailNotification.belongsTo(User, { as: "user", foreignKey: "userId" });
+
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
@@ -61,6 +67,13 @@ User.hasOne(PartnerManagedProfile, { as: "managedProfile", foreignKey: "profileI
 PartnerManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
 Partner.hasMany(PartnerManagedProfile, { as: "managedProfiles", foreignKey: "partnerId" });
 PartnerManagedProfile.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
+User.hasOne(ManagedProfileManager, { as: "managedProfileManager", foreignKey: "profileId" });
+ManagedProfileManager.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+User.hasOne(ManagedProfile, { as: "managedProfileRelationship", foreignKey: "profileId" });
+ManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+ManagedProfileManager.hasMany(ManagedProfile, { as: "managedProfiles", foreignKey: "managerProfileId" });
+ManagedProfile.belongsTo(ManagedProfileManager, { as: "manager", foreignKey: "managerProfileId" });
 
 // Partner pricing split
 Partner.hasMany(PartnerPricingConfig, { as: "pricingConfigs", foreignKey: "partnerId" });
@@ -105,9 +118,12 @@ const models = {
   ApiClientEvent,
   ApiCredential,
   CustomerEntity,
+  EmailNotification,
   FinancialOperation,
   KycCase,
   MaintenanceSchedule,
+  ManagedProfile,
+  ManagedProfileManager,
   Notification,
   NotificationPreference,
   Partner,

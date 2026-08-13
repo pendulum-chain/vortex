@@ -86,6 +86,16 @@ describe("alfredpayQuoteResponseSchema", () => {
     expect(() => alfredpayQuoteResponseSchema.parse(body)).toThrow();
   });
 
+  test("rejects missing pricing fields consumed by quote metadata", () => {
+    const missingRate = validQuoteBody();
+    delete (missingRate as Record<string, unknown>).rate;
+    expect(() => alfredpayQuoteResponseSchema.parse(missingRate)).toThrow();
+
+    const missingFeeType = validQuoteBody();
+    delete (missingFeeType.fees[0] as Record<string, unknown>).type;
+    expect(() => alfredpayQuoteResponseSchema.parse(missingFeeType)).toThrow();
+  });
+
   test("rejects a non-decimal toAmount", () => {
     const body = validQuoteBody();
     body.toAmount = "28,75";

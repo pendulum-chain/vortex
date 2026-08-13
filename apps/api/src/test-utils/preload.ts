@@ -8,6 +8,7 @@
  */
 if (!process.env.RUN_LIVE_TESTS) {
   process.env.NODE_ENV = "test";
+  process.env.EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED ??= "true";
   process.env.DEPLOYMENT_ENV = "test";
   process.env.FLOW_VARIANT = process.env.FLOW_VARIANT || "mykobo";
 

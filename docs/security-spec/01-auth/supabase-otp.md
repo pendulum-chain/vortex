@@ -16,17 +16,20 @@ Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
 - **`optionalAuth`** — Attaches `userId` if a token is present and valid, continues anonymously only when the header is absent, returns `401` for a present invalid credential, and returns `503` when verification is indeterminate.
 
+Routes that accept either a Supabase session or a secret API credential verify the Bearer token through `requirePartnerOrUserAuth`, which applies the same outcome distinction: an indeterminate provider failure is `503`, never an internal error.
+
 ## Security Invariants
 
 1. **JWT verification MUST use authoritative Supabase Auth validation** — The API MUST call `SupabaseAuthService.verifyToken()` over a server-controlled channel. The configured Supabase project URL and anon key identify the trusted Auth project; the presented bearer token is authoritatively introspected by Supabase Auth. Service-role credentials are required only for operations that need service-role privileges and MUST NOT be a prerequisite merely to verify an access token.
 2. **Token extraction MUST require the `Bearer` prefix** — The middleware MUST reject tokens that don't start with `Bearer ` (note trailing space). Raw tokens in the header MUST be rejected.
 3. **`userId` MUST only be set by auth middleware** — No controller or service may set `req.userId` directly. It MUST originate exclusively from the middleware's JWT verification result.
 4. **Optional authentication MUST NOT downgrade a presented credential** — No authorization header on an anonymous-eligible route continues anonymously. A present malformed, invalid, expired, or revoked credential returns `401`; it MUST NOT be converted into an anonymous request.
-5. **Verification outcomes MUST remain distinct** — Missing credentials on protected routes and definitively invalid credentials return `401`; a valid identity without authority returns `403`; a provider/network failure that makes verification indeterminate returns `503`. Neither middleware may proceed anonymously after an indeterminate result.
+5. **Verification outcomes MUST remain distinct** — Missing credentials on protected routes and definitively invalid credentials return `401`; a valid identity without authority returns `403`; a provider/network failure that makes verification indeterminate returns `503`. Neither middleware may proceed anonymously after an indeterminate result. This distinction is a property of Bearer verification itself, so it holds identically on the dual-auth routes that accept a session or a secret credential; an indeterminate failure there MUST NOT surface as a `500`, which would tell callers nothing about whether the session is still good.
 6. **Auth errors MUST NOT leak token content** — Error responses use generic messages. Logs contain request ID, path, and an error category/message, but no full or truncated bearer-token fragment.
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
+10. **Managed profiles MUST NOT have an OTP identity** — `profiles.kind = managed` requires a null email and represents no Supabase Auth identity. Provisioning must never create or associate a Supabase user for a managed profile; bearer middleware continues to trust authoritative Supabase token validation.
 
 ## Threat Vectors & Mitigations
 
@@ -41,7 +44,7 @@ Two middleware variants exist:
 
 ## Audit Checklist
 
-- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) uses `requireAuth` (F-068 resolved); admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
+- [x] Auth middleware is applied to endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: `/v1/ramp/*`, managed BRLA/Alfredpay operations, limits, ramp info, and onboarding status use credential/session middleware with ownership and managed-relationship guards; email-bound Mykobo and Monerium remain on `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
 - [x] `SupabaseAuthService.verifyToken()` uses authoritative Supabase Auth validation without requiring service-role privilege — **PASS**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**

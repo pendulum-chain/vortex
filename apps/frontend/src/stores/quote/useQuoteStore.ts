@@ -75,7 +75,8 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.FailedToCalculatePreNablaDeductibleFees]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.UnsupportedCurrency]: "pages.swap.error.unsupportedCurrency",
-  [QuoteError.AnchorTemporarilyUnavailable]: "pages.swap.error.anchorUnavailable"
+  [QuoteError.AnchorTemporarilyUnavailable]: "pages.swap.error.anchorUnavailable",
+  [QuoteError.NetworkFeesTooHigh]: "pages.swap.error.networkFeesTooHigh"
 };
 
 function getFriendlyErrorMessage(error: unknown) {

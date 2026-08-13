@@ -61,7 +61,7 @@ function hashToken(token: string): string {
 export async function createSession(input: {
   actorProfileId: string;
   targetProfileId: string;
-}): Promise<{ token: string; session: AdminImpersonationSession; target: User }> {
+}): Promise<{ token: string; session: AdminImpersonationSession; target: User & { email: string } }> {
   if (!config.impersonationEnabled) {
     throw new ImpersonationDisabledError();
   }
@@ -87,8 +87,8 @@ export async function createSession(input: {
       User.findByPk(input.targetProfileId, { transaction }),
       ProfileRole.findOne({ transaction, where: { role: "vortex_admin", userId: input.actorProfileId } })
     ]);
-    if (!target) {
-      throw new ImpersonationTargetError("Target profile was not found");
+    if (!target || target.kind !== "authenticated" || !target.email) {
+      throw new ImpersonationTargetError("Target must be an authenticated profile");
     }
     if (!actorRole) {
       throw new ImpersonationActorError();
@@ -118,7 +118,7 @@ export async function createSession(input: {
       { transaction }
     );
 
-    return { session, target };
+    return { session, target: target as User & { email: string } };
   });
 
   return { session, target, token };
@@ -142,7 +142,7 @@ export async function resolveSession(token: string): Promise<ImpersonationContex
     User.findByPk(session.targetProfileId, { attributes: ["id", "email"] }),
     ProfileRole.findOne({ attributes: ["id"], where: { role: "vortex_admin", userId: session.actorProfileId } })
   ]);
-  if (!target || !actorRole) {
+  if (!target?.email || !actorRole) {
     return null;
   }
 

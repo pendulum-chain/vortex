@@ -2,6 +2,10 @@ import { mock } from "bun:test";
 import type { RouteParams } from "@vortexfi/shared";
 import * as shared from "@vortexfi/shared";
 
+// Snapshot before any mock.module call: bun mutates the imported namespace in place,
+// so restore() spreading `shared` afterwards would reinstall the fake, not the real fns.
+const sharedReal = { ...shared };
+
 /**
  * Fake SquidRouter route source. getRoute is a plain function export of
  * @vortexfi/shared (not a singleton), so it is replaced via mock.module with
@@ -74,7 +78,7 @@ export function installFakeSquidRouter(): { fakeSquidRouter: FakeSquidRouter; re
   return {
     fakeSquidRouter,
     restore: () => {
-      mock.module("@vortexfi/shared", () => ({ ...shared }));
+      mock.module("@vortexfi/shared", () => sharedReal);
     }
   };
 }

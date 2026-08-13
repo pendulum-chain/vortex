@@ -6,9 +6,10 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 /**
  * Golden tests for the quote pricing math. Every external input is pinned:
- * FakePrices rates (BRL 5/USD, USDC 1/USD), FakeBrla pay-in/pay-out rate 1,
- * and a scripted Nabla quoter at 0.18 USDC per BRLA. Under those inputs the
- * fee/output values below are pure functions of the pricing engines.
+ * FakePrices rates (BRL 5/USD, ETH 2,500/USD, USDC 1/USD), FakeEvm fees
+ * (1 gwei), FakeBrla pay-in/pay-out rate 1, and a scripted Nabla quoter at
+ * 0.18 USDC per BRLA. Under those inputs the fee/output values below are pure
+ * functions of the pricing engines.
  *
  * A diff here means the pricing math changed. If that is intentional, update
  * the goldens consciously and call out the fee impact in the PR description —
@@ -139,9 +140,9 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         inputAmount: "100.00",
         inputCurrency: "BRL",
         network: "base",
-        networkFeeFiat: "0",
-        networkFeeUsd: "0",
-        outputAmount: "17.982",
+        networkFeeFiat: "2.115",
+        networkFeeUsd: "0.423",
+        outputAmount: "17.559",
         outputCurrency: "USDC",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
@@ -150,8 +151,8 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         processingFeeUsd: "0.02",
         rampType: "BUY",
         to: "base",
-        totalFeeFiat: "0.10",
-        totalFeeUsd: "0.020000",
+        totalFeeFiat: "2.22",
+        totalFeeUsd: "0.443000",
         vortexFeeFiat: "0",
         vortexFeeUsd: "0"
       },

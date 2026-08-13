@@ -22,10 +22,10 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
 }
 
 export async function createPendulumEphemeral(): Promise<EphemeralAccount> {
+  await cryptoWaitReady();
   const seedPhrase = mnemonicGenerate();
 
   const keyring = new Keyring({ type: "sr25519" });
-  await cryptoWaitReady();
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
 
   return { address: ephemeralAccountKeypair.address, secret: seedPhrase };

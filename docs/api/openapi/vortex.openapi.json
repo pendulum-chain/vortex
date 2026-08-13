@@ -1,6 +1,24 @@
 {
   "components": {
+    "parameters": {
+      "ManagedProfileId": {
+        "description": "Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`.",
+        "in": "header",
+        "name": "X-Managed-Profile-Id",
+        "required": false,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      }
+    },
     "responses": {
+      "BrlaManagedSelectorForbidden": {
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/BrlaManagedBadRequestResponse" } }
+        },
+        "description": "The selected profile or the authenticated user does not own the requested Avenia resource."
+      },
       "InvalidInput": {
         "content": {
           "application/json": {
@@ -19,6 +37,18 @@
           }
         },
         "description": ""
+      },
+      "ManagedSelectorForbidden": {
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+        },
+        "description": "The authenticated profile cannot act for the selected managed profile."
+      },
+      "ManagedSelectorUnauthorized": {
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+        },
+        "description": "A valid secret API key or Bearer session is required."
       },
       "RecordNotFound": {
         "content": {
@@ -55,6 +85,335 @@
         },
         "required": ["address", "type"],
         "type": "object"
+      },
+      "AlfredpayAddFiatAccountRequest": {
+        "properties": {
+          "accountBankCode": { "type": "string" },
+          "accountName": { "type": "string" },
+          "accountNumber": { "type": "string" },
+          "accountType": { "type": "string" },
+          "bankCity": { "type": "string" },
+          "bankCountry": { "type": "string" },
+          "bankPostalCode": { "type": "string" },
+          "bankState": { "type": "string" },
+          "bankStreet": { "type": "string" },
+          "beneficiaryCity": { "type": "string" },
+          "beneficiaryCountry": { "type": "string" },
+          "beneficiaryPostalCode": { "type": "string" },
+          "beneficiaryState": { "type": "string" },
+          "beneficiaryStreet": { "type": "string" },
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "documentNumber": { "type": "string" },
+          "documentType": { "type": "string" },
+          "isExternal": { "type": "boolean" },
+          "routingNumber": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/AlfredpayFiatAccountType" }
+        },
+        "required": ["country", "type", "accountNumber"],
+        "type": "object"
+      },
+      "AlfredpayCountry": {
+        "enum": ["AR", "BO", "BR", "CL", "CN", "CO", "DO", "HK", "MX", "PE", "US"],
+        "type": "string"
+      },
+      "AlfredpayCountryAndCustomerTypeRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "type": { "$ref": "#/components/schemas/AlfredpayCustomerType" }
+        },
+        "required": ["country"],
+        "type": "object"
+      },
+      "AlfredpayCountryRequest": {
+        "properties": { "country": { "$ref": "#/components/schemas/AlfredpayCountry" } },
+        "required": ["country"],
+        "type": "object"
+      },
+      "AlfredpayCreateCustomerResponse": {
+        "properties": { "createdAt": { "format": "date-time", "type": "string" } },
+        "required": ["createdAt"],
+        "type": "object"
+      },
+      "AlfredpayCreateFiatAccountResponse": {
+        "properties": { "fiatAccountId": { "type": "string" } },
+        "required": ["fiatAccountId"],
+        "type": "object"
+      },
+      "AlfredpayCustomerType": {
+        "enum": ["INDIVIDUAL", "BUSINESS"],
+        "type": "string"
+      },
+      "AlfredpayErrorResponse": {
+        "properties": {
+          "error": { "type": "string" },
+          "fields": {
+            "items": {
+              "properties": { "field": { "type": "string" }, "message": { "type": "string" } },
+              "required": ["field", "message"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "AlfredpayFiatAccount": {
+        "additionalProperties": true,
+        "properties": {
+          "accountName": { "type": "string" },
+          "accountNumber": { "type": "string" },
+          "accountType": { "type": "string" },
+          "createdAt": { "format": "date-time", "type": "string" },
+          "customerId": { "type": "string" },
+          "fiatAccountId": { "type": "string" },
+          "routingNumber": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/AlfredpayFiatAccountType" }
+        },
+        "required": ["accountNumber", "accountType", "customerId", "fiatAccountId", "type"],
+        "type": "object"
+      },
+      "AlfredpayFiatAccountType": {
+        "enum": ["ACH", "ACH_BOL", "ACH_CHL", "ACH_DOM", "B89", "BANK_CN", "BANK_USA", "COELSA", "PIX", "SPEI"],
+        "type": "string"
+      },
+      "AlfredpayKybBusinessSummary": {
+        "properties": {
+          "relatedPersons": {
+            "items": {
+              "properties": { "idRelatedPerson": { "type": "string" } },
+              "required": ["idRelatedPerson"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["relatedPersons", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayKybFileUploadRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": {
+            "enum": [
+              "taxIdDocument",
+              "articlesIncorporation",
+              "proofAddress",
+              "shareholderRegistry",
+              "businessLicense",
+              "uploadAmlPolicy"
+            ],
+            "type": "string"
+          },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "file", "fileType", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayKybRelatedPerson": {
+        "properties": {
+          "cpf": { "type": "string" },
+          "dateOfBirth": { "format": "date", "type": "string" },
+          "dni": { "type": "string" },
+          "email": { "format": "email", "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "nationalities": { "items": { "type": "string" }, "type": "array" },
+          "pep": { "type": "boolean" }
+        },
+        "required": ["firstName", "lastName", "email", "dateOfBirth", "nationalities"],
+        "type": "object"
+      },
+      "AlfredpayKycFileUploadRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": { "enum": ["National ID Front", "National ID Back", "Selfie"], "type": "string" },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "file", "fileType", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayKycStatusResponse": {
+        "properties": {
+          "alfred_pay_id": { "type": "string" },
+          "country": { "type": "string" },
+          "lastFailure": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/AlfredpayStatus" },
+          "updated_at": { "format": "date-time", "type": "string" }
+        },
+        "required": ["alfred_pay_id", "country", "status", "updated_at"],
+        "type": "object"
+      },
+      "AlfredpayManagedBadRequestResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/AlfredpayErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
+      },
+      "AlfredpayRedirectLinkResponse": {
+        "properties": {
+          "submissionId": { "type": "string" },
+          "verification_url": { "format": "uri", "type": "string" }
+        },
+        "required": ["submissionId", "verification_url"],
+        "type": "object"
+      },
+      "AlfredpayRelatedPersonFileUploadRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "file": { "format": "binary", "type": "string" },
+          "fileType": { "enum": ["docFront", "docBack"], "type": "string" },
+          "relatedPersonId": { "type": "string" }
+        },
+        "required": ["country", "file", "fileType", "relatedPersonId"],
+        "type": "object"
+      },
+      "AlfredpaySendSubmissionRequest": {
+        "properties": {
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "submissionId": { "type": "string" }
+        },
+        "required": ["country", "submissionId"],
+        "type": "object"
+      },
+      "AlfredpayStatus": {
+        "enum": ["CONSULTED", "LINK_OPENED", "USER_COMPLETED", "VERIFYING", "FAILED", "SUCCESS", "UPDATE_REQUIRED"],
+        "type": "string"
+      },
+      "AlfredpayStatusResponse": {
+        "properties": {
+          "country": { "type": "string" },
+          "creationTime": { "format": "date-time", "type": "string" },
+          "status": { "$ref": "#/components/schemas/AlfredpayStatus" }
+        },
+        "required": ["country", "creationTime", "status"],
+        "type": "object"
+      },
+      "AlfredpaySubmissionResponse": {
+        "properties": { "submissionId": { "type": "string" } },
+        "required": ["submissionId"],
+        "type": "object"
+      },
+      "AlfredpaySubmitKybInformationRequest": {
+        "allOf": [
+          {
+            "if": {
+              "properties": { "transmitsCustomerFunds": { "const": true } },
+              "required": ["transmitsCustomerFunds"]
+            },
+            "then": { "required": ["conductsComplianceScreening"] }
+          },
+          {
+            "if": {
+              "properties": { "conductsComplianceScreening": { "const": true } },
+              "required": ["conductsComplianceScreening"]
+            },
+            "then": {
+              "properties": {
+                "complianceScreeningDescription": { "minLength": 1, "pattern": ".*\\S.*", "type": "string" }
+              },
+              "required": ["complianceScreeningDescription"]
+            }
+          }
+        ],
+        "properties": {
+          "accountPurpose": { "minLength": 1, "pattern": ".*\\S.*", "type": "string" },
+          "address": { "type": "string" },
+          "businessActivities": { "minLength": 1, "pattern": ".*\\S.*", "type": "string" },
+          "businessName": { "type": "string" },
+          "city": { "type": "string" },
+          "complianceScreeningDescription": { "type": "string" },
+          "conductsComplianceScreening": { "type": "boolean" },
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "expectedMonthlyTransactions": { "minimum": 0, "type": "integer" },
+          "expectedMonthlyVolumeUsd": { "minimum": 0, "type": "number" },
+          "isRegulatedBusiness": { "type": "boolean" },
+          "operatesInSanctionedCountries": { "type": "boolean" },
+          "relatedPersons": { "items": { "$ref": "#/components/schemas/AlfredpayKybRelatedPerson" }, "type": "array" },
+          "sourceOfFunds": { "minLength": 1, "pattern": ".*\\S.*", "type": "string" },
+          "state": { "type": "string" },
+          "taxId": { "type": "string" },
+          "transmitsCustomerFunds": { "type": "boolean" },
+          "walletAddresses": { "minLength": 1, "pattern": ".*\\S.*", "type": "string" },
+          "website": { "type": "string" },
+          "zipCode": { "type": "string" }
+        },
+        "required": [
+          "businessName",
+          "taxId",
+          "country",
+          "address",
+          "state",
+          "city",
+          "zipCode",
+          "website",
+          "relatedPersons",
+          "walletAddresses",
+          "sourceOfFunds",
+          "transmitsCustomerFunds",
+          "operatesInSanctionedCountries",
+          "isRegulatedBusiness",
+          "businessActivities",
+          "accountPurpose",
+          "expectedMonthlyVolumeUsd",
+          "expectedMonthlyTransactions"
+        ],
+        "type": "object"
+      },
+      "AlfredpaySubmitKycInformationRequest": {
+        "allOf": [
+          {
+            "if": { "properties": { "country": { "const": "AR" } }, "required": ["country"] },
+            "then": {
+              "properties": {
+                "cuit": { "pattern": "^\\d{11}$", "type": "string" },
+                "nationalities": {
+                  "items": { "pattern": "^[A-Z]{2}$", "type": "string" },
+                  "type": "array"
+                },
+                "phoneNumber": { "pattern": "^\\+54", "type": "string" }
+              },
+              "required": ["phoneNumber", "pep"]
+            }
+          }
+        ],
+        "properties": {
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "country": { "$ref": "#/components/schemas/AlfredpayCountry" },
+          "countryCode": { "type": "string" },
+          "cuit": { "type": "string" },
+          "dateOfBirth": { "format": "date", "type": "string" },
+          "dni": { "type": "string" },
+          "email": { "format": "email", "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "nationalities": { "items": { "type": "string" }, "type": "array" },
+          "pep": { "type": "boolean" },
+          "phoneNumber": { "type": "string" },
+          "state": { "type": "string" },
+          "typeDocument": { "type": "string" },
+          "typeDocumentAr": { "enum": ["DNI"], "type": "string" },
+          "typeDocumentCol": { "enum": ["CC", "CE"], "type": "string" },
+          "zipCode": { "type": "string" }
+        },
+        "required": ["firstName", "lastName", "dateOfBirth", "country", "city", "state", "zipCode", "address", "dni"],
+        "type": "object"
+      },
+      "AlfredpaySuccessResponse": {
+        "properties": { "success": { "const": true, "type": "boolean" } },
+        "required": ["success"],
+        "type": "object"
+      },
+      "AlfredpayValidationBadRequestResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/AlfredpayErrorResponse" },
+          { "$ref": "#/components/schemas/ApiValidationErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
       },
       "ApiCredential": {
         "properties": {
@@ -118,6 +477,28 @@
           }
         },
         "required": ["error"],
+        "type": "object"
+      },
+      "ApiCredentialManagedSelectorErrorResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/ApiCredentialErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
+      },
+      "ApiValidationErrorResponse": {
+        "properties": {
+          "code": { "type": "integer" },
+          "errors": {
+            "items": {
+              "properties": { "message": { "type": "string" } },
+              "required": ["message"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": { "type": "string" }
+        },
+        "required": ["code", "message"],
         "type": "object"
       },
       "AveniaDocumentType": {
@@ -216,6 +597,12 @@
         "required": ["id", "livenessUrl", "uploadURLFront", "validateLivenessToken"],
         "type": "object"
       },
+      "BrlaManagedBadRequestResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/BrlaErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
+      },
       "BrlaValidatePixKeyResponse": {
         "properties": {
           "valid": {
@@ -245,7 +632,11 @@
             "format": "date-time",
             "type": "string"
           },
-          "name": { "default": "API Credential", "maxLength": 100, "type": "string" }
+          "name": {
+            "description": "Optional credential display name. The server uses `API Credential` when omitted.",
+            "maxLength": 100,
+            "type": "string"
+          }
         },
         "type": "object"
       },
@@ -315,6 +706,25 @@
           }
         },
         "required": ["rampType", "inputAmount", "inputCurrency", "outputCurrency"],
+        "type": "object"
+      },
+      "CreateManagedProfileRequest": {
+        "properties": {
+          "contactEmail": {
+            "description": "Provider contact email. It is normalized to lowercase and remains permanently reserved within the manager, including after deletion.",
+            "format": "email",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "customerType": { "enum": ["individual", "business"], "type": "string" },
+          "externalSubjectId": {
+            "description": "Immutable idempotency key for this subject within the authenticated manager.",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["contactEmail", "customerType", "externalSubjectId"],
         "type": "object"
       },
       "CreateQuoteRequest": {
@@ -457,6 +867,12 @@
         "required": ["id", "uploadURLFront"],
         "type": "object"
       },
+      "ErrorManagedSelectorResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/ErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
+      },
       "ErrorResponse": {
         "properties": {
           "code": {
@@ -488,6 +904,17 @@
       "FiatToken": {
         "enum": ["EUR", "ARS", "BRL", "USD", "MXN", "COP"],
         "type": "string"
+      },
+      "FlatErrorResponse": {
+        "properties": { "error": { "type": "string" } },
+        "required": ["error"],
+        "type": "object"
+      },
+      "FlatManagedSelectorErrorResponse": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/FlatErrorResponse" },
+          { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" }
+        ]
       },
       "GetKycStatusResponse": {
         "properties": {
@@ -745,6 +1172,24 @@
         "enum": ["RG", "CNH"],
         "type": "string"
       },
+      "KybAttemptStatusResponse": {
+        "properties": {
+          "failureReason": { "enum": ["face", "name", "birthdate", "unknown", "tax_id"], "type": "string" },
+          "result": { "enum": ["APPROVED", "REJECTED"], "type": "string" },
+          "status": { "enum": ["PENDING", "PROCESSING", "COMPLETED", "EXPIRED"], "type": "string" }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
+      "KybLevel1Response": {
+        "properties": {
+          "attemptId": { "type": "string" },
+          "authorizedRepresentativeUrl": { "format": "uri", "type": "string" },
+          "basicCompanyDataUrl": { "format": "uri", "type": "string" }
+        },
+        "required": ["attemptId", "authorizedRepresentativeUrl", "basicCompanyDataUrl"],
+        "type": "object"
+      },
       "KycLevel1Payload": {
         "properties": {
           "city": {
@@ -825,10 +1270,203 @@
         "required": ["credentials"],
         "type": "object"
       },
+      "ListManagedProfilesResponse": {
+        "properties": {
+          "managedProfiles": {
+            "items": { "$ref": "#/components/schemas/ManagedProfile" },
+            "type": "array"
+          },
+          "pagination": { "$ref": "#/components/schemas/ManagedProfilePagination" }
+        },
+        "required": ["managedProfiles", "pagination"],
+        "type": "object"
+      },
+      "ManagedProfile": {
+        "properties": {
+          "contactEmail": {
+            "description": "Normalized immutable provider contact email. It is not a Supabase login identity.",
+            "format": "email",
+            "type": ["string", "null"]
+          },
+          "createdAt": { "format": "date-time", "type": "string" },
+          "creationSource": { "enum": ["manager", "vortex"], "type": "string" },
+          "customerType": { "enum": ["individual", "business"], "type": "string" },
+          "deletedAt": { "format": "date-time", "type": ["string", "null"] },
+          "externalSubjectId": {
+            "description": "Immutable manager-scoped subject identifier.",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "profileId": { "format": "uuid", "type": "string" },
+          "status": { "enum": ["active", "deleted"], "type": "string" },
+          "updatedAt": { "format": "date-time", "type": "string" }
+        },
+        "required": [
+          "contactEmail",
+          "createdAt",
+          "creationSource",
+          "customerType",
+          "deletedAt",
+          "externalSubjectId",
+          "profileId",
+          "status",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ManagedProfileErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable error code. Managed-profile lifecycle codes include `MANAGED_PROFILE_INVALID_INPUT`, `MANAGED_PROFILE_ACCESS_DENIED`, `MANAGED_PROFILE_NOT_FOUND`, `MANAGED_PROFILE_CONFLICT`, `MANAGED_PROFILE_MANAGER_NOT_FOUND`, and `MANAGED_PROFILE_MANAGER_INACTIVE`. Credential codes include `INVALID_CREDENTIAL_NAME`, `INVALID_CREDENTIAL_EXPIRY`, `CREDENTIAL_ACCESS_DENIED`, `CREDENTIAL_NOT_FOUND`, and `CREDENTIAL_LIMIT_REACHED`. Authentication middleware may return `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `INVALID_PUBLIC_KEY`, or `CREDENTIAL_MISMATCH`.",
+                "type": "string"
+              },
+              "message": { "type": "string" },
+              "status": { "type": "integer" }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "ManagedProfilePagination": {
+        "properties": {
+          "limit": { "maximum": 100, "minimum": 1, "type": "integer" },
+          "offset": { "minimum": 0, "type": "integer" },
+          "total": { "minimum": 0, "type": "integer" }
+        },
+        "required": ["limit", "offset", "total"],
+        "type": "object"
+      },
+      "ManagedProfileResponse": {
+        "properties": {
+          "managedProfile": { "$ref": "#/components/schemas/ManagedProfile" }
+        },
+        "required": ["managedProfile"],
+        "type": "object"
+      },
+      "ManagedSelectorErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, or `MANAGED_PROFILE_ACCESS_DENIED`.",
+                "type": "string"
+              },
+              "message": { "type": "string" },
+              "status": { "type": "integer" }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
       "Networks": {
         "description": "Supported blockchain networks.",
         "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
         "type": "string"
+      },
+      "OnboardingStatusErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": { "const": "INTERNAL_SERVER_ERROR", "type": "string" },
+              "message": { "const": "Failed to read onboarding status", "type": "string" },
+              "status": { "const": 500, "type": "integer" }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "OnboardingStatusResponse": {
+        "properties": {
+          "activeEntityId": { "format": "uuid", "type": ["string", "null"] },
+          "entities": {
+            "items": {
+              "properties": {
+                "accounts": {
+                  "items": {
+                    "properties": {
+                      "companyName": { "type": ["string", "null"] },
+                      "country": { "type": ["string", "null"] },
+                      "customerType": { "enum": ["individual", "business"], "type": "string" },
+                      "error": {
+                        "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+                        "required": ["code", "message"],
+                        "type": ["object", "null"]
+                      },
+                      "id": { "format": "uuid", "type": "string" },
+                      "kycCase": {
+                        "properties": {
+                          "approvedAt": { "format": "date-time", "type": ["string", "null"] },
+                          "failureReasons": { "items": { "type": "string" }, "type": ["array", "null"] },
+                          "level": { "type": ["string", "null"] },
+                          "rejectedAt": { "format": "date-time", "type": ["string", "null"] },
+                          "status": { "enum": ["pending", "started", "in_review", "approved", "rejected"], "type": "string" },
+                          "statusExternal": { "type": ["string", "null"] },
+                          "submittedAt": { "format": "date-time", "type": ["string", "null"] },
+                          "type": { "enum": ["kyc", "kyb"], "type": "string" }
+                        },
+                        "required": [
+                          "approvedAt",
+                          "failureReasons",
+                          "level",
+                          "rejectedAt",
+                          "status",
+                          "statusExternal",
+                          "submittedAt",
+                          "type"
+                        ],
+                        "type": ["object", "null"]
+                      },
+                      "provider": { "enum": ["alfredpay", "avenia", "monerium", "mykobo"], "type": "string" },
+                      "rail": { "type": ["string", "null"] },
+                      "state": { "enum": ["pending", "started", "in_review", "approved", "rejected"], "type": "string" },
+                      "status": { "enum": ["pending", "started", "in_review", "approved", "rejected"], "type": "string" },
+                      "statusExternal": { "type": ["string", "null"] },
+                      "taxReference": { "type": ["string", "null"] }
+                    },
+                    "required": [
+                      "companyName",
+                      "country",
+                      "customerType",
+                      "error",
+                      "id",
+                      "kycCase",
+                      "provider",
+                      "rail",
+                      "state",
+                      "status",
+                      "statusExternal",
+                      "taxReference"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "id": { "format": "uuid", "type": "string" },
+                "status": { "enum": ["active", "archived", "blocked"], "type": "string" },
+                "type": { "enum": ["individual", "business"], "type": "string" }
+              },
+              "required": ["accounts", "id", "status", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roles": { "items": { "type": "string" }, "type": "array" },
+          "selectionRequired": { "type": "boolean" }
+        },
+        "required": ["activeEntityId", "entities", "roles", "selectionRequired"],
+        "type": "object"
       },
       "OnChainToken": {
         "enum": ["USDC", "USDT", "ETH", "USDC.E"],
@@ -1499,12 +2137,770 @@
     }
   },
   "info": {
-    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**API credentials:** one credential contains a public (`pk_*`) and secret (`sk_*`) value for one profile subject. Send public values through `X-Public-Key` and server-side secret values through `X-API-Key`. If both are sent, they must belong to the same credential or the request returns `403 CREDENTIAL_MISMATCH`. Public capability is limited to attribution and explicitly sanitized reads; secret capability is required for sensitive and state-changing partner operations.\n\n`Authorization: Bearer <Supabase JWT>` represents a first-party user session and is required for profile-managed credential lifecycle endpoints.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**API credentials:** one credential contains a public (`pk_*`) and secret (`sk_*`) value for one profile subject. Send public values through `X-Public-Key` and server-side secret values through `X-API-Key`. If both are sent, they must belong to the same credential or the request returns `403 CREDENTIAL_MISMATCH`. Public capability is limited to attribution and explicitly sanitized reads; secret capability is required for sensitive and state-changing partner operations.\n\n`Authorization: Bearer <Supabase JWT>` represents a first-party user session. It is required for a profile's own credential lifecycle and is accepted as an alternative to a manager secret key for managed-profile lifecycle operations.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
     "title": "Vortex API",
     "version": "1.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/alfredpay/alfredpayStatus": {
+      "get": {
+        "description": "Returns the local Alfredpay onboarding state after refreshing the latest provider submission when available.",
+        "operationId": "getAlfredpayStatus",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayStatusResponse" } } },
+            "description": "Customer status returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid or missing country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Status refresh failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay customer status",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/createBusinessCustomer": {
+      "post": {
+        "description": "Creates a business Alfredpay customer for the effective profile. Managed profiles use their immutable contact email.",
+        "operationId": "createAlfredpayBusinessCustomer",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCountryRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerResponse" } } },
+            "description": "Business customer created."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "409": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "An upstream customer exists with a conflicting country or type."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Customer creation failed."
+          },
+          "502": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay returned an invalid existing-customer response."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create a business Alfredpay customer",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/createIndividualCustomer": {
+      "post": {
+        "description": "Creates an individual Alfredpay customer for the effective profile. Managed profiles use their immutable contact email.",
+        "operationId": "createAlfredpayIndividualCustomer",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCountryRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateCustomerResponse" } } },
+            "description": "Customer created."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "409": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "An upstream customer exists with a conflicting country or type."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Customer creation failed."
+          },
+          "502": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay returned an invalid existing-customer response."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create an individual Alfredpay customer",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/fiatAccounts": {
+      "get": {
+        "description": "Lists payout fiat accounts for the effective Alfredpay customer.",
+        "operationId": "listAlfredpayFiatAccounts",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "items": { "$ref": "#/components/schemas/AlfredpayFiatAccount" }, "type": "array" }
+              }
+            },
+            "description": "Fiat accounts returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Account lookup failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "List Alfredpay fiat accounts",
+        "tags": ["Account Management"]
+      },
+      "post": {
+        "description": "Creates a payout fiat account for the effective Alfredpay customer. Required optional fields depend on the selected account type and corridor.",
+        "operationId": "createAlfredpayFiatAccount",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayAddFiatAccountRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCreateFiatAccountResponse" } }
+            },
+            "description": "Fiat account created."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, account details, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Account creation failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create an Alfredpay fiat account",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/fiatAccounts/{fiatAccountId}": {
+      "delete": {
+        "description": "Deletes one payout fiat account belonging to the effective Alfredpay customer.",
+        "operationId": "deleteAlfredpayFiatAccount",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "path", "name": "fiatAccountId", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "204": { "description": "Fiat account deleted." },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, provider rejection, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Account deletion failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Delete an Alfredpay fiat account",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/findKybCustomerAndBusiness": {
+      "get": {
+        "description": "Returns only KYB submission IDs and related-person IDs needed for document uploads.",
+        "operationId": "findAlfredpayKybCustomerAndBusiness",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "items": { "$ref": "#/components/schemas/AlfredpayKybBusinessSummary" }, "type": "array" }
+              }
+            },
+            "description": "KYB submission and related-person IDs returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Lookup failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Find Alfredpay KYB submission details",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/getKybRedirectLink": {
+      "get": {
+        "description": "Creates a hosted business KYB redirect link when no verification is already in review or complete.",
+        "operationId": "getAlfredpayKybRedirectLink",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" } } },
+            "description": "KYB redirect link returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, KYB already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Redirect-link creation failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get an Alfredpay KYB redirect link",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/getKycRedirectLink": {
+      "get": {
+        "description": "Creates a hosted individual KYC redirect link when no verification is already in review or complete.",
+        "operationId": "getAlfredpayKycRedirectLink",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" } } },
+            "description": "KYC redirect link returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, KYC already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Redirect-link creation failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get an Alfredpay KYC redirect link",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/getKycStatus": {
+      "get": {
+        "description": "Returns and persists the latest KYC or KYB submission status. Omit `type` for individual KYC.",
+        "operationId": "getAlfredpayKycStatus",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "country", "required": true, "schema": { "$ref": "#/components/schemas/AlfredpayCountry" } },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/AlfredpayCustomerType" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayKycStatusResponse" } } },
+            "description": "Verification status returned."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Customer or verification attempt not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Status lookup failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Alfredpay KYC or KYB status",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/kycRedirectFinished": {
+      "post": {
+        "description": "Records that the effective customer finished the hosted KYC or KYB redirect flow.",
+        "operationId": "markAlfredpayKycRedirectFinished",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCountryAndCustomerTypeRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "Redirect state recorded."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "State update failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Mark an Alfredpay redirect finished",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/kycRedirectOpened": {
+      "post": {
+        "description": "Records that the effective customer's hosted KYC or KYB redirect was opened.",
+        "operationId": "markAlfredpayKycRedirectOpened",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCountryAndCustomerTypeRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "Redirect state recorded."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "State update failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Mark an Alfredpay redirect opened",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/retryKyc": {
+      "post": {
+        "description": "Retries a failed KYC or KYB submission. Hosted flows return a redirect link; API-based MX, CO, and AR individual KYC returns `{ success: true }`.",
+        "operationId": "retryAlfredpayKyc",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayCountryAndCustomerTypeRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/AlfredpayRedirectLinkResponse" },
+                    { "$ref": "#/components/schemas/AlfredpaySuccessResponse" }
+                  ]
+                }
+              }
+            },
+            "description": "Retry initialized."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "No failed submission is available, the selector UUID is invalid, or the managed-profile customer type mismatches."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Retry failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Retry Alfredpay KYC or KYB",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/sendKybSubmission": {
+      "post": {
+        "description": "Finalizes an API-based business KYB submission.",
+        "operationId": "sendAlfredpayKybSubmission",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySendSubmissionRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "KYB submission sent."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Submission finalization failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Send an Alfredpay KYB submission",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/sendKycSubmission": {
+      "post": {
+        "description": "Finalizes an API-based individual KYC submission.",
+        "operationId": "sendAlfredpayKycSubmission",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySendSubmissionRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "KYC submission sent."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Submission finalization failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Send an Alfredpay KYC submission",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/submitKybFile": {
+      "post": {
+        "description": "Uploads one business KYB document. Files are buffered in memory and limited to 5 MiB.",
+        "operationId": "submitAlfredpayKybFile",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayKybFileUploadRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Upload failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload an Alfredpay KYB file",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/submitKybInformation": {
+      "post": {
+        "description": "Creates or updates an API-based business KYB submission, including Alfredpay's compliance questionnaire.",
+        "operationId": "submitAlfredpayKybInformation",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySubmitKybInformationRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySubmissionResponse" } } },
+            "description": "KYB information accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayValidationBadRequestResponse" } }
+            },
+            "description": "Invalid country, company data, questionnaire, selector UUID, or managed-profile customer type."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "409": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "KYB is already in review or complete."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Submission failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Submit Alfredpay KYB information",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/submitKybRelatedPersonFile": {
+      "post": {
+        "description": "Uploads the front or back identity document for one KYB related person. Files are limited to 5 MiB.",
+        "operationId": "submitAlfredpayKybRelatedPersonFile",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayRelatedPersonFileUploadRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay business customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Upload failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload a related-person KYB file",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/submitKycFile": {
+      "post": {
+        "description": "Uploads one individual KYC document. Files are buffered in memory and limited to 5 MiB.",
+        "operationId": "submitAlfredpayKycFile",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AlfredpayKycFileUploadRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySuccessResponse" } } },
+            "description": "File uploaded."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayManagedBadRequestResponse" } }
+            },
+            "description": "Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Upload failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Upload an Alfredpay KYC file",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/alfredpay/submitKycInformation": {
+      "post": {
+        "description": "Creates or resumes an API-based individual KYC submission.",
+        "operationId": "submitAlfredpayKycInformation",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySubmitKycInformationRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpaySubmissionResponse" } } },
+            "description": "KYC information accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayValidationBadRequestResponse" } }
+            },
+            "description": "Invalid country, KYC fields, selector UUID, or managed-profile customer type."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Alfredpay customer not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AlfredpayErrorResponse" } } },
+            "description": "Submission failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Submit Alfredpay KYC information",
+        "tags": ["Account Management"]
+      }
+    },
     "/v1/api-credentials": {
       "get": {
         "deprecated": false,
@@ -1862,9 +3258,9 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "createSubaccount",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1891,13 +3287,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
             "description": "Bad Request. Possible reasons:\n- Missing required fields (cpf, cnpj, companyName, startDate)\n- Subaccount already created and KYC level > 0\n- Other invalid request details",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "500": {
             "content": {
               "application/json": {
@@ -1910,7 +3308,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create user or retry KYC",
         "tags": ["Account Management"]
       }
@@ -1918,9 +3316,10 @@
     "/v1/brla/getKycStatus": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "fetchSubaccountKycStatus",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The user's Tax ID.",
             "in": "query",
@@ -1947,13 +3346,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
             "description": "Missing taxId or subaccount not found (returned as 400 from code).",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "404": {
             "content": {
               "application/json": {
@@ -1977,7 +3378,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's KYC status",
         "tags": ["Account Management"]
       }
@@ -1985,9 +3386,10 @@
     "/v1/brla/getSelfieLivenessUrl": {
       "get": {
         "deprecated": false,
-        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaGetSelfieLivenessUrl",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "CPF or CNPJ.",
             "in": "query",
@@ -2014,7 +3416,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
@@ -2022,10 +3424,9 @@
             "headers": {}
           },
           "401": {
-            "content": {},
-            "description": "Supabase Bearer required.",
-            "headers": {}
+            "$ref": "#/components/responses/ManagedSelectorUnauthorized"
           },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "500": {
             "content": {
               "application/json": {
@@ -2038,7 +3439,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get selfie liveness URL",
         "tags": ["Account Management"]
       }
@@ -2046,8 +3447,9 @@
     "/v1/brla/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaGetUploadUrls",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2074,13 +3476,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
             "description": "Missing/invalid documentType or taxId; or ramp disabled for this tax ID.",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "500": {
             "content": {
               "application/json": {
@@ -2093,7 +3497,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get KYC document upload URLs",
         "tags": ["Account Management"]
       }
@@ -2101,14 +3505,16 @@
     "/v1/brla/getUser": {
       "get": {
         "deprecated": false,
-        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUser",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
-            "description": "The user's Tax ID.",
+            "deprecated": true,
+            "description": "Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.",
             "in": "query",
             "name": "taxId",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -2130,13 +3536,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing taxId query parameter\n- KYC invalid",
+            "description": "Missing/invalid authentication, ambiguous canonical Avenia account, or invalid KYC state.",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "404": {
             "content": {
               "application/json": {
@@ -2160,7 +3568,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user information",
         "tags": ["Account Management"]
       }
@@ -2168,17 +3576,26 @@
     "/v1/brla/getUserRemainingLimit": {
       "get": {
         "deprecated": false,
-        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "description": "Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.",
         "operationId": "getBrlaUserRemainingLimit",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
-            "description": "The user's Tax ID.",
+            "deprecated": true,
+            "description": "Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.",
             "in": "query",
             "name": "taxId",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Ramp direction whose remaining BRL limit should be returned.",
+            "in": "query",
+            "name": "direction",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RampDirection" }
           }
         ],
         "responses": {
@@ -2197,13 +3614,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
-            "description": "Missing taxId query parameter or other invalid request.",
+            "description": "Missing direction, missing/invalid authentication, ambiguous canonical Avenia account, or other invalid request.",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "404": {
             "content": {
               "application/json": {
@@ -2227,16 +3646,129 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user's remaining transaction limits",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/kyb/attempt-status": {
+      "get": {
+        "description": "Refreshes an owned Avenia KYB attempt and persists its normalized verification state.",
+        "operationId": "getAveniaKybAttemptStatus",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "attemptId", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KybAttemptStatusResponse" } } },
+            "description": "KYB attempt status returned."
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaManagedBadRequestResponse" } } },
+            "description": "Missing attempt ID, invalid selector UUID, or authentication subject."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "KYB attempt or account not found."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "Status refresh failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get Avenia KYB attempt status",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/kyb/new-level-1/web-sdk": {
+      "post": {
+        "description": "Starts or resumes Avenia's hosted KYB level-1 flow for an owned company subaccount.",
+        "operationId": "initiateAveniaKybLevel1",
+        "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
+          { "in": "query", "name": "subAccountId", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KybLevel1Response" } } },
+            "description": "Hosted KYB attempt and step URLs returned."
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaManagedBadRequestResponse" } } },
+            "description": "Missing subaccount, non-company account, invalid selector UUID, customer-type mismatch, or invalid request."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
+          "404": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "Subaccount not found."
+          },
+          "409": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "Company is approved or a non-resumable KYB attempt is in progress."
+          },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "KYB initialization failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Start Avenia hosted KYB",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/kyc/record-attempt": {
+      "post": {
+        "description": "Records the first observed KYC attempt for a CPF or CNPJ when no provider-customer record exists yet.",
+        "operationId": "recordAveniaInitialKycAttempt",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "quoteId": { "type": "string" },
+                  "sessionId": { "type": "string" },
+                  "taxId": { "type": "string" }
+                },
+                "required": ["quoteId", "taxId"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "additionalProperties": false, "type": "object" } } },
+            "description": "Attempt marker recorded or already present."
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaManagedBadRequestResponse" } } },
+            "description": "Missing tax ID, invalid selector UUID, or managed-profile customer-type mismatch."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BrlaErrorResponse" } } },
+            "description": "Attempt recording failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Record an initial Avenia KYC attempt",
         "tags": ["Account Management"]
       }
     },
     "/v1/brla/newKyc": {
       "post": {
         "deprecated": false,
-        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** uses `optionalAuth`.",
+        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brlaNewKyc",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2263,13 +3795,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                  "$ref": "#/components/schemas/BrlaManagedBadRequestResponse"
                 }
               }
             },
             "description": "Validation failure.",
             "headers": {}
           },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/BrlaManagedSelectorForbidden" },
           "500": {
             "content": {
               "application/json": {
@@ -2282,7 +3816,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Submit KYC level 1 data",
         "tags": ["Account Management"]
       }
@@ -2353,6 +3887,7 @@
         "deprecated": false,
         "description": "Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.\n\n**Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.",
         "operationId": "getUserLimits",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2375,12 +3910,21 @@
             "description": "Limits and consumed amounts for both directions of every requested corridor."
           },
           "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/FlatManagedSelectorErrorResponse" } }
+            },
             "description": "Invalid corridor list or no completed provider profile for a requested corridor."
           },
           "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+            },
             "description": "Missing or invalid credentials."
           },
           "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/FlatManagedSelectorErrorResponse" } }
+            },
             "description": "The credential is not linked to a user."
           },
           "502": {
@@ -2389,6 +3933,453 @@
         },
         "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user ramp limits",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/managed-profiles": {
+      "get": {
+        "description": "Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.",
+        "operationId": "listManagedProfiles",
+        "parameters": [
+          {
+            "description": "Maximum records to return.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": { "default": 50, "maximum": 100, "minimum": 1, "type": "integer" }
+          },
+          {
+            "description": "Number of records to skip.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": { "default": 0, "minimum": 0, "type": "integer" }
+          },
+          {
+            "description": "Lifecycle records to include.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": { "default": "active", "enum": ["active", "deleted", "all"], "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ListManagedProfilesResponse" } }
+            },
+            "description": "A page of owned managed profiles and offset pagination metadata."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: invalid pagination or status filter."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: a retained child has an invalid customer-entity layout."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "List managed profiles",
+        "tags": ["Managed Profiles"]
+      },
+      "post": {
+        "description": "Creates one headless individual or business child for the authenticated active manager. `externalSubjectId`, normalized `contactEmail`, and `customerType` are immutable. An exact retry for the same external subject is idempotent and returns the existing active child with `200`; the first creation returns `201`. Reusing either reserved identifier with different data returns `409`, including after deletion. No corridor grant is accepted.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.",
+        "operationId": "createManagedProfile",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateManagedProfileRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Idempotent retry returned the existing active managed profile."
+          },
+          "201": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Managed profile created."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: required input is missing or invalid."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_MANAGER_NOT_FOUND`, `MANAGED_PROFILE_MANAGER_INACTIVE`, or `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active managed-profile manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: an immutable external subject or contact email is reserved with different profile data."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create a managed profile",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}": {
+      "delete": {
+        "description": "Logically deletes an owned child and atomically revokes all of its credentials. Customer, provider, KYC, ramp, external-subject, and contact-email records are retained. Repeating deletion of the same owned child is idempotent and returns `204`.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "deleteManagedProfile",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Managed profile is logically deleted and its credentials are revoked." },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Delete a managed profile",
+        "tags": ["Managed Profiles"]
+      },
+      "get": {
+        "description": "Returns one owned child, including a retained logically deleted child. Foreign children are hidden with `404`.\n\n**Auth:** controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "getManagedProfile",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileResponse" } }
+            },
+            "description": "Owned active or deleted managed profile."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_CONFLICT`: the retained child has an invalid customer-entity layout."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get a managed profile",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}/api-credentials": {
+      "get": {
+        "description": "Lists all credentials owned by one active child, newest first, including revoked and expired records. Public values and safe secret prefixes are returned; secret values are never returned.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "listManagedProfileApiCredentials",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ListApiCredentialsResponse" } }
+            },
+            "description": "Child credentials without secret values."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "List a managed profile's API credentials",
+        "tags": ["Managed Profiles"]
+      },
+      "post": {
+        "description": "Issues one child-owned public/secret credential pair. The secret is returned only in this creation response and cannot be retrieved later. Expiry defaults to one year and cannot exceed two years. The child's shared cap is five active, non-expired credentials.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "createManagedProfileApiCredential",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiCredentialRequest" } }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiCredentialResponse" } }
+            },
+            "description": "Credential created. This is the only response containing `secretKey`."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Invalid profileId, credential name, or expiry."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager."
+          },
+          "409": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_LIMIT_REACHED`: the child already holds five active, non-expired credentials."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Create a managed profile API credential",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}": {
+      "delete": {
+        "description": "Revokes one credential owned by an active child, disabling both its public and secret values. Repeating revocation of the same owned credential is idempotent and returns `204`.\n\n**Auth:** active controlling manager Supabase Bearer session or secret API key.",
+        "operationId": "revokeManagedProfileApiCredential",
+        "parameters": [
+          {
+            "description": "Managed child profile ID.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          },
+          {
+            "description": "Child credential ID.",
+            "in": "path",
+            "name": "credentialId",
+            "required": true,
+            "schema": { "format": "uuid", "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Credential is revoked; both values are unusable. Repeated revocation also returns this status."
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`MANAGED_PROFILE_INVALID_INPUT`: profileId or credentialId is not a UUID."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Missing, invalid, expired, or revoked manager authentication."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials."
+          },
+          "404": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "`CREDENTIAL_NOT_FOUND`: the active child or credential does not exist, or is not owned by this manager."
+          },
+          "500": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedProfileErrorResponse" } }
+            },
+            "description": "Internal server error."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Revoke a managed profile API credential",
+        "tags": ["Managed Profiles"]
+      }
+    },
+    "/v1/onboarding/status": {
+      "get": {
+        "description": "Returns the effective profile's customer entities and aggregated provider/KYC state. Non-terminal provider statuses may be refreshed before the response is built.",
+        "operationId": "getOnboardingStatus",
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingStatusResponse" } } },
+            "description": "Aggregated onboarding state returned."
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "The managed-profile selector is invalid."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" },
+          "500": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OnboardingStatusErrorResponse" } } },
+            "description": "Onboarding aggregation failed."
+          }
+        },
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "summary": "Get aggregate onboarding status",
         "tags": ["Account Management"]
       }
     },
@@ -2430,7 +4421,7 @@
         "deprecated": false,
         "description": "Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.",
         "operationId": "createQuote",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2626,12 +4617,24 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ErrorManagedSelectorResponse"
                 }
               }
             },
             "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Invalid authentication or managed-profile selection."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Partner authorization or managed-profile authorization failed."
           },
           "500": {
             "content": {
@@ -2659,9 +4662,24 @@
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked.",
             "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "PublicApiKey": [] }, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create a new quote",
         "tags": ["Quotes"]
       }
@@ -2704,7 +4722,7 @@
         "deprecated": false,
         "description": "Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output. ",
         "operationId": "createBestQuote",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2863,12 +4881,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ErrorManagedSelectorResponse"
                 }
               }
             },
             "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Invalid authentication or managed-profile selection."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Partner authorization or managed-profile authorization failed."
           },
           "500": {
             "content": {
@@ -2889,9 +4919,24 @@
             },
             "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked.",
             "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": 503,
+                  "message": "Destination network fees are temporarily too high. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. Every eligible destination network currently exceeds the configured fee safety limit; retry the quote later.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "PublicApiKey": [] }, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Create a quote for the best network",
         "tags": ["Quotes"]
       }
@@ -2899,9 +4944,9 @@
     "/v1/ramp-info": {
       "get": {
         "deprecated": false,
-        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
+        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. A manager secret may select one directly managed child with `X-Managed-Profile-Id`; public keys cannot use the selector. The endpoint never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
         "operationId": "getRampInfo",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "responses": {
           "200": {
             "content": {
@@ -2911,19 +4956,25 @@
           },
           "400": {
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiCredentialManagedSelectorErrorResponse" }
+              }
             },
             "description": "Malformed key or wrong key type."
           },
           "401": {
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiCredentialManagedSelectorErrorResponse" }
+              }
             },
             "description": "Missing, invalid, expired, or revoked API credential."
           },
           "403": {
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiCredentialManagedSelectorErrorResponse" }
+              }
             },
             "description": "`CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials."
           }
@@ -2938,6 +4989,7 @@
         "deprecated": false,
         "description": "Fetches an updated ramp process.",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "Ramp ID.",
             "in": "path",
@@ -3105,9 +5157,27 @@
             },
             "description": "",
             "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+            },
+            "description": "The managed-profile selector is invalid."
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Authentication is required for an owned ramp or managed-profile selection."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Ramp ownership or managed-profile authorization failed."
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp status",
         "tags": ["Ramp"]
       }
@@ -3118,6 +5188,7 @@
         "description": "Returns the chronological error log for a ramp.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
         "operationId": "getRampErrorLogs",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "Ramp ID.",
             "in": "path",
@@ -3140,13 +5211,23 @@
             "description": "Error log array (empty if no errors).",
             "headers": {}
           },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+            },
+            "description": "The managed-profile selector is invalid."
+          },
           "401": {
-            "content": {},
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
             "description": "Authentication required.",
             "headers": {}
           },
           "403": {
-            "content": {},
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
             "description": "Ramp does not belong to authenticated principal.",
             "headers": {}
           },
@@ -3156,7 +5237,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp error logs",
         "tags": ["Ramp"]
       }
@@ -3166,6 +5247,7 @@
         "deprecated": false,
         "description": "Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The maximum count of transaction items returned in this query. The maximum value is `100`.",
             "in": "query",
@@ -3198,9 +5280,17 @@
             },
             "description": "Authenticated user's ramp history.",
             "headers": {}
-          }
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+            },
+            "description": "The managed-profile selector is invalid."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get authenticated user ramp history",
         "tags": ["Ramp"]
       }
@@ -3210,6 +5300,7 @@
         "deprecated": false,
         "description": "Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters. ",
         "parameters": [
+          { "$ref": "#/components/parameters/ManagedProfileId" },
           {
             "description": "The wallet address for which the ramp history is queried for.",
             "in": "path",
@@ -3251,9 +5342,17 @@
             },
             "description": "",
             "headers": {}
-          }
+          },
+          "400": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } }
+            },
+            "description": "The managed-profile selector is invalid."
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": { "$ref": "#/components/responses/ManagedSelectorForbidden" }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get ramp history for wallet address",
         "tags": ["Ramp"]
       }
@@ -3263,7 +5362,7 @@
         "deprecated": false,
         "description": "Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.",
         "operationId": "registerRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3539,12 +5638,19 @@
                   "message": "Missing required fields"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ErrorManagedSelectorResponse"
                 }
               }
             },
             "description": "Bad Request - Invalid input, missing required fields, or validation error.",
             "headers": {}
+          },
+          "401": { "$ref": "#/components/responses/ManagedSelectorUnauthorized" },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Quote ownership or managed-profile authorization failed."
           },
           "500": {
             "content": {
@@ -3561,7 +5667,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Register new ramp process",
         "tags": ["Ramp"]
       }
@@ -3571,7 +5677,7 @@
         "deprecated": false,
         "description": "Starts a ramp process. \n\nIt is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.",
         "operationId": "startRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3771,14 +5877,23 @@
                     }
                   }
                 },
-                "schema": {
-                  "properties": {},
-                  "type": "object"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" }
               }
             },
             "description": "Bad Request. Possible reasons:\n- Missing required fields (rampId, presignedTxs)\n- Invalid additional data format (if provided, must be an object)",
             "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Authentication is required for an owned ramp or managed-profile selection."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Ramp ownership or managed-profile authorization failed."
           },
           "500": {
             "content": {
@@ -3796,7 +5911,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Start ramp process ",
         "tags": ["Ramp"]
       }
@@ -3806,7 +5921,7 @@
         "deprecated": false,
         "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. \n\nFor onramps, no additional data is required after registering the ramp.",
         "operationId": "updateRamp",
-        "parameters": [],
+        "parameters": [{ "$ref": "#/components/parameters/ManagedProfileId" }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4019,14 +6134,23 @@
                     }
                   }
                 },
-                "schema": {
-                  "properties": {},
-                  "type": "object"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" }
               }
             },
             "description": "Bad Request. Possible reasons:\n- Missing required fields (rampId, presignedTxs)\n- Invalid additional data format (if provided, must be an object)",
             "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Authentication is required for an owned ramp or managed-profile selection."
+          },
+          "403": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorManagedSelectorResponse" } }
+            },
+            "description": "Ramp ownership or managed-profile authorization failed."
           },
           "500": {
             "content": {
@@ -4044,7 +6168,7 @@
             "headers": {}
           }
         },
-        "security": [],
+        "security": [{}, { "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Update ramp process",
         "tags": ["Ramp"]
       }
@@ -4451,7 +6575,7 @@
     "/v1/webhook": {
       "post": {
         "deprecated": false,
-        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nWebhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
+        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nManaged profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`. An unselected manager key remains manager-owned and cannot subscribe to a child-owned quote.\n\nWebhooks are bound to the non-managed account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -4539,9 +6663,24 @@
             },
             "description": "",
             "headers": {}
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Managed-profile selection is unsupported on webhook endpoints.",
+            "headers": {}
+          },
+          "401": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "description": "Missing or invalid secret API key.",
+            "headers": {}
+          },
+          "403": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }],
         "summary": "Register Webhook",
         "tags": ["Webhooks"]
       }
@@ -4549,7 +6688,7 @@
     "/v1/webhook/{id}": {
       "delete": {
         "deprecated": false,
-        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nDeletion is scoped to your account: a webhook registered by another account returns `404`.",
+        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nManaged profiles are polling-only: `X-Managed-Profile-Id` returns `400`, and a direct managed-child credential returns `403`.\n\nDeletion is scoped to your non-managed account: a webhook registered by another account returns `404`.",
         "parameters": [
           {
             "description": "",
@@ -4581,9 +6720,24 @@
             },
             "description": "",
             "headers": {}
+          },
+          "400": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Managed-profile selection is unsupported on webhook endpoints.",
+            "headers": {}
+          },
+          "401": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "description": "Missing or invalid secret API key.",
+            "headers": {}
+          },
+          "403": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
+            "headers": {}
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }],
         "summary": "Delete Webhook",
         "tags": ["Webhooks"]
       }

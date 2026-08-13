@@ -1586,6 +1586,7 @@
           "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
         },
+        "networkFeesTooHigh": "As taxas da rede de destino estão temporariamente muito altas. Tente novamente mais tarde.",
         "preNablaDeductibleFees": "Falha ao obter cotação. Por favor, tente novamente com um valor diferente.",
         "quoteNotFound": "Cotação não encontrada",
         "tryDifferentAmount": "Falha ao calcular cotação. Tente um valor diferente.",

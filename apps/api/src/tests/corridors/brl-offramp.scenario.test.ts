@@ -2,10 +2,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   AveniaTicketStatus,
   type CleanupPhase,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -181,15 +183,15 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   }
 
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx, nonce?: number): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     return ephemeral.signTransaction({
       chainId: 8453,
-      data: txData.data,
-      gas: 600_000n,
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: nonce ?? blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });
@@ -200,27 +202,16 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
    * nonces, honoring the blueprint's fee/gas minimums, shaped for /v1/ramp/update.
    */
   async function signBlueprintWithBackups(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx) {
-    const txData = blueprint.txData as unknown as {
-      to: `0x${string}`;
-      data: `0x${string}`;
-      value?: string;
-      gas?: string;
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-    };
-    const atLeast = (raw: string | undefined, floor: bigint) => {
-      const value = BigInt(raw ?? "0");
-      return value > floor ? value : floor;
-    };
+    const txData = blueprint.txData as EvmTransactionData;
     const sign = (nonce: number) =>
       ephemeral.signTransaction({
         chainId: 8453,
-        data: txData.data,
-        gas: atLeast(txData.gas, 600_000n),
-        maxFeePerGas: atLeast(txData.maxFeePerGas, 5_000_000_000n),
-        maxPriorityFeePerGas: atLeast(txData.maxPriorityFeePerGas, 5_000_000_000n),
+        data: txData.data as `0x${string}`,
+        gas: BigInt(txData.gas),
+        maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
-        to: txData.to,
+        to: txData.to as `0x${string}`,
         type: "eip1559",
         value: BigInt(txData.value ?? "0")
       });
@@ -577,7 +568,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
 
       const rampState = await RampState.findByPk(ramp.id);
       const payoutBlueprint = blueprintOf(rampState?.unsignedTxs ?? [], "brlaPayoutOnBase");
-      const blueprintData = payoutBlueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const blueprintData = payoutBlueprint.txData as EvmTransactionData;
       const { args } = decodeFunctionData({ abi: erc20Abi, data: blueprintData.data });
       const amount = (args as [string, bigint])[1];
 
@@ -587,11 +578,12 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         ephemeral.signTransaction({
           chainId: 8453,
           data: encodeFunctionData({ abi: erc20Abi, args: [attacker, amount], functionName: "transfer" }),
-          gas: 600_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          gas: BigInt(blueprintData.gas),
+          maxFeePerGas: BigInt(blueprintData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(blueprintData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: blueprintData.to,
+          to: blueprintData.to as `0x${string}`,
           type: "eip1559"
         });
       const tamperedPayout = await tamper(payoutBlueprint.nonce);
