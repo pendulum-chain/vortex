@@ -8,7 +8,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify (non-production only, gated on `DEPLOYMENT_ENV`), `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for non-production dashboard deployments; resolved once at boot, wildcard entries dropped) and the optional `DASHBOARD_PREVIEW_SITE` env var (a single Netlify site slug; enables the fixed-shape pattern `https://deploy-preview-<n>--<slug>.netlify.app` for dashboard deploy previews, non-production only; helpers in `config/corsOrigins.ts`)
 - Rate limiting: 100 requests per minute per IP (global, all endpoints)
 - Helmet: Standard HTTP security headers
-- Body parser: JSON with **20MB limit**
+- Body parser: JSON with **20MB limit**, except auth-first `POST /v1/brla/kyc/import-token`, whose route-local parser has a **16 KiB limit**
 - Cookie parser: Enabled (for Supabase auth tokens)
 
 **Input validation** (`middlewares/validators.ts`):
@@ -39,7 +39,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - During an active window, mutable quote/ramp operations return HTTP `503 Service Unavailable` before controller/service work starts.
 - Rejections include `Retry-After`, `Cache-Control: no-store`, and downtime metadata (`maintenance_start`, `maintenance_end`, affected operations) in the error payload so direct API clients can pause and retry after the window.
 
-**Route structure:** 40 `*.route.ts` files under `api/routes/` (33 under `v1/`), plus `v1/index.ts`, each mounting controllers with appropriate auth middleware. `api/routes/api-surface-inventory.test.ts` derives this count from the tree so the audit inventory cannot silently stale.
+**Route structure:** 41 `*.route.ts` files under `api/routes/` (34 under `v1/`), plus `v1/index.ts`, each mounting controllers with appropriate auth middleware. `api/routes/api-surface-inventory.test.ts` derives this count from the tree so the audit inventory cannot silently stale.
 
 **Multipart uploads:** Four operations use in-memory Multer buffering. Alfredpay's `POST /v1/alfredpay/submitKycFile`, `submitKybFile`, and `submitKybRelatedPersonFile` allow one file up to 5MB; secret/Bearer authentication and the managed relationship/entity-type gate run before buffering, while multipart country authorization runs after parsing. Mykobo's `POST /v1/mykobo/profiles` is Supabase-authenticated before buffering and accepts up to four named files (`front`, `back`, `face`, `utility_bill`), each up to 10MB. These routes bound individual file size but do not currently configure a MIME/type `fileFilter`; the Mykobo request can buffer up to 40MB in aggregate.
 

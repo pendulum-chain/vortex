@@ -335,6 +335,15 @@ describe("GET /v1/onboarding/status", () => {
     const { user, token } = await createAuthedUser("avenia-late-approval@example.com");
     const customer = await createTestTaxId(user.id, { subAccountId: "sub-late" });
     await customer.update({ status: VerificationStatus.InReview });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
 
     const getInstance = BrlaApiService.getInstance;
     BrlaApiService.getInstance = mock(
@@ -362,6 +371,15 @@ describe("GET /v1/onboarding/status", () => {
     const { user, token } = await createAuthedUser("avenia-kyc-expired@example.com");
     const customer = await createTestTaxId(user.id, { subAccountId: "sub-expired" });
     await customer.update({ status: VerificationStatus.InReview });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
 
     const getInstance = BrlaApiService.getInstance;
     BrlaApiService.getInstance = mock(
@@ -387,6 +405,15 @@ describe("GET /v1/onboarding/status", () => {
     const { user, token } = await createAuthedUser("avenia-kyc-unfinished@example.com");
     const customer = await createTestTaxId(user.id, { subAccountId: "sub-unfinished" });
     await customer.update({ status: VerificationStatus.InReview });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
 
     const getInstance = BrlaApiService.getInstance;
     BrlaApiService.getInstance = mock(
@@ -408,10 +435,457 @@ describe("GET /v1/onboarding/status", () => {
     expect(customer.status).toBe(VerificationStatus.Pending);
   });
 
+  it("does not persist a completed individual attempt without a result", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-completed-no-result@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-completed-no-result" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: "standard"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [{ status: KycAttemptStatus.COMPLETED }] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+    expect(kycCase.status).toBe(VerificationStatus.InReview);
+    expect(kycCase.statusExternal).toBe("UNCHANGED");
+  });
+
+  it("polls an individual case by its exact current attempt id", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-exact@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-exact" });
+    await customer.update({ status: VerificationStatus.InReview });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-exact",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
+    const getVerificationAttemptStatus = mock(async () => ({
+      attempt: { id: "attempt-exact", status: KycAttemptStatus.PROCESSING }
+    }));
+    const getKycAttempts = mock(async () => ({ attempts: [] }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () => ({ getKycAttempts, getVerificationAttemptStatus }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    expect(getVerificationAttemptStatus).toHaveBeenCalledWith("attempt-exact", "sub-exact");
+    expect(getKycAttempts).not.toHaveBeenCalled();
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(kycCase.statusExternal).toBe(KycAttemptStatus.PROCESSING);
+  });
+
+  it("does not fall back to attempt lists for an imported case with no attempt id", async () => {
+    const { user, token } = await createAuthedUser("avenia-import-no-id@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-no-id" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: "sumsub_share_token"
+    });
+    const getKycAttempts = mock(async () => ({
+      attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+    }));
+    const getVerificationAttemptStatus = mock(async () => ({
+      attempt: { id: "unbound", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
+    }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () => ({ getKycAttempts, getVerificationAttemptStatus }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    expect(getKycAttempts).not.toHaveBeenCalled();
+    expect(getVerificationAttemptStatus).not.toHaveBeenCalled();
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+  });
+
+  it("skips an unbound active standard submission instead of applying the latest provider attempt", async () => {
+    const { user, token } = await createAuthedUser("avenia-standard-reconciliation@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-standard-reconciliation" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: "standard",
+      verificationSubmission: {
+        actorProfileId: user.id,
+        attemptBaselineIds: [],
+        payloadFingerprint: "test-payload-fingerprint",
+        status: "submitted",
+        subjectProfileId: user.id
+      }
+    });
+    const getKycAttempts = mock(async () => ({
+      attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+    }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(() => ({ getKycAttempts }) as unknown as BrlaApiService);
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    expect(getKycAttempts).not.toHaveBeenCalled();
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+  });
+
+  it("locks a nullable case to standard before interpreting provider history", async () => {
+    const { user, token } = await createAuthedUser("avenia-legacy-import@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-legacy-import" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: null
+    });
+    const getVerificationAttemptStatus = mock(async () => ({
+      attempt: { id: "legacy-import", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
+    }));
+    const getKycAttempts = mock(async () => ({ attempts: [{ id: "legacy-import", levelName: "sumsub-token-recipient" }] }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts,
+          getUploadedDocuments: mock(async () => ({ documents: [] })),
+          getVerificationAttemptStatus
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    expect(getVerificationAttemptStatus).not.toHaveBeenCalled();
+    expect(getKycAttempts).toHaveBeenCalledTimes(1);
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+    expect(kycCase.verificationMethod).toBe("standard");
+    expect(kycCase.providerCaseId).toBeNull();
+  });
+
+  it("does not use mixed Avenia history to infer a token-import method", async () => {
+    const { user, token } = await createAuthedUser("avenia-legacy-mixed@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-legacy-mixed" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: null
+    });
+    const getKycAttempts = mock(async () => ({
+      attempts: [{ levelName: "level-1" }, { levelName: "sumsub-token-recipient" }]
+    }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts,
+          getUploadedDocuments: mock(async () => ({ documents: [] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+    expect(kycCase.verificationMethod).toBe("standard");
+    expect(getKycAttempts).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not approve imported onboarding status when Avenia exposes a different CPF", async () => {
+    const { user, token } = await createAuthedUser("avenia-import-tax-mismatch@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-mismatch", taxId: "08786985906" });
+    await customer.update({ status: VerificationStatus.InReview });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-imported",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "sumsub_share_token"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => ({
+            attempt: { id: "attempt-imported", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
+          })),
+          subaccountInfo: mock(async () => ({ accountInfo: { taxId: "111.444.777-35" } }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(kycCase.status).toBe(VerificationStatus.InReview);
+  });
+
+  it("approves imported onboarding status when Avenia returns a formatted matching CPF", async () => {
+    const { user, token } = await createAuthedUser("avenia-import-tax-match@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-match", taxId: "08786985906" });
+    await customer.update({ status: VerificationStatus.InReview });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-imported",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "sumsub_share_token"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => ({
+            attempt: { id: "attempt-imported", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
+          })),
+          subaccountInfo: mock(async () => ({ accountInfo: { taxId: "087.869.859-06" } }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.Approved);
+    expect(kycCase.status).toBe(VerificationStatus.Approved);
+  });
+
+  it("leaves onboarding unchanged when exact polling returns a mismatched attempt", async () => {
+    const { user, token } = await createAuthedUser("avenia-attempt-mismatch@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-mismatch" });
+    await customer.update({ status: VerificationStatus.InReview, statusExternal: "UNCHANGED" });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-current",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      statusExternal: "UNCHANGED",
+      type: "kyc",
+      verificationMethod: "standard"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => ({
+            attempt: { id: "attempt-other", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.InReview);
+    expect(customer.statusExternal).toBe("UNCHANGED");
+    expect(kycCase.statusExternal).toBe("UNCHANGED");
+  });
+
+  it("keeps an imported individual case pending when its exact attempt expires", async () => {
+    const { user, token } = await createAuthedUser("avenia-import-expired@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-expired" });
+    await customer.update({ status: VerificationStatus.InReview });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-imported",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "sumsub_share_token"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => ({
+            attempt: { id: "attempt-imported", status: KycAttemptStatus.EXPIRED }
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.Pending);
+    expect(kycCase.status).toBe(VerificationStatus.Pending);
+    expect(kycCase.statusExternal).toBe(KycAttemptStatus.EXPIRED);
+  });
+
+  it("preserves a rejection committed before stale processing progress is persisted", async () => {
+    const { user, token } = await createAuthedUser("avenia-stale-processing@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-stale-processing" });
+    await customer.update({ status: VerificationStatus.InReview });
+    const kycCase = await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-stale",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => {
+            await customer.update({ status: VerificationStatus.Rejected, statusExternal: KycAttemptStatus.COMPLETED });
+            await kycCase.update({
+              rejectedAt: new Date(),
+              status: VerificationStatus.Rejected,
+              statusExternal: KycAttemptStatus.COMPLETED
+            });
+            return { attempt: { id: "attempt-stale", status: KycAttemptStatus.PROCESSING } };
+          })
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    await kycCase.reload();
+    expect(customer.status).toBe(VerificationStatus.Rejected);
+    expect(customer.statusExternal).toBe(KycAttemptStatus.COMPLETED);
+    expect(kycCase.status).toBe(VerificationStatus.Rejected);
+    expect(kycCase.statusExternal).toBe(KycAttemptStatus.COMPLETED);
+  });
+
   it("throttles provider refreshes: back-to-back polls hit Avenia only once per customer", async () => {
     const { user, token } = await createAuthedUser("avenia-refresh-throttle@example.com");
     const customer = await createTestTaxId(user.id, { subAccountId: "sub-throttled" });
     await customer.update({ status: VerificationStatus.InReview });
+    await KycCase.create({
+      customerEntityId: customer.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCustomerId: customer.id,
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      verificationMethod: "standard"
+    });
 
     const getKycAttempts = mock(async () => ({
       attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]

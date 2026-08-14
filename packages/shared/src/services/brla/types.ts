@@ -348,6 +348,15 @@ export interface KycLevel1Response {
   id: string;
 }
 
+export interface AveniaImportKycTokenRequest {
+  importToken: string;
+}
+
+export interface AveniaImportKycTokenResponse {
+  id: string;
+  message: string;
+}
+
 export type AveniaUboControlRole =
   | "CEO"
   | "CFO"
@@ -495,9 +504,11 @@ export interface KybAttemptStatusResponse {
   status: KycAttemptStatus;
 }
 
-export interface AveniaKybAttemptStatusResponse {
+export interface AveniaVerificationAttemptResponse {
   attempt: AveniaVerificationAttempt;
 }
+
+export type AveniaKybAttemptStatusResponse = AveniaVerificationAttemptResponse;
 
 export enum AveniaDocumentType {
   ID = "ID",
@@ -567,6 +578,7 @@ export interface KycAttempt {
 
 export interface GetKycAttemptResponse {
   attempts: KycAttempt[];
+  cursor?: string;
 }
 
 export interface CreateAveniaSubaccountRequest {
@@ -577,6 +589,7 @@ export interface CreateAveniaSubaccountRequest {
 
 export interface AveniaDocumentGetResponse {
   documents: AveniaDocument[];
+  cursor?: string;
 }
 
 export interface AveniaAccountBalanceResponse {

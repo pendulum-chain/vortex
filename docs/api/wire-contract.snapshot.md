@@ -419,8 +419,6 @@ BrlaErrorResponse: {
 }
 
 BrlaGetKycStatusRequest: {
-  quoteId: string;
-  sessionId?: string;
   taxId: string;
 }
 
@@ -470,6 +468,16 @@ BrlaGetUserResponse: {
   identityStatus: "CONFIRMED" | "NOT-IDENTIFIED";
   kycLevel: number;
   subAccountId: string;
+}
+
+BrlaImportKycTokenRequest: {
+  consentAttested: true;
+  importToken: string;
+}
+
+BrlaImportKycTokenResponse: {
+  attemptId: string;
+  status: "pending";
 }
 
 BrlaKYCDocType: enum BrlaKYCDocType { CNH = "CNH", RG = "RG" }

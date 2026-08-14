@@ -1423,6 +1423,85 @@
         "required": ["id", "livenessUrl", "uploadURLFront", "validateLivenessToken"],
         "type": "object"
       },
+      "BrlaImportKycTokenErrorResponse": {
+        "properties": {
+          "error": {
+            "description": "Stable, non-secret token-import error. Provider response bodies and the import token are never returned.",
+            "enum": [
+              "Idempotency-Key must contain 1 to 128 visible ASCII characters",
+              "Invalid request body",
+              "importToken must contain between 1 and 1024 bytes",
+              "consentAttested must be true",
+              "The subject profile has no active customer entity",
+              "The managed subject does not match the expected customer entity",
+              "A managed profile requires a managed customer entity context",
+              "The subject customer entity is not active",
+              "Avenia token import is only available for individuals",
+              "Exactly one active Brazilian individual Avenia customer is required",
+              "Multiple Avenia customers require reconciliation",
+              "The Avenia subaccount is not provisioned",
+              "The Avenia customer is already approved",
+              "The canonical Avenia KYC case is missing",
+              "Multiple Avenia KYC cases require reconciliation",
+              "The Avenia KYC case is already approved",
+              "The confirmed token import is missing its provider attempt",
+              "The idempotency key was used with a different token",
+              "The token import does not match this request",
+              "A failed token import requires a new idempotency key",
+              "The Avenia KYC is already approved",
+              "The previous token import outcome requires reconciliation",
+              "Another token import requires reconciliation",
+              "This KYC case uses the standard Avenia method",
+              "The Avenia token import attempt is invalid",
+              "The token import attempt requires reconciliation",
+              "The token import was already claimed",
+              "The token import binding is no longer current",
+              "The authenticated profile cannot perform this operation for the requested managed profile",
+              "Avenia token import pre-provider checks failed",
+              "Avenia token import is not enabled",
+              "The Avenia token import outcome requires reconciliation",
+              "Token import failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "BrlaImportKycTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "consentAttested": {
+            "const": true,
+            "description": "Required provisional attestation recorded under Vortex consent policy `sumsub-share-v1`. This is not a substitute for the caller's legal basis or applicant disclosures.",
+            "type": "boolean"
+          },
+          "importToken": {
+            "description": "Opaque Sumsub share token. Must contain 1 to 1024 UTF-8 bytes. Vortex forwards it to Avenia from request memory and never returns or persists the raw value.",
+            "minLength": 1,
+            "type": "string",
+            "writeOnly": true,
+            "x-maxBytes": 1024
+          }
+        },
+        "required": ["importToken", "consentAttested"],
+        "type": "object"
+      },
+      "BrlaImportKycTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptId": {
+            "description": "The exact Avenia verification attempt bound to this KYC case and used for subsequent polling.",
+            "type": "string"
+          },
+          "status": {
+            "const": "pending",
+            "type": "string"
+          }
+        },
+        "required": ["attemptId", "status"],
+        "type": "object"
+      },
       "BrlaManagedBadRequestResponse": {
         "oneOf": [
           {
@@ -2147,6 +2226,29 @@
         "required": ["managedProfiles", "pagination"],
         "type": "object"
       },
+      "MalformedJsonErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 400,
+            "type": "integer"
+          },
+          "message": {
+            "const": "Invalid JSON payload",
+            "type": "string"
+          },
+          "statusCode": {
+            "const": 400,
+            "type": "integer"
+          },
+          "type": {
+            "const": "entity.parse.failed",
+            "type": "string"
+          }
+        },
+        "required": ["code", "message", "statusCode", "type"],
+        "type": "object"
+      },
       "ManagedProfile": {
         "properties": {
           "contactEmail": {
@@ -2716,6 +2818,29 @@
       "OnChainToken": {
         "enum": ["USDC", "USDT", "ETH", "USDC.E"],
         "type": "string"
+      },
+      "PayloadTooLargeErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 413,
+            "type": "integer"
+          },
+          "message": {
+            "const": "Request body too large",
+            "type": "string"
+          },
+          "statusCode": {
+            "const": 413,
+            "type": "integer"
+          },
+          "type": {
+            "const": "entity.too.large",
+            "type": "string"
+          }
+        },
+        "required": ["code", "message", "statusCode", "type"],
+        "type": "object"
       },
       "PaymentData": {
         "description": "Data related to the payment for the ramp transaction.",
@@ -5826,6 +5951,17 @@
             "description": "No KYC process started.",
             "headers": {}
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "The canonical Avenia KYC state requires reconciliation.",
+            "headers": {}
+          },
           "500": {
             "content": {
               "application/json": {
@@ -5835,6 +5971,17 @@
               }
             },
             "description": "Internal Server Error (e.g., no KYC events found when expected).",
+            "headers": {}
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Avenia is unavailable or returned an invalid response.",
             "headers": {}
           }
         },
@@ -5898,6 +6045,17 @@
           "403": {
             "$ref": "#/components/responses/BrlaManagedSelectorForbidden"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "The immutable KYC method or canonical case state conflicts with liveness creation.",
+            "headers": {}
+          },
           "500": {
             "content": {
               "application/json": {
@@ -5907,6 +6065,17 @@
               }
             },
             "description": "Internal server error.",
+            "headers": {}
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Avenia is unavailable or returned an invalid response.",
             "headers": {}
           }
         },
@@ -5971,6 +6140,17 @@
           "403": {
             "$ref": "#/components/responses/BrlaManagedSelectorForbidden"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "The immutable KYC method or canonical case state conflicts with upload creation.",
+            "headers": {}
+          },
           "500": {
             "content": {
               "application/json": {
@@ -5980,6 +6160,17 @@
               }
             },
             "description": "Internal server error.",
+            "headers": {}
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Avenia is unavailable or returned an invalid response.",
             "headers": {}
           }
         },
@@ -6653,6 +6844,175 @@
         "tags": ["KYC and KYB"]
       }
     },
+    "/v1/brla/kyc/import-token": {
+      "post": {
+        "description": "Imports an opaque Sumsub share token into the authenticated subject's existing individual Avenia KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. Use either a profile-bound secret `X-API-Key` or a Supabase Bearer session. A controlling manager may add `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.\n\nThe body accepts only `importToken` and literal `consentAttested: true`; CPF, tax ID, subaccount ID, applicant ID, entity ID, provider-customer ID, profile ID, and other caller identity selectors are forbidden. The provisional server-controlled consent policy is `sumsub-share-v1`. Every token claim appends actor, subject, policy version, and timestamp consent evidence without storing the raw token.\n\nThe first normal KYC artifact, status read, or token-import claim permanently selects that case's method. Import the token before reading KYC or onboarding status because a status read selects a nullable method as `standard`. The same idempotency key and token returns a stored confirmed attempt or safely reconciles a durable submitted/ambiguous claim through provider reads, without another provider POST or replaying the token. A different token under the same key returns `409`. A provider `401` means the feature precondition is unavailable, records a failed attempt, returns `412`, and may be retried only with a new idempotency key; the new claim appends consent evidence while preserving prior attestations. Every other post-send provider, transport, malformed-response, timeout, or local-confirmation failure is ambiguous, returns `502`, and is never replayed automatically.\n\nAcceptance is pending only. Vortex polls the exact returned Avenia attempt; `EXPIRED` remains non-approved and locally pending for reconciliation, and its external status is retained. Only Avenia `COMPLETED` plus `APPROVED` completes KYC. The Avenia webhook is notification-only and cannot approve the case.",
+        "operationId": "importAveniaKycToken",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
+          {
+            "description": "Caller-generated key for one token-import attempt. It must contain 1 to 128 visible ASCII characters. Reuse it only with the same token.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[!-~]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrlaImportKycTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaImportKycTokenResponse"
+                }
+              }
+            },
+            "description": "The exact Avenia attempt is durably bound and pending. This does not mean KYC is approved."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MalformedJsonErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid idempotency key, strict body, malformed authenticated JSON, selector UUID, or managed customer type. Authentication is checked first."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                }
+              }
+            },
+            "description": "A valid profile-bound secret key or Supabase session is required."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "The selected child is unauthorized, the caller used direct managed-child credentials, or transactional authorization was revoked before provider submission."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                }
+              }
+            },
+            "description": "The prerequisite setup, immutable method, idempotency input, active submission, or prior ambiguous outcome prevents import."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                }
+              }
+            },
+            "description": "Avenia returned provider `401`: token import is not enabled. This failed attempt may be retried with a new idempotency key."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayloadTooLargeErrorResponse"
+                }
+              }
+            },
+            "description": "The authenticated JSON request exceeds the token-import route's 16 KiB body limit."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Token import failed before a safe public classification could be returned."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaImportKycTokenErrorResponse"
+                }
+              }
+            },
+            "description": "The post-send outcome is ambiguous and requires reconciliation. Do not retry the token."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
+                }
+              }
+            },
+            "description": "Supabase authentication is temporarily unavailable."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Import an individual Avenia KYC token",
+        "tags": ["KYC and KYB", "Account Management"]
+      }
+    },
     "/v1/brla/kyc/record-attempt": {
       "post": {
         "description": "Validates an authenticated BRL onboarding preflight event. The asserted CPF or CNPJ is not persisted because quote ownership does not prove tax-ID ownership.",
@@ -6774,6 +7134,17 @@
           "403": {
             "$ref": "#/components/responses/BrlaManagedSelectorForbidden"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "The immutable KYC method, approval state, or durable submission state conflicts with this request.",
+            "headers": {}
+          },
           "500": {
             "content": {
               "application/json": {
@@ -6783,6 +7154,17 @@
               }
             },
             "description": "Internal server error.",
+            "headers": {}
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Avenia documents are not ready, or the submitted outcome requires reconciliation.",
             "headers": {}
           }
         },

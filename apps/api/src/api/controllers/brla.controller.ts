@@ -21,6 +21,8 @@ import {
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserRequest,
   BrlaGetUserResponse,
+  BrlaImportKycTokenRequest,
+  BrlaImportKycTokenResponse,
   BrlaPostRecordInitialKycAttemptRequest,
   BrlaValidatePixKeyRequest,
   BrlaValidatePixKeyResponse,
@@ -49,16 +51,18 @@ import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import { APIError } from "../errors/api-error";
-import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { assertQuoteOwnership } from "../middlewares/ownershipAuth";
 import {
   accountTypeToCustomerType,
+  assertAveniaImportedTaxIdentity,
   customerTypeToAccountType,
   findAveniaCustomerBySubaccountId,
   findAveniaCustomerByTaxId,
   hashTaxReference,
   hydrateAveniaCompanyName,
   updateAveniaKycOutcome,
+  updateAveniaKycProgressForCustomer,
   upsertAveniaKycCase
 } from "../services/avenia/avenia-customer.service";
 import {
@@ -69,6 +73,13 @@ import {
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
 } from "../services/avenia/avenia-kyb.service";
+import {
+  claimStandardAveniaKycMethod,
+  importAveniaKycToken,
+  mapAveniaKycAttemptStatus,
+  reconcileAveniaIndividualKycStatusMethod
+} from "../services/avenia/avenia-kyc-import.service";
+import { submitStandardAveniaKyc } from "../services/avenia/avenia-standard-kyc.service";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
@@ -250,6 +261,40 @@ export const recordInitialKycAttempt = async (
   } catch (error) {
     res.status;
     handleApiError(error, res, "recordInitialKycAttempt");
+  }
+};
+
+export const importKycToken = async (
+  req: Request<unknown, unknown, BrlaImportKycTokenRequest>,
+  res: Response<BrlaImportKycTokenResponse | BrlaErrorResponse>
+): Promise<void> => {
+  try {
+    const actorProfileId = req.managedProfileContext?.actorProfileId ?? getAuthenticatedProfileId(req);
+    const subjectProfileId = getEffectiveUserId(req);
+    const idempotencyKey = req.get("Idempotency-Key");
+    if (!actorProfileId || !subjectProfileId || !idempotencyKey) {
+      res.status(httpStatus.UNAUTHORIZED).json({ error: "Authentication is required" });
+      return;
+    }
+
+    const result = await importAveniaKycToken({
+      actorProfileId,
+      expectedCustomerEntityId: req.managedProfileContext?.customerEntityId,
+      idempotencyKey,
+      importToken: req.body.importToken,
+      managedProfileId: req.managedProfileContext?.managedProfileId,
+      subjectProfileId
+    });
+    res.status(httpStatus.ACCEPTED).json(result);
+  } catch (error) {
+    if (error instanceof APIError) {
+      res.status(error.status ?? httpStatus.INTERNAL_SERVER_ERROR).json({ error: error.message });
+      return;
+    }
+    logger.error("Avenia KYC token import failed", {
+      errorType: error instanceof Error ? error.name : "UnknownError"
+    });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Token import failed" });
   }
 };
 
@@ -553,11 +598,38 @@ export const fetchSubaccountKycStatus = async (
     // (mirrors the onboarding aggregation's lazy hydration so KYC-only callers recover too).
     await hydrateAveniaCompanyName(record);
     const brlaApiService = BrlaApiService.getInstance();
-    const kycAttemptStatuses = await brlaApiService.getKycAttempts(subAccountId);
-    const kycAttemptStatus = kycAttemptStatuses.attempts[0]; // Get the latest attempt
+    const kycCases = await KycCase.findAll({ where: { provider: "avenia", providerCustomerId: record.id, type: "kyc" } });
+    if (kycCases.length > 1) {
+      res.status(httpStatus.CONFLICT).json({ error: "Multiple Avenia KYC cases require reconciliation" });
+      return;
+    }
+    if (!kycCases[0]) {
+      res.status(httpStatus.CONFLICT).json({ error: "The Avenia KYC case requires reconciliation" });
+      return;
+    }
+    const reconciled = await reconcileAveniaIndividualKycStatusMethod(record.id, brlaApiService);
+    const kycCase = reconciled.kycCase;
+    if (kycCase.verificationMethod === "sumsub_share_token" && !kycCase.providerCaseId) {
+      res.status(httpStatus.CONFLICT).json({ error: "The imported Avenia KYC attempt requires reconciliation" });
+      return;
+    }
+    if (
+      !kycCase.providerCaseId &&
+      (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
+    ) {
+      res.status(httpStatus.CONFLICT).json({ error: "The Avenia KYC submission requires reconciliation" });
+      return;
+    }
+    const kycAttemptStatus = kycCase?.providerCaseId
+      ? (await brlaApiService.getVerificationAttemptStatus(kycCase.providerCaseId, subAccountId)).attempt
+      : (await brlaApiService.getKycAttempts(subAccountId)).attempts[0];
+    if (kycCase?.providerCaseId && kycAttemptStatus?.id !== kycCase.providerCaseId) {
+      throw new APIError({ message: "Avenia returned a mismatched KYC attempt", status: httpStatus.BAD_GATEWAY });
+    }
     if (!kycAttemptStatus) {
       const accountInfo = await brlaApiService.subaccountInfo(subAccountId);
       if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
+        if (kycCase.verificationMethod === "sumsub_share_token") assertAveniaImportedTaxIdentity(record, accountInfo);
         res.status(httpStatus.OK).json({
           level: "KYC_1",
           result: KycAttemptResult.APPROVED,
@@ -566,30 +638,72 @@ export const fetchSubaccountKycStatus = async (
         });
 
         // Also try updating in case we missed the attempt
-        await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, accountInfo.accountInfo.identityStatus);
+        await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, accountInfo.accountInfo.identityStatus, {
+          id: kycCase.id,
+          providerCaseId: kycCase.providerCaseId
+        });
         return;
       }
 
-      await record.update({ status: VerificationStatus.Pending, statusExternal: null });
-      await upsertAveniaKycCase(record, VerificationStatus.Pending, null);
+      await updateAveniaKycProgressForCustomer(
+        record,
+        { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+        VerificationStatus.Pending,
+        null
+      );
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
     }
 
-    // Update our internal status based on the KYC result.
-    if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
-      await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, kycAttemptStatus.status);
+    if (kycCase?.verificationMethod === "sumsub_share_token") {
+      const importedStatus = mapAveniaKycAttemptStatus(kycAttemptStatus);
+      if (importedStatus === VerificationStatus.Approved || importedStatus === VerificationStatus.Rejected) {
+        if (importedStatus === VerificationStatus.Approved) {
+          assertAveniaImportedTaxIdentity(record, await brlaApiService.subaccountInfo(subAccountId));
+        }
+        await updateAveniaKycOutcome(taxId, importedStatus, kycAttemptStatus.status, {
+          id: kycCase.id,
+          providerCaseId: kycCase.providerCaseId
+        });
+      } else {
+        await updateAveniaKycProgressForCustomer(
+          record,
+          { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+          importedStatus,
+          kycAttemptStatus.status
+        );
+      }
     }
-    if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
-      await updateAveniaKycOutcome(taxId, VerificationStatus.Rejected, kycAttemptStatus.status);
+    // Update our internal status based on the normal KYC result.
+    else if (
+      (kycAttemptStatus.result && kycAttemptStatus.status !== KycAttemptStatus.COMPLETED) ||
+      (!kycAttemptStatus.result && kycAttemptStatus.status === KycAttemptStatus.COMPLETED)
+    ) {
+      throw new APIError({ message: "Avenia returned an inconsistent KYC attempt", status: httpStatus.BAD_GATEWAY });
+    } else if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
+      await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, kycAttemptStatus.status, {
+        id: kycCase.id,
+        providerCaseId: kycCase.providerCaseId
+      });
+    } else if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
+      await updateAveniaKycOutcome(taxId, VerificationStatus.Rejected, kycAttemptStatus.status, {
+        id: kycCase.id,
+        providerCaseId: kycCase.providerCaseId
+      });
     }
     // No result yet: mirror the in-flight attempt. This includes a `rejected` account whose
     // owner retries — the fresh attempt puts it back in review so the outcome poll can decide.
-    if (!kycAttemptStatus.result && record.status !== VerificationStatus.Approved) {
+    else if (!kycAttemptStatus.result) {
       const status =
-        kycAttemptStatus.status === KycAttemptStatus.EXPIRED ? VerificationStatus.Pending : VerificationStatus.InReview;
-      await record.update({ status, statusExternal: kycAttemptStatus.status });
-      await upsertAveniaKycCase(record, status, kycAttemptStatus.status);
+        kycAttemptStatus.status === KycAttemptStatus.PENDING || kycAttemptStatus.status === KycAttemptStatus.EXPIRED
+          ? VerificationStatus.Pending
+          : VerificationStatus.InReview;
+      await updateAveniaKycProgressForCustomer(
+        record,
+        { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+        status,
+        kycAttemptStatus.status
+      );
     }
 
     res.status(httpStatus.OK).json({
@@ -669,6 +783,12 @@ export const getSelfieLivenessUrl = async (
 
     const brlaApiService = BrlaApiService.getInstance();
 
+    if (record.customerType !== "individual") {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      return;
+    }
+    await claimStandardAveniaKycMethod(record);
+
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
       AveniaDocumentType.SELFIE_FROM_LIVENESS,
       false,
@@ -746,6 +866,7 @@ export const getUploadUrls = async (
 
     const subAccountId = record.providerSubaccountId ?? "";
     const brlaApiService = BrlaApiService.getInstance();
+    await claimStandardAveniaKycMethod(record);
 
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE_FROM_LIVENESS, false, subAccountId);
 
@@ -791,13 +912,14 @@ export const newKyc = async (
       return;
     }
 
-    const effectiveUserId = getEffectiveUserId(req);
-    if (!effectiveUserId) {
+    const actorProfileId = req.managedProfileContext?.actorProfileId ?? getAuthenticatedProfileId(req);
+    const subjectProfileId = getEffectiveUserId(req);
+    if (!actorProfileId || !subjectProfileId) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
     // Profile-level ownership.
-    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(subjectProfileId);
     if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
@@ -807,11 +929,15 @@ export const newKyc = async (
       return;
     }
 
-    const brlaApiService = BrlaApiService.getInstance();
-    // Wait for previously uploaded documents to propagate before submitting KYC
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    await brlaApiService.getUploadedDocuments(subAccountId);
-    const response = await brlaApiService.submitKycLevel1(req.body);
+    const response = await submitStandardAveniaKyc({
+      actorProfileId,
+      controllingManagerProfileId: req.managedProfileContext?.controllingManagerProfileId,
+      expectedCustomerEntityId: req.managedProfileContext?.customerEntityId,
+      managedProfileId: req.managedProfileContext?.managedProfileId,
+      payload: req.body,
+      providerCustomer: record,
+      subjectProfileId
+    });
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {
@@ -1198,6 +1324,11 @@ export const getKybAttemptStatus = async (
     };
 
     const persisted = await sequelize.transaction(async transaction => {
+      const lockedRecord = await ProviderCustomer.findByPk(record.id, {
+        lock: transaction.LOCK.UPDATE,
+        transaction
+      });
+      if (!lockedRecord) throw new Error("Avenia customer disappeared during KYB status persistence");
       const [updatedCases] = await KycCase.update(
         {
           failureReasons: failureReason ? [failureReason] : [],
@@ -1214,7 +1345,7 @@ export const getKybAttemptStatus = async (
       // Queue only after proving this is still the bound attempt. A queue failure rolls
       // back the terminal state so a later poll can retry the notification.
       await enqueueVerificationNotification(attempt, effectiveUserId, "business");
-      await record.update(
+      await lockedRecord.update(
         {
           lastFailureReasons: failureReason ? [failureReason] : [],
           status: normalizedStatus,

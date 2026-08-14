@@ -5,7 +5,9 @@ import { ProviderHttpError } from "../providerHttpError";
 import { Endpoint, EndpointMethod, EndpointRequestBody, EndpointResponse, Endpoints } from "./mappings";
 import {
   aveniaDocumentResponseSchema,
+  aveniaDocumentsSchema,
   aveniaDocumentUploadResponseSchema,
+  aveniaImportKycTokenResponseSchema,
   aveniaKybAttemptStatusSchema,
   aveniaKybLevel1ResponseSchema,
   aveniaKycAttemptsSchema,
@@ -20,6 +22,7 @@ import {
   AveniaDocumentGetResponse,
   AveniaDocumentResponse,
   AveniaDocumentType,
+  AveniaImportKycTokenResponse,
   AveniaKybAttemptStatusResponse,
   AveniaKybLevel1Payload,
   AveniaPayinTicket,
@@ -30,6 +33,7 @@ import {
   AveniaSwapTicket,
   AveniaUboPayload,
   AveniaUboResponse,
+  AveniaVerificationAttemptResponse,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
   BlockchainSendMethod,
@@ -55,10 +59,16 @@ interface CachedQuote {
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+const PAGINATION_MAX_PAGES = 100;
 export const AVENIA_PUBLIC_KEY_TIMEOUT_MS = 10_000;
 // Bound on every signed API request. A hung connection would otherwise stall callers
 // indefinitely — cron workers with waitForCompletion never run their next cycle.
 export const BRLA_REQUEST_TIMEOUT_MS = 30_000;
+const SENSITIVE_PROVIDER_RESPONSE = "Sensitive provider response omitted";
+
+export interface BrlaRequestOptions {
+  sensitiveBody?: boolean;
+}
 
 /**
  * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
@@ -134,7 +144,8 @@ export class BrlaApiService {
     method: M,
     queryParams?: string,
     payload?: EndpointRequestBody<E, M>,
-    pathParam?: string
+    pathParam?: string,
+    requestOptions: BrlaRequestOptions = {}
   ): Promise<EndpointResponse<E, M>> {
     const timestamp = Date.now().toString();
     const body = payload ? JSON.stringify(payload) : "";
@@ -180,7 +191,11 @@ export class BrlaApiService {
       options.body = body;
     }
     const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
-    logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    if (requestOptions.sensitiveBody) {
+      logger.current.debug(`Sending request to ${endpoint} with method ${method}; sensitive request details omitted`);
+    } else {
+      logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    }
 
     let response: Response;
     try {
@@ -191,7 +206,11 @@ export class BrlaApiService {
       throw new BrlaApiError({
         endpoint: endpoint as string,
         method: method as string,
-        responseBody: error instanceof Error ? error.message : String(error),
+        responseBody: requestOptions.sensitiveBody
+          ? SENSITIVE_PROVIDER_RESPONSE
+          : error instanceof Error
+            ? error.message
+            : String(error),
         status: 0
       });
     }
@@ -207,7 +226,7 @@ export class BrlaApiService {
       throw new BrlaApiError({
         endpoint: endpoint as string,
         method: method as string,
-        responseBody: await response.text(),
+        responseBody: requestOptions.sensitiveBody ? SENSITIVE_PROVIDER_RESPONSE : await response.text(),
         status: response.status
       });
     }
@@ -250,8 +269,21 @@ export class BrlaApiService {
   }
 
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
-    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
+    const documents: AveniaDocumentGetResponse["documents"] = [];
+    const seenCursors = new Set<string>();
+    let pageCount = 0;
+    let cursor: string | undefined;
+    do {
+      if (pageCount >= PAGINATION_MAX_PAGES) throw new Error("Avenia pagination exceeded the maximum page limit");
+      const query = `subAccountId=${encodeURIComponent(subAccountId)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const page = aveniaDocumentsSchema.parse(await this.sendRequest(Endpoint.Documents, "GET", query, undefined));
+      pageCount++;
+      documents.push(...page.documents);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) throw new Error("Avenia document pagination repeated a cursor");
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    return { documents };
   }
 
   public async getUploadedDocument(documentId: string, subAccountId: string): Promise<AveniaDocumentResponse> {
@@ -409,7 +441,9 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    return aveniaLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.Level1Api, "POST", query, payload));
+    return aveniaLevel1ResponseSchema.parse(
+      await this.sendRequest(Endpoint.Level1Api, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
   }
 
   public async submitKybLevel1(payload: AveniaKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
@@ -417,9 +451,30 @@ export class BrlaApiService {
     return aveniaLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.Level1Api, "POST", query, payload));
   }
 
-  public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
+  public async importKycToken(importToken: string, subAccountId: string): Promise<AveniaImportKycTokenResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return aveniaKycAttemptsSchema.parse(await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined));
+    const payload = { importToken };
+    return aveniaImportKycTokenResponseSchema.parse(
+      await this.sendRequest(Endpoint.ImportKycToken, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
+  }
+
+  public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
+    const attempts: GetKycAttemptResponse["attempts"] = [];
+    const seenCursors = new Set<string>();
+    let pageCount = 0;
+    let cursor: string | undefined;
+    do {
+      if (pageCount >= PAGINATION_MAX_PAGES) throw new Error("Avenia pagination exceeded the maximum page limit");
+      const query = `subAccountId=${encodeURIComponent(subAccountId)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const page = aveniaKycAttemptsSchema.parse(await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined));
+      pageCount++;
+      attempts.push(...page.attempts);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) throw new Error("Avenia KYC attempt pagination repeated a cursor");
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    return { attempts };
   }
 
   /**
@@ -434,16 +489,19 @@ export class BrlaApiService {
     return aveniaKybLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload));
   }
 
-  /**
-   * Gets the status of a KYB attempt
-   * @param attemptId The KYB attempt ID
-   * @returns The KYB attempt status
-   */
-  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<AveniaKybAttemptStatusResponse> {
+  /** Gets an individual or company verification attempt by its exact provider ID. */
+  public async getVerificationAttemptStatus(
+    attemptId: string,
+    subAccountId?: string
+  ): Promise<AveniaVerificationAttemptResponse> {
     const query = subAccountId ? `subAccountId=${encodeURIComponent(subAccountId)}` : undefined;
     return aveniaKybAttemptStatusSchema.parse(
       await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
     );
+  }
+
+  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<AveniaKybAttemptStatusResponse> {
+    return this.getVerificationAttemptStatus(attemptId, subAccountId);
   }
 
   public async listWebhooks(): Promise<AveniaWebhooksListResponse> {

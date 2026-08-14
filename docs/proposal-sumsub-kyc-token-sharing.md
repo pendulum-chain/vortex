@@ -1,7 +1,8 @@
 # Proposal: Avenia Sumsub Token Import for Individual KYC
 
-Status: proposed, not implemented. Vendor contract checked against public Avenia and Sumsub
-documentation on 2026-08-14.
+Status: implemented and enabled in code on this branch. Production readiness remains blocked on
+provider and environment confirmations, legal and consent review, and sandbox validation. Vendor
+contract checked against public Avenia and Sumsub documentation on 2026-08-14.
 
 Decision: add an API-only alternative to Avenia's normal individual KYC flow. The caller supplies
 a Sumsub applicant share token that it generated outside Vortex. Vortex imports the token into
@@ -165,7 +166,7 @@ Canonical mapping remains:
 | `PROCESSING` | `in_review` |
 | `COMPLETED + APPROVED` | `approved` |
 | `COMPLETED + REJECTED` | `rejected` |
-| `EXPIRED` | non-approved terminal or retry state |
+| `EXPIRED` | `pending` and non-approved pending reconciliation; external `EXPIRED` retained |
 
 ### Provider prerequisites
 
@@ -249,11 +250,13 @@ permit method switching. A retry may occur only within the selected method and o
 allows it. An ambiguous token-import result remains locked to `sumsub_share_token` because the
 one-time token may already have been consumed.
 
-For cases created before this invariant, Vortex must reconcile Avenia documents and attempts
-before allowing token import. Any normal KYC document, liveness resource, Web SDK attempt, or
-normal Level 1 attempt classifies the case as `standard`. An existing imported attempt classifies
-it as `sumsub_share_token`. Ambiguous or conflicting provider history fails closed and requires
-operator reconciliation.
+Migration 066 classifies every Avenia `kyc` case that exists when the migration runs as
+`standard` directly from the case's provider and type, including rows without a provider-customer join. Cases created later remain nullable until
+their first method claim. A runtime status read locks a nullable case and selects `standard`; it
+does not infer a method or bind an attempt from provider document or attempt history.
+Clients intending to import a token must therefore complete the import before any status read.
+The migration is forward-only once verification state exists: rollback takes an exclusive case-table
+lock and refuses to remove the columns while any method or submission JSON remains.
 
 ## User Story 1: Managed Profile
 
@@ -317,6 +320,9 @@ HTTP/1.1 202 Accepted
 }
 ```
 
+After `202`, clients poll aggregate onboarding status or `GET /v1/brla/getKycStatus` with an owned
+`taxId`. The returned `attemptId` is correlation data, not a public status-poll input.
+
 The operation does not accept CPF, `subAccountId`, Sumsub applicant ID, customer-entity ID, or
 provider-customer ID. It derives the target from the authenticated effective profile and
 requires exactly one eligible active individual Avenia provider customer. Missing or ambiguous
@@ -345,21 +351,20 @@ Add an immutable nullable `verification_method` to individual KYC cases with val
 or `sumsub_share_token`. Selecting it and claiming a submission must be serialized under a
 database lock on the canonical KYC case.
 
-Add durable verification-submission records containing only:
+Add one nullable `verification_submission` JSON object to the canonical KYC case containing only:
 
-- KYC case ID;
-- method;
 - status: `prepared`, `submitted`, `confirmed`, `ambiguous`, or `failed`;
-- idempotency-key hash;
-- keyed token fingerprint for input-consistency checks;
+- optional idempotency-key hash and token digest for input-consistency checks;
+- optional standard-payload digest;
 - actor and subject profile IDs;
-- Avenia attempt ID when known;
+- the complete pre-send attempt-ID baseline;
 - non-secret error classification;
-- consent-policy version and attestation timestamp;
-- creation and update timestamps.
+- an append-only consent-attestation array containing actor, subject, policy version, and timestamp for each token claim.
 
-The token itself and complete provider request are never persisted. A unique active-submission
-constraint prevents concurrent normal and imported submissions for the same case.
+The exact Avenia attempt remains in `kyc_cases.provider_case_id`, and the provider-send timestamp
+remains in `kyc_cases.submitted_at`. The token itself and complete provider request are never
+persisted. The locked canonical case row is the sole serialization boundary, so no submission table
+or active-submission index is needed.
 
 The existing normal document/liveness and submission endpoints must participate in the same
 method claim. Adding a lock only to token import would leave a race where normal KYC starts after
@@ -368,16 +373,17 @@ the import preflight but before Avenia consumes the token.
 ### Retry and reconciliation
 
 - A confirmed retry with the same idempotency key returns the stored attempt ID.
-- Reusing an idempotency key with a different token fingerprint returns `409`.
+- Reusing an idempotency key with a different token digest returns `409`.
 - Concurrent requests result in at most one Avenia import call.
-- A definitive pre-provider rejection may mark the submission failed without consuming a token.
+- A definitive pre-provider rejection, including failure to read the attempt baseline, marks the
+  submission failed and requires a new idempotency key even though the token was not sent.
 - A transport failure, timeout, malformed success, or provider 5xx marks the submission
   ambiguous and never automatically resubmits.
 - Reconciliation lists Avenia attempts for the owned subaccount and binds exactly one matching
   `sumsub-token-*` attempt created in the submission window.
 - Zero or multiple candidates remain ambiguous and require operator action.
-- A provider success followed by a local write failure is repaired from the confirmed durable
-  submission without another provider call.
+- A provider success followed by a local write failure is repaired from the exact attempt retained
+  on the canonical case without another provider POST.
 - A second token after an asynchronous rejection remains disabled until Avenia confirms the
   supported retry contract.
 
@@ -393,7 +399,12 @@ authoritative persistence path.
 
 Only Avenia `COMPLETED + APPROVED` may approve the provider customer and KYC case. Sumsub
 `GREEN`, possession of a token, Avenia import acceptance, and client assertions never complete
-onboarding. Terminal approval cannot be downgraded by stale responses.
+onboarding. Before persisting that approval for `sumsub_share_token`, Vortex also reads Avenia
+subaccount info. When Avenia returns a non-empty `accountInfo.taxId`, its normalized hash must
+equal the canonical provider customer's tax-reference hash; a mismatch leaves both rows
+unapproved. An absent or empty provider tax ID preserves the existing approval behavior because
+Avenia's guarantee that this field is present for imported KYC remains a deployment blocker.
+Terminal approval cannot be downgraded by stale responses.
 
 ## Token and Privacy Controls
 
@@ -405,7 +416,7 @@ onboarding. Terminal approval cannot be downgraded by stale responses.
 - Exclude the token from Sentry, analytics, traces, metrics labels, audit payloads, and support
   logs.
 - Never place the token in a Vortex URL or query parameter.
-- Store only a keyed fingerprint when needed to enforce idempotent input consistency.
+- Store only a SHA-256 digest when needed to enforce idempotent input consistency.
 - Keep actor, subject, case, provider attempt, method, and consent metadata auditable.
 
 Sharing may transfer identity fields, document images, selfies, biometric-derived checks, and
@@ -413,9 +424,9 @@ review results between Sumsub clients. Sumsub's generic consent does not replace
 legal basis, applicant disclosures, biometric or special-category consent, international data
 transfer controls, or inter-organizational sharing obligations.
 
-Before implementation, legal and compliance must define what a direct user and a manager acting
-for a child attest, the policy text and version, who collects applicant consent, and what evidence
-Vortex must retain. Possession of a valid token is not treated as consent evidence.
+Before deployment enablement, legal and compliance must define what a direct user and a manager
+acting for a child attest, the policy text and version, who collects applicant consent, and what
+evidence Vortex must retain. Possession of a valid token is not treated as consent evidence.
 
 ## Implementation Areas
 
@@ -429,10 +440,10 @@ Vortex must retain. Possession of a valid token is not treated as consent eviden
 
 ### Persistence
 
-- Add immutable KYC verification method and durable submission records.
-- Add active-submission and idempotency constraints.
+- Add the immutable KYC verification method and current durable claim to the canonical KYC case.
+- Serialize claim and idempotency transitions by locking that canonical case.
 - Store the confirmed Avenia attempt ID on the canonical case.
-- Reconcile pre-existing individual cases before permitting token import.
+- Backfill pre-existing individual Avenia cases to the standard method.
 
 ### Existing normal KYC
 
@@ -492,8 +503,7 @@ delivery.
   disabled manager policy.
 - Empty and over-1-KiB token validation after authentication.
 - Standard-first and token-first method-lock tests on every affected endpoint.
-- Pre-existing case reconciliation with no artifacts, standard artifacts, imported attempts,
-  and conflicting history.
+- Migration backfill of existing individual Avenia cases and nullable method state on cases created later.
 - Concurrent imports issue one Avenia request.
 - Import racing normal document or attempt creation cannot cross the method lock.
 - Idempotent confirmed retry returns the same attempt.
@@ -526,6 +536,8 @@ delivery.
 - Whether and when a new token is permitted after asynchronous rejection.
 - Which synchronous errors prove that the token was not consumed.
 - How Avenia recommends reconciling an import timeout with no immediate matching attempt.
+- Whether `accountInfo.taxId` is guaranteed to be present after imported KYC approval in every
+  enabled environment.
 - Avenia's retention and deletion policy for imported identity data and documents.
 - The consent and attestation contract for direct users and managers acting for children.
 
@@ -553,4 +565,4 @@ delivery.
 The investigation used public documentation only. No authenticated Avenia or Sumsub dashboard,
 contract, support correspondence, or live API credentials were available. Avenia did not expose
 a public OpenAPI document at common specification paths. The blocking confirmations above remain
-required before implementation.
+required before deployment enablement.

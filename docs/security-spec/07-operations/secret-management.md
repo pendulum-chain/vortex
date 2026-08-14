@@ -58,6 +58,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 9. **`MYKOBO_CLIENT_DOMAIN` MUST be set in production** — Not a secret, but operationally critical: when unset, Mykobo silently applies its default fee tier (~5x worse than the negotiated rate). Quote-engine fee defaults will then diverge from what Mykobo actually charges. Deployment automation MUST treat a missing `MYKOBO_CLIENT_DOMAIN` as a hard failure rather than letting it fall through to default-tier fees.
 10. **Observability MUST follow the same no-secret rule as logs** — API client events, request correlation logs, metrics, and observability data must not contain full API keys, bearer tokens, provider credentials, private keys, seeds, raw request headers, or raw request bodies. Sanitized request summaries may be stored only when they are allowlisted, scalar, and stripped of secrets or sensitive payment/user data. See `07-operations/client-observability.md`.
 11. **Provider endpoint URLs MUST be treated as integrity-sensitive configuration** — Non-secret provider URL env vars such as `FASTFOREX_API_URL` and `MYKOBO_BASE_URL` must not be user-controllable or mutable at runtime by untrusted actors. A malicious URL can redirect outbound provider calls even when no secret is leaked.
+12. **Sumsub share tokens MUST be treated as transient secrets** — Raw import tokens may exist only in request memory during the Avenia exchange. They MUST NOT be persisted or emitted to logs, URLs, provider error details, Sentry, analytics, traces, metrics, API client events, support artifacts, or responses. Only a SHA-256 digest may be stored for equality checks.
 
 ## Threat Vectors & Mitigations
 
@@ -72,6 +73,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | **Google Sheets credentials** — Access to fee logging spreadsheet | Could expose fee data and ramp metadata. Could manipulate fee records. Lower severity than financial keys but still a data leak. |
 | **`SUPABASE_SERVICE_KEY` used for all database operations** — No principle of least privilege | The service key bypasses all RLS. If any code path leaks this key, the attacker has unrestricted database access. A more secure approach would use the anon key with RLS for read operations and the service key only for privileged writes. |
 | **Observability event leak** — Operational telemetry captures secret values or payment/KYC data | Client observability uses a sanitized event schema, 16-character key prefixes only, allowlisted scalar request summaries, scalar metadata filtering, and explicit exclusion of raw headers/bodies, tax IDs, PIX data, KYC data, and private material. |
+| **KYC data disclosure** — A bearer-like share token or standard identity payload is logged or retained in operational data | Sensitive provider requests suppress body and response details; observability rejects secret KYC inputs; persistence retains only SHA-256 equality digests. |
 
 ## Audit Checklist
 
@@ -91,3 +93,4 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [x] Map the full blast radius: if the API server is compromised, list every account, service, and database that becomes accessible. **PASS (comprehensive)** — full blast radius documented in the Secret Inventory table above.
 - [x] **FINDING F-062 (MEDIUM)**: Verify SDK does not log API keys or secrets to console. **PASS (FIXED)** — removed `console.log("Creating quote with request:", request)` from `ApiService.ts` that was leaking the full request object including API key.
 - [ ] Verify API client event persistence stores only 16-character key prefixes and never stores full `X-API-Key`, bearer tokens, raw auth headers, or request bodies.
+- [x] Verify Avenia share tokens are request-memory-only and provider request/error logging is suppressed. **PASS** — the import client uses sensitive-body mode and persistence stores only a SHA-256 digest.

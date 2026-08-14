@@ -37,6 +37,7 @@
       "/v1/brla/kyb/new-level-1/api",
       "/v1/brla/kyb/new-level-1/web-sdk",
       "/v1/brla/kyb/ubos",
+      "/v1/brla/kyc/import-token",
       "/v1/brla/kyc/record-attempt",
       "/v1/brla/newKyc",
       "/v1/brla/validatePixKey",
@@ -133,10 +134,11 @@
           "secret key",
           "public key",
           "partner key",
+          "KYC token import",
           "OTP sign-in",
           "crypto ramp authentication"
         ],
-        "metaDescription": "How Vortex authenticates API clients: pk_*/sk_* key pairs, partner-scoped vs user-linked keys, email OTP sign-in, and minting user API keys programmatically.",
+        "metaDescription": "How Vortex authenticates clients with pk_*/sk_* keys or Supabase sessions, including managed-child delegation and secure BRL KYC token import.",
         "metaTitle": "Authentication And API Keys — Vortex API"
       },
       "slug": "authentication-and-partner-keys",
@@ -243,10 +245,11 @@
           "SPEI crypto",
           "CBU crypto",
           "BRL on-ramp",
+          "Sumsub KYC token",
           "EUR off-ramp",
           "Brazil Mexico Colombia Argentina crypto"
         ],
-        "metaDescription": "Corridor requirements for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU): payment rails, KYC prerequisites, fiat accounts, and limits.",
+        "metaDescription": "Corridor requirements for BRL, EUR, USD, MXN, COP, and ARS, including payment rails, KYC prerequisites, BRL token import, accounts, and limits.",
         "metaTitle": "Fiat Corridors — PIX, SEPA, ACH, SPEI, CBU"
       },
       "slug": "fiat-corridors",

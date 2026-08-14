@@ -4,6 +4,7 @@ import {
   aveniaAccountInfoSchema,
   aveniaAccountLimitsSchema,
   aveniaDocumentResponseSchema,
+  aveniaImportKycTokenResponseSchema,
   aveniaKybAttemptStatusSchema,
   aveniaKycAttemptsSchema,
   aveniaLevel1ResponseSchema,
@@ -192,6 +193,34 @@ describe("Avenia KYB Level 1 response schemas", () => {
     };
     expect(() => aveniaKybAttemptStatusSchema.parse({ attempt: pending })).not.toThrow();
     expect(() => aveniaKycAttemptsSchema.parse({ attempts: [pending] })).not.toThrow();
+  });
+
+  test("normalizes documented null result fields on unsettled attempts", () => {
+    const pending = {
+      createdAt: "2026-03-19T22:09:52.629984Z",
+      id: "attempt-1",
+      levelName: "sumsub-token-recipient",
+      result: null,
+      resultMessage: null,
+      status: "PENDING",
+      updatedAt: "2026-03-19T22:09:52.629984Z"
+    };
+    expect(aveniaKybAttemptStatusSchema.parse({ attempt: pending }).attempt).toMatchObject({
+      result: undefined,
+      resultMessage: undefined
+    });
+    expect(aveniaKycAttemptsSchema.parse({ attempts: [pending] }).attempts[0]).toMatchObject({
+      result: undefined,
+      resultMessage: undefined
+    });
+  });
+});
+
+describe("aveniaImportKycTokenResponseSchema", () => {
+  test("requires nonempty id and message fields", () => {
+    expect(() => aveniaImportKycTokenResponseSchema.parse({ id: "attempt-1", message: "processing KYC" })).not.toThrow();
+    expect(() => aveniaImportKycTokenResponseSchema.parse({ id: "", message: "processing KYC" })).toThrow();
+    expect(() => aveniaImportKycTokenResponseSchema.parse({ id: "attempt-1", message: "" })).toThrow();
   });
 });
 

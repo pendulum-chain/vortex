@@ -730,6 +730,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/brla/kyc/import-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import an individual Avenia KYC token
+         * @description Imports an opaque Sumsub share token into the authenticated subject's existing individual Avenia KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. Use either a profile-bound secret `X-API-Key` or a Supabase Bearer session. A controlling manager may add `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.
+         *
+         *     The body accepts only `importToken` and literal `consentAttested: true`; CPF, tax ID, subaccount ID, applicant ID, entity ID, provider-customer ID, profile ID, and other caller identity selectors are forbidden. The provisional server-controlled consent policy is `sumsub-share-v1`. Every token claim appends actor, subject, policy version, and timestamp consent evidence without storing the raw token.
+         *
+         *     The first normal KYC artifact, status read, or token-import claim permanently selects that case's method. Import the token before reading KYC or onboarding status because a status read selects a nullable method as `standard`. The same idempotency key and token returns a stored confirmed attempt or safely reconciles a durable submitted/ambiguous claim through provider reads, without another provider POST or replaying the token. A different token under the same key returns `409`. A provider `401` means the feature precondition is unavailable, records a failed attempt, returns `412`, and may be retried only with a new idempotency key; the new claim appends consent evidence while preserving prior attestations. Every other post-send provider, transport, malformed-response, timeout, or local-confirmation failure is ambiguous, returns `502`, and is never replayed automatically.
+         *
+         *     Acceptance is pending only. Vortex polls the exact returned Avenia attempt; `EXPIRED` remains non-approved and locally pending for reconciliation, and its external status is retained. Only Avenia `COMPLETED` plus `APPROVED` completes KYC. The Avenia webhook is notification-only and cannot approve the case.
+         */
+        post: operations["importAveniaKycToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/brla/kyc/record-attempt": {
         parameters: {
             query?: never;
@@ -2382,6 +2408,28 @@ export interface components {
             uploadURLFront: string;
             validateLivenessToken: string;
         };
+        BrlaImportKycTokenErrorResponse: {
+            /**
+             * @description Stable, non-secret token-import error. Provider response bodies and the import token are never returned.
+             * @enum {string}
+             */
+            error: "Idempotency-Key must contain 1 to 128 visible ASCII characters" | "Invalid request body" | "importToken must contain between 1 and 1024 bytes" | "consentAttested must be true" | "The subject profile has no active customer entity" | "The managed subject does not match the expected customer entity" | "A managed profile requires a managed customer entity context" | "The subject customer entity is not active" | "Avenia token import is only available for individuals" | "Exactly one active Brazilian individual Avenia customer is required" | "Multiple Avenia customers require reconciliation" | "The Avenia subaccount is not provisioned" | "The Avenia customer is already approved" | "The canonical Avenia KYC case is missing" | "Multiple Avenia KYC cases require reconciliation" | "The Avenia KYC case is already approved" | "The confirmed token import is missing its provider attempt" | "The idempotency key was used with a different token" | "The token import does not match this request" | "A failed token import requires a new idempotency key" | "The Avenia KYC is already approved" | "The previous token import outcome requires reconciliation" | "Another token import requires reconciliation" | "This KYC case uses the standard Avenia method" | "The Avenia token import attempt is invalid" | "The token import attempt requires reconciliation" | "The token import was already claimed" | "The token import binding is no longer current" | "The authenticated profile cannot perform this operation for the requested managed profile" | "Avenia token import pre-provider checks failed" | "Avenia token import is not enabled" | "The Avenia token import outcome requires reconciliation" | "Token import failed";
+        };
+        BrlaImportKycTokenRequest: {
+            /**
+             * @description Required provisional attestation recorded under Vortex consent policy `sumsub-share-v1`. This is not a substitute for the caller's legal basis or applicant disclosures.
+             * @constant
+             */
+            consentAttested: true;
+            /** @description Opaque Sumsub share token. Must contain 1 to 1024 UTF-8 bytes. Vortex forwards it to Avenia from request memory and never returns or persists the raw value. */
+            importToken: string;
+        };
+        BrlaImportKycTokenResponse: {
+            /** @description The exact Avenia verification attempt bound to this KYC case and used for subsequent polling. */
+            attemptId: string;
+            /** @constant */
+            status: "pending";
+        };
         BrlaManagedBadRequestResponse: components["schemas"]["BrlaErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
         BrlaValidatePixKeyResponse: {
             valid: boolean;
@@ -2659,6 +2707,16 @@ export interface components {
             managedProfiles: components["schemas"]["ManagedProfile"][];
             pagination: components["schemas"]["ManagedProfilePagination"];
         };
+        MalformedJsonErrorResponse: {
+            /** @constant */
+            code: 400;
+            /** @constant */
+            message: "Invalid JSON payload";
+            /** @constant */
+            statusCode: 400;
+            /** @constant */
+            type: "entity.parse.failed";
+        };
         ManagedProfile: {
             /**
              * Format: email
@@ -2856,6 +2914,16 @@ export interface components {
         };
         /** @enum {string} */
         OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E";
+        PayloadTooLargeErrorResponse: {
+            /** @constant */
+            code: 413;
+            /** @constant */
+            message: "Request body too large";
+            /** @constant */
+            statusCode: 413;
+            /** @constant */
+            type: "entity.too.large";
+        };
         /** @description Data related to the payment for the ramp transaction. */
         PaymentData: {
             /**
@@ -4826,8 +4894,26 @@ export interface operations {
                     "application/json": components["schemas"]["BrlaErrorResponse"];
                 };
             };
+            /** @description The canonical Avenia KYC state requires reconciliation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
             /** @description Internal Server Error (e.g., no KYC events found when expected). */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
+            /** @description Avenia is unavailable or returned an invalid response. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4872,8 +4958,26 @@ export interface operations {
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
             403: components["responses"]["BrlaManagedSelectorForbidden"];
+            /** @description The immutable KYC method or canonical case state conflicts with liveness creation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
             /** @description Internal server error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
+            /** @description Avenia is unavailable or returned an invalid response. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4919,8 +5023,26 @@ export interface operations {
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
             403: components["responses"]["BrlaManagedSelectorForbidden"];
+            /** @description The immutable KYC method or canonical case state conflicts with upload creation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
             /** @description Internal server error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
+            /** @description Avenia is unavailable or returned an invalid response. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5426,6 +5548,116 @@ export interface operations {
             };
         };
     };
+    importAveniaKycToken: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+                /** @description Caller-generated key for one token-import attempt. It must contain 1 to 128 visible ASCII characters. Reuse it only with the same token. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrlaImportKycTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact Avenia attempt is durably bound and pending. This does not mean KYC is approved. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenResponse"];
+                };
+            };
+            /** @description Invalid idempotency key, strict body, malformed authenticated JSON, selector UUID, or managed customer type. Authentication is checked first. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["MalformedJsonErrorResponse"];
+                };
+            };
+            /** @description A valid profile-bound secret key or Supabase session is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
+                };
+            };
+            /** @description The selected child is unauthorized, the caller used direct managed-child credentials, or transactional authorization was revoked before provider submission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                };
+            };
+            /** @description The prerequisite setup, immutable method, idempotency input, active submission, or prior ambiguous outcome prevents import. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                };
+            };
+            /** @description Avenia returned provider `401`: token import is not enabled. This failed attempt may be retried with a new idempotency key. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                };
+            };
+            /** @description The authenticated JSON request exceeds the token-import route's 16 KiB body limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayloadTooLargeErrorResponse"];
+                };
+            };
+            /** @description Token import failed before a safe public classification could be returned. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The post-send outcome is ambiguous and requires reconciliation. Do not retry the token. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                };
+            };
+            /** @description Supabase authentication is temporarily unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+        };
+    };
     recordInitialAveniaKycAttempt: {
         parameters: {
             query?: never;
@@ -5511,8 +5743,26 @@ export interface operations {
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
             403: components["responses"]["BrlaManagedSelectorForbidden"];
+            /** @description The immutable KYC method, approval state, or durable submission state conflicts with this request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
             /** @description Internal server error. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                };
+            };
+            /** @description Avenia documents are not ready, or the submitted outcome requires reconciliation. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

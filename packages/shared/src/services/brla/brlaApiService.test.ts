@@ -1,14 +1,22 @@
 import { afterEach, describe, expect, it, mock, test } from "bun:test";
 import { generateKeyPairSync } from "crypto";
 import * as forge from "node-forge";
-import { BrlaApiService } from "./brlaApiService";
+import logger from "../../logger";
+import { BrlaApiError, BrlaApiService } from "./brlaApiService";
 import { Endpoint } from "./mappings";
-import { AveniaDocumentType, type AveniaKybLevel1Payload, type AveniaUboPayload } from "./types";
+import {
+  AveniaDocumentType,
+  type AveniaKybLevel1Payload,
+  type AveniaUboPayload,
+  type KycLevel1Payload
+} from "./types";
 
 const realFetch = globalThis.fetch;
+const realLogger = logger.current;
 
 afterEach(() => {
   globalThis.fetch = realFetch;
+  logger.current = realLogger;
 });
 
 function serviceWithMockedRequest() {
@@ -119,7 +127,7 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     const { sendRequest, service } = serviceWithMockedRequest();
 
     await service.submitKybLevel1(kyb, "sub-1");
-    await service.getKybAttemptStatus("attempt-1", "sub-1");
+    await service.getVerificationAttemptStatus("attempt-1", "sub-1");
 
     expect(sendRequest.mock.calls[0]).toEqual([Endpoint.Level1Api, "POST", "subAccountId=sub-1", kyb]);
     expect(sendRequest.mock.calls[1]).toEqual([
@@ -160,6 +168,219 @@ describe("BrlaApiService.getAveniaPublicKey", () => {
 
     await expect(service.getAveniaPublicKey()).resolves.toBe("test-public-key");
     expect(signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("BrlaApiService.importKycToken", () => {
+  test("uses the exact trailing-slash URL and signs the sensitive body", async () => {
+    const keyPair = forge.pki.rsa.generateKeyPair(1024);
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-key", privateKey: forge.pki.privateKeyToPem(keyPair.privateKey) });
+    const fetchMock = mock(async () =>
+      new Response(JSON.stringify({ id: "attempt-1", message: "processing KYC" }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      })
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(service.importKycToken("share-token", "sub/account")).resolves.toEqual({
+      id: "attempt-1",
+      message: "processing KYC"
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const requestUri = "/v2/kyc/import-token/?subAccountId=sub%2Faccount";
+    expect(String(url)).toEndWith(requestUri);
+    expect(options.method).toBe("POST");
+    expect(options.body).toBe(JSON.stringify({ importToken: "share-token" }));
+    const headers = options.headers as Record<string, string>;
+    const digest = forge.md.sha256.create();
+    digest.update(`${headers["X-API-Timestamp"]}POST${requestUri}${options.body}`, "utf8");
+    expect(
+      keyPair.publicKey.verify(digest.digest().bytes(), forge.util.decode64(headers["X-API-Signature"]))
+    ).toBe(true);
+  });
+
+  test("never logs or throws a sensitive token echoed by the provider", async () => {
+    const sentinel = "SENTINEL-SUMSUB-TOKEN";
+    const sentinelSubaccountId = "SENTINEL-SUBACCOUNT-ID";
+    const keyPair = forge.pki.rsa.generateKeyPair(1024);
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-key", privateKey: forge.pki.privateKeyToPem(keyPair.privateKey) });
+    const logCalls: Record<"debug" | "error" | "info" | "warn", unknown[][]> = {
+      debug: [],
+      error: [],
+      info: [],
+      warn: []
+    };
+    logger.current = {
+      debug: (...args: unknown[]) => logCalls.debug.push(args),
+      error: (...args: unknown[]) => logCalls.error.push(args),
+      info: (...args: unknown[]) => logCalls.info.push(args),
+      warn: (...args: unknown[]) => logCalls.warn.push(args)
+    };
+    globalThis.fetch = mock(async () => new Response(`invalid token: ${sentinel}`, { status: 400 })) as typeof fetch;
+
+    let thrown: unknown;
+    try {
+      await service.importKycToken(sentinel, sentinelSubaccountId);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(BrlaApiError);
+    expect(logCalls.debug).toEqual([
+      [`Sending request to ${Endpoint.ImportKycToken} with method POST; sensitive request details omitted`]
+    ]);
+    for (const calls of Object.values(logCalls)) {
+      expect(JSON.stringify(calls)).not.toContain(sentinel);
+      expect(JSON.stringify(calls)).not.toContain(sentinelSubaccountId);
+    }
+    expect(String(thrown)).not.toContain(sentinel);
+    expect(JSON.stringify(thrown)).not.toContain(sentinel);
+    expect(String(thrown)).not.toContain(sentinelSubaccountId);
+    expect(JSON.stringify(thrown)).not.toContain(sentinelSubaccountId);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("BrlaApiService.submitKycLevel1", () => {
+  test("never logs or throws a sensitive standard KYC payload echoed by the provider", async () => {
+    const sentinel = "SENTINEL-STANDARD-KYC-PII";
+    const payload: KycLevel1Payload = {
+      city: sentinel,
+      country: sentinel,
+      countryOfTaxId: sentinel,
+      dateOfBirth: sentinel,
+      email: sentinel,
+      fullName: sentinel,
+      state: sentinel,
+      streetAddress: sentinel,
+      subAccountId: "sub-1",
+      taxIdNumber: sentinel,
+      uploadedDocumentId: sentinel,
+      uploadedSelfieId: sentinel,
+      zipCode: sentinel
+    };
+    const keyPair = forge.pki.rsa.generateKeyPair(1024);
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-key", privateKey: forge.pki.privateKeyToPem(keyPair.privateKey) });
+    const logCalls: Record<"debug" | "error" | "info" | "warn", unknown[][]> = {
+      debug: [],
+      error: [],
+      info: [],
+      warn: []
+    };
+    logger.current = {
+      debug: (...args: unknown[]) => logCalls.debug.push(args),
+      error: (...args: unknown[]) => logCalls.error.push(args),
+      info: (...args: unknown[]) => logCalls.info.push(args),
+      warn: (...args: unknown[]) => logCalls.warn.push(args)
+    };
+    globalThis.fetch = mock(async () => new Response(`invalid KYC payload: ${sentinel}`, { status: 400 })) as typeof fetch;
+
+    let thrown: unknown;
+    try {
+      await service.submitKycLevel1(payload);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(BrlaApiError);
+    for (const calls of Object.values(logCalls)) {
+      expect(JSON.stringify(calls)).not.toContain(sentinel);
+    }
+    expect(String(thrown)).not.toContain(sentinel);
+    expect(JSON.stringify(thrown)).not.toContain(sentinel);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("BrlaApiService paginated provider history", () => {
+  it("returns every KYC attempt page and encodes the provider cursor", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const sendRequest = mock(async (_endpoint: Endpoint, _method: string, query: string) => {
+      const id = sendRequest.mock.calls.length === 1 ? "attempt-1" : "attempt-2";
+      return {
+        attempts: [
+          {
+            createdAt: "2026-08-14T12:00:00.000Z",
+            id,
+            levelName: "level-1",
+            status: "PENDING",
+            updatedAt: "2026-08-14T12:00:00.000Z"
+          }
+        ],
+        ...(query.includes("cursor=") ? {} : { cursor: "next/page?" })
+      };
+    });
+    Object.assign(service, { sendRequest });
+
+    await expect(service.getKycAttempts("sub/account")).resolves.toMatchObject({
+      attempts: [{ id: "attempt-1" }, { id: "attempt-2" }]
+    });
+    expect(sendRequest.mock.calls.map(call => call[2])).toEqual([
+      "subAccountId=sub%2Faccount",
+      "subAccountId=sub%2Faccount&cursor=next%2Fpage%3F"
+    ]);
+  });
+
+  it("returns every uploaded-document page", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const sendRequest = mock(async () => ({
+      cursor: sendRequest.mock.calls.length === 1 ? "page-2" : null,
+      documents: [
+        {
+          documentType: AveniaDocumentType.PASSPORT,
+          id: `document-${sendRequest.mock.calls.length}`,
+          ready: true,
+          uploadStatusFront: "PROCESSED"
+        }
+      ]
+    }));
+    Object.assign(service, { sendRequest });
+
+    await expect(service.getUploadedDocuments("sub-1")).resolves.toMatchObject({
+      documents: [{ id: "document-1" }, { id: "document-2" }]
+    });
+    expect(sendRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed when Avenia repeats a pagination cursor", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, {
+      sendRequest: mock(async () => ({ attempts: [], cursor: "same-cursor" }))
+    });
+
+    await expect(service.getKycAttempts("sub-1")).rejects.toThrow("repeated a cursor");
+  });
+
+  it("stops uploaded-document pagination after exactly 100 requests", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const sendRequest = mock(async () => ({
+      cursor: `cursor-${sendRequest.mock.calls.length}`,
+      documents: []
+    }));
+    Object.assign(service, { sendRequest });
+
+    await expect(service.getUploadedDocuments("sub-1")).rejects.toThrow(
+      "Avenia pagination exceeded the maximum page limit"
+    );
+    expect(sendRequest).toHaveBeenCalledTimes(100);
+  });
+
+  it("stops KYC-attempt pagination after exactly 100 requests", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const sendRequest = mock(async () => ({
+      attempts: [],
+      cursor: `cursor-${sendRequest.mock.calls.length}`
+    }));
+    Object.assign(service, { sendRequest });
+
+    await expect(service.getKycAttempts("sub-1")).rejects.toThrow("Avenia pagination exceeded the maximum page limit");
+    expect(sendRequest).toHaveBeenCalledTimes(100);
   });
 });
 

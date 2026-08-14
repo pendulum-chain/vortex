@@ -3,9 +3,10 @@ import {
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaDocument,
+  AveniaDocumentGetResponse,
   AveniaDocumentType,
   AveniaFeeType,
-  AveniaKybAttemptStatusResponse,
+  AveniaImportKycTokenResponse,
   AveniaOperationFee,
   AveniaPayinTicket,
   AveniaPayoutTicket,
@@ -14,6 +15,7 @@ import {
   AveniaSubaccountWallet,
   AveniaTicketStatus,
   AveniaUboResponse,
+  AveniaVerificationAttemptResponse,
   AveniaWebhook,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
@@ -168,6 +170,18 @@ export const aveniaDocumentResponseSchema = z.looseObject({
   })
 }) satisfies z.ZodType<{ document: AveniaDocument }>;
 
+const aveniaCursorSchema = z
+  .string()
+  .min(1)
+  .nullish()
+  .transform(value => value ?? undefined);
+
+/** Paginated document history used by readiness and method reconciliation. */
+export const aveniaDocumentsSchema = z.looseObject({
+  cursor: aveniaCursorSchema,
+  documents: z.array(aveniaDocumentResponseSchema.shape.document)
+}) satisfies z.ZodType<AveniaDocumentGetResponse>;
+
 /** The upload target returned when an Avenia document record is created. */
 export const aveniaDocumentUploadResponseSchema = z.looseObject({
   id: z.string().min(1),
@@ -187,6 +201,12 @@ export const aveniaLevel1ResponseSchema = z.looseObject({
   id: z.string().min(1)
 }) satisfies z.ZodType<KycLevel1Response>;
 
+/** The attempt identifier and acknowledgement returned after importing a Sumsub share token. */
+export const aveniaImportKycTokenResponseSchema = z.object({
+  id: z.string().min(1),
+  message: z.string().min(1)
+}) satisfies z.ZodType<AveniaImportKycTokenResponse>;
+
 /** The hosted company KYB attempt and continuation URLs. */
 export const aveniaKybLevel1ResponseSchema = z.looseObject({
   attemptId: z.string().min(1),
@@ -198,8 +218,14 @@ const aveniaAttemptSchema = z.looseObject({
   createdAt: z.string().datetime({ offset: true }),
   id: z.string().min(1),
   levelName: z.string().min(1),
-  result: z.enum(KycAttemptResult).optional(),
-  resultMessage: z.string().optional(),
+  result: z
+    .enum(KycAttemptResult)
+    .nullish()
+    .transform(value => value ?? undefined),
+  resultMessage: z
+    .string()
+    .nullish()
+    .transform(value => value ?? undefined),
   retryable: z.boolean().optional(),
   status: z.enum(KycAttemptStatus),
   submissionData: z.record(z.string(), z.unknown()).optional(),
@@ -208,13 +234,16 @@ const aveniaAttemptSchema = z.looseObject({
 
 /** Paginated attempt history used to reconcile an ambiguous submission. */
 export const aveniaKycAttemptsSchema = z.looseObject({
-  attempts: z.array(aveniaAttemptSchema)
+  attempts: z.array(aveniaAttemptSchema),
+  cursor: aveniaCursorSchema
 }) satisfies z.ZodType<GetKycAttemptResponse>;
 
-/** A KYB attempt returned by GET /v2/kyc/attempts/{attemptId}. */
-export const aveniaKybAttemptStatusSchema = z.looseObject({
+/** An individual or company verification attempt returned by GET /v2/kyc/attempts/{attemptId}. */
+export const aveniaVerificationAttemptSchema = z.looseObject({
   attempt: aveniaAttemptSchema
-}) satisfies z.ZodType<AveniaKybAttemptStatusResponse>;
+}) satisfies z.ZodType<AveniaVerificationAttemptResponse>;
+
+export const aveniaKybAttemptStatusSchema = aveniaVerificationAttemptSchema;
 
 /** The body returned after POST /v2/notifications/webhooks. */
 export const aveniaWebhookRegistrationSchema = z.looseObject({

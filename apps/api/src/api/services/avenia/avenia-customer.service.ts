@@ -1,6 +1,7 @@
 import { AveniaAccountType, BrlaApiService, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
 import type { Transaction } from "sequelize";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
@@ -8,6 +9,16 @@ import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../.
 
 export function hashTaxReference(taxId: string): string {
   return crypto.createHash("sha256").update(normalizeTaxId(taxId), "utf8").digest("hex");
+}
+
+export function assertAveniaImportedTaxIdentity(
+  customer: ProviderCustomer,
+  account: Awaited<ReturnType<BrlaApiService["subaccountInfo"]>>
+): void {
+  const taxId = account?.accountInfo.taxId;
+  if (typeof taxId === "string" && taxId.trim() && hashTaxReference(taxId) !== customer.taxReferenceHash) {
+    throw new Error("The imported Avenia KYC identity does not match the canonical customer");
+  }
 }
 
 export function maskTaxReference(taxId: string): string {
@@ -109,22 +120,130 @@ export async function upsertAveniaKycCase(
  * is terminal — an Approved account is never downgraded by a stale attempt read — but a
  * `rejected` account follows a successful retried attempt to Approved (the legacy
  * `WHERE internal_status = 'Requested'` guard left it stuck in `Rejected`, so the user's
- * approved KYC never became ramp-ready). Repeated polls of an unchanged outcome no-op.
+ * approved KYC never became ramp-ready). Repeated polls also reconcile either canonical row.
  */
 export async function updateAveniaKycOutcome(
   taxId: string,
   outcome: VerificationStatus.Approved | VerificationStatus.Rejected,
-  statusExternal: string
+  statusExternal: string,
+  expectedCase: { id: string; providerCaseId: string | null }
 ): Promise<void> {
   const record = await findAveniaCustomerByTaxId(taxId);
-  if (!record || record.status === VerificationStatus.Approved) {
-    return;
-  }
-  if (record.status === outcome && record.statusExternal === statusExternal) {
-    return;
-  }
-  await record.update({ status: outcome, statusExternal });
-  await upsertAveniaKycCase(record, outcome, statusExternal);
+  if (!record) return;
+  await updateAveniaKycOutcomeForCustomer(record, outcome, statusExternal, expectedCase);
+}
+
+export async function updateAveniaKycOutcomeForCustomer(
+  record: ProviderCustomer,
+  outcome: VerificationStatus.Approved | VerificationStatus.Rejected,
+  statusExternal: string,
+  expectedCase: { id: string; providerCaseId: string | null }
+): Promise<ProviderCustomer> {
+  return sequelize.transaction(async transaction => {
+    const lockedRecord = await ProviderCustomer.findByPk(record.id, {
+      lock: transaction.LOCK.UPDATE,
+      transaction
+    });
+    if (!lockedRecord) throw new Error("Avenia customer disappeared during KYC outcome persistence");
+
+    const cases = await KycCase.findAll({
+      lock: transaction.LOCK.UPDATE,
+      transaction,
+      where: { id: expectedCase.id, providerCaseId: expectedCase.providerCaseId, providerCustomerId: lockedRecord.id }
+    });
+    if (cases.length !== 1) throw new Error("The Avenia KYC case binding requires reconciliation");
+    const kycCase = cases[0];
+    if (
+      expectedCase.providerCaseId === null &&
+      (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
+    ) {
+      throw new Error("The Avenia KYC case binding requires reconciliation");
+    }
+
+    const approved =
+      outcome === VerificationStatus.Approved ||
+      lockedRecord.status === VerificationStatus.Approved ||
+      kycCase.status === VerificationStatus.Approved;
+    const status = approved ? VerificationStatus.Approved : VerificationStatus.Rejected;
+    const effectiveStatusExternal =
+      outcome === VerificationStatus.Approved || !approved
+        ? statusExternal
+        : lockedRecord.status === VerificationStatus.Approved
+          ? lockedRecord.statusExternal
+          : kycCase.statusExternal;
+    const now = new Date();
+
+    await lockedRecord.update({ status, statusExternal: effectiveStatusExternal }, { transaction });
+    await kycCase.update(
+      {
+        approvedAt: approved ? (kycCase.approvedAt ?? now) : null,
+        rejectedAt: approved ? null : (kycCase.rejectedAt ?? now),
+        status,
+        statusExternal: effectiveStatusExternal
+      },
+      { transaction }
+    );
+    return lockedRecord;
+  });
+}
+
+export async function updateAveniaKycProgressForCustomer(
+  record: ProviderCustomer,
+  expectedCase: { id: string; providerCaseId: string | null },
+  status: VerificationStatus.Pending | VerificationStatus.InReview,
+  statusExternal: string | null
+): Promise<ProviderCustomer> {
+  return sequelize.transaction(async transaction => {
+    const lockedRecord = await ProviderCustomer.findByPk(record.id, {
+      lock: transaction.LOCK.UPDATE,
+      transaction
+    });
+    if (!lockedRecord) throw new Error("Avenia customer disappeared during KYC progress persistence");
+
+    const cases = await KycCase.findAll({
+      lock: transaction.LOCK.UPDATE,
+      transaction,
+      where: {
+        id: expectedCase.id,
+        providerCaseId: expectedCase.providerCaseId,
+        providerCustomerId: lockedRecord.id
+      }
+    });
+    if (cases.length !== 1) throw new Error("The Avenia KYC case binding requires reconciliation");
+    const kycCase = cases[0];
+    if (
+      expectedCase.providerCaseId === null &&
+      (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
+    ) {
+      throw new Error("The Avenia KYC case binding requires reconciliation");
+    }
+
+    const terminalStatus = [lockedRecord.status, kycCase.status].includes(VerificationStatus.Approved)
+      ? VerificationStatus.Approved
+      : [lockedRecord.status, kycCase.status].includes(VerificationStatus.Rejected)
+        ? VerificationStatus.Rejected
+        : null;
+    if (terminalStatus) {
+      const terminalStatusExternal =
+        lockedRecord.status === terminalStatus ? lockedRecord.statusExternal : kycCase.statusExternal;
+      const now = new Date();
+      await lockedRecord.update({ status: terminalStatus, statusExternal: terminalStatusExternal }, { transaction });
+      await kycCase.update(
+        {
+          approvedAt: terminalStatus === VerificationStatus.Approved ? (kycCase.approvedAt ?? now) : null,
+          rejectedAt: terminalStatus === VerificationStatus.Rejected ? (kycCase.rejectedAt ?? now) : null,
+          status: terminalStatus,
+          statusExternal: terminalStatusExternal
+        },
+        { transaction }
+      );
+      return lockedRecord;
+    }
+
+    await lockedRecord.update({ status, statusExternal }, { transaction });
+    await kycCase.update({ status, statusExternal }, { transaction });
+    return lockedRecord;
+  });
 }
 
 /**

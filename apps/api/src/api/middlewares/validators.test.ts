@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
 import {
+  validateAveniaKycTokenImport,
   validateAveniaKybDocument,
   validateAveniaKybLevel1,
   validateAveniaKybUbo,
@@ -183,6 +184,57 @@ describe("Avenia API KYB validators", () => {
 
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe("validateAveniaKycTokenImport", () => {
+  function validate(body: unknown, idempotencyKey?: string) {
+    const req = {
+      body,
+      get: mock((header: string) => (header === "Idempotency-Key" ? idempotencyKey : undefined))
+    } as unknown as Request;
+    const res = buildRes();
+    const next = mock(() => undefined) as unknown as NextFunction;
+
+    validateAveniaKycTokenImport(req, res, next);
+
+    return { next, res };
+  }
+
+  it("requires a visible-ASCII idempotency key", () => {
+    for (const key of [undefined, "bad key", "é", "x".repeat(129)]) {
+      const { next, res } = validate({ consentAttested: true, importToken: "token" }, key);
+      expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+      expect(next).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects unknown body fields", () => {
+    const { next, res } = validate({ consentAttested: true, importToken: "token", tokenType: "sumsub" }, "request-1");
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("requires explicit true consent", () => {
+    const { next, res } = validate({ consentAttested: false, importToken: "token" }, "request-1");
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("measures the import token limit in UTF-8 bytes", () => {
+    const { next, res } = validate({ consentAttested: true, importToken: "é".repeat(513) }, "request-1");
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("accepts the strict token import shape", () => {
+    const { next, res } = validate({ consentAttested: true, importToken: "é".repeat(512) }, "request-1");
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBeUndefined();
   });
 });
 

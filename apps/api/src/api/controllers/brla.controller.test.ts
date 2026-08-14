@@ -1,5 +1,5 @@
 import {AveniaAccountType, AveniaDocumentType, BrlaApiError, BrlaApiService, FiatToken, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
-import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterEach, beforeEach, describe, expect, it, mock, spyOn} from "bun:test";
 import httpStatus from "http-status";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
@@ -7,10 +7,13 @@ import CustomerEntity from "../../models/customerEntity.model";
 import EmailNotification, { NotificationProvider, NotificationType } from "../../models/emailNotification.model";
 import FinancialOperation from "../../models/financialOperation.model";
 import KycCase from "../../models/kycCase.model";
+import ManagedProfile from "../../models/managedProfile.model";
+import ManagedProfileManager from "../../models/managedProfileManager.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import User from "../../models/user.model";
+import { hashTaxReference } from "../services/avenia/avenia-customer.service";
 import { SupabaseAuthService } from "../services/auth";
 import {
   createSubaccount,
@@ -19,7 +22,9 @@ import {
   fetchSubaccountKycStatus,
   getAveniaUser,
   getKybAttemptStatus,
+  getSelfieLivenessUrl,
   getUploadUrls,
+  importKycToken,
   initiateKybLevel1,
   newKyc,
   recordInitialKycAttempt,
@@ -362,34 +367,239 @@ describe("recordInitialKycAttempt", () => {
   });
 });
 
+describe("importKycToken", () => {
+  const originals = {
+    caseFindAll: KycCase.findAll,
+    caseFindByPk: KycCase.findByPk,
+    customerFindAll: ProviderCustomer.findAll,
+    customerFindByPk: ProviderCustomer.findByPk,
+    entityFindByPk: CustomerEntity.findByPk,
+    entityFindOne: CustomerEntity.findOne,
+    getInstance: BrlaApiService.getInstance,
+    loggerError: logger.error,
+    managerFindByPk: ManagedProfileManager.findByPk,
+    relationshipFindByPk: ManagedProfile.findByPk,
+    transaction: sequelize.transaction,
+    userFindByPk: User.findByPk
+  };
+
+  afterEach(() => {
+    KycCase.findAll = originals.caseFindAll;
+    KycCase.findByPk = originals.caseFindByPk;
+    ProviderCustomer.findAll = originals.customerFindAll;
+    ProviderCustomer.findByPk = originals.customerFindByPk;
+    CustomerEntity.findByPk = originals.entityFindByPk;
+    CustomerEntity.findOne = originals.entityFindOne;
+    BrlaApiService.getInstance = originals.getInstance;
+    logger.error = originals.loggerError;
+    ManagedProfileManager.findByPk = originals.managerFindByPk;
+    ManagedProfile.findByPk = originals.relationshipFindByPk;
+    sequelize.transaction = originals.transaction;
+    User.findByPk = originals.userFindByPk;
+  });
+
+  function mockImportState(kind: "authenticated" | "managed", providerImport = mock(async () => ({ id: "attempt-1" }))) {
+    const subjectProfileId = kind === "managed" ? "child-1" : "user-1";
+    const entityId = kind === "managed" ? "entity-child-1" : "entity-user-1";
+    User.findByPk = mock(async (profileId: string) =>
+      profileId === subjectProfileId ? { activeCustomerEntityId: entityId, kind } : null
+    ) as unknown as typeof User.findByPk;
+    CustomerEntity.findOne = mock(async () => ({ id: entityId, status: "active", type: "individual" })) as unknown as typeof CustomerEntity.findOne;
+    CustomerEntity.findByPk = mock(async () => ({
+      id: entityId,
+      profileId: subjectProfileId,
+      status: "active",
+      type: "individual"
+    })) as unknown as typeof CustomerEntity.findByPk;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: ["individual"],
+      isActive: true
+    })) as unknown as typeof ManagedProfileManager.findByPk;
+    ManagedProfile.findByPk = mock(async () => ({
+      id: "relationship-1",
+      managerProfileId: "manager-1",
+      profileId: "child-1",
+      status: "active"
+    })) as unknown as typeof ManagedProfile.findByPk;
+    const customer = {
+      country: "BR",
+      customerEntityId: entityId,
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1",
+      rail: "brl",
+      status: VerificationStatus.InReview,
+      update: mock(async () => undefined)
+    };
+    ProviderCustomer.findAll = mock(async () => [customer]) as unknown as typeof ProviderCustomer.findAll;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    const kycCase = {
+      customerEntityId: entityId,
+      id: "case-1",
+      provider: "avenia",
+      providerCustomerId: "customer-1",
+      status: VerificationStatus.InReview,
+      type: "kyc",
+      update: mock(async (values: Record<string, unknown>) => Object.assign(kycCase, values)),
+      verificationMethod: null as null | "sumsub_share_token",
+      verificationSubmission: null
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    KycCase.findByPk = mock(async () => kycCase) as unknown as typeof KycCase.findByPk;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [] })),
+          getUploadedDocuments: mock(async () => ({ documents: [] })),
+          importKycToken: providerImport
+        }) as unknown as BrlaApiService
+    );
+    return { kycCase };
+  }
+
+  it("derives direct actor and subject profiles and returns 202", async () => {
+    const { kycCase } = mockImportState("authenticated");
+    const res = createResponse();
+
+    await importKycToken(
+      {
+        body: { consentAttested: true, importToken: "secret-token" },
+        get: () => "request-1",
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.ACCEPTED);
+    expect(res.body).toEqual({ attemptId: "attempt-1", status: "pending" });
+    expect(kycCase.verificationSubmission).toMatchObject({ actorProfileId: "user-1", subjectProfileId: "user-1" });
+  });
+
+  it("derives managed actor and subject profiles and returns 202", async () => {
+    const { kycCase } = mockImportState("managed");
+    const res = createResponse();
+
+    await importKycToken(
+      {
+        body: { consentAttested: true, importToken: "secret-token" },
+        get: () => "request-1",
+        managedProfileContext: {
+          actorProfileId: "manager-1",
+          customerEntityId: "entity-child-1",
+          managedProfileId: "relationship-1",
+          subjectProfileId: "child-1"
+        }
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.ACCEPTED);
+    expect(kycCase.verificationSubmission).toMatchObject({ actorProfileId: "manager-1", subjectProfileId: "child-1" });
+  });
+
+  it("sanitizes unexpected provider import failures", async () => {
+    mockImportState(
+      "authenticated",
+      mock(async () => {
+        throw new Error("provider leaked secret-token");
+      })
+    );
+    const res = createResponse();
+
+    await importKycToken(
+      {
+        body: { consentAttested: true, importToken: "secret-token" },
+        get: () => "request-1",
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
+    expect(res.body).toEqual({ error: "The Avenia token import outcome requires reconciliation" });
+    expect(JSON.stringify(res.body)).not.toContain("secret-token");
+  });
+
+  it("never logs the token when an unexpected import error escapes", async () => {
+    mockImportState("authenticated");
+    KycCase.findAll = mock(async () => {
+      throw new Error("sentinel-secret-token");
+    }) as unknown as typeof KycCase.findAll;
+    const logged: unknown[] = [];
+    logger.error = mock((...args: unknown[]) => {
+      logged.push(args);
+      return logger;
+    }) as unknown as typeof logger.error;
+    const res = createResponse();
+
+    await importKycToken(
+      {
+        body: { consentAttested: true, importToken: "sentinel-secret-token" },
+        get: () => "request-1",
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    expect(JSON.stringify(logged)).not.toContain("sentinel-secret-token");
+    expect(JSON.stringify(res.body)).not.toContain("sentinel-secret-token");
+  });
+});
+
 describe("fetchSubaccountKycStatus", () => {
   const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalProviderFindByPk = ProviderCustomer.findByPk;
   const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalKycCaseFindOne = KycCase.findOne;
+  const originalKycCaseFindAll = KycCase.findAll;
   const originalGetInstance = BrlaApiService.getInstance;
+  const originalTransaction = sequelize.transaction;
 
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
+    ProviderCustomer.findByPk = originalProviderFindByPk;
     CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     KycCase.findOne = originalKycCaseFindOne;
+    KycCase.findAll = originalKycCaseFindAll;
     BrlaApiService.getInstance = originalGetInstance;
+    sequelize.transaction = originalTransaction;
   });
 
   it("maps a missing Avenia attempt to pending", async () => {
     mockEntityPerProfile();
     const update = mock(async () => undefined);
-    ProviderCustomer.findOne = mock(async () => ({
+    const customer = {
       customerEntityId: "entity-user-1",
       id: "customer-1",
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.InReview,
       statusExternal: null,
       update
-    })) as unknown as typeof ProviderCustomer.findOne;
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
     const kycUpdate = mock(async () => undefined);
-    KycCase.findOne = mock(async () => ({ update: kycUpdate })) as unknown as typeof KycCase.findOne;
+    const kycCase = {
+      approvedAt: null,
+      id: "case-1",
+      providerCaseId: null,
+      rejectedAt: null,
+      status: VerificationStatus.InReview,
+      statusExternal: null,
+      update: kycUpdate,
+      verificationMethod: "standard"
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as unknown as typeof sequelize.transaction;
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -402,23 +612,80 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.NOT_FOUND);
-    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Pending, statusExternal: null });
-    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }));
+    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Pending, statusExternal: null }, expect.anything());
+    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }), expect.anything());
+  });
+
+  it("requires reconciliation instead of using attempt history for an unbound active standard submission", async () => {
+    mockEntityPerProfile();
+    const customer = {
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      update: mock(async () => undefined)
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    KycCase.findAll = mock(async () => [
+      {
+        id: "case-1",
+        providerCaseId: null,
+        status: VerificationStatus.InReview,
+        verificationMethod: "standard",
+        verificationSubmission: {
+          actorProfileId: "user-1",
+          attemptBaselineIds: [],
+          status: "ambiguous",
+          subjectProfileId: "user-1"
+        }
+      } as unknown as KycCase
+    ]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    const getKycAttempts = mock(async () => ({ attempts: [{ id: "unbound" }] }));
+    const subaccountInfo = mock(async () => ({ accountInfo: { identityStatus: "CONFIRMED" } }));
+    BrlaApiService.getInstance = mock(
+      () => ({ getKycAttempts, subaccountInfo }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(res.body).toEqual({ error: "The Avenia KYC submission requires reconciliation" });
+    expect(getKycAttempts).not.toHaveBeenCalled();
+    expect(subaccountInfo).not.toHaveBeenCalled();
   });
 
   function mockOwnedRecordWithAttempt(status: VerificationStatus, attempt: unknown) {
     mockEntityPerProfile();
     const update = mock(async () => undefined);
-    ProviderCustomer.findOne = mock(async () => ({
+    const customer = {
       customerEntityId: "entity-user-1",
       id: "customer-1",
       providerSubaccountId: "subaccount-1",
       status,
       statusExternal: null,
       update
-    })) as unknown as typeof ProviderCustomer.findOne;
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
     const kycUpdate = mock(async () => undefined);
-    KycCase.findOne = mock(async () => ({ update: kycUpdate })) as unknown as typeof KycCase.findOne;
+    const kycCase = {
+      approvedAt: null,
+      id: "case-1",
+      providerCaseId: null,
+      rejectedAt: null,
+      status,
+      statusExternal: null,
+      update: kycUpdate,
+      verificationMethod: "standard"
+    };
+    KycCase.findOne = mock(async () => kycCase) as unknown as typeof KycCase.findOne;
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as unknown as typeof sequelize.transaction;
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -443,12 +710,46 @@ describe("fetchSubaccountKycStatus", () => {
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect((res.body as { result: string }).result).toBe(KycAttemptResult.APPROVED);
-    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED });
-    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Approved }));
+    expect(update).toHaveBeenCalledWith(
+      { status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED },
+      expect.anything()
+    );
+    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Approved }), expect.anything());
   });
 
-  it("returns a rejected account to in_review while a retried attempt is processing", async () => {
-    const { update } = mockOwnedRecordWithAttempt(VerificationStatus.Rejected, {
+  it("rejects a nonterminal standard attempt with a result without mutating state", async () => {
+    const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.InReview, {
+      levelName: "KYC_1",
+      result: KycAttemptResult.APPROVED,
+      status: KycAttemptStatus.PROCESSING
+    });
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
+    expect(res.body).toEqual({ error: "Avenia returned an inconsistent KYC attempt" });
+    expect(update).not.toHaveBeenCalled();
+    expect(kycUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a completed standard attempt without a result before mutating state", async () => {
+    const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.InReview, {
+      levelName: "KYC_1",
+      status: KycAttemptStatus.COMPLETED
+    });
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
+    expect(res.body).toEqual({ error: "Avenia returned an inconsistent KYC attempt" });
+    expect(update).not.toHaveBeenCalled();
+    expect(kycUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not let a stale processing poll downgrade a rejected account", async () => {
+    const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.Rejected, {
       levelName: "KYC_1",
       result: "",
       status: KycAttemptStatus.PROCESSING
@@ -458,7 +759,53 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
-    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+    expect(update).toHaveBeenCalledWith(
+      { status: VerificationStatus.Rejected, statusExternal: null },
+      expect.anything()
+    );
+    expect(kycUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: VerificationStatus.Rejected, statusExternal: null }),
+      expect.anything()
+    );
+  });
+
+  it("fails imported-token reconciliation without listing attempts or using account identity", async () => {
+    mockEntityPerProfile();
+    const update = mock(async () => undefined);
+    const customer = {
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      update
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    KycCase.findAll = mock(async () => [
+      {
+        id: "case-1",
+        providerCaseId: null,
+        status: VerificationStatus.InReview,
+        verificationMethod: "sumsub_share_token"
+      } as KycCase
+    ]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    const getKycAttempts = mock(async () => ({ attempts: [] }));
+    const subaccountInfo = mock(async () => ({ accountInfo: { identityStatus: "CONFIRMED" } }));
+    BrlaApiService.getInstance = mock(
+      () => ({ getKycAttempts, subaccountInfo }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(res.body).toEqual({ error: "The imported Avenia KYC attempt requires reconciliation" });
+    expect(getKycAttempts).not.toHaveBeenCalled();
+    expect(subaccountInfo).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   // Migration 040: the record may live on the profile's legacy individual entity while a
@@ -470,13 +817,28 @@ describe("fetchSubaccountKycStatus", () => {
     ]) as unknown as typeof CustomerEntity.findAll;
     const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
     CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
-    ProviderCustomer.findOne = mock(async () => ({
+    const customer = {
       customerEntityId: "entity-user-1-individual",
       id: "customer-1",
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.Approved,
-      statusExternal: null
-    })) as unknown as typeof ProviderCustomer.findOne;
+      statusExternal: null,
+      update: mock(async () => undefined)
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    const kycCase = {
+      approvedAt: new Date(),
+      id: "case-1",
+      providerCaseId: null,
+      rejectedAt: null,
+      status: VerificationStatus.Approved,
+      statusExternal: null,
+      update: mock(async () => undefined),
+      verificationMethod: "standard"
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as unknown as typeof sequelize.transaction;
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -504,8 +866,135 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
-    expect(update).not.toHaveBeenCalled();
-    expect(kycUpdate).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      { status: VerificationStatus.Approved, statusExternal: null },
+      expect.anything()
+    );
+    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Approved }), expect.anything());
+  });
+
+  it("fetches a bound imported case by its exact provider attempt id and keeps EXPIRED pending", async () => {
+    mockEntityPerProfile();
+    const customerUpdate = mock(async () => undefined);
+    const customer = {
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      update: customerUpdate
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    const caseUpdate = mock(async () => undefined);
+    const kycCase = {
+      id: "case-1",
+      providerCaseId: "attempt-imported",
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      update: caseUpdate,
+      verificationMethod: "sumsub_share_token"
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    KycCase.findOne = mock(async () => kycCase) as unknown as typeof KycCase.findOne;
+    sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as unknown as typeof sequelize.transaction;
+    const getExactAttempt = mock(async () => ({
+      attempt: {
+        id: "attempt-imported",
+        levelName: "sumsub-token-recipient",
+        result: "",
+        status: KycAttemptStatus.EXPIRED
+      }
+    }));
+    const listAttempts = mock(async () => ({ attempts: [] }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: listAttempts,
+          getVerificationAttemptStatus: getExactAttempt
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(getExactAttempt).toHaveBeenCalledWith("attempt-imported", "subaccount-1");
+    expect(listAttempts).not.toHaveBeenCalled();
+    expect(customerUpdate).toHaveBeenCalledWith(
+      { status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.EXPIRED },
+      expect.anything()
+    );
+    expect(caseUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }), expect.anything());
+  });
+
+  function mockImportedApproval(providerTaxId: string) {
+    mockEntityPerProfile();
+    const customerUpdate = mock(async () => undefined);
+    const customer = {
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      taxReferenceHash: hashTaxReference("08786985906"),
+      update: customerUpdate
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    const caseUpdate = mock(async () => undefined);
+    const kycCase = {
+      id: "case-1",
+      providerCaseId: "attempt-imported",
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      update: caseUpdate,
+      verificationMethod: "sumsub_share_token"
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getVerificationAttemptStatus: mock(async () => ({
+            attempt: {
+              id: "attempt-imported",
+              levelName: "sumsub-token-recipient",
+              result: KycAttemptResult.APPROVED,
+              status: KycAttemptStatus.COMPLETED
+            }
+          })),
+          subaccountInfo: mock(async () => ({ accountInfo: { taxId: providerTaxId } }))
+        }) as unknown as BrlaApiService
+    );
+    return { caseUpdate, customerUpdate };
+  }
+
+  it("does not approve imported KYC when Avenia exposes a different CPF", async () => {
+    const { caseUpdate, customerUpdate } = mockImportedApproval("111.444.777-35");
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    expect(customerUpdate).not.toHaveBeenCalled();
+    expect(caseUpdate).not.toHaveBeenCalled();
+  });
+
+  it("approves imported KYC when Avenia returns the canonical CPF with formatting", async () => {
+    const { caseUpdate, customerUpdate } = mockImportedApproval("087.869.859-06");
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(customerUpdate).toHaveBeenCalledWith(
+      { status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED },
+      expect.anything()
+    );
+    expect(caseUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Approved }), expect.anything());
   });
 });
 
@@ -1325,17 +1814,24 @@ describe("getUploadUrls", () => {
   const originalProviderFindOne = ProviderCustomer.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalGetInstance = BrlaApiService.getInstance;
+  const originalKycCaseFindAll = KycCase.findAll;
   const originalLoggerError = logger.error;
+  const originalTransaction = sequelize.transaction;
 
   beforeEach(() => {
     logger.error = mock(() => logger) as typeof logger.error;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
   });
 
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     BrlaApiService.getInstance = originalGetInstance;
+    KycCase.findAll = originalKycCaseFindAll;
     logger.error = originalLoggerError;
+    sequelize.transaction = originalTransaction;
   });
 
   const uploadUrlsMock = mock(async () => ({ id: "doc-1", uploadURLBack: "back-url", uploadURLFront: "front-url" }));
@@ -1359,8 +1855,11 @@ describe("getUploadUrls", () => {
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1-individual",
       customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
       providerSubaccountId: "subaccount-1"
     })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "standard" }]) as unknown as typeof KycCase.findAll;
 
     const res = createResponse();
     await getUploadUrls(
@@ -1414,15 +1913,54 @@ describe("getUploadUrls", () => {
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(uploadUrlsMock).not.toHaveBeenCalled();
   });
+
+  it("rejects an imported-method case before requesting upload URLs", async () => {
+    mockBrlaApi();
+    uploadUrlsMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-user-1" }]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "sumsub_share_token" }]) as unknown as typeof KycCase.findAll;
+
+    const res = createResponse();
+    await getUploadUrls(
+      { body: { documentType: AveniaDocumentType.ID, taxId: "08786985906" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(uploadUrlsMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("newKyc", () => {
   const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalProviderFindByPk = ProviderCustomer.findByPk;
+  const originalKycCaseFindAll = KycCase.findAll;
+  const originalKycCaseFindByPk = KycCase.findByPk;
   const originalGetInstance = BrlaApiService.getInstance;
+  const originalEntityFindByPk = CustomerEntity.findByPk;
+  const originalManagerFindByPk = ManagedProfileManager.findByPk;
+  const originalRelationshipFindByPk = ManagedProfile.findByPk;
+  const originalUserFindByPk = User.findByPk;
+  const originalTransaction = sequelize.transaction;
 
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
+    ProviderCustomer.findByPk = originalProviderFindByPk;
+    KycCase.findAll = originalKycCaseFindAll;
+    KycCase.findByPk = originalKycCaseFindByPk;
     BrlaApiService.getInstance = originalGetInstance;
+    CustomerEntity.findByPk = originalEntityFindByPk;
+    ManagedProfileManager.findByPk = originalManagerFindByPk;
+    ManagedProfile.findByPk = originalRelationshipFindByPk;
+    User.findByPk = originalUserFindByPk;
+    sequelize.transaction = originalTransaction;
   });
 
   it("rejects an owned business customer before submitting KYC", async () => {
@@ -1440,6 +1978,139 @@ describe("newKyc", () => {
 
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(getInstance).not.toHaveBeenCalled();
+  });
+
+  it("rejects an imported-method case before provider document or submission calls", async () => {
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-user-1" }]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "sumsub_share_token" }]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    const getUploadedDocuments = mock(async () => ({
+      documents: [
+        { id: "document-1", ready: true },
+        { id: "selfie-1", ready: true }
+      ]
+    }));
+    const submitKycLevel1 = mock(async () => ({ id: "attempt-new" }));
+    BrlaApiService.getInstance = mock(
+      () => ({ getUploadedDocuments, submitKycLevel1 }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await newKyc({ body: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(getUploadedDocuments).not.toHaveBeenCalled();
+    expect(submitKycLevel1).not.toHaveBeenCalled();
+  });
+
+  it("allows a direct managed child to bind the exact standard KYC attempt", async () => {
+    CustomerEntity.findAll = mock(async () => [{ id: "entity-child-1" }]) as unknown as typeof CustomerEntity.findAll;
+    const customerUpdate = mock(async () => undefined);
+    const customer = {
+      customerEntityId: "entity-child-1",
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      update: customerUpdate
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: null,
+      isActive: true
+    })) as unknown as typeof ManagedProfileManager.findByPk;
+    ManagedProfile.findByPk = mock(async () => ({
+      managerProfileId: "manager-1",
+      profileId: "child-1",
+      status: "active"
+    })) as unknown as typeof ManagedProfile.findByPk;
+    User.findByPk = mock(async () => ({ activeCustomerEntityId: "entity-child-1", kind: "managed" })) as unknown as typeof User.findByPk;
+    CustomerEntity.findByPk = mock(async () => ({
+      profileId: "child-1",
+      status: "active",
+      type: "individual"
+    })) as unknown as typeof CustomerEntity.findByPk;
+    const caseUpdate = mock(async (values: object) => Object.assign(kycCase, values));
+    const kycCase = {
+      id: "case-1",
+      providerCustomerId: "customer-1",
+      status: VerificationStatus.InReview,
+      submittedAt: null,
+      update: caseUpdate,
+      verificationMethod: "standard",
+      verificationSubmission: null
+    };
+    KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+    KycCase.findByPk = mock(async () => kycCase) as unknown as typeof KycCase.findByPk;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    const getKycAttempts = mock(async () => ({ attempts: [] }));
+    const getUploadedDocuments = mock(async () => ({
+      documents: [
+        { id: "document-1", ready: true },
+        { id: "selfie-1", ready: true }
+      ]
+    }));
+    const submitKycLevel1 = mock(async () => ({ id: "attempt-exact" }));
+    BrlaApiService.getInstance = mock(
+      () => ({ getKycAttempts, getUploadedDocuments, submitKycLevel1 }) as unknown as BrlaApiService
+    );
+    const timeout = spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void) => {
+      callback();
+      return 0;
+    }) as typeof setTimeout);
+
+    try {
+      const res = createResponse();
+      await newKyc(
+        {
+          body: {
+            subAccountId: "subaccount-1",
+            uploadedDocumentId: "document-1",
+            uploadedSelfieId: "selfie-1"
+          },
+          managedProfileContext: {
+            actorProfileId: "child-1",
+            controllingManagerProfileId: "manager-1",
+            customerEntityId: "entity-child-1",
+            managedProfileId: "relationship-1",
+            subjectProfileId: "child-1"
+          }
+        } as any,
+        res as any
+      );
+
+      expect(res.statusCode).toBe(httpStatus.OK);
+      expect(res.body).toEqual({ id: "attempt-exact" });
+      expect(kycCase.verificationSubmission).toMatchObject({ actorProfileId: "child-1", subjectProfileId: "child-1" });
+      expect(caseUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerCaseId: "attempt-exact",
+          status: VerificationStatus.Pending,
+          statusExternal: KycAttemptStatus.PENDING
+        }),
+        expect.anything()
+      );
+      expect(customerUpdate).toHaveBeenCalledWith(
+        { lastFailureReasons: [], status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING },
+        expect.anything()
+      );
+    } finally {
+      timeout.mockRestore();
+    }
   });
 });
 

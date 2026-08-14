@@ -42,11 +42,9 @@ export interface BrlaGetRampStatusResponse {
   status: string;
 }
 
-// GET /brla/getKycStatus?taxId=:taxId&quoteId=:quoteId
+// GET /brla/getKycStatus?taxId=:taxId
 export interface BrlaGetKycStatusRequest {
   taxId: string;
-  quoteId: string;
-  sessionId?: string;
 }
 
 export interface BrlaGetSelfieLivenessUrlRequest {
@@ -103,13 +101,24 @@ export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
-  // Optional: the KYB deep link creates a subaccount without a quote. The backend stores it as a nullable initialQuoteId.
+  // Optional: quote-less onboarding paths can create a subaccount without a quote.
   quoteId?: string;
   sessionId?: string;
 }
 
 export interface BrlaCreateSubaccountResponse {
   subAccountId: string;
+}
+
+// POST /brla/kyc/import-token
+export interface BrlaImportKycTokenRequest {
+  importToken: string;
+  consentAttested: true;
+}
+
+export interface BrlaImportKycTokenResponse {
+  attemptId: string;
+  status: "pending";
 }
 
 export interface BrlaErrorResponse {

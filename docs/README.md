@@ -26,7 +26,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
-| [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Proposed API-only Avenia individual-KYC import using caller-supplied Sumsub tokens |
+| [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
 repository wayfinding, and `CLAUDE.md` files contain instructions for coding agents.

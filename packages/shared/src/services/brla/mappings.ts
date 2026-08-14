@@ -5,7 +5,8 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentResponse,
-  AveniaKybAttemptStatusResponse,
+  AveniaImportKycTokenRequest,
+  AveniaImportKycTokenResponse,
   AveniaKybLevel1Payload,
   AveniaPayinTicket,
   AveniaPayoutTicket,
@@ -14,6 +15,7 @@ import {
   AveniaSwapTicket,
   AveniaUboPayload,
   AveniaUboResponse,
+  AveniaVerificationAttemptResponse,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
   DocumentUploadRequest,
@@ -35,6 +37,7 @@ export enum Endpoint {
   AccountLimits = "/v2/account/limits",
   PixInfo = "/v2/account/bank-accounts/brl/pix-info",
   Level1Api = "/v2/kyc/new-level-1/api",
+  ImportKycToken = "/v2/kyc/import-token/",
   KybLevel1WebSdk = "/v2/kyc/new-level-1/web-sdk",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
@@ -95,6 +98,20 @@ export interface EndpointMapping {
     POST: {
       body: KycLevel1Payload | AveniaKybLevel1Payload;
       response: KycLevel1Response;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.ImportKycToken]: {
+    POST: {
+      body: AveniaImportKycTokenRequest;
+      response: AveniaImportKycTokenResponse;
     };
     GET: {
       body: undefined;
@@ -226,7 +243,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: AveniaKybAttemptStatusResponse;
+      response: AveniaVerificationAttemptResponse;
     };
     PATCH: {
       body: undefined;

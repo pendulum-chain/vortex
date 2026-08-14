@@ -367,6 +367,32 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
+export const validateAveniaKycTokenImport: RequestHandler = (req, res, next) => {
+  const idempotencyKey = req.get("Idempotency-Key");
+  const body = req.body as Record<string, unknown> | undefined;
+  if (!idempotencyKey || !/^[\x21-\x7e]{1,128}$/.test(idempotencyKey)) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Idempotency-Key must contain 1 to 128 visible ASCII characters" });
+    return;
+  }
+  if (!body || Object.keys(body).some(key => key !== "importToken" && key !== "consentAttested")) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid request body" });
+    return;
+  }
+  if (
+    typeof body.importToken !== "string" ||
+    body.importToken.length === 0 ||
+    Buffer.byteLength(body.importToken, "utf8") > 1024
+  ) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "importToken must contain between 1 and 1024 bytes" });
+    return;
+  }
+  if (body.consentAttested !== true) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "consentAttested must be true" });
+    return;
+  }
+  next();
+};
+
 const validateSupportedFiatCurrency = (
   rampType: RampDirection,
   inputCurrency: unknown,

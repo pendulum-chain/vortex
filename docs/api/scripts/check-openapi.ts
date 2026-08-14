@@ -40,6 +40,7 @@ const REQUIRED_PATHS = [
   "/v1/brla/kyb/new-level-1/api",
   "/v1/brla/kyb/new-level-1/web-sdk",
   "/v1/brla/kyb/ubos",
+  "/v1/brla/kyc/import-token",
   "/v1/brla/kyc/record-attempt",
   "/v1/brla/newKyc",
   "/v1/brla/validatePixKey",
@@ -83,6 +84,49 @@ const MANAGED_PROFILE_OPERATIONS = [
 
 const MANAGED_PROFILE_SECURITY = [{ SecretApiKey: [] }, { BearerAuth: [] }] as const;
 
+const BRLA_RECONCILIATION_OPERATIONS = [
+  ["/v1/brla/getKycStatus", "get"],
+  ["/v1/brla/getSelfieLivenessUrl", "get"],
+  ["/v1/brla/getUploadUrls", "post"],
+  ["/v1/brla/newKyc", "post"]
+] as const;
+
+const BRLA_IMPORT_KYC_TOKEN_ERRORS = [
+  "Idempotency-Key must contain 1 to 128 visible ASCII characters",
+  "Invalid request body",
+  "importToken must contain between 1 and 1024 bytes",
+  "consentAttested must be true",
+  "The subject profile has no active customer entity",
+  "The managed subject does not match the expected customer entity",
+  "A managed profile requires a managed customer entity context",
+  "The subject customer entity is not active",
+  "Avenia token import is only available for individuals",
+  "Exactly one active Brazilian individual Avenia customer is required",
+  "Multiple Avenia customers require reconciliation",
+  "The Avenia subaccount is not provisioned",
+  "The Avenia customer is already approved",
+  "The canonical Avenia KYC case is missing",
+  "Multiple Avenia KYC cases require reconciliation",
+  "The Avenia KYC case is already approved",
+  "The confirmed token import is missing its provider attempt",
+  "The idempotency key was used with a different token",
+  "The token import does not match this request",
+  "A failed token import requires a new idempotency key",
+  "The Avenia KYC is already approved",
+  "The previous token import outcome requires reconciliation",
+  "Another token import requires reconciliation",
+  "This KYC case uses the standard Avenia method",
+  "The Avenia token import attempt is invalid",
+  "The token import attempt requires reconciliation",
+  "The token import was already claimed",
+  "The token import binding is no longer current",
+  "The authenticated profile cannot perform this operation for the requested managed profile",
+  "Avenia token import pre-provider checks failed",
+  "Avenia token import is not enabled",
+  "The Avenia token import outcome requires reconciliation",
+  "Token import failed"
+] as const;
+
 const MANAGED_PROFILE_PATHS = [
   "/v1/managed-profiles",
   "/v1/managed-profiles/{profileId}",
@@ -125,6 +169,7 @@ const MANAGED_SELECTOR_SECURITY_OPERATIONS = [
   ["/v1/brla/kyb/new-level-1/api", "post"],
   ["/v1/brla/kyb/new-level-1/web-sdk", "post"],
   ["/v1/brla/kyb/ubos", "post"],
+  ["/v1/brla/kyc/import-token", "post"],
   ["/v1/brla/kyc/record-attempt", "post"],
   ["/v1/brla/newKyc", "post"],
   ["/v1/onboarding/status", "get"]
@@ -571,6 +616,14 @@ for (const [path, method] of DELEGATED_OPERATIONS.filter(([path]) => path.starts
     throw new Error(`${method.toUpperCase()} ${path} must preserve the controller's flat BRLA 400 error shape.`);
   }
 }
+for (const [path, method] of BRLA_RECONCILIATION_OPERATIONS) {
+  const responses = operationAt(path, method).responses as JsonObject;
+  for (const status of ["409", "502"]) {
+    if (!transitivelyReferences(responses[status], "#/components/schemas/BrlaErrorResponse")) {
+      throw new Error(`${method.toUpperCase()} ${path} ${status} must preserve the flat BRLA reconciliation error shape.`);
+    }
+  }
+}
 for (const [path, method, status, controllerSchema] of [
   ["/v1/limits", "post", "400", "#/components/schemas/FlatErrorResponse"],
   ["/v1/limits", "post", "403", "#/components/schemas/FlatErrorResponse"],
@@ -664,6 +717,81 @@ if (recordAttemptSchemaRef.$ref !== "#/components/schemas/RecordInitialKycAttemp
 const recordAttemptRequired = (schemas.RecordInitialKycAttemptRequest as JsonObject).required as unknown[];
 if (!recordAttemptRequired.includes("quoteId") || !recordAttemptRequired.includes("taxId")) {
   throw new Error("POST /v1/brla/kyc/record-attempt must require the shared quoteId and taxId request fields.");
+}
+
+const importKycToken = operationAt("/v1/brla/kyc/import-token", "post");
+const importKycTokenParameters = importKycToken.parameters as JsonObject[];
+const importKycTokenIdempotency = importKycTokenParameters.find(parameter => parameter.name === "Idempotency-Key");
+const importKycTokenManagedSelector = importKycTokenParameters.find(parameter => parameter.$ref === managedProfileHeaderRef);
+const importKycTokenRequest = schemas.BrlaImportKycTokenRequest as JsonObject;
+const importKycTokenRequestProperties = importKycTokenRequest.properties as JsonObject;
+const importKycTokenResponses = importKycToken.responses as JsonObject;
+const importKycTokenDescription = String(importKycToken.description);
+const importKycTokenError = ((schemas.BrlaImportKycTokenErrorResponse as JsonObject).properties as JsonObject)
+  .error as JsonObject;
+const malformedJsonError = schemas.MalformedJsonErrorResponse as JsonObject;
+const payloadTooLargeError = schemas.PayloadTooLargeErrorResponse as JsonObject;
+if (
+  JSON.stringify(importKycToken.security) !== JSON.stringify([{ SecretApiKey: [] }, { BearerAuth: [] }]) ||
+  !importKycTokenManagedSelector ||
+  importKycTokenIdempotency?.in !== "header" ||
+  importKycTokenIdempotency.required !== true ||
+  (importKycTokenIdempotency.schema as JsonObject)?.pattern !== "^[!-~]+$" ||
+  importKycTokenRequest.additionalProperties !== false ||
+  JSON.stringify(Object.keys(importKycTokenRequestProperties).sort()) !== JSON.stringify(["consentAttested", "importToken"]) ||
+  JSON.stringify((importKycTokenRequest.required as string[]).sort()) !== JSON.stringify(["consentAttested", "importToken"]) ||
+  (importKycTokenRequestProperties.consentAttested as JsonObject).const !== true ||
+  (importKycTokenRequestProperties.importToken as JsonObject)["x-maxBytes"] !== 1024 ||
+  "maxLength" in (importKycTokenRequestProperties.importToken as JsonObject) ||
+  JSON.stringify(Object.keys(importKycTokenResponses).sort()) !==
+    JSON.stringify(["202", "400", "401", "403", "409", "412", "413", "500", "502", "503"]) ||
+  !transitivelyReferences(importKycTokenResponses["202"], "#/components/schemas/BrlaImportKycTokenResponse") ||
+  !transitivelyReferences(importKycTokenResponses["400"], "#/components/schemas/ManagedSelectorErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["400"], "#/components/schemas/MalformedJsonErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["401"], "#/components/schemas/ManagedSelectorErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["403"], "#/components/schemas/ManagedSelectorErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["403"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["409"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["412"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["413"], "#/components/schemas/PayloadTooLargeErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["500"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["500"], "#/components/schemas/ErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["502"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  JSON.stringify(importKycTokenError.enum) !== JSON.stringify(BRLA_IMPORT_KYC_TOKEN_ERRORS) ||
+  JSON.stringify(malformedJsonError.required) !== JSON.stringify(["code", "message", "statusCode", "type"]) ||
+  ((malformedJsonError.properties as JsonObject).code as JsonObject).const !== 400 ||
+  ((malformedJsonError.properties as JsonObject).message as JsonObject).const !== "Invalid JSON payload" ||
+  ((malformedJsonError.properties as JsonObject).statusCode as JsonObject).const !== 400 ||
+  ((malformedJsonError.properties as JsonObject).type as JsonObject).const !== "entity.parse.failed" ||
+  JSON.stringify(payloadTooLargeError.required) !== JSON.stringify(["code", "message", "statusCode", "type"]) ||
+  ((payloadTooLargeError.properties as JsonObject).code as JsonObject).const !== 413 ||
+  ((payloadTooLargeError.properties as JsonObject).message as JsonObject).const !== "Request body too large" ||
+  ((payloadTooLargeError.properties as JsonObject).statusCode as JsonObject).const !== 413 ||
+  ((payloadTooLargeError.properties as JsonObject).type as JsonObject).const !== "entity.too.large"
+) {
+  throw new Error(
+    "POST /v1/brla/kyc/import-token must preserve its strict body, idempotency, auth, and stable response contract."
+  );
+}
+for (const requiredStatement of [
+  "Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation",
+  "direct managed-child credentials are rejected",
+  "sumsub-share-v1",
+  "Import the token before reading KYC or onboarding status",
+  "preserving prior attestations",
+  "safely reconciles a durable submitted/ambiguous claim",
+  "provider `401`",
+  "Every other post-send",
+  "never replayed automatically",
+  "exact returned Avenia attempt",
+  "`EXPIRED` remains non-approved and locally pending for reconciliation",
+  "external status is retained",
+  "notification-only",
+  "no live sandbox verification is claimed"
+]) {
+  if (!importKycTokenDescription.includes(requiredStatement)) {
+    throw new Error(`POST /v1/brla/kyc/import-token must document: ${requiredStatement}`);
+  }
 }
 
 function queryParameter(path: string, name: string): JsonObject | undefined {
