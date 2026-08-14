@@ -55,7 +55,7 @@ export const createQuote = async (
       inputCurrency,
       network,
       outputCurrency,
-      partnerId: req.credential?.partnerId ?? undefined,
+      partnerId: req.managedProfileContext ? undefined : (req.credential?.partnerId ?? undefined),
       rampType,
       to,
       userId: effectiveUserId
@@ -118,7 +118,7 @@ export const createBestQuote = async (
       inputCurrency,
       networks,
       outputCurrency,
-      partnerId: req.credential?.partnerId ?? undefined,
+      partnerId: req.managedProfileContext ? undefined : (req.credential?.partnerId ?? undefined),
       rampType,
       to,
       userId: effectiveUserId
@@ -184,7 +184,7 @@ export const getQuote = async (
       rampType: quote.rampType,
       requestId: req.requestId,
       status: "success",
-      userId: req.userId || null
+      userId: getEffectiveUserId(req) || null
     });
 
     res.status(httpStatus.OK).json(quote);
@@ -233,7 +233,7 @@ function observeQuoteFailure(
     operation,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 

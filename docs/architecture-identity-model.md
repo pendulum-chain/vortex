@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038–060 and the API models
-on 2026-08-04.
+Status: current architecture. Last reconciled with migrations 038-063 and the API models
+on 2026-08-10.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -29,6 +29,9 @@ erDiagram
     partners ||--o{ partner_pricing_configs : prices
     partners ||--o{ api_credentials : attributes
     partners ||--o{ partner_managed_profiles : provisions
+    profiles ||--o| managed_profile_managers : enables
+    managed_profile_managers ||--o{ managed_profiles : controls
+    profiles ||--o| managed_profiles : identifies
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -36,8 +39,9 @@ erDiagram
 
 ### Profiles and customer entities
 
-`profiles` is the Supabase-linked login identity. Email OTP authentication yields a
-Supabase user ID, which is also the profile ID used by the API.
+`profiles.kind` distinguishes Supabase-linked `authenticated` profiles from headless
+`managed` profiles. Authenticated profiles have an email and use their Supabase user ID
+as the profile ID. Managed profiles have no email or Supabase identity.
 
 `customer_entities` represents the legal/compliance customer. A profile may own an
 individual and a business entity, while `profiles.active_customer_entity_id` records the
@@ -87,6 +91,36 @@ removed by migration 061; startup fails closed if the table still exists.
 authentication or pricing principal. Normative credential rules live in
 [`security-spec/01-auth/api-keys.md`](security-spec/01-auth/api-keys.md).
 
+Migration 063 adds the `managed_profile_managers` and `managed_profiles` schema for
+headless delegated profiles. It records manager enablement, allowed corridors, nullable
+`allowed_customer_types`, and the unique manager-to-child relationship and immutable
+provider contact email. Null customer types add no restriction beyond the canonical
+corridor capability matrix; a non-null value narrows access to its non-empty subset and
+never expands that matrix. The contact email is not a login identity: `profiles.email`
+remains null. Database constraints require
+every managed profile to have exactly one relationship, keep normalized contact emails
+unique within each manager, and prevent managed profiles from becoming managers. The
+internal provisioning service atomically creates a managed profile, its active customer
+entity, and the relationship, with idempotency scoped by manager and external subject ID.
+Admin-only `PUT` and `GET` routes configure manager activation, allowed corridors, and
+optional customer-type narrowing without deleting manager history. Active managers create,
+list, read, and logically delete
+their children through `/v1/managed-profiles`; Vortex administrators use
+`/v1/admin/managed-profile-managers/:profileId/managed-profiles` for the same headless
+provisioning with `creation_source = vortex`. Managers also issue, list, and revoke
+child-owned credentials through nested lifecycle routes. Logical deletion retains the
+profile and its financial/compliance records, permanently reserves the manager-scoped
+external-subject and contact-email pairs, and revokes all child credentials. Delegated authorization
+is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
+routes; recipient invitations remain unavailable to managed children.
+
+Migration 063 rollback locks both managed tables and refuses to proceed while either a
+child relationship or manager configuration exists, so manager policy cannot be silently
+discarded by a down/up cycle.
+
+The durable rationale and intentionally excluded capabilities are recorded in
+[`ADR 0003`](adr-0003-managed-headless-profiles.md).
+
 ### Recipients
 
 `recipient_invitations` contains a token-bound invitation from a sender entity.
@@ -102,14 +136,38 @@ Current product behavior and acknowledged gaps are in
 
 ## Authentication and ownership flow
 
-1. `requirePartnerOrUserAuth()` accepts a valid secret API key or Supabase bearer token.
-2. `getEffectiveUserId()` prefers the Supabase user and otherwise uses the user linked to
-   the validated secret key.
-3. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
+1. Existing authentication accepts a valid secret API key or Supabase bearer token and
+   establishes the actor profile.
+2. On delegated routes, `X-Managed-Profile-Id` selects a child profile. The authorization
+   middleware verifies the active manager, direct active relationship, managed child,
+   active child customer entity, configured corridor, optional customer-type narrowing,
+   and canonical corridor/type capability for mutations.
+3. `getEffectiveUserId()` uses the verified child subject when delegation is present;
+   otherwise it preserves the existing Supabase/API-credential resolution.
+4. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
    to that effective user and their customer entities.
-4. At ramp registration, the server resolves the provider account for the effective user.
+5. At ramp registration, the server resolves the provider account for the effective user.
    Client-supplied provider identifiers are either ignored or accepted only when they
    match the server-derived identity.
+
+The derived request context retains `actorProfileId`, `subjectProfileId`,
+`controllingManagerProfileId`, `customerEntityId`, and the manager-child relationship ID.
+It never overwrites `req.userId`, and a public API key cannot authenticate a manager.
+Alfredpay customer creation uses the child's immutable provider contact email, never the
+manager's login email. Email-bound Mykobo and Monerium routes remain unsupported.
+
+Child-owned credentials authenticate directly as the child. Public and secret validation
+derive the unique active manager relationship on every request; corridor-bound route
+authorization applies the controlling manager's current corridor and customer-type policy
+without expanding the canonical capability matrix. Each child has one
+immutable relationship retained after logical deletion, so child-owned resources remain
+attributable to their controlling manager without a duplicate operation-level
+actor/subject record. Distinguishing direct child-credential requests from delegated
+manager requests in durable operation records is not required by the current model.
+Generic profile and admin partner credential creation reject managed subjects; only the
+controlling manager's child-credential route may issue one. A committed manager,
+relationship, corridor, or customer-type policy change blocks subsequent authorization decisions but
+does not cancel a request that was already authorized and remains in flight.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
@@ -118,9 +176,9 @@ quote cannot be claimed by another user.
 ## Implementation map
 
 - Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiCredential,partnerManagedProfile,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
-- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
+- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,managedProfileAuth,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
-- Schema history: `apps/api/src/database/migrations/038-*` onward
+- Managed-profile schema: `apps/api/src/database/migrations/063-create-managed-profiles.ts`
 - Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 

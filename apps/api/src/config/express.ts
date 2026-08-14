@@ -11,8 +11,9 @@ import morgan from "morgan";
 import { converter, handler, notFound } from "../api/middlewares/error";
 import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
+import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
 
-import { buildDashboardPreviewOriginRegex, parseDashboardOrigins } from "./corsOrigins";
+import { corsOptions } from "./corsConfig";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
@@ -24,35 +25,8 @@ const REQUEST_BODY_LIMIT = "20mb";
  */
 const app = express();
 
-// See corsOrigins.ts: DASHBOARD_ORIGINS is an explicit whitelist (wildcards dropped);
-// DASHBOARD_PREVIEW_SITE enables Netlify deploy-preview origins outside production.
-const dashboardOrigins = parseDashboardOrigins(process.env.DASHBOARD_ORIGINS);
-const dashboardPreviewOriginRegex = buildDashboardPreviewOriginRegex(process.env.DASHBOARD_PREVIEW_SITE, config.deploymentEnv);
-
 // enable CORS - Cross Origin Resource Sharing
-app.use(
-  cors({
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Public-Key", "X-Request-ID", "X-Correlation-ID"],
-    credentials: true,
-    exposedHeaders: ["X-Request-ID"],
-    maxAge: 86400, // Cache preflight requests for 24 hours
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
-    origin: [
-      "https://app.vortexfinance.co",
-      "https://dashboard.vortexfinance.co",
-      "https://metrics.vortexfinance.co",
-      ...dashboardOrigins,
-      dashboardPreviewOriginRegex,
-      config.deploymentEnv !== "production" ? "https://staging--vortexfi.netlify.app" : null,
-      config.env === "development" ? "http://localhost:5173" : null,
-      config.env === "development" ? "http://127.0.0.1:5173" : null,
-      // Dashboard dev server (deployed origins come from DASHBOARD_ORIGINS)
-      config.env === "development" ? "http://localhost:5174" : null,
-      config.env === "development" ? "http://127.0.0.1:5174" : null,
-      config.env === "development" ? "http://localhost:6006" : null
-    ].filter(Boolean) as (string | RegExp)[]
-  })
-);
+app.use(cors(corsOptions));
 
 // enable rate limiting
 // Set number of expected proxies
@@ -75,6 +49,12 @@ app.use(requestContext);
 
 // request logging. dev: console | production: file
 app.use(morgan(logs));
+
+// Mounted ahead of the JSON parser: Avenia signs the raw request body, and a payload
+// that has been parsed and re-serialised does not reproduce those bytes exactly.
+// Own, small limit: webhook events are a few KB, and this unauthenticated route should
+// not buffer the 20mb the JSON API allows before the signature is even checked.
+app.use("/v1/webhooks/avenia", bodyParser.raw({ limit: "100kb", type: "*/*" }), aveniaWebhookRoutes);
 
 // parse body params and attach them to req.body
 app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));

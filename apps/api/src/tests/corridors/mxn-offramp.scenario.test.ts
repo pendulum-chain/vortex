@@ -3,9 +3,11 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOfframpStatus,
+  type EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -41,10 +43,9 @@ const HAPPY_PATH_PHASES: RampPhase[] = [
 const ALFREDPAY_OFFRAMP_RATE = 20;
 const FIAT_ACCOUNT_ID = "test-fiat-account-1";
 
-interface EvmTxBlueprint {
+interface EvmTxBlueprint extends EvmTransactionData {
   to: `0x${string}`;
   data: `0x${string}`;
-  value?: string;
 }
 
 interface CorridorSetup {
@@ -192,10 +193,11 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       return ephemeral.signTransaction({
         chainId: 137,
         data: offrampTransferBlueprint.data,
-        gas: 100_000n,
-        // validatePresignedTxs enforces a 3 gwei floor on Polygon fees.
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(offrampTransferBlueprint.gas),
+        maxFeePerGas:
+          BigInt(offrampTransferBlueprint.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(offrampTransferBlueprint.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: offrampTransferBlueprint.to,
         type: "eip1559"
@@ -302,6 +304,32 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
             alfredpayOfframp?: {
               bridgeInputAmountRaw?: string;
               bridgeOutputAmountRaw?: string;
+              pricing?: {
+                customer: {
+                  allInRate: string;
+                  inputAmountUsd: string;
+                  referenceDifferenceBps: string;
+                };
+                provider: {
+                  baseCurrency: string;
+                  feeAmount: string;
+                  fees: Array<{ amount: string; currency: string; type: string }>;
+                  grossRate: string;
+                  grossReferenceDifferenceBps: string;
+                  netRate: string;
+                  netReferenceDifferenceBps: string;
+                  quoteCurrency: string;
+                  quotedAt: string;
+                  source: string;
+                };
+                reference: {
+                  baseCurrency: string;
+                  observedAt: string;
+                  quoteCurrency: string;
+                  rate: string;
+                  source: string;
+                };
+              };
             };
           };
         }
@@ -310,6 +338,31 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
     expect(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw).toBe(expectedRaw);
     expect(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw).toBe(expectedRaw);
+
+    const pricing = metadata?.blocks.alfredpayOfframp?.pricing;
+    expect(pricing?.reference).toEqual({
+      baseCurrency: "USD",
+      observedAt: "1970-01-01T00:00:00.000Z",
+      quoteCurrency: FiatToken.MXN,
+      rate: "17",
+      source: "fastforex"
+    });
+    expect(pricing?.provider).toMatchObject({
+      baseCurrency: EvmToken.USDT,
+      feeAmount: "0",
+      fees: [],
+      grossRate: "20",
+      netRate: "20",
+      quoteCurrency: FiatToken.MXN,
+      source: "alfredpay"
+    });
+    expect(Number(pricing?.provider.grossReferenceDifferenceBps)).toBeCloseTo((20 / 17 - 1) * 10_000);
+    expect(Number(pricing?.provider.netReferenceDifferenceBps)).toBeCloseTo((20 / 17 - 1) * 10_000);
+    expect(Number(pricing?.customer.inputAmountUsd)).toBe(Number(quote.inputAmount));
+    expect(Number(pricing?.customer.allInRate)).toBeCloseTo(Number(quote.outputAmount) / Number(quote.inputAmount));
+    expect(Number(pricing?.customer.referenceDifferenceBps)).toBeCloseTo(
+      (Number(pricing?.customer.allInRate) / Number(pricing?.reference.rate) - 1) * 10_000
+    );
   });
 
   it(
@@ -371,16 +424,17 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       // Presign the single distributeFees transfer (vortex only) as blueprinted.
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
-      const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const feeData = feeBlueprint?.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         setup.ephemeral.signTransaction({
           chainId: 137,
-          data: feeData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: feeData.data as `0x${string}`,
+          gas: BigInt(feeData.gas),
+          maxFeePerGas: BigInt(feeData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(feeData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: feeData.to,
+          to: feeData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
@@ -468,16 +522,17 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
-      const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const feeData = feeBlueprint?.txData as EvmTransactionData;
       const signFee = (nonce: number) =>
         setup.ephemeral.signTransaction({
           chainId: 137,
-          data: feeData.data,
-          gas: 100_000n,
-          maxFeePerGas: 5_000_000_000n,
-          maxPriorityFeePerGas: 5_000_000_000n,
+          data: feeData.data as `0x${string}`,
+          gas: BigInt(feeData.gas),
+          maxFeePerGas: BigInt(feeData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(feeData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
           nonce,
-          to: feeData.to,
+          to: feeData.to as `0x${string}`,
           type: "eip1559"
         });
       const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};

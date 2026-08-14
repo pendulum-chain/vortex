@@ -506,8 +506,11 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "KYC invalid") {
         return new KycInvalidError();
       }
-      if (errorMessage === "Missing taxId query parameters") {
+      if (errorMessage === "Missing taxId") {
         return new BrlKycStatusError("Tax ID is required", 400);
+      }
+      if (errorMessage === "Missing quoteId or taxId body parameter") {
+        return new BrlKycStatusError(errorMessage, 400);
       }
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();
@@ -555,7 +558,7 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (
         errorMessage.startsWith("Mykobo KYC is not approved for this user") ||
         errorMessage === "Provided email does not match the profile bound to the authenticated user." ||
-        errorMessage === "No profile found for this user; cannot resolve the Mykobo customer."
+        errorMessage === "No email-authenticated profile found for this user; cannot resolve the Mykobo customer."
       ) {
         return new MykoboKycRequiredError(errorMessage, normalizedStatus);
       }

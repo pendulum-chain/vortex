@@ -10,6 +10,14 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+export type FiatExchangeRateSource = "binance" | "coingecko" | "fastforex" | "identity";
+
+export interface FiatExchangeRateSnapshot {
+  observedAt: Date;
+  rate: number;
+  source: FiatExchangeRateSource;
+}
+
 const FIAT_SANITY_SPREAD_LIMITS: Record<string, number> = {
   ARS: 0.25,
   BRL: 0.02,
@@ -61,7 +69,7 @@ export class PriceFeedService {
   // Cache storage
   private cryptoPriceCache: Map<string, CacheEntry<number>> = new Map();
 
-  private fiatExchangeRateCache: Map<string, CacheEntry<number>> = new Map();
+  private fiatExchangeRateCache: Map<string, CacheEntry<FiatExchangeRateSnapshot>> = new Map();
 
   /**
    * Private constructor to enforce singleton pattern
@@ -205,6 +213,10 @@ export class PriceFeedService {
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
   public async getUsdToFiatExchangeRate(toCurrency: RampCurrency): Promise<number> {
+    return (await this.getUsdToFiatExchangeRateSnapshot(toCurrency)).rate;
+  }
+
+  public async getUsdToFiatExchangeRateSnapshot(toCurrency: RampCurrency): Promise<FiatExchangeRateSnapshot> {
     const fromCurrency = "USD";
     const targetCurrency = toCurrency.toUpperCase() as RampCurrency;
 
@@ -213,7 +225,7 @@ export class PriceFeedService {
     }
 
     if (targetCurrency === "USD") {
-      return 1;
+      return { observedAt: new Date(), rate: 1, source: "identity" };
     }
 
     const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
@@ -222,7 +234,7 @@ export class PriceFeedService {
     const hasCoinGeckoFallback = !COINGECKO_UNSUPPORTED_FIAT_CURRENCIES.has(targetCurrency);
 
     if (cachedEntry && cachedEntry.expiresAt > now) {
-      logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value}`);
+      logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value.rate}`);
       return cachedEntry.value;
     }
 
@@ -232,8 +244,9 @@ export class PriceFeedService {
       try {
         const rate = await this.getBinanceUsdtToFiatRate(targetCurrency);
         await this.assertRateWithinSanityBand("Binance", targetCurrency, rate);
-        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-        return rate;
+        const snapshot = { observedAt: new Date(now), rate, source: "binance" } as const;
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+        return snapshot;
       } catch (binanceError) {
         logger.warn(
           `Binance failed for ${fromCurrency}-${targetCurrency}, falling back to fastforex: ${binanceError instanceof Error ? binanceError.message : binanceError}`
@@ -247,8 +260,9 @@ export class PriceFeedService {
       try {
         const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
         await this.assertRateWithinSanityBand("fastforex", targetCurrency, rate);
-        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-        return rate;
+        const snapshot = { observedAt: new Date(now), rate, source: "fastforex" } as const;
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+        return snapshot;
       } catch (ffError) {
         logger.warn(
           `fastforex failed for ${fromCurrency}-${targetCurrency}, ${
@@ -274,8 +288,9 @@ export class PriceFeedService {
     try {
       const rate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
       this.assertValidFiatRate("CoinGecko", fromCurrency, targetCurrency, rate);
-      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-      return rate;
+      const snapshot = { observedAt: new Date(now), rate, source: "coingecko" } as const;
+      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+      return snapshot;
     } catch (cgError) {
       if (cgError instanceof Error) {
         logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${targetCurrency}: ${cgError.message}`);

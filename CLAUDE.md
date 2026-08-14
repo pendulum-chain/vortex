@@ -84,10 +84,14 @@ update the existing canonical document when one owns the topic.
   document.
 - Keep local `README.md` files only when they explain a non-obvious subsystem contract.
 - Repair indexes and relative links in the same change as a move or deletion.
+- Agent skills live in `.agents/skills/<name>/SKILL.md` so every coding agent can use
+  them; `.claude/skills/` holds only symlinks to those directories (Claude Code follows
+  them for discovery). When adding a skill, create the directory there and add the
+  matching symlink.
 
 ## Commit Messages & PR Titles
 
-Every commit message and PR title follows [Conventional Commits](https://www.conventionalcommits.org/):
+Every commit message follows [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <summary>
@@ -106,6 +110,11 @@ Every commit message and PR title follows [Conventional Commits](https://www.con
   change for a reviewer (e.g. "Add searchable token selection to the dashboard"). The
   conventional format applies to commits only; PRs are merged with merge commits, so
   every individual commit lands in history — format each one.
+- **PR base branch** — all feature, fix, documentation, refactor, and maintenance PRs
+  MUST target `staging`, never `main`. The only PRs allowed to target `main` are explicit
+  staging-to-production promotion/release PRs requested by the user. When creating a PR,
+  pass `--base staging` explicitly and verify the resulting PR's base branch before
+  reporting completion.
 
 Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented

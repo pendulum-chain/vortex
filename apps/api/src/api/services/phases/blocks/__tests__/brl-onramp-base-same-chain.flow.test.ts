@@ -100,6 +100,17 @@ function buildCtx(outputCurrency: EvmToken): PhaseCtx {
       displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" },
       usd: { anchor: "0.1", network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" }
     },
+    evmDestinationGas: {
+      executionFeeUsd: "0.01",
+      fundingGasLimit: "21000",
+      isNativeTransfer: false,
+      maximumFeePerGas: "1",
+      maximumFundingL1FeeRaw: "1",
+      maximumPayoutL1FeeRaw: "1",
+      network: Networks.Base,
+      programVersion: 2,
+      transferGasLimit: "100000"
+    },
     notes: [],
     now: new Date(),
     partner: null,
@@ -166,15 +177,17 @@ describe("BRL Base same-chain block flows", () => {
       expect(destinationTransfer.network).toBe(Networks.Base);
       expect(destinationTransfer.token).toBe(outputCurrency);
       expect(metadata.globals.fees.usd.anchor).toBe("1.5");
-      expect(metadata.globals.fees.usd.network).toBe(outputCurrency === EvmToken.USDC ? "0" : "0.1");
-      expect(metadata.globals.fees.usd.total).toBe(outputCurrency === EvmToken.USDC ? "1.600000" : "1.700000");
-      expect(metadata.globals.fees.displayFiat?.network).toBe(outputCurrency === EvmToken.USDC ? "0" : "0.1");
-      expect(metadata.globals.fees.displayFiat?.total).toBe(outputCurrency === EvmToken.USDC ? "1.60" : "1.70");
+      expect(metadata.globals.fees.usd.network).toBe(outputCurrency === EvmToken.USDC ? "0.01" : "0.11");
+      expect(metadata.globals.fees.usd.total).toBe(outputCurrency === EvmToken.USDC ? "1.610000" : "1.710000");
+      expect(metadata.globals.fees.displayFiat?.network).toBe(outputCurrency === EvmToken.USDC ? "0.01" : "0.11");
+      expect(metadata.globals.fees.displayFiat?.total).toBe(outputCurrency === EvmToken.USDC ? "1.61" : "1.71");
       expect(getBlockMetadata(metadata, DistributeFeesContext).networkFeeUsd).toBe(
-        outputCurrency === EvmToken.USDC ? "0" : "0.1"
+        outputCurrency === EvmToken.USDC ? "0.01" : "0.11"
       );
       const subsidizePost = getBlockMetadata(metadata, SubsidizePostContext);
-      expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe(outputCurrency === EvmToken.USDC ? "17.9" : "17.8");
+      expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe(
+        outputCurrency === EvmToken.USDC ? "17.89" : "17.79"
+      );
       expect(subsidizePost.applied).toBe(false);
     });
   }

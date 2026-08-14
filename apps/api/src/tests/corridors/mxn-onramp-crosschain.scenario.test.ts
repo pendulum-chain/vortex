@@ -2,10 +2,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -161,20 +163,19 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
 
   /** Signs a blueprint exactly as issued; the nonce may be overridden for backups. */
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx, nonce?: number): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     const chainId = CHAIN_IDS[blueprint.network];
     if (!chainId) {
       throw new Error(`No chain id mapped for ${blueprint.network}`);
     }
     return ephemeral.signTransaction({
       chainId,
-      data: txData.data,
-      gas: 600_000n,
-      // validatePresignedTxs enforces the blueprint's fee minimums (3 gwei floor on Polygon).
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: nonce ?? blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });

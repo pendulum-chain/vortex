@@ -1582,6 +1582,7 @@
           "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
         },
+        "networkFeesTooHigh": "Destination network fees are temporarily too high. Please try again later.",
         "preNablaDeductibleFees": "Failed to get quote. Please try again with a different amount.",
         "quoteNotFound": "Quote not found",
         "tryDifferentAmount": "Failed to calculate quote. Please try a different amount.",

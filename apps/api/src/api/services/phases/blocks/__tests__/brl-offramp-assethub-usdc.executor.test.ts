@@ -15,7 +15,7 @@ mock.module("@vortexfi/shared", () => ({
 }));
 mock.module("../../../avenia/avenia-customer.service", () => ({
   ...customerReal,
-  findAveniaCustomerByTaxId: async () => ({ providerSubaccountId: "subaccount-1" })
+  findAveniaCustomerByTaxId: async () => ({ providerSubaccountId: "replacement-subaccount" })
 }));
 const { AveniaOfframpPayoutExecutor } = await import("../phases/avenia-offramp-payout/execution");
 const originalFindByPk = QuoteTicket.findByPk;
@@ -51,6 +51,7 @@ describe("AssetHub BRL payout recovery", () => {
             brlaEvmAddress: "0x1111111111111111111111111111111111111111",
             pixDestination: "pix-key",
             receiverTaxId: "12345678900",
+            subAccountId: "subaccount-1",
             taxId: "12345678901"
           }
         },

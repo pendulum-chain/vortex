@@ -8,15 +8,15 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError } from "../errors";
-import type { ApiService } from "../services/ApiService";
+import { MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError } from "../errors.js";
+import type { ApiService } from "../services/ApiService.js";
 import type {
   AlfredpayOfframpAdditionalData,
   AlfredpayOfframpUpdateAdditionalData,
   AlfredpayOnrampAdditionalData,
   RampHandler,
   VortexSdkContext
-} from "../types";
+} from "../types.js";
 
 export class AlfredpayHandler implements RampHandler {
   private apiService: ApiService;

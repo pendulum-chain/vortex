@@ -81,7 +81,8 @@ describe("Avenia block registration", () => {
 
     await expect(createAveniaOnrampTicket("12345678901", { id: "abcdefgh-rest" }, "100", deps)).resolves.toEqual({
       aveniaTicketId: "ticket-1",
-      brCode: "pix-code"
+      brCode: "pix-code",
+      subAccountId: "subaccount-1"
     });
     expect(calls[0]).toEqual([
       "quote",

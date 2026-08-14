@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import ApiCredential from "../../models/apiCredential.model";
+import ManagedProfile from "../../models/managedProfile.model";
+import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 import {
@@ -15,6 +17,8 @@ import {
 
 const originals = {
   count: ApiCredential.count,
+  managerFindByPk: ManagedProfileManager.findByPk,
+  managedProfileFindOne: ManagedProfile.findOne,
   create: ApiCredential.create,
   findAll: ApiCredential.findAll,
   findByPk: User.findByPk,
@@ -30,6 +34,8 @@ afterEach(() => {
   ApiCredential.findAll = originals.findAll;
   ApiCredential.findOne = originals.findOne;
   ApiCredential.update = originals.update;
+  ManagedProfile.findOne = originals.managedProfileFindOne;
+  ManagedProfileManager.findByPk = originals.managerFindByPk;
   User.findByPk = originals.findByPk;
   sequelize.transaction = originals.transaction;
   sequelize.query = originals.query;
@@ -79,6 +85,7 @@ describe("api credential service", () => {
       revokedAt: null,
       secretKeyDigest: digestApiKey(secret),
       secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "authenticated" },
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
@@ -89,6 +96,112 @@ describe("api credential service", () => {
 
     expect(publicContext).toMatchObject({ credentialId: credential.id, profileId: "profile-1", strength: "public" });
     expect(secretContext).toMatchObject({ credentialId: credential.id, profileId: "profile-1", strength: "secret" });
+  });
+
+  it("dynamically invalidates both values when managed control is inactive", async () => {
+    const secret = generateApiKey("secret", "test");
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      secretKeyDigest: digestApiKey(secret),
+      secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "managed" },
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    ApiCredential.findAll = mock(async () => [credential]) as never;
+    ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: false })) as never;
+
+    expect(await validatePublicKey(credential.publicKeyValue)).toBeNull();
+    expect(await validateSecretKey(secret)).toBeNull();
+    expect(credential.update).not.toHaveBeenCalled();
+  });
+
+  it("dynamically invalidates both values when the managed relationship is deleted", async () => {
+    const secret = generateApiKey("secret", "test");
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      secretKeyDigest: digestApiKey(secret),
+      secretKeyPrefix: getSecretKeyLookupPrefix(secret),
+      profile: { kind: "managed" },
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    ApiCredential.findAll = mock(async () => [credential]) as never;
+    const findRelationship = mock(async (options: { where?: { status?: string } }) =>
+      options.where?.status === "active" ? null : { id: "relationship-1", managerProfileId: "manager-1" }
+    );
+    ManagedProfile.findOne = findRelationship as never;
+    ManagedProfileManager.findByPk = mock(async () => ({ allowedCorridors: ["BR"], isActive: true })) as never;
+
+    expect(await validatePublicKey(credential.publicKeyValue)).toBeNull();
+    expect(await validateSecretKey(secret)).toBeNull();
+    expect(findRelationship).toHaveBeenCalledTimes(2);
+    for (const [options] of findRelationship.mock.calls) {
+      expect(options).toMatchObject({ where: { profileId: "profile-1", status: "active" } });
+    }
+    expect(credential.update).not.toHaveBeenCalled();
+  });
+
+  it("attaches immutable managed control metadata to valid credentials", async () => {
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      profile: { kind: "managed" },
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR", "MX"],
+      allowedCustomerTypes: ["individual"],
+      isActive: true
+    })) as never;
+
+    const result = await validatePublicKey(credential.publicKeyValue);
+
+    expect(result?.managedProfile).toEqual({
+      allowedCorridors: ["BR", "MX"],
+      allowedCustomerTypes: ["individual"],
+      controllingManagerProfileId: "manager-1",
+      relationshipId: "relationship-1"
+    });
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result?.managedProfile)).toBe(true);
+    expect(Object.isFrozen(result?.managedProfile?.allowedCorridors)).toBe(true);
+    expect(Object.isFrozen(result?.managedProfile?.allowedCustomerTypes)).toBe(true);
+  });
+
+  it("represents a missing manager customer-type restriction as null", async () => {
+    const credential = Object.assign(new ApiCredential(), {
+      environment: "test",
+      id: "credential-1",
+      partnerId: null,
+      profileId: "profile-1",
+      publicKeyValue: generateApiKey("public", "test"),
+      profile: { kind: "managed" },
+      update: mock(async () => credential)
+    });
+    ApiCredential.findOne = mock(async () => credential) as never;
+    ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["AR"],
+      allowedCustomerTypes: null,
+      isActive: true
+    })) as never;
+
+    expect((await validatePublicKey(credential.publicKeyValue))?.managedProfile?.allowedCustomerTypes).toBeNull();
   });
 
   it("refuses startup while the legacy api_keys table remains", async () => {

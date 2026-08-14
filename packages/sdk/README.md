@@ -118,6 +118,28 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 
 > `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
 
+### Deferred offramp funding
+
+By default, the SDK checks the source wallet before `registerRamp` and rejects a known
+balance below the quoted input amount. Server integrations that create and fund a temporary
+wallet in that order can opt into deferred funding:
+
+```typescript
+const sdk = new VortexSdk({
+  apiBaseUrl: "https://api.vortexfinance.co",
+  publicKey: process.env.VORTEX_PUBLIC_KEY,
+  secretKey: process.env.VORTEX_SECRET_KEY,
+  offrampFundingMode: "deferred"
+});
+```
+
+Deferred mode skips only the SDK's registration-time balance pre-flight. Fund the exact
+`walletAddress` on the quote's source network before signing or submitting its user
+transactions, then update and start the ramp before its registration window expires. The
+backend still checks the source balance before moving funds or consuming a single-use
+permit. This setting is an integration sequencing option, not an account authorization or
+backend balance-check bypass.
+
 ## Core Features
 - **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
@@ -209,10 +231,15 @@ interface VortexSdkConfig {
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
+  offrampFundingMode?: "prefunded" | "deferred";
 }
 ```
 
 Only the base Vortex API is required. Chain WebSocket APIs are initialized lazily when returned unsigned transactions require them; quote and registration HTTP requests do not wait for RPC connections. If the RPC URLs are not provided, default public ones are used. `networkInitializationTimeoutMs` defaults to 15 seconds and applies independently to each required network.
+
+`offrampFundingMode` defaults to `"prefunded"`. Set it to `"deferred"` only when the
+integration funds its source wallet after registration and can guarantee funding before
+submitting user transactions and starting the ramp.
 
 ### API keys
 

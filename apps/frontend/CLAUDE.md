@@ -12,7 +12,6 @@ frontend-scoped architecture, conventions, and commands. Run commands from
 - **Routing**: TanStack Router — route tree auto-generated in `src/routeTree.gen.ts` (do not hand-edit).
 - **Rendering**: TanStack Start. Marketing routes are prerendered to static HTML at build time
   (`dist/client`); `/widget` sets `ssr: false` and is served from the `_shell.html` SPA shell.
-  See [`docs/adr-0004-landing-page-ssr.md`](../../docs/adr-0004-landing-page-ssr.md).
 - **State machines**: XState machines in `src/machines/` for complex flows (KYC, ramp process).
 - **Wallets**: Wagmi/AppKit (EVM) + Talisman (Polkadot).
 

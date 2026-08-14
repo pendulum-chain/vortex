@@ -6,11 +6,13 @@ import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observa
 import { getRequestDurationMs } from "../observability/requestContext";
 import type { CredentialContext } from "../services/apiCredential.service";
 import { getEffectiveUserId } from "./effectiveUser";
+import type { ManagedProfileContext } from "./managedProfileAuth";
 
 interface OwnershipRequest {
   credential?: CredentialContext;
   body?: unknown;
   method?: string;
+  managedProfileContext?: ManagedProfileContext;
   params?: unknown;
   path?: string;
   query?: unknown;
@@ -29,6 +31,17 @@ export async function assertRampOwnership(req: OwnershipRequest, rampId: string)
   if (!ramp) {
     recordOwnershipFailure(req, httpStatus.NOT_FOUND, "ramp_not_found", { rampId });
     throw new APIError({ message: "Ramp not found", status: httpStatus.NOT_FOUND });
+  }
+
+  if (req.managedProfileContext) {
+    if (ramp.userId !== req.managedProfileContext.subjectProfileId) {
+      recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { rampId });
+      throw new APIError({
+        message: "Managed profile does not own this ramp",
+        status: httpStatus.FORBIDDEN
+      });
+    }
+    return;
   }
 
   if (req.credential?.partnerId) {
@@ -107,6 +120,17 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
       message: "Secret credential does not match the credential used to create this quote",
       status: httpStatus.FORBIDDEN
     });
+  }
+
+  if (req.managedProfileContext) {
+    if (quote.partnerId !== null || quote.userId !== req.managedProfileContext.subjectProfileId) {
+      recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
+      throw new APIError({
+        message: "Managed profile does not own this quote",
+        status: httpStatus.FORBIDDEN
+      });
+    }
+    return;
   }
 
   if (req.credential?.partnerId) {
