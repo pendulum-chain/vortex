@@ -10,8 +10,9 @@ import { initializeEvmTokens } from "./services/tokens";
 import "./helpers/googleTranslate";
 
 // Sentry must initialize before the app renders. The TanStack Router tracing integration
-// needs the router instance, which Start only hands over once hydration resolves.
-function initSentry(router: Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0]) {
+// needs the router instance, which Start only hands over once hydration resolves — so the
+// router is optional here, for the path where hydration never resolves at all.
+function initSentry(router?: Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0]) {
   const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
   if (!sentryDsn) {
     return;
@@ -27,7 +28,7 @@ function initSentry(router: Parameters<typeof Sentry.tanstackRouterBrowserTracin
     // Explicit replay masking — these are the defaults, but pinned for a KYC/KYB app so a future
     // default change can't start leaking user input into replays.
     integrations: [
-      Sentry.tanstackRouterBrowserTracingIntegration(router),
+      ...(router ? [Sentry.tanstackRouterBrowserTracingIntegration(router)] : []),
       Sentry.replayIntegration({ blockAllMedia: true, maskAllText: true })
     ],
     // Capture 100% of sessions where an error occurs; sample plain sessions only in prod.
@@ -51,14 +52,23 @@ function initSentry(router: Parameters<typeof Sentry.tanstackRouterBrowserTracin
 // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
 initializeEvmTokens();
 
-hydrateStart().then(router => {
-  initSentry(router);
+hydrateStart()
+  .then(router => {
+    initSentry(router);
 
-  startTransition(() => {
-    hydrateRoot(document, <RouterProvider router={router} />, {
-      onCaughtError: Sentry.reactErrorHandler(),
-      onRecoverableError: Sentry.reactErrorHandler(),
-      onUncaughtError: Sentry.reactErrorHandler()
+    startTransition(() => {
+      hydrateRoot(document, <RouterProvider router={router} />, {
+        onCaughtError: Sentry.reactErrorHandler(),
+        onRecoverableError: Sentry.reactErrorHandler(),
+        onUncaughtError: Sentry.reactErrorHandler()
+      });
     });
+  })
+  .catch(error => {
+    // Hydration never produced a router, so the app will never mount. On a prerendered marketing
+    // route the visitor is left with static, inert HTML; on `/widget` (ssr: false) the page stays
+    // blank. Without this, Sentry is never initialized and the failure dies as an unhandled
+    // rejection — the one class of bug we would have no telemetry for.
+    initSentry();
+    Sentry.captureException(error);
   });
-});

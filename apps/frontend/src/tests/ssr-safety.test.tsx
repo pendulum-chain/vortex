@@ -1,8 +1,11 @@
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Globe } from "../components/Globe";
 import { useEvmTokensLoaded } from "../hooks/useEvmTokensLoaded";
 import { storageService } from "../services/storage/local";
+
+const createAppKit = vi.fn();
+vi.mock("@reown/appkit/react", () => ({ createAppKit }));
 
 // This suite deliberately keeps the config's default "node" environment: it is the same DOM-less
 // environment the marketing routes are prerendered in. Each case guards a browser-global access
@@ -36,6 +39,19 @@ describe("useEvmTokensLoaded without a DOM", () => {
   it("has a server snapshot, so useSyncExternalStore can render it", () => {
     const Probe = () => <span>{String(useEvmTokensLoaded())}</span>;
     expect(renderToString(<Probe />)).toContain("false");
+  });
+});
+
+describe("wagmiConfig without a DOM", () => {
+  it("exports the adapter config without constructing the AppKit modal", async () => {
+    expect(typeof window).toBe("undefined");
+
+    const { wagmiConfig } = await import("../wagmiConfig");
+
+    // `__root.tsx` imports this module on every prerendered marketing page. AppKit registers
+    // custom elements against browser globals, so the modal must stay behind the `window` guard.
+    expect(createAppKit).not.toHaveBeenCalled();
+    expect(wagmiConfig).toBeDefined();
   });
 });
 
