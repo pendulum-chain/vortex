@@ -119,6 +119,14 @@ function readRecipientInviteDiscountLimit(): number {
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
+  /** Login email of the seeded sales-demo account. Sandbox only; see docs/operations-demo-environment.md. */
+  demoAccountEmail: string;
+  /**
+   * Replaces the Alfredpay client with a canned in-process stand-in so the demo corridor can be
+   * onboarded repeatedly without touching Alfredpay's sandbox. Sandbox only, and off by default —
+   * a sandbox used for partner integration testing must keep the real provider.
+   */
+  demoProviderEnabled: boolean;
   flowVariant: FlowVariant;
   port: string | number;
   amplitudeWss: string;
@@ -225,6 +233,8 @@ export const config: Config = {
   defaults: {
     vortexEvmPayoutAddress: process.env.DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS
   },
+  demoAccountEmail: (process.env.DEMO_ACCOUNT_EMAIL || "demo@satoshipay.io").trim().toLowerCase(),
+  demoProviderEnabled: process.env.DEMO_PROVIDER_ENABLED === "true",
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
   flowVariant: readFlowVariant(),
@@ -334,6 +344,12 @@ if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
 
 if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
   throw new Error("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
+}
+
+if (config.demoProviderEnabled && config.deploymentEnv !== "sandbox") {
+  throw new Error(
+    `DEMO_PROVIDER_ENABLED=true requires DEPLOYMENT_ENV=sandbox (got '${config.deploymentEnv}'); refusing to start`
+  );
 }
 
 if (config.env === "production") {

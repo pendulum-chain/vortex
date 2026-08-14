@@ -93,6 +93,7 @@
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
+    "seed:demo": "bun scripts/seed-demo-account.ts",
     "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",

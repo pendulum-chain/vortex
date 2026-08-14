@@ -10,7 +10,9 @@ const ALCHEMY_NETWORK: Partial<Record<EvmNetworks, string>> = {
   [Networks.Base]: "base-mainnet",
   [Networks.BSC]: "bsc-mainnet",
   [Networks.Ethereum]: "eth-mainnet",
-  [Networks.Polygon]: "polygon-mainnet"
+  [Networks.Polygon]: "polygon-mainnet",
+  // Sandbox runs offramps on Amoy; without this the funding gate can never read a balance.
+  [Networks.PolygonAmoy]: "polygon-amoy"
 };
 
 interface AlchemyBalanceResponse {
