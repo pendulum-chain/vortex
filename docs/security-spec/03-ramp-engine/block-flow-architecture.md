@@ -30,9 +30,11 @@ runtime validation, and startup wiring checks therefore remain mandatory.
    backend can still dispatch persisted state that references it. The startup check MUST
    cover every unexpired pending quote and every resumable ramp owned by the configured
    flow variant. Resumable ramps include all nonterminal ramps after `initial`, regardless
-   of age, plus `initial` ramps within the start deadline. Both update and start MUST
-   reject an `initial` ramp after that deadline, before invoking a persisted-flow
-   lifecycle hook. A deployment may remove a version only after this scoped check proves
+   of age, plus `initial` ramps within the start deadline and every Avenia `initial` ramp
+   with a payable ticket. Public update/start calls MUST reject an `initial` ramp after
+   the deadline, but the unhandled-payment worker MAY start an expired Avenia ramp only
+   after the provider reports its exact persisted ticket as paid. A deployment may remove
+   a version only after this scoped check proves
    that the backend cannot dispatch it. Rollback MUST retain every version introduced by
    the deployment being rolled back.
 5. **Legacy adoption.** Unversioned quotes may be adopted by the current version only
@@ -106,7 +108,7 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 | A registry registration silently replaces another handler | Duplicate registration is rejected |
 | Old or manually edited JSONB is cast into a new TypeScript type | Versioned envelope validation before registration, start, or recovery |
 | Two blocks flatten different values into one legacy field | Compatibility merge rejects conflicting values |
-| An old flow implementation is removed too early | Per-variant deployment/removal check against unexpired pending quotes and resumable ramps; update and start reject expired initial ramps before lifecycle hooks |
+| An old flow implementation is removed too early | Per-variant deployment/removal check against unexpired pending quotes, active ramps, and Avenia initial ramps with payable tickets; public update/start reject expired initial ramps while provider-confirmed payment recovery retains the persisted flow |
 | An old worker consumes newly introduced executor metadata during a rolling deploy | Keep new quote production behind a default-off activation flag; deploy the dual legacy/v2 executor everywhere before enabling the new program |
 | A provider accepts an order and the database transaction later rolls back | Independent durable financial-operation claim; retry reuses the confirmed response or halts on ambiguity |
 | Two workers attempt the same external side effect | Unique operation key and atomic `not_started` → `submitted` claim |

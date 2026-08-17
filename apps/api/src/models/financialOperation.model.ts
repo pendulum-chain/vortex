@@ -6,7 +6,7 @@ export type FinancialOperationStatus = "not_started" | "submitted" | "confirmed"
 export interface FinancialOperationAttributes {
   id: string;
   operationKey: string;
-  scopeType: "quote" | "ramp";
+  scopeType: "profile" | "quote" | "ramp";
   scopeId: string;
   flowId: string;
   flowVersion: number;
@@ -33,7 +33,7 @@ class FinancialOperation
 {
   declare id: string;
   declare operationKey: string;
-  declare scopeType: "quote" | "ramp";
+  declare scopeType: "profile" | "quote" | "ramp";
   declare scopeId: string;
   declare flowId: string;
   declare flowVersion: number;
@@ -68,7 +68,7 @@ FinancialOperation.init(
       allowNull: false,
       field: "scope_type",
       type: DataTypes.STRING(16),
-      validate: { isIn: [["quote", "ramp"]] }
+      validate: { isIn: [["profile", "quote", "ramp"]] }
     },
     status: {
       allowNull: false,

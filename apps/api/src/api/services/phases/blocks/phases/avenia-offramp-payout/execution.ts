@@ -50,9 +50,13 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       state.state,
       isPendulumPayout ? AveniaPendulumOfframpContext : AveniaOfframpPayoutContext
     );
-    const customer = await findAveniaCustomerByTaxId(facts.taxId);
-    if (!customer) throw new Error("AveniaOfframpPayoutExecutor: Avenia customer not found");
-    const subAccountId = customer.providerSubaccountId ?? "";
+    let subAccountId = facts.subAccountId;
+    if (!subAccountId) {
+      // Compatibility fallback for ramps registered before subaccount identity was snapshotted.
+      const customer = await findAveniaCustomerByTaxId(facts.taxId);
+      if (!customer) throw new Error("AveniaOfframpPayoutExecutor: Avenia customer not found");
+      subAccountId = customer.providerSubaccountId ?? "";
+    }
     if (state.state.payOutTicketId) {
       await this.waitForPaid(state.state.payOutTicketId, subAccountId, signal);
       return state;

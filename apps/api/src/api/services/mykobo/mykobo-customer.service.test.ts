@@ -78,6 +78,11 @@ describe("resolveMykoboCustomerForUser", () => {
     await expect(resolveMykoboCustomerForUser("user-1")).rejects.toBeInstanceOf(APIError);
   });
 
+  it("rejects managed profiles without an email identity", async () => {
+    User.findByPk = mock(async () => ({ email: null, id: "managed-profile-1" })) as unknown as typeof User.findByPk;
+    await expect(resolveMykoboCustomerForUser("managed-profile-1")).rejects.toBeInstanceOf(APIError);
+  });
+
   it("rejects when Mykobo KYC is not approved", async () => {
     stub({ profileEmail: PROFILE_EMAIL, reviewStatus: "pending" });
     await expect(resolveMykoboCustomerForUser("user-1")).rejects.toBeInstanceOf(APIError);

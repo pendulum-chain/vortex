@@ -27,6 +27,7 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 - **Currently implemented corridors** (all live in the SDK): BRL via PIX, EUR via SEPA (Mykobo), USD via ACH, MXN via SPEI, COP via ACH, ARS via CBU. All support both onramp (BUY) and offramp (SELL). EUR and the bank-transfer corridors deliver to EVM networks only (no AssetHub).
 - **EUR enum value**: EUR quotes use `FiatToken.EURC` (not `EUR`) as the currency value, with `"sepa"` as the rail identifier.
 - **taxId is deprecated for BRL**: the user's tax ID is derived server-side from the user-linked `sk_*` key. Sending a `taxId` that mismatches the derived one is rejected; stop sending it in new integrations.
+- **Deferred offramp funding**: the SDK checks the source wallet balance at `registerRamp` by default. Server integrations that register before funding a temporary wallet may configure `offrampFundingMode: "deferred"`. This skips only the SDK pre-flight; fund the exact `walletAddress` before signing/submitting user transactions, then update and start before the registration window expires. Backend execution-time balance checks remain authoritative.
 - **No secret in markdown**: never paste API keys into source files, logs, screenshots, or support tickets.
 
 ---
@@ -405,7 +406,7 @@ The SDK cannot **create** fiat accounts; they are created during onboarding in t
 - `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
 - `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
 - `400` "requires an API key linked to a user" on register — the secret credential is not bound to an eligible profile. Create a profile-managed credential after OTP sign-in or provision a managed profile and issue the credential for that explicit subject.
-- `InsufficientBalanceError` — the offramp pre-flight found the source wallet balance below the quote's input amount.
+- `InsufficientBalanceError` — in the default `"prefunded"` mode, the offramp pre-flight found the source wallet balance below the quote's input amount. A deliberate register-then-fund integration may use `offrampFundingMode: "deferred"`; it must fund before submitting user transactions and starting the ramp.
 
 ---
 
@@ -498,7 +499,8 @@ const vortex = new VortexSdk({
   publicKey:  process.env.VORTEX_PUBLIC_KEY,  // pk_*
   secretKey:  process.env.VORTEX_SECRET_KEY,  // sk_*  — server side only
   networkInitializationTimeoutMs: 15_000,     // lazy per-network signing RPC timeout
-  storeEphemeralKeys: true                    // writes ephemerals_<rampId>.json locally
+  storeEphemeralKeys: true,                   // writes ephemerals_<rampId>.json locally
+  offrampFundingMode: "prefunded"             // default; use "deferred" only for register-then-fund flows
 });
 ```
 
@@ -547,10 +549,13 @@ triggers:
 ## When to use
 Production integrations should rely on webhooks rather than polling. Webhooks fire on two events: `TRANSACTION_CREATED` (ramp registered) and `STATUS_CHANGE` (phase transitioned to `PENDING`, `COMPLETE`, or `FAILED`).
 
+Managed profiles are the exception: webhook registration/deletion rejects both `X-Managed-Profile-Id` and direct child credentials. Track managed-child ramps by polling `GET /v1/ramp/{id}` or `GET /v1/ramp/history` with the same delegated manager selector or direct child secret used for the ramp. Do not attempt to register a child quote with the unselected manager key; the quote is child-owned and the manager-owned webhook request will not match it.
+
 ## Prerequisites
 - Public HTTPS endpoint to receive deliveries.
 - A way to fetch and cache the Vortex RSA public key.
 - Either a `quoteId` (per-ramp scope) or a `sessionId` (per-session scope), or neither (global to your partner key).
+- A non-managed credential subject. Managed-profile integrations use polling instead.
 
 ## SDK recipe
 The SDK does **not** wrap webhook registration. Call REST directly.
@@ -735,7 +740,7 @@ Include this payload (with secrets redacted) in any support ticket.
 | `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
 | `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
-| `InsufficientBalanceError` | Offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote |
+| `InsufficientBalanceError` | Default `"prefunded"` offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote. Register-then-fund integrations may configure `offrampFundingMode: "deferred"`, then fund before submitting user transactions and starting. |
 | `EphemeralNotFreshError` / `EphemeralFreshnessCheckError` | Generated ephemeral account was not fresh, or freshness could not be verified | Safe to retry `registerRamp` — the SDK generates new ephemerals each attempt |
 | `InvalidPixKeyError` | Bad recipient PIX key | Validate via `GET /v1/brla/validatePixKey`, then re-register |
 | `InvalidPresignedTxsError` | Submitted signed tx does not match the issued unsigned tx (chainId, nonce, gas, recipient, or value mismatch) | Re-sign exactly what `getUserTransactions` returned; do not reuse old signatures |

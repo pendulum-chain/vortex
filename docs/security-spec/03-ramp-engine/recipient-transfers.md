@@ -160,7 +160,11 @@ out against another tenant's relationship.
     `recipientRelationshipId`, and `recipientPayoutReferenceId` in `additionalData` with `400`
     instead of silently ignoring them. No eligibility response authorizes money movement.
     Enabling recipient payout requires a separately reviewed registration schema, ownership and
-    eligibility enforcement, and provider-side payout-instrument resolution.
+     eligibility enforcement, and provider-side payout-instrument resolution.
+13. **Recipient invitation operations do not support managed-profile selection.** Every
+    `/v1/recipients` route rejects `X-Managed-Profile-Id` rather than silently applying the
+    request to the authenticated manager. Managed children have no invitation acceptance
+    contract; their active customer entity is fixed during provisioning.
 
 ### Ramp registration vs. the recipient model — intentionally out of scope
 

@@ -454,7 +454,7 @@ BrlaGetSelfieLivenessUrlResponse: {
 
 BrlaGetUserRemainingLimitRequest: {
   direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  taxId: string;
+  taxId?: string;
 }
 
 BrlaGetUserRemainingLimitResponse: {
@@ -462,7 +462,7 @@ BrlaGetUserRemainingLimitResponse: {
 }
 
 BrlaGetUserRequest: {
-  taxId: string;
+  taxId?: string;
 }
 
 BrlaGetUserResponse: {
@@ -3946,6 +3946,8 @@ NoPresignedTransactionsError: class NoPresignedTransactionsError {
   readonly status: number;
 }
 
+OfframpFundingMode: "deferred" | "prefunded"
+
 OfframpUpdateAdditionalData: {
   assethubToPendulumHash?: string;
   squidRouterApproveHash?: string;
@@ -5168,6 +5170,7 @@ VortexSdk: class VortexSdk {
     hydrationWsUrl?: string;
     moonbeamWsUrl?: string;
     networkInitializationTimeoutMs?: number;
+    offrampFundingMode?: "deferred" | "prefunded";
     pendulumWsUrl?: string;
     publicKey?: string;
     secretKey?: string;
@@ -8083,6 +8086,7 @@ VortexSdkConfig: {
   hydrationWsUrl?: string;
   moonbeamWsUrl?: string;
   networkInitializationTimeoutMs?: number;
+  offrampFundingMode?: "deferred" | "prefunded";
   pendulumWsUrl?: string;
   publicKey?: string;
   secretKey?: string;

@@ -23,15 +23,15 @@ import {
   signUnsignedTransactions,
   UnsignedTx
 } from "@vortexfi/shared";
-import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712";
-import { TransactionSigningError } from "./errors";
-import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
-import { BrlHandler } from "./handlers/BrlHandler";
-import { MykoboHandler } from "./handlers/MykoboHandler";
-import { assertSufficientOfframpBalance } from "./preflight";
-import { ApiService } from "./services/ApiService";
-import { NetworkManager } from "./services/NetworkManager";
-import { storeEphemeralKeys } from "./storage";
+import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712.js";
+import { TransactionSigningError } from "./errors.js";
+import { AlfredpayHandler } from "./handlers/AlfredpayHandler.js";
+import { BrlHandler } from "./handlers/BrlHandler.js";
+import { MykoboHandler } from "./handlers/MykoboHandler.js";
+import { assertSufficientOfframpBalance } from "./preflight.js";
+import { ApiService } from "./services/ApiService.js";
+import { NetworkManager } from "./services/NetworkManager.js";
+import { storeEphemeralKeys } from "./storage.js";
 import type {
   AlfredpayOfframpAdditionalData,
   AlfredpayOfframpUpdateAdditionalData,
@@ -47,7 +47,7 @@ import type {
   SubmitUserTransactionsHandlers,
   UpdateRampAdditionalData,
   VortexSdkConfig
-} from "./types";
+} from "./types.js";
 
 export class VortexSdk {
   private apiService: ApiService;
@@ -58,11 +58,13 @@ export class VortexSdk {
   private alfredpayHandler: AlfredpayHandler;
   private mykoboHandler: MykoboHandler;
   private storeEphemeralKeys: boolean;
+  private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
 
   constructor(config: VortexSdkConfig) {
     this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
+    this.offrampFundingMode = config.offrampFundingMode ?? "prefunded";
     this.publicKey = config.publicKey;
     this.secretKey = config.secretKey;
 
@@ -155,8 +157,11 @@ export class VortexSdk {
     } else if (quote.rampType === RampDirection.SELL) {
       // Every offramp corridor moves quote.inputAmount out of the user's wallet on-chain. Check
       // the balance up front so we never register a ramp whose user transactions can only revert
-      // (or request a single-use permit the backend cannot execute).
-      await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
+      // (or request a single-use permit the backend cannot execute), unless the integrator funds
+      // its source wallet after registration. The backend still checks before moving funds.
+      if (this.offrampFundingMode !== "deferred") {
+        await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
+      }
       if (isAlfredpayToken(quote.outputCurrency)) {
         const offrampData = additionalData as AlfredpayOfframpAdditionalData;
         rampProcess = await this.alfredpayHandler.registerAlfredpayOfframp(quote.id, offrampData);
