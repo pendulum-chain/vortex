@@ -15,6 +15,7 @@ import {
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import FinancialOperation from "../../models/financialOperation.model";
 import type Partner from "../../models/partner.model";
@@ -378,7 +379,10 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   function scriptHappyWorld(setup: CorridorSetup, options: { usdcShortfallRaw?: bigint; swapOutputRaw?: bigint } = {}): void {
     const shortfall = options.usdcShortfallRaw ?? 0n;
     const swapOutput = options.swapOutputRaw ?? setup.swapOutputRaw;
+    const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw - shortfall);
     world.evm.onTransaction = tx => {
       if (tx.serialized === setup.signedNablaSwap) {

@@ -5,7 +5,10 @@ import {
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
+  getEvmBalance,
+  getEvmNativeBalance,
   getOnChainTokenDetails,
+  isDeterministicPreBroadcastRevert,
   Networks,
   nativeToDecimal,
   RampCurrency,
@@ -27,7 +30,10 @@ import { calculatePostSwapSubsidyComponents } from "../../../../phases/helpers/p
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import { EVM_ERC20_UNSIGNED_TRANSACTION_SIZE_BYTES, getBaseL1FeeUpperBoundRaw } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
+import { reconcileLegacyEvmSubsidy } from "../../core/legacy-evm-subsidy";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePostContext } from "./simulation";
 
@@ -132,128 +138,230 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
         );
       }
 
-      // Wait for token settlement before checking balance
-      await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
+      // For BUY operations, top up to the simulated Squid bridge input; for SELL, to the
+      // simulated Nabla output.
+      const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
 
-      const currentBalance = await checkEvmBalanceForToken({
-        amountDesiredRaw: "1",
-        chain: outputTokenDetails.network as EvmNetworks,
+      const evmClientManager = EvmClientManager.getInstance();
+      const destinationNetwork = outputTokenDetails.network as EvmNetworks;
+      const fundingAccount = getEvmFundingAccount(destinationNetwork);
+
+      const publicClient = evmClientManager.getClient(destinationNetwork);
+      const tokenAddress = outputTokenDetails.erc20AddressSourceChain as `0x${string}`;
+      let maximumTransferAmount = Big(0);
+      let transferAmount = Big(0);
+      let data: `0x${string}` | undefined;
+      let gas: bigint | undefined;
+      let maxFeePerGas: bigint | undefined;
+      let maxPriorityFeePerGas: bigint | undefined;
+      let nonce: number | undefined;
+
+      const operation = await this.runFinancialOperation(state, {
+        adoptSafeRequestHash: true,
+        attemptClass: "evm-subsidy-transfer",
+        beforePerform: async () => {
+          await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
+          const currentBalance = await checkEvmBalanceForToken({
+            amountDesiredRaw: "1",
+            chain: destinationNetwork,
+            intervalMs: 1000,
+            ownerAddress: evmEphemeralAddress,
+            signal,
+            timeoutMs: 5000,
+            tokenDetails: outputTokenDetails
+          });
+          if (currentBalance.eq(0)) {
+            throw new Error("Invalid phase: input token did not arrive yet on EVM");
+          }
+
+          const subsidyComponents = calculatePostSwapSubsidyComponents({
+            currentBalanceRaw: currentBalance,
+            discountSubsidyAmountRaw: String(metadata.subsidyAmountInOutputTokenRaw),
+            expectedOutputAmountRaw: expectedSwapOutputAmountRaw,
+            quotedActualOutputAmountRaw: String(metadata.actualOutputAmountRaw)
+          });
+          const requiredAmount = subsidyComponents.requiredAmountRaw;
+          logger.debug(`SubsidizePostSwapExecutor: requiredAmount ${requiredAmount.toString()}`);
+          maximumTransferAmount = requiredAmount.gt(0) ? requiredAmount : Big(0);
+          if (maximumTransferAmount.gt(0)) {
+            const quoteOutputUsd = await priceFeedService.convertCurrency(
+              quote.outputAmount,
+              quote.outputCurrency as RampCurrency,
+              EvmToken.USDC as RampCurrency
+            );
+            const discrepancyRaw = subsidyComponents.discrepancyAmountRaw;
+            const discountRaw = subsidyComponents.discountAmountRaw;
+            const discrepancyUsd = discrepancyRaw.gt(0)
+              ? await priceFeedService.convertCurrency(
+                  nativeToDecimal(discrepancyRaw, metadata.outputDecimals).toString(),
+                  outputToken as RampCurrency,
+                  EvmToken.USDC as RampCurrency
+                )
+              : "0";
+            const discountUsd = discountRaw.gt(0)
+              ? await priceFeedService.convertCurrency(
+                  nativeToDecimal(discountRaw, metadata.outputDecimals).toString(),
+                  outputToken as RampCurrency,
+                  EvmToken.USDC as RampCurrency
+                )
+              : "0";
+            const discrepancyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+            const discrepancyPercentageCap = Big(quoteOutputUsd).mul(discrepancyCapFraction);
+            const discrepancyCapUsd = discrepancyPercentageCap.gt("1") ? discrepancyPercentageCap : Big("1");
+            if (Big(discrepancyUsd).gt(discrepancyCapUsd)) {
+              throw this.createRecoverableError(
+                `SubsidizePostSwapExecutor: Required swap discrepancy subsidy $${discrepancyUsd} exceeds cap $${discrepancyCapUsd.toFixed(2)} (max of $1.00 and ${discrepancyCapFraction} of quote output $${quoteOutputUsd}).`
+              );
+            }
+            const discountCapFraction = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
+            const discountCapUsd = Big(quoteOutputUsd).mul(discountCapFraction);
+            if (Big(discountUsd).gte(1) && Big(discountUsd).gt(discountCapUsd)) {
+              throw this.createRecoverableError(
+                `SubsidizePostSwapExecutor: Required discount subsidy $${discountUsd} exceeds cap $${discountCapUsd.toFixed(2)} (${discountCapFraction} of quote output $${quoteOutputUsd}).`
+              );
+            }
+            logger.info(
+              `Subsidizing post-swap EVM with ${maximumTransferAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
+            );
+          }
+
+          const refreshedDestinationBalance = await getEvmBalance({
+            chain: destinationNetwork,
+            ownerAddress: evmEphemeralAddress as `0x${string}`,
+            tokenDetails: outputTokenDetails
+          });
+          const refreshedRequiredAmount = expectedSwapOutputAmountRaw.sub(refreshedDestinationBalance);
+          if (refreshedRequiredAmount.gt(maximumTransferAmount)) {
+            throw this.createRecoverableError(
+              "SubsidizePostSwapExecutor: Destination balance decreased during preflight; retrying subsidy calculation."
+            );
+          }
+          transferAmount = refreshedRequiredAmount.gt(0) ? refreshedRequiredAmount : Big(0);
+          if (transferAmount.eq(0)) return;
+
+          data = encodeFunctionData({
+            abi: erc20Abi,
+            args: [evmEphemeralAddress as `0x${string}`, BigInt(transferAmount.toFixed(0))],
+            functionName: "transfer"
+          });
+          const fundingTokenBalance = await getEvmBalance({
+            chain: destinationNetwork,
+            ownerAddress: fundingAccount.address,
+            tokenDetails: outputTokenDetails
+          });
+          if (fundingTokenBalance.lt(transferAmount)) {
+            throw this.createRecoverableError(
+              `SubsidizePostSwapExecutor: Funding wallet token balance ${fundingTokenBalance.toFixed()} is below required subsidy ${transferAmount.toFixed()}.`
+            );
+          }
+
+          const nativeBalance = await getEvmNativeBalance(fundingAccount.address, destinationNetwork);
+          if (nativeBalance.lte(0)) {
+            throw this.createRecoverableError("SubsidizePostSwapExecutor: Funding wallet has no native token for gas.");
+          }
+
+          const fees = await publicClient.estimateFeesPerGas();
+          maxFeePerGas = fees.maxFeePerGas;
+          maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+          gas = await publicClient.estimateGas({
+            account: fundingAccount,
+            data,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            to: tokenAddress,
+            value: 0n
+          });
+          const feePerGas = fees.maxFeePerGas ?? fees.gasPrice;
+          if (feePerGas === undefined) {
+            throw new Error("SubsidizePostSwapExecutor: Could not estimate the funding wallet gas price");
+          }
+          const baseL1Fee = await getBaseL1FeeUpperBoundRaw(destinationNetwork, EVM_ERC20_UNSIGNED_TRANSACTION_SIZE_BYTES);
+          const maximumGasCost = Big(gas.toString()).mul(feePerGas.toString()).plus(baseL1Fee.toString());
+          if (nativeBalance.lt(maximumGasCost)) {
+            throw this.createRecoverableError(
+              `SubsidizePostSwapExecutor: Funding wallet native balance ${nativeBalance.toFixed()} is below maximum gas cost ${maximumGasCost.toFixed()}.`
+            );
+          }
+          nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+        },
+        externalId: operation => operation.hash ?? undefined,
+        perform: async () => {
+          throwIfAborted(signal);
+          if (transferAmount.eq(0)) {
+            return { amountRaw: "0", hash: null };
+          }
+          if (nonce === undefined) {
+            throw new Error("SubsidizePostSwapExecutor: Missing transaction nonce after preflight");
+          }
+          if (data === undefined || gas === undefined) {
+            throw new Error("SubsidizePostSwapExecutor: Missing transaction data after preflight");
+          }
+          let hash: `0x${string}`;
+          try {
+            hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+              data,
+              gas,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              nonce,
+              to: tokenAddress,
+              value: 0n
+            });
+          } catch (error) {
+            if (isDeterministicPreBroadcastRevert(error)) {
+              throw new FinancialOperationRejectedError(
+                "SubsidizePostSwapExecutor: Funding transfer was rejected during pre-broadcast gas estimation"
+              );
+            }
+            throw error;
+          }
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+          if (receipt.status !== "success") {
+            throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${hash} failed`);
+          }
+          return { amountRaw: transferAmount.toFixed(0), hash };
+        },
+        provider: destinationNetwork,
+        reconcile: legacyOperation =>
+          reconcileLegacyEvmSubsidy({
+            destination: evmEphemeralAddress as `0x${string}`,
+            getTransaction: hash => publicClient.getTransaction({ hash }),
+            operation: legacyOperation,
+            source: fundingAccount.address,
+            targetBalanceRaw: expectedSwapOutputAmountRaw.toFixed(0),
+            token: tokenAddress
+          }),
+        reconcileRequestMismatch: true,
+        request: {
+          destination: evmEphemeralAddress,
+          network: destinationNetwork,
+          source: fundingAccount.address,
+          targetBalanceRaw: expectedSwapOutputAmountRaw.toFixed(0),
+          token: tokenAddress
+        },
+        retryFailed: true,
+        signal
+      });
+
+      if (operation.hash) {
+        const subsidyAmount = nativeToDecimal(operation.amountRaw, metadata.outputDecimals).toNumber();
+        const subsidyToken = metadata.outputCurrency as unknown as SubsidyToken;
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, operation.hash);
+      }
+
+      const settledBalance = await checkEvmBalanceForToken({
+        amountDesiredRaw: expectedSwapOutputAmountRaw.toFixed(0),
+        chain: destinationNetwork,
         intervalMs: 1000,
         ownerAddress: evmEphemeralAddress,
         signal,
         timeoutMs: 5000,
         tokenDetails: outputTokenDetails
       });
-
-      if (currentBalance.eq(Big(0))) {
-        throw new Error("Invalid phase: input token did not arrive yet on EVM");
-      }
-
-      // For BUY operations, top up to the simulated Squid bridge input; for SELL, to the
-      // simulated Nabla output.
-      const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
-
-      const subsidyComponents = calculatePostSwapSubsidyComponents({
-        currentBalanceRaw: currentBalance,
-        discountSubsidyAmountRaw: String(metadata.subsidyAmountInOutputTokenRaw),
-        expectedOutputAmountRaw: expectedSwapOutputAmountRaw,
-        quotedActualOutputAmountRaw: String(metadata.actualOutputAmountRaw)
-      });
-      const requiredAmount = subsidyComponents.requiredAmountRaw;
-      logger.debug(`SubsidizePostSwapExecutor: requiredAmount ${requiredAmount.toString()}`);
-
-      if (requiredAmount.gt(Big(0))) {
-        const quoteOutputUsd = await priceFeedService.convertCurrency(
-          quote.outputAmount,
-          quote.outputCurrency as RampCurrency,
-          EvmToken.USDC as RampCurrency
+      if (settledBalance.lt(expectedSwapOutputAmountRaw)) {
+        throw this.createRecoverableError(
+          "SubsidizePostSwapExecutor: Confirmed subsidy operation did not leave the destination at its target balance."
         );
-        const discrepancyRaw = subsidyComponents.discrepancyAmountRaw;
-        const discountRaw = subsidyComponents.discountAmountRaw;
-        const discrepancyUsd = discrepancyRaw.gt(0)
-          ? await priceFeedService.convertCurrency(
-              nativeToDecimal(discrepancyRaw, metadata.outputDecimals).toString(),
-              outputToken as RampCurrency,
-              EvmToken.USDC as RampCurrency
-            )
-          : "0";
-        const discountUsd = discountRaw.gt(0)
-          ? await priceFeedService.convertCurrency(
-              nativeToDecimal(discountRaw, metadata.outputDecimals).toString(),
-              outputToken as RampCurrency,
-              EvmToken.USDC as RampCurrency
-            )
-          : "0";
-        const discrepancyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
-        const discrepancyPercentageCap = Big(quoteOutputUsd).mul(discrepancyCapFraction);
-        const discrepancyCapUsd = discrepancyPercentageCap.gt("1") ? discrepancyPercentageCap : Big("1");
-        if (Big(discrepancyUsd).gt(discrepancyCapUsd)) {
-          // Pause for operator intervention without moving the ramp to failed.
-          throw this.createRecoverableError(
-            `SubsidizePostSwapExecutor: Required swap discrepancy subsidy $${discrepancyUsd} exceeds cap $${discrepancyCapUsd.toFixed(2)} (max of $1.00 and ${discrepancyCapFraction} of quote output $${quoteOutputUsd}).`
-          );
-        }
-        const discountCapFraction = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
-        const discountCapUsd = Big(quoteOutputUsd).mul(discountCapFraction);
-        if (Big(discountUsd).gte(1) && Big(discountUsd).gt(discountCapUsd)) {
-          throw this.createRecoverableError(
-            `SubsidizePostSwapExecutor: Required discount subsidy $${discountUsd} exceeds cap $${discountCapUsd.toFixed(2)} (${discountCapFraction} of quote output $${quoteOutputUsd}).`
-          );
-        }
-
-        logger.info(
-          `Subsidizing post-swap EVM with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
-        );
-
-        const evmClientManager = EvmClientManager.getInstance();
-        const destinationNetwork = outputTokenDetails.network as EvmNetworks;
-        const fundingAccount = getEvmFundingAccount(destinationNetwork);
-
-        const publicClient = evmClientManager.getClient(destinationNetwork);
-        const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-        const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
-
-        const data = encodeFunctionData({
-          abi: erc20Abi,
-          args: [evmEphemeralAddress as `0x${string}`, BigInt(requiredAmount.toFixed(0))],
-          functionName: "transfer"
-        });
-
-        const { hash: txHash } = await this.runFinancialOperation(state, {
-          attemptClass: "evm-subsidy-transfer",
-          externalId: operation => operation.hash,
-          perform: async () => {
-            throwIfAborted(signal);
-            const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-              data,
-              maxFeePerGas,
-              maxPriorityFeePerGas,
-              nonce,
-              to: outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
-              value: 0n
-            });
-            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-            if (receipt.status !== "success") {
-              throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${hash} failed`);
-            }
-            return { hash };
-          },
-          provider: destinationNetwork,
-          request: {
-            amountRaw: requiredAmount.toFixed(0),
-            destination: evmEphemeralAddress,
-            network: destinationNetwork,
-            nonce,
-            source: fundingAccount.address,
-            token: outputTokenDetails.erc20AddressSourceChain
-          },
-          signal
-        });
-
-        const subsidyAmount = nativeToDecimal(requiredAmount, metadata.outputDecimals).toNumber();
-        const subsidyToken = metadata.outputCurrency as unknown as SubsidyToken;
-
-        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
       }
 
       return state;

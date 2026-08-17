@@ -78,19 +78,36 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     subsidy, swap, bridge broadcast, gas payment, or settlement transfer MUST claim a
     unique `financial_operations` row before the external call. Its operation key is
     derived from scope type/ID, persisted flow ID/version, phase instance, and attempt
-    class; its request hash binds the financial inputs.
+    class; its request hash binds the financial authorization. For target-balance EVM
+    subsidy transfers, that authorization binds network, source, destination, token, and
+    target balance; volatile execution inputs such as the observed shortfall, fee quote,
+    and funding-wallet nonce MUST NOT be part of the retry-sensitive request identity.
 15. **Outcome-aware retry.** Financial-operation status MUST distinguish
     `not_started`, `submitted`, `confirmed`, `failed`, and `unknown`. A confirmed
     result is replayed locally without another provider call. A definitive rejection
     may be retried with corrected inputs only when the integration explicitly raises
-    `FinancialOperationRejectedError`, proving that no side effect occurred. HTTP status
-    classes alone MUST NOT establish that proof. A submitted or ambiguous result MUST
-    halt for reconciliation and MUST NOT be repeated automatically.
-16. **Upstream idempotency preference.** The stable operation key MUST be sent as the
+    `FinancialOperationRejectedError`, proving that no side effect occurred. For a live
+    EVM send, only a typed Viem `EstimateGasExecutionError` cause chain containing an
+    `ExecutionRevertedError` is treated as a deterministic pre-broadcast rejection, and
+    only when no earlier send attempt failed ambiguously. A bare revert, transport
+    failure, timeout, mined failure, or deterministic-looking error after an ambiguous
+    attempt is not sufficient proof.
+    HTTP status classes alone MUST NOT establish that proof. A submitted or ambiguous
+    result, or reuse of an operation key with a different authorization, MUST halt for
+    reconciliation and MUST NOT be repeated automatically.
+16. **Request-schema rollout is status-aware.** A target-balance EVM subsidy may adopt
+    the stable authorization hash for a legacy `not_started` row, or replay a legacy
+    `confirmed` response only after verifying its mined ERC-20 sender, token,
+    destination, and amount without another provider call. A legacy `submitted` or
+    `unknown` row remains reconciliation-only. This rollout is not backward-readable:
+    all old phase/recovery workers MUST be stopped and drained before new workers begin
+    processing ramps, then recovery may resume. Mixed old/new phase processing is
+    prohibited for this deployment.
+17. **Upstream idempotency preference.** The stable operation key MUST be sent as the
     provider idempotency key when the provider supports one. When the integration does
     not expose such a facility, the local claim plus fail-closed reconciliation policy
     is mandatory; an ambiguous timeout is not a retryable error.
-17. **Cancellation propagation.** Every execution block MUST accept the processor
+18. **Cancellation propagation.** Every execution block MUST accept the processor
     `AbortSignal` and propagate it through polling, sleeps, provider/RPC waits, and
     financial-operation claims. No new external side effect may begin after
     cancellation. If cancellation races an already-started financial call, its outcome
