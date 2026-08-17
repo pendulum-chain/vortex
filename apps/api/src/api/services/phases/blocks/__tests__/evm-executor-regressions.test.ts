@@ -9,7 +9,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { decodeFunctionData, encodeFunctionData, erc20Abi } from "viem";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, EstimateGasExecutionError, ExecutionRevertedError } from "viem";
 import { config } from "../../../../../config/vars";
 import type RampState from "../../../../../models/rampState.model";
 import * as quoteTicketNamespace from "../../../../../models/quoteTicket.model";
@@ -82,7 +82,18 @@ const runFinancialOperation = mock(
 mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
   AlfredpayApiService: { getInstance: () => ({ getOnrampTransaction }) },
-  checkEvmBalanceForToken: checkBalance,
+  // Faithful to the real poller: resolves only at or above the desired amount and
+  // throws a Timeout BalanceCheckError otherwise — it never returns a low balance.
+  checkEvmBalanceForToken: async ({ amountDesiredRaw }: { amountDesiredRaw: string }) => {
+    const balance = await checkBalance();
+    if (balance.lt(amountDesiredRaw)) {
+      throw new sharedReal.BalanceCheckError(
+        sharedReal.BalanceCheckErrorType.Timeout,
+        "Balance did not meet the limit within 5000ms"
+      );
+    }
+    return balance;
+  },
   EvmClientManager: {
     getInstance: () => ({
       getClient: () => ({
@@ -386,8 +397,13 @@ describe("EVM block executor regressions", () => {
       outputAmount: "100",
       outputCurrency: EvmToken.USDC
     });
-    isDeterministicPreBroadcastRevert.mockReturnValueOnce(true);
-    sendTransaction.mockRejectedValueOnce(new Error("transfer amount exceeds balance"));
+    // The affordability estimate in preflight succeeds; the authoritative pre-send
+    // estimate inside the claimed operation reverts with the real typed viem chain,
+    // so the real classifier (not a stub) must prove the definitive rejection.
+    estimateGas.mockResolvedValueOnce(21000n);
+    estimateGas.mockRejectedValueOnce(
+      new EstimateGasExecutionError(new ExecutionRevertedError({ message: "transfer amount exceeds balance" }), {})
+    );
     const originalConvertCurrency = priceFeedService.convertCurrency;
     priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
     const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
@@ -405,7 +421,8 @@ describe("EVM block executor regressions", () => {
       priceFeedService.convertCurrency = originalConvertCurrency;
     }
 
-    expect(sendTransaction).toHaveBeenCalledTimes(1);
+    expect(estimateGas).toHaveBeenCalledTimes(2);
+    expect(sendTransaction).not.toHaveBeenCalled();
     expect(financialOperationFailures[0]).toBeInstanceOf(financialOperationReal.FinancialOperationRejectedError);
   });
 

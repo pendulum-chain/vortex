@@ -1,5 +1,7 @@
 import {
   ApiManager,
+  BalanceCheckError,
+  BalanceCheckErrorType,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
@@ -293,17 +295,18 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           if (nonce === undefined) {
             throw new Error("SubsidizePostSwapExecutor: Missing transaction nonce after preflight");
           }
-          if (data === undefined || gas === undefined) {
+          if (data === undefined) {
             throw new Error("SubsidizePostSwapExecutor: Missing transaction data after preflight");
           }
-          let hash: `0x${string}`;
+          // Re-estimate inside the claimed operation: the send below carries an explicit
+          // gas limit, so this is the only step that can prove a deterministic revert
+          // before anything is broadcast.
           try {
-            hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            gas = await publicClient.estimateGas({
+              account: fundingAccount,
               data,
-              gas,
               maxFeePerGas,
               maxPriorityFeePerGas,
-              nonce,
               to: tokenAddress,
               value: 0n
             });
@@ -315,6 +318,15 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
             }
             throw error;
           }
+          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            data,
+            gas,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            nonce,
+            to: tokenAddress,
+            value: 0n
+          });
           const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
           if (receipt.status !== "success") {
             throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${hash} failed`);
@@ -349,19 +361,25 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, operation.hash);
       }
 
-      const settledBalance = await checkEvmBalanceForToken({
-        amountDesiredRaw: expectedSwapOutputAmountRaw.toFixed(0),
-        chain: destinationNetwork,
-        intervalMs: 1000,
-        ownerAddress: evmEphemeralAddress,
-        signal,
-        timeoutMs: 5000,
-        tokenDetails: outputTokenDetails
-      });
-      if (settledBalance.lt(expectedSwapOutputAmountRaw)) {
-        throw this.createRecoverableError(
-          "SubsidizePostSwapExecutor: Confirmed subsidy operation did not leave the destination at its target balance."
-        );
+      // The poller resolves only at or above the target and throws on timeout, so the
+      // shortfall signal is the Timeout error, not a low return value.
+      try {
+        await checkEvmBalanceForToken({
+          amountDesiredRaw: expectedSwapOutputAmountRaw.toFixed(0),
+          chain: destinationNetwork,
+          intervalMs: 1000,
+          ownerAddress: evmEphemeralAddress,
+          signal,
+          timeoutMs: 5000,
+          tokenDetails: outputTokenDetails
+        });
+      } catch (error) {
+        if (error instanceof BalanceCheckError && error.type === BalanceCheckErrorType.Timeout) {
+          throw this.createRecoverableError(
+            "SubsidizePostSwapExecutor: Confirmed subsidy operation did not leave the destination at its target balance."
+          );
+        }
+        throw error;
       }
 
       return state;
