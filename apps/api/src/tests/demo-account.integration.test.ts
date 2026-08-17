@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import express from "express";
 import { Op } from "sequelize";
+import authRoutes from "../api/routes/v1/auth.route";
+import { SupabaseAuthService } from "../api/services/auth";
 import { DEMO_TRANSACTIONS, demoRampId } from "../api/services/demo/demo-account.constants";
 import { restoreDemoAccount, restoreDemoAccountOnLogin } from "../api/services/demo/demo-account.service";
 import { assertPersistedBlockFlowVersionsSupported } from "../api/services/phases/blocks/register-handlers";
@@ -21,9 +24,11 @@ let originalDeploymentEnv: typeof config.deploymentEnv;
 let originalDemoEmail: string;
 
 beforeAll(async () => {
-  await setupTestDatabase();
+  // Snapshots are taken before the first await: if database setup throws, afterAll must
+  // still restore real values instead of writing undefined into the shared config.
   originalDeploymentEnv = config.deploymentEnv;
   originalDemoEmail = config.demoAccountEmail;
+  await setupTestDatabase();
   config.deploymentEnv = "sandbox";
   config.demoAccountEmail = DEMO_EMAIL;
 });
@@ -220,6 +225,46 @@ describe("demo account restore on login", () => {
 
     await restoreDemoAccountOnLogin(` ${DEMO_EMAIL.toUpperCase()} `);
 
+    expect(await RampState.count({ where: { userId: profile.id } })).toBe(4);
+  });
+});
+
+// Guards the call site, not just the service: the hook must stay wired into verifyOTP.
+describe("demo restore via the verify-otp route", () => {
+  let server: ReturnType<typeof express.application.listen>;
+  let baseUrl: string;
+  const originalVerifyOTP = SupabaseAuthService.verifyOTP;
+
+  beforeAll(() => {
+    const app = express();
+    app.use(express.json());
+    app.use("/v1/auth", authRoutes);
+    server = app.listen(0);
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Could not bind test server");
+    baseUrl = `http://127.0.0.1:${address.port}/v1/auth`;
+  });
+
+  afterAll(() => {
+    server?.close();
+    SupabaseAuthService.verifyOTP = originalVerifyOTP;
+  });
+
+  it("restores the demo account when the demo email verifies", async () => {
+    const profile = await createDemoProfile();
+    SupabaseAuthService.verifyOTP = (async () => ({
+      access_token: "test-access",
+      refresh_token: "test-refresh",
+      user_id: profile.id
+    })) as typeof SupabaseAuthService.verifyOTP;
+
+    const response = await fetch(`${baseUrl}/verify-otp`, {
+      body: JSON.stringify({ email: DEMO_EMAIL, token: "123456" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
     expect(await RampState.count({ where: { userId: profile.id } })).toBe(4);
   });
 });

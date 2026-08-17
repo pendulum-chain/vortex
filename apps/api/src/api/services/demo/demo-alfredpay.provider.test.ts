@@ -107,6 +107,27 @@ describe("demo alfredpay provider", () => {
     expect(a).not.toBe(b);
   });
 
+  it("swaps the singleton for the demo stand-in on an opted-in sandbox", async () => {
+    const originalGetInstance = AlfredpayApiService.getInstance;
+    const originalFlag = config.demoProviderEnabled;
+    const originalEnv = config.deploymentEnv;
+
+    try {
+      config.deploymentEnv = "sandbox";
+      config.demoProviderEnabled = true;
+      installDemoProviders();
+
+      expect(AlfredpayApiService.getInstance).not.toBe(originalGetInstance);
+      const service = AlfredpayApiService.getInstance();
+      const customer = await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO");
+      expect(customer.customerId).toMatch(/^demo-customer-/);
+    } finally {
+      config.demoProviderEnabled = originalFlag;
+      config.deploymentEnv = originalEnv;
+      AlfredpayApiService.getInstance = originalGetInstance;
+    }
+  });
+
   it("stays uninstalled unless a sandbox deployment opts in", () => {
     const originalGetInstance = AlfredpayApiService.getInstance;
     const originalFlag = config.demoProviderEnabled;
