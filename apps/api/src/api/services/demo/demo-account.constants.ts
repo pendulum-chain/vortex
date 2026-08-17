@@ -13,11 +13,6 @@ function demoUuid(slot: number): string {
   return `${DEMO_UUID_PREFIX}${slot.toString().padStart(12, "0")}`;
 }
 
-/** True for any row the demo restore owns. Used to scope deletes. */
-export function isDemoOwnedId(id: string): boolean {
-  return id.startsWith(DEMO_UUID_PREFIX);
-}
-
 /** The demo sender's business customer entity, used only when the profile has none yet. */
 export const DEMO_SENDER_ENTITY_ID = demoUuid(1);
 
