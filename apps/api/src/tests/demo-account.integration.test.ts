@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { Op } from "sequelize";
+import { DEMO_TRANSACTIONS, demoRampId } from "../api/services/demo/demo-account.constants";
 import { restoreDemoAccount, restoreDemoAccountOnLogin } from "../api/services/demo/demo-account.service";
 import { assertPersistedBlockFlowVersionsSupported } from "../api/services/phases/blocks/register-handlers";
 import { hashInviteToken } from "../api/services/recipients/recipient-invite.service";
+import rampService from "../api/services/ramp/ramp.service";
 import { config } from "../config/vars";
 import CustomerEntity from "../models/customerEntity.model";
 import KycCase from "../models/kycCase.model";
@@ -84,6 +86,19 @@ describe("demo account restore", () => {
     expect(pending?.token).toBeTruthy();
     const resolved = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(pending?.token as string) } });
     expect(resolved?.id).toBe(pending?.id as string);
+  });
+
+  // getRampStatus rejects quotes whose fee metadata lacks the display-fiat denomination with
+  // a 500 — a transaction-detail view (or a manual GET /v1/ramp/:id) must not break on demo rows.
+  it("serves ramp status for every seeded transaction", async () => {
+    await createDemoProfile();
+    await restoreDemoAccount();
+
+    for (const seed of DEMO_TRANSACTIONS) {
+      const status = await rampService.getRampStatus(demoRampId(seed.slot));
+      expect(status).not.toBeNull();
+      expect(status?.currentPhase).toBe(seed.phase);
+    }
   });
 
   // RampRecoveryWorker drives any stale non-terminal ramp through the phase processor, which fails

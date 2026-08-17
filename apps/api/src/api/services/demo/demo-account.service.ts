@@ -272,7 +272,12 @@ function buildSeedFlowMetadata(profileId: string, seed: DemoTransactionSeed) {
     blocks: Object.fromEntries(flow.contextKeys.map(key => [key, {}])),
     flow: flow.identity,
     globals: {
-      fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", total: "0", vortex: "0" } },
+      // getRampStatus rejects a quote whose fee structure lacks displayFiat with a 500, so
+      // both denominations are seeded even though every amount is zero.
+      fees: {
+        displayFiat: { anchor: "0", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0", vortex: "0" },
+        usd: { anchor: "0", network: "0", partnerMarkup: "0", total: "0", vortex: "0" }
+      },
       partner: null,
       request
     }
