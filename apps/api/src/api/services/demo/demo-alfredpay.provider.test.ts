@@ -95,6 +95,18 @@ describe("demo alfredpay provider", () => {
     expect(business.customerId).toMatch(/^demo-customer-/);
   });
 
+  // provider_customers is unique on (provider, provider_customer_id); ids persisted by a
+  // previous process must not collide with the ones a restarted stand-in mints.
+  it("mints customer ids that stay unique across restarts", async () => {
+    const first = createDemoAlfredpayService(fakeRealClient);
+    const second = createDemoAlfredpayService(fakeRealClient);
+
+    const a = (await first.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+    const b = (await second.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+
+    expect(a).not.toBe(b);
+  });
+
   it("stays uninstalled unless a sandbox deployment opts in", () => {
     const originalGetInstance = AlfredpayApiService.getInstance;
     const originalFlag = config.demoProviderEnabled;

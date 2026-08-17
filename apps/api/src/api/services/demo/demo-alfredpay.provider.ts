@@ -35,13 +35,18 @@ interface DemoSubmission {
 class DemoAlfredpayKyb {
   private readonly submissionsByCustomer = new Map<string, DemoSubmission>();
 
+  // Customer ids end up in provider_customers, which is unique on (provider,
+  // provider_customer_id) — a bare counter restarting at 1 would collide with rows
+  // persisted by a previous process, so ids carry a per-process seed.
+  private readonly processSeed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
   private counter = 0;
 
   constructor(private readonly realGetInstance: () => AlfredpayApiService) {}
 
   private nextId(prefix: string): string {
     this.counter += 1;
-    return `demo-${prefix}-${this.counter}`;
+    return `demo-${prefix}-${this.processSeed}-${this.counter}`;
   }
 
   async createCustomer(email: string, type: AlfredpayCustomerType, country: string): Promise<CreateAlfredpayCustomerResponse> {
