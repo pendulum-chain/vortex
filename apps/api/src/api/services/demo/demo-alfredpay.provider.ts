@@ -4,7 +4,6 @@ import {
   type AlfredpayKybCustomerAndBusiness,
   AlfredpayKybStatus,
   type CreateAlfredpayCustomerResponse,
-  type FindAlfredpayCustomerResponse,
   type GetKybRedirectLinkResponse,
   type GetKybStatusResponse,
   type GetKybSubmissionResponse,
@@ -29,30 +28,29 @@ interface DemoSubmission {
  * ids, and approves after a short review window, so the onboarding wizard can be walked end to end
  * as many times as a demo needs without depending on Alfredpay's sandbox.
  *
- * Only the KYB surface the wizard touches is implemented. Anything else falls through to the real
- * client, so an unimplemented path fails visibly instead of returning invented data.
+ * Only the business-KYB surface the wizard touches is implemented. Individual (KYC) customer
+ * creation and anything else fall through to the real client, so an unimplemented path fails
+ * visibly instead of returning invented data.
  */
 class DemoAlfredpayKyb {
   private readonly submissionsByCustomer = new Map<string, DemoSubmission>();
 
   private counter = 0;
 
+  constructor(private readonly realGetInstance: () => AlfredpayApiService) {}
+
   private nextId(prefix: string): string {
     this.counter += 1;
     return `demo-${prefix}-${this.counter}`;
   }
 
-  async createCustomer(): Promise<CreateAlfredpayCustomerResponse> {
+  async createCustomer(email: string, type: AlfredpayCustomerType, country: string): Promise<CreateAlfredpayCustomerResponse> {
+    if (type !== AlfredpayCustomerType.BUSINESS) {
+      // KYC is not part of the demo corridor; an invented id here would be persisted and then
+      // fail with confusing provider 404s on every later real-client call.
+      return this.realGetInstance().createCustomer(email, type, country);
+    }
     return { createdAt: new Date().toISOString(), customerId: this.nextId("customer") };
-  }
-
-  async findCustomer(_email: string, country: string): Promise<FindAlfredpayCustomerResponse> {
-    return {
-      country,
-      createdAt: new Date().toISOString(),
-      customerId: this.nextId("customer"),
-      type: AlfredpayCustomerType.BUSINESS
-    };
   }
 
   async submitKybInformation(customerId: string, data: SubmitKybInformationRequest): Promise<SubmitKybInformationResponse> {
@@ -149,7 +147,7 @@ class DemoAlfredpayKyb {
  * and that should only break the calls that genuinely need them.
  */
 export function createDemoAlfredpayService(realGetInstance: () => AlfredpayApiService): AlfredpayApiService {
-  const demoKyb = new DemoAlfredpayKyb() as unknown as Record<string | symbol, unknown>;
+  const demoKyb = new DemoAlfredpayKyb(realGetInstance) as unknown as Record<string | symbol, unknown>;
 
   return new Proxy({} as AlfredpayApiService, {
     get(_target, property) {

@@ -75,6 +75,26 @@ describe("demo alfredpay provider", () => {
     expect(await service.getAllConfigs()).toBe(REAL_CONFIGS);
   });
 
+  // Faking individual creation would persist an invented id that every later real-client
+  // call (redirect link, KYC status) rejects with confusing provider 404s.
+  it("passes individual customer creation through to the real client", async () => {
+    const realCalls: string[] = [];
+    const real = {
+      createCustomer: async (_email: string, type: AlfredpayCustomerType) => {
+        realCalls.push(type);
+        return { createdAt: new Date().toISOString(), customerId: "real-customer-1" };
+      }
+    } as unknown as AlfredpayApiService;
+    const service = createDemoAlfredpayService(() => real);
+
+    const individual = await service.createCustomer("demo@example.com", AlfredpayCustomerType.INDIVIDUAL, "CO");
+    const business = await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO");
+
+    expect(individual.customerId).toBe("real-customer-1");
+    expect(realCalls).toEqual([AlfredpayCustomerType.INDIVIDUAL]);
+    expect(business.customerId).toMatch(/^demo-customer-/);
+  });
+
   it("stays uninstalled unless a sandbox deployment opts in", () => {
     const originalGetInstance = AlfredpayApiService.getInstance;
     const originalFlag = config.demoProviderEnabled;
