@@ -1,6 +1,8 @@
 import { AveniaAccountType, BrlaApiService, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
+import type { Transaction } from "sequelize";
 import logger from "../../../config/logger";
+import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 
@@ -22,8 +24,9 @@ export function customerTypeToAccountType(customerType: ProviderCustomerType): A
 }
 
 /** Looks up the Avenia provider account by (raw or normalized) tax id via its sha256 hash. */
-export async function findAveniaCustomerByTaxId(taxId: string): Promise<ProviderCustomer | null> {
+export async function findAveniaCustomerByTaxId(taxId: string, transaction?: Transaction): Promise<ProviderCustomer | null> {
   return ProviderCustomer.findOne({
+    ...(transaction ? { transaction } : {}),
     where: { provider: "avenia", taxReferenceHash: hashTaxReference(taxId) }
   });
 }
@@ -35,6 +38,26 @@ export async function findAveniaCustomerBySubaccountId(subAccountId: string): Pr
 }
 
 /**
+ * The profile owning a subaccount, or null when the subaccount is unknown or is
+ * partner-owned — the latter has no profile behind it and so nobody to notify.
+ */
+export async function findAveniaOwnerBySubaccountId(
+  subAccountId: string
+): Promise<{ accountType: AveniaAccountType; profileId: string } | null> {
+  const customer = await findAveniaCustomerBySubaccountId(subAccountId);
+  if (!customer) {
+    return null;
+  }
+
+  const entity = await CustomerEntity.findByPk(customer.customerEntityId);
+  if (!entity?.profileId) {
+    return null;
+  }
+
+  return { accountType: customerTypeToAccountType(customer.customerType), profileId: entity.profileId };
+}
+
+/**
  * Keeps the single kyc_case per Avenia account in sync with the account status (the
  * migration backfilled exactly one case per provider account; runtime transitions update
  * it in the same code path — these are two new tables, not a legacy dual-write).
@@ -43,7 +66,8 @@ export async function upsertAveniaKycCase(
   record: ProviderCustomer,
   status: VerificationStatus,
   statusExternal: string | null = record.statusExternal,
-  providerCaseId?: string
+  providerCaseId?: string,
+  transaction?: Transaction
 ): Promise<void> {
   const lifecycle = {
     ...(status === VerificationStatus.InReview ? { submittedAt: new Date() } : {}),
@@ -51,22 +75,27 @@ export async function upsertAveniaKycCase(
     ...(status === VerificationStatus.Rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
   };
 
-  const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
+  const existing = await KycCase.findOne({
+    ...(transaction ? { transaction } : {}),
+    where: { providerCustomerId: record.id }
+  });
   if (existing) {
-    await existing.update({ ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle });
+    const values = { ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle };
+    await (transaction ? existing.update(values, { transaction }) : existing.update(values));
     return;
   }
-  await KycCase.create({
+  const values = {
     customerEntityId: record.customerEntityId,
     level: "level_1",
-    provider: "avenia",
+    provider: "avenia" as const,
     providerCaseId,
     providerCustomerId: record.id,
     status,
     statusExternal,
-    type: record.customerType === "business" ? "kyb" : "kyc",
+    type: record.customerType === "business" ? ("kyb" as const) : ("kyc" as const),
     ...lifecycle
-  });
+  };
+  await (transaction ? KycCase.create(values, { transaction }) : KycCase.create(values));
 }
 
 /**

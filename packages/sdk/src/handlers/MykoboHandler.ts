@@ -8,15 +8,15 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { MissingMykoboOfframpParametersError, MissingMykoboOnrampParametersError } from "../errors";
-import type { ApiService } from "../services/ApiService";
+import { MissingMykoboOfframpParametersError, MissingMykoboOnrampParametersError } from "../errors.js";
+import type { ApiService } from "../services/ApiService.js";
 import type {
   EurOfframpAdditionalData,
   EurOfframpUpdateAdditionalData,
   EurOnrampAdditionalData,
   RampHandler,
   VortexSdkContext
-} from "../types";
+} from "../types.js";
 
 export class MykoboHandler implements RampHandler {
   private apiService: ApiService;

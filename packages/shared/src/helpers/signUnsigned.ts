@@ -4,7 +4,7 @@ import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { createWalletClient, fallback, http, WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
+import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import {
   decodeSubmittableExtrinsic,
   EphemeralAccount,
@@ -23,6 +23,7 @@ const EVM_EPHEMERAL_SIGNING_NETWORKS: Networks[] = [
   Networks.Polygon,
   Networks.PolygonAmoy,
   Networks.Base,
+  Networks.BaseSepolia,
   Networks.Arbitrum,
   Networks.Avalanche,
   Networks.BSC,
@@ -35,6 +36,11 @@ const DESTINATION_NETWORK_PHASES = [
   "backupSquidRouterSwap",
   "backupApprove"
 ];
+
+// Applied once, when the client signs a prepared EVM transaction. Backend
+// transaction builders must leave fee estimates unscaled so safety margins do
+// not compound across preparation and signing.
+export const PRESIGNED_EVM_FEE_MULTIPLIER = 3n;
 
 /**
  * Groups transactions by the signing flow that handles them. The destination group must
@@ -154,6 +160,10 @@ export function createEvmClient(
       chain = base;
       rpcUrls = apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
+    case Networks.BaseSepolia:
+      chain = baseSepolia;
+      rpcUrls = apiKey ? [`https://base-sepolia.g.alchemy.com/v2/${apiKey}`] : [];
+      break;
     case Networks.BSC:
       chain = bsc;
       rpcUrls = apiKey ? [`https://bnb-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
@@ -197,10 +207,10 @@ async function signMultipleEvmTransactions(
       throw new Error("Wallet client account is undefined");
     }
     const maxPriorityFeePerGas = tx.txData.maxPriorityFeePerGas
-      ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n
+      ? BigInt(tx.txData.maxPriorityFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER
       : BigInt(187500000000);
     const maxFeePerGas = (() => {
-      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000);
+      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER : BigInt(187500000000);
       return fee > maxPriorityFeePerGas ? fee : maxPriorityFeePerGas;
     })();
 

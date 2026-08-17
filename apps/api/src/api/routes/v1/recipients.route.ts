@@ -8,11 +8,12 @@ import {
   previewInvite,
   updateRecipient
 } from "../../controllers/recipients.controller";
+import { rejectManagedProfileSelection } from "../../middlewares/managedProfileAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
 
-router.use(requireAuth);
+router.use(rejectManagedProfileSelection, requireAuth);
 
 /**
  * POST /v1/recipients/invite

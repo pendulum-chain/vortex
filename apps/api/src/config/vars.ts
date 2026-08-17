@@ -23,6 +23,7 @@ interface SpreadsheetConfig {
 }
 
 type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
+const DECIMAL_STRING_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 // Identifies which onramp flow this backend instance serves. Two backends
 // share one database; each ignores ramps/quotes belonging to the other flow.
@@ -82,7 +83,7 @@ function readNonNegativeDecimalEnv(name: string): string {
     throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
   }
   const value = Number(rawValue);
-  if (!Number.isFinite(value) || value < 0) {
+  if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
     throw new Error(`${name} must be a non-negative number (got '${rawValue}')`);
   }
   return rawValue;
@@ -102,6 +103,33 @@ function readFractionEnv(name: string, defaultValue: string): number {
   }
 
   return value;
+}
+
+function readPositiveDecimalEnv(name: string, defaultValue: string): string {
+  const rawValue = process.env[name] ?? defaultValue;
+  const trimmedValue = rawValue.trim();
+  const value = Number(trimmedValue);
+  if (!DECIMAL_STRING_PATTERN.test(trimmedValue) || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
+  }
+  return trimmedValue;
+}
+
+function readEvmDestinationNetworkFeeMarginBps(): number {
+  const name = "EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS";
+  const rawValue = process.env[name] ?? "12000";
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value < 10_000 || value > 30_000 || rawValue.trim() === "") {
+    throw new Error(`${name} must be an integer between 10000 and 30000`);
+  }
+  return value;
+}
+
+function readEmailAllowlist(): string[] {
+  return (process.env.EMAIL_RECIPIENT_ALLOWLIST || "")
+    .split(",")
+    .map(entry => entry.trim().toLowerCase())
+    .filter(entry => entry.length > 0);
 }
 
 export const RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS = 300;
@@ -203,6 +231,19 @@ interface Config {
     alchemy: {
       apiKey: string | undefined;
     };
+    avenia: {
+      // Public URL of this backend's /v1/webhooks/avenia receiver, used only by the
+      // subscription registration script.
+      webhookUrl: string | undefined;
+    };
+    resend: {
+      apiKey: string | undefined;
+      fromAddress: string;
+      replyToAddress: string | undefined;
+      // Outside production, only these recipients receive mail; everything else is
+      // recorded as skipped. Empty means no recipient at all outside production.
+      recipientAllowlist: string[];
+    };
     slack: {
       webhookToken: string | undefined;
       userId: string | undefined;
@@ -214,6 +255,11 @@ interface Config {
   backendTestStarterAccount: string | undefined;
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
+  };
+  evmDestinationGas: {
+    dynamicFundingEnabled: boolean;
+    maxExecutionFeeUsd: string;
+    networkFeeMarginBps: number;
   };
 }
 
@@ -237,11 +283,27 @@ export const config: Config = {
   demoProviderEnabled: process.env.DEMO_PROVIDER_ENABLED === "true",
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
+  evmDestinationGas: {
+    // Two-phase rollout guard: deploy readers/executors first, then enable quote
+    // production only after every worker understands funding program v2.
+    dynamicFundingEnabled: process.env.EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED === "true",
+    maxExecutionFeeUsd: readPositiveDecimalEnv("EVM_DESTINATION_MAX_EXECUTION_FEE_USD", "5"),
+    networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
+  },
   flowVariant: readFlowVariant(),
 
   integrations: {
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY
+    },
+    avenia: {
+      webhookUrl: process.env.AVENIA_WEBHOOK_URL
+    },
+    resend: {
+      apiKey: process.env.RESEND_API_KEY,
+      fromAddress: process.env.EMAIL_FROM_ADDRESS || "Vortex Finance <support@vortexfinance.co>",
+      recipientAllowlist: readEmailAllowlist(),
+      replyToAddress: process.env.EMAIL_REPLY_TO_ADDRESS
     },
     slack: {
       userId: process.env.SLACK_USER_ID,

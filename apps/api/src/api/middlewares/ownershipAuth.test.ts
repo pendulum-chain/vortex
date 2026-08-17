@@ -129,6 +129,59 @@ describe("assertQuoteOwnership", () => {
     await expect(assertQuoteOwnership({ userId: "profile-id" }, "quote-1")).resolves.toBeUndefined();
   });
 
+  it("allows a manager credential to register its managed child's quote", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      apiCredentialId: "credential-a",
+      partnerId: null,
+      userId: "managed-user"
+    })) as typeof QuoteTicket.findByPk;
+
+    await expect(
+      assertQuoteOwnership(
+        {
+          credential: {
+            credentialId: "credential-a",
+            environment: "test",
+            partnerId: "manager-partner",
+            profileId: "manager-user",
+            strength: "secret"
+          },
+          managedProfileContext: {
+            actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
+            customerEntityId: "entity-1",
+            managedProfileId: "relationship-1",
+            subjectProfileId: "managed-user"
+          }
+        },
+        "quote-1"
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a manager operating on a quote owned by another child", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      partnerId: null,
+      userId: "other-managed-user"
+    })) as typeof QuoteTicket.findByPk;
+
+    await expect(
+      assertQuoteOwnership(
+        {
+          managedProfileContext: {
+            actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
+            customerEntityId: "entity-1",
+            managedProfileId: "relationship-1",
+            subjectProfileId: "managed-user"
+          },
+          userId: "manager-user"
+        },
+        "quote-1"
+      )
+    ).rejects.toThrow("Managed profile does not own this quote");
+  });
+
   it("allows an anonymous caller to register a fully-anonymous quote", async () => {
     QuoteTicket.findByPk = mock(async () => ({
       partnerId: null,
@@ -257,6 +310,52 @@ describe("assertRampOwnership", () => {
   afterEach(() => {
     RampState.findByPk = originalRampFindByPk;
     QuoteTicket.findByPk = originalQuoteFindByPk;
+  });
+
+  it("allows a manager to operate on its managed child's ramp", async () => {
+    RampState.findByPk = mock(async () => ({
+      quoteId: "quote-1",
+      userId: "managed-user"
+    })) as typeof RampState.findByPk;
+
+    await expect(
+      assertRampOwnership(
+        {
+          managedProfileContext: {
+            actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
+            customerEntityId: "entity-1",
+            managedProfileId: "relationship-1",
+            subjectProfileId: "managed-user"
+          },
+          userId: "manager-user"
+        },
+        "ramp-1"
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a manager operating on another child's ramp", async () => {
+    RampState.findByPk = mock(async () => ({
+      quoteId: "quote-1",
+      userId: "other-managed-user"
+    })) as typeof RampState.findByPk;
+
+    await expect(
+      assertRampOwnership(
+        {
+          managedProfileContext: {
+            actorProfileId: "manager-user",
+            controllingManagerProfileId: "manager-user",
+            customerEntityId: "entity-1",
+            managedProfileId: "relationship-1",
+            subjectProfileId: "managed-user"
+          },
+          userId: "manager-user"
+        },
+        "ramp-1"
+      )
+    ).rejects.toThrow("Managed profile does not own this ramp");
   });
 
   it("allows an anonymous caller to access a fully-anonymous ramp", async () => {

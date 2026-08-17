@@ -1,6 +1,7 @@
 import { EvmToken, RampCurrency } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
+import { getEvmDestinationExecutionFeeUsd } from "./evm-destination-gas";
 import { calculateFeeComponents } from "./quote-fees";
 import type { PhaseCtx } from "./types";
 
@@ -14,7 +15,8 @@ export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promis
     throw new Error("Cannot override an incomplete fee snapshot");
   }
   const displayCurrency = ctx.fees.displayFiat.currency;
-  const [anchorUsd, anchorDisplay, networkUsd, networkDisplay] = await Promise.all([
+  const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
+  const [anchorUsd, anchorDisplay, baseNetworkUsd, baseNetworkDisplay, destinationExecutionFeeDisplay] = await Promise.all([
     priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, EvmToken.USDC),
     priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, displayCurrency),
     override.network
@@ -22,8 +24,11 @@ export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promis
       : ctx.fees.usd.network,
     override.network
       ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, displayCurrency)
-      : ctx.fees.displayFiat.network
+      : ctx.fees.displayFiat.network,
+    override.network ? priceFeedService.convertCurrency(destinationExecutionFeeUsd, EvmToken.USDC, displayCurrency) : "0"
   ]);
+  const networkUsd = new Big(baseNetworkUsd).plus(override.network ? destinationExecutionFeeUsd : "0").toString();
+  const networkDisplay = new Big(baseNetworkDisplay).plus(destinationExecutionFeeDisplay).toString();
   return {
     displayFiat: {
       ...ctx.fees.displayFiat,
@@ -60,17 +65,30 @@ export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Prom
   const displayCurrency = ctx.targetFeeFiatCurrency ?? feeCurrency;
   const anchor = override?.anchor ?? { amount: anchorFee, currency: feeCurrency };
   const network = override?.network ?? { amount: "0", currency: USD };
-  const [vortexUsd, anchorUsd, partnerUsd, networkUsd, vortexDisplay, anchorDisplay, partnerDisplay, networkDisplay] =
-    await Promise.all([
-      priceFeedService.convertCurrency(vortexFee, feeCurrency, USD),
-      priceFeedService.convertCurrency(anchor.amount, anchor.currency, USD),
-      priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, USD),
-      priceFeedService.convertCurrency(network.amount, network.currency, USD),
-      priceFeedService.convertCurrency(vortexFee, feeCurrency, displayCurrency),
-      priceFeedService.convertCurrency(anchor.amount, anchor.currency, displayCurrency),
-      priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency),
-      priceFeedService.convertCurrency(network.amount, network.currency, displayCurrency)
-    ]);
+  const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
+  const [
+    vortexUsd,
+    anchorUsd,
+    partnerUsd,
+    baseNetworkUsd,
+    vortexDisplay,
+    anchorDisplay,
+    partnerDisplay,
+    baseNetworkDisplay,
+    destinationExecutionFeeDisplay
+  ] = await Promise.all([
+    priceFeedService.convertCurrency(vortexFee, feeCurrency, USD),
+    priceFeedService.convertCurrency(anchor.amount, anchor.currency, USD),
+    priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, USD),
+    priceFeedService.convertCurrency(network.amount, network.currency, USD),
+    priceFeedService.convertCurrency(vortexFee, feeCurrency, displayCurrency),
+    priceFeedService.convertCurrency(anchor.amount, anchor.currency, displayCurrency),
+    priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency),
+    priceFeedService.convertCurrency(network.amount, network.currency, displayCurrency),
+    priceFeedService.convertCurrency(destinationExecutionFeeUsd, USD, displayCurrency)
+  ]);
+  const networkUsd = new Big(baseNetworkUsd).plus(destinationExecutionFeeUsd).toString();
+  const networkDisplay = new Big(baseNetworkDisplay).plus(destinationExecutionFeeDisplay).toString();
 
   const totalUsd = new Big(vortexUsd).plus(anchorUsd).plus(partnerUsd).plus(networkUsd).toFixed(6);
   const totalDisplay = new Big(vortexDisplay).plus(anchorDisplay).plus(partnerDisplay).plus(networkDisplay).toFixed(2);

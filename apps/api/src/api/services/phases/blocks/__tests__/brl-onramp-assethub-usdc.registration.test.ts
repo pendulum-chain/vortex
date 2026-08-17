@@ -7,7 +7,7 @@ describe("BRL AssetHub Avenia registration", () => {
     const register = createRegisterAveniaMint({
       createTicket: async (taxId, quote, amount) => {
         expect([taxId, quote.id, amount]).toEqual(["12345678901", "quote-1", "100"]);
-        return { aveniaTicketId: "ticket-1", brCode: "pix-code" };
+        return { aveniaTicketId: "ticket-1", brCode: "pix-code", subAccountId: "subaccount-1" };
       },
       resolveAccount: async () => ({ taxId: "12345678901" }) as never
     });
@@ -22,7 +22,7 @@ describe("BRL AssetHub Avenia registration", () => {
       ]
     });
     expect(result).toEqual({
-      facts: { aveniaTicketId: "ticket-1", taxId: "12345678901" },
+      facts: { aveniaTicketId: "ticket-1", subAccountId: "subaccount-1", taxId: "12345678901" },
       responseArtifacts: { depositQrCode: "pix-code" }
     });
   });

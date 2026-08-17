@@ -3,7 +3,7 @@
 How to stand up and run the seeded sales-demo account on the dashboard. Applies only to
 the **sandbox** deployment (`DEPLOYMENT_ENV=sandbox`, `SANDBOX_ENABLED=true`); every entry
 point described here refuses to run anywhere else. Decisions and rationale are in
-[`adr-0003-sandbox-demo-environment.md`](adr-0003-sandbox-demo-environment.md).
+[`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md).
 
 ## What the demo account shows
 

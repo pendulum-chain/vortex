@@ -32,6 +32,14 @@ type BestQuoteFailure = {
   network: Networks;
 };
 
+function isNetworkFeesTooHighError(error: unknown): error is APIError {
+  return (
+    error instanceof APIError &&
+    error.status === httpStatus.SERVICE_UNAVAILABLE &&
+    error.message === QuoteError.NetworkFeesTooHigh
+  );
+}
+
 export class QuoteService extends BaseRampService {
   public async createQuote(
     request: CreateQuoteRequest & {
@@ -131,6 +139,9 @@ export class QuoteService extends BaseRampService {
       if (failures.length > 0 && failures.every(failure => isLowLiquidityQuoteError(failure.error))) {
         throw createLowLiquidityQuoteError();
       }
+      if (failures.length > 0 && failures.every(failure => isNetworkFeesTooHighError(failure.error))) {
+        throw new APIError({ message: QuoteError.NetworkFeesTooHigh, status: httpStatus.SERVICE_UNAVAILABLE });
+      }
 
       throw new APIError({
         message: QuoteError.FailedToCalculateQuote,
@@ -185,10 +196,6 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
     }
 
-    if (request.rampType === RampDirection.BUY && request.to === Networks.Ethereum) {
-      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
@@ -225,6 +232,10 @@ export class QuoteService extends BaseRampService {
 
       // Preserve validation errors (BAD_REQUEST) - these are user-facing errors
       if (error instanceof APIError && error.status === httpStatus.BAD_REQUEST) {
+        throw error;
+      }
+
+      if (isNetworkFeesTooHighError(error)) {
         throw error;
       }
 
