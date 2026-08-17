@@ -116,52 +116,6 @@ describe("EvmClientManager transaction retries", () => {
     expect(isDeterministicPreBroadcastRevert(new Error("transport timeout"))).toBe(false);
   });
 
-  it("does not retry a deterministic pre-broadcast revert and preserves its cause", async () => {
-    const manager = EvmClientManager.getInstance();
-    const managerWithMockedClient = manager as EvmClientManager & {
-      getWalletClient: EvmClientManager["getWalletClient"];
-    };
-    const originalGetWalletClient = managerWithMockedClient.getWalletClient;
-    const originalLogger = logger.current;
-    const executionRevert = new ExecutionRevertedError({ message: "transfer amount exceeds balance" });
-    const estimateGasRevert = new EstimateGasExecutionError(executionRevert, {});
-    const account = privateKeyToAccount("0x1111111111111111111111111111111111111111111111111111111111111111");
-    let attempts = 0;
-    let thrown: unknown;
-
-    logger.current = {
-      debug: mock(() => {}),
-      error: mock(() => {}),
-      info: mock(() => {}),
-      warn: mock(() => {})
-    };
-    managerWithMockedClient.getWalletClient = (() =>
-      ({
-        sendTransaction: async () => {
-          attempts += 1;
-          throw estimateGasRevert;
-        }
-      }) as unknown as ReturnType<EvmClientManager["getWalletClient"]>) as EvmClientManager["getWalletClient"];
-
-    try {
-      await manager.sendTransactionWithBlindRetry(
-        Networks.Base,
-        account,
-        { to: "0x2222222222222222222222222222222222222222" },
-        3,
-        0
-      );
-    } catch (error) {
-      thrown = error;
-    } finally {
-      managerWithMockedClient.getWalletClient = originalGetWalletClient;
-      logger.current = originalLogger;
-    }
-
-    expect(attempts).toBe(1);
-    expect(isDeterministicPreBroadcastRevert(thrown)).toBe(true);
-  });
-
   it("preserves the last cause after retrying an ambiguous send failure", async () => {
     const manager = EvmClientManager.getInstance();
     const managerWithMockedClient = manager as EvmClientManager & {
@@ -205,55 +159,6 @@ describe("EvmClientManager transaction retries", () => {
 
     expect(failures).toHaveLength(2);
     expect((thrown as Error & { cause?: unknown }).cause).toBe(failures[1]);
-    expect(isDeterministicPreBroadcastRevert(thrown)).toBe(false);
-  });
-
-  it("does not let a later estimate revert erase an earlier ambiguous send", async () => {
-    const manager = EvmClientManager.getInstance();
-    const managerWithMockedClient = manager as EvmClientManager & {
-      getWalletClient: EvmClientManager["getWalletClient"];
-    };
-    const originalGetWalletClient = managerWithMockedClient.getWalletClient;
-    const originalLogger = logger.current;
-    const account = privateKeyToAccount("0x1111111111111111111111111111111111111111111111111111111111111111");
-    const estimateGasRevert = new EstimateGasExecutionError(
-      new ExecutionRevertedError({ message: "transfer amount exceeds balance" }),
-      {}
-    );
-    let attempts = 0;
-    let thrown: unknown;
-
-    logger.current = {
-      debug: mock(() => {}),
-      error: mock(() => {}),
-      info: mock(() => {}),
-      warn: mock(() => {})
-    };
-    managerWithMockedClient.getWalletClient = (() =>
-      ({
-        sendTransaction: async () => {
-          attempts += 1;
-          if (attempts === 1) throw new Error("response timed out after submission");
-          throw estimateGasRevert;
-        }
-      }) as unknown as ReturnType<EvmClientManager["getWalletClient"]>) as EvmClientManager["getWalletClient"];
-
-    try {
-      await manager.sendTransactionWithBlindRetry(
-        Networks.Base,
-        account,
-        { to: "0x2222222222222222222222222222222222222222" },
-        3,
-        0
-      );
-    } catch (error) {
-      thrown = error;
-    } finally {
-      managerWithMockedClient.getWalletClient = originalGetWalletClient;
-      logger.current = originalLogger;
-    }
-
-    expect(attempts).toBe(2);
     expect(isDeterministicPreBroadcastRevert(thrown)).toBe(false);
   });
 });

@@ -1,16 +1,4 @@
-import {
-  Abi,
-  Account,
-  Chain,
-  createPublicClient,
-  createWalletClient,
-  EstimateGasExecutionError,
-  ExecutionRevertedError,
-  http,
-  PublicClient,
-  Transport,
-  WalletClient
-} from "viem";
+import { Abi, Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "../../index";
 import logger from "../../logger";
@@ -70,6 +58,17 @@ function isNonRetryableReadContractError(error: Error): boolean {
   return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
+function hasErrorName(value: object, name: string): boolean {
+  return "name" in value && (value as { name?: unknown }).name === name;
+}
+
+/**
+ * Matches only the typed error chain a viem gas estimation produces for a deterministic
+ * execution revert. Callers must apply it to a raw estimation error raised before any
+ * broadcast attempt of the same operation; a send failure never proves this.
+ * Matching uses viem's stable error names rather than instanceof so it holds across the
+ * multiple bundled viem copies in this monorepo.
+ */
 export function isDeterministicPreBroadcastRevert(error: unknown): boolean {
   let current = error;
   let foundEstimateGasError = false;
@@ -78,14 +77,8 @@ export function isDeterministicPreBroadcastRevert(error: unknown): boolean {
 
   while (current !== null && (typeof current === "object" || typeof current === "function") && !seen.has(current)) {
     seen.add(current);
-    if (
-      "hadPriorRetryableFailure" in current &&
-      (current as { hadPriorRetryableFailure?: unknown }).hadPriorRetryableFailure === true
-    ) {
-      return false;
-    }
-    foundEstimateGasError ||= current instanceof EstimateGasExecutionError;
-    foundExecutionRevert ||= current instanceof ExecutionRevertedError;
+    foundEstimateGasError ||= hasErrorName(current, "EstimateGasExecutionError");
+    foundExecutionRevert ||= hasErrorName(current, "ExecutionRevertedError");
     current = "cause" in current ? (current as { cause?: unknown }).cause : undefined;
   }
 
@@ -238,12 +231,9 @@ export class EvmClientManager {
         }
 
         if (!retryable) {
-          throw Object.assign(
-            new Error(`${operationName} failed on ${networkName}: ${sanitizedMessage}`, {
-              cause: lastError
-            }),
-            { hadPriorRetryableFailure: attempt > 0 }
-          );
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizedMessage}`, {
+            cause: lastError
+          });
         }
 
         if (attempt < maxRetries) {
@@ -255,12 +245,9 @@ export class EvmClientManager {
       }
     }
 
-    throw Object.assign(
-      new Error(
-        `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`,
-        { cause: lastError }
-      ),
-      { hadPriorRetryableFailure: maxRetries > 0 }
+    throw new Error(
+      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`,
+      { cause: lastError }
     );
   }
 
@@ -429,8 +416,7 @@ export class EvmClientManager {
       },
       "send transaction",
       maxRetries,
-      initialDelayMs,
-      error => !isDeterministicPreBroadcastRevert(error)
+      initialDelayMs
     );
   }
 
