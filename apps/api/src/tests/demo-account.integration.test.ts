@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { Op } from "sequelize";
 import { restoreDemoAccount, restoreDemoAccountOnLogin } from "../api/services/demo/demo-account.service";
 import { assertPersistedBlockFlowVersionsSupported } from "../api/services/phases/blocks/register-handlers";
+import { hashInviteToken } from "../api/services/recipients/recipient-invite.service";
 import { config } from "../config/vars";
 import CustomerEntity from "../models/customerEntity.model";
 import KycCase from "../models/kycCase.model";
@@ -67,6 +68,22 @@ describe("demo account restore", () => {
     const ramps = await RampState.findAll({ where: { userId: profile.id } });
     expect(ramps.filter(ramp => ramp.currentPhase === "complete")).toHaveLength(2);
     expect(ramps.filter(ramp => ramp.currentPhase !== "complete")).toHaveLength(2);
+  });
+
+  // The dashboard surfaces invitation.token for sender re-copy, and redemption resolves the
+  // link via hashInviteToken(token) — a hash derived from any other string turns the copied
+  // invite link into "invalid invitation" mid-demo.
+  it("stores a pending invite token the accept lookup can resolve", async () => {
+    await createDemoProfile();
+
+    const { senderEntityId } = await restoreDemoAccount();
+
+    const pending = await RecipientInvitation.findOne({
+      where: { senderCustomerEntityId: senderEntityId, status: "pending" }
+    });
+    expect(pending?.token).toBeTruthy();
+    const resolved = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(pending?.token as string) } });
+    expect(resolved?.id).toBe(pending?.id as string);
   });
 
   // RampRecoveryWorker drives any stale non-terminal ramp through the phase processor, which fails

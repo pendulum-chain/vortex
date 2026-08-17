@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import logger from "../../../config/logger";
@@ -16,6 +15,7 @@ import type { FlowGlobals, FlowMetadata } from "../phases/blocks/core/metadata";
 import { resolveBlockFlow } from "../phases/blocks/flows/catalog";
 import type { StateMetadata } from "../phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../quote/core/types";
+import { hashInviteToken } from "../recipients/recipient-invite.service";
 import {
   DEMO_RECIPIENTS,
   DEMO_RESET_CORRIDOR,
@@ -149,6 +149,10 @@ async function wipeResetCorridor(senderEntityId: string): Promise<number> {
 
 async function seedRecipient(senderEntityId: string, profileId: string, seed: DemoRecipientSeed): Promise<void> {
   const invitationId = demoInvitationId(seed.slot);
+  // The dashboard offers the raw token for re-copy, and redemption looks the invite up by
+  // hashInviteToken(token) — the stored hash must be derived from the same string or the
+  // copied link dead-ends on "invalid invitation".
+  const inviteToken = `demo-invite-token-${seed.slot}`;
   await RecipientInvitation.upsert({
     acceptedAt: seed.relationship ? minutesFromNow(-60 * 24 * 3) : null,
     alias: seed.alias,
@@ -167,8 +171,8 @@ async function seedRecipient(senderEntityId: string, profileId: string, seed: De
     revokedAt: null,
     senderCustomerEntityId: senderEntityId,
     status: seed.relationship ? "accepted" : "pending",
-    token: seed.relationship ? null : `demo-invite-token-${seed.slot}`,
-    tokenHash: createHash("sha256").update(`demo-invitation-${seed.slot}`).digest("hex")
+    token: seed.relationship ? null : inviteToken,
+    tokenHash: hashInviteToken(inviteToken)
   });
 
   if (!seed.relationship) {
