@@ -35,7 +35,7 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 9. **Error logs MUST be appended, never overwritten** — Each error is pushed to the `errorLogs` array with timestamp, phase, recoverability flag, and stack trace.
 10. **Phase handlers MUST NOT directly mutate the database** — Only the processor should call `state.update()` for phase transitions. Handlers return a pending state object.
 11. **`squidRouterPay` polling MUST finish before the processor timeout** — Both the bridge-status loop and destination-balance check use a timeout equal to 80% of `PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS`. If neither detects settlement in time, `Promise.any()` receives two rejected checks and the handler raises a recoverable phase error before the processor's outer timeout.
-12. **Reconciliation-required financial errors MUST pause immediately** — An unknown/submitted financial outcome, concurrent claim, or operation-key/request mismatch is translated to `ReconciliationRequiredPhaseError`. The processor clears the in-memory retry counter and returns without scheduling another automatic attempt; an ordinary recoverable error may continue within the handler's bounded retry budget.
+12. **Reconciliation-required financial errors MUST pause immediately** — An unknown/submitted financial outcome or a concurrent claim is translated to `ReconciliationRequiredPhaseError`. A request-hash mismatch joins that path only for phases that opt in via `reconcileRequestMismatch` (the EVM subsidy executors); elsewhere it surfaces as a 409 conflict handled by that phase's own error policy. The processor clears the in-memory retry counter and returns without scheduling another automatic attempt; an ordinary recoverable error may continue within the handler's bounded retry budget.
 
 ## Threat Vectors & Mitigations
 
@@ -58,7 +58,7 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 - [x] Terminal states `complete` and `failed` both trigger `retriesMap.delete()` and halt recursion
 - [x] `MAX_EXECUTION_TIME_MS` (10 minutes) is enforced via `Promise.race` with a timeout promise, and the losing execution is aborted via `AbortSignal` (not merely abandoned)
 - [x] Every catalog-registered block executor accepts the processor signal; polling helpers, explicit sleeps, provider/RPC waits, transaction receipt waits, and financial-operation claims propagate or race it. New side effects check cancellation first.
-- [x] `MAX_RETRIES` (8) is the hard limit — no code path bypasses this (caveat: resets across cycles per F-004)
+- [x] Retry budgets are bounded — `MAX_RETRIES` (8) by default, with handler overrides via `getMaxRetries()` (subsidy phases use 200) (caveat: resets across cycles per F-004)
 - [x] `RecoverablePhaseError.minimumWaitSeconds` is respected when provided; fallback is 30 seconds
 - [x] `phaseHistory` is append-only — phase transitions add to the array, never truncate it
 - [x] Error logs include: error message, stack trace, phase name, recoverability flag, and ISO timestamp

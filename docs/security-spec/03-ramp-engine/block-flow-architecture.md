@@ -86,12 +86,16 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     `not_started`, `submitted`, `confirmed`, `failed`, and `unknown`. A confirmed
     result is replayed locally without another provider call. A definitive rejection
     may be retried with corrected inputs only when the integration explicitly raises
-    `FinancialOperationRejectedError`, proving that no side effect occurred. For a live
-    EVM send, only a typed Viem `EstimateGasExecutionError` cause chain containing an
-    `ExecutionRevertedError` is treated as a deterministic pre-broadcast rejection, and
-    only when no earlier send attempt failed ambiguously. A bare revert, transport
-    failure, timeout, mined failure, or deterministic-looking error after an ambiguous
-    attempt is not sufficient proof.
+    `FinancialOperationRejectedError`, proving that no side effect occurred. For an EVM
+    subsidy transfer, that proof comes from the dedicated gas estimation the executor
+    runs inside the claimed operation immediately before its first broadcast attempt
+    (the send itself carries an explicit gas limit and never re-estimates): only a typed
+    Viem `EstimateGasExecutionError` cause chain containing an `ExecutionRevertedError`
+    from that estimation qualifies. Because estimation precedes any broadcast of the
+    claimed operation and an earlier ambiguous attempt already parks the operation in
+    `submitted`/`unknown`, the rejection can never mask a possible prior side effect. A
+    bare revert, transport failure, timeout, mined failure, or any error raised by the
+    send itself is not sufficient proof.
     HTTP status classes alone MUST NOT establish that proof. A submitted or ambiguous
     result, or reuse of an operation key with a different authorization, MUST halt for
     reconciliation and MUST NOT be repeated automatically.
