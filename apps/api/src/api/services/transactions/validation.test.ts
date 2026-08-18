@@ -781,7 +781,7 @@ describe("Presigned Transaction validation", () => {
     };
     const presignedTx = await makeSignedEvmTxWithBackups({
       maxFeePerGas: 1000000000n,
-      maxPriorityFeePerGas: 499999999n,
+      maxPriorityFeePerGas: 0n,
       nonce: 5,
       phase: "fundEphemeral",
       network: Networks.Polygon
@@ -790,6 +790,37 @@ describe("Presigned Transaction validation", () => {
     await expect(
       validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("maxPriorityFeePerGas");
+  });
+
+  it("accepts an EIP-1559 zero priority fee when viem decodes it as missing", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "0",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Arbitrum,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      chainId: 42161,
+      maxFeePerGas: 3000000000n,
+      maxPriorityFeePerGas: 0n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Arbitrum
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
+    ).resolves.toBeUndefined();
   });
 
   it("rejects a nonzero legacy gas price when the server-issued fee envelope is zero", async () => {
