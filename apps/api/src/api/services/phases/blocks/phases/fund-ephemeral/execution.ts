@@ -145,7 +145,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         await this.fundEvmEphemeralAccount(
           state,
           sourceNetwork,
-          requiredFundingRaw - currentBalanceRaw,
           requiredFundingRaw,
           dynamicDestinationNetwork === sourceNetwork ? destinationGasQuote : undefined,
           signal
@@ -285,7 +284,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
   protected async fundEvmEphemeralAccount(
     state: RampState,
     network: EvmNetworks,
-    fundingAmountRaw: bigint,
     requiredFundingRaw: bigint,
     destinationGasQuote?: EvmDestinationGasQuote,
     signal?: AbortSignal
@@ -303,25 +301,30 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
 
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
-      let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
 
-      await this.runFinancialOperation(state, {
-        attemptClass: destinationGasQuote ? "source-evm-native-funding-v2" : "source-evm-native-funding",
-        beforePerform: destinationGasQuote
-          ? async () => {
-              const fees = await networkClient.estimateFeesPerGas();
-              await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, network, fees.maxFeePerGas);
-              checkedFees = fees;
+      await runSerializedEvmFundingOperation(network, async () => {
+        throwIfAborted(signal);
+        const currentBalanceRaw = await networkClient.getBalance({ address: ephemeralAddress as `0x${string}` });
+        const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
+        if (fundingAmountRaw === 0n) return;
+        let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
+
+        await this.runFinancialOperation(state, {
+          attemptClass: destinationGasQuote ? "source-evm-native-funding-v2" : "source-evm-native-funding",
+          beforePerform: destinationGasQuote
+            ? async () => {
+                const fees = await networkClient.estimateFeesPerGas();
+                await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, network, fees.maxFeePerGas);
+                checkedFees = fees;
+              }
+            : undefined,
+          externalId: result => result.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const fees = checkedFees;
+            if (destinationGasQuote && !fees) {
+              throw new Error(`FundEphemeralExecutor: missing checked ${network} funding fees`);
             }
-          : undefined,
-        externalId: result => result.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const fees = checkedFees;
-          if (destinationGasQuote && !fees) {
-            throw new Error(`FundEphemeralExecutor: missing checked ${network} funding fees`);
-          }
-          return runSerializedEvmFundingOperation(network, async () => {
             const hash = await abortableCall(signal, () =>
               walletClient.sendTransaction({
                 ...(fees && destinationGasQuote
@@ -344,18 +347,18 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
               throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found`);
             }
             return { hash };
-          });
-        },
-        provider: network,
-        request: {
-          ...(destinationGasQuote
-            ? { targetBalanceRaw: requiredFundingRaw.toString() }
-            : { amountRaw: fundingAmountRaw.toString() }),
-          destination: ephemeralAddress,
-          network,
-          source: fundingAccount.address
-        },
-        signal
+          },
+          provider: network,
+          request: {
+            ...(destinationGasQuote
+              ? { targetBalanceRaw: requiredFundingRaw.toString() }
+              : { amountRaw: fundingAmountRaw.toString() }),
+            destination: ephemeralAddress,
+            network,
+            source: fundingAccount.address
+          },
+          signal
+        });
       });
 
       // The receipt confirms inclusion, but downstream phases use a different RPC client which
@@ -397,34 +400,33 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
 
       const ephemeralAddress = state.state.evmEphemeralAddress;
-      const currentBalanceRaw = await destinationClient.getBalance({ address: ephemeralAddress as `0x${string}` });
-      const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
-      if (fundingAmountRaw === 0n) {
-        return;
-      }
-
       const fundingAccount = getEvmFundingAccount(destinationNetwork);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
       if (!destinationGasQuote) {
         throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination gas quote`);
       }
-      let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
 
-      await this.runFinancialOperation(state, {
-        attemptClass: "destination-evm-native-funding-v2",
-        beforePerform: async () => {
-          const fees = await destinationClient.estimateFeesPerGas();
-          await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
-          checkedFees = fees;
-        },
-        externalId: result => result.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const fees = checkedFees;
-          if (!fees) {
-            throw new Error(`FundEphemeralExecutor: missing checked ${destinationNetwork} funding fees`);
-          }
-          return runSerializedEvmFundingOperation(destinationNetwork, async () => {
+      await runSerializedEvmFundingOperation(destinationNetwork, async () => {
+        throwIfAborted(signal);
+        const currentBalanceRaw = await destinationClient.getBalance({ address: ephemeralAddress as `0x${string}` });
+        const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
+        if (fundingAmountRaw === 0n) return;
+        let checkedFees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } | undefined;
+
+        await this.runFinancialOperation(state, {
+          attemptClass: "destination-evm-native-funding-v2",
+          beforePerform: async () => {
+            const fees = await destinationClient.estimateFeesPerGas();
+            await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
+            checkedFees = fees;
+          },
+          externalId: result => result.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const fees = checkedFees;
+            if (!fees) {
+              throw new Error(`FundEphemeralExecutor: missing checked ${destinationNetwork} funding fees`);
+            }
             const hash = await abortableCall(signal, () =>
               walletClient.sendTransaction({
                 gas: BigInt(destinationGasQuote.fundingGasLimit),
@@ -443,16 +445,16 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
               throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
             }
             return { hash };
-          });
-        },
-        provider: destinationNetwork,
-        request: {
-          destination: ephemeralAddress,
-          network: destinationNetwork,
-          source: fundingAccount.address,
-          targetBalanceRaw: requiredFundingRaw.toString()
-        },
-        signal
+          },
+          provider: destinationNetwork,
+          request: {
+            destination: ephemeralAddress,
+            network: destinationNetwork,
+            source: fundingAccount.address,
+            targetBalanceRaw: requiredFundingRaw.toString()
+          },
+          signal
+        });
       });
 
       try {
@@ -505,18 +507,20 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     const evmClientManager = EvmClientManager.getInstance();
     const destinationClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
-    const currentBalanceRaw = await destinationClient.getBalance({ address: ephemeralAddress });
-    const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
-    if (fundingAmountRaw === 0n) return;
-
     const fundingAccount = getEvmFundingAccount(destinationNetwork);
     const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
-    await this.runFinancialOperation(state, {
-      attemptClass: "destination-evm-native-funding",
-      externalId: result => result.hash,
-      perform: async () => {
-        throwIfAborted(signal);
-        return runSerializedEvmFundingOperation(destinationNetwork, async () => {
+
+    await runSerializedEvmFundingOperation(destinationNetwork, async () => {
+      throwIfAborted(signal);
+      const currentBalanceRaw = await destinationClient.getBalance({ address: ephemeralAddress });
+      const fundingAmountRaw = calculateDestinationFundingShortfallRaw(requiredFundingRaw, currentBalanceRaw);
+      if (fundingAmountRaw === 0n) return;
+
+      await this.runFinancialOperation(state, {
+        attemptClass: "destination-evm-native-funding",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
             walletClient.sendTransaction({ to: ephemeralAddress, value: fundingAmountRaw })
           );
@@ -527,16 +531,16 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
           }
           return { hash };
-        });
-      },
-      provider: destinationNetwork,
-      request: {
-        amountRaw: fundingAmountRaw.toString(),
-        destination: ephemeralAddress,
-        network: destinationNetwork,
-        source: fundingAccount.address
-      },
-      signal
+        },
+        provider: destinationNetwork,
+        request: {
+          amountRaw: fundingAmountRaw.toString(),
+          destination: ephemeralAddress,
+          network: destinationNetwork,
+          source: fundingAccount.address
+        },
+        signal
+      });
     });
 
     await waitUntilTrueWithTimeout(

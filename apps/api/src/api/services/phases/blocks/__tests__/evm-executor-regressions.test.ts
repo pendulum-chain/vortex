@@ -26,6 +26,8 @@ const checkBalance = mock(async () => new Big(0));
 const getFundingBalance = mock(async () => new Big("1000000000"));
 const getDestinationBalance = mock(async () => checkBalance());
 const getNativeFundingBalance = mock(async () => new Big("1000000000"));
+const getEphemeralNativeBalance = mock(async () => 0n);
+const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 1n }));
 const isDeterministicPreBroadcastRevert = mock((error: unknown) =>
   sharedReal.isDeterministicPreBroadcastRevert(error)
 );
@@ -48,21 +50,38 @@ const getTransaction = mock(async (): Promise<{ from: `0x${string}`; input: `0x$
 const getTransactionCount = mock(async () => 0);
 const waitForTransactionReceipt = mock(async () => ({ status: "success" as const }));
 const fundingAccount = { address: "0x1111111111111111111111111111111111111111" as `0x${string}` };
+const destinationGasQuote = {
+  executionFeeUsd: "0.01",
+  fundingGasLimit: "21000",
+  isNativeTransfer: true,
+  maximumFeePerGas: "100",
+  network: Networks.Polygon,
+  programVersion: 2,
+  transferGasLimit: "21000"
+} as const;
 const financialOperationFailures: unknown[] = [];
 let financialOperationReplay: unknown;
 let legacyFinancialOperationResponse: unknown;
+let beforeSerializedFundingOperation: (() => Promise<void> | void) | undefined;
+const runSerializedEvmFundingOperation = mock(async (_network: unknown, operation: () => Promise<unknown>) => {
+  await beforeSerializedFundingOperation?.();
+  return operation();
+});
 const runFinancialOperation = mock(
   async ({
     beforePerform,
     perform,
-    reconcile
+    reconcile,
+    signal
   }: {
     beforePerform?(): Promise<void>;
     perform(key: string): Promise<unknown>;
     reconcile?(operation: { response: unknown }): Promise<unknown | null>;
     request: Record<string, unknown>;
     retryFailed?: boolean;
+    signal?: AbortSignal;
   }) => {
+    if (signal?.aborted) throw signal.reason;
     if (financialOperationReplay !== undefined) return financialOperationReplay;
     if (legacyFinancialOperationResponse !== undefined) {
       const reconciled = await reconcile?.({ response: legacyFinancialOperationResponse });
@@ -97,13 +116,16 @@ mock.module("@vortexfi/shared", () => ({
   EvmClientManager: {
     getInstance: () => ({
       getClient: () => ({
-        estimateFeesPerGas: async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 1n }),
+        chain: { nativeCurrency: { decimals: 18 } },
+        estimateFeesPerGas,
         estimateGas,
+        getBalance: getEphemeralNativeBalance,
         getTransaction,
         getTransactionCount,
         readContract: async () => 10000n,
         waitForTransactionReceipt
       }),
+      getWalletClient: () => ({ sendTransaction }),
       sendTransactionWithBlindRetry: sendTransaction
     })
   },
@@ -120,7 +142,8 @@ mock.module("../../../../../models/quoteTicket.model", () => ({
 }));
 mock.module("../core/evm-funding", () => ({
   ...evmFundingReal,
-  getEvmFundingAccount: () => fundingAccount
+  getEvmFundingAccount: () => fundingAccount,
+  runSerializedEvmFundingOperation
 }));
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
@@ -131,6 +154,7 @@ const { SubsidizePreSwapExecutor } = await import("../phases/subsidize-pre/execu
 const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution");
 const { FinalSettlementSubsidyExecutor } = await import("../phases/final-settlement-subsidy/execution");
 const { AlfredpayOnrampMintExecutor } = await import("../phases/alfredpay-mint/execution");
+const { FundEphemeralExecutor } = await import("../phases/fund-ephemeral/execution");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
@@ -149,12 +173,18 @@ beforeEach(() => {
   getDestinationBalance.mockImplementation(async () => checkBalance());
   getNativeFundingBalance.mockClear();
   getNativeFundingBalance.mockResolvedValue(new Big("1000000000"));
+  getEphemeralNativeBalance.mockClear();
+  getEphemeralNativeBalance.mockResolvedValue(0n);
+  estimateFeesPerGas.mockClear();
+  estimateFeesPerGas.mockResolvedValue({ maxFeePerGas: 10n, maxPriorityFeePerGas: 1n });
   isDeterministicPreBroadcastRevert.mockClear();
   getOnrampTransaction.mockClear();
   sendTransaction.mockClear();
   estimateGas.mockClear();
   getTransaction.mockClear();
   getTransactionCount.mockClear();
+  runSerializedEvmFundingOperation.mockClear();
+  beforeSerializedFundingOperation = undefined;
   runFinancialOperation.mockClear();
   financialOperationReplay = undefined;
   legacyFinancialOperationResponse = undefined;
@@ -163,6 +193,190 @@ beforeEach(() => {
 });
 
 describe("EVM block executor regressions", () => {
+  it.each([
+    {
+      createExecutor: () => Object.create(SubsidizePreSwapExecutor.prototype) as any,
+      direction: RampDirection.SELL,
+      metadata: {
+        blocks: {
+          subsidizePreSwap: {
+            expectedOutputAmountDecimal: "100",
+            expectedOutputAmountRaw: "100000000",
+            inputCurrency: EvmToken.USDC,
+            inputDecimals: 6,
+            network: Networks.Base,
+            targetInputAmountRaw: "100000000"
+          }
+        }
+      },
+      phase: "pre-swap"
+    },
+    {
+      createExecutor: () => Object.create(SubsidizePostSwapExecutor.prototype) as any,
+      direction: RampDirection.BUY,
+      metadata: {
+        blocks: {
+          subsidizePostSwap: {
+            actualOutputAmountRaw: "95000000",
+            outputCurrency: EvmToken.USDC,
+            outputDecimals: 6,
+            subsidyAmountInOutputTokenRaw: "5000000",
+            targetOutputAmountRaw: "100000000"
+          }
+        }
+      },
+      phase: "post-swap"
+    }
+  ])("refreshes $phase subsidy balances after acquiring the funding slot", async testCase => {
+    checkBalance.mockResolvedValue(new Big("95000000"));
+    beforeSerializedFundingOperation = () => {
+      checkBalance.mockResolvedValue(new Big("100000000"));
+    };
+    findQuote.mockResolvedValue({
+      metadata: testCase.metadata,
+      outputAmount: "100",
+      outputCurrency: EvmToken.USDC
+    });
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+    const executor = testCase.createExecutor();
+    executor.createSubsidy = mock(async () => undefined);
+
+    try {
+      await executor.executePhase({
+        quoteId: "quote-1",
+        state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
+        type: testCase.direction
+      } as RampState);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(runSerializedEvmFundingOperation).toHaveBeenCalledTimes(1);
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
+  });
+
+  it("does not broadcast a post-swap subsidy aborted while waiting for the funding slot", async () => {
+    checkBalance.mockResolvedValue(new Big("95000000"));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          subsidizePostSwap: {
+            actualOutputAmountRaw: "95000000",
+            outputCurrency: EvmToken.USDC,
+            outputDecimals: 6,
+            subsidyAmountInOutputTokenRaw: "5000000",
+            targetOutputAmountRaw: "100000000"
+          }
+        }
+      },
+      outputAmount: "100",
+      outputCurrency: EvmToken.USDC
+    });
+    let enterFundingSlot!: () => void;
+    const fundingSlotEntered = new Promise<void>(resolve => {
+      enterFundingSlot = resolve;
+    });
+    let releaseFundingSlot!: () => void;
+    const fundingSlotRelease = new Promise<void>(resolve => {
+      releaseFundingSlot = resolve;
+    });
+    beforeSerializedFundingOperation = async () => {
+      enterFundingSlot();
+      await fundingSlotRelease;
+    };
+    const controller = new AbortController();
+    const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+    const execution = executor.executePhase(
+      {
+        quoteId: "quote-1",
+        state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
+        type: RampDirection.BUY
+      } as RampState,
+      controller.signal
+    );
+
+    await fundingSlotEntered;
+    controller.abort(new Error("phase timed out"));
+    releaseFundingSlot();
+
+    await expect(execution).rejects.toMatchObject({ isRecoverable: true });
+    expect(checkBalance).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      fund: (executor: any, state: RampState) =>
+        executor.fundEvmEphemeralAccount(state, Networks.Polygon, 1000n, destinationGasQuote),
+      path: "source"
+    },
+    {
+      fund: (executor: any, state: RampState) =>
+        executor.fundDestinationEvmEphemeralAccount(state, Networks.Polygon, 1000n, destinationGasQuote),
+      path: "destination"
+    }
+  ])("rechecks the $path ephemeral funding fee envelope after acquiring the slot", async ({ fund }) => {
+    beforeSerializedFundingOperation = () => {
+      estimateFeesPerGas.mockResolvedValue({ maxFeePerGas: 101n, maxPriorityFeePerGas: 1n });
+    };
+    const executor = Object.create(FundEphemeralExecutor.prototype) as any;
+    const state = { state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" } } as RampState;
+
+    await expect(fund(executor, state)).rejects.toMatchObject({ message: sharedReal.QuoteError.NetworkFeesTooHigh });
+
+    expect(estimateFeesPerGas).toHaveBeenCalledTimes(1);
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the native destination shortfall after acquiring the funding slot", async () => {
+    beforeSerializedFundingOperation = () => {
+      getEphemeralNativeBalance.mockResolvedValue(1000n);
+    };
+    const executor = Object.create(FundEphemeralExecutor.prototype) as any;
+    const state = { state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" } } as RampState;
+
+    await executor.fundDestinationEvmEphemeralAccount(state, Networks.Polygon, 1000n, destinationGasQuote);
+
+    expect(getEphemeralNativeBalance).toHaveBeenCalled();
+    expect(runFinancialOperation).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("leaves native funding unclaimed when cancellation happens while waiting for the funding slot", async () => {
+    let enterFundingSlot!: () => void;
+    const fundingSlotEntered = new Promise<void>(resolve => {
+      enterFundingSlot = resolve;
+    });
+    let releaseFundingSlot!: () => void;
+    const fundingSlotRelease = new Promise<void>(resolve => {
+      releaseFundingSlot = resolve;
+    });
+    beforeSerializedFundingOperation = async () => {
+      enterFundingSlot();
+      await fundingSlotRelease;
+    };
+    const controller = new AbortController();
+    const executor = Object.create(FundEphemeralExecutor.prototype) as any;
+    const funding = executor.fundDestinationEvmEphemeralAccount(
+      { state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" } } as RampState,
+      Networks.Polygon,
+      1000n,
+      destinationGasQuote,
+      controller.signal
+    );
+
+    await fundingSlotEntered;
+    controller.abort(new Error("phase timed out"));
+    releaseFundingSlot();
+
+    await expect(funding).rejects.toThrow("phase timed out");
+    expect(runFinancialOperation).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("splits BUY subsidy components and skips zero-value currency conversion", async () => {
     checkBalance.mockResolvedValue(new Big("100000000"));
     checkBalance.mockResolvedValueOnce(new Big("95000000"));
