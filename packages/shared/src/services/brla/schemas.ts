@@ -172,9 +172,8 @@ export const aveniaDocumentResponseSchema = z.looseObject({
 
 const aveniaCursorSchema = z
   .string()
-  .min(1)
   .nullish()
-  .transform(value => value ?? undefined);
+  .transform(value => value || undefined);
 
 /** Paginated document history used by readiness and method reconciliation. */
 export const aveniaDocumentsSchema = z.looseObject({

@@ -214,6 +214,10 @@ describe("Avenia KYB Level 1 response schemas", () => {
       resultMessage: undefined
     });
   });
+
+  test("normalizes Avenia's empty terminal cursor", () => {
+    expect(aveniaKycAttemptsSchema.parse({ attempts: [], cursor: "" }).cursor).toBeUndefined();
+  });
 });
 
 describe("aveniaImportKycTokenResponseSchema", () => {
