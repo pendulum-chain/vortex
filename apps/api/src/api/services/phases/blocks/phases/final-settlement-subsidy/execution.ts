@@ -35,8 +35,9 @@ import { LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-f
 import { calculateQuotedPresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
-import { getFlowMetadata } from "../../core/metadata";
+import { getBlockMetadata, getFlowMetadata } from "../../core/metadata";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
+import { FinalSettlementSubsidyContext } from "./simulation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -57,8 +58,8 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
 };
 
 // BUY slice of the production FinalSettlementSubsidyHandler: waits for the bridge to deliver on
-// the destination chain, then tops the ephemeral up to exactly quote.outputAmount (swapping the
-// funding account's native token to the output token via SquidRouter when needed). SELL is not ported.
+// the destination chain, then tops the ephemeral up to the canonical persisted raw amount (swapping
+// the funding account's native token to the output token via SquidRouter when needed). SELL is not ported.
 export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "finalSettlementSubsidy";
@@ -96,7 +97,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     ).globals?.fees?.usd;
     const expectedAmountRaw = isAlfredpayOfframp
       ? new Big(alfredpayMetadata.inputAmountRaw).plus(getEvmFeeTotalRawFromUsd(alfredpayFeesUsd, outTokenDetails.decimals))
-      : multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
+      : new Big(getBlockMetadata(quote.metadata, FinalSettlementSubsidyContext).amountRaw);
     const destinationNetwork = outputNetwork as EvmNetworks;
     const fundingAccount = getEvmFundingAccount(destinationNetwork);
     const publicClient = evmClientManager.getClient(destinationNetwork);
