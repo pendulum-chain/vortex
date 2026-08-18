@@ -1,9 +1,10 @@
-# CLAUDE.md
+# Coding-agent guidance
 
-Guidance for Claude Code (claude.ai/code) working in this repository. This root file
-holds **cross-cutting** context only. Each app/package has its own `CLAUDE.md` with
-scoped architecture and commands — `cd` into the relevant one before working there, and
-read it first.
+This is the canonical root instruction file for coding agents in this repository;
+`AGENTS.md` links here so Codex and Claude use the same guidance. This file holds
+**cross-cutting** context only. Each app/package has its own `CLAUDE.md` with scoped
+architecture and commands — `cd` into the relevant one before working there, and read it
+first.
 
 ## Project Overview
 
@@ -31,20 +32,35 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 > subdirectory's `CLAUDE.md`.
 
 ```bash
-bun install          # install all dependencies
-bun dev              # frontend + backend + shared concurrently
-bun dev:frontend     # http://127.0.0.1:5173
-bun dev:backend      # http://localhost:3000
-bun dev:dashboard    # http://localhost:5174
+bun install            # install all dependencies
+bun bootstrap:worktree # install in a fresh worktree and build shared
+bun dev                # frontend + backend + shared concurrently
+bun dev:frontend       # http://127.0.0.1:5173
+bun dev:backend        # http://localhost:3000
+bun dev:dashboard      # http://localhost:5174
 bun dev:rebalancer
 
 bun build            # build all workspaces in dependency order
 bun build:shared     # rebuild shared (see below)
 
 bun lint             # Biome lint          bun lint:fix   # auto-fix
-bun format           # format all           bun verify     # check without fixing
-bun typecheck        # type check
+bun format             # format all           bun verify     # check without fixing
+bun typecheck          # type check
 ```
+
+### Bootstrap fresh worktrees
+
+Run `bun bootstrap:worktree` before tests or development in a new worktree. It installs
+the frozen lockfile using a writable, worktree-specific temporary directory and cache,
+then builds `@vortexfi/shared` so workspace imports resolve. Set
+`VORTEX_WORKTREE_TMPDIR` only when the default temporary location is unsuitable.
+
+### Netlify deployment diagnostics
+
+Public deploy metadata does not imply that Netlify build metadata or logs are public.
+Use an authenticated Netlify CLI/API route or the corresponding GitHub check output for
+private build details. After a 401, verify the endpoint and active Netlify account instead
+of retrying with guessed or extracted credentials.
 
 ### Always rebuild shared after changing it
 
