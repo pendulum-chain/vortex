@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
-import { AveniaTicketStatus } from "@vortexfi/shared";
+import { AveniaTicketStatus, EPaymentMethod, Networks } from "@vortexfi/shared";
 import ProviderCustomer from "../../models/providerCustomer.model";
 import UnhandledPaymentWorker from "./unhandled-payment.worker";
 
@@ -63,5 +63,26 @@ describe("UnhandledPaymentWorker paid initial recovery", () => {
     expect(recover).toHaveBeenCalledTimes(2);
     expect(state.update).not.toHaveBeenCalled();
     expect(worker.slackNotifier.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not poll Avenia or auto-recover a Moonbeam-dependent payment", async () => {
+    const recover = mock(async () => ({} as never));
+    const state = {
+      ...paidInitialState(),
+      from: EPaymentMethod.PIX,
+      state: {
+        ...paidInitialState().state,
+        flow: { id: "BrlOnrampAssethubUsdc" }
+      },
+      to: Networks.AssetHub,
+      unsignedTxs: []
+    };
+    const worker = workerWithPaidTicket(recover);
+
+    await worker.processStatesForUnhandledPayments([state]);
+
+    expect(worker.brlaApiService.getAveniaPayinTickets).not.toHaveBeenCalled();
+    expect(recover).not.toHaveBeenCalled();
+    expect(worker.processedStateIds.has("ramp-1")).toBe(true);
   });
 });

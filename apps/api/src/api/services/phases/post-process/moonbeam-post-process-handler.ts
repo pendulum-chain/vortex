@@ -1,10 +1,7 @@
-import { submitExtrinsic } from "@pendulum-chain/api-solang";
-import { ApiManager, CleanupPhase, decodeSubmittableExtrinsic, RampDirection } from "@vortexfi/shared";
-import logger from "../../../../config/logger";
+import { CleanupPhase, RampDirection } from "@vortexfi/shared";
 import RampState from "../../../../models/rampState.model";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
-const CLEANUP_WAITING_TIME_MINUTES = 180; // 3 hours
 /**
  * Post process handler for Moonbeam cleanup operations
  */
@@ -34,50 +31,10 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
    * @returns A tuple with [success, error] where success is true if the process completed successfully,
    * and error is null if successful or an Error if it failed
    */
-  public async process(state: RampState): Promise<[boolean, Error | null]> {
-    const apiManager = ApiManager.getInstance();
-    const networkName = "moonbeam";
-    const moonbeamNode = await apiManager.getApi(networkName);
-
-    // Wait for at least 15 minutes after the complete phase, to allow time for squidRouter to refund
-    try {
-      const completeEntry = state.phaseHistory.find(entry => entry.phase === "complete");
-
-      if (!completeEntry) {
-        return [false, this.createErrorObject("No complete entry found in the data")];
-      }
-
-      const completeTime = new Date(completeEntry.timestamp);
-      const timeDifferenceMs = Date.now() - completeTime.getTime();
-      const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
-
-      if (timeDifferenceMinutes < CLEANUP_WAITING_TIME_MINUTES) {
-        return [
-          false,
-          this.createErrorObject(
-            `At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`
-          )
-        ];
-      }
-    } catch (e) {
-      return [false, this.createErrorObject(`Moonbeam cleanup failed: ${e}`)];
-    }
-
-    try {
-      const { txData: moonbeamCleanupTransaction } = this.getPresignedTransaction(state, "moonbeamCleanup");
-
-      const approvalExtrinsic = decodeSubmittableExtrinsic(moonbeamCleanupTransaction as string, moonbeamNode.api);
-      const result = await submitExtrinsic(approvalExtrinsic);
-
-      if (result.status.type === "error") {
-        return [false, this.createErrorObject(`Moonbeam cleanup failed: ${result.status.error.toString()}`)];
-      }
-
-      logger.info(`Successfully processed Moonbeam cleanup for ramp state ${state.id}`);
-      return [true, null];
-    } catch (e) {
-      return [false, this.createErrorObject(`Moonbeam cleanup failed: ${e}`)];
-    }
+  public async process(_state: RampState): Promise<[boolean, Error | null]> {
+    // Moonbeam is retired. Keep this tombstone handler successful so persisted
+    // moonbeamCleanup errors are cleared without opening an RPC connection.
+    return [true, null];
   }
 }
 
