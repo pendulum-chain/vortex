@@ -56,6 +56,11 @@ const quote = {
   id: "quote-a",
   inputAmount: "100",
   inputCurrency: FiatToken.BRL,
+  metadata: {
+    blocks: {},
+    flow: { id: "BrlOnrampBaseDirect" },
+    globals: { fees: { usd: {} }, request: {} }
+  },
   outputAmount: "19",
   outputCurrency: "USDC",
   rampType: RampDirection.BUY
