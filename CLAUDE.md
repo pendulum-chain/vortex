@@ -136,13 +136,23 @@ Commit examples from history: `fix(api): keep active phase retries below lock ex
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
 feature specs`.
 
-## No Over-Engineering
+## Lean, Safe Fixes
 
-- Don't add features, refactors, or "improvements" beyond what was asked.
-- Don't add docstrings/comments to code you didn't touch.
-- Don't create helpers/utilities for one-time operations.
-- Don't validate inputs that can't be invalid (internal calls, typed params).
-- Three similar lines is better than a premature abstraction.
+For fixes, prefer the smallest change that fully resolves the demonstrated root cause
+while preserving existing behavior. "Smallest" means the fewest concepts, states, code
+paths, and files a reader must understand — not merely the fewest lines. Never trade away
+correctness, regression coverage, or required edge cases for brevity.
+
+Before implementing a non-trivial fix:
+
+1. State the root cause and the leanest sufficient approach.
+2. Prefer changing the existing control flow and data model over adding a parallel path.
+3. Add a service, job, state, fallback, dependency, or abstraction only when a concrete
+   requirement cannot be met safely without it; name that requirement.
+
+Before finalizing, make a simplification pass. Remove speculative flexibility, duplicate
+state, unnecessary branches, single-use helpers, and indirection that do not protect a
+demonstrated requirement. Keep the regression test that proves the leaner fix is safe.
 
 ## Testing
 
@@ -196,15 +206,8 @@ Before implementing:
 
 ## 2. Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+Follow **Lean, Safe Fixes** above. Optimize for fewer concepts and code paths, not clever
+or artificially short code.
 
 ## 3. Surgical Changes
 
