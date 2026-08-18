@@ -70,4 +70,71 @@ describe("runSerializedEvmFundingOperation", () => {
 
     await expect(runSerializedEvmFundingOperation(Networks.Base, async () => "recovered")).resolves.toBe("recovered");
   });
+
+  it("keeps the queue occupied until an aborted active operation actually settles", async () => {
+    const controller = new AbortController();
+    const firstCompletion = deferred();
+    const firstStarted = deferred();
+    const secondStarted = deferred();
+    const first = runSerializedEvmFundingOperation(
+      Networks.Base,
+      async () => {
+        firstStarted.resolve();
+        await firstCompletion.promise;
+      },
+      controller.signal
+    );
+    await firstStarted.promise;
+
+    controller.abort(new Error("phase timed out"));
+    await expect(first).rejects.toThrow("phase timed out");
+
+    const second = runSerializedEvmFundingOperation(Networks.Base, async () => {
+      secondStarted.resolve();
+    });
+    const startOutcome = await Promise.race([
+      secondStarted.promise.then(() => "started"),
+      new Promise<"waiting">(resolve => setTimeout(() => resolve("waiting"), 10))
+    ]);
+    expect(startOutcome).toBe("waiting");
+
+    firstCompletion.resolve();
+    await second;
+  });
+
+  it("skips an aborted queued operation without breaking later queue entries", async () => {
+    const firstCompletion = deferred();
+    const firstStarted = deferred();
+    const canceledStarted = deferred();
+    const thirdStarted = deferred();
+    const first = runSerializedEvmFundingOperation(Networks.Base, async () => {
+      firstStarted.resolve();
+      await firstCompletion.promise;
+    });
+    await firstStarted.promise;
+
+    const controller = new AbortController();
+    const canceled = runSerializedEvmFundingOperation(
+      Networks.Base,
+      async () => {
+        canceledStarted.resolve();
+      },
+      controller.signal
+    );
+    const third = runSerializedEvmFundingOperation(Networks.Base, async () => {
+      thirdStarted.resolve();
+    });
+
+    controller.abort(new Error("phase timed out"));
+    await expect(canceled).rejects.toThrow("phase timed out");
+    firstCompletion.resolve();
+    await Promise.all([first, third]);
+
+    const canceledOutcome = await Promise.race([
+      canceledStarted.promise.then(() => "started"),
+      new Promise<"skipped">(resolve => setTimeout(() => resolve("skipped"), 10))
+    ]);
+    expect(canceledOutcome).toBe("skipped");
+    await thirdStarted.promise;
+  });
 });

@@ -19,6 +19,8 @@ export interface RunFinancialOperationArgs<Result> {
   /** Converts a request mismatch into the phase processor's manual-reconciliation signal instead of the default 409. */
   reconcileRequestMismatch?: boolean;
   retryFailed?: boolean;
+  /** Keeps observing a claimed side effect after phase cancellation so its durable outcome can still be recorded. */
+  settleAfterAbort?: boolean;
   signal?: AbortSignal;
   /** Runs only after replay/reconciliation is exhausted and immediately before claiming a new side effect. */
   beforePerform?(): Promise<void>;
@@ -89,6 +91,7 @@ export async function runFinancialOperation<Result>({
   reconcile,
   externalId,
   retryFailed = false,
+  settleAfterAbort = false,
   signal
 }: RunFinancialOperationArgs<Result>): Promise<Result> {
   throwIfAborted(signal);
@@ -232,7 +235,7 @@ export async function runFinancialOperation<Result>({
   }
 
   try {
-    const result = await abortableCall(signal, () => perform(operationKey));
+    const result = settleAfterAbort ? await perform(operationKey) : await abortableCall(signal, () => perform(operationKey));
     const stored = serializable(result);
     await operation.update({
       externalId: externalId?.(result) ?? null,

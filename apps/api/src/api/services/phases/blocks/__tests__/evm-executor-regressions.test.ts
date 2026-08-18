@@ -831,7 +831,60 @@ describe("EVM block executor regressions", () => {
       priceFeedService.convertCurrency = originalConvertCurrency;
     }
 
+    expect(runFinancialOperation.mock.calls[0][0]).toMatchObject({
+      request: {
+        destination: "0x2222222222222222222222222222222222222222",
+        network: Networks.Polygon,
+        source: fundingAccount.address,
+        targetBalanceRaw: "1000000"
+      },
+      settleAfterAbort: true
+    });
+    expect(runFinancialOperation.mock.calls[0][0].request).not.toHaveProperty("amountRaw");
+    expect(runFinancialOperation.mock.calls[0][0].request).not.toHaveProperty("nonce");
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
+  });
+
+  it("refreshes the final settlement shortfall after acquiring the funding slot", async () => {
+    const ephemeralAddress = "0x2222222222222222222222222222222222222222";
+    checkBalance.mockResolvedValue(new Big("900000"));
+    beforeSerializedFundingOperation = () => {
+      checkBalance.mockResolvedValue(new Big("1000000"));
+    };
+    findQuote.mockResolvedValue({
+      metadata: { blocks: { alfredpayOfframp: { inputAmountRaw: "1000000" } } },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-1",
+      quoteId: "quote-1",
+      state: {
+        evmEphemeralAddress: ephemeralAddress,
+        transactionPlan: {
+          settlementBaselines: {
+            [`polygon:${ephemeralAddress}:0xc2132d05d31c914a87c6611c10748aeb04b58e8f`]: "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+    try {
+      await executor.executePhase(state);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(runSerializedEvmFundingOperation).toHaveBeenCalledTimes(1);
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
   });
 
   it("uses the canonical final settlement raw amount instead of the rounded quote output", async () => {

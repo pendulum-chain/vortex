@@ -114,8 +114,11 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 18. **Cancellation propagation.** Every execution block MUST accept the processor
     `AbortSignal` and propagate it through polling, sleeps, provider/RPC waits, and
     financial-operation claims. No new external side effect may begin after
-    cancellation. If cancellation races an already-started financial call, its outcome
-    is `unknown` until reconciled.
+    cancellation. If cancellation races an already-started shared EVM funding call, the
+    phase caller detaches while the claimed operation remains observed through send and
+    receipt settlement, retains its funding FIFO slot, and persists the resulting durable
+    outcome. Other already-started financial calls remain `unknown` until reconciled when
+    their integration cannot establish the eventual outcome.
 
 ## Threat Vectors & Mitigations
 

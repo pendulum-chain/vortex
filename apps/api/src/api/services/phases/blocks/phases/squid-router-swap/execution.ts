@@ -894,16 +894,16 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         functionName: "addNativeGas"
       });
 
-      const { hash: gasPaymentHash } = await runSerializedEvmFundingOperation(fromChain, async () => {
-        const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-        const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
-        return this.runFinancialOperation(state, {
-          attemptClass,
-          externalId: operation => operation.hash,
-          perform: async () => {
-            throwIfAborted(signal);
-            const hash = await abortableCall(signal, () =>
-              walletClient.sendTransaction({
+      const { hash: gasPaymentHash } = await runSerializedEvmFundingOperation(
+        fromChain,
+        async () => {
+          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+          const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
+          return this.runFinancialOperation(state, {
+            attemptClass,
+            externalId: operation => operation.hash,
+            perform: async () => {
+              const hash = await walletClient.sendTransaction({
                 account: walletClientAccount,
                 chain: publicClient.chain,
                 data: transactionData,
@@ -912,19 +912,21 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
                 nonce,
                 to: AXL_GAS_SERVICE_EVM as `0x${string}`,
                 value: BigInt(tokenValueRaw)
-              })
-            );
-            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-            if (receipt.status !== "success") {
-              throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
-            }
-            return { hash };
-          },
-          provider: fromChain,
-          request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, nonce, swapHash },
-          signal
-        });
-      });
+              });
+              const receipt = await publicClient.waitForTransactionReceipt({ hash });
+              if (receipt.status !== "success") {
+                throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
+              }
+              return { hash };
+            },
+            provider: fromChain,
+            request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, swapHash },
+            settleAfterAbort: true,
+            signal
+          });
+        },
+        signal
+      );
 
       logger.info(`SquidRouterPayExecutor: ${fromChain} fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;

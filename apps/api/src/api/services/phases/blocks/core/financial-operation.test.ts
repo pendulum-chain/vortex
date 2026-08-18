@@ -30,6 +30,14 @@ const baseOperation = {
   scopeType: "ramp" as const
 };
 
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 beforeAll(async () => {
   await setupTestDatabase();
 });
@@ -480,5 +488,33 @@ describe("runFinancialOperation", () => {
       })
     ).rejects.toThrow("phase timed out");
     expect(perform).not.toHaveBeenCalled();
+  });
+
+  it("records a claimed operation that settles after phase cancellation", async () => {
+    const controller = new AbortController();
+    const started = deferred();
+    const completion = deferred();
+    const perform = mock(async () => {
+      started.resolve();
+      await completion.promise;
+      return { id: "external-1" };
+    });
+    const pending = runFinancialOperation({
+      ...baseOperation,
+      externalId: result => result.id,
+      perform,
+      settleAfterAbort: true,
+      signal: controller.signal
+    });
+    await started.promise;
+
+    controller.abort(new Error("phase timed out"));
+    completion.resolve();
+
+    await expect(pending).resolves.toEqual({ id: "external-1" });
+    expect(await FinancialOperation.findOne()).toMatchObject({
+      externalId: "external-1",
+      status: "confirmed"
+    });
   });
 });
