@@ -14,8 +14,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 |---|---|---|
 | `FUNDING_SECRET` | **Removed/obsolete** — was the Stellar funding account keypair; Stellar/Spacewalk support was removed (migration 028). Unset in deployments; no code reads it. | None (obsolete) |
 | `PENDULUM_FUNDING_SEED` | Pendulum funding account seed | Drain of Pendulum funding pool — affects all subsidization |
-| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Calls `executeXCM` on Moonbeam receiver contract | Unauthorized XCM execution on Moonbeam — could route funds incorrectly |
-| `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
+| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Historical name retained as a compatibility fallback for general EVM funding/account derivation and local status-address output; runtime Moonbeam execution is disabled | Drain of the active EVM funding pool and exposure of any unreconciled balance at the derived historical Moonbeam address |
+| `MOONBEAM_FUNDING_PRIVATE_KEY` | Legacy-named compatibility fallback for EVM subsidization transfers on active EVM chains; BRLA payouts and fee distribution on Base | Drain of the EVM funding pool on active chains plus any unreconciled historical address balance |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
 | `METRICS_DASHBOARD_SECRET` | Read-only observability API bearer token | Read-only access to sanitized API client event data |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
@@ -36,8 +36,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Secret | Purpose | Blast Radius |
 |---|---|---|
-| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for all EVM chains (Base, Polygon, Moonbeam). Used by both Base and legacy flows. | Drain of rebalancer funds on ALL EVM chains — Base, Polygon, and Moonbeam. Single point of failure for all EVM-based rebalancing. |
-| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account (sr25519 seed). Only required for legacy flow (`--legacy` flag). | Drain of rebalancer Pendulum funds. Not needed for the default Base flow. |
+| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for active Base/Polygon automation and the historically derived Moonbeam account. | Drain of active rebalancer funds and exposure of any unreconciled historical Moonbeam balance. |
+| `PENDULUM_ACCOUNT_SECRET` | Historical rebalancer Pendulum account seed retained for manual legacy-state reconciliation. The CLI rejects `--legacy`. | Drain of any remaining rebalancer Pendulum funds; not used by active automation. |
 
 ### Shared
 
@@ -63,7 +63,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Threat | Mitigation |
 |---|---|
-| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes: all funding accounts (Pendulum, Moonbeam, Base), all database access, admin access, all third-party API keys. The only mitigation is infrastructure hardening (firewalls, SSH hardening, monitoring). |
+| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes active Pendulum/Base/EVM funding accounts, any unreconciled historical Moonbeam address, database/admin access, and third-party API keys. |
 | **Environment variable leak via error page or debug endpoint** — Misconfigured error handler dumps `process.env` | Express error handler strips stack traces in non-development mode. However, there is no explicit guard against dumping environment variables. A bug in error handling could expose secrets. |
 | **Ephemeral webhook keys after restart** — Without `WEBHOOK_PRIVATE_KEY`, webhook signatures change on every restart | Webhook consumers lose the ability to verify signatures from the previous instance. This is a reliability issue, not a direct security vulnerability, but it could cause consumers to reject legitimate webhooks or accept unverified ones (if they fall back to no-verification). |
 | **Credential rotation requires redeployment** — No runtime rotation mechanism | To rotate any secret, the environment variable must be updated and the service restarted. During the rotation window, the old secret may still be valid (e.g., API keys at third parties). There is no way to do zero-downtime rotation. |

@@ -5,15 +5,13 @@ import {
   Networks,
   splitReceiverABI
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
-import { MOONBEAM_FUNDING_AMOUNT_UNITS, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../constants/constants";
-import { SlackNotifier } from "../services/slack.service";
+import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../constants/constants";
 
 interface StatusResponse {
   status: boolean;
@@ -69,28 +67,13 @@ export const executeXcmController = async (
 };
 
 export const sendStatusWithPk = async (): Promise<StatusResponse> => {
-  const slackService = new SlackNotifier();
   let moonbeamExecutorAccount;
 
   try {
     moonbeamExecutorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
-    const { moonbeamClient } = createClients(moonbeamExecutorAccount);
-
-    const balance = await moonbeamClient.getBalance({
-      address: moonbeamExecutorAccount.address
-    });
-    const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toFixed(0, 0));
-
-    if (balance < minimumBalance) {
-      await slackService.sendMessage({
-        text: `Current balance of funding account is ${balance} GLMR please charge the account ${moonbeamExecutorAccount.address}.`
-      });
-      return { public: moonbeamExecutorAccount.address, status: false };
-    }
-
-    return { public: moonbeamExecutorAccount.address, status: true };
+    return { public: moonbeamExecutorAccount.address, status: false };
   } catch (error) {
-    logger.error("Error fetching Moonbeam executor balance:", error);
+    logger.error("Error deriving Moonbeam executor address:", error);
     return { public: moonbeamExecutorAccount?.address, status: false };
   }
 };

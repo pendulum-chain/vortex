@@ -18,25 +18,24 @@ The pre/post executors dispatch by the block's chain context. The EVM pre-swap b
 
 **How subsidization works:**
 1. Read the ephemeral account's current balance
-2. Compare against the expected amount (from ramp state metadata, e.g. `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` for pre-swap on the EVM branch)
+2. Compare against the expected amount (from quote metadata, e.g. `quote.metadata.blocks.subsidizePreSwap.targetInputAmountRaw` — plus `feeReserveRaw` on corridors that reserve fees — for pre-swap, and `quote.metadata.blocks.subsidizePostSwap.targetOutputAmountRaw` for post-swap)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
-4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (EVM — used on **Moonbeam, Base, and any other EVM chain**; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible fallback)
+4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (active EVM chains such as Base and supported destinations; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible env-name fallback but does not authorize runtime Moonbeam access)
 
 **Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
 
 ### EVM funding key scope
 
-The EVM funding key is used on **all EVM chains** the platform operates on:
-- Moonbeam (EUR/USD subsidization)
+The EVM funding key is used on active EVM chains the platform operates on:
 - Base (BRL on/off-ramp pre/post-swap subsidization)
 - Destination-chain `backupApprove` spender for routed onramps (`phases/blocks/phases/squid-router-swap/transactions.ts`)
 
-The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvmFundingAccount(network)` helper. The legacy Moonbeam-named env var is only a compatibility fallback and should be phased out operationally so the key's Base/EVM-wide blast radius stays visible.
+The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvmFundingAccount(network)` helper. The legacy Moonbeam-named env var is only a compatibility fallback and should be phased out operationally so the key's actual Base/EVM-wide blast radius stays visible. Moonbeam-dependent runtime flows are guarded before this helper is called.
 
 ## Security Invariants
 
 1. **Subsidization MUST only top up to the expected amount, never more** — Both `subsidize-pre/execution.ts` and `subsidize-post/execution.ts` calculate `expectedAmount - currentBalance` and transfer exactly that difference. If the balance already meets or exceeds the expected amount, no transfer occurs.
-2. **Expected amounts MUST come from ramp state set at creation time** — The expected input/output amounts are derived from the quote and stored in ramp state. Handlers read these values, not recalculate them. This prevents manipulation via price changes between quote and execution.
+2. **Expected amounts MUST come from ramp state set at creation time** — The expected input/output amounts are derived from the quote and stored in ramp state. Handlers read these values, not recalculate them. The canonical raw integer MUST be carried unchanged between adjacent blocks; a later block MUST NOT reconstruct it from a higher-precision decimal using a different rounding mode. This prevents manipulation via price changes between quote and execution and avoids short-funding the ephemeral by one raw unit.
 3. **Funding account private keys MUST only be used for subsidization transfers** — `getFundingAccount()` derives a keypair from `PENDULUM_FUNDING_SEED`. This keypair should only sign subsidization transfers, not arbitrary transactions.
 4. **Every final settlement subsidy MUST enforce a USD cap before funds move** — The full observable shortfall is converted from the destination token into USD and compared with `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`, regardless of whether the funding wallet already holds the output token or first needs a swap. The swap-input check remains a second bound on routes that acquire the token.
 5. **Destination transfer MUST use a presigned transaction** — `destination-transfer/execution.ts` submits the presigned transfer from state. The server cannot modify the recipient address or amount at execution time.
@@ -69,10 +68,13 @@ The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvm
 
 - [x] **F-001 fixed**: `final-settlement-subsidy/execution.ts` enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` on every positive destination-token shortfall before any transfer, with an additional route-spend bound when a funding swap is needed.
 - [x] Verify `phases/blocks/phases/subsidize-pre/execution.ts` calculates subsidy as `expectedAmount - currentBalance` and transfers exactly that amount. **PASS**.
+- [x] Verify the EVM Nabla swap consumes the exact canonical raw amount funded by the preceding phase without re-rounding its decimal representation. **PASS** — `nabla-swap/simulation.ts` carries `PhaseIO.amountRaw` into quote metadata and derives the swap decimal from that integer; regression coverage uses the production one-micro-USDC boundary. The Pendulum variants (`pendulum-nabla-swap`, `pendulum-offramp-nabla-swap`) derive their quote decimal from the same carried raw.
+- [x] Verify final settlement tops up to the canonical raw amount produced by the flow. **PASS** — `final-settlement-subsidy/execution.ts` reads `quote.metadata.blocks.finalSettlementSubsidy.amountRaw` instead of reconstructing raw units from the rounded public `quote.outputAmount`.
+- [x] Verify the destination-transfer balance precondition demands the exact raw the presigned transfer spends. **PASS** — `destination-transfer/execution.ts` reads `quote.metadata.blocks.destinationTransfer.amountRaw` (the amount the presigned transaction was built from) instead of reconstructing raw units from the decimal `quote.outputAmount`; `subsidize-post/simulation.ts` floors the subsidy to token decimals and carries `PhaseIO.amountRaw`, keeping the funded raw and the quoted decimal floor-consistent.
 - [x] Verify `phases/blocks/phases/subsidize-post/execution.ts` calculates subsidy the same way — no off-by-one, no rounding errors. **PASS**.
 - [x] Verify both pre/post swap handlers skip subsidization when `currentBalance >= expectedAmount` (no negative transfers). **PASS** — skip condition verified in both handlers.
 - [x] Verify `getFundingAccount()` derives the keypair from `PENDULUM_FUNDING_SEED` and this seed is not reused for other purposes. **PASS** — seed used only for funding account derivation.
-- [ ] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` is used only for EVM subsidization, not other Moonbeam operations. **FAIL F-029** — `MOONBEAM_FUNDING_PRIVATE_KEY` equals `MOONBEAM_EXECUTOR_PRIVATE_KEY`; same key used for funding, executor, legacy Monerium signing, Mykobo-related Base operations, and SquidRouter operations. With the BRL-on-Base and EUR-on-Base (Mykobo) flows this key is now also used for ephemeral subsidization on Base, BRLA + Mykobo EURC payouts on Base, and EVM fee distribution on Base — a single private key compromise drains funds across Moonbeam, Base, Polygon, and any other EVM chain in scope, including the dedicated BRLA and Mykobo payout paths.
+- [ ] Verify the legacy-named Moonbeam key fallback is separated from broad EVM funding authority. **FAIL F-029** — the compatibility fallback still aliases executor and funding authority used by Base subsidization, BRLA/Mykobo payouts, fee distribution, and Squid operations. Runtime Moonbeam transactions are disabled, but a compromise drains active EVM funds and may expose any unreconciled historical Moonbeam address balance.
 - [x] Verify `phases/blocks/phases/destination-transfer/execution.ts` checks ephemeral balance before submitting the presigned transaction. **PASS**.
 - [x] Verify the presigned destination transfer is submitted as-is — no server-side modification of recipient or amount. **PASS** — presigned transaction submitted unmodified.
 - [x] `phases/blocks/phases/final-settlement-subsidy/execution.ts` bounds the funding swap input and rejects a Squid route whose estimated output is below 80% of the required subsidy before broadcast. **PASS**

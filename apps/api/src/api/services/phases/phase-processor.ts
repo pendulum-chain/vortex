@@ -14,6 +14,7 @@ import {
 import { enqueueRampCompletedEmail } from "../email/ramp-completion";
 import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
 import { StateMetadata } from "./meta-state-types";
+import { isMoonbeamRuntimeDisabledForState } from "./moonbeam-runtime";
 import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
 
@@ -58,6 +59,11 @@ export class PhaseProcessor {
         logger.warn(
           `Refusing to process ramp ${rampId}: belongs to flow ${state.flowVariant}, this backend is ${config.flowVariant}`
         );
+        return;
+      }
+
+      if (isMoonbeamRuntimeDisabledForState(state)) {
+        logger.warn(`Holding Moonbeam-dependent ramp ${rampId} while Moonbeam runtime operations are disabled`);
         return;
       }
 

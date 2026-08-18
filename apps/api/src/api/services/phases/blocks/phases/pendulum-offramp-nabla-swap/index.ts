@@ -8,6 +8,7 @@ import {
   FiatToken,
   getPendulumDetails,
   Networks,
+  nativeToDecimal,
   PENDULUM_USDC_ASSETHUB
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -69,8 +70,10 @@ export const PendulumOfframpNablaSwap: Phase<
   async simulate(input, ctx) {
     const inputDetails = PENDULUM_USDC_ASSETHUB;
     const outputDetails = getPendulumDetails(FiatToken.BRL);
+    const inputAmountForSwapRaw = input.amountRaw;
+    const inputAmountForSwap = nativeToDecimal(inputAmountForSwapRaw, inputDetails.decimals).toString();
     const result = await calculateNablaSwapOutput({
-      inputAmountForSwap: input.amount.toString(),
+      inputAmountForSwap,
       inputTokenPendulumDetails: inputDetails,
       outputTokenPendulumDetails: outputDetails,
       rampType: ctx.request.rampType
@@ -79,8 +82,8 @@ export const PendulumOfframpNablaSwap: Phase<
     return {
       metadata: {
         effectiveExchangeRate: result.effectiveExchangeRate,
-        inputAmountForSwapDecimal: input.amount.toString(),
-        inputAmountForSwapRaw: input.amountRaw,
+        inputAmountForSwapDecimal: inputAmountForSwap,
+        inputAmountForSwapRaw,
         inputCurrency: inputDetails.currency,
         inputCurrencyId: inputDetails.currencyId,
         inputDecimals: inputDetails.decimals,
