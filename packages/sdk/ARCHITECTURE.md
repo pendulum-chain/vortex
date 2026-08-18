@@ -49,6 +49,9 @@ through `getUserTransactionType`, `getTypedDataToSign`, and
 ## Package boundary
 
 The SDK is published as a Node.js ESM package from `dist/index.js`, with declarations in
-`dist/index.d.ts`. `bun test` runs unit tests, builds the package, and smoke-loads the
+`dist/index.d.ts`. Relative imports and re-exports in `src` use `.js` extensions because
+TypeScript resolves them to the `.ts` source files but preserves the runtime paths in emitted
+declarations; the SDK ESLint configuration enforces this for NodeNext compatibility. `bun test`
+runs lint, unit tests, builds the package, checks it from a NodeNext consumer, and smoke-loads the
 output. The public API and examples belong in [`README.md`](README.md); partner-facing
 integration guides belong in [`docs/api/`](../../docs/api/README.md).

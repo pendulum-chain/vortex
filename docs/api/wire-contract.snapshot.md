@@ -4090,6 +4090,8 @@ NoPresignedTransactionsError: class NoPresignedTransactionsError {
   readonly status: number;
 }
 
+OfframpFundingMode: "deferred" | "prefunded"
+
 OfframpUpdateAdditionalData: {
   assethubToPendulumHash?: string;
   squidRouterApproveHash?: string;
@@ -5312,6 +5314,7 @@ VortexSdk: class VortexSdk {
     hydrationWsUrl?: string;
     moonbeamWsUrl?: string;
     networkInitializationTimeoutMs?: number;
+    offrampFundingMode?: "deferred" | "prefunded";
     pendulumWsUrl?: string;
     publicKey?: string;
     secretKey?: string;
@@ -8227,6 +8230,7 @@ VortexSdkConfig: {
   hydrationWsUrl?: string;
   moonbeamWsUrl?: string;
   networkInitializationTimeoutMs?: number;
+  offrampFundingMode?: "deferred" | "prefunded";
   pendulumWsUrl?: string;
   publicKey?: string;
   secretKey?: string;

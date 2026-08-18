@@ -1,7 +1,7 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Networks } from "@vortexfi/shared";
-import { NetworkApiInitializationError } from "../errors";
-import type { NetworkConfig, VortexSdkConfig } from "../types";
+import { NetworkApiInitializationError } from "../errors.js";
+import type { NetworkConfig, VortexSdkConfig } from "../types.js";
 
 const DEFAULT_NETWORK_INITIALIZATION_TIMEOUT_MS = 15_000;
 

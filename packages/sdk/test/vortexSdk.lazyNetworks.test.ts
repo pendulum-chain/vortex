@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   EPaymentMethod,
+  EvmClientManager,
   EphemeralAccountType,
   EvmToken,
   FiatToken,
@@ -11,9 +12,11 @@ import {
   type UnsignedTx,
 } from "@vortexfi/shared";
 import {
+  InsufficientBalanceError,
   NetworkApiInitializationError,
   TransactionSigningError,
 } from "../src/errors";
+import type { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
 const originalFetch = globalThis.fetch;
@@ -55,6 +58,12 @@ const offrampQuote: QuoteResponse = {
   outputCurrency: FiatToken.BRL,
   rampType: RampDirection.SELL,
   to: EPaymentMethod.PIX,
+};
+
+const evmOfframpQuote: QuoteResponse = {
+  ...offrampQuote,
+  from: Networks.Polygon,
+  network: Networks.Polygon,
 };
 
 function rampProcess(
@@ -176,12 +185,16 @@ async function withDeadline<T>(
   }
 }
 
-function createSdk(networkInitializationTimeoutMs = 50): VortexSdk {
+function createSdk(
+  networkInitializationTimeoutMs = 50,
+  offrampFundingMode?: VortexSdkConfig["offrampFundingMode"]
+): VortexSdk {
   return new VortexSdk({
     apiBaseUrl: "https://backend.test",
     hydrationWsUrl: DEAD_WEBSOCKET_URL,
     moonbeamWsUrl: DEAD_WEBSOCKET_URL,
     networkInitializationTimeoutMs,
+    offrampFundingMode,
     pendulumWsUrl: DEAD_WEBSOCKET_URL,
     secretKey: "sk_test_user",
     storeEphemeralKeys: false,
@@ -233,6 +246,52 @@ describe("lazy chain WebSocket initialization", () => {
     expect(calls).toContain("GET /v1/brla/validatePixKey");
     expect(calls).toContain("POST /v1/ramp/register");
     expect(calls).toContain("POST /v1/ramp/update");
+  });
+
+  test("EVM offramp registration checks the source balance by default", async () => {
+    const calls = mockBackend(undefined, evmOfframpQuote);
+    const sdk = createSdk();
+    const clientManager = EvmClientManager.getInstance();
+    const originalReadContract = clientManager.readContractWithRetry;
+    const readContract = mock(async () => 0n);
+    clientManager.readContractWithRetry = readContract as typeof clientManager.readContractWithRetry;
+
+    try {
+      await expect(
+        sdk.registerRamp(evmOfframpQuote, {
+          pixDestination: "user@example.com",
+          walletAddress: "0x1234567890123456789012345678901234567890",
+        })
+      ).rejects.toBeInstanceOf(InsufficientBalanceError);
+    } finally {
+      clientManager.readContractWithRetry = originalReadContract;
+    }
+
+    expect(readContract).toHaveBeenCalled();
+    expect(calls).not.toContain("POST /v1/ramp/register");
+  });
+
+  test("deferred funding allows EVM offramp registration before the wallet is funded", async () => {
+    const calls = mockBackend(undefined, evmOfframpQuote);
+    const sdk = createSdk(50, "deferred");
+    const clientManager = EvmClientManager.getInstance();
+    const originalReadContract = clientManager.readContractWithRetry;
+    const readContract = mock(async () => 0n);
+    clientManager.readContractWithRetry = readContract as typeof clientManager.readContractWithRetry;
+
+    try {
+      const result = await sdk.registerRamp(evmOfframpQuote, {
+        pixDestination: "user@example.com",
+        walletAddress: "0x1234567890123456789012345678901234567890",
+      });
+
+      expect(result.rampProcess.id).toBe("ramp_1");
+    } finally {
+      clientManager.readContractWithRetry = originalReadContract;
+    }
+
+    expect(readContract).not.toHaveBeenCalled();
+    expect(calls).toContain("POST /v1/ramp/register");
   });
 
   test("a required Pendulum signing API fails with a named, bounded timeout", async () => {

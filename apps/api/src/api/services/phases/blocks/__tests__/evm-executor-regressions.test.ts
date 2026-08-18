@@ -235,6 +235,55 @@ describe("EVM block executor regressions", () => {
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
   });
 
+  it("uses the canonical final settlement raw amount instead of the rounded quote output", async () => {
+    const ephemeralAddress = "0x2222222222222222222222222222222222222222";
+    const outputToken = sharedReal.evmTokenConfig[Networks.Arbitrum][EvmToken.USDC]!;
+    const canonicalAmountRaw = "4979924167";
+    checkBalance.mockResolvedValue(new Big(canonicalAmountRaw));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          finalSettlementSubsidy: { amountRaw: canonicalAmountRaw },
+          squidRouterSwap: {
+            outputAmountRaw: canonicalAmountRaw,
+            toNetwork: Networks.Arbitrum,
+            toToken: outputToken.erc20AddressSourceChain
+          }
+        }
+      },
+      network: Networks.Arbitrum,
+      outputAmount: "4979.924168",
+      outputCurrency: EvmToken.USDC
+    });
+    const state = {
+      id: "ramp-1",
+      quoteId: "quote-1",
+      state: {
+        evmEphemeralAddress: ephemeralAddress,
+        transactionPlan: {
+          settlementBaselines: {
+            [`${Networks.Arbitrum}:${ephemeralAddress}:${outputToken.erc20AddressSourceChain.toLowerCase()}`]: "0"
+          }
+        }
+      },
+      type: RampDirection.BUY,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+
+    try {
+      await executor.executePhase(state);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
+  });
+
   it("propagates rejected AlfredPay statuses and records on-chain completion while balance confirmation continues", async () => {
     const executor = Object.create(AlfredpayOnrampMintExecutor.prototype) as any;
     const state = { state: {}, update: mock(async () => state) } as unknown as RampState;
