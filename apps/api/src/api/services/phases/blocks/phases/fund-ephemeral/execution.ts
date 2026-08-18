@@ -43,7 +43,7 @@ import {
   calculateQuotedPresignedExecutionBudgetRaw,
   EVM_DESTINATION_FUNDING_PROGRAM_VERSION
 } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
@@ -321,28 +321,30 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           if (destinationGasQuote && !fees) {
             throw new Error(`FundEphemeralExecutor: missing checked ${network} funding fees`);
           }
-          const hash = await abortableCall(signal, () =>
-            walletClient.sendTransaction({
-              ...(fees && destinationGasQuote
-                ? {
-                    gas: BigInt(destinationGasQuote.fundingGasLimit),
-                    maxFeePerGas: fees.maxFeePerGas,
-                    maxPriorityFeePerGas: fees.maxPriorityFeePerGas
-                  }
-                : {}),
-              to: ephemeralAddress as `0x${string}`,
-              value: fundingAmountRaw
-            })
-          );
-          const receipt = await abortableCall(signal, () =>
-            networkClient.waitForTransactionReceipt({
-              hash: hash as `0x${string}`
-            })
-          );
-          if (!receipt || receipt.status !== "success") {
-            throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found`);
-          }
-          return { hash };
+          return runSerializedEvmFundingOperation(network, async () => {
+            const hash = await abortableCall(signal, () =>
+              walletClient.sendTransaction({
+                ...(fees && destinationGasQuote
+                  ? {
+                      gas: BigInt(destinationGasQuote.fundingGasLimit),
+                      maxFeePerGas: fees.maxFeePerGas,
+                      maxPriorityFeePerGas: fees.maxPriorityFeePerGas
+                    }
+                  : {}),
+                to: ephemeralAddress as `0x${string}`,
+                value: fundingAmountRaw
+              })
+            );
+            const receipt = await abortableCall(signal, () =>
+              networkClient.waitForTransactionReceipt({
+                hash: hash as `0x${string}`
+              })
+            );
+            if (!receipt || receipt.status !== "success") {
+              throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found`);
+            }
+            return { hash };
+          });
         },
         provider: network,
         request: {
@@ -422,24 +424,26 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           if (!fees) {
             throw new Error(`FundEphemeralExecutor: missing checked ${destinationNetwork} funding fees`);
           }
-          const hash = await abortableCall(signal, () =>
-            walletClient.sendTransaction({
-              gas: BigInt(destinationGasQuote.fundingGasLimit),
-              maxFeePerGas: fees.maxFeePerGas,
-              maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-              to: ephemeralAddress as `0x${string}`,
-              value: fundingAmountRaw
-            })
-          );
-          const receipt = await abortableCall(signal, () =>
-            destinationClient.waitForTransactionReceipt({
-              hash: hash as `0x${string}`
-            })
-          );
-          if (!receipt || receipt.status !== "success") {
-            throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
-          }
-          return { hash };
+          return runSerializedEvmFundingOperation(destinationNetwork, async () => {
+            const hash = await abortableCall(signal, () =>
+              walletClient.sendTransaction({
+                gas: BigInt(destinationGasQuote.fundingGasLimit),
+                maxFeePerGas: fees.maxFeePerGas,
+                maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+                to: ephemeralAddress as `0x${string}`,
+                value: fundingAmountRaw
+              })
+            );
+            const receipt = await abortableCall(signal, () =>
+              destinationClient.waitForTransactionReceipt({
+                hash: hash as `0x${string}`
+              })
+            );
+            if (!receipt || receipt.status !== "success") {
+              throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
+            }
+            return { hash };
+          });
         },
         provider: destinationNetwork,
         request: {
@@ -512,16 +516,18 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       externalId: result => result.hash,
       perform: async () => {
         throwIfAborted(signal);
-        const hash = await abortableCall(signal, () =>
-          walletClient.sendTransaction({ to: ephemeralAddress, value: fundingAmountRaw })
-        );
-        const receipt = await abortableCall(signal, () =>
-          destinationClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
-        );
-        if (!receipt || receipt.status !== "success") {
-          throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
-        }
-        return { hash };
+        return runSerializedEvmFundingOperation(destinationNetwork, async () => {
+          const hash = await abortableCall(signal, () =>
+            walletClient.sendTransaction({ to: ephemeralAddress, value: fundingAmountRaw })
+          );
+          const receipt = await abortableCall(signal, () =>
+            destinationClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
+          );
+          if (!receipt || receipt.status !== "success") {
+            throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
+          }
+          return { hash };
+        });
       },
       provider: destinationNetwork,
       request: {

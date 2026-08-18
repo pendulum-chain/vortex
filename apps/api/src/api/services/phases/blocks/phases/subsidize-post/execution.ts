@@ -33,7 +33,7 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EVM_ERC20_UNSIGNED_TRANSACTION_SIZE_BYTES, getBaseL1FeeUpperBoundRaw } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { reconcileLegacyEvmSubsidy } from "../../core/legacy-evm-subsidy";
 import { getBlockMetadata } from "../../core/metadata";
@@ -156,7 +156,6 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
       let gas: bigint | undefined;
       let maxFeePerGas: bigint | undefined;
       let maxPriorityFeePerGas: bigint | undefined;
-      let nonce: number | undefined;
 
       const operation = await this.runFinancialOperation(state, {
         adoptSafeRequestHash: true,
@@ -252,6 +251,14 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
             tokenDetails: outputTokenDetails
           });
           if (fundingTokenBalance.lt(transferAmount)) {
+            logger.error("EVM_FUNDING_TOKEN_BALANCE_LOW", {
+              availableRaw: fundingTokenBalance.toFixed(),
+              network: destinationNetwork,
+              phase: this.getPhaseName(),
+              rampId: state.id,
+              requiredRaw: transferAmount.toFixed(),
+              token: tokenAddress
+            });
             throw this.createRecoverableError(
               `SubsidizePostSwapExecutor: Funding wallet token balance ${fundingTokenBalance.toFixed()} is below required subsidy ${transferAmount.toFixed()}.`
             );
@@ -284,7 +291,6 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
               `SubsidizePostSwapExecutor: Funding wallet native balance ${nativeBalance.toFixed()} is below maximum gas cost ${maximumGasCost.toFixed()}.`
             );
           }
-          nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
         },
         externalId: operation => operation.hash ?? undefined,
         perform: async () => {
@@ -292,45 +298,51 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           if (transferAmount.eq(0)) {
             return { amountRaw: "0", hash: null };
           }
-          if (nonce === undefined) {
-            throw new Error("SubsidizePostSwapExecutor: Missing transaction nonce after preflight");
-          }
           if (data === undefined) {
             throw new Error("SubsidizePostSwapExecutor: Missing transaction data after preflight");
           }
-          // Re-estimate inside the claimed operation: the send below carries an explicit
-          // gas limit, so this is the only step that can prove a deterministic revert
-          // before anything is broadcast.
-          try {
-            gas = await publicClient.estimateGas({
-              account: fundingAccount,
+          const hash = await runSerializedEvmFundingOperation(destinationNetwork, async () => {
+            // Re-estimate inside the claimed operation and immediately before nonce
+            // selection. The send carries this explicit gas limit, so a deterministic
+            // revert here proves that nothing was broadcast.
+            try {
+              gas = await publicClient.estimateGas({
+                account: fundingAccount,
+                data,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                to: tokenAddress,
+                value: 0n
+              });
+            } catch (error) {
+              if (isDeterministicPreBroadcastRevert(error)) {
+                throw new FinancialOperationRejectedError(
+                  "SubsidizePostSwapExecutor: Funding transfer was rejected during pre-broadcast gas estimation"
+                );
+              }
+              throw error;
+            }
+            const nonce = await publicClient.getTransactionCount({
+              address: fundingAccount.address,
+              blockTag: "pending"
+            });
+            const transactionHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
               data,
+              gas,
               maxFeePerGas,
               maxPriorityFeePerGas,
+              nonce,
               to: tokenAddress,
               value: 0n
             });
-          } catch (error) {
-            if (isDeterministicPreBroadcastRevert(error)) {
-              throw new FinancialOperationRejectedError(
-                "SubsidizePostSwapExecutor: Funding transfer was rejected during pre-broadcast gas estimation"
-              );
+            const receipt = await abortableCall(signal, () =>
+              publicClient.waitForTransactionReceipt({ hash: transactionHash })
+            );
+            if (receipt.status !== "success") {
+              throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${transactionHash} failed`);
             }
-            throw error;
-          }
-          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            data,
-            gas,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            nonce,
-            to: tokenAddress,
-            value: 0n
+            return transactionHash;
           });
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") {
-            throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${hash} failed`);
-          }
           return { amountRaw: transferAmount.toFixed(0), hash };
         },
         provider: destinationNetwork,

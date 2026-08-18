@@ -48,6 +48,7 @@ The cleanup worker (`cleanup.worker.ts`) selects ramps where `currentPhase ∈ {
 13. **Funding-program rollout MUST be two phase** — New quote production stays disabled until every API and worker replica supports both legacy static metadata and program v2.
 14. **A confirmed funding operation MUST replay before live-fee preflight** — Fee movement after a receipt-confirmed send must not prevent the journal from returning that persisted result; the live envelope guard applies only before a genuinely new treasury broadcast.
 15. **Persisted funding envelopes MUST be validated at runtime** — Presence selects program v2 only after all version, network, transfer-kind, bounded positive fee/gas, and Base-family L1 fields pass structural validation. Absence alone selects the legacy program.
+16. **Shared EVM treasury sends MUST use the process-local per-network FIFO** — Under the one-backend-per-environment deployment model, native ephemeral funding and funding-key cleanup broadcasts hold the `(network, funding address)` slot through receipt confirmation. This prevents same-process recovery and cleanup work from racing wallet nonce selection; it does not coordinate multiple API processes or external users of the key.
 
 ## Threat Vectors & Mitigations
 

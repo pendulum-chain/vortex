@@ -33,7 +33,7 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { calculateQuotedPresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { getFlowMetadata } from "../../core/metadata";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
@@ -369,36 +369,38 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         );
       }
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
-      const { hash: txHashIdx } = await this.runFinancialOperation(state, {
-        attemptClass: "funding-swap",
-        externalId: operation => operation.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            data: swapRoute.transactionRequest.data as `0x${string}`,
-            gas: BigInt(swapRoute.transactionRequest.gasLimit),
-            maxFeePerGas,
-            maxPriorityFeePerGas,
+      const { hash: txHashIdx } = await runSerializedEvmFundingOperation(destinationNetwork, async () => {
+        const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+        const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+        return this.runFinancialOperation(state, {
+          attemptClass: "funding-swap",
+          externalId: operation => operation.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+              data: swapRoute.transactionRequest.data as `0x${string}`,
+              gas: BigInt(swapRoute.transactionRequest.gasLimit),
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              nonce,
+              to: swapRoute.transactionRequest.target as `0x${string}`,
+              value: BigInt(swapRoute.transactionRequest.value)
+            });
+            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+            if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
+            return { hash };
+          },
+          provider: destinationNetwork,
+          request: {
+            amountRaw: requiredNativeRaw,
+            destination: fundingAccount.address,
+            network: destinationNetwork,
             nonce,
-            to: swapRoute.transactionRequest.target as `0x${string}`,
-            value: BigInt(swapRoute.transactionRequest.value)
-          });
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
-          return { hash };
-        },
-        provider: destinationNetwork,
-        request: {
-          amountRaw: requiredNativeRaw,
-          destination: fundingAccount.address,
-          network: destinationNetwork,
-          nonce,
-          routeTarget: swapRoute.transactionRequest.target,
-          token: outTokenDetails.erc20AddressSourceChain
-        },
-        signal
+            routeTarget: swapRoute.transactionRequest.target,
+            token: outTokenDetails.erc20AddressSourceChain
+          },
+          signal
+        });
       });
 
       logger.info(`FinalSettlementSubsidyExecutor: Swap transaction ${txHashIdx} confirmed. Waiting for balance update...`);
@@ -416,8 +418,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
     // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
     try {
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
       const data = isNative
         ? undefined
         : encodeFunctionData({
@@ -425,33 +425,37 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
             args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
             functionName: "transfer"
           });
-      const { hash: txHash } = await this.runFinancialOperation(state, {
-        attemptClass: "settlement-subsidy-transfer",
-        externalId: operation => operation.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            data,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
+      const { hash: txHash } = await runSerializedEvmFundingOperation(destinationNetwork, async () => {
+        const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+        const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+        return this.runFinancialOperation(state, {
+          attemptClass: "settlement-subsidy-transfer",
+          externalId: operation => operation.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+              data,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              nonce,
+              to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
+              value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
+            });
+            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+            if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
+            return { hash };
+          },
+          provider: destinationNetwork,
+          request: {
+            amountRaw: subsidyAmountRaw.toFixed(0),
+            destination: ephemeralAddress,
+            network: destinationNetwork,
             nonce,
-            to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
-            value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
-          });
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
-          return { hash };
-        },
-        provider: destinationNetwork,
-        request: {
-          amountRaw: subsidyAmountRaw.toFixed(0),
-          destination: ephemeralAddress,
-          network: destinationNetwork,
-          nonce,
-          source: fundingAccount.address,
-          token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
-        },
-        signal
+            source: fundingAccount.address,
+            token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
+          },
+          signal
+        });
       });
 
       await this.createSubsidy(
