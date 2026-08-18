@@ -126,7 +126,10 @@ export async function checkEvmBalancePeriodically(
       return someBalanceBig;
     }
     if (Date.now() - startTime > timeoutMs) {
-      throw new BalanceCheckError(BalanceCheckErrorType.Timeout, `Balance did not meet the limit within ${timeoutMs}ms`);
+      throw new BalanceCheckError(
+        BalanceCheckErrorType.Timeout,
+        `Balance did not meet the limit within ${timeoutMs}ms (actual raw: ${someBalanceBig.toString()}, required raw: ${amountDesiredUnitsBig.toString()})`
+      );
     }
     // Sleep AFTER each check completes to prevent overlapping calls
     await sleep(intervalMs, signal);
@@ -174,7 +177,10 @@ export async function checkEvmNativeBalancePeriodically(
       return balanceBig;
     }
     if (Date.now() - startTime > timeoutMs) {
-      throw new BalanceCheckError(BalanceCheckErrorType.Timeout, `Native balance did not meet the limit within ${timeoutMs}ms`);
+      throw new BalanceCheckError(
+        BalanceCheckErrorType.Timeout,
+        `Native balance did not meet the limit within ${timeoutMs}ms (actual raw: ${balanceBig.toString()}, required raw: ${amountDesiredUnitsBig.toString()})`
+      );
     }
     // Sleep AFTER each check completes to prevent overlapping calls
     await sleep(intervalMs, signal);
