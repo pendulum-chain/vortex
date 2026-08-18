@@ -14,10 +14,11 @@ Then, open the `.env` file and add your Alchemy API key.
 ```
 ALCHEMY_API_KEY=your_alchemy_api_key
 EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
-
-# Only required for legacy flow (--legacy flag)
-PENDULUM_ACCOUNT_SECRET=xxx
 ```
+
+Only the Base rebalancing flows are executable. The historical Pendulum/Moonbeam implementation and state schema remain
+in the repository for inspection and compatibility, but the CLI rejects `--legacy` before loading runtime configuration or
+connecting to a chain.
 
 For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
 `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.
@@ -43,5 +44,7 @@ To run the main application:
 ```bash
 bun run start
 ```
+
+Passing `--legacy` exits with an error; it cannot start the retired Pendulum/Moonbeam flow.
 
 This project was created using `bun init` in bun v1.2.6. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

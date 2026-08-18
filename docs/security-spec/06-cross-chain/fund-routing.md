@@ -20,18 +20,17 @@ The pre/post executors dispatch by the block's chain context. The EVM pre-swap b
 1. Read the ephemeral account's current balance
 2. Compare against the expected amount (from ramp state metadata, e.g. `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` for pre-swap on the EVM branch)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
-4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (EVM — used on **Moonbeam, Base, and any other EVM chain**; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible fallback)
+4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (active EVM chains such as Base and supported destinations; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible env-name fallback but does not authorize runtime Moonbeam access)
 
 **Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
 
 ### EVM funding key scope
 
-The EVM funding key is used on **all EVM chains** the platform operates on:
-- Moonbeam (EUR/USD subsidization)
+The EVM funding key is used on active EVM chains the platform operates on:
 - Base (BRL on/off-ramp pre/post-swap subsidization)
 - Destination-chain `backupApprove` spender for routed onramps (`phases/blocks/phases/squid-router-swap/transactions.ts`)
 
-The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvmFundingAccount(network)` helper. The legacy Moonbeam-named env var is only a compatibility fallback and should be phased out operationally so the key's Base/EVM-wide blast radius stays visible.
+The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvmFundingAccount(network)` helper. The legacy Moonbeam-named env var is only a compatibility fallback and should be phased out operationally so the key's actual Base/EVM-wide blast radius stays visible. Moonbeam-dependent runtime flows are guarded before this helper is called.
 
 ## Security Invariants
 
@@ -70,7 +69,7 @@ The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvm
 - [x] Verify `phases/blocks/phases/subsidize-post/execution.ts` calculates subsidy the same way — no off-by-one, no rounding errors. **PASS**.
 - [x] Verify both pre/post swap handlers skip subsidization when `currentBalance >= expectedAmount` (no negative transfers). **PASS** — skip condition verified in both handlers.
 - [x] Verify `getFundingAccount()` derives the keypair from `PENDULUM_FUNDING_SEED` and this seed is not reused for other purposes. **PASS** — seed used only for funding account derivation.
-- [ ] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` is used only for EVM subsidization, not other Moonbeam operations. **FAIL F-029** — `MOONBEAM_FUNDING_PRIVATE_KEY` equals `MOONBEAM_EXECUTOR_PRIVATE_KEY`; same key used for funding, executor, legacy Monerium signing, Mykobo-related Base operations, and SquidRouter operations. With the BRL-on-Base and EUR-on-Base (Mykobo) flows this key is now also used for ephemeral subsidization on Base, BRLA + Mykobo EURC payouts on Base, and EVM fee distribution on Base — a single private key compromise drains funds across Moonbeam, Base, Polygon, and any other EVM chain in scope, including the dedicated BRLA and Mykobo payout paths.
+- [ ] Verify the legacy-named Moonbeam key fallback is separated from broad EVM funding authority. **FAIL F-029** — the compatibility fallback still aliases executor and funding authority used by Base subsidization, BRLA/Mykobo payouts, fee distribution, and Squid operations. Runtime Moonbeam transactions are disabled, but a compromise drains active EVM funds and may expose any unreconciled historical Moonbeam address balance.
 - [x] Verify `phases/blocks/phases/destination-transfer/execution.ts` checks ephemeral balance before submitting the presigned transaction. **PASS**.
 - [x] Verify the presigned destination transfer is submitted as-is — no server-side modification of recipient or amount. **PASS** — presigned transaction submitted unmodified.
 - [x] `phases/blocks/phases/final-settlement-subsidy/execution.ts` bounds the funding swap input and rejects a Squid route whose estimated output is below 80% of the required subsidy before broadcast. **PASS**

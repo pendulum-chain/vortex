@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Vortex is a cross-border payment gateway built on the Pendulum blockchain. It converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains (Pendulum, Moonbeam, AssetHub, Hydration, Polygon, Base). The system is a Bun monorepo with four main components:
+Vortex is a cross-border payment gateway that converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains. Moonbeam identifiers and flow definitions remain for historical compatibility, but Moonbeam is retired from the active runtime boundary. The system is a Bun monorepo with four main components:
 
 - **API** (`apps/api`) — Express backend handling ramp orchestration, quote generation, auth, and external service integration
 - **Frontend** (`apps/frontend`) — React SPA for end-user flows
@@ -37,7 +37,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 │  │Postgres │ │Supabase │ │Chains    │ │External APIs    │         │
 │  │(DB)     │ │(Auth)   │ │(RPC)     │ │(BRLA/Avenia,    │         │
 │  └─────────┘ └─────────┘ │Pendulum  │ │ Mykobo,         │         │
-│                           │Moonbeam  │ │ Alfredpay,      │         │
+│                           │Moonbeam* │ │ Alfredpay,      │         │
 │                           │AssetHub  │ │ Squid)          │         │
 │                           │Hydration │ └─────────────────┘         │
 │                           │Polygon   │                              │
@@ -45,6 +45,9 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 │                           └──────────┘                              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+`*` Moonbeam is represented only as a retired compatibility boundary: runtime registration, start, phase execution,
+status polling, and automatic cleanup do not connect to it.
 
 **Base** is the hub for all BRL on/off-ramp flows: BRLA mint/burn via Avenia, Nabla swap on EVM, and sequential-transfer fee distribution. BRL flows do not touch Pendulum or Moonbeam.
 
