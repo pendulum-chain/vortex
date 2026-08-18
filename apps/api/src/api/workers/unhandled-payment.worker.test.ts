@@ -65,7 +65,7 @@ describe("UnhandledPaymentWorker paid initial recovery", () => {
     expect(worker.slackNotifier.sendMessage).toHaveBeenCalledTimes(1);
   });
 
-  it("does not poll Avenia or auto-recover a Moonbeam-dependent payment", async () => {
+  it("does not poll, recover, or alert on a Moonbeam-dependent payment", async () => {
     const recover = mock(async () => ({} as never));
     const state = {
       ...paidInitialState(),
@@ -83,6 +83,7 @@ describe("UnhandledPaymentWorker paid initial recovery", () => {
 
     expect(worker.brlaApiService.getAveniaPayinTickets).not.toHaveBeenCalled();
     expect(recover).not.toHaveBeenCalled();
+    expect(worker.slackNotifier.sendMessage).not.toHaveBeenCalled();
     expect(worker.processedStateIds.has("ramp-1")).toBe(true);
   });
 });
