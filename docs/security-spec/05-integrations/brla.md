@@ -81,7 +81,10 @@ individual Avenia KYC case. The code path is enabled under accepted [RISK-021](.
 but production rollout requires the proposal's [blocking confirmations and sandbox contract
 flow](../../proposal-sumsub-kyc-token-sharing.md#blocking-confirmations). Those provider, legal,
 consent, and live-sandbox confirmations remain unresolved; source review and tests do not prove
-that any confirmation or live verification exists.
+that any confirmation or live verification exists. The caller must place the same CPF used for the
+canonical Vortex customer in the source Sumsub applicant's TIN field before generating the token.
+Under RISK-021, caller correctness is relied on when Avenia omits `accountInfo.taxId`; a non-empty
+provider value is still compared and a mismatch is rejected.
 
 The route accepts only a profile-bound secret key or Supabase session. A direct profile acts for
 itself. A controlling manager may select one directly managed child, but direct child credentials

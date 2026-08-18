@@ -616,6 +616,46 @@ describe("fetchSubaccountKycStatus", () => {
     expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }), expect.anything());
   });
 
+  it("does not return approval when persisting a confirmed account fails", async () => {
+    mockEntityPerProfile();
+    const customer = {
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      update: mock(async () => {
+        throw new Error("database unavailable");
+      })
+    };
+    ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+    ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
+    KycCase.findAll = mock(async () => [
+      {
+        id: "case-1",
+        providerCaseId: null,
+        status: VerificationStatus.InReview,
+        verificationMethod: "standard"
+      } as KycCase
+    ]) as unknown as typeof KycCase.findAll;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [] })),
+          subaccountInfo: mock(async () => ({ accountInfo: { identityStatus: "CONFIRMED" } }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    expect(res.body).toEqual({ details: "database unavailable", error: "Server error" });
+    expect(res.json).toHaveBeenCalledTimes(1);
+  });
+
   it("requires reconciliation instead of using attempt history for an unbound active standard submission", async () => {
     mockEntityPerProfile();
     const customer = {
@@ -1176,6 +1216,42 @@ describe("Avenia company KYB", () => {
     await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(initiateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects re-initiation when Avenia already approved the company", async () => {
+    mockEntityPerProfile();
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Pending,
+      statusExternal: KycAttemptStatus.PENDING
+    })) as unknown as typeof ProviderCustomer.findOne;
+    const initiateMock = mock(async () => ({ attemptId: "attempt-2" }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({
+            attempts: [
+              {
+                id: "attempt-1",
+                levelName: "kyb-level-1",
+                result: KycAttemptResult.APPROVED,
+                status: KycAttemptStatus.COMPLETED
+              }
+            ]
+          })),
+          initiateKybLevel1: initiateMock
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(res.body).toEqual({ error: "This company is already approved" });
     expect(initiateMock).not.toHaveBeenCalled();
   });
 

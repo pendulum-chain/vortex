@@ -6,6 +6,7 @@ import {
   BRLA_PRIVATE_KEY,
   BrlaApiError,
   BrlaApiService,
+  KycAttemptResult,
   KycAttemptStatus
 } from "@vortexfi/shared";
 import crypto from "crypto";
@@ -216,6 +217,15 @@ export async function assertAveniaHostedKybCanInitiate(
     throw new APIError({ message: "This company is already approved", status: httpStatus.CONFLICT });
   }
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
+  const hasApprovedKybAttempt = attempts.some(
+    attempt =>
+      attempt.levelName === "kyb-level-1" &&
+      attempt.status === KycAttemptStatus.COMPLETED &&
+      attempt.result === KycAttemptResult.APPROVED
+  );
+  if (hasApprovedKybAttempt) {
+    throw new APIError({ message: "This company is already approved", status: httpStatus.CONFLICT });
+  }
   const hasProcessingKybAttempt = attempts.some(
     attempt => attempt.levelName === "kyb-level-1" && attempt.status === KycAttemptStatus.PROCESSING
   );

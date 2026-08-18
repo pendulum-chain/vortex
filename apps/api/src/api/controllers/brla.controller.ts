@@ -630,17 +630,16 @@ export const fetchSubaccountKycStatus = async (
       const accountInfo = await brlaApiService.subaccountInfo(subAccountId);
       if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
         if (kycCase.verificationMethod === "sumsub_share_token") assertAveniaImportedTaxIdentity(record, accountInfo);
+        // Also try updating in case we missed the attempt
+        await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, accountInfo.accountInfo.identityStatus, {
+          id: kycCase.id,
+          providerCaseId: kycCase.providerCaseId
+        });
         res.status(httpStatus.OK).json({
           level: "KYC_1",
           result: KycAttemptResult.APPROVED,
           status: KycAttemptStatus.COMPLETED,
           type: "KYC"
-        });
-
-        // Also try updating in case we missed the attempt
-        await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, accountInfo.accountInfo.identityStatus, {
-          id: kycCase.id,
-          providerCaseId: kycCase.providerCaseId
         });
         return;
       }

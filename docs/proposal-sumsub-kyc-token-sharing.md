@@ -105,7 +105,8 @@ POST https://api.sumsub.com/resources/accessTokens/shareToken
 The source applicant must be an active approved individual with Sumsub `GREEN` review. Sumsub
 documents share tokens as recipient-bound, short-lived, opaque, invalidated after use, and up to
 1 KiB. The caller sends the resulting token to Vortex; Vortex does not participate in token
-generation.
+generation. For a Brazilian applicant, the caller must populate that applicant's CPF in Sumsub's
+TIN field before generating the token; the share-token request has no separate CPF field.
 
 Avenia does not publish the required recipient `forClientId`. Avenia must provide the sandbox
 and production values during feature enablement, and Vortex must publish the applicable value to
@@ -192,8 +193,10 @@ from the document number. For other countries Avenia resolves tax identity from 
 `number`, then document `additionalNumber`. Avenia may also import email and address fields.
 
 The CPF imported by Avenia must agree with the canonical CPF under which Vortex created the
-provider customer. Avenia's duplicate-tax-ID and compliance checks remain authoritative; Vortex
-must fail closed if a later provider response exposes an identity mismatch.
+provider customer. Supplying the correct CPF in Sumsub is the caller's responsibility under
+RISK-021. Avenia's duplicate-tax-ID and compliance checks remain authoritative; Vortex rejects a
+later provider response that exposes an identity mismatch, but currently accepts provider approval
+when Avenia omits the tax ID needed for that comparison.
 
 ### Provider errors
 
