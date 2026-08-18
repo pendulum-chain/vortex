@@ -111,6 +111,27 @@ describe("EVM destination gas policy", () => {
     ).rejects.toThrow("Recovered signer");
   });
 
+  it("derives a zero gas budget for a zero-fee payout admitted by validation", async () => {
+    const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
+    const rawTransaction = await account.signTransaction({
+      chainId: 137,
+      gas: 100_000n,
+      maxFeePerGas: 0n,
+      maxPriorityFeePerGas: 0n,
+      nonce: 0,
+      to: "0x0000000000000000000000000000000000000001",
+      type: "eip1559",
+      value: 0n
+    });
+
+    expect(
+      await calculateBoundedPresignedGasBudgetRaw(
+        destinationTransfer(rawTransaction, account.address, Networks.Polygon),
+        destinationTransfer(transaction("0", "0"), account.address, Networks.Polygon)
+      )
+    ).toBe(0n);
+  });
+
   it("adds the persisted Base L1 payout envelope to the presigned liability", async () => {
     const { fakeEvm, restore } = installFakeEvm();
     try {
