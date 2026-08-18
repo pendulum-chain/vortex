@@ -22,11 +22,14 @@ import {
 
 /** Everything the transactions table needs, captured at submit time. */
 export type TransferMeta = Omit<Transaction, "id" | "createdAt" | "payinWallet" | "status"> & {
+  /** Effective profile that submitted the transfer. Immutable for the transfer lifetime. */
+  ownerProfileId: string;
   /** Human summary for toasts/notifications, e.g. "1000.00 MXN to maria@…". */
   summary: string;
 };
 
 export interface TransferContext {
+  activeOwnerProfileId: string | null;
   quote: QuoteResponse | null;
   quoteRequest: TransferQuoteRequest | null;
   additionalData: RegisterTransferInput["additionalData"] | null;
@@ -40,6 +43,7 @@ export interface TransferContext {
 export type TransferEvent =
   | {
       type: "START";
+      ownerProfileId: string;
       quote: QuoteResponse;
       quoteRequest: TransferQuoteRequest;
       additionalData: RegisterTransferInput["additionalData"];
@@ -47,7 +51,8 @@ export type TransferEvent =
     }
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
-  | { type: "PAYMENT_CONFIRMED" }
+  | { type: "PAYMENT_CONFIRMED"; ownerProfileId: string }
+  | { type: "ACTIVATE_OWNER"; ownerProfileId: string; recovery: TransferContext | null }
   | { type: "RESET" };
 
 export type TransferEmitted =
@@ -56,6 +61,7 @@ export type TransferEmitted =
   | { type: "TRANSFER_FAILED"; message: string };
 
 const initialContext: TransferContext = {
+  activeOwnerProfileId: null,
   additionalData: null,
   errorMessage: null,
   lastStatus: null,
@@ -116,7 +122,13 @@ export const transferMachine = setup({
     )
   },
   guards: {
-    isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY
+    isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY,
+    isOwnerEvent: ({ context, event }) =>
+      "ownerProfileId" in event &&
+      event.ownerProfileId === context.activeOwnerProfileId &&
+      (event.type !== "START" || event.meta.ownerProfileId === event.ownerProfileId) &&
+      (!context.meta || context.meta.ownerProfileId === event.ownerProfileId),
+    isRecoveryActivation: ({ event }) => event.type === "ACTIVATE_OWNER" && event.recovery !== null
   },
   types: {
     context: {} as TransferContext,
@@ -128,12 +140,30 @@ export const transferMachine = setup({
   id: "transfer",
   initial: "Idle",
   on: {
-    RESET: { actions: assign(() => initialContext), target: ".Idle" }
+    ACTIVATE_OWNER: [
+      {
+        actions: assign(({ event }) => ({ ...event.recovery, activeOwnerProfileId: event.ownerProfileId })),
+        guard: "isRecoveryActivation",
+        target: ".AwaitingPayment"
+      },
+      {
+        actions: assign(({ event }) => ({ ...initialContext, activeOwnerProfileId: event.ownerProfileId })),
+        target: ".Idle"
+      }
+    ],
+    RESET: {
+      actions: assign(({ context }) => ({ ...initialContext, activeOwnerProfileId: context.activeOwnerProfileId })),
+      target: ".Idle"
+    }
   },
   states: {
     AwaitingPayment: {
       on: {
-        PAYMENT_CONFIRMED: { actions: assign(() => ({ errorMessage: null })), target: "Starting" }
+        PAYMENT_CONFIRMED: {
+          actions: assign(() => ({ errorMessage: null })),
+          guard: "isOwnerEvent",
+          target: "Starting"
+        }
       }
     },
     CheckingBalance: {
@@ -153,7 +183,8 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "checkTransferBalance"
-      }
+      },
+      on: { ACTIVATE_OWNER: {} }
     },
     CheckingQuote: {
       invoke: {
@@ -178,34 +209,37 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "refreshTransferQuote"
-      }
+      },
+      on: { ACTIVATE_OWNER: {} }
     },
     Done: {
       on: {
-        RESET: { actions: assign(() => initialContext), target: "Idle" },
         START: {
           actions: assign(({ event }) => ({
             ...initialContext,
+            activeOwnerProfileId: event.ownerProfileId,
             additionalData: event.additionalData,
             meta: event.meta,
             quote: event.quote,
             quoteRequest: event.quoteRequest
           })),
+          guard: "isOwnerEvent",
           target: "CheckingQuote"
         }
       }
     },
     Failed: {
       on: {
-        RESET: { actions: assign(() => initialContext), target: "Idle" },
         START: {
           actions: assign(({ event }) => ({
             ...initialContext,
+            activeOwnerProfileId: event.ownerProfileId,
             additionalData: event.additionalData,
             meta: event.meta,
             quote: event.quote,
             quoteRequest: event.quoteRequest
           })),
+          guard: "isOwnerEvent",
           target: "CheckingQuote"
         }
       }
@@ -215,11 +249,13 @@ export const transferMachine = setup({
         START: {
           actions: assign(({ event }) => ({
             ...initialContext,
+            activeOwnerProfileId: event.ownerProfileId,
             additionalData: event.additionalData,
             meta: event.meta,
             quote: event.quote,
             quoteRequest: event.quoteRequest
           })),
+          guard: "isOwnerEvent",
           target: "CheckingQuote"
         }
       }
@@ -251,7 +287,8 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "registerTransfer"
-      }
+      },
+      on: { ACTIVATE_OWNER: {} }
     },
     SigningUserTxs: {
       invoke: {
@@ -273,7 +310,8 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "signUserTransactions"
-      }
+      },
+      on: { ACTIVATE_OWNER: {} }
     },
     Starting: {
       invoke: {

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
 import { getRequestDurationMs } from "../observability/requestContext";
 import type { ApiClientOperation } from "../observability/types";
@@ -82,6 +82,7 @@ function observeMaintenanceDenial(
     errorType: classifyApiClientError(error, httpStatus.SERVICE_UNAVAILABLE),
     httpStatus: httpStatus.SERVICE_UNAVAILABLE,
     metadata: {
+      ...buildApiClientRequestMetadata(req),
       maintenance_end: maintenanceDetails.end_datetime,
       maintenance_start: maintenanceDetails.start_datetime,
       maintenance_title: maintenanceDetails.title

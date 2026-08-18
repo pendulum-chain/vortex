@@ -745,7 +745,7 @@ export interface paths {
         };
         /**
          * List managed profiles
-         * @description Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
+         * @description Lists children owned by the authenticated active manager, newest first, together with the manager's current corridor and customer-type policy. Policy is manager-scoped and applies to all children; it is not a per-child grant. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
          *
          *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
          */
@@ -2418,6 +2418,7 @@ export interface components {
             credentials: components["schemas"]["ApiCredential"][];
         };
         ListManagedProfilesResponse: {
+            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             managedProfiles: components["schemas"]["ManagedProfile"][];
             pagination: components["schemas"]["ManagedProfilePagination"];
         };
@@ -2451,6 +2452,13 @@ export interface components {
                 message: string;
                 status: number;
             };
+        };
+        /** @description The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child. */
+        ManagedProfileManagerPolicy: {
+            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
+            allowedCustomerTypes: ("individual" | "business")[] | null;
+            /** Format: uuid */
+            profileId: string;
         };
         ManagedProfilePagination: {
             limit: number;
@@ -4958,7 +4966,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of owned managed profiles and offset pagination metadata. */
+            /** @description The authenticated manager's current policy, a page of owned managed profiles, and offset pagination metadata. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -43,6 +43,7 @@ documents win.
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
 | API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
+| Admin Impersonation | `01-auth/admin-impersonation.md` | `vortex_admin` acting as a customer profile via `/v1/admin-console/*`: session lifecycle, principal substitution, revocation, audit trail |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
 | Server-Side Signing | `02-signing-keys/server-side-signing.md` | Funding keys, executor keys, webhook signing |
 | State Machine | `03-ramp-engine/state-machine.md` | Phase transitions, locking, idempotency, recovery |

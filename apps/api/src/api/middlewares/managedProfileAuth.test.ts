@@ -227,7 +227,7 @@ describe("authorizeManagedProfile", () => {
     expect(unsupported.statusCode).toBe(403);
   });
 
-  it("does not apply customer-type narrowing to policy-free reads", async () => {
+  it("applies current customer-type narrowing to every delegated decision", async () => {
     allowManagedProfile();
     ManagedProfileManager.findByPk = mock(async () => ({
       allowedCorridors: ["BR"],
@@ -238,7 +238,7 @@ describe("authorizeManagedProfile", () => {
 
     await authorizeManagedProfile()(request() as never, response() as never, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
+    expect(next).not.toHaveBeenCalled();
   });
 
   it("requires the route customer type to match the immutable child entity type", async () => {

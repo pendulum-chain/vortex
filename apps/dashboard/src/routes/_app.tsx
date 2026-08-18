@@ -1,13 +1,17 @@
 import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
+import { ManagedProfileBanner } from "@/components/layout/ManagedProfileBanner";
 import { Topbar } from "@/components/layout/Topbar";
+import { isChildModePathForbidden } from "@/components/managed-profiles/managed-profile-ui";
 import { AccountTypeSelector } from "@/components/onboarding/AccountTypeSelector";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { useAuthStore } from "@/stores/auth.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout
@@ -15,11 +19,16 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const user = useAuthStore(state => state.user);
+  const managedProfile = useManagedProfileSelection();
   const pathname = useRouterState({ select: state => state.location.pathname });
   const { data: onboardingStatus, isError, isLoading, refetch } = useOnboardingStatusQuery(!!user);
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate replace to="/login" />;
+  }
+
+  if (managedProfile && isChildModePathForbidden(pathname)) {
+    return <Navigate replace to="/overview" />;
   }
 
   const requiresAccount = ["/overview", "/recipients", "/transfer", "/transactions"].includes(pathname);
@@ -49,7 +58,11 @@ function AppLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <Topbar />
+        <div className="sticky top-0 z-30">
+          <ImpersonationBanner />
+          <ManagedProfileBanner />
+          <Topbar />
+        </div>
         {/* Re-key on pathname so each navigation cross-fades the page content in. */}
         <motion.div
           animate={{ opacity: 1 }}

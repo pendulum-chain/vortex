@@ -12,6 +12,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiClient } from "@/services/api/api-client";
 import { AuthService } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 const searchSchema = z.object({
   code: z.string().optional(),
@@ -41,8 +42,17 @@ function callbackFrom(search: z.infer<typeof searchSchema>): MoneriumOAuthCallba
 }
 
 function MoneriumCallbackPage() {
-  const restoreSession = useAuthStore(state => state.restoreSession);
+  const managedProfile = useManagedProfileSelection();
   const user = useAuthStore(state => state.user);
+
+  if (managedProfile) return <Navigate replace to="/overview" />;
+  if (!user && !AuthService.getTokens()) return <Navigate replace to="/login" />;
+
+  return <MoneriumCallback />;
+}
+
+function MoneriumCallback() {
+  const restoreSession = useAuthStore(state => state.restoreSession);
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [state] = useMachine(moneriumCallbackMachine, {
@@ -61,8 +71,6 @@ function MoneriumCallbackPage() {
       navigate({ replace: true, search: { onboarding: "EU" }, to: "/overview" });
     }
   }, [navigate, restoreSession, value]);
-
-  if (!user && !AuthService.getTokens()) return <Navigate to="/login" />;
 
   const goToDashboard = () => navigate({ to: "/overview" });
   const isLoading = value === "Routing" || value === "CompletingAuthorization" || DASHBOARD_STATES.has(value);

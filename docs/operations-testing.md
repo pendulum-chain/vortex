@@ -206,6 +206,14 @@ different set of endpoints than the widget. Covered so far:
   approved AlfredPay corridor creates a self payout account and updates the card/recipient state;
   disconnected wallet actions open AppKit's `Connect` view, while the connected address opens its
   `Account` view. The connected-wallet-only funding gate remains pinned.
+- **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, manager child
+  selection, persisted acting mode, route-scoped managed-profile headers, hidden manager-only
+  navigation, stopping child mode, and long-identifier mobile layout.
+
+Managed-child selection has unit coverage for persisted manager-bound selection, cross-tab changes,
+route-scoped header attachment and authorization failure handling, transfer identity guards, and
+owner-keyed payment recovery. API integration coverage exercises delegated recipient operations and
+policy revalidation.
 
 Notes:
 
@@ -227,7 +235,8 @@ Notes:
 - **Not covered**: the Avenia KYC liveness step, which redirects to an external Avenia-hosted page
   and cannot complete hermetically (the same limitation as the widget's BRL onramp); the
   permit/TokenRelayer cross-chain SELL variant, which needs relayer-contract execution the mock
-  does not model; and the overview/recipients/transactions tables.
+  does not model; the managed-profile transfer-signing switch guard at the browser level (covered
+  by transfer/store unit tests); and the overview/recipients/transactions tables.
 
 ### EUR re-enablement precondition
 

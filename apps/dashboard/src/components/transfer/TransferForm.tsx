@@ -120,6 +120,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
     snapshot => snapshot.matches("Idle") || snapshot.matches("Done") || snapshot.matches("Failed")
   );
   const signing = useSelector(transferActor, snapshot => snapshot.matches("SigningUserTxs"));
+  const activeOwnerProfileId = useSelector(transferActor, snapshot => snapshot.context.activeOwnerProfileId);
 
   const quoteParams =
     selected && isSendable && amountReady && token
@@ -134,7 +135,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
   const { data: quote, isFetching, error } = useQuote(quoteParams);
 
   function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isSendable || !quote || !quoteParams || !canStartTransfer || !pixReady) {
+    if (!selected || !isSendable || !quote || !quoteParams || !activeOwnerProfileId || !canStartTransfer || !pixReady) {
       return;
     }
     const label = recipientLabel(selected);
@@ -143,6 +144,10 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
     // One-shot outcome watcher: navigate when tracking begins, surface the error
     // when any stage fails. The actor keeps polling after this form unmounts.
     const subscription = transferActor.subscribe(snapshot => {
+      if (snapshot.context.activeOwnerProfileId !== activeOwnerProfileId) {
+        subscription.unsubscribe();
+        return;
+      }
       if (snapshot.matches("Tracking")) {
         subscription.unsubscribe();
         const currentMeta = snapshot.context.meta;
@@ -166,12 +171,14 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
         corridorId: selected.corridorId,
         direction: quote.rampType,
         fiatPayoutAmount: quote.outputAmount,
+        ownerProfileId: activeOwnerProfileId,
         payinNetwork: String(quote.network),
         payoutCurrency: selected.payoutCurrency,
         recipientEmail: label,
         recipientId: selected.id,
         summary
       },
+      ownerProfileId: activeOwnerProfileId,
       quote,
       quoteRequest: { kind: "input", params: quoteParams },
       type: "START"

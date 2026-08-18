@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import express from "express";
+import { config } from "../../../config/vars";
+import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
 import ProfileRole from "../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import profileRolesRoutes from "../../routes/v1/admin/profile-roles.route";
+import { createSession, resolveSession } from "../../services/impersonation.service";
 
 const BASE_PATH = "/v1/admin/profile-roles";
 const ADMIN_HEADERS = { Authorization: "Bearer test-admin-secret", "Content-Type": "application/json" };
@@ -68,6 +71,55 @@ describe("profile roles admin routes", () => {
 
     const revokedAgain = await fetch(`${baseUrl}/${user.id}/discount_manager`, { headers: ADMIN_HEADERS, method: "DELETE" });
     expect(revokedAgain.status).toBe(404);
+  });
+
+  it("rejects granting vortex_admin via HTTP but still allows discount_manager", async () => {
+    const user = await createTestUser();
+
+    const blocked = await post({ role: "vortex_admin", userId: user.id });
+    expect(blocked.status).toBe(403);
+    const body = (await blocked.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("ROLE_NOT_HTTP_GRANTABLE");
+    expect(await ProfileRole.count({ where: { role: "vortex_admin", userId: user.id } })).toBe(0);
+
+    const allowed = await post({ role: "discount_manager", userId: user.id });
+    expect(allowed.status).toBe(201);
+  });
+
+  it("still allows revoking vortex_admin even though it cannot be granted via HTTP", async () => {
+    const user = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: user.id });
+
+    const revoked = await fetch(`${baseUrl}/${user.id}/vortex_admin`, { headers: ADMIN_HEADERS, method: "DELETE" });
+    expect(revoked.status).toBe(204);
+    expect(await ProfileRole.count({ where: { userId: user.id } })).toBe(0);
+  });
+
+  it("revokes every live impersonation session when vortex_admin is removed", async () => {
+    const originalImpersonationEnabled = config.impersonationEnabled;
+    config.impersonationEnabled = true;
+    try {
+      const admin = await createTestUser();
+      const firstTarget = await createTestUser();
+      const secondTarget = await createTestUser();
+      await ProfileRole.create({ role: "vortex_admin", userId: admin.id });
+      const first = await createSession({ actorProfileId: admin.id, targetProfileId: firstTarget.id });
+      const second = await createSession({ actorProfileId: admin.id, targetProfileId: secondTarget.id });
+
+      const response = await fetch(`${baseUrl}/${admin.id}/vortex_admin`, {
+        headers: ADMIN_HEADERS,
+        method: "DELETE"
+      });
+
+      expect(response.status).toBe(204);
+      const sessions = await AdminImpersonationSession.findAll({ where: { actorProfileId: admin.id } });
+      expect(sessions.every(session => session.revokedAt !== null)).toBe(true);
+      expect(sessions.every(session => session.revokedReason === "vortex_admin_role_revoked")).toBe(true);
+      expect(await resolveSession(first.token)).toBeNull();
+      expect(await resolveSession(second.token)).toBeNull();
+    } finally {
+      config.impersonationEnabled = originalImpersonationEnabled;
+    }
   });
 
   it("addresses the profile by email as well as by id", async () => {
