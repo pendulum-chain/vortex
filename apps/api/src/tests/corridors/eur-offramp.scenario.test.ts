@@ -16,6 +16,7 @@ import {
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
@@ -353,7 +354,10 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
    */
   function scriptHappyWorld(setup: CorridorSetup, options: { usdcShortfallRaw?: bigint } = {}): void {
     const shortfall = options.usdcShortfallRaw ?? 0n;
+    const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw - shortfall);
     world.mykobo.setTransactionStatus(setup.mykoboTransactionId, MykoboTransactionStatus.COMPLETED);
     world.evm.onTransaction = tx => {

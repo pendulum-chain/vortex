@@ -30,10 +30,10 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import { abortableCall } from "../../core/cancellation";
 import { LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { calculateQuotedPresignedExecutionBudgetRaw } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { getBlockMetadata, getFlowMetadata } from "../../core/metadata";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
@@ -267,24 +267,23 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       logger.info(
         `FinalSettlementSubsidyExecutor: Actual balance ${actualBalance.toString()} meets required balance ${requiredBalanceRaw.toString()}. No subsidy needed.`
       );
-      return state;
-    }
+    } else {
+      const subsidyAmountDecimal = subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals));
+      const subsidyAmountUsd = await priceFeedService.convertCurrency(
+        subsidyAmountDecimal.toFixed(),
+        outTokenDetails.assetSymbol as RampCurrency,
+        "USD" as RampCurrency
+      );
+      if (new Big(subsidyAmountUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
+        throw this.createUnrecoverableError(
+          `FinalSettlementSubsidyExecutor: Required subsidy $${subsidyAmountUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+        );
+      }
 
-    const subsidyAmountDecimal = subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals));
-    const subsidyAmountUsd = await priceFeedService.convertCurrency(
-      subsidyAmountDecimal.toFixed(),
-      outTokenDetails.assetSymbol as RampCurrency,
-      "USD" as RampCurrency
-    );
-    if (new Big(subsidyAmountUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
-      throw this.createUnrecoverableError(
-        `FinalSettlementSubsidyExecutor: Required subsidy $${subsidyAmountUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+      logger.info(
+        `FinalSettlementSubsidyExecutor: Subsidizing ${subsidyAmountRaw.toString()} raw units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
       );
     }
-
-    logger.info(
-      `FinalSettlementSubsidyExecutor: Subsidizing ${subsidyAmountRaw.toString()} raw units of ${isNative ? "native token" : outTokenDetails.assetSymbol} to ${ephemeralAddress}`
-    );
 
     // 4. Top up funding account if insufficient balance (ERC-20 only; native tokens transfer directly)
     if (!isNative && actualBalanceFundingAccount.lt(subsidyAmountRaw)) {
@@ -370,37 +369,41 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         );
       }
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
-      const { hash: txHashIdx } = await this.runFinancialOperation(state, {
-        attemptClass: "funding-swap",
-        externalId: operation => operation.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            data: swapRoute.transactionRequest.data as `0x${string}`,
-            gas: BigInt(swapRoute.transactionRequest.gasLimit),
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            nonce,
-            to: swapRoute.transactionRequest.target as `0x${string}`,
-            value: BigInt(swapRoute.transactionRequest.value)
+      const { hash: txHashIdx } = await runSerializedEvmFundingOperation(
+        destinationNetwork,
+        async () => {
+          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+          const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+          return this.runFinancialOperation(state, {
+            attemptClass: "funding-swap",
+            externalId: operation => operation.hash,
+            perform: async () => {
+              const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+                data: swapRoute.transactionRequest.data as `0x${string}`,
+                gas: BigInt(swapRoute.transactionRequest.gasLimit),
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                nonce,
+                to: swapRoute.transactionRequest.target as `0x${string}`,
+                value: BigInt(swapRoute.transactionRequest.value)
+              });
+              const receipt = await publicClient.waitForTransactionReceipt({ hash });
+              if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
+              return { hash };
+            },
+            provider: destinationNetwork,
+            request: {
+              amountRaw: requiredNativeRaw,
+              destination: fundingAccount.address,
+              network: destinationNetwork,
+              token: outTokenDetails.erc20AddressSourceChain
+            },
+            settleAfterAbort: true,
+            signal
           });
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
-          return { hash };
-        },
-        provider: destinationNetwork,
-        request: {
-          amountRaw: requiredNativeRaw,
-          destination: fundingAccount.address,
-          network: destinationNetwork,
-          nonce,
-          routeTarget: swapRoute.transactionRequest.target,
-          token: outTokenDetails.erc20AddressSourceChain
         },
         signal
-      });
+      );
 
       logger.info(`FinalSettlementSubsidyExecutor: Swap transaction ${txHashIdx} confirmed. Waiting for balance update...`);
 
@@ -417,58 +420,146 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
     // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
     try {
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
-      const data = isNative
-        ? undefined
-        : encodeFunctionData({
-            abi: erc20Abi,
-            args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
-            functionName: "transfer"
+      let transferAmountRaw = new Big(0);
+      let data: `0x${string}` | undefined;
+      let maxFeePerGas: bigint | undefined;
+      let maxPriorityFeePerGas: bigint | undefined;
+      const operation = await runSerializedEvmFundingOperation(
+        destinationNetwork,
+        async () => {
+          return this.runFinancialOperation(state, {
+            attemptClass: "settlement-subsidy-transfer",
+            beforePerform: async () => {
+              const refreshedBalance = await getEvmBalance({
+                chain: destinationNetwork,
+                ownerAddress: ephemeralAddress,
+                tokenDetails: outTokenDetails
+              });
+              const maximumTransferAmountRaw = calculateSettlementSubsidyRaw(
+                expectedAmountRaw,
+                refreshedBalance,
+                baseline,
+                destinationGasReserveRaw
+              );
+              if (maximumTransferAmountRaw.lte(0)) {
+                transferAmountRaw = new Big(0);
+                logger.info(
+                  `FinalSettlementSubsidyExecutor: Refreshed balance ${refreshedBalance.toString()} meets required balance ${requiredBalanceRaw.toString()}. No subsidy needed.`
+                );
+                return;
+              }
+
+              const transferAmountDecimal = maximumTransferAmountRaw.div(new Big(10).pow(outTokenDetails.decimals));
+              const transferAmountUsd = await priceFeedService.convertCurrency(
+                transferAmountDecimal.toFixed(),
+                outTokenDetails.assetSymbol as RampCurrency,
+                "USD" as RampCurrency
+              );
+              if (new Big(transferAmountUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
+                throw this.createUnrecoverableError(
+                  `FinalSettlementSubsidyExecutor: Required subsidy $${transferAmountUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+                );
+              }
+
+              const refreshedFundingBalance = await getEvmBalance({
+                chain: destinationNetwork,
+                ownerAddress: fundingAccount.address,
+                tokenDetails: outTokenDetails
+              });
+              if (refreshedFundingBalance.lt(maximumTransferAmountRaw)) {
+                logger.error("EVM_FUNDING_TOKEN_BALANCE_LOW", {
+                  availableRaw: refreshedFundingBalance.toFixed(),
+                  network: destinationNetwork,
+                  phase: this.getPhaseName(),
+                  rampId: state.id,
+                  requiredRaw: maximumTransferAmountRaw.toFixed(),
+                  token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
+                });
+                throw this.createRecoverableError(
+                  `FinalSettlementSubsidyExecutor: Funding wallet balance ${refreshedFundingBalance.toFixed()} is below required subsidy ${maximumTransferAmountRaw.toFixed()}.`
+                );
+              }
+
+              const fees = await publicClient.estimateFeesPerGas();
+              maxFeePerGas = fees.maxFeePerGas;
+              maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+              const finalDestinationBalance = await getEvmBalance({
+                chain: destinationNetwork,
+                ownerAddress: ephemeralAddress,
+                tokenDetails: outTokenDetails
+              });
+              transferAmountRaw = calculateSettlementSubsidyRaw(
+                expectedAmountRaw,
+                finalDestinationBalance,
+                baseline,
+                destinationGasReserveRaw
+              );
+              if (transferAmountRaw.gt(maximumTransferAmountRaw)) {
+                throw this.createRecoverableError(
+                  "FinalSettlementSubsidyExecutor: Destination balance decreased during preflight; retrying subsidy calculation."
+                );
+              }
+              if (transferAmountRaw.lte(0)) return;
+
+              data = isNative
+                ? undefined
+                : encodeFunctionData({
+                    abi: erc20Abi,
+                    args: [ephemeralAddress, BigInt(transferAmountRaw.toFixed(0))],
+                    functionName: "transfer"
+                  });
+            },
+            externalId: result => result.hash ?? undefined,
+            perform: async () => {
+              if (transferAmountRaw.lte(0)) return { amountRaw: "0", hash: null };
+              const nonce = await publicClient.getTransactionCount({
+                address: fundingAccount.address,
+                blockTag: "pending"
+              });
+              const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+                data,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                nonce,
+                to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
+                value: isNative ? BigInt(transferAmountRaw.toFixed(0)) : 0n
+              });
+              const receipt = await publicClient.waitForTransactionReceipt({ hash });
+              if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
+              return { amountRaw: transferAmountRaw.toFixed(0), hash };
+            },
+            provider: destinationNetwork,
+            request: {
+              destination: ephemeralAddress,
+              network: destinationNetwork,
+              source: fundingAccount.address,
+              targetBalanceRaw: requiredBalanceRaw.toFixed(0),
+              token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
+            },
+            settleAfterAbort: true,
+            signal
           });
-      const { hash: txHash } = await this.runFinancialOperation(state, {
-        attemptClass: "settlement-subsidy-transfer",
-        externalId: operation => operation.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            data,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            nonce,
-            to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
-            value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
-          });
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
-          return { hash };
-        },
-        provider: destinationNetwork,
-        request: {
-          amountRaw: subsidyAmountRaw.toFixed(0),
-          destination: ephemeralAddress,
-          network: destinationNetwork,
-          nonce,
-          source: fundingAccount.address,
-          token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
         },
         signal
-      });
-
-      await this.createSubsidy(
-        state,
-        subsidyAmountDecimal.toNumber(),
-        outTokenDetails.assetSymbol as SubsidyToken,
-        fundingAccount.address,
-        txHash
       );
 
-      await state.update({
-        state: {
-          ...state.state,
-          finalSettlementSubsidyTxHash: txHash
-        }
-      });
+      if (operation.hash) {
+        const transferredAmountDecimal = new Big(operation.amountRaw).div(new Big(10).pow(outTokenDetails.decimals));
+        await this.createSubsidy(
+          state,
+          transferredAmountDecimal.toNumber(),
+          outTokenDetails.assetSymbol as SubsidyToken,
+          fundingAccount.address,
+          operation.hash
+        );
+
+        await state.update({
+          state: {
+            ...state.state,
+            finalSettlementSubsidyTxHash: operation.hash
+          }
+        });
+      }
 
       return state;
     } catch (error) {

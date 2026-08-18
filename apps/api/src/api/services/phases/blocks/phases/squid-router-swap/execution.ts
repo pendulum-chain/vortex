@@ -40,7 +40,7 @@ import { SquidRouterDeliveryEvidence, StateMetadata } from "../../../../phases/m
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { SlackNotifier } from "../../../../slack.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { settlementBalanceKey } from "../../core/settlement";
@@ -894,35 +894,39 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         functionName: "addNativeGas"
       });
 
-      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
-      const { hash: gasPaymentHash } = await this.runFinancialOperation(state, {
-        attemptClass,
-        externalId: operation => operation.hash,
-        perform: async () => {
-          throwIfAborted(signal);
-          const hash = await abortableCall(signal, () =>
-            walletClient.sendTransaction({
-              account: walletClientAccount,
-              chain: publicClient.chain,
-              data: transactionData,
-              maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
-              maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
-              nonce,
-              to: AXL_GAS_SERVICE_EVM as `0x${string}`,
-              value: BigInt(tokenValueRaw)
-            })
-          );
-          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
-          if (receipt.status !== "success") {
-            throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
-          }
-          return { hash };
+      const { hash: gasPaymentHash } = await runSerializedEvmFundingOperation(
+        fromChain,
+        async () => {
+          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+          const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
+          return this.runFinancialOperation(state, {
+            attemptClass,
+            externalId: operation => operation.hash,
+            perform: async () => {
+              const hash = await walletClient.sendTransaction({
+                account: walletClientAccount,
+                chain: publicClient.chain,
+                data: transactionData,
+                maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
+                maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
+                nonce,
+                to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+                value: BigInt(tokenValueRaw)
+              });
+              const receipt = await publicClient.waitForTransactionReceipt({ hash });
+              if (receipt.status !== "success") {
+                throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
+              }
+              return { hash };
+            },
+            provider: fromChain,
+            request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, swapHash },
+            settleAfterAbort: true,
+            signal
+          });
         },
-        provider: fromChain,
-        request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, nonce, swapHash },
         signal
-      });
+      );
 
       logger.info(`SquidRouterPayExecutor: ${fromChain} fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;
