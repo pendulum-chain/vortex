@@ -1126,7 +1126,21 @@ export const submitKybLevel1Api = async (
 
     const now = new Date();
     await sequelize.transaction(async transaction => {
-      await record.update(
+      const lockedRecord = await ProviderCustomer.findByPk(record.id, {
+        lock: transaction.LOCK.UPDATE,
+        transaction
+      });
+      const lockedCase = await KycCase.findByPk(kycCase.id, { lock: transaction.LOCK.UPDATE, transaction });
+      if (!lockedRecord || !lockedCase || lockedCase.providerCustomerId !== lockedRecord.id) {
+        throw new Error("KYB state disappeared during submission");
+      }
+      // Reconciliation already bound this response and may have advanced it to a newer state.
+      if (lockedCase.providerCaseId === response.id) return;
+      if (lockedCase.providerCaseId !== kycCase.providerCaseId) {
+        throw new APIError({ message: "The KYB attempt binding requires reconciliation", status: httpStatus.CONFLICT });
+      }
+
+      await lockedRecord.update(
         {
           lastFailureReasons: [],
           status: VerificationStatus.Pending,
@@ -1134,7 +1148,7 @@ export const submitKybLevel1Api = async (
         },
         { transaction }
       );
-      await kycCase.update(
+      await lockedCase.update(
         {
           approvedAt: null,
           failureReasons: [],
