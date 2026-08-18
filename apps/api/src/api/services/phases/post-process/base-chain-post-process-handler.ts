@@ -3,7 +3,7 @@ import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { getEvmFundingAccount } from "../blocks/core/evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../blocks/core/evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"];
@@ -87,14 +87,15 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       const fundingAccount = getEvmFundingAccount(Networks.Base);
       const walletClient = evmClientManager.getWalletClient(Networks.Base, fundingAccount);
 
-      const transferFromHash = await walletClient.writeContract({
-        abi: erc20Abi,
-        address: tokenAddress,
-        args: [ephemeralAddress, fundingAccount.address, balance],
-        functionName: "transferFrom"
+      const [transferFromHash, transferReceipt] = await runSerializedEvmFundingOperation(Networks.Base, async () => {
+        const hash = await walletClient.writeContract({
+          abi: erc20Abi,
+          address: tokenAddress,
+          args: [ephemeralAddress, fundingAccount.address, balance],
+          functionName: "transferFrom"
+        });
+        return [hash, await publicClient.waitForTransactionReceipt({ hash })] as const;
       });
-
-      const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferFromHash });
       if (!transferReceipt || transferReceipt.status !== "success") {
         return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`, phase)];
       }

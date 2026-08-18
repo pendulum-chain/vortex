@@ -66,9 +66,12 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   }
   const expectedRaw = multiplyByPowerOfTen(adjustedExpectedOutput, tokenDetails.decimals).toFixed(0, 0);
   const idealSubsidy = input.amount.gte(adjustedExpectedOutput) ? new Big(0) : adjustedExpectedOutput.minus(input.amount);
-  const subsidyAmount = new Big(partner?.targetDiscount ?? 0).gt(0)
+  const subsidyUnrounded = new Big(partner?.targetDiscount ?? 0).gt(0)
     ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0)
     : new Big(0);
+  // Floor the subsidy to token decimals before adding it, so the output decimal/raw pair stays
+  // floor-consistent and quote.outputAmount cannot exceed the funded raw by one unit.
+  const subsidyAmount = new Big(subsidyUnrounded.toFixed(tokenDetails.decimals, 0));
   const subsidyRaw = multiplyByPowerOfTen(subsidyAmount, tokenDetails.decimals).toFixed(0, 0);
   const newAmount = input.amount.plus(subsidyAmount);
   const newAmountRaw = new Big(input.amountRaw).plus(subsidyRaw).toFixed(0, 0);
@@ -129,7 +132,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
   );
   const expectedWithAnchor = expectedOutput.plus(ctx.fees?.displayFiat?.anchor ?? 0);
   const expectedRaw = multiplyByPowerOfTen(expectedWithAnchor, tokenDetails.decimals).toFixed(0, 0);
-  const actualRaw = multiplyByPowerOfTen(input.amount, tokenDetails.decimals).toFixed(0, 0);
+  const actualRaw = input.amountRaw;
   const idealSubsidy = input.amount.gte(expectedWithAnchor) ? new Big(0) : expectedWithAnchor.minus(input.amount);
   const subsidyUnrounded = new Big(partner?.targetDiscount ?? 0).gt(0)
     ? calculateSubsidyAmount(expectedWithAnchor, input.amount, partner?.maxSubsidy ?? 0)

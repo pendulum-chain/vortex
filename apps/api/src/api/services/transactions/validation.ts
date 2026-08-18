@@ -47,17 +47,21 @@ function assertSignedEvmFeeWithinBounds(fieldName: string, actual: bigint | unde
   }
 
   const expectedMinimum = BigInt(expectedMinimumRaw);
-  if (actual === undefined || actual < expectedMinimum) {
+  // viem decodes a zero-valued EIP-1559 fee scalar as undefined because zero is
+  // RLP-encoded as an empty byte string. It is equivalent to zero only when the
+  // server-issued minimum is also zero.
+  const normalizedActual = actual ?? (expectedMinimum === 0n ? 0n : undefined);
+  if (normalizedActual === undefined || normalizedActual < expectedMinimum) {
     throw new APIError({
-      message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      message: `Signed EVM transaction ${fieldName} ${normalizedActual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
       status: httpStatus.BAD_REQUEST
     });
   }
 
   const expectedMaximum = expectedMinimum * PRESIGNED_EVM_FEE_MULTIPLIER;
-  if (actual > expectedMaximum) {
+  if (normalizedActual > expectedMaximum) {
     throw new APIError({
-      message: `Signed EVM transaction ${fieldName} ${actual.toString()} exceeds expected maximum ${expectedMaximum.toString()}`,
+      message: `Signed EVM transaction ${fieldName} ${normalizedActual.toString()} exceeds expected maximum ${expectedMaximum.toString()}`,
       status: httpStatus.BAD_REQUEST
     });
   }

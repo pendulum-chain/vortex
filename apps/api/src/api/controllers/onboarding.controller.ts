@@ -8,6 +8,7 @@ import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { refreshAlfredpayCustomerStatus } from "../services/alfredpay/alfredpay-customer.service";
 import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.service";
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
@@ -39,7 +40,7 @@ function shouldRefreshProviderStatus(customerId: string): boolean {
  * (plan D5), read directly from `provider_customers` + `kyc_cases`.
  */
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
-  const userId = req.userId;
+  const userId = getEffectiveUserId(req);
   if (!userId) {
     res.status(httpStatus.UNAUTHORIZED).json({
       error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication required", status: httpStatus.UNAUTHORIZED }

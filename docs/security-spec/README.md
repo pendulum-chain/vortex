@@ -9,9 +9,9 @@ Use documents in this order:
 1. **Module specifications** define normative current behavior.
 2. **`RISK-REGISTER.md`** is the only authority for current accepted, deferred, or
    deployment-dependent exceptions to those requirements.
-3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md` and
-   `PUBLIC-RELEASE-READINESS.md`) is non-normative. It remains only while its review or
-   remediation context is still useful; status claims may be stale.
+3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md`) is non-normative. It
+   remains only while its review or remediation context is still useful; status claims may
+   be stale.
 4. **Older audit results, findings trackers, and spec deltas** are kept in Git history,
    not alongside the maintained specification.
 5. **Implementation-side notes** such as
@@ -65,7 +65,7 @@ documents win.
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
-| XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
+| XCM Transfers | `06-cross-chain/xcm-transfers.md` | Dormant Pendulum↔Moonbeam↔AssetHub compatibility and re-enable constraints |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
@@ -78,7 +78,6 @@ documents win.
 | Document | Why it remains |
 |---|---|
 | `REVIEW-POST-1232-2026-07-30.md` | Latest full spec-first review of the block-flow architecture and the evidence that drove its remediation |
-| `PUBLIC-RELEASE-READINESS.md` | Repository-history secret exposure review with remediation actions that still require operational confirmation |
 
 ## Checklist Semantics
 

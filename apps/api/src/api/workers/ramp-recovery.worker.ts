@@ -4,6 +4,7 @@ import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
+import { isMoonbeamRuntimeDisabledForState } from "../services/phases/moonbeam-runtime";
 import phaseProcessor from "../services/phases/phase-processor";
 import rampService from "../services/ramp/ramp.service";
 
@@ -16,7 +17,7 @@ const DISABLED_HYDRATION_PHASES = ["pendulumToHydrationXcm", "hydrationSwap", "h
 class RampRecoveryWorker {
   private job: CronJob;
 
-  constructor(cronTime = "*/5 * * * *") {
+  constructor(cronTime = "*/5 * * * *", runOnInit = true) {
     // Run immediately and then according to schedule
     this.job = new CronJob(
       cronTime,
@@ -25,7 +26,7 @@ class RampRecoveryWorker {
       false, // start
       undefined, // timeZone
       null, // context
-      true // runOnInit - This makes it run immediately
+      runOnInit
     );
   }
 
@@ -68,15 +69,21 @@ class RampRecoveryWorker {
         }
       });
 
-      if (staleStates.length === 0) {
-        logger.info("No stale ramp states found.");
+      const statesToRecover = staleStates.filter(state => !isMoonbeamRuntimeDisabledForState(state));
+      const retiredStateCount = staleStates.length - statesToRecover.length;
+      if (retiredStateCount > 0) {
+        logger.warn(`Skipped ${retiredStateCount} Moonbeam-dependent ramp states during automatic recovery.`);
+      }
+
+      if (statesToRecover.length === 0) {
+        logger.info("No eligible stale ramp states found.");
         return;
       }
 
-      logger.info(`Found ${staleStates.length} stale ramp states to process.`);
+      logger.info(`Found ${statesToRecover.length} stale ramp states to process.`);
 
       // Process each stale state concurrently
-      const recoveryPromises = staleStates.map(async state => {
+      const recoveryPromises = statesToRecover.map(async state => {
         try {
           logger.info(`Attempting recovery in phase ${state.currentPhase} for ramp ${state.id}`);
           // Process the state (processRamp already wraps execution with runWithRampContext)

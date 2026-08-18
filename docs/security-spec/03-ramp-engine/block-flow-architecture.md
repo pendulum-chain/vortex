@@ -30,9 +30,11 @@ runtime validation, and startup wiring checks therefore remain mandatory.
    backend can still dispatch persisted state that references it. The startup check MUST
    cover every unexpired pending quote and every resumable ramp owned by the configured
    flow variant. Resumable ramps include all nonterminal ramps after `initial`, regardless
-   of age, plus `initial` ramps within the start deadline. Both update and start MUST
-   reject an `initial` ramp after that deadline, before invoking a persisted-flow
-   lifecycle hook. A deployment may remove a version only after this scoped check proves
+   of age, plus `initial` ramps within the start deadline and every Avenia `initial` ramp
+   with a payable ticket. Public update/start calls MUST reject an `initial` ramp after
+   the deadline, but the unhandled-payment worker MAY start an expired Avenia ramp only
+   after the provider reports its exact persisted ticket as paid. A deployment may remove
+   a version only after this scoped check proves
    that the backend cannot dispatch it. Rollback MUST retain every version introduced by
    the deployment being rolled back.
 5. **Legacy adoption.** Unversioned quotes may be adopted by the current version only
@@ -76,23 +78,47 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     subsidy, swap, bridge broadcast, gas payment, or settlement transfer MUST claim a
     unique `financial_operations` row before the external call. Its operation key is
     derived from scope type/ID, persisted flow ID/version, phase instance, and attempt
-    class; its request hash binds the financial inputs.
+    class; its request hash binds the financial authorization. For target-balance EVM
+    subsidy transfers, that authorization binds network, source, destination, token, and
+    target balance; volatile execution inputs such as the observed shortfall, fee quote,
+    and funding-wallet nonce MUST NOT be part of the retry-sensitive request identity.
 15. **Outcome-aware retry.** Financial-operation status MUST distinguish
     `not_started`, `submitted`, `confirmed`, `failed`, and `unknown`. A confirmed
     result is replayed locally without another provider call. A definitive rejection
     may be retried with corrected inputs only when the integration explicitly raises
-    `FinancialOperationRejectedError`, proving that no side effect occurred. HTTP status
-    classes alone MUST NOT establish that proof. A submitted or ambiguous result MUST
-    halt for reconciliation and MUST NOT be repeated automatically.
-16. **Upstream idempotency preference.** The stable operation key MUST be sent as the
+    `FinancialOperationRejectedError`, proving that no side effect occurred. For an EVM
+    subsidy transfer, that proof comes from the dedicated gas estimation the executor
+    runs inside the claimed operation immediately before its first broadcast attempt
+    (the send itself carries an explicit gas limit and never re-estimates): only a typed
+    Viem `EstimateGasExecutionError` cause chain containing an `ExecutionRevertedError`
+    from that estimation qualifies. Because estimation precedes any broadcast of the
+    claimed operation and an earlier ambiguous attempt already parks the operation in
+    `submitted`/`unknown`, the rejection can never mask a possible prior side effect. A
+    bare revert, transport failure, timeout, mined failure, or any error raised by the
+    send itself is not sufficient proof.
+    HTTP status classes alone MUST NOT establish that proof. A submitted or ambiguous
+    result, or reuse of an operation key with a different authorization, MUST halt for
+    reconciliation and MUST NOT be repeated automatically.
+16. **Request-schema rollout is status-aware.** A target-balance EVM subsidy may adopt
+    the stable authorization hash for a legacy `not_started` row, or replay a legacy
+    `confirmed` response only after verifying its mined ERC-20 sender, token,
+    destination, and amount without another provider call. A legacy `submitted` or
+    `unknown` row remains reconciliation-only. This rollout is not backward-readable:
+    all old phase/recovery workers MUST be stopped and drained before new workers begin
+    processing ramps, then recovery may resume. Mixed old/new phase processing is
+    prohibited for this deployment.
+17. **Upstream idempotency preference.** The stable operation key MUST be sent as the
     provider idempotency key when the provider supports one. When the integration does
     not expose such a facility, the local claim plus fail-closed reconciliation policy
     is mandatory; an ambiguous timeout is not a retryable error.
-17. **Cancellation propagation.** Every execution block MUST accept the processor
+18. **Cancellation propagation.** Every execution block MUST accept the processor
     `AbortSignal` and propagate it through polling, sleeps, provider/RPC waits, and
     financial-operation claims. No new external side effect may begin after
-    cancellation. If cancellation races an already-started financial call, its outcome
-    is `unknown` until reconciled.
+    cancellation. If cancellation races an already-started shared EVM funding call, the
+    phase caller detaches while the claimed operation remains observed through send and
+    receipt settlement, retains its funding FIFO slot, and persists the resulting durable
+    outcome. Other already-started financial calls remain `unknown` until reconciled when
+    their integration cannot establish the eventual outcome.
 
 ## Threat Vectors & Mitigations
 
@@ -106,7 +132,7 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 | A registry registration silently replaces another handler | Duplicate registration is rejected |
 | Old or manually edited JSONB is cast into a new TypeScript type | Versioned envelope validation before registration, start, or recovery |
 | Two blocks flatten different values into one legacy field | Compatibility merge rejects conflicting values |
-| An old flow implementation is removed too early | Per-variant deployment/removal check against unexpired pending quotes and resumable ramps; update and start reject expired initial ramps before lifecycle hooks |
+| An old flow implementation is removed too early | Per-variant deployment/removal check against unexpired pending quotes, active ramps, and Avenia initial ramps with payable tickets; public update/start reject expired initial ramps while provider-confirmed payment recovery retains the persisted flow |
 | An old worker consumes newly introduced executor metadata during a rolling deploy | Keep new quote production behind a default-off activation flag; deploy the dual legacy/v2 executor everywhere before enabling the new program |
 | A provider accepts an order and the database transaction later rolls back | Independent durable financial-operation claim; retry reuses the confirmed response or halts on ambiguity |
 | Two workers attempt the same external side effect | Unique operation key and atomic `not_started` → `submitted` claim |

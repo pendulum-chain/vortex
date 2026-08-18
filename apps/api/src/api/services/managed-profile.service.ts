@@ -115,7 +115,7 @@ async function existingAssociationResult(
   subjectType: ManagedProfileSubjectType
 ): Promise<ManagedProfileResult> {
   const profile = await User.findByPk(association.profileId, { attributes: ["email"] });
-  if (!profile || normalizeManagedProfileEmail(profile.email) !== email || association.subjectType !== subjectType) {
+  if (!profile || normalizeManagedProfileEmail(profile.email ?? "") !== email || association.subjectType !== subjectType) {
     throw new ManagedProfileServiceError(
       "MANAGED_PROFILE_CONFLICT",
       "The external user ID is already associated with different profile data"
@@ -159,7 +159,7 @@ export async function createManagedProfile(input: CreateManagedProfileInput): Pr
       }
 
       const profile = await User.findByPk(authUser.id, { lock: Transaction.LOCK.UPDATE, transaction });
-      if (profile && normalizeManagedProfileEmail(profile.email) !== email) {
+      if (profile && normalizeManagedProfileEmail(profile.email ?? "") !== email) {
         throw new ManagedProfileServiceError(
           "MANAGED_PROFILE_CONFLICT",
           "The Auth identity is already linked to a profile with a different email"

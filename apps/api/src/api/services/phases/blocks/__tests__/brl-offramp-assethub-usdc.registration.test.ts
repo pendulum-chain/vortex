@@ -4,7 +4,7 @@ import { createRegisterAveniaOfframpPayout } from "../phases/avenia-offramp-payo
 const validationCalls: unknown[][] = [];
 
 const register = createRegisterAveniaOfframpPayout({
-  resolveAccount: async () => ({ taxId: "12345678901" }) as never,
+  resolveAccount: async () => ({ subAccountId: "subaccount-1", taxId: "12345678901" }) as never,
   validateRecipient: async (...args) => {
     validationCalls.push(args);
     return { brCode: "trusted-code", wallets: { evm: "0x1111111111111111111111111111111111111111" } };
@@ -31,6 +31,7 @@ describe("AssetHub BRL payout registration", () => {
         brlaEvmAddress: "0x1111111111111111111111111111111111111111",
         pixDestination: "pix-key",
         receiverTaxId: "12345678900",
+        subAccountId: "subaccount-1",
         taxId: "12345678901"
       },
       responseArtifacts: { depositQrCode: "trusted-code" }

@@ -14,11 +14,15 @@ import { APIError } from "../errors/api-error";
  */
 export async function getOrCreateCustomerEntityForProfile(
   profileId: string,
-  type?: CustomerEntityType
+  type?: CustomerEntityType,
+  transaction?: Transaction
 ): Promise<CustomerEntity> {
-  const profile = await User.findByPk(profileId);
+  const profile = await User.findByPk(profileId, transaction ? { transaction } : undefined);
   if (profile?.activeCustomerEntityId) {
-    const activeEntity = await CustomerEntity.findOne({ where: { id: profile.activeCustomerEntityId, profileId } });
+    const activeEntity = await CustomerEntity.findOne({
+      ...(transaction ? { transaction } : {}),
+      where: { id: profile.activeCustomerEntityId, profileId }
+    });
     if (!activeEntity) {
       throw new APIError({
         isPublic: true,
@@ -29,6 +33,14 @@ export async function getOrCreateCustomerEntityForProfile(
     }
     if (!type || activeEntity.type === type) {
       return activeEntity;
+    }
+    if (profile.kind === "managed") {
+      throw new APIError({
+        isPublic: true,
+        message: "A managed profile's customer entity type cannot be changed",
+        status: httpStatus.CONFLICT,
+        type: "MANAGED_PROFILE_ENTITY_TYPE_IMMUTABLE"
+      });
     }
   }
 
@@ -42,6 +54,7 @@ export async function getOrCreateCustomerEntityForProfile(
         ["createdAt", "ASC"],
         ["id", "ASC"]
       ],
+      ...(transaction ? { transaction } : {}),
       where: { profileId }
     });
     if (existing) {
@@ -55,6 +68,7 @@ export async function getOrCreateCustomerEntityForProfile(
       status: "active",
       type: type ?? "individual"
     },
+    ...(transaction ? { transaction } : {}),
     where: { profileId, type: type ?? "individual" }
   });
   return entity;
@@ -68,13 +82,14 @@ export async function getOrCreateCustomerEntityForProfile(
  * rows by customer_type must scope by every entity the profile owns, and a pure lookup
  * must not leave an empty entity behind.
  */
-export async function findCustomerEntityIdsForProfile(profileId: string): Promise<string[]> {
+export async function findCustomerEntityIdsForProfile(profileId: string, transaction?: Transaction): Promise<string[]> {
   const entities = await CustomerEntity.findAll({
     attributes: ["id"],
     order: [
       ["createdAt", "ASC"],
       ["id", "ASC"]
     ],
+    ...(transaction ? { transaction } : {}),
     where: { profileId }
   });
   return entities.map(entity => entity.id);

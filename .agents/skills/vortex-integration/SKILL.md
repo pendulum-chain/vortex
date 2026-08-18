@@ -549,10 +549,13 @@ triggers:
 ## When to use
 Production integrations should rely on webhooks rather than polling. Webhooks fire on two events: `TRANSACTION_CREATED` (ramp registered) and `STATUS_CHANGE` (phase transitioned to `PENDING`, `COMPLETE`, or `FAILED`).
 
+Managed profiles are the exception: webhook registration/deletion rejects both `X-Managed-Profile-Id` and direct child credentials. Track managed-child ramps by polling `GET /v1/ramp/{id}` or `GET /v1/ramp/history` with the same delegated manager selector or direct child secret used for the ramp. Do not attempt to register a child quote with the unselected manager key; the quote is child-owned and the manager-owned webhook request will not match it.
+
 ## Prerequisites
 - Public HTTPS endpoint to receive deliveries.
 - A way to fetch and cache the Vortex RSA public key.
 - Either a `quoteId` (per-ramp scope) or a `sessionId` (per-session scope), or neither (global to your partner key).
+- A non-managed credential subject. Managed-profile integrations use polling instead.
 
 ## SDK recipe
 The SDK does **not** wrap webhook registration. Call REST directly.

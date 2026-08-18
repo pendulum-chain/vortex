@@ -138,7 +138,8 @@ describe("onramp discount semantics", () => {
     expect(Big(result.metadata.adjustedDifference).toFixed()).toBe(adjustedDifference.toFixed());
     expect(Big(result.metadata.adjustedTargetDiscount).toFixed()).toBe(adjustedTargetDiscount.toFixed());
     expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe(expectedOutput.toFixed(6));
-    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(expectedOutput.minus("97.5").toFixed(6));
+    // The applied subsidy is floored to token decimals so the output decimal/raw pair stays consistent.
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(expectedOutput.minus("97.5").toFixed(6, 0));
     expect(result.metadata.applied).toBe(true);
     expect(bridgeQuoteRequests).toEqual([
       {

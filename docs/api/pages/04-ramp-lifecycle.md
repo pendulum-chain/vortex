@@ -32,6 +32,8 @@ On buys, the fiat payment instructions (`depositQrCode` for BRL, `ibanPaymentDat
 
 Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fiat payment steps are complete. For BRL buys, call start after the user completes the PIX payment; for EUR buys, after the SEPA transfer. For USD, MXN, COP, and ARS buys the order is inverted: call start first — the start response's `achPaymentData` contains the bank transfer instructions the user must pay.
 
+If a BRL PIX payment is confirmed by Avenia but the client cannot call start (for example because the managed profile was deleted or its corridor policy changed after registration), Vortex automatically starts the already-signed persisted ramp. This recovery is tied to the exact provider ticket issued at registration; it does not authorize new ramps or bypass payment verification.
+
 ## 5. Track Status
 
 Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling.

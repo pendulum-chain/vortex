@@ -2,7 +2,11 @@ import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import FinancialOperation from "../../../../../models/financialOperation.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../../../test-utils/db";
 import type { FlowIdentity } from "./identity";
-import { FinancialOperationRejectedError, runFinancialOperation } from "./financial-operation";
+import {
+  FinancialOperationReconciliationRequiredError,
+  FinancialOperationRejectedError,
+  runFinancialOperation
+} from "./financial-operation";
 
 const flow: FlowIdentity = {
   blockSchemaVersions: { payout: 1 },
@@ -25,6 +29,14 @@ const baseOperation = {
   scopeId: "ramp-1",
   scopeType: "ramp" as const
 };
+
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 beforeAll(async () => {
   await setupTestDatabase();
@@ -123,7 +135,29 @@ describe("runFinancialOperation", () => {
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "unknown" });
   });
 
-  it("rejects reuse of an operation identity with different financial inputs", async () => {
+  it("preserves the default conflict response when an operation identity is reused with different inputs", async () => {
+    await runFinancialOperation({
+      ...baseOperation,
+      perform: async () => ({ id: "external-1" })
+    });
+
+    let thrown: unknown;
+    try {
+      await runFinancialOperation({
+        ...baseOperation,
+        perform: async () => ({ id: "external-2" }),
+        request: { amount: "11", recipient: "recipient-1" }
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).not.toBeInstanceOf(FinancialOperationReconciliationRequiredError);
+    expect(thrown).toMatchObject({ status: 409 });
+    expect((thrown as Error).message).toContain("different inputs");
+  });
+
+  it("opts ramp phases into reconciliation when an operation identity is reused with different inputs", async () => {
     await runFinancialOperation({
       ...baseOperation,
       perform: async () => ({ id: "external-1" })
@@ -133,7 +167,150 @@ describe("runFinancialOperation", () => {
       runFinancialOperation({
         ...baseOperation,
         perform: async () => ({ id: "external-2" }),
+        reconcileRequestMismatch: true,
         request: { amount: "11", recipient: "recipient-1" }
+      })
+    ).rejects.toMatchObject({ requiresManualReconciliation: true, status: 503 });
+  });
+
+  it("adopts a stable request schema only after reconciling a confirmed legacy operation", async () => {
+    const first = await runFinancialOperation({
+      ...baseOperation,
+      perform: async () => ({ id: "external-1" })
+    });
+    const perform = mock(async () => ({ id: "external-2" }));
+
+    const replayed = await runFinancialOperation({
+      ...baseOperation,
+      adoptSafeRequestHash: true,
+      perform,
+      reconcile: async operation => operation.response as { id: string },
+      request: { destination: "recipient-1", targetBalanceRaw: "10" }
+    });
+
+    expect(replayed).toEqual(first);
+    expect(perform).not.toHaveBeenCalled();
+  });
+
+  it("adopts a stable request schema for an unclaimed legacy operation", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        beforePerform: async () => {
+          throw new Error("wallet empty");
+        },
+        perform: async () => ({ id: "external-1" })
+      })
+    ).rejects.toThrow("wallet empty");
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        adoptSafeRequestHash: true,
+        perform: async () => ({ id: "external-2" }),
+        request: { destination: "recipient-1", targetBalanceRaw: "10" }
+      })
+    ).resolves.toEqual({ id: "external-2" });
+  });
+
+  it("does not overwrite an in-flight legacy request hash during adoption", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        beforePerform: async () => {
+          throw new Error("wallet empty");
+        },
+        perform: async () => ({ id: "external-1" })
+      })
+    ).rejects.toThrow("wallet empty");
+    const legacyOperation = await FinancialOperation.findOne({ rejectOnEmpty: true });
+    const legacyRequestHash = legacyOperation.requestHash;
+    const financialOperationModel = FinancialOperation as any;
+    const originalUpdate = financialOperationModel.update;
+    let interleaved = false;
+    financialOperationModel.update = async (values: Record<string, unknown>, options: Record<string, unknown>) => {
+      if (!interleaved && "requestHash" in values) {
+        interleaved = true;
+        await originalUpdate.call(financialOperationModel, { status: "submitted" }, { where: { id: legacyOperation.id } });
+        return [0];
+      }
+      return originalUpdate.call(financialOperationModel, values, options);
+    };
+
+    try {
+      await expect(
+        runFinancialOperation({
+          ...baseOperation,
+          adoptSafeRequestHash: true,
+          perform: async () => ({ id: "external-2" }),
+          reconcileRequestMismatch: true,
+          request: { destination: "recipient-1", targetBalanceRaw: "10" }
+        })
+      ).rejects.toMatchObject({ requiresManualReconciliation: true });
+    } finally {
+      financialOperationModel.update = originalUpdate;
+    }
+
+    await expect(FinancialOperation.findByPk(legacyOperation.id)).resolves.toMatchObject({
+      requestHash: legacyRequestHash,
+      status: "submitted"
+    });
+  });
+
+  it("does not claim a side effect after another worker adopts a different request hash", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        beforePerform: async () => {
+          throw new Error("wallet empty");
+        },
+        perform: async () => ({ id: "legacy" })
+      })
+    ).rejects.toThrow("wallet empty");
+    const loserPerform = mock(async () => ({ id: "loser" }));
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        adoptSafeRequestHash: true,
+        beforePerform: async () => {
+          await expect(
+            runFinancialOperation({
+              ...baseOperation,
+              adoptSafeRequestHash: true,
+              beforePerform: async () => {
+                throw new Error("pause winner before claim");
+              },
+              perform: async () => ({ id: "winner" }),
+              request: { destination: "recipient-1", targetBalanceRaw: "20" }
+            })
+          ).rejects.toThrow("pause winner before claim");
+        },
+        perform: loserPerform,
+        request: { destination: "recipient-1", targetBalanceRaw: "10" }
+      })
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(loserPerform).not.toHaveBeenCalled();
+    await expect(FinancialOperation.findOne()).resolves.toMatchObject({ status: "not_started" });
+  });
+
+  it("does not adopt a new request schema for an ambiguous legacy operation", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: async () => {
+          throw new Error("connection reset after submission");
+        }
+      })
+    ).rejects.toThrow("connection reset after submission");
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        adoptSafeRequestHash: true,
+        perform: async () => ({ id: "external-2" }),
+        request: { destination: "recipient-1", targetBalanceRaw: "10" }
       })
     ).rejects.toThrow("different inputs");
   });
@@ -157,6 +334,125 @@ describe("runFinancialOperation", () => {
     });
 
     expect(result).toEqual({ id: "external-2" });
+    expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
+  });
+
+  it("does not let a stale failed-operation reset overwrite another worker's submitted claim", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: async () => {
+          throw new FinancialOperationRejectedError("pre-broadcast rejection");
+        }
+      })
+    ).rejects.toThrow("pre-broadcast rejection");
+    const failedOperation = await FinancialOperation.findOne({ rejectOnEmpty: true });
+    const financialOperationModel = FinancialOperation as any;
+    const originalUpdate = financialOperationModel.update;
+    let interleaved = false;
+    financialOperationModel.update = async (values: Record<string, unknown>, options: Record<string, unknown>) => {
+      if (!interleaved && values.status === "not_started") {
+        interleaved = true;
+        await originalUpdate.call(financialOperationModel, { status: "submitted" }, { where: { id: failedOperation.id } });
+        return [0];
+      }
+      return originalUpdate.call(financialOperationModel, values, options);
+    };
+    const retryPerform = mock(async () => ({ id: "external-2" }));
+
+    try {
+      await expect(
+        runFinancialOperation({ ...baseOperation, perform: retryPerform, retryFailed: true })
+      ).rejects.toMatchObject({ requiresManualReconciliation: true });
+    } finally {
+      financialOperationModel.update = originalUpdate;
+    }
+
+    expect(retryPerform).not.toHaveBeenCalled();
+    await expect(FinancialOperation.findByPk(failedOperation.id)).resolves.toMatchObject({ status: "submitted" });
+  });
+
+  it("does not replay a concurrent retry that confirmed different corrected inputs", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: async () => {
+          throw new FinancialOperationRejectedError("pre-broadcast rejection");
+        }
+      })
+    ).rejects.toThrow("pre-broadcast rejection");
+    const financialOperationModel = FinancialOperation as any;
+    const originalUpdate = financialOperationModel.update;
+    const winnerPerform = mock(async () => ({ id: "winner" }));
+    let interleaved = false;
+    const interceptUpdate = async (values: Record<string, unknown>, options: Record<string, unknown>) => {
+      if (!interleaved && values.status === "not_started") {
+        interleaved = true;
+        financialOperationModel.update = originalUpdate;
+        try {
+          await runFinancialOperation({
+            ...baseOperation,
+            perform: winnerPerform,
+            request: { amount: "10", recipient: "winner-recipient" },
+            retryFailed: true
+          });
+        } finally {
+          financialOperationModel.update = interceptUpdate;
+        }
+        return [0];
+      }
+      return originalUpdate.call(financialOperationModel, values, options);
+    };
+    financialOperationModel.update = interceptUpdate;
+    const loserPerform = mock(async () => ({ id: "loser" }));
+
+    try {
+      await expect(
+        runFinancialOperation({
+          ...baseOperation,
+          perform: loserPerform,
+          request: { amount: "10", recipient: "loser-recipient" },
+          retryFailed: true
+        })
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      financialOperationModel.update = originalUpdate;
+    }
+
+    expect(winnerPerform).toHaveBeenCalledTimes(1);
+    expect(loserPerform).not.toHaveBeenCalled();
+    await expect(FinancialOperation.findOne()).resolves.toMatchObject({
+      response: { id: "winner" },
+      status: "confirmed"
+    });
+  });
+
+  it("retries a stable authorization with fresh execution inputs after a pre-broadcast rejection", async () => {
+    let nonce = 1661;
+    const perform = mock(async () => {
+      if (nonce === 1661) {
+        throw new FinancialOperationRejectedError("transfer amount exceeds balance");
+      }
+      return { id: "external-2", nonce };
+    });
+    const operation = {
+      ...baseOperation,
+      attemptClass: "evm-subsidy-transfer",
+      request: {
+        destination: "recipient-1",
+        network: "base",
+        source: "funding-wallet",
+        targetBalanceRaw: "132649008405856019523",
+        token: "brla"
+      },
+      retryFailed: true
+    };
+
+    await expect(runFinancialOperation({ ...operation, perform })).rejects.toThrow("transfer amount exceeds balance");
+    nonce = 1666;
+    await expect(runFinancialOperation({ ...operation, perform })).resolves.toEqual({ id: "external-2", nonce: 1666 });
+
+    expect(perform).toHaveBeenCalledTimes(2);
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
   });
 
@@ -192,5 +488,33 @@ describe("runFinancialOperation", () => {
       })
     ).rejects.toThrow("phase timed out");
     expect(perform).not.toHaveBeenCalled();
+  });
+
+  it("records a claimed operation that settles after phase cancellation", async () => {
+    const controller = new AbortController();
+    const started = deferred();
+    const completion = deferred();
+    const perform = mock(async () => {
+      started.resolve();
+      await completion.promise;
+      return { id: "external-1" };
+    });
+    const pending = runFinancialOperation({
+      ...baseOperation,
+      externalId: result => result.id,
+      perform,
+      settleAfterAbort: true,
+      signal: controller.signal
+    });
+    await started.promise;
+
+    controller.abort(new Error("phase timed out"));
+    completion.resolve();
+
+    await expect(pending).resolves.toEqual({ id: "external-1" });
+    expect(await FinancialOperation.findOne()).toMatchObject({
+      externalId: "external-1",
+      status: "confirmed"
+    });
   });
 });

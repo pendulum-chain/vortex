@@ -3,61 +3,174 @@ import multer from "multer";
 import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
-import { requireAuth } from "../../middlewares/supabaseAuth";
+import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import {
+  getManagedProfileAlfredpayCustomerType,
+  getManagedProfileCountryCorridor
+} from "../../middlewares/managedProfileCorridor";
 import { validateKybSubmission, validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 }, storage: multer.memoryStorage() });
 
-router.get("/alfredpayStatus", requireAuth, validateResultCountry, AlfredpayController.alfredpayStatus);
-router.post("/createIndividualCustomer", requireAuth, validateResultCountry, AlfredpayController.createIndividualCustomer);
-router.get("/getKycRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKycRedirectLink);
-router.post("/kycRedirectOpened", requireAuth, validateResultCountry, AlfredpayController.kycRedirectOpened);
-router.post("/kycRedirectFinished", requireAuth, validateResultCountry, AlfredpayController.kycRedirectFinished);
-router.get("/getKycStatus", requireAuth, validateResultCountry, AlfredpayController.getKycStatus);
-router.post("/retryKyc", requireAuth, validateResultCountry, AlfredpayController.retryKyc);
-router.post("/createBusinessCustomer", requireAuth, validateResultCountry, AlfredpayController.createBusinessCustomer);
-router.get("/getKybRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKybRedirectLink);
+router.get(
+  "/alfredpayStatus",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile(),
+  AlfredpayController.alfredpayStatus
+);
+router.post(
+  "/createIndividualCustomer",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  AlfredpayController.createIndividualCustomer
+);
+router.get(
+  "/getKycRedirectLink",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  AlfredpayController.getKycRedirectLink
+);
+router.post(
+  "/kycRedirectOpened",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  AlfredpayController.kycRedirectOpened
+);
+router.post(
+  "/kycRedirectFinished",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  AlfredpayController.kycRedirectFinished
+);
+router.get(
+  "/getKycStatus",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile(),
+  AlfredpayController.getKycStatus
+);
+router.post(
+  "/retryKyc",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  AlfredpayController.retryKyc
+);
+router.post(
+  "/createBusinessCustomer",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  AlfredpayController.createBusinessCustomer
+);
+router.get(
+  "/getKybRedirectLink",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  AlfredpayController.getKybRedirectLink
+);
 
 // MXN/CO API-based KYC
 router.post(
   "/submitKycInformation",
-  requireAuth,
+  requirePartnerOrUserAuth(),
   validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
   validateKycSubmission,
   AlfredpayController.submitKycInformation
 );
-router.post("/submitKycFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKycFile);
-router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKycSubmission);
+router.post(
+  "/submitKycFile",
+  requirePartnerOrUserAuth(),
+  // Authenticate the relationship and immutable entity type before buffering. The country
+  // corridor can only be authorized after multer exposes the multipart body.
+  authorizeManagedProfile({ customerType: "individual" }),
+  upload.single("file"),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  AlfredpayController.submitKycFile
+);
+router.post(
+  "/sendKycSubmission",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  AlfredpayController.sendKycSubmission
+);
 
 // Business API-based KYB
 router.post(
   "/submitKybInformation",
-  requireAuth,
+  requirePartnerOrUserAuth(),
   validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   validateKybSubmission,
   AlfredpayController.submitKybInformation
 );
-router.post("/submitKybFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKybFile);
-router.get("/findKybCustomerAndBusiness", requireAuth, validateResultCountry, AlfredpayController.findKybCustomerAndBusiness);
 router.post(
-  "/submitKybRelatedPersonFile",
-  requireAuth,
+  "/submitKybFile",
+  requirePartnerOrUserAuth(),
+  // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
+  authorizeManagedProfile({ customerType: "business" }),
   upload.single("file"),
   validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  AlfredpayController.submitKybFile
+);
+router.get(
+  "/findKybCustomerAndBusiness",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile(),
+  AlfredpayController.findKybCustomerAndBusiness
+);
+router.post(
+  "/submitKybRelatedPersonFile",
+  requirePartnerOrUserAuth(),
+  // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
+  authorizeManagedProfile({ customerType: "business" }),
+  upload.single("file"),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
   AlfredpayController.submitKybRelatedPersonFile
 );
-router.post("/sendKybSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKybSubmission);
+router.post(
+  "/sendKybSubmission",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  AlfredpayController.sendKybSubmission
+);
 
 // Fiat accounts (USD + MXN) — accept user-scoped secret API keys (sk_*) or Supabase Bearer
 // via requirePartnerOrUserAuth, so SDK/server integrations can manage fiat accounts without
 // a Supabase session.
-router.post("/fiatAccounts", requirePartnerOrUserAuth(), validateResultCountry, AlfredpayController.addFiatAccount);
-router.get("/fiatAccounts", requirePartnerOrUserAuth(), validateResultCountry, AlfredpayController.listFiatAccounts);
+router.post(
+  "/fiatAccounts",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
+  AlfredpayController.addFiatAccount
+);
+router.get(
+  "/fiatAccounts",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  authorizeManagedProfile(),
+  AlfredpayController.listFiatAccounts
+);
 router.delete(
   "/fiatAccounts/:fiatAccountId",
   requirePartnerOrUserAuth(),
   validateResultCountry,
+  authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor }),
   AlfredpayController.deleteFiatAccount
 );
 

@@ -15,7 +15,7 @@ export const PendulumSubsidizePost: Phase<
   name: "PendulumSubsidizePost",
   phases: ["subsidizePostSwap"],
   async simulate(input, ctx) {
-    const expected = await computeExpectedOutput(ctx);
+    const expected = await computeExpectedOutput(ctx, PENDULUM_USDC_ASSETHUB.decimals);
     const subsidy = buildFullSubsidy(input.amount, input.amountRaw, expected.decimal, expected.raw, ctx);
     const amount = input.amount.plus(subsidy.subsidyAmountInOutputTokenDecimal);
     const amountRaw = new Big(input.amountRaw).plus(subsidy.subsidyAmountInOutputTokenRaw).toFixed(0, 0);
