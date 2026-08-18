@@ -120,7 +120,14 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
       undefined,
       "document/1"
     ]);
-    expect(sendRequest.mock.calls[1]).toEqual([Endpoint.Ubos, "POST", "subAccountId=sub%20account", ubo]);
+    expect(sendRequest.mock.calls[1]).toEqual([
+      Endpoint.Ubos,
+      "POST",
+      "subAccountId=sub%20account",
+      ubo,
+      undefined,
+      { sensitiveBody: true }
+    ]);
   });
 
   test("maps API KYB submission and subaccount-scoped attempt polling", async () => {
@@ -129,7 +136,14 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     await service.submitKybLevel1(kyb, "sub-1");
     await service.getVerificationAttemptStatus("attempt-1", "sub-1");
 
-    expect(sendRequest.mock.calls[0]).toEqual([Endpoint.Level1Api, "POST", "subAccountId=sub-1", kyb]);
+    expect(sendRequest.mock.calls[0]).toEqual([
+      Endpoint.Level1Api,
+      "POST",
+      "subAccountId=sub-1",
+      kyb,
+      undefined,
+      { sensitiveBody: true }
+    ]);
     expect(sendRequest.mock.calls[1]).toEqual([
       Endpoint.GetKybAttempt,
       "GET",
@@ -295,6 +309,55 @@ describe("BrlaApiService.submitKycLevel1", () => {
     expect(String(thrown)).not.toContain(sentinel);
     expect(JSON.stringify(thrown)).not.toContain(sentinel);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("BrlaApiService sensitive KYB requests", () => {
+  test("never logs or throws UBO or company payloads echoed by the provider", async () => {
+    const sentinel = "SENTINEL-KYB-PII";
+    const keyPair = forge.pki.rsa.generateKeyPair(1024);
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { apiKey: "test-key", privateKey: forge.pki.privateKeyToPem(keyPair.privateKey) });
+    const logCalls: Record<"debug" | "error" | "info" | "warn", unknown[][]> = {
+      debug: [],
+      error: [],
+      info: [],
+      warn: []
+    };
+    logger.current = {
+      debug: (...args: unknown[]) => logCalls.debug.push(args),
+      error: (...args: unknown[]) => logCalls.error.push(args),
+      info: (...args: unknown[]) => logCalls.info.push(args),
+      warn: (...args: unknown[]) => logCalls.warn.push(args)
+    };
+    globalThis.fetch = mock(async () => new Response(`invalid KYB payload: ${sentinel}`, { status: 400 })) as typeof fetch;
+
+    const thrown: unknown[] = [];
+    for (const request of [
+      () => service.createUbo({ ...ubo, fullName: sentinel }, "sub-1"),
+      () => service.submitKybLevel1({ ...kyb, companyLegalName: sentinel }, "sub-1")
+    ]) {
+      try {
+        await request();
+      } catch (error) {
+        thrown.push(error);
+      }
+    }
+
+    expect(thrown).toHaveLength(2);
+    for (const error of thrown) {
+      expect(error).toBeInstanceOf(BrlaApiError);
+      expect(String(error)).not.toContain(sentinel);
+      expect(JSON.stringify(error)).not.toContain(sentinel);
+    }
+    expect(logCalls.debug).toEqual([
+      [`Sending request to ${Endpoint.Ubos} with method POST; sensitive request details omitted`],
+      [`Sending request to ${Endpoint.Level1Api} with method POST; sensitive request details omitted`]
+    ]);
+    for (const calls of Object.values(logCalls)) {
+      expect(JSON.stringify(calls)).not.toContain(sentinel);
+    }
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });
 

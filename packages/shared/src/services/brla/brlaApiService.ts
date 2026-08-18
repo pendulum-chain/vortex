@@ -295,7 +295,9 @@ export class BrlaApiService {
 
   public async createUbo(payload: AveniaUboPayload, subAccountId: string): Promise<AveniaUboResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return aveniaUboResponseSchema.parse(await this.sendRequest(Endpoint.Ubos, "POST", query, payload));
+    return aveniaUboResponseSchema.parse(
+      await this.sendRequest(Endpoint.Ubos, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
   }
 
   public async createPayInQuote(
@@ -448,7 +450,9 @@ export class BrlaApiService {
 
   public async submitKybLevel1(payload: AveniaKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return aveniaLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.Level1Api, "POST", query, payload));
+    return aveniaLevel1ResponseSchema.parse(
+      await this.sendRequest(Endpoint.Level1Api, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
   }
 
   public async importKycToken(importToken: string, subAccountId: string): Promise<AveniaImportKycTokenResponse> {
