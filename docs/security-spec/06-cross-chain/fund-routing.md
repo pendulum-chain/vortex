@@ -18,7 +18,7 @@ The pre/post executors dispatch by the block's chain context. The EVM pre-swap b
 
 **How subsidization works:**
 1. Read the ephemeral account's current balance
-2. Compare against the expected amount (from ramp state metadata, e.g. `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` for pre-swap on the EVM branch)
+2. Compare against the expected amount (from quote metadata, e.g. `quote.metadata.blocks.subsidizePreSwap.targetInputAmountRaw` — plus `feeReserveRaw` on corridors that reserve fees — for pre-swap, and `quote.metadata.blocks.subsidizePostSwap.targetOutputAmountRaw` for post-swap)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
 4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (active EVM chains such as Base and supported destinations; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible env-name fallback but does not authorize runtime Moonbeam access)
 
@@ -35,7 +35,7 @@ The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvm
 ## Security Invariants
 
 1. **Subsidization MUST only top up to the expected amount, never more** — Both `subsidize-pre/execution.ts` and `subsidize-post/execution.ts` calculate `expectedAmount - currentBalance` and transfer exactly that difference. If the balance already meets or exceeds the expected amount, no transfer occurs.
-2. **Expected amounts MUST come from ramp state set at creation time** — The expected input/output amounts are derived from the quote and stored in ramp state. Handlers read these values, not recalculate them. This prevents manipulation via price changes between quote and execution.
+2. **Expected amounts MUST come from ramp state set at creation time** — The expected input/output amounts are derived from the quote and stored in ramp state. Handlers read these values, not recalculate them. The canonical raw integer MUST be carried unchanged between adjacent blocks; a later block MUST NOT reconstruct it from a higher-precision decimal using a different rounding mode. This prevents manipulation via price changes between quote and execution and avoids short-funding the ephemeral by one raw unit.
 3. **Funding account private keys MUST only be used for subsidization transfers** — `getFundingAccount()` derives a keypair from `PENDULUM_FUNDING_SEED`. This keypair should only sign subsidization transfers, not arbitrary transactions.
 4. **Every final settlement subsidy MUST enforce a USD cap before funds move** — The full observable shortfall is converted from the destination token into USD and compared with `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`, regardless of whether the funding wallet already holds the output token or first needs a swap. The swap-input check remains a second bound on routes that acquire the token.
 5. **Destination transfer MUST use a presigned transaction** — `destination-transfer/execution.ts` submits the presigned transfer from state. The server cannot modify the recipient address or amount at execution time.
@@ -66,6 +66,9 @@ The current code resolves this through `EVM_FUNDING_PRIVATE_KEY` and the `getEvm
 
 - [x] **F-001 fixed**: `final-settlement-subsidy/execution.ts` enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` on every positive destination-token shortfall before any transfer, with an additional route-spend bound when a funding swap is needed.
 - [x] Verify `phases/blocks/phases/subsidize-pre/execution.ts` calculates subsidy as `expectedAmount - currentBalance` and transfers exactly that amount. **PASS**.
+- [x] Verify the EVM Nabla swap consumes the exact canonical raw amount funded by the preceding phase without re-rounding its decimal representation. **PASS** — `nabla-swap/simulation.ts` carries `PhaseIO.amountRaw` into quote metadata and derives the swap decimal from that integer; regression coverage uses the production one-micro-USDC boundary. The Pendulum variants (`pendulum-nabla-swap`, `pendulum-offramp-nabla-swap`) derive their quote decimal from the same carried raw.
+- [x] Verify final settlement tops up to the canonical raw amount produced by the flow. **PASS** — `final-settlement-subsidy/execution.ts` reads `quote.metadata.blocks.finalSettlementSubsidy.amountRaw` instead of reconstructing raw units from the rounded public `quote.outputAmount`.
+- [x] Verify the destination-transfer balance precondition demands the exact raw the presigned transfer spends. **PASS** — `destination-transfer/execution.ts` reads `quote.metadata.blocks.destinationTransfer.amountRaw` (the amount the presigned transaction was built from) instead of reconstructing raw units from the decimal `quote.outputAmount`; `subsidize-post/simulation.ts` floors the subsidy to token decimals and carries `PhaseIO.amountRaw`, keeping the funded raw and the quoted decimal floor-consistent.
 - [x] Verify `phases/blocks/phases/subsidize-post/execution.ts` calculates subsidy the same way — no off-by-one, no rounding errors. **PASS**.
 - [x] Verify both pre/post swap handlers skip subsidization when `currentBalance >= expectedAmount` (no negative transfers). **PASS** — skip condition verified in both handlers.
 - [x] Verify `getFundingAccount()` derives the keypair from `PENDULUM_FUNDING_SEED` and this seed is not reused for other purposes. **PASS** — seed used only for funding account derivation.
