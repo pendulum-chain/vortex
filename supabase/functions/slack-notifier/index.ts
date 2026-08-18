@@ -1,6 +1,19 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  buildCompletionAttributionFields,
+  buildQuoteAttributionFields,
+  chunkFields,
+  feeMetadata,
+  partnerMetadata,
+  type SlackField,
+  type SubsidyQuote,
+  type SubsidyRow,
+  subsidyMetadata,
+  swapMetadata,
+  vortexFeeUsd
+} from "./subsidy-reporting.ts";
 
 function trimToSixDecimals(floatStr: string | number) {
   const num = parseFloat(String(floatStr));
@@ -31,68 +44,51 @@ type RampRecord = {
     destinationAddress?: string;
     sessionId?: string;
     taxId?: string;
+    userId?: string;
     walletAddress?: string;
   };
   to: string;
   type: string;
 };
 
-type Quote = {
-  input_amount: number | string;
+type Quote = SubsidyQuote & {
   input_currency: string;
-  metadata: {
-    fees?: {
-      displayFiat?: {
-        currency?: string;
-        vortex?: number | string;
-      };
-      usd?: {
-        vortex?: number | string;
-      };
-    };
-    nablaSwap?: {
-      oraclePrice?: number | string;
-    };
-    nablaSwapEvm?: {
-      oraclePrice?: number | string;
-    };
-    partner?: {
-      targetDiscount?: number | string;
-    };
-    subsidy?: {
-      adjustedDifference?: number | string;
-      expectedOutputAmountDecimal?: number | string;
-      subsidyAmountInOutputTokenDecimal?: number | string;
-    };
-  };
-  output_amount: number | string;
-  output_currency: string;
 };
 
-function formatSlackMessage(record: RampRecord, quote: Quote, title?: string, includeFields = false) {
+function formatSlackMessage(
+  record: RampRecord,
+  quote: Quote,
+  title?: string,
+  includeFields = false,
+  extraFields: SlackField[] = []
+) {
   const { type: rampType, from: fromParam, to: toParam, state = {} } = record;
-  const { taxId, sessionId, walletAddress, destinationAddress } = state;
+  const { taxId, sessionId, userId, walletAddress, destinationAddress } = state;
 
   const inputAmount = quote.input_amount;
   const inputCurrency = quote.input_currency;
   const outputAmount = quote.output_amount;
   const outputCurrency = quote.output_currency;
 
-  const { subsidy, partner, nablaSwap, nablaSwapEvm, fees } = quote.metadata;
+  const subsidy = subsidyMetadata(quote);
+  const partner = partnerMetadata(quote);
+  const swap = swapMetadata(quote);
+  const fees = feeMetadata(quote);
   const { expectedOutputAmountDecimal, subsidyAmountInOutputTokenDecimal, adjustedDifference } = subsidy || {};
   const { targetDiscount } = partner || {};
-  const { oraclePrice } = nablaSwap || nablaSwapEvm || {};
+  const { oraclePrice } = swap || {};
+  const quoteSubsidyCurrency = subsidy.outputCurrency || swap?.outputCurrency || outputCurrency;
 
   const finalWalletAddress = walletAddress || destinationAddress;
 
-  const fields = [
+  const fields: SlackField[] = [
     {
       label: `${fieldIcons.wallet} Wallet Address`,
       value: finalWalletAddress
     },
     {
-      label: `${fieldIcons.session} Session ID`,
-      value: sessionId
+      label: `${fieldIcons.session} User ID`,
+      value: userId || sessionId
     }
   ];
 
@@ -111,12 +107,12 @@ function formatSlackMessage(record: RampRecord, quote: Quote, title?: string, in
     const effectiveRateComparison = trimToSixDecimals(effectiveRate / oraclePriceForDirection);
 
     fields.push({
-      label: `${fieldIcons.rate} Discounted Rate (Binance x ${1 + Number(targetDiscount)} + ${Number(adjustedDifference)})`,
+      label: `${fieldIcons.rate} Discounted Rate (oracle × ${1 + Number(targetDiscount)}; dynamic ${Number(adjustedDifference)})`,
       value: discountedRate
     });
     fields.push({
       label: `${fieldIcons.output} Ideal Output for Discount`,
-      value: `${trimToSixDecimals(expectedOutputAmountDecimal)} ${outputCurrency}`
+      value: `${trimToSixDecimals(expectedOutputAmountDecimal)} ${quoteSubsidyCurrency}`
     });
     fields.push({
       label: `${fieldIcons.rate} Effective Rate (Binance x ${effectiveRateComparison})`,
@@ -124,13 +120,16 @@ function formatSlackMessage(record: RampRecord, quote: Quote, title?: string, in
     });
     fields.push({
       label: `${fieldIcons.subsidy} Subsidy Amount`,
-      value: `${trimToSixDecimals(subsidyAmountInOutputTokenDecimal)} ${outputCurrency}`
+      value: `${trimToSixDecimals(subsidyAmountInOutputTokenDecimal)} ${quoteSubsidyCurrency}`
     });
     fields.push({
       label: `${fieldIcons.fee} Fee Revenue (Vortex)`,
-      value: `${trimToSixDecimals(fees?.usd?.vortex ?? "")} USD | ${fees?.displayFiat?.vortex ?? ""} ${fees?.displayFiat?.currency ?? ""}`
+      value: `${trimToSixDecimals(vortexFeeUsd(quote) ?? "")} USD | ${fees?.displayFiat?.vortex ?? ""} ${fees?.displayFiat?.currency ?? ""}`
     });
+    fields.push(...buildQuoteAttributionFields(rampType, quote));
   }
+
+  fields.push(...extraFields);
 
   const blocks: Array<Record<string, unknown>> = [
     {
@@ -151,13 +150,15 @@ function formatSlackMessage(record: RampRecord, quote: Quote, title?: string, in
 
   if (includeFields) {
     blocks.push({ type: "divider" });
-    blocks.push({
-      fields: fields.map(field => ({
-        text: `*${field.label}:*\n${field.value ?? "_N/A_"}`,
-        type: "mrkdwn"
-      })),
-      type: "section"
-    });
+    for (const fieldChunk of chunkFields(fields)) {
+      blocks.push({
+        fields: fieldChunk.map(field => ({
+          text: `*${field.label}:*\n${field.value ?? "_N/A_"}`,
+          type: "mrkdwn"
+        })),
+        type: "section"
+      });
+    }
   }
 
   return { blocks };
@@ -193,7 +194,23 @@ Deno.serve(async req => {
           true
         );
       } else if (oldRecord.current_phase !== "complete" && record.current_phase === "complete") {
-        slackPayload = formatSlackMessage(record, quote as Quote, `✅ *Ramp \`${record.id}\` completed successfully*`);
+        const { data: subsidyRows, error: subsidyError } = await supabaseClient
+          .from("subsidies")
+          .select("amount,phase,token")
+          .eq("ramp_id", record.id);
+        if (subsidyError) {
+          console.error("Couldn't load completed-ramp subsidies:", subsidyError);
+        }
+        const completionFields = subsidyError
+          ? []
+          : buildCompletionAttributionFields(quote as Quote, (subsidyRows ?? []) as SubsidyRow[]);
+        slackPayload = formatSlackMessage(
+          record,
+          quote as Quote,
+          `✅ *Ramp \`${record.id}\` completed successfully*`,
+          true,
+          completionFields
+        );
       }
     }
 
