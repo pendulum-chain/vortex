@@ -149,6 +149,7 @@ export function buildQuoteAttributionFields(rampType: RampDirection, quote: Subs
   const feeUsd = vortexFeeUsd(quote);
   const quoteNetUsd =
     quoteSubsidyCurrency(quote) === "USDC" || quoteSubsidyCurrency(quote) === "USDT" ? quoteSubsidy - (feeUsd ?? 0) : undefined;
+  const quoteNetBps = quoteNetUsd === undefined ? undefined : bps(quoteNetUsd, expectedOutput);
 
   const fields: SlackField[] = [
     {
@@ -172,7 +173,7 @@ export function buildQuoteAttributionFields(rampType: RampDirection, quote: Subs
   if (quoteNetUsd !== undefined) {
     fields.push({
       label: "🧮 Quote net subsidy after Vortex fee",
-      value: `${signed(quoteNetUsd, 6)} USD`
+      value: `${signed(quoteNetUsd, 6)} USD${quoteNetBps === undefined ? "" : ` (${signed(quoteNetBps)} bps net)`}`
     });
   }
 

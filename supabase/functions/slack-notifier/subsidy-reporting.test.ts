@@ -65,7 +65,9 @@ describe("subsidy reporting", () => {
     expect(fields.find(field => field.label.includes("Configured"))?.value).toContain("+5.00 bps");
     expect(fields.find(field => field.label.includes("DEX"))?.value).toBe("-100.00 bps");
     expect(fields.find(field => field.label.includes("Cap"))?.value).toContain("2.000000 USDC");
-    expect(fields.find(field => field.label.includes("net subsidy"))?.value).toBe("+6.500000 USD");
+    expect(fields.find(field => field.label.includes("net subsidy"))?.value).toBe(
+      "+6.500000 USD (+324.82 bps net)"
+    );
   });
 
   test("separates execution discrepancy from final settlement", () => {
