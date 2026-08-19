@@ -1,21 +1,21 @@
 import { describe, expect, it } from "bun:test";
 
-import { buildDashboardPreviewOriginRegex, parseDashboardOrigins } from "./corsOrigins";
+import { buildDashboardPreviewOriginRegex, parseFixedOrigins } from "./corsOrigins";
 
-describe("parseDashboardOrigins", () => {
+describe("parseFixedOrigins", () => {
   it("splits, trims and drops empty entries", () => {
-    expect(parseDashboardOrigins(" https://a.example.com , https://b.example.com ,, ")).toEqual([
+    expect(parseFixedOrigins(" https://a.example.com , https://b.example.com ,, ")).toEqual([
       "https://a.example.com",
       "https://b.example.com"
     ]);
   });
 
   it("returns an empty list for undefined", () => {
-    expect(parseDashboardOrigins(undefined)).toEqual([]);
+    expect(parseFixedOrigins(undefined)).toEqual([]);
   });
 
   it("drops entries containing wildcards", () => {
-    expect(parseDashboardOrigins("https://*.netlify.app,https://ok.example.com")).toEqual(["https://ok.example.com"]);
+    expect(parseFixedOrigins("https://*.netlify.app,https://ok.example.com")).toEqual(["https://ok.example.com"]);
   });
 });
 
