@@ -4,7 +4,7 @@ import {
   EPaymentMethod,
   FiatToken,
   getNetworkFromDestination,
-  isAlfredpayToken,
+  isDomesticToken,
   isNetworkEVM,
   Networks,
   RampCurrency,
@@ -111,10 +111,10 @@ export function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
     const toNetwork = getNetworkFromDestination(request.to);
     return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
   }
-  if (request.rampType === RampDirection.SELL && isAlfredpayToken(request.outputCurrency)) {
+  if (request.rampType === RampDirection.SELL && isDomesticToken(request.outputCurrency)) {
     return true;
   }
-  return request.rampType === RampDirection.BUY && isAlfredpayToken(request.inputCurrency);
+  return request.rampType === RampDirection.BUY && isDomesticToken(request.inputCurrency);
 }
 
 /**

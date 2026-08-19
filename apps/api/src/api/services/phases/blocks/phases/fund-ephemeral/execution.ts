@@ -4,7 +4,7 @@ import {
   EvmNetworks,
   FiatToken,
   getNetworkFromDestination,
-  isAlfredpayToken,
+  isDomesticToken,
   isEvmTransactionData,
   multiplyByPowerOfTen,
   Networks,
@@ -239,7 +239,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
   ): Promise<void> {
     if (state.type !== RampDirection.SELL) return;
     if (state.from === Networks.AssetHub) return;
-    if (isAlfredpayToken(quote.outputCurrency as FiatToken)) return;
+    if (isDomesticToken(quote.outputCurrency as FiatToken)) return;
     const metadata = getFlowMetadata(quote.metadata).blocks[EvmOfframpSourceContext.key] as
       | EvmOfframpSourceMetadata
       | undefined;

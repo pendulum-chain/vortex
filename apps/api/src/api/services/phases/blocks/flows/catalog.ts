@@ -5,7 +5,7 @@ import {
   evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
-  isAlfredpayToken,
+  isDomesticToken,
   isEvmToken,
   isNetworkEVM,
   mapFiatToDestination,
@@ -128,7 +128,7 @@ const flowDefinitions: FlowDefinition[] = [
     create(request) {
       const network = getNetworkFromDestination(request.from);
       if (!network || !isNetworkEVM(network)) {
-        throw new APIError({ message: `Unsupported Alfredpay source: ${request.from}`, status: httpStatus.BAD_REQUEST });
+        throw new APIError({ message: `Unsupported source: ${request.from}`, status: httpStatus.BAD_REQUEST });
       }
       return makeAlfredpayOfframpFlow(request.inputCurrency as EvmToken, network);
     },
@@ -137,7 +137,7 @@ const flowDefinitions: FlowDefinition[] = [
       const network = getNetworkFromDestination(request.from);
       return (
         request.rampType === RampDirection.SELL &&
-        isAlfredpayToken(request.outputCurrency) &&
+        isDomesticToken(request.outputCurrency) &&
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
@@ -221,7 +221,7 @@ const flowDefinitions: FlowDefinition[] = [
     matches(request) {
       return (
         request.rampType === RampDirection.BUY &&
-        isAlfredpayToken(request.inputCurrency) &&
+        isDomesticToken(request.inputCurrency) &&
         request.from === mapFiatToDestination(request.inputCurrency) &&
         evmTokenConfig[Networks.Polygon][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Polygon
@@ -288,7 +288,7 @@ const flowDefinitions: FlowDefinition[] = [
       const network = getNetworkFromDestination(request.to);
       return (
         request.rampType === RampDirection.BUY &&
-        isAlfredpayToken(request.inputCurrency) &&
+        isDomesticToken(request.inputCurrency) &&
         network !== undefined &&
         network !== Networks.Polygon &&
         isNetworkEVM(network)

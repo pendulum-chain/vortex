@@ -1,5 +1,8 @@
 import {
-  AveniaKYCDataUploadRequest,
+  BrDocumentType,
+  BrKYCDataUploadRequest,
+  BrKybLevel1Payload,
+  BrUboPayload,
   CreateAveniaSubaccountRequest,
   CreateBestQuoteRequest,
   CreateQuoteRequest,
@@ -9,6 +12,7 @@ import {
   getCaseSensitiveNetwork,
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
+  isValidCpf,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
@@ -26,6 +30,7 @@ import {
 } from "@vortexfi/shared";
 import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
+import { z } from "zod";
 import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
@@ -362,6 +367,32 @@ export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
+export const validateAveniaKycTokenImport: RequestHandler = (req, res, next) => {
+  const idempotencyKey = req.get("Idempotency-Key");
+  const body = req.body as Record<string, unknown> | undefined;
+  if (!idempotencyKey || !/^[\x21-\x7e]{1,128}$/.test(idempotencyKey)) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Idempotency-Key must contain 1 to 128 visible ASCII characters" });
+    return;
+  }
+  if (!body || Object.keys(body).some(key => key !== "importToken" && key !== "consentAttested")) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid request body" });
+    return;
+  }
+  if (
+    typeof body.importToken !== "string" ||
+    body.importToken.length === 0 ||
+    Buffer.byteLength(body.importToken, "utf8") > 1024
+  ) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "importToken must contain between 1 and 1024 bytes" });
+    return;
+  }
+  if (body.consentAttested !== true) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "consentAttested must be true" });
+    return;
+  }
+  next();
+};
+
 const validateSupportedFiatCurrency = (
   rampType: RampDirection,
   inputCurrency: unknown,
@@ -614,7 +645,7 @@ export const validateKycSubmission: RequestHandler = (req, res, next) => {
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { documentType } = req.body as AveniaKYCDataUploadRequest;
+  const { documentType } = req.body as BrKYCDataUploadRequest;
 
   if (!isValidKYCDocType(documentType)) {
     res.status(httpStatus.BAD_REQUEST).json({
@@ -625,3 +656,180 @@ export const validateStartKyc2: RequestHandler = (req, res, next) => {
 
   next();
 };
+
+const nonEmptyString = z.string().trim().min(1);
+const isoAlpha3 = z.string().regex(/^[A-Z]{3}$/, "Must be an ISO 3166-1 alpha-3 country code");
+
+function isAdultDate(value: string): boolean {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return false;
+  }
+  const minimumBirthDate = new Date();
+  minimumBirthDate.setUTCFullYear(minimumBirthDate.getUTCFullYear() - 18);
+  return date <= minimumBirthDate;
+}
+
+const aveniaDocumentUploadSchema = z
+  .object({
+    documentType: z.enum(BrDocumentType),
+    isDoubleSided: z.boolean().optional()
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const identificationTypes = new Set([
+      BrDocumentType.ID,
+      BrDocumentType.DRIVERS_LICENSE,
+      BrDocumentType.PASSPORT,
+      BrDocumentType.RESIDENCE_PERMIT
+    ]);
+    if (value.isDoubleSided && !identificationTypes.has(value.documentType)) {
+      context.addIssue({ code: "custom", message: "Only identification documents may be double-sided" });
+    }
+  });
+
+const aveniaUboSchema: z.ZodType<BrUboPayload> = z
+  .object({
+    city: nonEmptyString,
+    country: isoAlpha3,
+    countryOfTaxId: isoAlpha3,
+    dateOfBirth: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .refine(isAdultDate, "UBO must be at least 18 years old"),
+    documentCountry: isoAlpha3,
+    email: z.email().optional(),
+    fullName: nonEmptyString.max(256),
+    hasControl: z
+      .enum([
+        "CEO",
+        "CFO",
+        "COO",
+        "CTO",
+        "President",
+        "Vice President",
+        "Director",
+        "Managing Director",
+        "Managing Partner",
+        "General Partner",
+        "Partner",
+        "Secretary",
+        "Treasurer",
+        "Chairman",
+        "Board Member",
+        "Authorized Signatory",
+        "General Counsel",
+        "Owner",
+        "Founder",
+        "Manager",
+        "Member",
+        "Comptroller",
+        "Chief Compliance Officer"
+      ])
+      .optional(),
+    percentageOfOwnership: nonEmptyString.refine(value => {
+      const percentage = Number(value);
+      return Number.isFinite(percentage) && percentage >= 0 && percentage <= 100;
+    }, "percentageOfOwnership must be between 0 and 100"),
+    phone: z
+      .string()
+      .regex(/^\+[1-9]\d{7,14}$/, "Phone must use E.164 format")
+      .optional(),
+    state: nonEmptyString,
+    streetLine1: nonEmptyString.max(256),
+    streetLine2: z.string().optional(),
+    streetLine3: z.string().optional(),
+    taxIdNumber: nonEmptyString,
+    uploadedIdentificationId: nonEmptyString,
+    uploadedSelfieId: nonEmptyString.optional(),
+    zipCode: nonEmptyString
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.countryOfTaxId === "BRA" && !isValidCpf(value.taxIdNumber)) {
+      context.addIssue({ code: "custom", message: "taxIdNumber must be a valid CPF for BRA", path: ["taxIdNumber"] });
+    }
+    if (value.countryOfTaxId === "USA" && !/^\d{9}$/.test(value.taxIdNumber)) {
+      context.addIssue({ code: "custom", message: "taxIdNumber must contain 9 digits for USA", path: ["taxIdNumber"] });
+    }
+  });
+
+const aveniaKybLevel1Schema: z.ZodType<BrKybLevel1Payload> = z
+  .object({
+    businessActivityDescription: nonEmptyString.max(2000),
+    certificateOfIncorporationDocumentId: nonEmptyString,
+    companyCity: nonEmptyString.max(256),
+    companyCountry: nonEmptyString,
+    companyLegalName: nonEmptyString,
+    companyRegistrationNumber: nonEmptyString,
+    companyState: nonEmptyString,
+    companyStreetLine1: nonEmptyString.max(256),
+    companyStreetLine2: z.string().optional(),
+    companyStreetLine3: z.string().optional(),
+    companyZipCode: nonEmptyString.max(256),
+    countrySubdivisionTaxResidence: nonEmptyString.optional(),
+    countryTaxResidence: z.union([isoAlpha3, z.literal("N/A")]),
+    emailPixKey: z.email().optional(),
+    estimatedAnnualRevenueUsd: z.enum([
+      "less_than_100k",
+      "100k_to_1m",
+      "1m_to_10m",
+      "10m_to_50m",
+      "50m_to_100m",
+      "more_than_100m"
+    ]),
+    estimatedMonthlyVolumeUsd: z.string().regex(/^[1-9]\d*$/, "Must be a positive integer"),
+    numberOfEmployees: z.enum(["1-10", "11-50", "51-200", "201-500", "501-1000", "1001+"]),
+    reasonForAccountOpening: z.enum([
+      "charitable_donations",
+      "ecommerce_retail_payments",
+      "investment_purposes",
+      "other",
+      "payments_to_friends_or_family_abroad",
+      "payroll",
+      "personal_or_living_expenses",
+      "protect_wealth",
+      "purchase_goods_and_services",
+      "receive_payments_for_goods_and_services",
+      "tax_optimization",
+      "third_party_money_transmission",
+      "treasury_management"
+    ]),
+    sandboxReject: z.boolean().optional(),
+    socialMedia: z.url().optional(),
+    sourceOfFundsAndIncome: z.enum([
+      "business_loans",
+      "grants",
+      "inter_company_funds",
+      "investment_proceeds",
+      "legal_settlement",
+      "owners_capital",
+      "pension_retirement",
+      "sale_of_assets",
+      "sales_of_goods_and_services",
+      "third_party_funds",
+      "treasury_reserves"
+    ]),
+    taxIdentificationDocumentId: nonEmptyString,
+    taxIdentificationNumberTin: nonEmptyString,
+    uboIds: z.array(nonEmptyString).min(1).max(50),
+    website: z.url().optional()
+  })
+  .strict();
+
+function validateAveniaKybBody(schema: z.ZodType): RequestHandler {
+  return (req, res, next) => {
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(httpStatus.BAD_REQUEST).json({ details: z.prettifyError(parsed.error), error: "Invalid request" });
+      return;
+    }
+    req.body = parsed.data;
+    next();
+  };
+}
+
+export const validateAveniaKybDocument = validateAveniaKybBody(aveniaDocumentUploadSchema);
+export const validateAveniaKybUbo = validateAveniaKybBody(aveniaUboSchema);
+export const validateAveniaKybLevel1 = validateAveniaKybBody(aveniaKybLevel1Schema);

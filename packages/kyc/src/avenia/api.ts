@@ -1,9 +1,9 @@
 import type {
-  BrlaCreateSubaccountRequest,
-  BrlaCreateSubaccountResponse,
-  BrlaGetKycStatusResponse,
-  BrlaGetSelfieLivenessUrlResponse,
-  BrlaGetUserResponse,
+  BrCreateSubaccountRequest,
+  BrCreateSubaccountResponse,
+  BrGetKycStatusResponse,
+  BrGetSelfieLivenessUrlResponse,
+  BrGetUserResponse,
   KybAttemptStatusResponse,
   KycLevel1Payload
 } from "@vortexfi/shared";
@@ -15,11 +15,11 @@ export interface KybLevel1Response {
 }
 
 export interface AveniaKycApi {
-  createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse>;
-  getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse>;
+  createSubaccount(request: BrCreateSubaccountRequest): Promise<BrCreateSubaccountResponse>;
+  getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrGetKycStatusResponse>;
   getKybAttemptStatus(attemptId: string, signal?: AbortSignal): Promise<KybAttemptStatusResponse>;
-  getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse>;
-  getUser(taxId: string): Promise<BrlaGetUserResponse>;
+  getSelfieLivenessUrl(taxId: string): Promise<BrGetSelfieLivenessUrlResponse>;
+  getUser(taxId: string): Promise<BrGetUserResponse>;
   initiateKybLevel1(subAccountId?: string): Promise<KybLevel1Response>;
   submitNewKyc(payload: KycLevel1Payload): Promise<{ id: string }>;
 }

@@ -55,6 +55,32 @@ bun run docs:api:export
 
 The current slug-to-source mapping is the `slug` field in `apidog/page-manifest.json`. Keep them aligned with the published Apidog pages.
 
+## Provider-Neutral Naming
+
+Everything a partner can see is named after the **corridor family** it serves, never after the
+payment partner behind it, so the public surface survives a change of provider:
+
+| Family | Covers | Prefix | Canonical route base |
+|---|---|---|---|
+| BR | BRL / PIX corridor | `Br` | `/v1/brl/*` |
+| Domestic | USD, MXN, COP, ARS bank-transfer corridors | `Domestic` | `/v1/domestic/*` (`/v1/ar`, `/v1/co`, `/v1/mx` pin the country) |
+
+This applies to OpenAPI schema names and `operationId`s, route paths, discovery `family` and
+`flow` values, public error messages, and `@vortexfi/sdk` exports. Partner brand names must not
+appear in any of them, nor in the Markdown pages.
+
+Deliberate exceptions, all of them things a rename would break or misrepresent:
+
+- Legacy route aliases (`/v1/brla/*`, `/v1/alfredpay/*`) and the `/v1/domestic/alfredpayStatus`
+  sub-path, which are released paths integrators still call.
+- Wire values that name a real asset or record, such as the `BRLA` token ticker and the
+  `provider` field of `GET /v1/onboarding/status`.
+- Internal provider-protocol types, service files, workers, and log lines. These model a
+  specific third party's API and are never returned to a partner.
+- `Sumsub`, which is the caller's own vendor rather than a Vortex payment partner.
+
+Deprecated provider-named SDK aliases stay exported until the next major release.
+
 ## SEO Settings
 
 Apidog supports per-page SEO settings (Page → SEO Settings): URL Slug, Meta Title, Meta Description, Keywords, and Custom Metadata. There is no API for setting them, so they are applied manually in the Apidog UI.

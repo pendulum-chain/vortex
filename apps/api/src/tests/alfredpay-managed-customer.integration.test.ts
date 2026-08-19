@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredPayStatus, AlfredpayApiService, AlfredpayCustomerType } from "@vortexfi/shared";
+import { AlfredPayStatus, AlfredpayApiService, DomesticCustomerType } from "@vortexfi/shared";
 import express from "express";
 import sequelize from "../config/database";
 import CustomerEntity from "../models/customerEntity.model";
@@ -94,7 +94,7 @@ describe("managed Alfredpay customer creation", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(createCustomer).toHaveBeenCalledWith("child@example.com", AlfredpayCustomerType.INDIVIDUAL, "MX");
+    expect(createCustomer).toHaveBeenCalledWith("child@example.com", DomesticCustomerType.INDIVIDUAL, "MX");
     expect(JSON.stringify(createCustomer.mock.calls)).not.toContain("manager@example.com");
     expect((await User.findByPk(child.profileId))?.email).toBeNull();
   });
@@ -116,7 +116,7 @@ describe("managed Alfredpay customer creation", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(createCustomer).toHaveBeenCalledWith("ordinary@example.com", AlfredpayCustomerType.INDIVIDUAL, "MX");
+    expect(createCustomer).toHaveBeenCalledWith("ordinary@example.com", DomesticCustomerType.INDIVIDUAL, "MX");
   });
 
   it("allows manager secret delegation for business creation", async () => {
@@ -137,7 +137,7 @@ describe("managed Alfredpay customer creation", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(createCustomer).toHaveBeenCalledWith("business@example.com", AlfredpayCustomerType.BUSINESS, "CO");
+    expect(createCustomer).toHaveBeenCalledWith("business@example.com", DomesticCustomerType.BUSINESS, "CO");
   });
 
   it("rejects the wrong child type and disallowed corridor before provider access", async () => {
@@ -315,7 +315,7 @@ describe("managed Alfredpay customer creation", () => {
       country: "US",
       createdAt: new Date().toISOString(),
       customerId: "wrong-customer",
-      type: AlfredpayCustomerType.BUSINESS
+      type: DomesticCustomerType.BUSINESS
     }));
     provider(createCustomer, findCustomer);
 
@@ -341,7 +341,7 @@ describe("managed Alfredpay customer creation", () => {
       alfredPayId: "victim-customer",
       country: "MX" as never,
       status: AlfredPayStatus.Success,
-      type: AlfredpayCustomerType.INDIVIDUAL
+      type: DomesticCustomerType.INDIVIDUAL
     });
 
     // A second manager picks the victim's email as its child's unverified contact email.
@@ -361,7 +361,7 @@ describe("managed Alfredpay customer creation", () => {
       country: "MX",
       createdAt: new Date().toISOString(),
       customerId: "victim-customer",
-      type: AlfredpayCustomerType.INDIVIDUAL
+      type: DomesticCustomerType.INDIVIDUAL
     }));
     provider(createCustomer, findCustomer);
 
@@ -393,7 +393,7 @@ describe("managed Alfredpay customer creation", () => {
       country: "MX",
       createdAt: new Date().toISOString(),
       customerId: "unclaimed-customer",
-      type: AlfredpayCustomerType.INDIVIDUAL
+      type: DomesticCustomerType.INDIVIDUAL
     }));
     provider(createCustomer, findCustomer);
 
@@ -434,9 +434,9 @@ describe("managed Alfredpay customer creation", () => {
   });
 
   it.each([
-    ["missing customer id", { country: "MX", type: AlfredpayCustomerType.INDIVIDUAL }],
-    ["empty customer id", { country: "MX", customerId: "  ", type: AlfredpayCustomerType.INDIVIDUAL }],
-    ["missing country", { customerId: "customer-1", type: AlfredpayCustomerType.INDIVIDUAL }],
+    ["missing customer id", { country: "MX", type: DomesticCustomerType.INDIVIDUAL }],
+    ["empty customer id", { country: "MX", customerId: "  ", type: DomesticCustomerType.INDIVIDUAL }],
+    ["missing country", { customerId: "customer-1", type: DomesticCustomerType.INDIVIDUAL }],
     ["missing type", { country: "MX", customerId: "customer-1" }]
   ])("does not bind a conflicting provider customer with %s", async (_label, providerCustomer) => {
     const manager = await createManager();

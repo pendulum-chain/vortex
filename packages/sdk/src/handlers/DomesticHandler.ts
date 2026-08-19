@@ -8,17 +8,17 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError } from "../errors.js";
+import { MissingDomesticOfframpParametersError, MissingDomesticOnrampParametersError } from "../errors.js";
 import type { ApiService } from "../services/ApiService.js";
 import type {
-  AlfredpayOfframpAdditionalData,
-  AlfredpayOfframpUpdateAdditionalData,
-  AlfredpayOnrampAdditionalData,
+  DomesticOfframpAdditionalData,
+  DomesticOfframpUpdateAdditionalData,
+  DomesticOnrampAdditionalData,
   RampHandler,
   VortexSdkContext
 } from "../types.js";
 
-export class AlfredpayHandler implements RampHandler {
+export class DomesticHandler implements RampHandler {
   private apiService: ApiService;
   private context: VortexSdkContext;
   private generateEphemerals: () => Promise<{
@@ -67,9 +67,9 @@ export class AlfredpayHandler implements RampHandler {
     return unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
   }
 
-  async registerAlfredpayOnramp(quoteId: string, additionalData: AlfredpayOnrampAdditionalData): Promise<RampProcess> {
+  async registerDomesticOnramp(quoteId: string, additionalData: DomesticOnrampAdditionalData): Promise<RampProcess> {
     if (!additionalData.destinationAddress) {
-      throw new MissingAlfredpayOnrampParametersError();
+      throw new MissingDomesticOnrampParametersError();
     }
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
@@ -104,9 +104,9 @@ export class AlfredpayHandler implements RampHandler {
     return this.apiService.updateRamp(updateRequest);
   }
 
-  async registerAlfredpayOfframp(quoteId: string, additionalData: AlfredpayOfframpAdditionalData): Promise<RampProcess> {
+  async registerDomesticOfframp(quoteId: string, additionalData: DomesticOfframpAdditionalData): Promise<RampProcess> {
     if (!additionalData.fiatAccountId || !additionalData.walletAddress) {
-      throw new MissingAlfredpayOfframpParametersError();
+      throw new MissingDomesticOfframpParametersError();
     }
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
@@ -140,7 +140,7 @@ export class AlfredpayHandler implements RampHandler {
     return this.apiService.updateRamp(updateRequest);
   }
 
-  async updateAlfredpayOfframp(rampId: string, additionalData: AlfredpayOfframpUpdateAdditionalData): Promise<RampProcess> {
+  async updateDomesticOfframp(rampId: string, additionalData: DomesticOfframpUpdateAdditionalData): Promise<RampProcess> {
     const rampProcess = await this.apiService.getRampStatus(rampId);
     if (rampProcess.currentPhase !== "initial") {
       throw new Error(`Ramp cannot be updated in its current phase. Expected initial phase, got: ${rampProcess.currentPhase}`);

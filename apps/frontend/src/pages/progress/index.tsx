@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isAlfredpayToken, isNetworkEVM, RampDirection, RampPhase } from "@vortexfi/shared";
+import { FiatToken, isDomesticToken, isNetworkEVM, RampDirection, RampPhase } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +37,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     return "offramp_eur_evm";
   }
 
-  if (rampState.quote && isAlfredpayToken(rampState.quote.outputCurrency)) {
+  if (rampState.quote && isDomesticToken(rampState.quote.outputCurrency)) {
     return "offramp_alfredpay";
   }
 

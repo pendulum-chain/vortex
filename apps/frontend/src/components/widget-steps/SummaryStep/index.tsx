@@ -1,5 +1,5 @@
 import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
-import { FiatToken, isAlfredpayToken, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isDomesticToken, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -77,7 +77,7 @@ export const SummaryStep: FC = () => {
   const content = (
     <>
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampType} />
-      {isAlfredpayToken(executionInput.fiatToken) && !isOnramp && <FiatAccountSelector />}
+      {isDomesticToken(executionInput.fiatToken) && !isOnramp && <FiatAccountSelector />}
 
       {!rampRegistrationError && signingBoxVisible && (
         <div className="mx-auto mt-6 max-w-[320px]">

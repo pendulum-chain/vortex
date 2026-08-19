@@ -86,6 +86,20 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
       payoutAddressEvm: DESTINATION,
       rampType: RampDirection.BUY
     });
+    const managerPricingPartner = await createTestPartner({
+      fiatCurrency: FiatToken.BRL,
+      markupCurrency: FiatToken.BRL,
+      markupType: "absolute",
+      markupValue: 2,
+      payoutAddressEvm: DESTINATION,
+      rampType: RampDirection.BUY
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: managerPricingPartner.id,
+      partnerName: managerPricingPartner.name,
+      userId: manager.id
+    });
     await ProfilePartnerAssignment.create({
       isActive: true,
       partnerId: pricingPartner.id,
@@ -180,6 +194,17 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     expect(Number(directQuoteResponse.partnerFeeFiat)).toBe(5);
     expect(Number(directQuoteResponse.outputAmount)).toBe(99.9);
 
+    const delegatedSiblingQuoteResponse = await createQuote({
+      ...managerHeaders,
+      "X-Managed-Profile-Id": siblingId
+    });
+    const delegatedSiblingQuote = await QuoteTicket.findByPk(delegatedSiblingQuoteResponse.id as string);
+    expect(delegatedSiblingQuote?.userId).toBe(siblingId);
+    expect(delegatedSiblingQuote?.partnerId).toBeNull();
+    expect(delegatedSiblingQuote?.pricingPartnerId).toBe(managerPricingPartner.id);
+    expect(delegatedSiblingQuote?.apiCredentialId).toBe(managerCredential.record.id);
+    expect(Number(delegatedSiblingQuoteResponse.partnerFeeFiat)).toBe(2);
+
     const pendingQuoteResponse = await createQuote({
       "Content-Type": "application/json",
       "X-API-Key": childCredential.secretKey
@@ -214,6 +239,12 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
       "X-API-Key": siblingCredential.secretKey
     });
     const siblingQuoteId = siblingQuoteResponse.id as string;
+    const siblingQuote = await QuoteTicket.findByPk(siblingQuoteId);
+    expect(siblingQuote?.userId).toBe(siblingId);
+    expect(siblingQuote?.partnerId).toBeNull();
+    expect(siblingQuote?.pricingPartnerId).toBe(managerPricingPartner.id);
+    expect(siblingQuote?.apiCredentialId).toBe(siblingCredential.id);
+    expect(Number(siblingQuoteResponse.partnerFeeFiat)).toBe(2);
     const siblingRegistration = await jsonRequest("/v1/ramp/register", {
       body: JSON.stringify({
         additionalData: { destinationAddress: DESTINATION, taxId: "12345678902" },

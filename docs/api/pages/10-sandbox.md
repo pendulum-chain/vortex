@@ -33,7 +33,7 @@ To simplify testing, we have pre-configured accounts that are already whiteliste
 
 ### Euro Onramps
 - **Login Method**: Sign in using an EVM wallet.
-- **Test Wallet**: Use your own wallet and fund it from public testnet faucets.
+- **Test Wallet**: Use your own test wallet and fund it from a public testnet faucet. Never use or publish a shared recovery phrase.
 
 ### Euro Offramps
 - **Login Method**: Use an email address.

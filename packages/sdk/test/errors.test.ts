@@ -1,8 +1,8 @@
 import {describe, expect, test} from "bun:test";
 import {
-  AlfredpayOnrampKycRequiredError,
+  DomesticOnrampKycRequiredError,
   BrlKycStatusError,
-  MissingAlfredpayOfframpParametersError,
+  MissingDomesticOfframpParametersError,
   MissingBrlOfframpParametersError,
   MissingBrlParametersError,
   MykoboKycRequiredError,
@@ -39,10 +39,10 @@ describe("parseAPIError", () => {
     const error = parseAPIError({
       code: 401,
       message:
-        "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists."
+        "This onramp requires a completed KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-customer mapping exists."
     });
 
-    expect(error).toBeInstanceOf(AlfredpayOnrampKycRequiredError);
+    expect(error).toBeInstanceOf(DomesticOnrampKycRequiredError);
     expect(error.status).toBe(401);
   });
 
@@ -78,7 +78,7 @@ describe("parseAPIError", () => {
   test("maps the shared missing-walletAddress offramp message", () => {
     const error = parseAPIError({ code: 400, message: "User address must be provided for offramping." });
 
-    expect(error).toBeInstanceOf(MissingAlfredpayOfframpParametersError);
+    expect(error).toBeInstanceOf(MissingDomesticOfframpParametersError);
     expect(error.status).toBe(400);
   });
 

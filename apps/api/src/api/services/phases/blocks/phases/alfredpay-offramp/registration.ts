@@ -28,7 +28,7 @@ export interface AlfredpayOfframpRegistrationFacts {
   walletAddress: string;
 }
 
-export async function registerAlfredpayOfframp(
+export async function registerDomesticOfframp(
   ctx: RegisterCtx<AlfredpayOfframpMetadata, AlfredpayOfframpRegistrationInput>,
   dependencies: {
     resolveCustomerId?: typeof resolveAlfredpayCustomerId;
@@ -37,10 +37,10 @@ export async function registerAlfredpayOfframp(
   } = {}
 ): Promise<RegistrationResult<AlfredpayOfframpRegistrationFacts, AlfredpayOfframpMetadata>> {
   if (!ctx.input.fiatAccountId) {
-    throw new APIError({ message: "fiatAccountId is required for Alfredpay offramp", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "fiatAccountId is required for this offramp", status: httpStatus.BAD_REQUEST });
   }
   if (!ctx.input.walletAddress) {
-    throw new APIError({ message: "Wallet address is required for Alfredpay offramp", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "Wallet address is required for this offramp", status: httpStatus.BAD_REQUEST });
   }
   const evmEphemeral = requireAccount(
     Object.fromEntries(ctx.signingAccounts.map(account => [account.type, account])),

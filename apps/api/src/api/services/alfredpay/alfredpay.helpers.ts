@@ -1,12 +1,12 @@
 import {
   ALFREDPAY_EVM_TOKEN,
-  AlfredPayCountry,
-  AlfredpayCustomerType,
   AlfredpayStablecoinKey,
   AmountLimits,
+  DomesticCountry,
+  DomesticCustomerType,
   FiatToken,
   getAnyFiatTokenDetails,
-  isAlfredpayToken,
+  isDomesticToken,
   RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
@@ -20,11 +20,11 @@ import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service"
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
 
-const FIAT_TO_COUNTRY: Partial<Record<FiatToken, AlfredPayCountry>> = {
-  [FiatToken.ARS]: AlfredPayCountry.AR,
-  [FiatToken.COP]: AlfredPayCountry.CO,
-  [FiatToken.MXN]: AlfredPayCountry.MX,
-  [FiatToken.USD]: AlfredPayCountry.US
+const FIAT_TO_COUNTRY: Partial<Record<FiatToken, DomesticCountry>> = {
+  [FiatToken.ARS]: DomesticCountry.AR,
+  [FiatToken.COP]: DomesticCountry.CO,
+  [FiatToken.MXN]: DomesticCountry.MX,
+  [FiatToken.USD]: DomesticCountry.US
 };
 
 const MONTHLY_USAGE_CACHE_TTL_MS = 60_000;
@@ -34,7 +34,7 @@ function usageKey(direction: RampDirection, fiat: FiatToken, stablecoin: Alfredp
   return `${direction}:${fiat}:${stablecoin}`;
 }
 
-export function alfredpayCountryForFiat(fiat: FiatToken): AlfredPayCountry | undefined {
+export function alfredpayCountryForFiat(fiat: FiatToken): DomesticCountry | undefined {
   return FIAT_TO_COUNTRY[fiat];
 }
 
@@ -46,17 +46,17 @@ export function alfredpayCountryForFiat(fiat: FiatToken): AlfredPayCountry | und
  * Defaulting to INDIVIDUAL is intentional — it's the more restrictive bucket on USD/COP, so an
  * anonymous quote that would later route through a Business customer just sees tighter limits at first.
  */
-export async function lookupAlfredpayCustomerType(userId: string | undefined, fiat: FiatToken): Promise<AlfredpayCustomerType> {
-  if (!userId) return AlfredpayCustomerType.INDIVIDUAL;
+export async function lookupAlfredpayCustomerType(userId: string | undefined, fiat: FiatToken): Promise<DomesticCustomerType> {
+  if (!userId) return DomesticCustomerType.INDIVIDUAL;
   const country = alfredpayCountryForFiat(fiat);
-  if (!country) return AlfredpayCustomerType.INDIVIDUAL;
+  if (!country) return DomesticCustomerType.INDIVIDUAL;
   const entity = await getOrCreateCustomerEntityForProfile(userId);
   // customer_type ASC keeps the legacy type-ASC precedence ('business' < 'individual').
   const customer = await ProviderCustomer.findOne({
     order: [["customerType", "ASC"]],
     where: { country, customerEntityId: entity.id, provider: "alfredpay" }
   });
-  return customer?.customerType === "business" ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL;
+  return customer?.customerType === "business" ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL;
 }
 
 /**
@@ -71,7 +71,7 @@ export function stablecoinFromCurrency(currency: RampCurrency): AlfredpayStablec
 export interface ResolvedAlfredpayLimits extends AmountLimits {
   fiat: FiatToken;
   stablecoin: AlfredpayStablecoinKey;
-  customer: AlfredpayCustomerType;
+  customer: DomesticCustomerType;
   direction: RampDirection;
 }
 
@@ -89,7 +89,7 @@ export async function resolveAlfredpayQuoteLimits(args: {
   const { rampType, inputCurrency, outputCurrency, userId } = args;
   const isOnramp = rampType === RampDirection.BUY;
   const fiatCandidate = isOnramp ? inputCurrency : outputCurrency;
-  if (!isAlfredpayToken(fiatCandidate)) return null;
+  if (!isDomesticToken(fiatCandidate)) return null;
 
   // Routed quotes may end in another asset; AlfredPay always settles the anchor leg in this token.
   const stablecoin = stablecoinFromCurrency(ALFREDPAY_EVM_TOKEN);
@@ -159,7 +159,7 @@ async function getReportedAlfredpayMonthlyUsageByFiat(userId: string): Promise<M
       amount = block?.inputAmountDecimal;
 
       // Quotes persisted before block metadata was introduced can only be identified by their direct pair.
-      if (!fiat && isAlfredpayToken(quote.inputCurrency)) {
+      if (!fiat && isDomesticToken(quote.inputCurrency)) {
         const legacyStablecoin = stablecoinFromCurrency(quote.outputCurrency);
         if (legacyStablecoin) {
           fiat = quote.inputCurrency;
@@ -175,7 +175,7 @@ async function getReportedAlfredpayMonthlyUsageByFiat(userId: string): Promise<M
       stablecoin = block?.token ? stablecoinFromCurrency(block.token) : null;
       amount = block?.inputAmountDecimal;
 
-      if (!fiat && isAlfredpayToken(quote.outputCurrency)) {
+      if (!fiat && isDomesticToken(quote.outputCurrency)) {
         const legacyStablecoin = stablecoinFromCurrency(quote.inputCurrency);
         if (legacyStablecoin) {
           fiat = quote.outputCurrency;

@@ -1,11 +1,11 @@
 import type {
-  AlfredpayCreateCustomerResponse,
-  AlfredpayCustomerType,
-  AlfredpayGetKybRedirectLinkResponse,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
   AlfredpayKybCustomerAndBusiness,
-  AlfredpayStatusResponse,
+  DomesticCreateCustomerResponse,
+  DomesticCustomerType,
+  DomesticGetKybRedirectLinkResponse,
+  DomesticGetKycRedirectLinkResponse,
+  DomesticGetKycStatusResponse,
+  DomesticStatusResponse,
   SubmitKybInformationRequest,
   SubmitKybInformationResponse,
   SubmitKycInformationRequest,
@@ -19,16 +19,16 @@ import type {
  * belong to payout setup, not verification.
  */
 export interface AlfredpayKycApi {
-  createBusinessCustomer(country: string): Promise<AlfredpayCreateCustomerResponse>;
-  createIndividualCustomer(country: string): Promise<AlfredpayCreateCustomerResponse>;
+  createBusinessCustomer(country: string): Promise<DomesticCreateCustomerResponse>;
+  createIndividualCustomer(country: string): Promise<DomesticCreateCustomerResponse>;
   findKybCustomerAndBusiness(country: string): Promise<AlfredpayKybCustomerAndBusiness[]>;
-  getAlfredpayStatus(country: string): Promise<AlfredpayStatusResponse>;
-  getKybRedirectLink(country: string): Promise<AlfredpayGetKybRedirectLinkResponse>;
-  getKycRedirectLink(country: string): Promise<AlfredpayGetKycRedirectLinkResponse>;
-  getKycStatus(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycStatusResponse>;
-  notifyKycRedirectFinished(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }>;
-  notifyKycRedirectOpened(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }>;
-  retryKyc(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycRedirectLinkResponse>;
+  getDomesticStatus(country: string): Promise<DomesticStatusResponse>;
+  getKybRedirectLink(country: string): Promise<DomesticGetKybRedirectLinkResponse>;
+  getKycRedirectLink(country: string): Promise<DomesticGetKycRedirectLinkResponse>;
+  getKycStatus(country: string, type?: DomesticCustomerType): Promise<DomesticGetKycStatusResponse>;
+  notifyKycRedirectFinished(country: string, type?: DomesticCustomerType): Promise<{ success: boolean }>;
+  notifyKycRedirectOpened(country: string, type?: DomesticCustomerType): Promise<{ success: boolean }>;
+  retryKyc(country: string, type?: DomesticCustomerType): Promise<DomesticGetKycRedirectLinkResponse>;
   sendKybSubmission(country: string, submissionId: string): Promise<void>;
   sendKycSubmission(country: string, submissionId: string): Promise<void>;
   submitKybFile(country: string, submissionId: string, fileType: string, file: File): Promise<void>;
