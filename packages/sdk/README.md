@@ -163,6 +163,8 @@ backend balance-check bypass.
 - **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or plain browser `localStorage`. Browser storage is intentionally prototype-grade and should be used only on a tightly controlled origin; disabling it also disables the SDK's recovery backup.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
 
+With the default `storeEphemeralKeys: true`, registration fails closed if the backup cannot be written. The API may already have created the ramp, but the SDK rejects `registerRamp()` before signing ephemeral-owned transactions or submitting the ramp update; it does not silently continue without recovery material. Keep the backup until the ramp is complete and its recovery window has passed.
+
 ## API Reference
 
 ### VortexSdk

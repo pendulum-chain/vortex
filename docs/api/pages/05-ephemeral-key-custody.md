@@ -13,6 +13,8 @@ This is a critical integration responsibility:
 
 The SDK can store local backups using `storeEphemeralKeys`, which defaults to `true`. In Node.js environments, it writes `ephemerals_{rampId}.json` to the process's current working directory. In browsers, it writes the same plaintext JSON under that key in same-origin localStorage. Neither form is encrypted at rest, and the storage location is not configurable in the current release.
 
+When this backup is enabled, persistence is fail-closed. The SDK waits for the backup write after the API creates the ramp but before it signs ephemeral-owned transactions or submits the ramp update. If the write fails, `registerRamp()` rejects and does not continue to the update or start steps. The backend registration may remain incomplete until it expires, but the SDK does not report a usable ramp while its recovery keys are unprotected. Storage errors are deliberately propagated rather than logged and ignored.
+
 Treat those backups as sensitive key material. Restrict Node filesystem permissions, exclude files from source control, and define a retention policy that matches operational recovery needs. Browser localStorage is prototype-grade: every same-origin script can read it, and the SDK does not prune terminal entries automatically. Setting `storeEphemeralKeys: false` disables the SDK backup; the current SDK does not expose a replacement storage adapter.
 
 Direct API integrations must implement equivalent custody behavior. At minimum, they should create fresh ephemerals per ramp, store encrypted backups, associate backups with the ramp ID, and verify that recovery material exists before allowing the user to continue.
