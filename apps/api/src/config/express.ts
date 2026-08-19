@@ -55,7 +55,7 @@ app.use(morgan(logs));
 app.use(helmet());
 
 // Authenticate and authorize this sensitive token-bearing request before buffering JSON.
-app.use("/v1/brla/kyc/import-token", brlaKycImportRoutes);
+app.use(["/v1/brl/kyc/import-token", "/v1/brla/kyc/import-token"], brlaKycImportRoutes);
 
 // Mounted ahead of the JSON parser: Avenia signs the raw request body, and a payload
 // that has been parsed and re-serialised does not reproduce those bytes exactly.

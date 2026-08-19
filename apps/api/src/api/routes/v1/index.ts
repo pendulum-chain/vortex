@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
+import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
 import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
@@ -106,10 +107,10 @@ router.use("/siwe", siweRoutes);
 router.use("/session", sessionRoutes);
 
 /**
- * GET v1/brla
- * POST v1/brla
+ * GET v1/brl (legacy alias: v1/brla)
+ * POST v1/brl (legacy alias: v1/brla)
  */
-router.use("/brla", brlaRoutes);
+router.use(["/brl", "/brla"], brlaRoutes);
 
 /**
  * GET/POST v1/ramp
@@ -158,10 +159,11 @@ router.use("/maintenance", maintenanceRoutes);
 router.use("/auth", authRoutes);
 
 /**
- * GET v1/alfredpay
- * POST v1/alfredpay
+ * GET v1/mx|co|ar (legacy alias: v1/alfredpay)
+ * POST v1/mx|co|ar (legacy alias: v1/alfredpay)
  */
 router.use("/alfredpay", alfredpayRoutes);
+router.use(["/mx", "/co", "/ar"], setAlfredpayCountryFromRoute, alfredpayRoutes);
 
 /**
  * GET v1/mykobo/profiles

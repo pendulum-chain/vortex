@@ -4,30 +4,34 @@ import { converter, handler, notFound } from "../../middlewares/error";
 import { SupabaseAuthService } from "../../services/auth";
 import brlaKycImportRoutes from "./brla-kyc-import.route";
 
-describe("POST /v1/brla/kyc/import-token", () => {
+describe("POST /v1/brl/kyc/import-token", () => {
   let server: ReturnType<typeof express.application.listen>;
   let url: string;
+  let legacyUrl: string;
 
   beforeAll(() => {
     const app = express();
-    app.use("/v1/brla/kyc/import-token", brlaKycImportRoutes);
+    app.use(["/v1/brl/kyc/import-token", "/v1/brla/kyc/import-token"], brlaKycImportRoutes);
     app.use(converter);
     app.use(notFound);
     app.use(handler);
     server = app.listen(0);
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("Could not bind test server");
-    url = `http://127.0.0.1:${address.port}/v1/brla/kyc/import-token`;
+    url = `http://127.0.0.1:${address.port}/v1/brl/kyc/import-token`;
+    legacyUrl = `http://127.0.0.1:${address.port}/v1/brla/kyc/import-token`;
   });
 
   afterEach(() => mock.restore());
   afterAll(() => server.close());
 
-  it("authenticates before parsing malformed JSON", async () => {
-    const response = await postMalformedJson();
+  it("authenticates before parsing malformed JSON on the new and legacy paths", async () => {
+    for (const requestUrl of [url, legacyUrl]) {
+      const response = await postMalformedJson({}, requestUrl);
 
-    expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ error: { code: "AUTHENTICATION_REQUIRED", status: 401 } });
+      expect(response.status).toBe(401);
+      expect(await response.json()).toMatchObject({ error: { code: "AUTHENTICATION_REQUIRED", status: 401 } });
+    }
   });
 
   it("returns 400 for malformed JSON after authentication", async () => {
@@ -113,8 +117,8 @@ describe("POST /v1/brla/kyc/import-token", () => {
     spyOn(SupabaseAuthService, "verifyToken").mockResolvedValue({ user_id: "user-1", valid: true });
   }
 
-  function postMalformedJson(headers: Record<string, string> = {}): Promise<Response> {
-    return fetch(url, {
+  function postMalformedJson(headers: Record<string, string> = {}, requestUrl = url): Promise<Response> {
+    return fetch(requestUrl, {
       body: "{",
       headers: { ...headers, "Content-Type": "application/json" },
       method: "POST"

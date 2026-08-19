@@ -33,6 +33,8 @@ EUR onboarding is not part of discovery; it is completed through the Vortex appl
 
 BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the identity under which KYC is completed, but it is not how the ramp identifies the user: registration must authenticate as that user through a user-scoped key, a partner key delegated to the user, or a Supabase Bearer session. The tax ID is derived from that account. A `taxId` field may still be provided for backwards compatibility, but only as a cross-check — it must match the account's tax ID, and it cannot select a different user or claim an unlinked tax ID.
 
+Use `/v1/brl/*` for BRL account and verification operations. The previous `/v1/brla/*` prefix remains supported as an equivalent migration alias.
+
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
 A normal partner key cannot select an arbitrary user. An enabled managed-profile manager may use a secret `sk_*` key or Supabase session with `X-Managed-Profile-Id` to drive supported BRLA KYC operations for its directly managed child when the manager has the `BR` corridor and the child's immutable type is allowed by both current manager policy and Vortex's BR capability matrix. A null manager customer-type policy adds no further restriction. A public `pk_*` key is insufficient. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
@@ -41,13 +43,13 @@ A normal partner key cannot select an arbitrary user. An enabled managed-profile
 
 The standard Brazilian individual flow (`avenia-br-individual-level-1-kyc`, mode `hybrid`) can be driven through the API; only the selfie liveness step opens a provider-hosted URL. The sequence published by discovery is:
 
-1. `POST /v1/brla/createSubaccount` — create the individual Avenia subaccount (skip when one already exists).
-2. `POST /v1/brla/getUploadUrls` — create the identity-document and selfie upload targets. Only `ID` and `DRIVERS-LICENSE` are accepted for the identity document. The response's `idUpload.id` and `selfieUpload.id` are the document references the final submission needs.
+1. `POST /v1/brl/createSubaccount` — create the individual Avenia subaccount (skip when one already exists).
+2. `POST /v1/brl/getUploadUrls` — create the identity-document and selfie upload targets. Only `ID` and `DRIVERS-LICENSE` are accepted for the identity document. The response's `idUpload.id` and `selfieUpload.id` are the document references the final submission needs.
 3. `PUT` the identity-document bytes to the returned presigned upload URL.
 4. Open the returned liveness URL and let the user complete the provider-hosted selfie capture.
-5. `POST /v1/brla/newKyc` — submit the Level 1 payload referencing `subAccountId`, `uploadedDocumentId`, and `uploadedSelfieId`. The endpoint waits a built-in 5 seconds for upstream document propagation before submitting, so expect the request to take at least that long.
+5. `POST /v1/brl/newKyc` — submit the Level 1 payload referencing `subAccountId`, `uploadedDocumentId`, and `uploadedSelfieId`. The endpoint waits a built-in 5 seconds for upstream document propagation before submitting, so expect the request to take at least that long.
 
-Track the outcome through `GET /v1/brla/getKycStatus?taxId=<owned-tax-id>` or `GET /v1/onboarding/status`. Only Avenia `COMPLETED + APPROVED` completes KYC; the status mapping and the method-lock rules are shared with the token import documented below — in particular, the first standard document, liveness artifact, submission, or status read permanently selects the `standard` method, after which a Sumsub token import returns `409`.
+Track the outcome through `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>` or `GET /v1/onboarding/status`. Only Avenia `COMPLETED + APPROVED` completes KYC; the status mapping and the method-lock rules are shared with the token import documented below — in particular, the first standard document, liveness artifact, submission, or status read permanently selects the `standard` method, after which a Sumsub token import returns `409`.
 
 ### Individual KYC By Sumsub Share Token
 
@@ -56,7 +58,7 @@ An API-only alternative can import a caller-supplied Sumsub share token into an 
 The direct profile or controlling manager first provisions exactly one active Brazilian individual Avenia customer through the normal account flow. Import the token before reading KYC or aggregate onboarding status: a status read permanently selects a still-null method as `standard`, after which token import returns `409`. Then call:
 
 ```http
-POST /v1/brla/kyc/import-token
+POST /v1/brl/kyc/import-token
 X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 Idempotency-Key: kyc-import-018f...
@@ -81,7 +83,7 @@ A token-import claim returns `202 Accepted`:
 }
 ```
 
-`pending` means only that Avenia accepted the import. After `202`, clients poll `GET /v1/onboarding/status` (the authenticated aggregate onboarding view) or `GET /v1/brla/getKycStatus?taxId=<owned-tax-id>`; `attemptId` is correlation data from the accepted response, not public status-poll input. Vortex polls that exact attempt internally rather than the latest account attempt. `PENDING` remains pending, `PROCESSING` is in review, and `COMPLETED + REJECTED` is rejected. `EXPIRED` remains non-approved and locally pending for reconciliation while Vortex retains the external `EXPIRED` status. Only Avenia `COMPLETED + APPROVED` completes KYC. Sumsub status, token possession, the `202` response, client assertions, and the Avenia webhook cannot approve onboarding; the webhook is notification-only.
+`pending` means only that Avenia accepted the import. After `202`, clients poll `GET /v1/onboarding/status` (the authenticated aggregate onboarding view) or `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>`; `attemptId` is correlation data from the accepted response, not public status-poll input. Vortex polls that exact attempt internally rather than the latest account attempt. `PENDING` remains pending, `PROCESSING` is in review, and `COMPLETED + REJECTED` is rejected. `EXPIRED` remains non-approved and locally pending for reconciliation while Vortex retains the external `EXPIRED` status. Only Avenia `COMPLETED + APPROVED` completes KYC. Sumsub status, token possession, the `202` response, client assertions, and the Avenia webhook cannot approve onboarding; the webhook is notification-only.
 
 #### Method Lock And Safe Retries
 
@@ -105,13 +107,13 @@ Brazilian business verification (`avenia-br-business-level-1-api-kyb`, mode `api
 
 The sequence, including the readiness reads that discovery intentionally omits:
 
-1. `POST /v1/brla/createSubaccount` — create the company Avenia subaccount from the company name and CNPJ (skip when one already exists). The response's `subAccountId` is a query parameter on every following step.
-2. `POST /v1/brla/kyb/documents?subAccountId=...` — create one upload target per document: `CERTIFICATE-OF-INCORPORATION` and `COMPANY-TAX-IDENTIFICATION-DOCUMENT` for the company, one identity document (`ID`, `DRIVERS-LICENSE`, `PASSPORT`, or `RESIDENCE-PERMIT`) per UBO, and optionally `SELFIE-FROM-LIVENESS` per UBO. The `201` response carries the document `id` plus presigned `uploadURLFront` (and `uploadURLBack` when `isDoubleSided`), or a `livenessUrl` for the liveness type.
+1. `POST /v1/brl/createSubaccount` — create the company Avenia subaccount from the company name and CNPJ (skip when one already exists). The response's `subAccountId` is a query parameter on every following step.
+2. `POST /v1/brl/kyb/documents?subAccountId=...` — create one upload target per document: `CERTIFICATE-OF-INCORPORATION` and `COMPANY-TAX-IDENTIFICATION-DOCUMENT` for the company, one identity document (`ID`, `DRIVERS-LICENSE`, `PASSPORT`, or `RESIDENCE-PERMIT`) per UBO, and optionally `SELFIE-FROM-LIVENESS` per UBO. The `201` response carries the document `id` plus presigned `uploadURLFront` (and `uploadURLBack` when `isDoubleSided`), or a `livenessUrl` for the liveness type.
 3. `PUT` the raw file bytes to each presigned URL (one request per side). Liveness documents are completed by opening the `livenessUrl` instead of uploading.
-4. `GET /v1/brla/kyb/documents/{documentId}` — poll until `ready` is `true` before referencing a document anywhere. `uploadStatusFront`/`uploadStatusBack` and `uploadErrorFront`/`uploadErrorBack` explain a stuck upload; referencing an unready document later returns `409 Document is not ready`.
-5. `POST /v1/brla/kyb/ubos?subAccountId=...` — register each UBO, referencing its ready identity document (`uploadedIdentificationId`) and optional liveness document (`uploadedSelfieId`). The `201` response's `id` goes into the final submission's `uboIds`.
-6. `POST /v1/brla/kyb/new-level-1/api?subAccountId=...` — submit the attempt, referencing both ready company documents and the registered `uboIds`. The `200` response's `id` is the attempt ID for status polling.
-7. `GET /v1/brla/kyb/attempt-status?attemptId=...` — poll until a terminal outcome.
+4. `GET /v1/brl/kyb/documents/{documentId}` — poll until `ready` is `true` before referencing a document anywhere. `uploadStatusFront`/`uploadStatusBack` and `uploadErrorFront`/`uploadErrorBack` explain a stuck upload; referencing an unready document later returns `409 Document is not ready`.
+5. `POST /v1/brl/kyb/ubos?subAccountId=...` — register each UBO, referencing its ready identity document (`uploadedIdentificationId`) and optional liveness document (`uploadedSelfieId`). The `201` response's `id` goes into the final submission's `uboIds`.
+6. `POST /v1/brl/kyb/new-level-1/api?subAccountId=...` — submit the attempt, referencing both ready company documents and the registered `uboIds`. The `200` response's `id` is the attempt ID for status polling.
+7. `GET /v1/brl/kyb/attempt-status?attemptId=...` — poll until a terminal outcome.
 
 #### UBO Registration And Safe Retries
 
@@ -130,9 +132,9 @@ UBO registration is idempotent per person: Vortex keys each submission by the su
 - After a rejected or expired outcome, submitting again opens a fresh attempt (subject to the provider's `retryable` verdict on the previous one).
 - `409 Multiple active KYB attempts found` requires support.
 
-`GET /v1/brla/kyb/attempt-status?attemptId=...` returns `status` (`PENDING`, `PROCESSING`, `COMPLETED`, or `EXPIRED`), `result` (`APPROVED` or `REJECTED`, present once decided), `retryable`, and a normalized `failureReason` on rejection. `COMPLETED + APPROVED` is the only approval; `COMPLETED + REJECTED` and `EXPIRED` are non-approved outcomes. **Stop polling on the first terminal response.** Re-polling an attempt after its terminal outcome was recorded, or polling an attempt that a newer submission has superseded, returns `409 This KYB attempt is no longer current` — recover by reading `GET /v1/onboarding/status` or submitting again. `404` means the attempt ID is unknown or not owned by the effective profile. An already-approved company always answers `COMPLETED + APPROVED`.
+`GET /v1/brl/kyb/attempt-status?attemptId=...` returns `status` (`PENDING`, `PROCESSING`, `COMPLETED`, or `EXPIRED`), `result` (`APPROVED` or `REJECTED`, present once decided), `retryable`, and a normalized `failureReason` on rejection. `COMPLETED + APPROVED` is the only approval; `COMPLETED + REJECTED` and `EXPIRED` are non-approved outcomes. **Stop polling on the first terminal response.** Re-polling an attempt after its terminal outcome was recorded, or polling an attempt that a newer submission has superseded, returns `409 This KYB attempt is no longer current` — recover by reading `GET /v1/onboarding/status` or submitting again. `404` means the attempt ID is unknown or not owned by the effective profile. An already-approved company always answers `COMPLETED + APPROVED`.
 
-The provider-hosted alternative remains available: `POST /v1/brla/kyb/new-level-1/web-sdk` starts or resumes the hosted flow, and the quote-less [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link) wraps it in the widget.
+The provider-hosted alternative remains available: `POST /v1/brl/kyb/new-level-1/web-sdk` starts or resumes the hosted flow, and the quote-less [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link) wraps it in the widget.
 
 ## USD, MXN, COP, ARS (Bank Transfers)
 
@@ -154,7 +156,7 @@ Each corridor requires the user to complete KYC for the corridor's country befor
 Onboarding can be completed three ways:
 
 - **Vortex app or hosted Widget** — always available. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
-- **API-driven** (`mode: "api"` in discovery) — Argentina individuals, and Colombia and Mexico individuals and businesses. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. Request shapes come from the referenced OpenAPI schemas; each step's `fixedBody` supplies the country discriminator, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls.
+- **API-driven** (`mode: "api"` in discovery) — Argentina individuals, and Colombia and Mexico individuals and businesses. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. The `/v1/ar`, `/v1/co`, and `/v1/mx` prefixes may be used in place of the discovered `/v1/alfredpay` prefix; the prefix determines the country and overrides any country supplied in the query or body. Request shapes come from the referenced OpenAPI schemas, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls. The legacy `/v1/alfredpay` prefix remains supported and uses each step's `fixedBody` country discriminator.
 - **Provider-hosted** (`mode: "hosted"` in discovery) — United States, both customer types. After creating the provider customer, open the provider-hosted verification URL, then report `kycRedirectOpened` and, when the user says they finished, `kycRedirectFinished`. Both notifications are bookkeeping only — they never approve a verification; the provider's decision is authoritative.
 
 Argentina business onboarding is not supported. After finalizing any flow, track the outcome through `GET /v1/onboarding/status`; provider review is asynchronous and there is no synchronous approval response.
