@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AlfredpayAddFiatAccountRequest, AlfredpayListFiatAccountsResponse } from "@vortexfi/shared";
+import type { DomesticAddFiatAccountRequest, DomesticListFiatAccountsResponse } from "@vortexfi/shared";
 import type { CorridorId } from "@/domain/types";
 import { AlfredpayService } from "@/services/api/alfredpay.service";
 
@@ -8,7 +8,7 @@ const FIVE_MINUTES = 5 * 60_000;
 export const fiatAccountsQueryKey = (corridorId: CorridorId) => ["fiatAccounts", corridorId] as const;
 
 export function useFiatAccounts(corridorId: CorridorId, enabled: boolean) {
-  return useQuery<AlfredpayListFiatAccountsResponse>({
+  return useQuery<DomesticListFiatAccountsResponse>({
     enabled,
     queryFn: ({ signal }) => AlfredpayService.listFiatAccounts(corridorId, signal),
     queryKey: fiatAccountsQueryKey(corridorId),
@@ -20,7 +20,7 @@ export function useFiatAccounts(corridorId: CorridorId, enabled: boolean) {
 export function useAddFiatAccount(corridorId: CorridorId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: AlfredpayAddFiatAccountRequest) => AlfredpayService.addFiatAccount(payload),
+    mutationFn: (payload: DomesticAddFiatAccountRequest) => AlfredpayService.addFiatAccount(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: fiatAccountsQueryKey(corridorId) })
   });
 }

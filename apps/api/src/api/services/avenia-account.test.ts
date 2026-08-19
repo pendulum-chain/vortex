@@ -32,7 +32,7 @@ function approvedAccount(entityId: string, subAccountId: string) {
 
 describe("resolveAveniaAccountForUser", () => {
   // Migration 040 attached legacy rows to the profile's individual entity; resolving through
-  // the single active entity failed with "No completed Avenia profile found" for the owner.
+  // the single active entity failed with "No completed provider profile found" for the owner.
   it("finds the approved account on a non-active entity of a multi-entity profile", async () => {
     mockOwnedEntities(["entity-individual", "entity-business"]);
     ProviderCustomer.findAll = mock(async () => [
@@ -66,7 +66,7 @@ describe("resolveAveniaAccountForUser", () => {
     ]) as unknown as typeof ProviderCustomer.findAll;
     User.findByPk = mock(async () => ({ activeCustomerEntityId: null })) as unknown as typeof User.findByPk;
 
-    await expect(resolveAveniaAccountForUser("user-1")).rejects.toThrow("Multiple completed Avenia profiles found");
+    await expect(resolveAveniaAccountForUser("user-1")).rejects.toThrow("Multiple completed provider profiles found");
   });
 
   it("fails without creating an entity when the profile owns none", async () => {
@@ -76,7 +76,7 @@ describe("resolveAveniaAccountForUser", () => {
     const strayCreate = mock(async () => [{ id: "entity-new" }, true]);
     CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
 
-    await expect(resolveAveniaAccountForUser("user-1")).rejects.toThrow("No completed Avenia profile found");
+    await expect(resolveAveniaAccountForUser("user-1")).rejects.toThrow("No completed provider profile found");
     expect(providerFindAll).not.toHaveBeenCalled();
     expect(strayCreate).not.toHaveBeenCalled();
   });

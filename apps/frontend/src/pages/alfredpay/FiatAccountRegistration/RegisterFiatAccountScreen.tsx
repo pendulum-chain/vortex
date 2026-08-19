@@ -1,5 +1,5 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import type { AlfredpayFiatAccountType } from "@vortexfi/shared";
+import type { DomesticFiatAccountType } from "@vortexfi/shared";
 import type { TFunction } from "i18next";
 import { Fragment, useMemo } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -140,7 +140,7 @@ export function RegisterFiatAccountScreen({ country, accountType, onSuccess }: R
     return rows;
   }, [visibleFields]);
 
-  const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as AlfredpayFiatAccountType;
+  const alfredType = ACCOUNT_TYPE_TO_ALFRED_TYPE[accountType] as DomesticFiatAccountType;
 
   const onSubmit = async (data: Record<string, string | undefined>) => {
     const {

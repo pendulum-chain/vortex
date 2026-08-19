@@ -1,21 +1,21 @@
 import { z } from "zod";
-import { AlfredpayCustomerType } from "../../tokens/types/base";
+import { DomesticCustomerType } from "../../tokens/types/base";
 import {
   AlfredpayConfigPair,
   AlfredpayFee,
   AlfredpayFeeType,
-  AlfredpayFiatAccount,
-  AlfredpayFiatAccountType,
   AlfredpayFiatPaymentInstructions,
   AlfredpayKybCustomerAndBusiness,
   AlfredpayKybRelatedPersonDetails,
   AlfredpayKycStatus,
   AlfredpayOfframpStatus,
   AlfredpayOfframpTransaction,
-  AlfredpayOnrampQuote,
   AlfredpayOnrampStatus,
   AlfredpayOnrampTransaction,
   CreateAlfredpayFiatAccountResponse,
+  DomesticFiatAccount,
+  DomesticFiatAccountType,
+  DomesticOnrampQuote,
   GetKycStatusResponse
 } from "./types";
 
@@ -35,7 +35,7 @@ type ConsumedConfigPair = Pick<
   "fromCurrency" | "toCurrency" | "minQuantity" | "maxQuantity" | "decimals" | "typeCustomer"
 >;
 type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency" | "type">;
-type ConsumedQuote = Pick<AlfredpayOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration" | "rate"> & {
+type ConsumedQuote = Pick<DomesticOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration" | "rate"> & {
   fees: ConsumedFee[];
 };
 type ConsumedOnrampTransaction = Pick<AlfredpayOnrampTransaction, "status"> & {
@@ -45,7 +45,7 @@ type ConsumedOfframpTransaction = Pick<
   AlfredpayOfframpTransaction,
   "transactionId" | "status" | "depositAddress" | "expiration" | "toCurrency" | "fromAmount"
 >;
-type ConsumedFiatAccount = Pick<AlfredpayFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
+type ConsumedFiatAccount = Pick<DomesticFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
   metadata?: { accountHolderName?: string };
 };
 type ConsumedCreateFiatAccount = Pick<CreateAlfredpayFiatAccountResponse, "fiatAccountId">;
@@ -75,7 +75,7 @@ export const alfredpayConfigPairSchema = z.looseObject({
   maxQuantity: z.string().regex(DECIMAL_STRING),
   minQuantity: z.string().regex(DECIMAL_STRING),
   toCurrency: z.string().min(1),
-  typeCustomer: z.enum(AlfredpayCustomerType).nullable()
+  typeCustomer: z.enum(DomesticCustomerType).nullable()
 }) satisfies z.ZodType<ConsumedConfigPair>;
 
 /** The body of a GET …/allConfigs response. */
@@ -146,7 +146,7 @@ export const alfredpayFiatAccountsResponseSchema = z.array(
     accountNumber: z.string().min(1),
     fiatAccountId: z.string().min(1),
     metadata: z.looseObject({ accountHolderName: z.string().optional() }).optional(),
-    type: z.enum(AlfredpayFiatAccountType)
+    type: z.enum(DomesticFiatAccountType)
   })
 ) satisfies z.ZodType<ConsumedFiatAccount[]>;
 

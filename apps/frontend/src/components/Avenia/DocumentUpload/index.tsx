@@ -1,6 +1,6 @@
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
-import { AveniaDocumentType } from "@vortexfi/shared";
+import { BrDocumentType } from "@vortexfi/shared";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,7 +42,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
   const shouldReduceMotion = useReducedMotion();
 
-  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
+  const [docType, setDocType] = useState<BrDocumentType>(BrDocumentType.DRIVERS_LICENSE);
 
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -94,13 +94,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
     validateAndSetFile(file, setter, validSetter);
   };
 
-  const isSubmitDisabled = loading || (docType === AveniaDocumentType.ID ? !frontValid || !backValid : !frontValid);
+  const isSubmitDisabled = loading || (docType === BrDocumentType.ID ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError("");
     if (
-      (docType === AveniaDocumentType.ID && (!frontValid || !backValid)) ||
-      (docType === AveniaDocumentType.DRIVERS_LICENSE && !frontValid)
+      (docType === BrDocumentType.ID && (!frontValid || !backValid)) ||
+      (docType === BrDocumentType.DRIVERS_LICENSE && !frontValid)
     ) {
       setError(t("components.documentUpload.validation.validationError"));
       return;
@@ -113,7 +113,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
       });
 
       const uploads: Promise<void>[] = [];
-      if (docType === AveniaDocumentType.ID) {
+      if (docType === BrDocumentType.ID) {
         if (!front || !back) {
           setError(t("components.documentUpload.uploadBug"));
           console.error("Validation flags were true, but file data is missing. This is a bug.");
@@ -204,7 +204,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ aveniaKycActor, 
 
         <div className="grid grid-cols-1 gap-4">
           <AnimatePresence mode="wait">
-            {docType === AveniaDocumentType.ID ? (
+            {docType === BrDocumentType.ID ? (
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
                 className="grid grid-cols-1 gap-4"

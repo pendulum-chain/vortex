@@ -1,4 +1,4 @@
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { AnimatePresence, motion, type Transition, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ function FrontCardContent({
   country,
   onDelete
 }: {
-  account: AlfredpayFiatAccount;
+  account: DomesticFiatAccount;
   country: string;
   onDelete: (id: string) => void;
 }) {
@@ -56,7 +56,7 @@ function FrontCardContent({
   );
 }
 
-function BackCardContent({ account, country, index }: { account: AlfredpayFiatAccount; country: string; index: number }) {
+function BackCardContent({ account, country, index }: { account: DomesticFiatAccount; country: string; index: number }) {
   const { accountNumber, accountName, type } = account;
   const accountType = resolveAccountTypeKey(type, country);
   const bg = index === 1 ? "bg-gray-50" : "bg-gray-100";
@@ -73,7 +73,7 @@ function BackCardContent({ account, country, index }: { account: AlfredpayFiatAc
 }
 
 interface AccountCardDeckProps {
-  accounts: AlfredpayFiatAccount[];
+  accounts: DomesticFiatAccount[];
   country: string;
   onDelete: (fiatAccountId: string) => void;
 }

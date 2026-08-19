@@ -15,7 +15,8 @@ export const corsOptions: CorsOptions = {
     "X-Public-Key",
     "X-Managed-Profile-Id",
     "X-Request-ID",
-    "X-Correlation-ID"
+    "X-Correlation-ID",
+    "Idempotency-Key"
   ],
   credentials: true,
   exposedHeaders: ["X-Request-ID"],

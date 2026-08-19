@@ -6,7 +6,7 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  isAlfredpayToken,
+  isDomesticToken,
   isMoonbeamTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
@@ -190,7 +190,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "KycComplete") {
-      if (isAlfredpayToken(fiatToken) && !effectiveSelectedFiatAccountId && isOfframp) return true;
+      if (isDomesticToken(fiatToken) && !effectiveSelectedFiatAccountId && isOfframp) return true;
       return false;
     }
 

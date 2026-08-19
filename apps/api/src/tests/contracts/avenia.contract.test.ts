@@ -15,6 +15,9 @@
  * BRLA balance, and reading one needs the id of a real payout.
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
  * `getAveniaSwapTicket` have no production consumers and are deliberately uncovered.
+ *
+ * TODO: Add sandbox contract coverage for every consumed Avenia KYC/KYB operation and
+ * complete flow, including documents, UBOs, API submissions, attempts, and status polling.
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";

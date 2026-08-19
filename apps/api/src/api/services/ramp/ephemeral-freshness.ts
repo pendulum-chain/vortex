@@ -7,7 +7,7 @@ import {
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
-  isAlfredpayToken,
+  isDomesticToken,
   isEvmTokenDetails,
   isNetworkEVM,
   Networks,
@@ -73,7 +73,7 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
       }
     } else if (quote.outputCurrency === FiatToken.EURC) {
       evm.add(Networks.Base); // evm-to-mykobo
-    } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    } else if (isDomesticToken(quote.outputCurrency as FiatToken)) {
       evm.add(Networks.Polygon); // evm-to-alfredpay
     }
     return { evm: [...evm], substrate: [...substrate] };
@@ -86,7 +86,7 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
     // Mykobo (currently kill-switched, but mapped for completeness): Base + destination.
     evm.add(Networks.Base);
     addIfEvm(toNetwork);
-  } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
+  } else if (isDomesticToken(quote.inputCurrency as FiatToken)) {
     evm.add(Networks.Polygon); // mint chain
     addIfEvm(toNetwork);
   } else if (toNetwork === Networks.AssetHub) {

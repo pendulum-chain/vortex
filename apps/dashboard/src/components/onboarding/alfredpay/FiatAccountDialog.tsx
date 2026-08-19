@@ -1,5 +1,5 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { ArrowLeft, Landmark, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,7 +22,7 @@ import { isApiError } from "@/services/api/api-client";
 export type FiatAccountDialogView = "form" | "list";
 
 interface FiatAccountDialogProps {
-  accounts: AlfredpayFiatAccount[];
+  accounts: DomesticFiatAccount[];
   corridorId: AlfredpayCorridorId;
   onOpenChange: (open: boolean) => void;
   onViewChange: (view: FiatAccountDialogView) => void;

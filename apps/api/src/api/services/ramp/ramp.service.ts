@@ -8,7 +8,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusResponse,
   IbanPaymentData,
-  isAlfredpayToken,
+  isDomesticToken,
   Networks,
   QuoteError,
   RampDirection,
@@ -55,6 +55,15 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
+
+const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
+  "assethubToPendulumHash",
+  "squidRouterApproveHash",
+  "squidRouterNoPermitApproveHash",
+  "squidRouterNoPermitSwapHash",
+  "squidRouterNoPermitTransferHash",
+  "squidRouterSwapHash"
+]);
 
 function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
@@ -472,6 +481,16 @@ export class RampService extends BaseRampService {
 
       RampService.assertStartDeadlineNotExceeded(rampState);
 
+      const unsupportedAdditionalDataField = Object.keys(additionalData ?? {}).find(
+        key => !CLIENT_WRITABLE_RAMP_STATE_FIELDS.has(key)
+      );
+      if (unsupportedAdditionalDataField) {
+        throw new APIError({
+          message: `Ramp additionalData field '${unsupportedAdditionalDataField}' cannot be updated by clients`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
@@ -609,7 +628,7 @@ export class RampService extends BaseRampService {
       this.validateRampStateData(rampState, quote);
       if (options.requirePaidAveniaTicket && !rampState.state.aveniaTicketId) {
         throw new APIError({
-          message: "Ramp does not have an Avenia payment ticket",
+          message: "Ramp does not have a provider payment ticket",
           status: httpStatus.CONFLICT
         });
       }
@@ -978,7 +997,7 @@ export class RampService extends BaseRampService {
       });
     }
     if (quote.rampType === RampDirection.BUY && !additionalData?.destinationAddress) {
-      const provider = isAlfredpayToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
+      const provider = isDomesticToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
       throw new APIError({
         message: `Parameter destinationAddress is required for ${provider}onramp`,
         status: httpStatus.BAD_REQUEST
@@ -1085,7 +1104,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    if (rampState.type === RampDirection.SELL && !isDomesticToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,

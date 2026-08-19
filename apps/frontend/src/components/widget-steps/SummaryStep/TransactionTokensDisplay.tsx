@@ -7,7 +7,7 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  isAlfredpayToken,
+  isDomesticToken,
   isMoonbeamTokenDetails,
   OnChainTokenDetails,
   RampDirection
@@ -74,7 +74,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     queryKey: ["mykoboProfile", userEmail]
   });
 
-  const isAlfredpayFlow = isAlfredpayToken(executionInput.fiatToken);
+  const isAlfredpayFlow = isDomesticToken(executionInput.fiatToken);
   const countdownTarget = isAlfredpayFlow ? null : targetTimestampMs;
   const { minutes, seconds } = useCountdown(countdownTarget, () => rampActor.send({ type: "EXPIRE_QUOTE" }));
 
@@ -93,7 +93,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    if (isAlfredpayToken(executionInput.fiatToken)) {
+    if (isDomesticToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
     }
     if (executionInput.fiatToken === FiatToken.EURC) {

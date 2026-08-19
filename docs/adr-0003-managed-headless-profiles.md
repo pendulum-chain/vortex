@@ -27,7 +27,9 @@ than introduce a parallel tenant or impersonation model.
   non-empty subset. It never expands the canonical matrix.
 - Provisioning creates an `individual` or `business` child, active entity, immutable
   external subject ID, normalized provider contact email, and relationship atomically.
-  Pricing is resolved from the child and remains independent of management.
+  A managed child defaults to its controlling manager profile's pricing assignment. The
+  child may have its own profile pricing assignment, administered like any regular
+  profile assignment, which takes precedence over the manager assignment.
 - Deletion is logical and idempotent. It revokes child credentials and blocks new child
   activity while retaining provider, compliance, quote, ramp, callback, and attribution
   records needed for in-flight processing and reconciliation.

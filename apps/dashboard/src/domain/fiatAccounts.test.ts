@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { AlfredpayFiatAccountType } from "@vortexfi/shared";
+import { DomesticFiatAccountType } from "@vortexfi/shared";
 import { buildFiatAccountSchema, toAddFiatAccountRequest } from "./fiatAccounts";
 
 describe("fiat account validation", () => {
@@ -63,10 +63,10 @@ describe("fiat account validation", () => {
 describe("toAddFiatAccountRequest", () => {
   it("maps self accounts to each provider method", () => {
     const cases = [
-      ["MX", AlfredpayFiatAccountType.SPEI],
-      ["CO", AlfredpayFiatAccountType.ACH],
-      ["US", AlfredpayFiatAccountType.BANK_USA],
-      ["AR", AlfredpayFiatAccountType.COELSA]
+      ["MX", DomesticFiatAccountType.SPEI],
+      ["CO", DomesticFiatAccountType.ACH],
+      ["US", DomesticFiatAccountType.BANK_USA],
+      ["AR", DomesticFiatAccountType.COELSA]
     ] as const;
 
     for (const [corridorId, type] of cases) {

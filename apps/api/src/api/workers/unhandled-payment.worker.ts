@@ -168,12 +168,12 @@ class UnhandledPaymentWorker {
       return;
     }
 
-    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps)
-    // Also filter out states that have already been alerted for unhandled payments.
+    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps).
+    // Historical alerts suppress failed-state notifications, but not initial-ramp recovery.
     const statesByTaxId: Record<string, RampState[]> = statesToCheck.reduce(
       (acc, state) => {
         const { taxId, aveniaTicketId, unhandledPaymentAlertSent } = state.state;
-        if (taxId && aveniaTicketId && !unhandledPaymentAlertSent) {
+        if (taxId && aveniaTicketId && (state.currentPhase === "initial" || !unhandledPaymentAlertSent)) {
           if (!acc[taxId]) {
             acc[taxId] = [];
           }
@@ -200,7 +200,6 @@ class UnhandledPaymentWorker {
           const subAccountId = state.state.subAccountId ?? legacySubAccountId;
           if (!subAccountId) {
             logger.warn(`No Avenia provider account found for state ${state.id}. Skipping state.`);
-            this.processedStateIds.add(state.id);
             continue;
           }
           const grouped = statesBySubAccountId.get(subAccountId) ?? [];
@@ -218,7 +217,6 @@ class UnhandledPaymentWorker {
             if (!ticketIdFromState) {
               // Should not be hit due to the filter in the reducer.
               logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing an aveniaTicketId. Skipping.`);
-              this.processedStateIds.add(state.id);
               continue;
             }
 
@@ -246,8 +244,6 @@ class UnhandledPaymentWorker {
               if (state.currentPhase !== "initial") {
                 await this.updateAlertedState(state);
               }
-            } else {
-              this.processedStateIds.add(state.id);
             }
           }
         }

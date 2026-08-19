@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredpayOfframpStatus,
   AlfredpayOnrampStatus,
   type EvmTransactionData,
@@ -94,7 +94,7 @@ interface CurrencyCase {
   /** Alfredpay-side currency code expected on created orders. */
   alfredpayCurrency: string;
   /** KYC country the registration guard requires a completed profile for. */
-  country: AlfredPayCountry;
+  country: DomesticCountry;
   /** Quote destination string (payment rail). */
   rail: string;
   /** Fiat amount for the BUY quote (within the per-currency limits). */
@@ -111,7 +111,7 @@ interface CurrencyCase {
 const CURRENCY_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "USD",
-    country: AlfredPayCountry.US,
+    country: DomesticCountry.US,
     fiat: FiatToken.USD,
     offrampInputAmount: "5",
     offrampRate: 1,
@@ -121,7 +121,7 @@ const CURRENCY_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "COP",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     fiat: FiatToken.COP,
     offrampInputAmount: "100",
     offrampRate: 4000,
@@ -131,7 +131,7 @@ const CURRENCY_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "ARS",
-    country: AlfredPayCountry.AR,
+    country: DomesticCountry.AR,
     fiat: FiatToken.ARS,
     offrampInputAmount: "100",
     offrampRate: 1000,
@@ -148,7 +148,7 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
   ...CURRENCY_CASES,
   {
     alfredpayCurrency: "MXN",
-    country: AlfredPayCountry.MX,
+    country: DomesticCountry.MX,
     fiat: FiatToken.MXN,
     offrampInputAmount: "100",
     offrampRate: 20,

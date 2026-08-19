@@ -136,7 +136,7 @@ export function buildEmptyOnboardingStatus(companyMode = false) {
 }
 
 /**
- * AlfredpayListFiatAccountsResponse is a bare array; selfRecipientsFromFiatAccounts reads these
+ * DomesticListFiatAccountsResponse is a bare array; selfRecipientsFromFiatAccounts reads these
  * fields and turns each account into its own "send to yourself" recipient. Two accounts, so the
  * recipient selector has something to choose between: the first is auto-selected, and picking the
  * second must change the fiatAccountId the offramp registers against.
@@ -674,7 +674,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
 
     // --- Alfredpay MX individual KYC (packages/kyc alfredpay machine drives this sequence) ---
-    // getAlfredpayStatus (machine entry): 404 before a customer exists → CustomerDefinition;
+    // getDomesticStatus (machine entry): 404 before a customer exists → CustomerDefinition;
     // once submitted → VERIFYING so a reopened wizard resumes into PollingStatus.
     if (path === "/v1/alfredpay/alfredpayStatus" && method === "GET") {
       if (!kyc.customerCreated) {

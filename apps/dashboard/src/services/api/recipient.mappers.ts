@@ -1,4 +1,4 @@
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { CORRIDORS } from "@/domain/corridors";
 import type { AccountType, CorridorId, Recipient, SenderAccount } from "@/domain/types";
 import { CORRIDOR_BY_RAIL } from "./mappers";
@@ -104,7 +104,7 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
  * `fiatAccountId`, so each account is a distinct "send to yourself" destination.
  */
 export function selfRecipientsFromFiatAccounts(
-  accounts: AlfredpayFiatAccount[],
+  accounts: DomesticFiatAccount[],
   corridorId: CorridorId,
   account: SenderAccount
 ): Recipient[] {

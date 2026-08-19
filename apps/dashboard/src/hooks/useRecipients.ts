@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { AlfredpayListFiatAccountsResponse } from "@vortexfi/shared";
+import type { DomesticListFiatAccountsResponse } from "@vortexfi/shared";
 import { useMemo } from "react";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
 import { ALFREDPAY_CORRIDORS } from "@/services/api/mappers";
@@ -34,7 +34,7 @@ function useSelfRecipients(
     if (!account) {
       return [];
     }
-    const fiatAccountsByCorridor: Record<string, AlfredpayListFiatAccountsResponse | undefined> = {
+    const fiatAccountsByCorridor: Record<string, DomesticListFiatAccountsResponse | undefined> = {
       AR: ar.data,
       CO: co.data,
       MX: mx.data,

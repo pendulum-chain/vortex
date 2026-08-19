@@ -29,7 +29,7 @@ export async function startAlfredpayMint(
     return {};
   }
   if (!ctx.metadata?.quoteId) {
-    throw new APIError({ message: "Missing Alfredpay quote ID in metadata", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "Missing provider quote ID in metadata", status: httpStatus.BAD_REQUEST });
   }
   if (!ctx.userId) {
     throw new APIError({ message: "Missing user ID in ramp state", status: httpStatus.BAD_REQUEST });
@@ -39,7 +39,7 @@ export async function startAlfredpayMint(
   }
   const preparation = ctx.ownState as AlfredpayMintPreparation | undefined;
   if (!preparation?.userId) {
-    throw new APIError({ message: "Missing Alfredpay user ID in ramp state", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "Missing provider user ID in ramp state", status: httpStatus.BAD_REQUEST });
   }
 
   const service = dependencies.service ?? AlfredpayApiService.getInstance();

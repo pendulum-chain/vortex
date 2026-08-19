@@ -112,4 +112,6 @@ Quotes are immutable and short-lived. If the user takes too long to confirm, or 
 
 Pass the credential's public value through `X-Public-Key` to apply partner pricing and attribution. The SDK also retains it in the quote body for compatibility. When `X-Public-Key` and `X-API-Key` are both present, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. See [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
+Managed profiles default to the controlling manager profile's pricing assignment. Assigning pricing directly to a managed child overrides the manager's pricing just as a profile assignment does for any regular profile. The same precedence applies whether the manager delegates with `X-Managed-Profile-Id` or the child authenticates with its own credential: child assignment, manager assignment, then default Vortex pricing.
+
 ---
