@@ -24,6 +24,8 @@ When you point an AI coding agent at Vortex:
 
 Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU). The corridor determines the register-time fields and the fiat settlement step, not the integration shape — see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
 
+Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
+
 Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
 
 ## C. Python (`vortex-sdk-python`)
@@ -188,7 +190,7 @@ These are not optional. The SDK handles them for you; a custom client must imple
 - It does not poll ramp status; you must poll or use webhooks.
 - It does not encrypt ephemeral backups at rest.
 - It does not delete ephemeral backups after success.
-- It does not drive KYC for any corridor; the user must be onboarded through the Vortex app or Widget before ramping.
+- It does not drive KYC or KYB; onboard the user through the Vortex app or Widget, or implement the API-driven onboarding flows yourself (Section H).
 
 Mirror those gaps deliberately. If your integration adds behavior the SDK lacks (encryption at rest, backup rotation, idempotency keys, retries), document it for your operators.
 
@@ -208,5 +210,28 @@ Before going live without the SDK:
 - [ ] Production runbook covers ramp recovery using persisted `rampId` and ephemeral backup.
 
 See also [Production Checklist](https://api-docs.vortexfinance.co/production-checklist).
+
+## H. API-Driven KYC And KYB Onboarding
+
+Where a corridor supports it, onboarding runs through the API without any Vortex UI. The contract has three parts:
+
+1. **Discover the flow.**
+
+   ```
+   GET /v1/onboarding/requirements?country=BR&customerType=business
+   ```
+
+   Public, no auth. The response is a static workflow index: required `documents`, and ordered `steps` of kind `api` (call the referenced operation), `direct-upload` (HTTP `PUT` of file bytes to a presigned URL returned by the preceding step), or `hosted` (open a provider URL). A `404` means the country/customer-type combination has no supported flow.
+
+2. **Execute the steps in order.** For each `api` step, resolve `requestSchema` against the response's `openapiUrl` — that schema is the complete field contract; never invent fields. Merge in the step's `fixedBody`/`fixedQuery` verbatim, and fill each `derivedValues` entry from the named earlier step's response (e.g. `"body.subAccountId": "step 1 response subAccountId"`). Honor `condition` (skip if not met) and `repeatFor` (run once per document, UBO, or related person). All execution steps require your normal authentication (Section D.1); a managed-profile manager adds `X-Managed-Profile-Id` — see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
+3. **Poll for the outcome.** Discovery deliberately omits every `GET`: readiness checks, status polling, and per-corridor behavior (statuses, retry rules, error taxonomies) are documented in [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). Track completion through `GET /v1/onboarding/status` or the corridor's specific status operation. There is no synchronous approval.
+
+Non-negotiable rules for an agent implementing these flows:
+
+- **Provider state is authoritative.** No client call, completion notification, or `2xx` response marks a user approved. Only the provider's decision, surfaced through the status endpoints, does.
+- **Respect the per-flow retry rules.** Onboarding submissions have durable side effects at the provider. The Fiat Corridors page defines, per operation, which failures are safe to retry and which must stop (`409 … requires reconciliation` means stop and contact support — never vary the payload or idempotency key to get past it).
+- **BR individuals: the verification method locks permanently.** The first standard document, liveness artifact, submission, or status read commits the account to the `standard` method; a Sumsub token import commits it to `sumsub_share_token` and blocks the standard path. Decide the method before touching either flow.
+- **Pin `requirementsVersion`** alongside the docs commit and SDK version you already record (Section A), and re-run discovery when it changes.
 
 ---
