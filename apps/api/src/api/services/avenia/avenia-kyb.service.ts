@@ -17,6 +17,7 @@ import ProviderCustomer, { VerificationStatus } from "../../../models/providerCu
 import { APIError } from "../../errors/api-error";
 import { findCustomerEntityIdsForProfile } from "../customer-entity.service";
 import { findAveniaCustomerBySubaccountId } from "./avenia-customer.service";
+import { isDeterministicProviderRejection } from "./provider-errors";
 
 const kybCaseCreations = new Map<string, Promise<KycCase>>();
 
@@ -162,8 +163,7 @@ export async function createAveniaUboOnce(
     });
     return response;
   } catch (error) {
-    const deterministicFailure =
-      error instanceof BrlaApiError && error.status >= 400 && error.status < 500 && ![408, 409, 429].includes(error.status);
+    const deterministicFailure = isDeterministicProviderRejection(error);
     await updateUboSubmission(kycCaseId, key, {
       ...(error instanceof BrlaApiError ? { httpStatus: error.status } : {}),
       status: deterministicFailure ? "failed" : "ambiguous"

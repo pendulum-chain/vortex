@@ -179,7 +179,7 @@ describe("importBrKycToken", () => {
     expect(state.providerImport).toHaveBeenCalledTimes(1);
   });
 
-  it("treats only 401 as failed and requires a new key before another POST", async () => {
+  it("treats 401 as feature-unavailable and requires a new key before another POST", async () => {
     let calls = 0;
     const state = harness({
       importToken: async () => {
@@ -207,6 +207,49 @@ describe("importBrKycToken", () => {
     expect(JSON.stringify(state.kycCase.verificationSubmission)).not.toContain(request.importToken);
     expect(state.kycCase.verificationSubmission).not.toHaveProperty("consentPolicyVersion");
     expect(state.kycCase.verificationSubmission).not.toHaveProperty("consentAttestedAt");
+  });
+
+  it("treats a rejected token as failed and recovers under a new idempotency key", async () => {
+    let calls = 0;
+    const state = harness({
+      importToken: async () => {
+        calls += 1;
+        if (calls === 1) {
+          throw new BrlaApiError({ endpoint: "/import", method: "POST", responseBody: "omitted", status: 400 });
+        }
+        return { id: "attempt-2", message: "processing" };
+      }
+    });
+
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 400 });
+    expect(state.kycCase.verificationSubmission).toMatchObject({
+      errorClassification: "provider_rejected",
+      status: "failed"
+    });
+
+    // The rejected token created no attempt, so the same key must not silently resend it while a
+    // new key may carry a replacement token.
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 409 });
+    expect(
+      await importBrKycToken({ ...request, idempotencyKey: "request-key-2", importToken: "replacement-token" })
+    ).toEqual({ attemptId: "attempt-2", status: "pending" });
+    expect(state.providerImport).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(state.kycCase.verificationSubmission)).not.toContain("replacement-token");
+  });
+
+  it("still quarantines a retryable provider status that may have created an attempt", async () => {
+    for (const status of [408, 429, 500, 502]) {
+      const state = harness({
+        importToken: async () => {
+          throw new BrlaApiError({ endpoint: "/import", method: "POST", responseBody: "omitted", status });
+        }
+      });
+      await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 502 });
+      expect(state.kycCase.verificationSubmission).toMatchObject({
+        errorClassification: "provider_outcome_unknown",
+        status: "ambiguous"
+      });
+    }
   });
 
   it("serializes method selection on the case without provider-history classification", async () => {

@@ -10,6 +10,7 @@ import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
+import { isDeterministicProviderRejection } from "./provider-errors";
 
 const CONSENT_POLICY_VERSION = "sumsub-share-v1";
 const SUBMISSION_WINDOW_MS = 15 * 60 * 1000;
@@ -464,6 +465,17 @@ export async function importBrKycToken(args: ImportAveniaKycTokenArgs): Promise<
         isPublic: true,
         message: "Token import is not enabled",
         status: httpStatus.PRECONDITION_FAILED
+      });
+    }
+    // Avenia rejected the token outright, so no attempt exists and nothing was transferred.
+    // Releasing the claim requires a fresh idempotency key, so the token is never replayed
+    // automatically — the same contract the feature-unavailable branch above relies on.
+    if (isDeterministicProviderRejection(error)) {
+      await updateSubmittedClaim(claim.kycCaseId, { errorClassification: "provider_rejected", status: "failed" });
+      throw new APIError({
+        isPublic: true,
+        message: "The provider rejected the import token. Obtain a new token and retry with a new idempotency key.",
+        status: httpStatus.BAD_REQUEST
       });
     }
     await updateSubmittedClaim(claim.kycCaseId, { errorClassification: "provider_outcome_unknown", status: "ambiguous" });
