@@ -44,8 +44,8 @@ export interface AveniaQuoteResponse {
   basePrice?: string;
 }
 
-export function isValidKYCDocType(value: string): value is AveniaDocumentType {
-  return Object.values(AveniaDocumentType).includes(value as unknown as AveniaDocumentType);
+export function isValidKYCDocType(value: string): value is BrDocumentType {
+  return Object.values(BrDocumentType).includes(value as unknown as BrDocumentType);
 }
 
 export enum BrlaCurrency {
@@ -357,7 +357,7 @@ export interface AveniaImportKycTokenResponse {
   message: string;
 }
 
-export type AveniaUboControlRole =
+export type BrUboControlRole =
   | "CEO"
   | "CFO"
   | "COO"
@@ -382,7 +382,7 @@ export type AveniaUboControlRole =
   | "Comptroller"
   | "Chief Compliance Officer";
 
-export interface AveniaUboPayload {
+export interface BrUboPayload {
   fullName: string;
   dateOfBirth: string;
   countryOfTaxId: string;
@@ -390,7 +390,7 @@ export interface AveniaUboPayload {
   email?: string;
   phone?: string;
   percentageOfOwnership: string;
-  hasControl?: AveniaUboControlRole;
+  hasControl?: BrUboControlRole;
   uploadedIdentificationId: string;
   uploadedSelfieId?: string;
   documentCountry: string;
@@ -403,7 +403,7 @@ export interface AveniaUboPayload {
   country: string;
 }
 
-export interface AveniaUboResponse {
+export interface BrUboResponse {
   id: string;
 }
 
@@ -445,7 +445,7 @@ export type AveniaKybAnnualRevenue =
   | "50m_to_100m"
   | "more_than_100m";
 
-export interface AveniaKybLevel1Payload {
+export interface BrKybLevel1Payload {
   uboIds: string[];
   companyLegalName: string;
   companyRegistrationNumber: string;
@@ -508,9 +508,9 @@ export interface AveniaVerificationAttemptResponse {
   attempt: AveniaVerificationAttempt;
 }
 
-export type AveniaKybAttemptStatusResponse = AveniaVerificationAttemptResponse;
+export type BrKybAttemptStatusResponse = AveniaVerificationAttemptResponse;
 
-export enum AveniaDocumentType {
+export enum BrDocumentType {
   ID = "ID",
   DRIVERS_LICENSE = "DRIVERS-LICENSE",
   PASSPORT = "PASSPORT",
@@ -522,7 +522,7 @@ export enum AveniaDocumentType {
 }
 
 export interface DocumentUploadRequest {
-  documentType: AveniaDocumentType;
+  documentType: BrDocumentType;
   isDoubleSided?: boolean;
 }
 
@@ -536,7 +536,7 @@ export interface DocumentUploadResponse {
 
 export interface AveniaDocument {
   id: string;
-  documentType: AveniaDocumentType;
+  documentType: BrDocumentType;
   uploadURLFront?: string;
   uploadStatusFront: string;
   uploadErrorFront?: string;

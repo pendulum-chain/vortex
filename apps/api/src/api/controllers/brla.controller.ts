@@ -1,31 +1,31 @@
 import {
   AveniaAccountType,
   AveniaDocumentResponse,
-  AveniaDocumentType,
-  AveniaKYCDataUpload,
-  AveniaKYCDataUploadRequest,
-  AveniaKybLevel1Payload,
-  AveniaUboPayload,
-  AveniaUboResponse,
+  BrCreateSubaccountRequest,
+  BrCreateSubaccountResponse,
+  BrDocumentType,
+  BrErrorResponse,
+  BrGetKycStatusRequest,
+  BrGetKycStatusResponse,
+  BrGetSelfieLivenessUrlRequest,
+  BrGetSelfieLivenessUrlResponse,
+  BrGetUserRemainingLimitRequest,
+  BrGetUserRemainingLimitResponse,
+  BrGetUserRequest,
+  BrGetUserResponse,
+  BrImportKycTokenRequest,
+  BrImportKycTokenResponse,
+  BrKYCDataUpload,
+  BrKYCDataUploadRequest,
+  BrKybLevel1Payload,
   BrlaApiError,
   BrlaApiService,
-  BrlaCreateSubaccountRequest,
-  BrlaCreateSubaccountResponse,
   BrlaCurrency,
-  BrlaErrorResponse,
-  BrlaGetKycStatusRequest,
-  BrlaGetKycStatusResponse,
-  BrlaGetSelfieLivenessUrlRequest,
-  BrlaGetSelfieLivenessUrlResponse,
-  BrlaGetUserRemainingLimitRequest,
-  BrlaGetUserRemainingLimitResponse,
-  BrlaGetUserRequest,
-  BrlaGetUserResponse,
-  BrlaImportKycTokenRequest,
-  BrlaImportKycTokenResponse,
-  BrlaPostRecordInitialKycAttemptRequest,
-  BrlaValidatePixKeyRequest,
-  BrlaValidatePixKeyResponse,
+  BrPostRecordInitialKycAttemptRequest,
+  BrUboPayload,
+  BrUboResponse,
+  BrValidatePixKeyRequest,
+  BrValidatePixKeyResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
   FiatToken,
@@ -75,7 +75,7 @@ import {
 } from "../services/avenia/avenia-kyb.service";
 import {
   claimStandardAveniaKycMethod,
-  importAveniaKycToken,
+  importBrKycToken,
   mapAveniaKycAttemptStatus,
   reconcileAveniaIndividualKycStatusMethod
 } from "../services/avenia/avenia-kyc-import.service";
@@ -117,12 +117,12 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
   }
 
   if (error instanceof BrlaApiError && error.status !== 400) {
-    res.status(httpStatus.BAD_GATEWAY).json({ error: "Avenia request failed" });
+    res.status(httpStatus.BAD_GATEWAY).json({ error: "Provider request failed" });
     return;
   }
 
   if (error instanceof ZodError) {
-    res.status(httpStatus.BAD_GATEWAY).json({ error: "Avenia returned an invalid response" });
+    res.status(httpStatus.BAD_GATEWAY).json({ error: "The provider returned an invalid response" });
     return;
   }
 
@@ -162,8 +162,8 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  * @throws 500 - For any server-side errors during processing
  */
 export const getAveniaUser = async (
-  req: Request<unknown, unknown, unknown, BrlaGetUserRequest>,
-  res: Response<BrlaGetUserResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, unknown, BrGetUserRequest>,
+  res: Response<BrGetUserResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -238,8 +238,8 @@ export const getAveniaUser = async (
 };
 
 export const recordInitialKycAttempt = async (
-  req: Request<unknown, unknown, BrlaPostRecordInitialKycAttemptRequest, unknown>,
-  res: Response<Record<string, never> | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrPostRecordInitialKycAttemptRequest, unknown>,
+  res: Response<Record<string, never> | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { quoteId, taxId } = req.body;
@@ -265,8 +265,8 @@ export const recordInitialKycAttempt = async (
 };
 
 export const importKycToken = async (
-  req: Request<unknown, unknown, BrlaImportKycTokenRequest>,
-  res: Response<BrlaImportKycTokenResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrImportKycTokenRequest>,
+  res: Response<BrImportKycTokenResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const actorProfileId = req.managedProfileContext?.actorProfileId ?? getAuthenticatedProfileId(req);
@@ -277,7 +277,7 @@ export const importKycToken = async (
       return;
     }
 
-    const result = await importAveniaKycToken({
+    const result = await importBrKycToken({
       actorProfileId,
       expectedCustomerEntityId: req.managedProfileContext?.customerEntityId,
       idempotencyKey,
@@ -299,8 +299,8 @@ export const importKycToken = async (
 };
 
 export const getAveniaUserRemainingLimit = async (
-  req: Request<unknown, unknown, unknown, BrlaGetUserRemainingLimitRequest>,
-  res: Response<BrlaGetUserRemainingLimitResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, unknown, BrGetUserRemainingLimitRequest>,
+  res: Response<BrGetUserRemainingLimitResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId, direction } = req.query;
@@ -386,8 +386,8 @@ export const getAveniaUserRemainingLimit = async (
 };
 
 export const createSubaccount = async (
-  req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
-  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrCreateSubaccountRequest>,
+  res: Response<BrCreateSubaccountResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { name, taxId, accountType: requestAccountType } = req.body;
@@ -508,7 +508,7 @@ export const createSubaccount = async (
         if (existing.providerSubaccountId !== id) {
           throw new APIError({
             isPublic: true,
-            message: "The canonical Avenia subaccount differs from the confirmed creation result",
+            message: "The canonical subaccount differs from the confirmed creation result",
             status: httpStatus.CONFLICT
           });
         }
@@ -563,8 +563,8 @@ export const createSubaccount = async (
 };
 
 export const fetchSubaccountKycStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaGetKycStatusRequest>,
-  res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, unknown, BrGetKycStatusRequest>,
+  res: Response<BrGetKycStatusResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -600,31 +600,31 @@ export const fetchSubaccountKycStatus = async (
     const brlaApiService = BrlaApiService.getInstance();
     const kycCases = await KycCase.findAll({ where: { provider: "avenia", providerCustomerId: record.id, type: "kyc" } });
     if (kycCases.length > 1) {
-      res.status(httpStatus.CONFLICT).json({ error: "Multiple Avenia KYC cases require reconciliation" });
+      res.status(httpStatus.CONFLICT).json({ error: "Multiple KYC cases require reconciliation" });
       return;
     }
     if (!kycCases[0]) {
-      res.status(httpStatus.CONFLICT).json({ error: "The Avenia KYC case requires reconciliation" });
+      res.status(httpStatus.CONFLICT).json({ error: "The KYC case requires reconciliation" });
       return;
     }
     const reconciled = await reconcileAveniaIndividualKycStatusMethod(record.id, brlaApiService);
     const kycCase = reconciled.kycCase;
     if (kycCase.verificationMethod === "sumsub_share_token" && !kycCase.providerCaseId) {
-      res.status(httpStatus.CONFLICT).json({ error: "The imported Avenia KYC attempt requires reconciliation" });
+      res.status(httpStatus.CONFLICT).json({ error: "The imported KYC attempt requires reconciliation" });
       return;
     }
     if (
       !kycCase.providerCaseId &&
       (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
     ) {
-      res.status(httpStatus.CONFLICT).json({ error: "The Avenia KYC submission requires reconciliation" });
+      res.status(httpStatus.CONFLICT).json({ error: "The KYC submission requires reconciliation" });
       return;
     }
     const kycAttemptStatus = kycCase?.providerCaseId
       ? (await brlaApiService.getVerificationAttemptStatus(kycCase.providerCaseId, subAccountId)).attempt
       : (await brlaApiService.getKycAttempts(subAccountId)).attempts[0];
     if (kycCase?.providerCaseId && kycAttemptStatus?.id !== kycCase.providerCaseId) {
-      throw new APIError({ message: "Avenia returned a mismatched KYC attempt", status: httpStatus.BAD_GATEWAY });
+      throw new APIError({ message: "The provider returned a mismatched KYC attempt", status: httpStatus.BAD_GATEWAY });
     }
     if (!kycAttemptStatus) {
       const accountInfo = await brlaApiService.subaccountInfo(subAccountId);
@@ -678,7 +678,7 @@ export const fetchSubaccountKycStatus = async (
       (kycAttemptStatus.result && kycAttemptStatus.status !== KycAttemptStatus.COMPLETED) ||
       (!kycAttemptStatus.result && kycAttemptStatus.status === KycAttemptStatus.COMPLETED)
     ) {
-      throw new APIError({ message: "Avenia returned an inconsistent KYC attempt", status: httpStatus.BAD_GATEWAY });
+      throw new APIError({ message: "The provider returned an inconsistent KYC attempt", status: httpStatus.BAD_GATEWAY });
     } else if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
       await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, kycAttemptStatus.status, {
         id: kycCase.id,
@@ -730,8 +730,8 @@ export const fetchSubaccountKycStatus = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const validatePixKey = async (
-  req: Request<unknown, unknown, unknown, BrlaValidatePixKeyRequest>,
-  res: Response<BrlaValidatePixKeyResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, unknown, BrValidatePixKeyRequest>,
+  res: Response<BrValidatePixKeyResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { pixKey } = req.query;
@@ -751,8 +751,8 @@ export const validatePixKey = async (
 };
 
 export const getSelfieLivenessUrl = async (
-  req: Request<unknown, unknown, unknown, BrlaGetSelfieLivenessUrlRequest>,
-  res: Response<BrlaGetSelfieLivenessUrlResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, unknown, BrGetSelfieLivenessUrlRequest>,
+  res: Response<BrGetSelfieLivenessUrlResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -783,13 +783,13 @@ export const getSelfieLivenessUrl = async (
     const brlaApiService = BrlaApiService.getInstance();
 
     if (record.customerType !== "individual") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual customer account." });
       return;
     }
     await claimStandardAveniaKycMethod(record);
 
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
-      AveniaDocumentType.SELFIE_FROM_LIVENESS,
+      BrDocumentType.SELFIE_FROM_LIVENESS,
       false,
       record.providerSubaccountId ?? ""
     );
@@ -817,8 +817,8 @@ export const getSelfieLivenessUrl = async (
  */
 
 export const getUploadUrls = async (
-  req: Request<unknown, unknown, AveniaKYCDataUploadRequest>,
-  res: Response<AveniaKYCDataUpload | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrKYCDataUploadRequest>,
+  res: Response<BrKYCDataUpload | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { documentType, taxId } = req.body;
@@ -828,7 +828,7 @@ export const getUploadUrls = async (
       return;
     }
 
-    if (documentType !== AveniaDocumentType.ID && documentType !== AveniaDocumentType.DRIVERS_LICENSE) {
+    if (documentType !== BrDocumentType.ID && documentType !== BrDocumentType.DRIVERS_LICENSE) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid documentType" });
       return;
     }
@@ -859,7 +859,7 @@ export const getUploadUrls = async (
       return;
     }
     if (record.customerType !== "individual") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual customer account." });
       return;
     }
 
@@ -867,10 +867,10 @@ export const getUploadUrls = async (
     const brlaApiService = BrlaApiService.getInstance();
     await claimStandardAveniaKycMethod(record);
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE_FROM_LIVENESS, false, subAccountId);
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, subAccountId);
 
     // assume RG is double sided, CNH is not.
-    const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
+    const isDoubleSided = documentType === BrDocumentType.ID ? true : false;
 
     const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided, subAccountId);
 
@@ -895,7 +895,7 @@ export const getUploadUrls = async (
 
 export const newKyc = async (
   req: Request<unknown, unknown, KycLevel1Payload>,
-  res: Response<KycLevel1Response | BrlaErrorResponse>
+  res: Response<KycLevel1Response | BrErrorResponse>
 ): Promise<void> => {
   try {
     const subAccountId = req.body.subAccountId;
@@ -924,7 +924,7 @@ export const newKyc = async (
       return;
     }
     if (record.customerType !== "individual") {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual Avenia customer." });
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual customer account." });
       return;
     }
 
@@ -1012,7 +1012,7 @@ async function reconcileActiveAveniaKybAttempt(
 
 export const createKybDocument = async (
   req: Request<unknown, unknown, DocumentUploadRequest, { subAccountId?: string }>,
-  res: Response<DocumentUploadResponse | BrlaErrorResponse>
+  res: Response<DocumentUploadResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
@@ -1038,7 +1038,7 @@ export const getKybDocument = async (
       record.providerSubaccountId as string
     );
     if (response.document.id !== req.params.documentId) {
-      throw new APIError({ message: "Avenia returned a mismatched document", status: httpStatus.BAD_GATEWAY });
+      throw new APIError({ message: "The provider returned a mismatched document", status: httpStatus.BAD_GATEWAY });
     }
     const { document } = response;
     res.status(httpStatus.OK).json({
@@ -1058,8 +1058,8 @@ export const getKybDocument = async (
 };
 
 export const createKybUbo = async (
-  req: Request<unknown, unknown, AveniaUboPayload, { subAccountId?: string }>,
-  res: Response<AveniaUboResponse | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrUboPayload, { subAccountId?: string }>,
+  res: Response<BrUboResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
@@ -1073,7 +1073,7 @@ export const createKybUbo = async (
     );
     if (req.body.uploadedSelfieId) {
       await requireReadyAveniaDocument(brlaApiService, subAccountId, req.body.uploadedSelfieId, [
-        AveniaDocumentType.SELFIE_FROM_LIVENESS
+        BrDocumentType.SELFIE_FROM_LIVENESS
       ]);
     }
     const response = await createAveniaUboOnce(brlaApiService, record, req.body, subAccountId);
@@ -1084,8 +1084,8 @@ export const createKybUbo = async (
 };
 
 export const submitKybLevel1Api = async (
-  req: Request<unknown, unknown, AveniaKybLevel1Payload, { subAccountId?: string }>,
-  res: Response<KycLevel1Response | BrlaErrorResponse>
+  req: Request<unknown, unknown, BrKybLevel1Payload, { subAccountId?: string }>,
+  res: Response<KycLevel1Response | BrErrorResponse>
 ): Promise<void> => {
   try {
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
@@ -1102,10 +1102,10 @@ export const submitKybLevel1Api = async (
     const kycCase = await getOrCreateAveniaKybCase(record);
     await Promise.all([
       requireReadyAveniaDocument(brlaApiService, subAccountId, req.body.certificateOfIncorporationDocumentId, [
-        AveniaDocumentType.CERTIFICATE_OF_INCORPORATION
+        BrDocumentType.CERTIFICATE_OF_INCORPORATION
       ]),
       requireReadyAveniaDocument(brlaApiService, subAccountId, req.body.taxIdentificationDocumentId, [
-        AveniaDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT
+        BrDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT
       ])
     ]);
 
@@ -1177,7 +1177,7 @@ export const submitKybLevel1Api = async (
  */
 export const initiateKybLevel1 = async (
   req: Request<unknown, { redirectUrl: string }, unknown, { subAccountId?: string }>,
-  res: Response<KybLevel1Response | BrlaErrorResponse>
+  res: Response<KybLevel1Response | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { subAccountId } = req.query;
@@ -1245,7 +1245,7 @@ export const initiateKybLevel1 = async (
  */
 export const getKybAttemptStatus = async (
   req: Request<unknown, unknown, unknown, { attemptId: string }>,
-  res: Response<KybAttemptStatusResponse | BrlaErrorResponse>
+  res: Response<KybAttemptStatusResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const { attemptId } = req.query;
@@ -1300,7 +1300,7 @@ export const getKybAttemptStatus = async (
     const response = await brlaApiService.getKybAttemptStatus(attemptId, record.providerSubaccountId);
     const attempt = response.attempt;
     if (attempt.id !== attemptId) {
-      throw new APIError({ message: "Avenia returned a mismatched KYB attempt", status: httpStatus.BAD_GATEWAY });
+      throw new APIError({ message: "The provider returned a mismatched KYB attempt", status: httpStatus.BAD_GATEWAY });
     }
 
     const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;

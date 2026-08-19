@@ -1,7 +1,7 @@
 import {
   AveniaAccountType,
-  AveniaDocumentType,
   AveniaIdentityStatus,
+  BrDocumentType,
   KycAttemptResult,
   KycAttemptStatus
 } from "../services/brla/types";
@@ -16,16 +16,16 @@ export enum KycFailureReason {
 }
 
 // GET /brla/getUser?taxId=:taxId
-export interface BrlaGetUserRequest {
+export interface BrGetUserRequest {
   taxId?: string;
 }
 
-export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
+export interface BrPostRecordInitialKycAttemptRequest extends BrGetUserRequest {
   quoteId: string;
   sessionId?: string;
   taxId: string;
 }
-export interface BrlaGetUserResponse {
+export interface BrGetUserResponse {
   evmAddress: string;
   kycLevel: number;
   identityStatus: AveniaIdentityStatus;
@@ -33,25 +33,25 @@ export interface BrlaGetUserResponse {
 }
 
 // GET /brla/getRampStatus?taxId=:taxId
-export interface BrlaGetRampStatusRequest {
+export interface BrGetRampStatusRequest {
   taxId: string;
 }
 
-export interface BrlaGetRampStatusResponse {
+export interface BrGetRampStatusResponse {
   type: string;
   status: string;
 }
 
 // GET /brla/getKycStatus?taxId=:taxId
-export interface BrlaGetKycStatusRequest {
+export interface BrGetKycStatusRequest {
   taxId: string;
 }
 
-export interface BrlaGetSelfieLivenessUrlRequest {
+export interface BrGetSelfieLivenessUrlRequest {
   taxId: string;
 }
 
-export interface BrlaGetKycStatusResponse {
+export interface BrGetKycStatusResponse {
   type: "KYC";
   level: string;
   status: KycAttemptStatus;
@@ -59,7 +59,7 @@ export interface BrlaGetKycStatusResponse {
   failureReason?: KycFailureReason;
 }
 
-export interface BrlaGetSelfieLivenessUrlResponse {
+export interface BrGetSelfieLivenessUrlResponse {
   id: string;
   livenessUrl: string;
   uploadURLFront: string;
@@ -67,25 +67,25 @@ export interface BrlaGetSelfieLivenessUrlResponse {
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey
-export interface BrlaValidatePixKeyRequest {
+export interface BrValidatePixKeyRequest {
   pixKey: string;
 }
 
-export interface BrlaValidatePixKeyResponse {
+export interface BrValidatePixKeyResponse {
   valid: boolean;
 }
 
-export interface BrlaGetUserRemainingLimitRequest {
+export interface BrGetUserRemainingLimitRequest {
   taxId?: string;
   direction: RampDirection;
 }
 
-export interface BrlaGetUserRemainingLimitResponse {
+export interface BrGetUserRemainingLimitResponse {
   remainingLimit: number;
 }
 
 // POST /brla/createSubaccount
-export interface BrlaAddress {
+export interface BrAddress {
   cep: string;
   city: string;
   state: string;
@@ -97,7 +97,7 @@ export interface BrlaAddress {
 
 export type TaxIdType = "CPF" | "CNPJ";
 
-export interface BrlaCreateSubaccountRequest {
+export interface BrCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
@@ -106,39 +106,39 @@ export interface BrlaCreateSubaccountRequest {
   sessionId?: string;
 }
 
-export interface BrlaCreateSubaccountResponse {
+export interface BrCreateSubaccountResponse {
   subAccountId: string;
 }
 
 // POST /brla/kyc/import-token
-export interface BrlaImportKycTokenRequest {
+export interface BrImportKycTokenRequest {
   importToken: string;
   consentAttested: true;
 }
 
-export interface BrlaImportKycTokenResponse {
+export interface BrImportKycTokenResponse {
   attemptId: string;
   status: "pending";
 }
 
-export interface BrlaErrorResponse {
+export interface BrErrorResponse {
   error: string;
   details?: string;
 }
 
-export enum BrlaKYCDocType {
+export enum BrKYCDocType {
   RG = "RG",
   CNH = "CNH"
 }
 
 // POST /brla/startKYC2
-export interface AveniaKYCDataUploadRequest {
-  documentType: AveniaDocumentType;
+export interface BrKYCDataUploadRequest {
+  documentType: BrDocumentType;
   isDoubleSided?: boolean;
   taxId: string;
 }
 
-export interface AveniaKYCDataUpload {
+export interface BrKYCDataUpload {
   selfieUpload: {
     id: string;
     uploadURLFront: string;

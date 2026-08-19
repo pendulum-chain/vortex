@@ -1,11 +1,11 @@
 import {
   AveniaDocument,
-  AveniaDocumentType,
-  AveniaUboPayload,
-  AveniaUboResponse,
   BRLA_PRIVATE_KEY,
+  BrDocumentType,
   BrlaApiError,
   BrlaApiService,
+  BrUboPayload,
+  BrUboResponse,
   KycAttemptResult,
   KycAttemptStatus
 } from "@vortexfi/shared";
@@ -38,7 +38,7 @@ function hashUboValue(value: unknown): string {
     .digest("hex");
 }
 
-function uboSubmissionKey(subAccountId: string, payload: AveniaUboPayload): string {
+function uboSubmissionKey(subAccountId: string, payload: BrUboPayload): string {
   return hashUboValue([subAccountId, payload.countryOfTaxId, payload.taxIdNumber]);
 }
 
@@ -90,9 +90,9 @@ export async function getOrCreateAveniaKybCase(record: ProviderCustomer): Promis
 export async function createAveniaUboOnce(
   brlaApiService: BrlaApiService,
   record: ProviderCustomer,
-  payload: AveniaUboPayload,
+  payload: BrUboPayload,
   subAccountId: string
-): Promise<AveniaUboResponse> {
+): Promise<BrUboResponse> {
   const key = uboSubmissionKey(subAccountId, payload);
   const payloadFingerprint = hashUboValue(payload);
   let kycCaseId: string | undefined;
@@ -193,11 +193,11 @@ export async function requireReadyAveniaDocument(
   brlaApiService: BrlaApiService,
   subAccountId: string,
   documentId: string,
-  allowedTypes: AveniaDocumentType[]
+  allowedTypes: BrDocumentType[]
 ): Promise<AveniaDocument> {
   const { document } = await brlaApiService.getUploadedDocument(documentId, subAccountId);
   if (document.id !== documentId) {
-    throw new APIError({ message: "Avenia returned a mismatched document", status: httpStatus.BAD_GATEWAY });
+    throw new APIError({ message: "The provider returned a mismatched document", status: httpStatus.BAD_GATEWAY });
   }
   if (!allowedTypes.includes(document.documentType)) {
     throw new APIError({ message: "Document type does not match this KYB field", status: httpStatus.BAD_REQUEST });
@@ -238,8 +238,8 @@ export async function assertAveniaHostedKybCanInitiate(
 }
 
 export const AVENIA_IDENTITY_DOCUMENT_TYPES = [
-  AveniaDocumentType.ID,
-  AveniaDocumentType.DRIVERS_LICENSE,
-  AveniaDocumentType.PASSPORT,
-  AveniaDocumentType.RESIDENCE_PERMIT
+  BrDocumentType.ID,
+  BrDocumentType.DRIVERS_LICENSE,
+  BrDocumentType.PASSPORT,
+  BrDocumentType.RESIDENCE_PERMIT
 ];

@@ -375,12 +375,12 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(requirements.body).toMatchObject({
         country: "BR",
         customerType: "business",
-        flow: "avenia-br-business-level-1-api-kyb",
-        provider: "avenia"
+        flow: "br-business-level-1-api-kyb",
+        family: "br"
       });
       expect(requirements.body).not.toHaveProperty("fields");
       expect((requirements.body.steps as Array<{ operationId?: string }>).map(step => step.operationId).filter(Boolean)).toContain(
-        "submitAveniaKybLevel1Api"
+        "submitBrKybLevel1Api"
       );
       expect((requirements.body.steps as Array<{ method?: string }>).some(step => step.method === "GET")).toBe(false);
 

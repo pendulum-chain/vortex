@@ -1,8 +1,8 @@
 import {
-  AveniaDocumentType,
-  AveniaKYCDataUploadRequest,
-  AveniaKybLevel1Payload,
-  AveniaUboPayload,
+  BrDocumentType,
+  BrKYCDataUploadRequest,
+  BrKybLevel1Payload,
+  BrUboPayload,
   CreateAveniaSubaccountRequest,
   CreateBestQuoteRequest,
   CreateQuoteRequest,
@@ -645,7 +645,7 @@ export const validateKycSubmission: RequestHandler = (req, res, next) => {
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { documentType } = req.body as AveniaKYCDataUploadRequest;
+  const { documentType } = req.body as BrKYCDataUploadRequest;
 
   if (!isValidKYCDocType(documentType)) {
     res.status(httpStatus.BAD_REQUEST).json({
@@ -673,23 +673,23 @@ function isAdultDate(value: string): boolean {
 
 const aveniaDocumentUploadSchema = z
   .object({
-    documentType: z.enum(AveniaDocumentType),
+    documentType: z.enum(BrDocumentType),
     isDoubleSided: z.boolean().optional()
   })
   .strict()
   .superRefine((value, context) => {
     const identificationTypes = new Set([
-      AveniaDocumentType.ID,
-      AveniaDocumentType.DRIVERS_LICENSE,
-      AveniaDocumentType.PASSPORT,
-      AveniaDocumentType.RESIDENCE_PERMIT
+      BrDocumentType.ID,
+      BrDocumentType.DRIVERS_LICENSE,
+      BrDocumentType.PASSPORT,
+      BrDocumentType.RESIDENCE_PERMIT
     ]);
     if (value.isDoubleSided && !identificationTypes.has(value.documentType)) {
       context.addIssue({ code: "custom", message: "Only identification documents may be double-sided" });
     }
   });
 
-const aveniaUboSchema: z.ZodType<AveniaUboPayload> = z
+const aveniaUboSchema: z.ZodType<BrUboPayload> = z
   .object({
     city: nonEmptyString,
     country: isoAlpha3,
@@ -755,7 +755,7 @@ const aveniaUboSchema: z.ZodType<AveniaUboPayload> = z
     }
   });
 
-const aveniaKybLevel1Schema: z.ZodType<AveniaKybLevel1Payload> = z
+const aveniaKybLevel1Schema: z.ZodType<BrKybLevel1Payload> = z
   .object({
     businessActivityDescription: nonEmptyString.max(2000),
     certificateOfIncorporationDocumentId: nonEmptyString,

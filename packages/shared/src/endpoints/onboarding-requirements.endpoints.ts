@@ -2,6 +2,8 @@ import type { CorridorCustomerType } from "../corridors";
 
 export type OnboardingRequirementsCountry = "AR" | "BR" | "CO" | "MX" | "US";
 export type OnboardingFlowMode = "api" | "hosted" | "hybrid";
+/** Endpoint family that serves a flow. Stable across a change of underlying provider. */
+export type OnboardingFlowFamily = "br" | "domestic";
 export type OnboardingStepKind = "api" | "direct-upload" | "hosted";
 
 export interface OnboardingDocumentRequirement {
@@ -35,7 +37,7 @@ export interface GetOnboardingRequirementsResponse {
   flow: string;
   mode: OnboardingFlowMode;
   openapiUrl: string;
-  provider: "alfredpay" | "avenia";
+  family: OnboardingFlowFamily;
   requirementsVersion: string;
   documents: OnboardingDocumentRequirement[];
   steps: OnboardingRequirementStep[];
@@ -49,12 +51,12 @@ export interface GetOnboardingRequirementsErrorResponse {
   };
 }
 
-const REQUIREMENTS_VERSION = "2026-08-10";
+const REQUIREMENTS_VERSION = "2026-08-19";
 const OPENAPI_URL = "https://raw.githubusercontent.com/pendulum-chain/vortex/main/docs/api/openapi/vortex.openapi.json";
 const DOCUMENTATION_URL = "https://api-docs.vortexfinance.co/fiat-corridors";
-const ALFREDPAY_MEDIA_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const DOMESTIC_MEDIA_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
-const alfredpayInitialSteps = (
+const domesticInitialSteps = (
   country: OnboardingRequirementsCountry,
   customerType: CorridorCustomerType
 ): OnboardingRequirementStep[] => [
@@ -64,37 +66,37 @@ const alfredpayInitialSteps = (
     fixedBody: { country },
     kind: "api",
     method: "POST",
-    operationId: customerType === "business" ? "createAlfredpayBusinessCustomer" : "createAlfredpayIndividualCustomer",
+    operationId: customerType === "business" ? "createDomesticBusinessCustomer" : "createDomesticIndividualCustomer",
     order: 1,
-    path: customerType === "business" ? "/v1/alfredpay/createBusinessCustomer" : "/v1/alfredpay/createIndividualCustomer",
-    requestSchema: "#/components/schemas/AlfredpayCreateCustomerRequest"
+    path: customerType === "business" ? "/v1/domestic/createBusinessCustomer" : "/v1/domestic/createIndividualCustomer",
+    requestSchema: "#/components/schemas/DomesticCreateCustomerRequest"
   }
 ];
 
-const alfredpayIndividualFlow = (country: "AR" | "CO" | "MX"): GetOnboardingRequirementsResponse => ({
+const domesticIndividualFlow = (country: "AR" | "CO" | "MX"): GetOnboardingRequirementsResponse => ({
   country,
   customerType: "individual",
   documentationUrl: DOCUMENTATION_URL,
   documents: [
-    { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "National ID Front" },
-    { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "National ID Back" },
-    ...(country === "AR" ? [{ acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "Selfie" }] : [])
+    { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "National ID Front" },
+    { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "National ID Back" },
+    ...(country === "AR" ? [{ acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "Selfie" }] : [])
   ],
-  flow: `alfredpay-${country.toLowerCase()}-individual-api-kyc`,
+  family: "domestic",
+  flow: `${country.toLowerCase()}-individual-api-kyc`,
   mode: "api",
   openapiUrl: OPENAPI_URL,
-  provider: "alfredpay",
   requirementsVersion: REQUIREMENTS_VERSION,
   steps: [
-    ...alfredpayInitialSteps(country, "individual"),
+    ...domesticInitialSteps(country, "individual"),
     {
       description: "Create the KYC submission with the collected identity data.",
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "submitAlfredpayKycInformation",
+      operationId: "submitDomesticKycInformation",
       order: 2,
-      path: "/v1/alfredpay/submitKycInformation",
+      path: "/v1/domestic/submitKycInformation",
       requestSchema: "#/components/schemas/SubmitKycInformationRequest"
     },
     {
@@ -103,11 +105,11 @@ const alfredpayIndividualFlow = (country: "AR" | "CO" | "MX"): GetOnboardingRequ
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "submitAlfredpayKycFile",
+      operationId: "submitDomesticKycFile",
       order: 3,
-      path: "/v1/alfredpay/submitKycFile",
+      path: "/v1/domestic/submitKycFile",
       repeatFor: "documents",
-      requestSchema: "#/components/schemas/AlfredpayKycFileUploadRequest"
+      requestSchema: "#/components/schemas/DomesticKycFileUploadRequest"
     },
     {
       derivedValues: { "body.submissionId": "step 2 response submissionId" },
@@ -115,55 +117,55 @@ const alfredpayIndividualFlow = (country: "AR" | "CO" | "MX"): GetOnboardingRequ
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "sendAlfredpayKycSubmission",
+      operationId: "sendDomesticKycSubmission",
       order: 4,
-      path: "/v1/alfredpay/sendKycSubmission",
-      requestSchema: "#/components/schemas/AlfredpaySendSubmissionRequest"
+      path: "/v1/domestic/sendKycSubmission",
+      requestSchema: "#/components/schemas/DomesticSendSubmissionRequest"
     }
   ]
 });
 
-const alfredpayBusinessDocuments: OnboardingDocumentRequirement[] = [
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "taxIdDocument" },
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "articlesIncorporation" },
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "proofAddress" },
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "shareholderRegistry" },
+const domesticBusinessDocuments: OnboardingDocumentRequirement[] = [
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "taxIdDocument" },
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "articlesIncorporation" },
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "proofAddress" },
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "shareholderRegistry" },
   {
-    acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES,
+    acceptedMediaTypes: DOMESTIC_MEDIA_TYPES,
     required: false,
     requiredWhen: "isRegulatedBusiness is true",
     type: "businessLicense"
   },
   {
-    acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES,
+    acceptedMediaTypes: DOMESTIC_MEDIA_TYPES,
     required: false,
     requiredWhen: "isRegulatedBusiness is true",
     type: "uploadAmlPolicy"
   },
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "docFront" },
-  { acceptedMediaTypes: ALFREDPAY_MEDIA_TYPES, required: true, type: "docBack" }
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "docFront" },
+  { acceptedMediaTypes: DOMESTIC_MEDIA_TYPES, required: true, type: "docBack" }
 ];
 
-const alfredpayBusinessFlow = (country: "CO" | "MX"): GetOnboardingRequirementsResponse => ({
+const domesticBusinessFlow = (country: "CO" | "MX"): GetOnboardingRequirementsResponse => ({
   country,
   customerType: "business",
   documentationUrl: DOCUMENTATION_URL,
-  documents: alfredpayBusinessDocuments,
-  flow: `alfredpay-${country.toLowerCase()}-business-api-kyb`,
+  documents: domesticBusinessDocuments,
+  family: "domestic",
+  flow: `${country.toLowerCase()}-business-api-kyb`,
   mode: "api",
   openapiUrl: OPENAPI_URL,
-  provider: "alfredpay",
   requirementsVersion: REQUIREMENTS_VERSION,
   steps: [
-    ...alfredpayInitialSteps(country, "business"),
+    ...domesticInitialSteps(country, "business"),
     {
       description: "Create or update the KYB submission with company, representative, and questionnaire data.",
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "submitAlfredpayKybInformation",
+      operationId: "submitDomesticKybInformation",
       order: 2,
-      path: "/v1/alfredpay/submitKybInformation",
+      path: "/v1/domestic/submitKybInformation",
       requestSchema: "#/components/schemas/SubmitKybInformationRequest"
     },
     {
@@ -175,11 +177,11 @@ const alfredpayBusinessFlow = (country: "CO" | "MX"): GetOnboardingRequirementsR
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "submitAlfredpayKybFile",
+      operationId: "submitDomesticKybFile",
       order: 3,
-      path: "/v1/alfredpay/submitKybFile",
+      path: "/v1/domestic/submitKybFile",
       repeatFor: "company documents",
-      requestSchema: "#/components/schemas/AlfredpayKybFileUploadRequest"
+      requestSchema: "#/components/schemas/DomesticKybFileUploadRequest"
     },
     {
       derivedValues: {
@@ -189,11 +191,11 @@ const alfredpayBusinessFlow = (country: "CO" | "MX"): GetOnboardingRequirementsR
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "submitAlfredpayKybRelatedPersonFile",
+      operationId: "submitDomesticKybRelatedPersonFile",
       order: 4,
-      path: "/v1/alfredpay/submitKybRelatedPersonFile",
+      path: "/v1/domestic/submitKybRelatedPersonFile",
       repeatFor: "related persons and their required documents",
-      requestSchema: "#/components/schemas/AlfredpayKybRelatedPersonFileUploadRequest"
+      requestSchema: "#/components/schemas/DomesticKybRelatedPersonFileUploadRequest"
     },
     {
       derivedValues: { "body.submissionId": "step 2 response submissionId" },
@@ -201,26 +203,26 @@ const alfredpayBusinessFlow = (country: "CO" | "MX"): GetOnboardingRequirementsR
       fixedBody: { country },
       kind: "api",
       method: "POST",
-      operationId: "sendAlfredpayKybSubmission",
+      operationId: "sendDomesticKybSubmission",
       order: 5,
-      path: "/v1/alfredpay/sendKybSubmission",
-      requestSchema: "#/components/schemas/AlfredpaySendSubmissionRequest"
+      path: "/v1/domestic/sendKybSubmission",
+      requestSchema: "#/components/schemas/DomesticSendSubmissionRequest"
     }
   ]
 });
 
-const alfredpayHostedFlow = (customerType: CorridorCustomerType): GetOnboardingRequirementsResponse => ({
+const domesticHostedFlow = (customerType: CorridorCustomerType): GetOnboardingRequirementsResponse => ({
   country: "US",
   customerType,
   documentationUrl: DOCUMENTATION_URL,
   documents: [],
-  flow: `alfredpay-us-${customerType}-hosted-${customerType === "business" ? "kyb" : "kyc"}`,
+  family: "domestic",
+  flow: `us-${customerType}-hosted-${customerType === "business" ? "kyb" : "kyc"}`,
   mode: "hosted",
   openapiUrl: OPENAPI_URL,
-  provider: "alfredpay",
   requirementsVersion: REQUIREMENTS_VERSION,
   steps: [
-    ...alfredpayInitialSteps("US", customerType),
+    ...domesticInitialSteps("US", customerType),
     {
       description: "Open the provider-hosted verification URL as described in the integration documentation.",
       kind: "hosted",
@@ -231,10 +233,10 @@ const alfredpayHostedFlow = (customerType: CorridorCustomerType): GetOnboardingR
       fixedBody: { country: "US", type: customerType === "business" ? "BUSINESS" : "INDIVIDUAL" },
       kind: "api",
       method: "POST",
-      operationId: "notifyAlfredpayKycRedirectOpened",
+      operationId: "notifyDomesticKycRedirectOpened",
       order: 3,
-      path: "/v1/alfredpay/kycRedirectOpened",
-      requestSchema: "#/components/schemas/AlfredpayRedirectNotificationRequest"
+      path: "/v1/domestic/kycRedirectOpened",
+      requestSchema: "#/components/schemas/DomesticRedirectNotificationRequest"
     },
     {
       condition: "Call when the customer confirms that the hosted form is complete.",
@@ -242,15 +244,15 @@ const alfredpayHostedFlow = (customerType: CorridorCustomerType): GetOnboardingR
       fixedBody: { country: "US", type: customerType === "business" ? "BUSINESS" : "INDIVIDUAL" },
       kind: "api",
       method: "POST",
-      operationId: "notifyAlfredpayKycRedirectFinished",
+      operationId: "notifyDomesticKycRedirectFinished",
       order: 4,
-      path: "/v1/alfredpay/kycRedirectFinished",
-      requestSchema: "#/components/schemas/AlfredpayRedirectNotificationRequest"
+      path: "/v1/domestic/kycRedirectFinished",
+      requestSchema: "#/components/schemas/DomesticRedirectNotificationRequest"
     }
   ]
 });
 
-const AVENIA_INDIVIDUAL: GetOnboardingRequirementsResponse = {
+const BR_INDIVIDUAL: GetOnboardingRequirementsResponse = {
   country: "BR",
   customerType: "individual",
   documentationUrl: DOCUMENTATION_URL,
@@ -258,35 +260,35 @@ const AVENIA_INDIVIDUAL: GetOnboardingRequirementsResponse = {
     { collection: "direct-upload", description: "Use ID or DRIVERS-LICENSE.", required: true, type: "identity document" },
     {
       collection: "hosted",
-      description: "Completed through the Avenia liveness URL.",
+      description: "Completed through the provider liveness URL.",
       required: true,
       type: "selfie"
     }
   ],
-  flow: "avenia-br-individual-level-1-kyc",
+  family: "br",
+  flow: "br-individual-level-1-kyc",
   mode: "hybrid",
   openapiUrl: OPENAPI_URL,
-  provider: "avenia",
   requirementsVersion: REQUIREMENTS_VERSION,
   steps: [
     {
-      condition: "Run only when no Avenia subaccount exists.",
-      description: "Create the individual Avenia subaccount.",
+      condition: "Run only when no subaccount exists.",
+      description: "Create the individual subaccount.",
       kind: "api",
       method: "POST",
       operationId: "createSubaccount",
       order: 1,
-      path: "/v1/brla/createSubaccount",
+      path: "/v1/brl/createSubaccount",
       requestSchema: "#/components/schemas/CreateSubaccountRequest"
     },
     {
       description: "Create identity-document and selfie upload targets.",
       kind: "api",
       method: "POST",
-      operationId: "brlaGetUploadUrls",
+      operationId: "brGetUploadUrls",
       order: 2,
-      path: "/v1/brla/getUploadUrls",
-      requestSchema: "#/components/schemas/AveniaKYCDataUploadRequest"
+      path: "/v1/brl/getUploadUrls",
+      requestSchema: "#/components/schemas/BrKYCDataUploadRequest"
     },
     {
       description: "Upload identity-document bytes to the returned presigned URL.",
@@ -304,15 +306,15 @@ const AVENIA_INDIVIDUAL: GetOnboardingRequirementsResponse = {
       description: "Submit the Level 1 KYC data after both uploads are ready.",
       kind: "api",
       method: "POST",
-      operationId: "brlaNewKyc",
+      operationId: "brNewKyc",
       order: 5,
-      path: "/v1/brla/newKyc",
+      path: "/v1/brl/newKyc",
       requestSchema: "#/components/schemas/KycLevel1Payload"
     }
   ]
 };
 
-const AVENIA_BUSINESS: GetOnboardingRequirementsResponse = {
+const BR_BUSINESS: GetOnboardingRequirementsResponse = {
   country: "BR",
   customerType: "business",
   documentationUrl: DOCUMENTATION_URL,
@@ -332,20 +334,20 @@ const AVENIA_BUSINESS: GetOnboardingRequirementsResponse = {
       type: "SELFIE-FROM-LIVENESS"
     }
   ],
-  flow: "avenia-br-business-level-1-api-kyb",
+  family: "br",
+  flow: "br-business-level-1-api-kyb",
   mode: "api",
   openapiUrl: OPENAPI_URL,
-  provider: "avenia",
   requirementsVersion: REQUIREMENTS_VERSION,
   steps: [
     {
-      condition: "Run only when no Avenia company subaccount exists.",
-      description: "Create the company Avenia subaccount.",
+      condition: "Run only when no company subaccount exists.",
+      description: "Create the company subaccount.",
       kind: "api",
       method: "POST",
       operationId: "createSubaccount",
       order: 1,
-      path: "/v1/brla/createSubaccount",
+      path: "/v1/brl/createSubaccount",
       requestSchema: "#/components/schemas/CreateSubaccountRequest"
     },
     {
@@ -356,11 +358,11 @@ const AVENIA_BUSINESS: GetOnboardingRequirementsResponse = {
       description: "Create an upload target for each company and UBO document.",
       kind: "api",
       method: "POST",
-      operationId: "createAveniaKybDocument",
+      operationId: "createBrKybDocument",
       order: 2,
-      path: "/v1/brla/kyb/documents",
+      path: "/v1/brl/kyb/documents",
       repeatFor: "documents",
-      requestSchema: "#/components/schemas/AveniaKybDocumentRequest"
+      requestSchema: "#/components/schemas/BrKybDocumentRequest"
     },
     {
       description: "Upload document bytes to each returned presigned URL.",
@@ -385,11 +387,11 @@ const AVENIA_BUSINESS: GetOnboardingRequirementsResponse = {
       description: "Register each UBO using ready identity documents.",
       kind: "api",
       method: "POST",
-      operationId: "createAveniaKybUbo",
+      operationId: "createBrKybUbo",
       order: 5,
-      path: "/v1/brla/kyb/ubos",
+      path: "/v1/brl/kyb/ubos",
       repeatFor: "UBOs",
-      requestSchema: "#/components/schemas/AveniaUboPayload"
+      requestSchema: "#/components/schemas/BrUboPayload"
     },
     {
       derivedValues: {
@@ -401,10 +403,10 @@ const AVENIA_BUSINESS: GetOnboardingRequirementsResponse = {
       description: "Submit the company Level 1 KYB attempt.",
       kind: "api",
       method: "POST",
-      operationId: "submitAveniaKybLevel1Api",
+      operationId: "submitBrKybLevel1Api",
       order: 6,
-      path: "/v1/brla/kyb/new-level-1/api",
-      requestSchema: "#/components/schemas/AveniaKybLevel1Payload"
+      path: "/v1/brl/kyb/new-level-1/api",
+      requestSchema: "#/components/schemas/BrKybLevel1Payload"
     }
   ]
 };
@@ -413,11 +415,11 @@ export const ONBOARDING_REQUIREMENTS: Record<
   OnboardingRequirementsCountry,
   Partial<Record<CorridorCustomerType, GetOnboardingRequirementsResponse>>
 > = {
-  AR: { individual: alfredpayIndividualFlow("AR") },
-  BR: { business: AVENIA_BUSINESS, individual: AVENIA_INDIVIDUAL },
-  CO: { business: alfredpayBusinessFlow("CO"), individual: alfredpayIndividualFlow("CO") },
-  MX: { business: alfredpayBusinessFlow("MX"), individual: alfredpayIndividualFlow("MX") },
-  US: { business: alfredpayHostedFlow("business"), individual: alfredpayHostedFlow("individual") }
+  AR: { individual: domesticIndividualFlow("AR") },
+  BR: { business: BR_BUSINESS, individual: BR_INDIVIDUAL },
+  CO: { business: domesticBusinessFlow("CO"), individual: domesticIndividualFlow("CO") },
+  MX: { business: domesticBusinessFlow("MX"), individual: domesticIndividualFlow("MX") },
+  US: { business: domesticHostedFlow("business"), individual: domesticHostedFlow("individual") }
 };
 
 export function getOnboardingRequirements(

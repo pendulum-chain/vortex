@@ -4,390 +4,6 @@
  */
 
 export interface paths {
-    "/v1/alfredpay/alfredpayStatus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Alfredpay customer status
-         * @description Returns the local Alfredpay onboarding state after refreshing the latest provider submission when available.
-         */
-        get: operations["getAlfredpayStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/createBusinessCustomer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a business Alfredpay customer
-         * @description Creates a business Alfredpay customer for the effective profile. Managed profiles use their immutable contact email.
-         */
-        post: operations["createAlfredpayBusinessCustomer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/createIndividualCustomer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create an individual Alfredpay customer
-         * @description Creates an individual Alfredpay customer for the effective profile. Managed profiles use their immutable contact email.
-         */
-        post: operations["createAlfredpayIndividualCustomer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/fiatAccounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Alfredpay fiat accounts
-         * @description Lists payout fiat accounts for the effective Alfredpay customer.
-         */
-        get: operations["listAlfredpayFiatAccounts"];
-        put?: never;
-        /**
-         * Create an Alfredpay fiat account
-         * @description Creates a payout fiat account for the effective Alfredpay customer. Required optional fields depend on the selected account type and corridor.
-         */
-        post: operations["createAlfredpayFiatAccount"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/fiatAccounts/{fiatAccountId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete an Alfredpay fiat account
-         * @description Deletes one payout fiat account belonging to the effective Alfredpay customer.
-         */
-        delete: operations["deleteAlfredpayFiatAccount"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/findKybCustomerAndBusiness": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Find Alfredpay KYB submission details
-         * @description Returns only KYB submission IDs and related-person IDs needed for document uploads.
-         */
-        get: operations["findAlfredpayKybCustomerAndBusiness"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/getKybRedirectLink": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get an Alfredpay KYB redirect link
-         * @description Creates a hosted business KYB redirect link when no verification is already in review or complete.
-         */
-        get: operations["getAlfredpayKybRedirectLink"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/getKycRedirectLink": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get an Alfredpay KYC redirect link
-         * @description Creates a hosted individual KYC redirect link when no verification is already in review or complete.
-         */
-        get: operations["getAlfredpayKycRedirectLink"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/getKycStatus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Alfredpay KYC or KYB status
-         * @description Returns and persists the latest KYC or KYB submission status. Omit `type` for individual KYC.
-         */
-        get: operations["getAlfredpayKycStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/kycRedirectFinished": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark an Alfredpay redirect finished
-         * @description Records that the effective customer finished the hosted KYC or KYB redirect flow.
-         */
-        post: operations["notifyAlfredpayKycRedirectFinished"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/kycRedirectOpened": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark an Alfredpay redirect opened
-         * @description Records that the effective customer's hosted KYC or KYB redirect was opened.
-         */
-        post: operations["notifyAlfredpayKycRedirectOpened"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/retryKyc": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Retry Alfredpay KYC or KYB
-         * @description Retries a failed KYC or KYB submission. Hosted flows return a redirect link; API-based MX, CO, and AR individual KYC returns `{ success: true }`.
-         */
-        post: operations["retryAlfredpayKyc"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/sendKybSubmission": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send an Alfredpay KYB submission
-         * @description Finalizes an API-based business KYB submission.
-         */
-        post: operations["sendAlfredpayKybSubmission"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/sendKycSubmission": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send an Alfredpay KYC submission
-         * @description Finalizes an API-based individual KYC submission.
-         */
-        post: operations["sendAlfredpayKycSubmission"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/submitKybFile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload an Alfredpay KYB file
-         * @description Uploads one business KYB document. Files are buffered in memory and limited to 5 MiB.
-         */
-        post: operations["submitAlfredpayKybFile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/submitKybInformation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Submit Alfredpay KYB information
-         * @description Creates or updates an API-based business KYB submission, including Alfredpay's compliance questionnaire.
-         */
-        post: operations["submitAlfredpayKybInformation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/submitKybRelatedPersonFile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload a related-person KYB file
-         * @description Uploads the front or back identity document for one KYB related person. Files are limited to 5 MiB.
-         */
-        post: operations["submitAlfredpayKybRelatedPersonFile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/submitKycFile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload an Alfredpay KYC file
-         * @description Uploads one individual KYC document. Files are buffered in memory and limited to 5 MiB.
-         */
-        post: operations["submitAlfredpayKycFile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/alfredpay/submitKycInformation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Submit Alfredpay KYC information
-         * @description Creates or resumes an API-based individual KYC submission.
-         */
-        post: operations["submitAlfredpayKycInformation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/api-credentials": {
         parameters: {
             query?: never;
@@ -482,7 +98,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/createSubaccount": {
+    "/v1/brl/createSubaccount": {
         parameters: {
             query?: never;
             header?: never;
@@ -506,7 +122,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/getKycStatus": {
+    "/v1/brl/getKycStatus": {
         parameters: {
             query?: never;
             header?: never;
@@ -526,7 +142,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/getSelfieLivenessUrl": {
+    "/v1/brl/getSelfieLivenessUrl": {
         parameters: {
             query?: never;
             header?: never;
@@ -535,11 +151,11 @@ export interface paths {
         };
         /**
          * Get selfie liveness URL
-         * @description Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.
+         * @description Returns the selfie/liveness-check URL for the subaccount associated with this tax ID.
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
-        get: operations["brlaGetSelfieLivenessUrl"];
+        get: operations["brGetSelfieLivenessUrl"];
         put?: never;
         post?: never;
         delete?: never;
@@ -548,7 +164,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/getUploadUrls": {
+    "/v1/brl/getUploadUrls": {
         parameters: {
             query?: never;
             header?: never;
@@ -563,14 +179,14 @@ export interface paths {
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
-        post: operations["brlaGetUploadUrls"];
+        post: operations["brGetUploadUrls"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/getUser": {
+    "/v1/brl/getUser": {
         parameters: {
             query?: never;
             header?: never;
@@ -581,7 +197,7 @@ export interface paths {
          * Get user information
          * @description Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
          */
-        get: operations["getBrlaUser"];
+        get: operations["getBrUser"];
         put?: never;
         post?: never;
         delete?: never;
@@ -590,7 +206,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/getUserRemainingLimit": {
+    "/v1/brl/getUserRemainingLimit": {
         parameters: {
             query?: never;
             header?: never;
@@ -601,7 +217,7 @@ export interface paths {
          * Get user's remaining transaction limits
          * @description Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
          */
-        get: operations["getBrlaUserRemainingLimit"];
+        get: operations["getBrUserRemainingLimit"];
         put?: never;
         post?: never;
         delete?: never;
@@ -610,7 +226,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/attempt-status": {
+    "/v1/brl/kyb/attempt-status": {
         parameters: {
             query?: never;
             header?: never;
@@ -618,10 +234,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Avenia KYB attempt status
-         * @description Refreshes an owned Avenia KYB attempt and persists its normalized verification state.
+         * Get KYB attempt status
+         * @description Refreshes an owned KYB attempt and persists its normalized verification state.
          */
-        get: operations["getAveniaKybAttemptStatus"];
+        get: operations["getBrKybAttemptStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -630,7 +246,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/documents": {
+    "/v1/brl/kyb/documents": {
         parameters: {
             query?: never;
             header?: never;
@@ -640,17 +256,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Avenia KYB document
-         * @description Creates an Avenia document and returns presigned upload targets. Upload bytes directly to the returned URLs.
+         * Create KYB document
+         * @description Creates a document and returns presigned upload targets. Upload bytes directly to the returned URLs.
          */
-        post: operations["createAveniaKybDocument"];
+        post: operations["createBrKybDocument"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/documents/{documentId}": {
+    "/v1/brl/kyb/documents/{documentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -658,10 +274,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Avenia KYB document
-         * @description Reads readiness and upload status for an owned Avenia KYB document.
+         * Get KYB document
+         * @description Reads readiness and upload status for an owned KYB document.
          */
-        get: operations["getAveniaKybDocument"];
+        get: operations["getBrKybDocument"];
         put?: never;
         post?: never;
         delete?: never;
@@ -670,7 +286,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/new-level-1/api": {
+    "/v1/brl/kyb/new-level-1/api": {
         parameters: {
             query?: never;
             header?: never;
@@ -680,17 +296,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit API-driven Avenia KYB
-         * @description Submits the API-driven Avenia Level 1 KYB attempt after validating the owned corporate documents and UBO references.
+         * Submit API-driven KYB
+         * @description Submits the API-driven Level 1 KYB attempt after validating the owned corporate documents and UBO references.
          */
-        post: operations["submitAveniaKybLevel1Api"];
+        post: operations["submitBrKybLevel1Api"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/new-level-1/web-sdk": {
+    "/v1/brl/kyb/new-level-1/web-sdk": {
         parameters: {
             query?: never;
             header?: never;
@@ -700,17 +316,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Avenia hosted KYB
-         * @description Starts or resumes Avenia's hosted KYB level-1 flow for an owned company subaccount.
+         * Start hosted KYB
+         * @description Starts or resumes the provider's hosted KYB level-1 flow for an owned company subaccount.
          */
-        post: operations["startAveniaKybLevel1Hosted"];
+        post: operations["startBrKybLevel1Hosted"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyb/ubos": {
+    "/v1/brl/kyb/ubos": {
         parameters: {
             query?: never;
             header?: never;
@@ -720,17 +336,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Avenia KYB UBO
+         * Create KYB UBO
          * @description Registers a UBO after verifying that referenced identity documents are ready and owned by the company subaccount.
          */
-        post: operations["createAveniaKybUbo"];
+        post: operations["createBrKybUbo"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyc/import-token": {
+    "/v1/brl/kyc/import-token": {
         parameters: {
             query?: never;
             header?: never;
@@ -740,23 +356,23 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import an individual Avenia KYC token
-         * @description Imports an opaque Sumsub share token into the authenticated subject's existing individual Avenia KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. Use either a profile-bound secret `X-API-Key` or a Supabase Bearer session. A controlling manager may add `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.
+         * Import an individual KYC token
+         * @description Imports an opaque Sumsub share token into the authenticated subject's existing individual KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. Use either a profile-bound secret `X-API-Key` or a Supabase Bearer session. A controlling manager may add `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.
          *
          *     The body accepts only `importToken` and literal `consentAttested: true`; CPF, tax ID, subaccount ID, applicant ID, entity ID, provider-customer ID, profile ID, and other caller identity selectors are forbidden. The provisional server-controlled consent policy is `sumsub-share-v1`. Every token claim appends actor, subject, policy version, and timestamp consent evidence without storing the raw token.
          *
          *     The first normal KYC artifact, status read, or token-import claim permanently selects that case's method. Import the token before reading KYC or onboarding status because a status read selects a nullable method as `standard`. The same idempotency key and token returns a stored confirmed attempt or safely reconciles a durable submitted/ambiguous claim through provider reads, without another provider POST or replaying the token. A different token under the same key returns `409`. A provider `401` means the feature precondition is unavailable, records a failed attempt, returns `412`, and may be retried only with a new idempotency key; the new claim appends consent evidence while preserving prior attestations. Every other post-send provider, transport, malformed-response, timeout, or local-confirmation failure is ambiguous, returns `502`, and is never replayed automatically.
          *
-         *     Acceptance is pending only. Vortex polls the exact returned Avenia attempt; `EXPIRED` remains non-approved and locally pending for reconciliation, and its external status is retained. Only Avenia `COMPLETED` plus `APPROVED` completes KYC. The Avenia webhook is notification-only and cannot approve the case.
+         *     Acceptance is pending only. Vortex polls the exact returned provider attempt; `EXPIRED` remains non-approved and locally pending for reconciliation, and its external status is retained. Only a provider `COMPLETED` plus `APPROVED` completes KYC. The provider webhook is notification-only and cannot approve the case.
          */
-        post: operations["importAveniaKycToken"];
+        post: operations["importBrKycToken"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/kyc/record-attempt": {
+    "/v1/brl/kyc/record-attempt": {
         parameters: {
             query?: never;
             header?: never;
@@ -766,17 +382,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Record an initial Avenia KYC attempt
+         * Record an initial KYC attempt
          * @description Validates an authenticated BRL onboarding preflight event. The asserted CPF or CNPJ is not persisted because quote ownership does not prove tax-ID ownership.
          */
-        post: operations["recordInitialAveniaKycAttempt"];
+        post: operations["recordInitialBrKycAttempt"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/newKyc": {
+    "/v1/brl/newKyc": {
         parameters: {
             query?: never;
             header?: never;
@@ -787,18 +403,18 @@ export interface paths {
         put?: never;
         /**
          * Submit KYC level 1 data
-         * @description Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.
+         * @description Submits the user's KYC level 1 payload to the provider after documents have been uploaded via `/v1/brl/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
-        post: operations["brlaNewKyc"];
+        post: operations["brNewKyc"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/brla/validatePixKey": {
+    "/v1/brl/validatePixKey": {
         parameters: {
             query?: never;
             header?: never;
@@ -811,9 +427,393 @@ export interface paths {
          *
          *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
          */
-        get: operations["brlaValidatePixKey"];
+        get: operations["brValidatePixKey"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/alfredpayStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get customer status
+         * @description Returns the local onboarding state after refreshing the latest provider submission when available.
+         */
+        get: operations["getDomesticStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/createBusinessCustomer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a business customer
+         * @description Creates a business customer for the effective profile. Managed profiles use their immutable contact email.
+         */
+        post: operations["createDomesticBusinessCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/createIndividualCustomer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an individual customer
+         * @description Creates an individual customer for the effective profile. Managed profiles use their immutable contact email.
+         */
+        post: operations["createDomesticIndividualCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/fiatAccounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List fiat accounts
+         * @description Lists payout fiat accounts for the effective customer.
+         */
+        get: operations["listDomesticFiatAccounts"];
+        put?: never;
+        /**
+         * Create a fiat account
+         * @description Creates a payout fiat account for the effective customer. Required optional fields depend on the selected account type and corridor.
+         */
+        post: operations["createDomesticFiatAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/fiatAccounts/{fiatAccountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a fiat account
+         * @description Deletes one payout fiat account belonging to the effective customer.
+         */
+        delete: operations["deleteDomesticFiatAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/findKybCustomerAndBusiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find KYB submission details
+         * @description Returns only KYB submission IDs and related-person IDs needed for document uploads.
+         */
+        get: operations["findDomesticKybCustomerAndBusiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/getKybRedirectLink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a KYB redirect link
+         * @description Creates a hosted business KYB redirect link when no verification is already in review or complete.
+         */
+        get: operations["getDomesticKybRedirectLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/getKycRedirectLink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a KYC redirect link
+         * @description Creates a hosted individual KYC redirect link when no verification is already in review or complete.
+         */
+        get: operations["getDomesticKycRedirectLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/getKycStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get KYC or KYB status
+         * @description Returns and persists the latest KYC or KYB submission status. Omit `type` for individual KYC.
+         */
+        get: operations["getDomesticKycStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/kycRedirectFinished": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a redirect finished
+         * @description Records that the effective customer finished the hosted KYC or KYB redirect flow.
+         */
+        post: operations["notifyDomesticKycRedirectFinished"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/kycRedirectOpened": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a redirect opened
+         * @description Records that the effective customer's hosted KYC or KYB redirect was opened.
+         */
+        post: operations["notifyDomesticKycRedirectOpened"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/retryKyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry KYC or KYB
+         * @description Retries a failed KYC or KYB submission. Hosted flows return a redirect link; API-based MX, CO, and AR individual KYC returns `{ success: true }`.
+         */
+        post: operations["retryDomesticKyc"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/sendKybSubmission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a KYB submission
+         * @description Finalizes an API-based business KYB submission.
+         */
+        post: operations["sendDomesticKybSubmission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/sendKycSubmission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a KYC submission
+         * @description Finalizes an API-based individual KYC submission.
+         */
+        post: operations["sendDomesticKycSubmission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/submitKybFile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a KYB file
+         * @description Uploads one business KYB document. Files are buffered in memory and limited to 5 MiB.
+         */
+        post: operations["submitDomesticKybFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/submitKybInformation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit KYB information
+         * @description Creates or updates an API-based business KYB submission, including the provider's compliance questionnaire.
+         */
+        post: operations["submitDomesticKybInformation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/submitKybRelatedPersonFile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a related-person KYB file
+         * @description Uploads the front or back identity document for one KYB related person. Files are limited to 5 MiB.
+         */
+        post: operations["submitDomesticKybRelatedPersonFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/submitKycFile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a KYC file
+         * @description Uploads one individual KYC document. Files are buffered in memory and limited to 5 MiB.
+         */
+        post: operations["submitDomesticKycFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domestic/submitKycInformation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit KYC information
+         * @description Creates or resumes an API-based individual KYC submission.
+         */
+        post: operations["submitDomesticKycInformation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -831,7 +831,7 @@ export interface paths {
         put?: never;
         /**
          * Get user ramp limits
-         * @description Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.
+         * @description Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Bank-transfer-corridor usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. BR maximums, usage, and period are read from the provider.
          *
          *     **Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.
          */
@@ -977,7 +977,7 @@ export interface paths {
         };
         /**
          * Discover KYC or KYB requirements
-         * @description Returns versioned document and ordered action metadata for an existing Avenia or Alfredpay onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.
+         * @description Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.
          */
         get: operations["getOnboardingRequirements"];
         put?: never;
@@ -2017,217 +2017,6 @@ export interface components {
              */
             type: "EVM" | "Substrate";
         };
-        AlfredpayAddFiatAccountRequest: {
-            accountBankCode?: string;
-            accountName?: string;
-            accountNumber: string;
-            accountType?: string;
-            bankCity?: string;
-            bankCountry?: string;
-            bankPostalCode?: string;
-            bankState?: string;
-            bankStreet?: string;
-            beneficiaryCity?: string;
-            beneficiaryCountry?: string;
-            beneficiaryPostalCode?: string;
-            beneficiaryState?: string;
-            beneficiaryStreet?: string;
-            country: components["schemas"]["AlfredpayCountry"];
-            documentNumber?: string;
-            documentType?: string;
-            isExternal?: boolean;
-            routingNumber?: string;
-            type: components["schemas"]["AlfredpayFiatAccountType"];
-        };
-        /** @enum {string} */
-        AlfredpayCountry: "AR" | "CO" | "MX" | "US";
-        AlfredpayCountryAndCustomerTypeRequest: {
-            country: components["schemas"]["AlfredpayCountry"];
-            type?: components["schemas"]["AlfredpayCustomerType"];
-        };
-        AlfredpayCountryRequest: {
-            country: components["schemas"]["AlfredpayCountry"];
-        };
-        AlfredpayCreateCustomerRequest: {
-            country: components["schemas"]["AlfredpayCountry"];
-        };
-        AlfredpayCreateCustomerResponse: {
-            /** Format: date-time */
-            createdAt: string;
-        };
-        AlfredpayCreateFiatAccountResponse: {
-            fiatAccountId: string;
-        };
-        /** @enum {string} */
-        AlfredpayCustomerType: "INDIVIDUAL" | "BUSINESS";
-        AlfredpayErrorResponse: {
-            error: string;
-            fields?: {
-                field: string;
-                message: string;
-            }[];
-        };
-        AlfredpayFiatAccount: {
-            accountName?: string;
-            accountNumber: string;
-            accountType: string;
-            /** Format: date-time */
-            createdAt?: string;
-            customerId: string;
-            fiatAccountId: string;
-            routingNumber?: string;
-            type: components["schemas"]["AlfredpayFiatAccountType"];
-        } & {
-            [key: string]: unknown;
-        };
-        /** @enum {string} */
-        AlfredpayFiatAccountType: "ACH" | "ACH_BOL" | "ACH_CHL" | "ACH_DOM" | "B89" | "BANK_CN" | "BANK_USA" | "COELSA" | "PIX" | "SPEI";
-        AlfredpayKybBusinessSummary: {
-            relatedPersons: {
-                idRelatedPerson: string;
-            }[];
-            submissionId: string;
-        };
-        AlfredpayKybDetailsResponse: {
-            relatedPersons: {
-                idRelatedPerson: string;
-            }[];
-            submissionId: string;
-        }[];
-        AlfredpayKybFileUploadRequest: {
-            /** @enum {string} */
-            country: components["schemas"]["AlfredpayCountry"];
-            /** Format: binary */
-            file: string;
-            /** @enum {string} */
-            fileType: "taxIdDocument" | "articlesIncorporation" | "proofAddress" | "shareholderRegistry" | "businessLicense" | "uploadAmlPolicy";
-            submissionId: string;
-        };
-        AlfredpayKybRelatedPerson: {
-            cpf?: string;
-            /** Format: date */
-            dateOfBirth: string;
-            dni?: string;
-            /** Format: email */
-            email: string;
-            firstName: string;
-            lastName: string;
-            nationalities: string[];
-            pep?: boolean;
-        };
-        AlfredpayKybRelatedPersonFileUploadRequest: {
-            /** @enum {string} */
-            country: "CO" | "MX";
-            /** Format: binary */
-            file: string;
-            /** @enum {string} */
-            fileType: "docFront" | "docBack";
-            relatedPersonId: string;
-        };
-        AlfredpayKycFileUploadRequest: {
-            /** @enum {string} */
-            country: components["schemas"]["AlfredpayCountry"];
-            /** Format: binary */
-            file: string;
-            /** @enum {string} */
-            fileType: "National ID Front" | "National ID Back" | "Selfie";
-            submissionId: string;
-        };
-        AlfredpayKycStatusResponse: {
-            alfred_pay_id: string;
-            country: components["schemas"]["AlfredpayCountry"];
-            lastFailure?: string;
-            status: components["schemas"]["AlfredpayStatus"];
-            /** Format: date-time */
-            updated_at: string;
-        };
-        AlfredpayManagedBadRequestResponse: components["schemas"]["AlfredpayErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
-        AlfredpayRedirectLinkResponse: {
-            submissionId: string;
-            /** Format: uri */
-            verification_url: string;
-        };
-        AlfredpayRedirectNotificationRequest: {
-            country: components["schemas"]["AlfredpayCountry"];
-            type?: components["schemas"]["AlfredpayCustomerType"];
-        };
-        AlfredpayRelatedPersonFileUploadRequest: {
-            country: components["schemas"]["AlfredpayCountry"];
-            /** Format: binary */
-            file: string;
-            /** @enum {string} */
-            fileType: "docFront" | "docBack";
-            relatedPersonId: string;
-        };
-        AlfredpayRetryRequest: components["schemas"]["AlfredpayRedirectNotificationRequest"];
-        AlfredpayRetryResponse: components["schemas"]["AlfredpayRedirectLinkResponse"] | components["schemas"]["SuccessResponse"];
-        AlfredpaySendSubmissionRequest: {
-            /** @enum {string} */
-            country: components["schemas"]["AlfredpayCountry"];
-            submissionId: string;
-        };
-        /** @enum {string} */
-        AlfredpayStatus: "CONSULTED" | "LINK_OPENED" | "USER_COMPLETED" | "VERIFYING" | "FAILED" | "SUCCESS" | "UPDATE_REQUIRED";
-        AlfredpayStatusResponse: {
-            country: components["schemas"]["AlfredpayCountry"];
-            /** Format: date-time */
-            creationTime: string;
-            status: components["schemas"]["AlfredpayStatus"];
-        };
-        AlfredpaySubmissionResponse: {
-            submissionId: string;
-        };
-        AlfredpaySubmitKybInformationRequest: {
-            accountPurpose: string;
-            address: string;
-            businessActivities: string;
-            businessName: string;
-            city: string;
-            complianceScreeningDescription?: string;
-            conductsComplianceScreening?: boolean;
-            country: components["schemas"]["AlfredpayCountry"];
-            expectedMonthlyTransactions: number;
-            expectedMonthlyVolumeUsd: number;
-            isRegulatedBusiness: boolean;
-            operatesInSanctionedCountries: boolean;
-            relatedPersons: components["schemas"]["AlfredpayKybRelatedPerson"][];
-            sourceOfFunds: string;
-            state: string;
-            taxId: string;
-            transmitsCustomerFunds: boolean;
-            walletAddresses: string;
-            website: string;
-            zipCode: string;
-        } & (unknown & unknown);
-        AlfredpaySubmitKycInformationRequest: {
-            address: string;
-            city: string;
-            country: components["schemas"]["AlfredpayCountry"];
-            countryCode?: string;
-            cuit?: string;
-            /** Format: date */
-            dateOfBirth: string;
-            dni: string;
-            /** Format: email */
-            email?: string;
-            firstName: string;
-            lastName: string;
-            nationalities?: string[];
-            pep?: boolean;
-            phoneNumber?: string;
-            state: string;
-            typeDocument?: string;
-            /** @enum {string} */
-            typeDocumentAr?: "DNI";
-            /** @enum {string} */
-            typeDocumentCol?: "CC" | "CE";
-            zipCode: string;
-        } & unknown;
-        AlfredpaySuccessResponse: {
-            /** @constant */
-            success: true;
-        };
-        AlfredpayValidationBadRequestResponse: components["schemas"]["AlfredpayErrorResponse"] | components["schemas"]["ApiValidationErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
         ApiCredential: {
             /** Format: date-time */
             createdAt: string;
@@ -2271,20 +2060,65 @@ export interface components {
             }[];
             message: string;
         };
+        BrAddress: {
+            cep: string;
+            city: string;
+            complement?: string | null;
+            district: string;
+            number: string;
+            state: string;
+            street: string;
+        };
         /** @enum {string} */
-        AveniaDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "RESIDENCE-PERMIT" | "SELFIE" | "SELFIE-FROM-LIVENESS" | "CERTIFICATE-OF-INCORPORATION" | "COMPANY-TAX-IDENTIFICATION-DOCUMENT";
-        AveniaKYCDataUploadRequest: {
+        BrDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "RESIDENCE-PERMIT" | "SELFIE" | "SELFIE-FROM-LIVENESS" | "CERTIFICATE-OF-INCORPORATION" | "COMPANY-TAX-IDENTIFICATION-DOCUMENT";
+        BrErrorResponse: {
+            /** @description Detailed error message or object from the provider API or server. */
+            details?: null & (string | {
+                [key: string]: unknown;
+            });
+            /** @description A summary of the error. */
+            error?: string;
+        };
+        BrGetSelfieLivenessUrlResponse: {
+            id: string;
+            livenessUrl: string;
+            uploadURLFront: string;
+            validateLivenessToken: string;
+        };
+        BrImportKycTokenErrorResponse: {
+            /**
+             * @description Stable, non-secret token-import error. Provider response bodies and the import token are never returned.
+             * @enum {string}
+             */
+            error: "Idempotency-Key must contain 1 to 128 visible ASCII characters" | "Invalid request body" | "importToken must contain between 1 and 1024 bytes" | "consentAttested must be true" | "The subject profile has no active customer entity" | "The managed subject does not match the expected customer entity" | "A managed profile requires a managed customer entity context" | "The subject customer entity is not active" | "Token import is only available for individuals" | "Exactly one active Brazilian individual customer is required" | "Multiple customers require reconciliation" | "The BR subaccount is not provisioned" | "The customer is already approved" | "The canonical KYC case is missing" | "Multiple KYC cases require reconciliation" | "The KYC case is already approved" | "The confirmed token import is missing its provider attempt" | "The idempotency key was used with a different token" | "The token import does not match this request" | "A failed token import requires a new idempotency key" | "The KYC is already approved" | "The previous token import outcome requires reconciliation" | "Another token import requires reconciliation" | "This KYC case uses the standard verification method" | "The token import attempt is invalid" | "The token import attempt requires reconciliation" | "The token import was already claimed" | "The token import binding is no longer current" | "The authenticated profile cannot perform this operation for the requested managed profile" | "Token import pre-provider checks failed" | "Token import is not enabled" | "The token import outcome requires reconciliation" | "Token import failed";
+        };
+        BrImportKycTokenRequest: {
+            /**
+             * @description Required provisional attestation recorded under Vortex consent policy `sumsub-share-v1`. This is not a substitute for the caller's legal basis or applicant disclosures.
+             * @constant
+             */
+            consentAttested: true;
+            /** @description Opaque Sumsub share token. Must contain 1 to 1024 UTF-8 bytes. Vortex forwards it to the provider from request memory and never returns or persists the raw value. */
+            importToken: string;
+        };
+        BrImportKycTokenResponse: {
+            /** @description The exact provider verification attempt bound to this KYC case and used for subsequent polling. */
+            attemptId: string;
+            /** @constant */
+            status: "pending";
+        };
+        BrKYCDataUploadRequest: {
             /** @enum {string} */
             documentType: "ID" | "DRIVERS-LICENSE";
             isDoubleSided?: boolean;
             /** @description CPF or CNPJ. */
             taxId: string;
         };
-        AveniaKYCDataUploadResponse: {
+        BrKYCDataUploadResponse: {
             idUpload: components["schemas"]["DocumentUploadEntry"];
             selfieUpload: components["schemas"]["DocumentUploadEntry"];
         };
-        AveniaKybAttemptStatusResponse: {
+        BrKybAttemptStatusResponse: {
             failureReason?: string;
             /** @enum {string} */
             result?: "APPROVED" | "REJECTED";
@@ -2292,13 +2126,13 @@ export interface components {
             /** @enum {string} */
             status: "PENDING" | "PROCESSING" | "COMPLETED" | "EXPIRED";
         };
-        AveniaKybDocumentRequest: {
-            documentType: components["schemas"]["AveniaDocumentType"];
+        BrKybDocumentRequest: {
+            documentType: components["schemas"]["BrDocumentType"];
             isDoubleSided?: boolean;
         };
-        AveniaKybDocumentResponse: {
+        BrKybDocumentResponse: {
             document: {
-                documentType: components["schemas"]["AveniaDocumentType"];
+                documentType: components["schemas"]["BrDocumentType"];
                 id: string;
                 ready: boolean;
                 uploadErrorBack?: string;
@@ -2307,7 +2141,7 @@ export interface components {
                 uploadStatusFront: string;
             };
         };
-        AveniaKybDocumentUploadResponse: {
+        BrKybDocumentUploadResponse: {
             id: string;
             /** Format: uri */
             livenessUrl?: string;
@@ -2317,14 +2151,14 @@ export interface components {
             uploadURLFront: string;
             validateLivenessToken?: string;
         };
-        AveniaKybHostedResponse: {
+        BrKybHostedResponse: {
             attemptId: string;
             /** Format: uri */
             authorizedRepresentativeUrl: string;
             /** Format: uri */
             basicCompanyDataUrl: string;
         };
-        AveniaKybLevel1Payload: {
+        BrKybLevel1Payload: {
             businessActivityDescription: string;
             certificateOfIncorporationDocumentId: string;
             companyCity: string;
@@ -2358,9 +2192,10 @@ export interface components {
             /** Format: uri */
             website?: string;
         };
+        BrManagedBadRequestResponse: components["schemas"]["BrErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
         /** @enum {string} */
-        AveniaUboControlRole: "CEO" | "CFO" | "COO" | "CTO" | "President" | "Vice President" | "Director" | "Managing Director" | "Managing Partner" | "General Partner" | "Partner" | "Secretary" | "Treasurer" | "Chairman" | "Board Member" | "Authorized Signatory" | "General Counsel" | "Owner" | "Founder" | "Manager" | "Member" | "Comptroller" | "Chief Compliance Officer";
-        AveniaUboPayload: {
+        BrUboControlRole: "CEO" | "CFO" | "COO" | "CTO" | "President" | "Vice President" | "Director" | "Managing Director" | "Managing Partner" | "General Partner" | "Partner" | "Secretary" | "Treasurer" | "Chairman" | "Board Member" | "Authorized Signatory" | "General Counsel" | "Owner" | "Founder" | "Manager" | "Member" | "Comptroller" | "Chief Compliance Officer";
+        BrUboPayload: {
             city: string;
             country: string;
             countryOfTaxId: string;
@@ -2370,7 +2205,7 @@ export interface components {
             /** Format: email */
             email?: string;
             fullName: string;
-            hasControl?: components["schemas"]["AveniaUboControlRole"];
+            hasControl?: components["schemas"]["BrUboControlRole"];
             percentageOfOwnership: string;
             phone?: string;
             state: string;
@@ -2382,56 +2217,10 @@ export interface components {
             uploadedSelfieId?: string;
             zipCode: string;
         };
-        AveniaUboResponse: {
+        BrUboResponse: {
             id: string;
         };
-        BrlaAddress: {
-            cep: string;
-            city: string;
-            complement?: string | null;
-            district: string;
-            number: string;
-            state: string;
-            street: string;
-        };
-        BrlaErrorResponse: {
-            /** @description Detailed error message or object from BRLA API or server. */
-            details?: null & (string | {
-                [key: string]: unknown;
-            });
-            /** @description A summary of the error. */
-            error?: string;
-        };
-        BrlaGetSelfieLivenessUrlResponse: {
-            id: string;
-            livenessUrl: string;
-            uploadURLFront: string;
-            validateLivenessToken: string;
-        };
-        BrlaImportKycTokenErrorResponse: {
-            /**
-             * @description Stable, non-secret token-import error. Provider response bodies and the import token are never returned.
-             * @enum {string}
-             */
-            error: "Idempotency-Key must contain 1 to 128 visible ASCII characters" | "Invalid request body" | "importToken must contain between 1 and 1024 bytes" | "consentAttested must be true" | "The subject profile has no active customer entity" | "The managed subject does not match the expected customer entity" | "A managed profile requires a managed customer entity context" | "The subject customer entity is not active" | "Avenia token import is only available for individuals" | "Exactly one active Brazilian individual Avenia customer is required" | "Multiple Avenia customers require reconciliation" | "The Avenia subaccount is not provisioned" | "The Avenia customer is already approved" | "The canonical Avenia KYC case is missing" | "Multiple Avenia KYC cases require reconciliation" | "The Avenia KYC case is already approved" | "The confirmed token import is missing its provider attempt" | "The idempotency key was used with a different token" | "The token import does not match this request" | "A failed token import requires a new idempotency key" | "The Avenia KYC is already approved" | "The previous token import outcome requires reconciliation" | "Another token import requires reconciliation" | "This KYC case uses the standard Avenia method" | "The Avenia token import attempt is invalid" | "The token import attempt requires reconciliation" | "The token import was already claimed" | "The token import binding is no longer current" | "The authenticated profile cannot perform this operation for the requested managed profile" | "Avenia token import pre-provider checks failed" | "Avenia token import is not enabled" | "The Avenia token import outcome requires reconciliation" | "Token import failed";
-        };
-        BrlaImportKycTokenRequest: {
-            /**
-             * @description Required provisional attestation recorded under Vortex consent policy `sumsub-share-v1`. This is not a substitute for the caller's legal basis or applicant disclosures.
-             * @constant
-             */
-            consentAttested: true;
-            /** @description Opaque Sumsub share token. Must contain 1 to 1024 UTF-8 bytes. Vortex forwards it to Avenia from request memory and never returns or persists the raw value. */
-            importToken: string;
-        };
-        BrlaImportKycTokenResponse: {
-            /** @description The exact Avenia verification attempt bound to this KYC case and used for subsequent polling. */
-            attemptId: string;
-            /** @constant */
-            status: "pending";
-        };
-        BrlaManagedBadRequestResponse: components["schemas"]["BrlaErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
-        BrlaValidatePixKeyResponse: {
+        BrValidatePixKeyResponse: {
             valid: boolean;
         };
         CleanupPhase: {
@@ -2539,6 +2328,217 @@ export interface components {
             uploadURLFront: string;
             validateLivenessToken?: string;
         };
+        DomesticAddFiatAccountRequest: {
+            accountBankCode?: string;
+            accountName?: string;
+            accountNumber: string;
+            accountType?: string;
+            bankCity?: string;
+            bankCountry?: string;
+            bankPostalCode?: string;
+            bankState?: string;
+            bankStreet?: string;
+            beneficiaryCity?: string;
+            beneficiaryCountry?: string;
+            beneficiaryPostalCode?: string;
+            beneficiaryState?: string;
+            beneficiaryStreet?: string;
+            country: components["schemas"]["DomesticCountry"];
+            documentNumber?: string;
+            documentType?: string;
+            isExternal?: boolean;
+            routingNumber?: string;
+            type: components["schemas"]["DomesticFiatAccountType"];
+        };
+        /** @enum {string} */
+        DomesticCountry: "AR" | "CO" | "MX" | "US";
+        DomesticCountryAndCustomerTypeRequest: {
+            country: components["schemas"]["DomesticCountry"];
+            type?: components["schemas"]["DomesticCustomerType"];
+        };
+        DomesticCountryRequest: {
+            country: components["schemas"]["DomesticCountry"];
+        };
+        DomesticCreateCustomerRequest: {
+            country: components["schemas"]["DomesticCountry"];
+        };
+        DomesticCreateCustomerResponse: {
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DomesticCreateFiatAccountResponse: {
+            fiatAccountId: string;
+        };
+        /** @enum {string} */
+        DomesticCustomerType: "INDIVIDUAL" | "BUSINESS";
+        DomesticErrorResponse: {
+            error: string;
+            fields?: {
+                field: string;
+                message: string;
+            }[];
+        };
+        DomesticFiatAccount: {
+            accountName?: string;
+            accountNumber: string;
+            accountType: string;
+            /** Format: date-time */
+            createdAt?: string;
+            customerId: string;
+            fiatAccountId: string;
+            routingNumber?: string;
+            type: components["schemas"]["DomesticFiatAccountType"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @enum {string} */
+        DomesticFiatAccountType: "ACH" | "ACH_BOL" | "ACH_CHL" | "ACH_DOM" | "B89" | "BANK_CN" | "BANK_USA" | "COELSA" | "PIX" | "SPEI";
+        DomesticKybBusinessSummary: {
+            relatedPersons: {
+                idRelatedPerson: string;
+            }[];
+            submissionId: string;
+        };
+        DomesticKybDetailsResponse: {
+            relatedPersons: {
+                idRelatedPerson: string;
+            }[];
+            submissionId: string;
+        }[];
+        DomesticKybFileUploadRequest: {
+            /** @enum {string} */
+            country: components["schemas"]["DomesticCountry"];
+            /** Format: binary */
+            file: string;
+            /** @enum {string} */
+            fileType: "taxIdDocument" | "articlesIncorporation" | "proofAddress" | "shareholderRegistry" | "businessLicense" | "uploadAmlPolicy";
+            submissionId: string;
+        };
+        DomesticKybRelatedPerson: {
+            cpf?: string;
+            /** Format: date */
+            dateOfBirth: string;
+            dni?: string;
+            /** Format: email */
+            email: string;
+            firstName: string;
+            lastName: string;
+            nationalities: string[];
+            pep?: boolean;
+        };
+        DomesticKybRelatedPersonFileUploadRequest: {
+            /** @enum {string} */
+            country: "CO" | "MX";
+            /** Format: binary */
+            file: string;
+            /** @enum {string} */
+            fileType: "docFront" | "docBack";
+            relatedPersonId: string;
+        };
+        DomesticKycFileUploadRequest: {
+            /** @enum {string} */
+            country: components["schemas"]["DomesticCountry"];
+            /** Format: binary */
+            file: string;
+            /** @enum {string} */
+            fileType: "National ID Front" | "National ID Back" | "Selfie";
+            submissionId: string;
+        };
+        DomesticKycStatusResponse: {
+            alfred_pay_id: string;
+            country: components["schemas"]["DomesticCountry"];
+            lastFailure?: string;
+            status: components["schemas"]["DomesticStatus"];
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DomesticManagedBadRequestResponse: components["schemas"]["DomesticErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
+        DomesticRedirectLinkResponse: {
+            submissionId: string;
+            /** Format: uri */
+            verification_url: string;
+        };
+        DomesticRedirectNotificationRequest: {
+            country: components["schemas"]["DomesticCountry"];
+            type?: components["schemas"]["DomesticCustomerType"];
+        };
+        DomesticRelatedPersonFileUploadRequest: {
+            country: components["schemas"]["DomesticCountry"];
+            /** Format: binary */
+            file: string;
+            /** @enum {string} */
+            fileType: "docFront" | "docBack";
+            relatedPersonId: string;
+        };
+        DomesticRetryRequest: components["schemas"]["DomesticRedirectNotificationRequest"];
+        DomesticRetryResponse: components["schemas"]["DomesticRedirectLinkResponse"] | components["schemas"]["SuccessResponse"];
+        DomesticSendSubmissionRequest: {
+            /** @enum {string} */
+            country: components["schemas"]["DomesticCountry"];
+            submissionId: string;
+        };
+        /** @enum {string} */
+        DomesticStatus: "CONSULTED" | "LINK_OPENED" | "USER_COMPLETED" | "VERIFYING" | "FAILED" | "SUCCESS" | "UPDATE_REQUIRED";
+        DomesticStatusResponse: {
+            country: components["schemas"]["DomesticCountry"];
+            /** Format: date-time */
+            creationTime: string;
+            status: components["schemas"]["DomesticStatus"];
+        };
+        DomesticSubmissionResponse: {
+            submissionId: string;
+        };
+        DomesticSubmitKybInformationRequest: {
+            accountPurpose: string;
+            address: string;
+            businessActivities: string;
+            businessName: string;
+            city: string;
+            complianceScreeningDescription?: string;
+            conductsComplianceScreening?: boolean;
+            country: components["schemas"]["DomesticCountry"];
+            expectedMonthlyTransactions: number;
+            expectedMonthlyVolumeUsd: number;
+            isRegulatedBusiness: boolean;
+            operatesInSanctionedCountries: boolean;
+            relatedPersons: components["schemas"]["DomesticKybRelatedPerson"][];
+            sourceOfFunds: string;
+            state: string;
+            taxId: string;
+            transmitsCustomerFunds: boolean;
+            walletAddresses: string;
+            website: string;
+            zipCode: string;
+        } & (unknown & unknown);
+        DomesticSubmitKycInformationRequest: {
+            address: string;
+            city: string;
+            country: components["schemas"]["DomesticCountry"];
+            countryCode?: string;
+            cuit?: string;
+            /** Format: date */
+            dateOfBirth: string;
+            dni: string;
+            /** Format: email */
+            email?: string;
+            firstName: string;
+            lastName: string;
+            nationalities?: string[];
+            pep?: boolean;
+            phoneNumber?: string;
+            state: string;
+            typeDocument?: string;
+            /** @enum {string} */
+            typeDocumentAr?: "DNI";
+            /** @enum {string} */
+            typeDocumentCol?: "CC" | "CE";
+            zipCode: string;
+        } & unknown;
+        DomesticSuccessResponse: {
+            /** @constant */
+            success: true;
+        };
+        DomesticValidationBadRequestResponse: components["schemas"]["DomesticErrorResponse"] | components["schemas"]["ApiValidationErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
         ErrorManagedSelectorResponse: components["schemas"]["ErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"];
         ErrorResponse: {
             /** @description HTTP status code returned by the API error handler. */
@@ -3185,7 +3185,7 @@ export interface components {
             expectedMonthlyVolumeUsd: number;
             isRegulatedBusiness: boolean;
             operatesInSanctionedCountries: boolean;
-            relatedPersons: components["schemas"]["AlfredpayKybRelatedPerson"][];
+            relatedPersons: components["schemas"]["DomesticKybRelatedPerson"][];
             sourceOfFunds: string;
             state: string;
             taxId: string;
@@ -3319,13 +3319,13 @@ export interface components {
         };
     };
     responses: {
-        /** @description The selected profile or the authenticated user does not own the requested Avenia resource. */
+        /** @description The selected profile or the authenticated user does not own the requested provider resource. */
         BrlaManagedSelectorForbidden: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                "application/json": components["schemas"]["BrManagedBadRequestResponse"];
             };
         };
         InvalidInput: {
@@ -3379,1168 +3379,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getAlfredpayStatus: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-                /** @description Selects the individual or business customer. When omitted, the active customer entity is used for backward compatibility. */
-                type?: components["schemas"]["AlfredpayCustomerType"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Customer status returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayStatusResponse"];
-                };
-            };
-            /** @description Invalid or missing country, invalid customer type, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Status refresh failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    createAlfredpayBusinessCustomer: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayCreateCustomerRequest"];
-            };
-        };
-        responses: {
-            /** @description Business customer created. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayCreateCustomerResponse"];
-                };
-            };
-            /** @description Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description An upstream customer exists with a conflicting country or type. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Customer creation failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Alfredpay returned an invalid existing-customer response. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    createAlfredpayIndividualCustomer: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayCreateCustomerRequest"];
-            };
-        };
-        responses: {
-            /** @description Customer created. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayCreateCustomerResponse"];
-                };
-            };
-            /** @description Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description An upstream customer exists with a conflicting country or type. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Customer creation failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Alfredpay returned an invalid existing-customer response. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    listAlfredpayFiatAccounts: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Fiat accounts returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayFiatAccount"][];
-                };
-            };
-            /** @description Invalid country, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Account lookup failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    createAlfredpayFiatAccount: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayAddFiatAccountRequest"];
-            };
-        };
-        responses: {
-            /** @description Fiat account created. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayCreateFiatAccountResponse"];
-                };
-            };
-            /** @description Invalid country, account details, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Account creation failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    deleteAlfredpayFiatAccount: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path: {
-                fiatAccountId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Fiat account deleted. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Invalid country, provider rejection, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Account deletion failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    findAlfredpayKybCustomerAndBusiness: {
-        parameters: {
-            query: {
-                country: "CO" | "MX";
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description KYB submission and related-person IDs returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayKybDetailsResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Lookup failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    getAlfredpayKybRedirectLink: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description KYB redirect link returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayRedirectLinkResponse"];
-                };
-            };
-            /** @description Invalid country, KYB already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Redirect-link creation failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    getAlfredpayKycRedirectLink: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description KYC redirect link returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayRedirectLinkResponse"];
-                };
-            };
-            /** @description Invalid country, KYC already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Redirect-link creation failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    getAlfredpayKycStatus: {
-        parameters: {
-            query: {
-                country: components["schemas"]["AlfredpayCountry"];
-                type?: components["schemas"]["AlfredpayCustomerType"];
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Verification status returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayKycStatusResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Customer or verification attempt not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Status lookup failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    notifyAlfredpayKycRedirectFinished: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayRedirectNotificationRequest"];
-            };
-        };
-        responses: {
-            /** @description Redirect state recorded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description State update failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    notifyAlfredpayKycRedirectOpened: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayRedirectNotificationRequest"];
-            };
-        };
-        responses: {
-            /** @description Redirect state recorded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description State update failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    retryAlfredpayKyc: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpayRetryRequest"];
-            };
-        };
-        responses: {
-            /** @description Retry initialized. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayRetryResponse"];
-                };
-            };
-            /** @description No failed submission is available, the selector UUID is invalid, or the managed-profile customer type mismatches. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Retry failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    sendAlfredpayKybSubmission: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpaySendSubmissionRequest"];
-            };
-        };
-        responses: {
-            /** @description KYB submission sent. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Submission finalization failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    sendAlfredpayKycSubmission: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlfredpaySendSubmissionRequest"];
-            };
-        };
-        responses: {
-            /** @description KYC submission sent. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Submission finalization failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    submitAlfredpayKybFile: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["AlfredpayKybFileUploadRequest"];
-            };
-        };
-        responses: {
-            /** @description File uploaded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Upload failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    submitAlfredpayKybInformation: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SubmitKybInformationRequest"];
-            };
-        };
-        responses: {
-            /** @description KYB information accepted. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SubmitInformationResponse"];
-                };
-            };
-            /** @description Invalid country, company data, questionnaire, selector UUID, or managed-profile customer type. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayValidationBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description KYB is already in review or complete. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Submission failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    submitAlfredpayKybRelatedPersonFile: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["AlfredpayKybRelatedPersonFileUploadRequest"];
-            };
-        };
-        responses: {
-            /** @description File uploaded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay business customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Upload failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    submitAlfredpayKycFile: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["AlfredpayKycFileUploadRequest"];
-            };
-        };
-        responses: {
-            /** @description File uploaded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayManagedBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Upload failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
-    submitAlfredpayKycInformation: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SubmitKycInformationRequest"];
-            };
-        };
-        responses: {
-            /** @description KYC information accepted. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SubmitInformationResponse"];
-                };
-            };
-            /** @description Invalid country, KYC fields, selector UUID, or managed-profile customer type. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayValidationBadRequestResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
-            403: components["responses"]["ManagedSelectorForbidden"];
-            /** @description Alfredpay customer not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-            /** @description Submission failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlfredpayErrorResponse"];
-                };
-            };
-        };
-    };
     listApiCredentials: {
         parameters: {
             query?: never;
@@ -4834,7 +3672,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -4845,7 +3683,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
@@ -4880,7 +3718,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -4891,16 +3729,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description The canonical Avenia KYC state requires reconciliation. */
+            /** @description The canonical KYC state requires reconciliation. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal Server Error (e.g., no KYC events found when expected). */
@@ -4909,21 +3747,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    brlaGetSelfieLivenessUrl: {
+    brGetSelfieLivenessUrl: {
         parameters: {
             query: {
                 /** @description CPF or CNPJ. */
@@ -4944,7 +3782,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaGetSelfieLivenessUrlResponse"];
+                    "application/json": components["schemas"]["BrGetSelfieLivenessUrlResponse"];
                 };
             };
             /** @description Missing taxId or ramp disabled. */
@@ -4953,7 +3791,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -4964,7 +3802,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -4973,21 +3811,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    brlaGetUploadUrls: {
+    brGetUploadUrls: {
         parameters: {
             query?: never;
             header?: {
@@ -4999,7 +3837,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AveniaKYCDataUploadRequest"];
+                "application/json": components["schemas"]["BrKYCDataUploadRequest"];
             };
         };
         responses: {
@@ -5009,7 +3847,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaKYCDataUploadResponse"];
+                    "application/json": components["schemas"]["BrKYCDataUploadResponse"];
                 };
             };
             /** @description Missing/invalid documentType or taxId; or ramp disabled for this tax ID. */
@@ -5018,7 +3856,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -5029,7 +3867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -5038,26 +3876,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    getBrlaUser: {
+    getBrUser: {
         parameters: {
             query?: {
                 /**
                  * @deprecated
-                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.
+                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical account from the authenticated subject.
                  */
                 taxId?: string;
             };
@@ -5079,13 +3917,13 @@ export interface operations {
                     "application/json": components["schemas"]["GetUserResponse"];
                 };
             };
-            /** @description Missing/invalid authentication, ambiguous canonical Avenia account, or invalid KYC state. */
+            /** @description Missing/invalid authentication, ambiguous canonical account, or invalid KYC state. */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -5096,7 +3934,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal Server Error. */
@@ -5105,17 +3943,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    getBrlaUserRemainingLimit: {
+    getBrUserRemainingLimit: {
         parameters: {
             query: {
                 /**
                  * @deprecated
-                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical Avenia account from the authenticated subject.
+                 * @description Optional ownership-checked Tax ID cross-check. Omit it to derive the canonical account from the authenticated subject.
                  */
                 taxId?: string;
                 /** @description Ramp direction whose remaining limit should be returned. */
@@ -5139,13 +3977,13 @@ export interface operations {
                     "application/json": components["schemas"]["GetUserRemainingLimitResponse"];
                 };
             };
-            /** @description Missing direction, missing/invalid authentication, ambiguous canonical Avenia account, or other invalid request. */
+            /** @description Missing direction, missing/invalid authentication, ambiguous canonical account, or other invalid request. */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -5156,7 +3994,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal Server Error. */
@@ -5165,12 +4003,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    getAveniaKybAttemptStatus: {
+    getBrKybAttemptStatus: {
         parameters: {
             query: {
                 attemptId: string;
@@ -5190,7 +4028,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaKybAttemptStatusResponse"];
+                    "application/json": components["schemas"]["BrKybAttemptStatusResponse"];
                 };
             };
             /** @description Missing attempt ID, invalid selector UUID, or authentication subject. */
@@ -5199,7 +4037,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5212,7 +4050,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description The attempt is no longer the current bound KYB attempt. */
@@ -5228,10 +4066,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5240,7 +4078,7 @@ export interface operations {
             };
         };
     };
-    createAveniaKybDocument: {
+    createBrKybDocument: {
         parameters: {
             query: {
                 subAccountId: string;
@@ -5254,7 +4092,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AveniaKybDocumentRequest"];
+                "application/json": components["schemas"]["BrKybDocumentRequest"];
             };
         };
         responses: {
@@ -5264,7 +4102,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaKybDocumentUploadResponse"];
+                    "application/json": components["schemas"]["BrKybDocumentUploadResponse"];
                 };
             };
             /** @description Invalid document request. */
@@ -5273,7 +4111,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5287,7 +4125,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5296,7 +4134,7 @@ export interface operations {
             };
         };
     };
-    getAveniaKybDocument: {
+    getBrKybDocument: {
         parameters: {
             query: {
                 subAccountId: string;
@@ -5318,7 +4156,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaKybDocumentResponse"];
+                    "application/json": components["schemas"]["BrKybDocumentResponse"];
                 };
             };
             /** @description Invalid document identifier. */
@@ -5327,7 +4165,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5341,7 +4179,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5350,7 +4188,7 @@ export interface operations {
             };
         };
     };
-    submitAveniaKybLevel1Api: {
+    submitBrKybLevel1Api: {
         parameters: {
             query: {
                 subAccountId: string;
@@ -5364,7 +4202,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AveniaKybLevel1Payload"];
+                "application/json": components["schemas"]["BrKybLevel1Payload"];
             };
         };
         responses: {
@@ -5383,7 +4221,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5404,7 +4242,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5413,7 +4251,7 @@ export interface operations {
             };
         };
     };
-    startAveniaKybLevel1Hosted: {
+    startBrKybLevel1Hosted: {
         parameters: {
             query: {
                 subAccountId: string;
@@ -5433,7 +4271,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaKybHostedResponse"];
+                    "application/json": components["schemas"]["BrKybHostedResponse"];
                 };
             };
             /** @description Missing subaccount, non-company account, invalid selector UUID, customer-type mismatch, or invalid request. */
@@ -5442,7 +4280,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5455,7 +4293,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Company is approved or a non-resumable KYB attempt is in progress. */
@@ -5464,7 +4302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description KYB initialization failed. */
@@ -5473,10 +4311,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5485,7 +4323,7 @@ export interface operations {
             };
         };
     };
-    createAveniaKybUbo: {
+    createBrKybUbo: {
         parameters: {
             query: {
                 subAccountId: string;
@@ -5499,7 +4337,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AveniaUboPayload"];
+                "application/json": components["schemas"]["BrUboPayload"];
             };
         };
         responses: {
@@ -5509,7 +4347,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AveniaUboResponse"];
+                    "application/json": components["schemas"]["BrUboResponse"];
                 };
             };
             /** @description Invalid UBO or document state. */
@@ -5518,7 +4356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5539,7 +4377,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Avenia is unavailable or returned an invalid response. */
+            /** @description The provider is unavailable or returned an invalid response. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5548,7 +4386,7 @@ export interface operations {
             };
         };
     };
-    importAveniaKycToken: {
+    importBrKycToken: {
         parameters: {
             query?: never;
             header: {
@@ -5562,17 +4400,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BrlaImportKycTokenRequest"];
+                "application/json": components["schemas"]["BrImportKycTokenRequest"];
             };
         };
         responses: {
-            /** @description The exact Avenia attempt is durably bound and pending. This does not mean KYC is approved. */
+            /** @description The exact provider attempt is durably bound and pending. This does not mean KYC is approved. */
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenResponse"];
                 };
             };
             /** @description Invalid idempotency key, strict body, malformed authenticated JSON, selector UUID, or managed customer type. Authentication is checked first. */
@@ -5581,7 +4419,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["MalformedJsonErrorResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenErrorResponse"] | components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["MalformedJsonErrorResponse"];
                 };
             };
             /** @description A valid profile-bound secret key or Supabase session is required. */
@@ -5599,7 +4437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                    "application/json": components["schemas"]["ManagedSelectorErrorResponse"] | components["schemas"]["BrImportKycTokenErrorResponse"];
                 };
             };
             /** @description The prerequisite setup, immutable method, idempotency input, active submission, or prior ambiguous outcome prevents import. */
@@ -5608,16 +4446,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenErrorResponse"];
                 };
             };
-            /** @description Avenia returned provider `401`: token import is not enabled. This failed attempt may be retried with a new idempotency key. */
+            /** @description returned provider `401`: token import is not enabled. This failed attempt may be retried with a new idempotency key. */
             412: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenErrorResponse"];
                 };
             };
             /** @description The authenticated JSON request exceeds the token-import route's 16 KiB body limit. */
@@ -5635,7 +4473,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"] | components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenErrorResponse"] | components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description The post-send outcome is ambiguous and requires reconciliation. Do not retry the token. */
@@ -5644,7 +4482,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaImportKycTokenErrorResponse"];
+                    "application/json": components["schemas"]["BrImportKycTokenErrorResponse"];
                 };
             };
             /** @description Supabase authentication is temporarily unavailable. */
@@ -5658,7 +4496,7 @@ export interface operations {
             };
         };
     };
-    recordInitialAveniaKycAttempt: {
+    recordInitialBrKycAttempt: {
         parameters: {
             query?: never;
             header?: {
@@ -5689,7 +4527,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             /** @description Authentication required. */
@@ -5702,12 +4540,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    brlaNewKyc: {
+    brNewKyc: {
         parameters: {
             query?: never;
             header?: {
@@ -5738,7 +4576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaManagedBadRequestResponse"];
+                    "application/json": components["schemas"]["BrManagedBadRequestResponse"];
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
@@ -5749,7 +4587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -5758,21 +4596,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            /** @description Avenia documents are not ready, or the submitted outcome requires reconciliation. */
+            /** @description documents are not ready, or the submitted outcome requires reconciliation. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
         };
     };
-    brlaValidatePixKey: {
+    brValidatePixKey: {
         parameters: {
             query: {
                 /** @description Pix key to validate (CPF, CNPJ, email, phone, or random key). */
@@ -5790,7 +4628,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaValidatePixKeyResponse"];
+                    "application/json": components["schemas"]["BrValidatePixKeyResponse"];
                 };
             };
             /** @description Missing or invalid pix key. */
@@ -5799,7 +4637,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -5808,7 +4646,1169 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BrlaErrorResponse"];
+                    "application/json": components["schemas"]["BrErrorResponse"];
+                };
+            };
+        };
+    };
+    getDomesticStatus: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+                /** @description Selects the individual or business customer. When omitted, the active customer entity is used for backward compatibility. */
+                type?: components["schemas"]["DomesticCustomerType"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer status returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticStatusResponse"];
+                };
+            };
+            /** @description Invalid or missing country, invalid customer type, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Status refresh failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    createDomesticBusinessCustomer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticCreateCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description Business customer created. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticCreateCustomerResponse"];
+                };
+            };
+            /** @description Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description An upstream customer exists with a conflicting country or type. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Customer creation failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description The provider returned an invalid existing-customer response. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    createDomesticIndividualCustomer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticCreateCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description Customer created. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticCreateCustomerResponse"];
+                };
+            };
+            /** @description Invalid country, unavailable email, existing customer, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description An upstream customer exists with a conflicting country or type. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Customer creation failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description The provider returned an invalid existing-customer response. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    listDomesticFiatAccounts: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fiat accounts returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticFiatAccount"][];
+                };
+            };
+            /** @description Invalid country, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Account lookup failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    createDomesticFiatAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticAddFiatAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Fiat account created. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticCreateFiatAccountResponse"];
+                };
+            };
+            /** @description Invalid country, account details, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Account creation failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteDomesticFiatAccount: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path: {
+                fiatAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fiat account deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid country, provider rejection, credential without an effective user, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Account deletion failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    findDomesticKybCustomerAndBusiness: {
+        parameters: {
+            query: {
+                country: "CO" | "MX";
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KYB submission and related-person IDs returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticKybDetailsResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Lookup failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    getDomesticKybRedirectLink: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KYB redirect link returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticRedirectLinkResponse"];
+                };
+            };
+            /** @description Invalid country, KYB already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Redirect-link creation failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    getDomesticKycRedirectLink: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KYC redirect link returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticRedirectLinkResponse"];
+                };
+            };
+            /** @description Invalid country, KYC already verifying or complete, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Redirect-link creation failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    getDomesticKycStatus: {
+        parameters: {
+            query: {
+                country: components["schemas"]["DomesticCountry"];
+                type?: components["schemas"]["DomesticCustomerType"];
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verification status returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticKycStatusResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer or verification attempt not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Status lookup failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    notifyDomesticKycRedirectFinished: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticRedirectNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Redirect state recorded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description State update failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    notifyDomesticKycRedirectOpened: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticRedirectNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Redirect state recorded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description State update failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    retryDomesticKyc: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticRetryRequest"];
+            };
+        };
+        responses: {
+            /** @description Retry initialized. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticRetryResponse"];
+                };
+            };
+            /** @description No failed submission is available, the selector UUID is invalid, or the managed-profile customer type mismatches. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Retry failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    sendDomesticKybSubmission: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticSendSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description KYB submission sent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Submission finalization failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    sendDomesticKycSubmission: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomesticSendSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description KYC submission sent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Submission finalization failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    submitDomesticKybFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["DomesticKybFileUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description File uploaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Upload failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    submitDomesticKybInformation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitKybInformationRequest"];
+            };
+        };
+        responses: {
+            /** @description KYB information accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitInformationResponse"];
+                };
+            };
+            /** @description Invalid country, company data, questionnaire, selector UUID, or managed-profile customer type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticValidationBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description KYB is already in review or complete. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Submission failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    submitDomesticKybRelatedPersonFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["DomesticKybRelatedPersonFileUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description File uploaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Business customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Upload failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    submitDomesticKycFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["DomesticKycFileUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description File uploaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Invalid country, missing file, invalid selector UUID, or managed-profile customer-type mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticManagedBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Upload failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+        };
+    };
+    submitDomesticKycInformation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitKycInformationRequest"];
+            };
+        };
+        responses: {
+            /** @description KYC information accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitInformationResponse"];
+                };
+            };
+            /** @description Invalid country, KYC fields, selector UUID, or managed-profile customer type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticValidationBadRequestResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed profile or corridor is not authorized. */
+            403: components["responses"]["ManagedSelectorForbidden"];
+            /** @description Customer not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
+            /** @description Submission failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
                 };
             };
         };

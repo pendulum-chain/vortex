@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredPayStatus,
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   AlfredpayKycStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer, findAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
@@ -19,7 +19,7 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 // Regression suite for the migrated-entity mismatch: migration 038 backfilled one *individual*
 // entity per profile, and migration 040 attached the legacy provider rows to it — including
 // business-typed (KYB) rows. Typed business lookups then resolved a fresh, empty *business*
-// entity, so every KYB wizard endpoint 404'd ("Alfredpay business customer not found") for
+// entity, so every KYB wizard endpoint 404'd ("Business customer not found") for
 // migrated business customers and left the stray entity behind, while the type-less
 // dashboard/ramp lookups kept finding the rows on the active entity — a resumable KYB the
 // wizard could not act on. Typed lookups now scan every entity the profile owns.
@@ -117,8 +117,8 @@ describe("Alfredpay KYB on a migrated (individual-entity) profile", () => {
   it("typed and type-less lookups agree on the migrated business customer", async () => {
     const { user } = await seedLegacyBusinessCustomer("kyb-legacy-agree@example.com");
 
-    const typeless = await findAlfredpayCustomer(user.id, AlfredPayCountry.CO);
-    const typed = await findAlfredpayCustomer(user.id, AlfredPayCountry.CO, AlfredpayCustomerType.BUSINESS);
+    const typeless = await findAlfredpayCustomer(user.id, DomesticCountry.CO);
+    const typed = await findAlfredpayCustomer(user.id, DomesticCountry.CO, DomesticCustomerType.BUSINESS);
 
     expect(typeless?.alfredPayId).toBe("ap-legacy-kyb");
     expect(typed?.alfredPayId).toBe("ap-legacy-kyb");
@@ -210,9 +210,9 @@ describe("Alfredpay KYB on a migrated (individual-entity) profile", () => {
     // the legacy rows there, not on a fresh business entity it can never reach.
     await createAlfredpayCustomer(user.id, {
       alfredPayId: "ap-legacy-mx",
-      country: AlfredPayCountry.MX,
+      country: DomesticCountry.MX,
       status: AlfredPayStatus.Consulted,
-      type: AlfredpayCustomerType.BUSINESS
+      type: DomesticCustomerType.BUSINESS
     });
 
     const created = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-legacy-mx" } });
@@ -239,9 +239,9 @@ describe("Alfredpay KYB on a migrated (individual-entity) profile", () => {
 
     await createAlfredpayCustomer(user.id, {
       alfredPayId: "ap-legacy-us",
-      country: AlfredPayCountry.US,
+      country: DomesticCountry.US,
       status: AlfredPayStatus.Consulted,
-      type: AlfredpayCustomerType.BUSINESS
+      type: DomesticCustomerType.BUSINESS
     });
 
     const created = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-legacy-us" } });

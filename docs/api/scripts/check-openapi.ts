@@ -9,41 +9,41 @@ const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 const REQUIRED_PATHS = [
   "/v1/api-credentials",
   "/v1/api-credentials/{credentialId}",
-  "/v1/alfredpay/alfredpayStatus",
-  "/v1/alfredpay/createBusinessCustomer",
-  "/v1/alfredpay/createIndividualCustomer",
-  "/v1/alfredpay/fiatAccounts",
-  "/v1/alfredpay/fiatAccounts/{fiatAccountId}",
-  "/v1/alfredpay/findKybCustomerAndBusiness",
-  "/v1/alfredpay/getKybRedirectLink",
-  "/v1/alfredpay/getKycRedirectLink",
-  "/v1/alfredpay/getKycStatus",
-  "/v1/alfredpay/kycRedirectFinished",
-  "/v1/alfredpay/kycRedirectOpened",
-  "/v1/alfredpay/retryKyc",
-  "/v1/alfredpay/sendKybSubmission",
-  "/v1/alfredpay/sendKycSubmission",
-  "/v1/alfredpay/submitKybFile",
-  "/v1/alfredpay/submitKybInformation",
-  "/v1/alfredpay/submitKybRelatedPersonFile",
-  "/v1/alfredpay/submitKycFile",
-  "/v1/alfredpay/submitKycInformation",
-  "/v1/brla/createSubaccount",
-  "/v1/brla/getKycStatus",
-  "/v1/brla/getSelfieLivenessUrl",
-  "/v1/brla/getUploadUrls",
-  "/v1/brla/getUser",
-  "/v1/brla/getUserRemainingLimit",
-  "/v1/brla/kyb/attempt-status",
-  "/v1/brla/kyb/documents",
-  "/v1/brla/kyb/documents/{documentId}",
-  "/v1/brla/kyb/new-level-1/api",
-  "/v1/brla/kyb/new-level-1/web-sdk",
-  "/v1/brla/kyb/ubos",
-  "/v1/brla/kyc/import-token",
-  "/v1/brla/kyc/record-attempt",
-  "/v1/brla/newKyc",
-  "/v1/brla/validatePixKey",
+  "/v1/domestic/alfredpayStatus",
+  "/v1/domestic/createBusinessCustomer",
+  "/v1/domestic/createIndividualCustomer",
+  "/v1/domestic/fiatAccounts",
+  "/v1/domestic/fiatAccounts/{fiatAccountId}",
+  "/v1/domestic/findKybCustomerAndBusiness",
+  "/v1/domestic/getKybRedirectLink",
+  "/v1/domestic/getKycRedirectLink",
+  "/v1/domestic/getKycStatus",
+  "/v1/domestic/kycRedirectFinished",
+  "/v1/domestic/kycRedirectOpened",
+  "/v1/domestic/retryKyc",
+  "/v1/domestic/sendKybSubmission",
+  "/v1/domestic/sendKycSubmission",
+  "/v1/domestic/submitKybFile",
+  "/v1/domestic/submitKybInformation",
+  "/v1/domestic/submitKybRelatedPersonFile",
+  "/v1/domestic/submitKycFile",
+  "/v1/domestic/submitKycInformation",
+  "/v1/brl/createSubaccount",
+  "/v1/brl/getKycStatus",
+  "/v1/brl/getSelfieLivenessUrl",
+  "/v1/brl/getUploadUrls",
+  "/v1/brl/getUser",
+  "/v1/brl/getUserRemainingLimit",
+  "/v1/brl/kyb/attempt-status",
+  "/v1/brl/kyb/documents",
+  "/v1/brl/kyb/documents/{documentId}",
+  "/v1/brl/kyb/new-level-1/api",
+  "/v1/brl/kyb/new-level-1/web-sdk",
+  "/v1/brl/kyb/ubos",
+  "/v1/brl/kyc/import-token",
+  "/v1/brl/kyc/record-attempt",
+  "/v1/brl/newKyc",
+  "/v1/brl/validatePixKey",
   "/v1/onboarding/requirements",
   "/v1/onboarding/active-entity",
   "/v1/managed-profiles",
@@ -85,10 +85,10 @@ const MANAGED_PROFILE_OPERATIONS = [
 const MANAGED_PROFILE_SECURITY = [{ SecretApiKey: [] }, { BearerAuth: [] }] as const;
 
 const BRLA_RECONCILIATION_OPERATIONS = [
-  ["/v1/brla/getKycStatus", "get"],
-  ["/v1/brla/getSelfieLivenessUrl", "get"],
-  ["/v1/brla/getUploadUrls", "post"],
-  ["/v1/brla/newKyc", "post"]
+  ["/v1/brl/getKycStatus", "get"],
+  ["/v1/brl/getSelfieLivenessUrl", "get"],
+  ["/v1/brl/getUploadUrls", "post"],
+  ["/v1/brl/newKyc", "post"]
 ] as const;
 
 const BRLA_IMPORT_KYC_TOKEN_ERRORS = [
@@ -100,30 +100,30 @@ const BRLA_IMPORT_KYC_TOKEN_ERRORS = [
   "The managed subject does not match the expected customer entity",
   "A managed profile requires a managed customer entity context",
   "The subject customer entity is not active",
-  "Avenia token import is only available for individuals",
-  "Exactly one active Brazilian individual Avenia customer is required",
-  "Multiple Avenia customers require reconciliation",
-  "The Avenia subaccount is not provisioned",
-  "The Avenia customer is already approved",
-  "The canonical Avenia KYC case is missing",
-  "Multiple Avenia KYC cases require reconciliation",
-  "The Avenia KYC case is already approved",
+  "Token import is only available for individuals",
+  "Exactly one active Brazilian individual customer is required",
+  "Multiple customers require reconciliation",
+  "The BR subaccount is not provisioned",
+  "The customer is already approved",
+  "The canonical KYC case is missing",
+  "Multiple KYC cases require reconciliation",
+  "The KYC case is already approved",
   "The confirmed token import is missing its provider attempt",
   "The idempotency key was used with a different token",
   "The token import does not match this request",
   "A failed token import requires a new idempotency key",
-  "The Avenia KYC is already approved",
+  "The KYC is already approved",
   "The previous token import outcome requires reconciliation",
   "Another token import requires reconciliation",
-  "This KYC case uses the standard Avenia method",
-  "The Avenia token import attempt is invalid",
+  "This KYC case uses the standard verification method",
+  "The token import attempt is invalid",
   "The token import attempt requires reconciliation",
   "The token import was already claimed",
   "The token import binding is no longer current",
   "The authenticated profile cannot perform this operation for the requested managed profile",
-  "Avenia token import pre-provider checks failed",
-  "Avenia token import is not enabled",
-  "The Avenia token import outcome requires reconciliation",
+  "Token import pre-provider checks failed",
+  "Token import is not enabled",
+  "The token import outcome requires reconciliation",
   "Token import failed"
 ] as const;
 
@@ -135,81 +135,81 @@ const MANAGED_PROFILE_PATHS = [
 ] as const;
 
 const ALFREDPAY_OPERATIONS = [
-  ["/v1/alfredpay/alfredpayStatus", "get"],
-  ["/v1/alfredpay/createBusinessCustomer", "post"],
-  ["/v1/alfredpay/createIndividualCustomer", "post"],
-  ["/v1/alfredpay/fiatAccounts", "get"],
-  ["/v1/alfredpay/fiatAccounts", "post"],
-  ["/v1/alfredpay/fiatAccounts/{fiatAccountId}", "delete"],
-  ["/v1/alfredpay/findKybCustomerAndBusiness", "get"],
-  ["/v1/alfredpay/getKybRedirectLink", "get"],
-  ["/v1/alfredpay/getKycRedirectLink", "get"],
-  ["/v1/alfredpay/getKycStatus", "get"],
-  ["/v1/alfredpay/kycRedirectFinished", "post"],
-  ["/v1/alfredpay/kycRedirectOpened", "post"],
-  ["/v1/alfredpay/retryKyc", "post"],
-  ["/v1/alfredpay/sendKybSubmission", "post"],
-  ["/v1/alfredpay/sendKycSubmission", "post"],
-  ["/v1/alfredpay/submitKybFile", "post"],
-  ["/v1/alfredpay/submitKybInformation", "post"],
-  ["/v1/alfredpay/submitKybRelatedPersonFile", "post"],
-  ["/v1/alfredpay/submitKycFile", "post"],
-  ["/v1/alfredpay/submitKycInformation", "post"]
+  ["/v1/domestic/alfredpayStatus", "get"],
+  ["/v1/domestic/createBusinessCustomer", "post"],
+  ["/v1/domestic/createIndividualCustomer", "post"],
+  ["/v1/domestic/fiatAccounts", "get"],
+  ["/v1/domestic/fiatAccounts", "post"],
+  ["/v1/domestic/fiatAccounts/{fiatAccountId}", "delete"],
+  ["/v1/domestic/findKybCustomerAndBusiness", "get"],
+  ["/v1/domestic/getKybRedirectLink", "get"],
+  ["/v1/domestic/getKycRedirectLink", "get"],
+  ["/v1/domestic/getKycStatus", "get"],
+  ["/v1/domestic/kycRedirectFinished", "post"],
+  ["/v1/domestic/kycRedirectOpened", "post"],
+  ["/v1/domestic/retryKyc", "post"],
+  ["/v1/domestic/sendKybSubmission", "post"],
+  ["/v1/domestic/sendKycSubmission", "post"],
+  ["/v1/domestic/submitKybFile", "post"],
+  ["/v1/domestic/submitKybInformation", "post"],
+  ["/v1/domestic/submitKybRelatedPersonFile", "post"],
+  ["/v1/domestic/submitKycFile", "post"],
+  ["/v1/domestic/submitKycInformation", "post"]
 ] as const;
 
 const MANAGED_SELECTOR_SECURITY_OPERATIONS = [
   ...ALFREDPAY_OPERATIONS,
-  ["/v1/brla/createSubaccount", "post"],
-  ["/v1/brla/getKycStatus", "get"],
-  ["/v1/brla/getSelfieLivenessUrl", "get"],
-  ["/v1/brla/getUploadUrls", "post"],
-  ["/v1/brla/kyb/attempt-status", "get"],
-  ["/v1/brla/kyb/documents", "post"],
-  ["/v1/brla/kyb/documents/{documentId}", "get"],
-  ["/v1/brla/kyb/new-level-1/api", "post"],
-  ["/v1/brla/kyb/new-level-1/web-sdk", "post"],
-  ["/v1/brla/kyb/ubos", "post"],
-  ["/v1/brla/kyc/import-token", "post"],
-  ["/v1/brla/kyc/record-attempt", "post"],
-  ["/v1/brla/newKyc", "post"],
+  ["/v1/brl/createSubaccount", "post"],
+  ["/v1/brl/getKycStatus", "get"],
+  ["/v1/brl/getSelfieLivenessUrl", "get"],
+  ["/v1/brl/getUploadUrls", "post"],
+  ["/v1/brl/kyb/attempt-status", "get"],
+  ["/v1/brl/kyb/documents", "post"],
+  ["/v1/brl/kyb/documents/{documentId}", "get"],
+  ["/v1/brl/kyb/new-level-1/api", "post"],
+  ["/v1/brl/kyb/new-level-1/web-sdk", "post"],
+  ["/v1/brl/kyb/ubos", "post"],
+  ["/v1/brl/kyc/import-token", "post"],
+  ["/v1/brl/kyc/record-attempt", "post"],
+  ["/v1/brl/newKyc", "post"],
   ["/v1/onboarding/status", "get"]
 ] as const;
 
 const DELEGATED_OPERATIONS = [
-  ["/v1/alfredpay/alfredpayStatus", "get"],
-  ["/v1/alfredpay/createBusinessCustomer", "post"],
-  ["/v1/alfredpay/createIndividualCustomer", "post"],
-  ["/v1/alfredpay/fiatAccounts", "get"],
-  ["/v1/alfredpay/fiatAccounts", "post"],
-  ["/v1/alfredpay/fiatAccounts/{fiatAccountId}", "delete"],
-  ["/v1/alfredpay/findKybCustomerAndBusiness", "get"],
-  ["/v1/alfredpay/getKybRedirectLink", "get"],
-  ["/v1/alfredpay/getKycRedirectLink", "get"],
-  ["/v1/alfredpay/getKycStatus", "get"],
-  ["/v1/alfredpay/kycRedirectFinished", "post"],
-  ["/v1/alfredpay/kycRedirectOpened", "post"],
-  ["/v1/alfredpay/retryKyc", "post"],
-  ["/v1/alfredpay/sendKybSubmission", "post"],
-  ["/v1/alfredpay/sendKycSubmission", "post"],
-  ["/v1/alfredpay/submitKybFile", "post"],
-  ["/v1/alfredpay/submitKybInformation", "post"],
-  ["/v1/alfredpay/submitKybRelatedPersonFile", "post"],
-  ["/v1/alfredpay/submitKycFile", "post"],
-  ["/v1/alfredpay/submitKycInformation", "post"],
-  ["/v1/brla/createSubaccount", "post"],
-  ["/v1/brla/getKycStatus", "get"],
-  ["/v1/brla/getSelfieLivenessUrl", "get"],
-  ["/v1/brla/getUploadUrls", "post"],
-  ["/v1/brla/getUser", "get"],
-  ["/v1/brla/getUserRemainingLimit", "get"],
-  ["/v1/brla/kyb/attempt-status", "get"],
-  ["/v1/brla/kyb/documents", "post"],
-  ["/v1/brla/kyb/documents/{documentId}", "get"],
-  ["/v1/brla/kyb/new-level-1/api", "post"],
-  ["/v1/brla/kyb/new-level-1/web-sdk", "post"],
-  ["/v1/brla/kyb/ubos", "post"],
-  ["/v1/brla/kyc/record-attempt", "post"],
-  ["/v1/brla/newKyc", "post"],
+  ["/v1/domestic/alfredpayStatus", "get"],
+  ["/v1/domestic/createBusinessCustomer", "post"],
+  ["/v1/domestic/createIndividualCustomer", "post"],
+  ["/v1/domestic/fiatAccounts", "get"],
+  ["/v1/domestic/fiatAccounts", "post"],
+  ["/v1/domestic/fiatAccounts/{fiatAccountId}", "delete"],
+  ["/v1/domestic/findKybCustomerAndBusiness", "get"],
+  ["/v1/domestic/getKybRedirectLink", "get"],
+  ["/v1/domestic/getKycRedirectLink", "get"],
+  ["/v1/domestic/getKycStatus", "get"],
+  ["/v1/domestic/kycRedirectFinished", "post"],
+  ["/v1/domestic/kycRedirectOpened", "post"],
+  ["/v1/domestic/retryKyc", "post"],
+  ["/v1/domestic/sendKybSubmission", "post"],
+  ["/v1/domestic/sendKycSubmission", "post"],
+  ["/v1/domestic/submitKybFile", "post"],
+  ["/v1/domestic/submitKybInformation", "post"],
+  ["/v1/domestic/submitKybRelatedPersonFile", "post"],
+  ["/v1/domestic/submitKycFile", "post"],
+  ["/v1/domestic/submitKycInformation", "post"],
+  ["/v1/brl/createSubaccount", "post"],
+  ["/v1/brl/getKycStatus", "get"],
+  ["/v1/brl/getSelfieLivenessUrl", "get"],
+  ["/v1/brl/getUploadUrls", "post"],
+  ["/v1/brl/getUser", "get"],
+  ["/v1/brl/getUserRemainingLimit", "get"],
+  ["/v1/brl/kyb/attempt-status", "get"],
+  ["/v1/brl/kyb/documents", "post"],
+  ["/v1/brl/kyb/documents/{documentId}", "get"],
+  ["/v1/brl/kyb/new-level-1/api", "post"],
+  ["/v1/brl/kyb/new-level-1/web-sdk", "post"],
+  ["/v1/brl/kyb/ubos", "post"],
+  ["/v1/brl/kyc/record-attempt", "post"],
+  ["/v1/brl/newKyc", "post"],
   ["/v1/limits", "post"],
   ["/v1/onboarding/status", "get"],
   ["/v1/quotes", "post"],
@@ -433,7 +433,7 @@ if (unexpectedManagedProfilePaths.length > 0) {
 
 const httpMethods = new Set(["delete", "get", "head", "options", "patch", "post", "put", "trace"]);
 const documentedAlfredpayOperations = paths
-  .filter(path => path.startsWith("/v1/alfredpay/"))
+  .filter(path => path.startsWith("/v1/domestic/"))
   .flatMap(path => {
     const pathItem = (openapi.paths as JsonObject)[path] as JsonObject;
     return Object.keys(pathItem)
@@ -606,20 +606,20 @@ for (const [path, method] of DELEGATED_OPERATIONS) {
 
 for (const [path, method] of ALFREDPAY_OPERATIONS) {
   const responses = operationAt(path, method).responses as JsonObject;
-  if (JSON.stringify(responses["400"]).includes("Alfredpay") === false) {
-    throw new Error(`${method.toUpperCase()} ${path} must preserve the controller's flat Alfredpay 400 error shape.`);
+  if (JSON.stringify(responses["400"]).includes("Domestic") === false) {
+    throw new Error(`${method.toUpperCase()} ${path} must preserve the controller's flat domestic-corridor 400 error shape.`);
   }
 }
-for (const [path, method] of DELEGATED_OPERATIONS.filter(([path]) => path.startsWith("/v1/brla/"))) {
+for (const [path, method] of DELEGATED_OPERATIONS.filter(([path]) => path.startsWith("/v1/brl/"))) {
   const responses = operationAt(path, method).responses as JsonObject;
-  if (!transitivelyReferences(responses["400"], "#/components/schemas/BrlaErrorResponse")) {
+  if (!transitivelyReferences(responses["400"], "#/components/schemas/BrErrorResponse")) {
     throw new Error(`${method.toUpperCase()} ${path} must preserve the controller's flat BRLA 400 error shape.`);
   }
 }
 for (const [path, method] of BRLA_RECONCILIATION_OPERATIONS) {
   const responses = operationAt(path, method).responses as JsonObject;
   for (const status of ["409", "502"]) {
-    if (!transitivelyReferences(responses[status], "#/components/schemas/BrlaErrorResponse")) {
+    if (!transitivelyReferences(responses[status], "#/components/schemas/BrErrorResponse")) {
       throw new Error(`${method.toUpperCase()} ${path} ${status} must preserve the flat BRLA reconciliation error shape.`);
     }
   }
@@ -646,16 +646,16 @@ for (const [path, method, status, controllerSchema] of [
   }
 }
 if (
-  JSON.stringify(schemas.AlfredpayManagedBadRequestResponse).includes("#/components/schemas/ManagedSelectorErrorResponse") ===
+  JSON.stringify(schemas.DomesticManagedBadRequestResponse).includes("#/components/schemas/ManagedSelectorErrorResponse") ===
     false ||
-  JSON.stringify(schemas.BrlaManagedBadRequestResponse).includes("#/components/schemas/ManagedSelectorErrorResponse") === false
+  JSON.stringify(schemas.BrManagedBadRequestResponse).includes("#/components/schemas/ManagedSelectorErrorResponse") === false
 ) {
   throw new Error("Managed-selector 400 unions must preserve the structured middleware error body.");
 }
 
-for (const path of ["/v1/alfredpay/createBusinessCustomer", "/v1/alfredpay/createIndividualCustomer"]) {
+for (const path of ["/v1/domestic/createBusinessCustomer", "/v1/domestic/createIndividualCustomer"]) {
   const responses = operationAt(path, "post").responses as JsonObject;
-  if (JSON.stringify(responses["502"]).includes("#/components/schemas/AlfredpayErrorResponse") === false) {
+  if (JSON.stringify(responses["502"]).includes("#/components/schemas/DomesticErrorResponse") === false) {
     throw new Error(`POST ${path} must document the invalid-upstream-customer 502 response.`);
   }
 }
@@ -672,16 +672,16 @@ if (
   throw new Error("GET /v1/onboarding/status must document its structured 401 and 500 error bodies.");
 }
 
-const alfredpayFiatAccountRequest = schemas.AlfredpayAddFiatAccountRequest as JsonObject;
+const alfredpayFiatAccountRequest = schemas.DomesticAddFiatAccountRequest as JsonObject;
 if (
   "default" in (((alfredpayFiatAccountRequest.properties as JsonObject).isExternal as JsonObject) ?? {}) ||
   (alfredpayFiatAccountRequest.required as unknown[]).includes("isExternal")
 ) {
-  throw new Error("AlfredpayAddFiatAccountRequest.isExternal must remain optional without an OpenAPI default.");
+  throw new Error("DomesticAddFiatAccountRequest.isExternal must remain optional without an OpenAPI default.");
 }
 
-const kycInformationRequest = schemas.AlfredpaySubmitKycInformationRequest as JsonObject;
-const kybInformationRequest = schemas.AlfredpaySubmitKybInformationRequest as JsonObject;
+const kycInformationRequest = schemas.DomesticSubmitKycInformationRequest as JsonObject;
+const kybInformationRequest = schemas.DomesticSubmitKybInformationRequest as JsonObject;
 if (
   !JSON.stringify(kycInformationRequest.allOf).includes('"const":"AR"') ||
   !JSON.stringify(kycInformationRequest.allOf).includes('"pattern":"^\\\\+54"') ||
@@ -690,7 +690,7 @@ if (
   !JSON.stringify(kycInformationRequest.allOf).includes('"required":["phoneNumber","pep"]')
 ) {
   throw new Error(
-    "AlfredpaySubmitKycInformationRequest must document Argentina phone, CUIT, nationality, and PEP requirements."
+    "DomesticSubmitKycInformationRequest must document Argentina phone, CUIT, nationality, and PEP requirements."
   );
 }
 const kybProperties = kybInformationRequest.properties as JsonObject;
@@ -703,11 +703,11 @@ if (
   )
 ) {
   throw new Error(
-    "AlfredpaySubmitKybInformationRequest must document nonblank questionnaire and conditional screening requirements."
+    "DomesticSubmitKybInformationRequest must document nonblank questionnaire and conditional screening requirements."
   );
 }
 
-const recordAttempt = operationAt("/v1/brla/kyc/record-attempt", "post");
+const recordAttempt = operationAt("/v1/brl/kyc/record-attempt", "post");
 const recordAttemptSchemaRef = (
   ((recordAttempt.requestBody as JsonObject).content as JsonObject)["application/json"] as JsonObject
 ).schema as JsonObject;
@@ -719,15 +719,15 @@ if (!recordAttemptRequired.includes("quoteId") || !recordAttemptRequired.include
   throw new Error("POST /v1/brla/kyc/record-attempt must require the shared quoteId and taxId request fields.");
 }
 
-const importKycToken = operationAt("/v1/brla/kyc/import-token", "post");
+const importKycToken = operationAt("/v1/brl/kyc/import-token", "post");
 const importKycTokenParameters = importKycToken.parameters as JsonObject[];
 const importKycTokenIdempotency = importKycTokenParameters.find(parameter => parameter.name === "Idempotency-Key");
 const importKycTokenManagedSelector = importKycTokenParameters.find(parameter => parameter.$ref === managedProfileHeaderRef);
-const importKycTokenRequest = schemas.BrlaImportKycTokenRequest as JsonObject;
+const importKycTokenRequest = schemas.BrImportKycTokenRequest as JsonObject;
 const importKycTokenRequestProperties = importKycTokenRequest.properties as JsonObject;
 const importKycTokenResponses = importKycToken.responses as JsonObject;
 const importKycTokenDescription = String(importKycToken.description);
-const importKycTokenError = ((schemas.BrlaImportKycTokenErrorResponse as JsonObject).properties as JsonObject)
+const importKycTokenError = ((schemas.BrImportKycTokenErrorResponse as JsonObject).properties as JsonObject)
   .error as JsonObject;
 const malformedJsonError = schemas.MalformedJsonErrorResponse as JsonObject;
 const payloadTooLargeError = schemas.PayloadTooLargeErrorResponse as JsonObject;
@@ -745,18 +745,18 @@ if (
   "maxLength" in (importKycTokenRequestProperties.importToken as JsonObject) ||
   JSON.stringify(Object.keys(importKycTokenResponses).sort()) !==
     JSON.stringify(["202", "400", "401", "403", "409", "412", "413", "500", "502", "503"]) ||
-  !transitivelyReferences(importKycTokenResponses["202"], "#/components/schemas/BrlaImportKycTokenResponse") ||
+  !transitivelyReferences(importKycTokenResponses["202"], "#/components/schemas/BrImportKycTokenResponse") ||
   !transitivelyReferences(importKycTokenResponses["400"], "#/components/schemas/ManagedSelectorErrorResponse") ||
   !transitivelyReferences(importKycTokenResponses["400"], "#/components/schemas/MalformedJsonErrorResponse") ||
   !transitivelyReferences(importKycTokenResponses["401"], "#/components/schemas/ManagedSelectorErrorResponse") ||
   !transitivelyReferences(importKycTokenResponses["403"], "#/components/schemas/ManagedSelectorErrorResponse") ||
-  !transitivelyReferences(importKycTokenResponses["403"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
-  !transitivelyReferences(importKycTokenResponses["409"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
-  !transitivelyReferences(importKycTokenResponses["412"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["403"], "#/components/schemas/BrImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["409"], "#/components/schemas/BrImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["412"], "#/components/schemas/BrImportKycTokenErrorResponse") ||
   !transitivelyReferences(importKycTokenResponses["413"], "#/components/schemas/PayloadTooLargeErrorResponse") ||
-  !transitivelyReferences(importKycTokenResponses["500"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["500"], "#/components/schemas/BrImportKycTokenErrorResponse") ||
   !transitivelyReferences(importKycTokenResponses["500"], "#/components/schemas/ErrorResponse") ||
-  !transitivelyReferences(importKycTokenResponses["502"], "#/components/schemas/BrlaImportKycTokenErrorResponse") ||
+  !transitivelyReferences(importKycTokenResponses["502"], "#/components/schemas/BrImportKycTokenErrorResponse") ||
   JSON.stringify(importKycTokenError.enum) !== JSON.stringify(BRLA_IMPORT_KYC_TOKEN_ERRORS) ||
   JSON.stringify(malformedJsonError.required) !== JSON.stringify(["code", "message", "statusCode", "type"]) ||
   ((malformedJsonError.properties as JsonObject).code as JsonObject).const !== 400 ||
@@ -783,7 +783,7 @@ for (const requiredStatement of [
   "provider `401`",
   "Every other post-send",
   "never replayed automatically",
-  "exact returned Avenia attempt",
+  "exact returned provider attempt",
   "`EXPIRED` remains non-approved and locally pending for reconciliation",
   "external status is retained",
   "notification-only",
@@ -806,9 +806,9 @@ function queryParameter(path: string, name: string): JsonObject | undefined {
   ) as JsonObject | undefined;
 }
 
-const getUserTaxId = queryParameter("/v1/brla/getUser", "taxId");
-const remainingLimitTaxId = queryParameter("/v1/brla/getUserRemainingLimit", "taxId");
-const remainingLimitDirection = queryParameter("/v1/brla/getUserRemainingLimit", "direction");
+const getUserTaxId = queryParameter("/v1/brl/getUser", "taxId");
+const remainingLimitTaxId = queryParameter("/v1/brl/getUserRemainingLimit", "taxId");
+const remainingLimitDirection = queryParameter("/v1/brl/getUserRemainingLimit", "direction");
 if (
   !getUserTaxId ||
   getUserTaxId.required !== false ||
@@ -845,7 +845,7 @@ for (const [path, method] of [
     throw new Error(`${method.toUpperCase()} ${path} must document the managed-profile polling-only contract.`);
   }
 }
-for (const path of ["/v1/alfredpay/submitKycFile", "/v1/alfredpay/submitKybFile", "/v1/alfredpay/submitKybRelatedPersonFile"]) {
+for (const path of ["/v1/domestic/submitKycFile", "/v1/domestic/submitKybFile", "/v1/domestic/submitKybRelatedPersonFile"]) {
   const requestBody = operationAt(path, "post").requestBody;
   if (!JSON.stringify(requestBody).includes('"multipart/form-data"')) {
     throw new Error(`POST ${path} must document its multipart upload body.`);

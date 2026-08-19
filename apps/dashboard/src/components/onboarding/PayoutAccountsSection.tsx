@@ -1,4 +1,4 @@
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
@@ -6,7 +6,7 @@ import { isApiError } from "@/services/api/api-client";
 import { FiatAccountDialog, type FiatAccountDialogView } from "./alfredpay/FiatAccountDialog";
 
 interface PayoutAccountsSectionProps {
-  accounts: AlfredpayFiatAccount[] | undefined;
+  accounts: DomesticFiatAccount[] | undefined;
   corridorId: AlfredpayCorridorId;
   error: Error | null;
   isLoading: boolean;

@@ -10,7 +10,7 @@ import ProviderCustomer, { VerificationStatus } from "../../../models/providerCu
 import User from "../../../models/user.model";
 import {
   claimStandardAveniaKycMethod,
-  importAveniaKycToken,
+  importBrKycToken,
   mapAveniaKycAttemptStatus,
   reconcileAveniaIndividualKycStatusMethod
 } from "./avenia-kyc-import.service";
@@ -129,11 +129,11 @@ afterEach(() => {
   User.findByPk = originals.userFindByPk;
 });
 
-describe("importAveniaKycToken", () => {
+describe("importBrKycToken", () => {
   it("stores only fingerprints, binds the exact attempt, and replays only the same confirmed key", async () => {
     const state = harness();
-    expect(await importAveniaKycToken(request)).toEqual({ attemptId: "attempt-1", status: "pending" });
-    expect(await importAveniaKycToken(request)).toEqual({ attemptId: "attempt-1", status: "pending" });
+    expect(await importBrKycToken(request)).toEqual({ attemptId: "attempt-1", status: "pending" });
+    expect(await importBrKycToken(request)).toEqual({ attemptId: "attempt-1", status: "pending" });
     expect(state.providerImport).toHaveBeenCalledTimes(1);
     expect(state.kycCase).toMatchObject({
       providerCaseId: "attempt-1",
@@ -155,8 +155,8 @@ describe("importAveniaKycToken", () => {
     });
     expect(JSON.stringify(state.kycCase.verificationSubmission)).not.toContain(request.importToken);
     expect(state.lockOrder.slice(-2)).toEqual(["customer", "case"]);
-    await expect(importAveniaKycToken({ ...request, idempotencyKey: "another-key" })).rejects.toMatchObject({ status: 409 });
-    await expect(importAveniaKycToken({ ...request, importToken: "changed-token" })).rejects.toMatchObject({ status: 409 });
+    await expect(importBrKycToken({ ...request, idempotencyKey: "another-key" })).rejects.toMatchObject({ status: 409 });
+    await expect(importBrKycToken({ ...request, importToken: "changed-token" })).rejects.toMatchObject({ status: 409 });
   });
 
   it("never reposts an ambiguous claim and reconciles only a unique nonbaseline, unbound attempt", async () => {
@@ -173,9 +173,9 @@ describe("importAveniaKycToken", () => {
         throw new Error("timeout");
       }
     });
-    await expect(importAveniaKycToken(request)).rejects.toMatchObject({ status: 502 });
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 502 });
     expect(state.kycCase.verificationSubmission).toMatchObject({ attemptBaselineIds: ["baseline"], status: "ambiguous" });
-    expect(await importAveniaKycToken(request)).toEqual({ attemptId: "reconciled", status: "pending" });
+    expect(await importBrKycToken(request)).toEqual({ attemptId: "reconciled", status: "pending" });
     expect(state.providerImport).toHaveBeenCalledTimes(1);
   });
 
@@ -190,9 +190,9 @@ describe("importAveniaKycToken", () => {
         return { id: "attempt-2", message: "processing" };
       }
     });
-    await expect(importAveniaKycToken(request)).rejects.toMatchObject({ status: 412 });
-    await expect(importAveniaKycToken(request)).rejects.toMatchObject({ status: 409 });
-    expect(await importAveniaKycToken({ ...request, idempotencyKey: "request-key-2" })).toEqual({
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 412 });
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 409 });
+    expect(await importBrKycToken({ ...request, idempotencyKey: "request-key-2" })).toEqual({
       attemptId: "attempt-2",
       status: "pending"
     });
@@ -215,7 +215,7 @@ describe("importAveniaKycToken", () => {
     expect(state.kycCase.verificationMethod).toBe("standard");
     expect(state.getKycAttempts).not.toHaveBeenCalled();
     expect(state.getUploadedDocuments).not.toHaveBeenCalled();
-    await expect(importAveniaKycToken(request)).rejects.toMatchObject({ status: 409 });
+    await expect(importBrKycToken(request)).rejects.toMatchObject({ status: 409 });
   });
 
   it("makes the runtime status helper default a locked null case to standard without provider reads", async () => {
@@ -229,7 +229,7 @@ describe("importAveniaKycToken", () => {
   it("binds the imported attempt without downgrading approval", async () => {
     const state = harness({ approveDuringImport: true });
 
-    await expect(importAveniaKycToken(request)).resolves.toEqual({ attemptId: "attempt-1", status: "pending" });
+    await expect(importBrKycToken(request)).resolves.toEqual({ attemptId: "attempt-1", status: "pending" });
     expect(state.kycCase).toMatchObject({
       providerCaseId: "attempt-1",
       status: VerificationStatus.Approved,

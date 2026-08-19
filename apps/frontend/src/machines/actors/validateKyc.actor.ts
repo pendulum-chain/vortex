@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isDomesticToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
 
 import { BrlaService, isApiError } from "../../services/api";
 import { RampContext } from "../types";
@@ -34,7 +34,7 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
   if (
     executionInput.fiatToken === FiatToken.EURC ||
     executionInput.fiatToken === FiatToken.ARS ||
-    isAlfredpayToken(executionInput.fiatToken)
+    isDomesticToken(executionInput.fiatToken)
   ) {
     return { kycNeeded: true };
   }

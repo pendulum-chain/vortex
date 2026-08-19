@@ -159,10 +159,14 @@ router.use("/maintenance", maintenanceRoutes);
 router.use("/auth", authRoutes);
 
 /**
- * GET v1/mx|co|ar (legacy alias: v1/alfredpay)
- * POST v1/mx|co|ar (legacy alias: v1/alfredpay)
+ * GET v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ * POST v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ *
+ * The country-prefixed mounts make the corridor canonical through the URL. The
+ * country-neutral mounts read the country from the request instead, so they also
+ * serve corridors that have no dedicated prefix.
  */
-router.use("/alfredpay", alfredpayRoutes);
+router.use(["/domestic", "/alfredpay"], alfredpayRoutes);
 router.use(["/mx", "/co", "/ar"], setAlfredpayCountryFromRoute, alfredpayRoutes);
 
 /**

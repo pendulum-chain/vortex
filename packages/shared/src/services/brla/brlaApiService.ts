@@ -21,23 +21,23 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentResponse,
-  AveniaDocumentType,
   AveniaImportKycTokenResponse,
-  AveniaKybAttemptStatusResponse,
-  AveniaKybLevel1Payload,
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaPublicKeyResponse,
   AveniaQuoteResponse,
   AveniaSwapTicket,
-  AveniaUboPayload,
-  AveniaUboResponse,
   AveniaVerificationAttemptResponse,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
   BlockchainSendMethod,
+  BrDocumentType,
+  BrKybAttemptStatusResponse,
+  BrKybLevel1Payload,
   BrlaCurrency,
+  BrUboPayload,
+  BrUboResponse,
   GetKycAttemptResponse,
   KybLevel1Response,
   KycLevel1Payload,
@@ -256,7 +256,7 @@ export class BrlaApiService {
   }
 
   public async getDocumentUploadUrls(
-    documentType: AveniaDocumentType,
+    documentType: BrDocumentType,
     isDoubleSided: boolean,
     subAccountId: string
   ): Promise<DocumentUploadResponse> {
@@ -293,7 +293,7 @@ export class BrlaApiService {
     );
   }
 
-  public async createUbo(payload: AveniaUboPayload, subAccountId: string): Promise<AveniaUboResponse> {
+  public async createUbo(payload: BrUboPayload, subAccountId: string): Promise<BrUboResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return aveniaUboResponseSchema.parse(
       await this.sendRequest(Endpoint.Ubos, "POST", query, payload, undefined, { sensitiveBody: true })
@@ -448,7 +448,7 @@ export class BrlaApiService {
     );
   }
 
-  public async submitKybLevel1(payload: AveniaKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
+  public async submitKybLevel1(payload: BrKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return aveniaLevel1ResponseSchema.parse(
       await this.sendRequest(Endpoint.Level1Api, "POST", query, payload, undefined, { sensitiveBody: true })
@@ -504,7 +504,7 @@ export class BrlaApiService {
     );
   }
 
-  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<AveniaKybAttemptStatusResponse> {
+  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<BrKybAttemptStatusResponse> {
     return this.getVerificationAttemptStatus(attemptId, subAccountId);
   }
 

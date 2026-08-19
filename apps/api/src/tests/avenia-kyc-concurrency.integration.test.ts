@@ -2,7 +2,7 @@ import { BrlaApiService, type KycLevel1Payload } from "@vortexfi/shared";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import httpStatus from "http-status";
 import { APIError } from "../api/errors/api-error";
-import { claimStandardAveniaKycMethod, importAveniaKycToken } from "../api/services/avenia/avenia-kyc-import.service";
+import { claimStandardAveniaKycMethod, importBrKycToken } from "../api/services/avenia/avenia-kyc-import.service";
 import { submitStandardAveniaKyc } from "../api/services/avenia/avenia-standard-kyc.service";
 import sequelize from "../config/database";
 import CustomerEntity from "../models/customerEntity.model";
@@ -136,11 +136,11 @@ describe("Avenia KYC concurrency", () => {
   it("serializes concurrent token-import claims before the provider POST", async () => {
     const fixture = await createFixture();
     const barriers = providerWithBarriers();
-    const first = importAveniaKycToken(importRequest(fixture.subject, "request-1", "share-token-1"));
+    const first = importBrKycToken(importRequest(fixture.subject, "request-1", "share-token-1"));
 
     try {
       await bounded(barriers.historyEntered.promise, "the first claim to hold the case lock");
-      const second = importAveniaKycToken(importRequest(fixture.subject, "request-2", "share-token-2")).catch(error => error);
+      const second = importBrKycToken(importRequest(fixture.subject, "request-2", "share-token-2")).catch(error => error);
       barriers.releaseHistory.resolve();
 
       await bounded(barriers.importEntered.promise, "the provider import POST");
@@ -172,7 +172,7 @@ describe("Avenia KYC concurrency", () => {
   it("serializes token import against standard method selection and provider mutation", async () => {
     const fixture = await createFixture();
     const barriers = providerWithBarriers();
-    const tokenImport = importAveniaKycToken(importRequest(fixture.subject, "request-1", "share-token-1"));
+    const tokenImport = importBrKycToken(importRequest(fixture.subject, "request-1", "share-token-1"));
 
     try {
       await bounded(barriers.historyEntered.promise, "the token claim to hold the case lock");
@@ -214,7 +214,7 @@ describe("Avenia KYC concurrency", () => {
     barriers.releaseHistory.resolve();
     barriers.releaseImport.resolve();
     const standardClaim = claimStandardAveniaKycMethod(fixture.providerCustomer);
-    const tokenImport = importAveniaKycToken(importRequest(fixture.subject, "request-1", "share-token-1")).catch(error => error);
+    const tokenImport = importBrKycToken(importRequest(fixture.subject, "request-1", "share-token-1")).catch(error => error);
 
     try {
       await expect(bounded(standardClaim, "the winning standard claim")).resolves.toMatchObject({
@@ -224,7 +224,7 @@ describe("Avenia KYC concurrency", () => {
       const tokenResult = await bounded(tokenImport, "the competing token claim");
       expect(tokenResult).toBeInstanceOf(APIError);
       expect(tokenResult).toMatchObject({
-        message: "This KYC case uses the standard Avenia method",
+        message: "This KYC case uses the standard verification method",
         status: httpStatus.CONFLICT
       });
       expect((await fixture.kycCase.reload()).verificationMethod).toBe("standard");
@@ -250,7 +250,7 @@ describe("Avenia KYC concurrency", () => {
           importKycToken
         }) as unknown as BrlaApiService
     );
-    const submission = importAveniaKycToken(importRequest(fixture.subject, "request-1", "share-token-1")).catch(
+    const submission = importBrKycToken(importRequest(fixture.subject, "request-1", "share-token-1")).catch(
       error => error
     );
 
@@ -269,7 +269,7 @@ describe("Avenia KYC concurrency", () => {
 
       const result = await bounded(submission, "the approval-losing token import");
       expect(result).toBeInstanceOf(APIError);
-      expect(result).toMatchObject({ message: "The Avenia KYC is already approved", status: httpStatus.CONFLICT });
+      expect(result).toMatchObject({ message: "The KYC is already approved", status: httpStatus.CONFLICT });
       expect(importKycToken).not.toHaveBeenCalled();
     } finally {
       releaseBaseline.resolve();

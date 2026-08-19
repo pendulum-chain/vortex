@@ -248,7 +248,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             if (!attempt) return;
             if (kycCase?.providerCaseId && attempt.id !== kycCase.providerCaseId) return;
             if (attempt.status === KycAttemptStatus.COMPLETED && !attempt.result) {
-              throw new Error("Avenia returned an invalid KYC attempt state");
+              throw new Error("The provider returned an invalid KYC attempt state");
             }
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
             const rejected =

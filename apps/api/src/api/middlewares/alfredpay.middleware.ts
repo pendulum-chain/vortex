@@ -1,4 +1,4 @@
-import { AlfredPayCountry, AlfredpayCustomerType } from "@vortexfi/shared";
+import { DomesticCountry, DomesticCustomerType } from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 
 export const setAlfredpayCountryFromRoute = (req: Request, res: Response, next: NextFunction) => {
@@ -39,7 +39,7 @@ export const validateResultCountry = (req: Request, res: Response, next: NextFun
     return res.status(400).json({ error: "Country is required" });
   }
 
-  if (!Object.values(AlfredPayCountry).includes(country as AlfredPayCountry)) {
+  if (!Object.values(DomesticCountry).includes(country as DomesticCountry)) {
     return res.status(400).json({ error: `Invalid country: ${country}` });
   }
 
@@ -54,7 +54,7 @@ export const validateAlfredpayCustomerType = (req: Request, res: Response, next:
     return;
   }
 
-  if (typeof type !== "string" || !Object.values(AlfredpayCustomerType).includes(type as AlfredpayCustomerType)) {
+  if (typeof type !== "string" || !Object.values(DomesticCustomerType).includes(type as DomesticCustomerType)) {
     return res.status(400).json({ error: "Invalid type: expected INDIVIDUAL or BUSINESS" });
   }
 

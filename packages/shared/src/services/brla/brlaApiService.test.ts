@@ -5,9 +5,9 @@ import logger from "../../logger";
 import { BrlaApiError, BrlaApiService } from "./brlaApiService";
 import { Endpoint } from "./mappings";
 import {
-  AveniaDocumentType,
-  type AveniaKybLevel1Payload,
-  type AveniaUboPayload,
+  BrDocumentType,
+  type BrKybLevel1Payload,
+  type BrUboPayload,
   type KycLevel1Payload
 } from "./types";
 
@@ -25,7 +25,7 @@ function serviceWithMockedRequest() {
     if (endpoint === Endpoint.GetDocument) {
       return {
         document: {
-          documentType: AveniaDocumentType.PASSPORT,
+          documentType: BrDocumentType.PASSPORT,
           id: "document/1",
           ready: true,
           uploadStatusFront: "PROCESSED"
@@ -51,7 +51,7 @@ function serviceWithMockedRequest() {
   return { sendRequest, service };
 }
 
-const ubo: AveniaUboPayload = {
+const ubo: BrUboPayload = {
   city: "Sao Paulo",
   country: "BRA",
   countryOfTaxId: "BRA",
@@ -67,7 +67,7 @@ const ubo: AveniaUboPayload = {
   zipCode: "01209-001"
 };
 
-const kyb: AveniaKybLevel1Payload = {
+const kyb: BrKybLevel1Payload = {
   businessActivityDescription: "Software development",
   certificateOfIncorporationDocumentId: "document-2",
   companyCity: "Sao Paulo",
@@ -154,9 +154,9 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
   });
 
   test("includes the corporate and UBO identification document types", () => {
-    expect(AveniaDocumentType.CERTIFICATE_OF_INCORPORATION).toBe("CERTIFICATE-OF-INCORPORATION");
-    expect(AveniaDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT).toBe("COMPANY-TAX-IDENTIFICATION-DOCUMENT");
-    expect(AveniaDocumentType.RESIDENCE_PERMIT).toBe("RESIDENCE-PERMIT");
+    expect(BrDocumentType.CERTIFICATE_OF_INCORPORATION).toBe("CERTIFICATE-OF-INCORPORATION");
+    expect(BrDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT).toBe("COMPANY-TAX-IDENTIFICATION-DOCUMENT");
+    expect(BrDocumentType.RESIDENCE_PERMIT).toBe("RESIDENCE-PERMIT");
   });
 
   test("rejects malformed successful provider responses", async () => {
@@ -396,7 +396,7 @@ describe("BrlaApiService paginated provider history", () => {
       cursor: sendRequest.mock.calls.length === 1 ? "page-2" : null,
       documents: [
         {
-          documentType: AveniaDocumentType.PASSPORT,
+          documentType: BrDocumentType.PASSPORT,
           id: `document-${sendRequest.mock.calls.length}`,
           ready: true,
           uploadStatusFront: "PROCESSED"

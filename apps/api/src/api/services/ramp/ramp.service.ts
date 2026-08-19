@@ -8,7 +8,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusResponse,
   IbanPaymentData,
-  isAlfredpayToken,
+  isDomesticToken,
   Networks,
   QuoteError,
   RampDirection,
@@ -628,7 +628,7 @@ export class RampService extends BaseRampService {
       this.validateRampStateData(rampState, quote);
       if (options.requirePaidAveniaTicket && !rampState.state.aveniaTicketId) {
         throw new APIError({
-          message: "Ramp does not have an Avenia payment ticket",
+          message: "Ramp does not have a provider payment ticket",
           status: httpStatus.CONFLICT
         });
       }
@@ -997,7 +997,7 @@ export class RampService extends BaseRampService {
       });
     }
     if (quote.rampType === RampDirection.BUY && !additionalData?.destinationAddress) {
-      const provider = isAlfredpayToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
+      const provider = isDomesticToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
       throw new APIError({
         message: `Parameter destinationAddress is required for ${provider}onramp`,
         status: httpStatus.BAD_REQUEST
@@ -1104,7 +1104,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    if (rampState.type === RampDirection.SELL && !isDomesticToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,

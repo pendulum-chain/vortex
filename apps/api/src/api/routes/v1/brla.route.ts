@@ -12,7 +12,7 @@ import {
 
 const router: Router = Router({ mergeParams: true });
 
-// Controllers use typed Request generics (e.g. Request<unknown, unknown, unknown, BrlaGetUserRequest>)
+// Controllers use typed Request generics (e.g. Request<unknown, unknown, unknown, BrGetUserRequest>)
 // which don't extend Express's ParsedQs. Double-cast via unknown is the standard Express pattern
 // for combining middleware with narrowly-typed handlers. Runtime query validation is in each controller.
 //

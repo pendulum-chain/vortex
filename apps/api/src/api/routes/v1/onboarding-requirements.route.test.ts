@@ -19,8 +19,8 @@ describe("GET /v1/onboarding/requirements", () => {
       expect(body).toMatchObject({
         country: "MX",
         customerType: "business",
-        flow: "alfredpay-mx-business-api-kyb",
-        provider: "alfredpay"
+        flow: "mx-business-api-kyb",
+        family: "domestic"
       });
       expect(body).not.toHaveProperty("fields");
     } finally {

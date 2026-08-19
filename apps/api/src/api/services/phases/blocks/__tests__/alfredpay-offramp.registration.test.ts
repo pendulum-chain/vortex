@@ -7,7 +7,7 @@ import {
   FiatToken,
   Networks
 } from "@vortexfi/shared";
-import { registerAlfredpayOfframp } from "../phases/alfredpay-offramp/registration";
+import { registerDomesticOfframp } from "../phases/alfredpay-offramp/registration";
 import type { AlfredpayOfframpMetadata } from "../phases/alfredpay-offramp/simulation";
 
 const metadata: AlfredpayOfframpMetadata = {
@@ -79,7 +79,7 @@ describe("Alfredpay offramp registration", () => {
         toAmount: "1980"
       }))
     } as never;
-    const result = await registerAlfredpayOfframp(context(), {
+    const result = await registerDomesticOfframp(context(), {
       resolveCustomerId: async () => "customer-1",
       service
     });
@@ -109,7 +109,7 @@ describe("Alfredpay offramp registration", () => {
       }))
     } as never;
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("drifted");
     expect(createOrder).not.toHaveBeenCalled();
   });

@@ -1,5 +1,5 @@
 import { CheckIcon, PlusIcon } from "@heroicons/react/24/solid";
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FiatAccountTypeKey } from "../../../constants/fiatAccountMethods";
@@ -8,7 +8,7 @@ import { useFiatAccountActor, useFiatAccountSelector } from "../../../contexts/F
 import { useAlfredpayFiatAccounts } from "../../../hooks/alfredpay/useFiatAccounts";
 import { DropdownSelector } from "../../ui/DropdownSelector";
 
-function accountLabel(account: AlfredpayFiatAccount) {
+function accountLabel(account: DomesticFiatAccount) {
   return account.accountName || account.metadata?.accountHolderName;
 }
 
@@ -18,7 +18,7 @@ function AccountOption({
   selected,
   onSelect
 }: {
-  account: AlfredpayFiatAccount;
+  account: DomesticFiatAccount;
   country: string | undefined;
   selected: boolean;
   onSelect: () => void;

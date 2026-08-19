@@ -101,7 +101,7 @@ async function resolveEligibleCase(
     where: { id: profile.activeCustomerEntityId, profileId: subjectProfileId }
   });
   if (!entity || entity.status !== "active") throw conflict("The subject customer entity is not active");
-  if (entity.type !== "individual") throw conflict("Avenia token import is only available for individuals");
+  if (entity.type !== "individual") throw conflict("Token import is only available for individuals");
 
   const providerCustomers = await ProviderCustomer.findAll({
     transaction,
@@ -110,14 +110,14 @@ async function resolveEligibleCase(
   if (providerCustomers.length !== 1) {
     throw conflict(
       providerCustomers.length === 0
-        ? "Exactly one active Brazilian individual Avenia customer is required"
-        : "Multiple Avenia customers require reconciliation"
+        ? "Exactly one active Brazilian individual customer is required"
+        : "Multiple customers require reconciliation"
     );
   }
   const providerCustomer = providerCustomers[0];
-  if (!providerCustomer.providerSubaccountId) throw conflict("The Avenia subaccount is not provisioned");
+  if (!providerCustomer.providerSubaccountId) throw conflict("The BR subaccount is not provisioned");
   if (!allowApproved && providerCustomer.status === VerificationStatus.Approved) {
-    throw conflict("The Avenia customer is already approved");
+    throw conflict("The customer is already approved");
   }
 
   const cases = await KycCase.findAll({
@@ -126,12 +126,10 @@ async function resolveEligibleCase(
     where: { customerEntityId: entity.id, provider: "avenia", providerCustomerId: providerCustomer.id, type: "kyc" }
   });
   if (cases.length !== 1) {
-    throw conflict(
-      cases.length === 0 ? "The canonical Avenia KYC case is missing" : "Multiple Avenia KYC cases require reconciliation"
-    );
+    throw conflict(cases.length === 0 ? "The canonical KYC case is missing" : "Multiple KYC cases require reconciliation");
   }
   if (!allowApproved && cases[0].status === VerificationStatus.Approved) {
-    throw conflict("The Avenia KYC case is already approved");
+    throw conflict("The KYC case is already approved");
   }
   return { kycCase: cases[0], providerCustomer };
 }
@@ -153,7 +151,7 @@ export async function reconcileAveniaIndividualKycStatusMethod(
       transaction,
       where: { provider: "avenia", providerCustomerId, type: "kyc" }
     });
-    if (cases.length !== 1) throw conflict("Exactly one canonical Avenia KYC case is required");
+    if (cases.length !== 1) throw conflict("Exactly one canonical KYC case is required");
     if (!cases[0].verificationMethod) await cases[0].update({ verificationMethod: "standard" }, { transaction });
     return { kycCase: cases[0] };
   });
@@ -161,7 +159,7 @@ export async function reconcileAveniaIndividualKycStatusMethod(
 
 export async function claimStandardAveniaKycMethod(providerCustomer: ProviderCustomer): Promise<KycCase> {
   if (providerCustomer.provider !== "avenia" || providerCustomer.customerType !== "individual") {
-    throw conflict("Standard individual Avenia KYC requires an individual Avenia customer");
+    throw conflict("Standard individual KYC requires an individual customer account");
   }
   return sequelize.transaction(async transaction => {
     const cases = await KycCase.findAll({
@@ -169,14 +167,14 @@ export async function claimStandardAveniaKycMethod(providerCustomer: ProviderCus
       transaction,
       where: { provider: "avenia", providerCustomerId: providerCustomer.id, type: "kyc" }
     });
-    if (cases.length !== 1) throw conflict("Exactly one canonical Avenia KYC case is required");
+    if (cases.length !== 1) throw conflict("Exactly one canonical KYC case is required");
     const kycCase = cases[0];
     const lockedCustomer = await ProviderCustomer.findByPk(providerCustomer.id, { transaction });
     if (!lockedCustomer || lockedCustomer.provider !== "avenia" || lockedCustomer.customerType !== "individual") {
-      throw conflict("Standard individual Avenia KYC requires an individual Avenia customer");
+      throw conflict("Standard individual KYC requires an individual customer account");
     }
     if (lockedCustomer.status === VerificationStatus.Approved || kycCase.status === VerificationStatus.Approved) {
-      throw conflict("The Avenia KYC case is already approved");
+      throw conflict("The KYC case is already approved");
     }
     if (kycCase.verificationMethod === "sumsub_share_token") throw conflict("This KYC case uses Sumsub token import");
     if (!kycCase.verificationMethod) await kycCase.update({ verificationMethod: "standard" }, { transaction });
@@ -238,10 +236,10 @@ async function prepareImportClaim(
       return { kycCaseId: kycCase.id, providerCustomer };
     }
     if (providerCustomer.status === VerificationStatus.Approved || kycCase.status === VerificationStatus.Approved) {
-      throw conflict("The Avenia KYC is already approved");
+      throw conflict("The KYC is already approved");
     }
     if (existing && existing.status !== "failed") throw conflict("Another token import requires reconciliation");
-    if (kycCase.verificationMethod === "standard") throw conflict("This KYC case uses the standard Avenia method");
+    if (kycCase.verificationMethod === "standard") throw conflict("This KYC case uses the standard verification method");
     if (!kycCase.verificationMethod) await kycCase.update({ verificationMethod: "sumsub_share_token" }, { transaction });
     const consentAttestation = {
       actorProfileId: args.actorProfileId,
@@ -325,12 +323,12 @@ async function submitPreparedClaim(
     }
     if (submission.status === "confirmed") return submissionResult(kycCase);
     if (providerCustomer.status === VerificationStatus.Approved || kycCase.status === VerificationStatus.Approved) {
-      throw conflict("The Avenia KYC is already approved");
+      throw conflict("The KYC is already approved");
     }
     if (submission.status !== "prepared" || !sameTokenClaim(submission, args, idempotencyKeyHash, tokenFingerprint)) {
       throw conflict("The token import was already claimed");
     }
-    if (!providerCustomer.providerSubaccountId) throw conflict("The Avenia subaccount is not provisioned");
+    if (!providerCustomer.providerSubaccountId) throw conflict("The BR subaccount is not provisioned");
     await kycCase.update(
       {
         submittedAt: new Date(),
@@ -349,7 +347,7 @@ async function confirmSubmission(
   providerCustomerId: string,
   attemptId: string
 ): Promise<ImportedAveniaKycToken> {
-  if (!attemptId) throw conflict("The Avenia token import attempt is invalid");
+  if (!attemptId) throw conflict("The token import attempt is invalid");
   await sequelize.transaction(async transaction => {
     const providerCustomer = await ProviderCustomer.findByPk(providerCustomerId, {
       lock: transaction.LOCK.UPDATE,
@@ -431,7 +429,7 @@ function isFeatureUnavailable(error: unknown): boolean {
   );
 }
 
-export async function importAveniaKycToken(args: ImportAveniaKycTokenArgs): Promise<ImportedAveniaKycToken> {
+export async function importBrKycToken(args: ImportAveniaKycTokenArgs): Promise<ImportedAveniaKycToken> {
   const tokenFingerprint = createHash("sha256").update(args.importToken, "utf8").digest("hex");
   const idempotencyKeyHash = createHash("sha256").update(args.idempotencyKey, "utf8").digest("hex");
   const claim = await prepareImportClaim(args, idempotencyKeyHash, tokenFingerprint);
@@ -449,7 +447,7 @@ export async function importAveniaKycToken(args: ImportAveniaKycTokenArgs): Prom
     ]);
     throw new APIError({
       isPublic: true,
-      message: "Avenia token import pre-provider checks failed",
+      message: "Token import pre-provider checks failed",
       status: httpStatus.BAD_GATEWAY
     });
   }
@@ -464,14 +462,14 @@ export async function importAveniaKycToken(args: ImportAveniaKycTokenArgs): Prom
       await updateSubmittedClaim(claim.kycCaseId, { errorClassification: "feature_unavailable", status: "failed" });
       throw new APIError({
         isPublic: true,
-        message: "Avenia token import is not enabled",
+        message: "Token import is not enabled",
         status: httpStatus.PRECONDITION_FAILED
       });
     }
     await updateSubmittedClaim(claim.kycCaseId, { errorClassification: "provider_outcome_unknown", status: "ambiguous" });
     throw new APIError({
       isPublic: true,
-      message: "The Avenia token import outcome requires reconciliation",
+      message: "The token import outcome requires reconciliation",
       status: httpStatus.BAD_GATEWAY
     });
   }
@@ -497,7 +495,7 @@ export async function importAveniaKycToken(args: ImportAveniaKycTokenArgs): Prom
       .catch(() => undefined);
     throw new APIError({
       isPublic: true,
-      message: "The Avenia token import outcome requires reconciliation",
+      message: "The token import outcome requires reconciliation",
       status: httpStatus.BAD_GATEWAY
     });
   }
@@ -513,5 +511,5 @@ export function mapAveniaKycAttemptStatus(
     return VerificationStatus.Approved;
   if (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED)
     return VerificationStatus.Rejected;
-  throw new APIError({ message: "Avenia returned an invalid KYC attempt state", status: httpStatus.BAD_GATEWAY });
+  throw new APIError({ message: "The provider returned an invalid KYC attempt state", status: httpStatus.BAD_GATEWAY });
 }

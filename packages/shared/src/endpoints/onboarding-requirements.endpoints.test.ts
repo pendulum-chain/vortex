@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ONBOARDING_REQUIREMENTS } from "./onboarding-requirements.endpoints";
 
 describe("ONBOARDING_REQUIREMENTS", () => {
-  test("publishes every supported Avenia and Alfredpay product flow", () => {
+  test("publishes every supported product flow", () => {
     expect(Object.fromEntries(Object.entries(ONBOARDING_REQUIREMENTS).map(([country, flows]) => [country, Object.keys(flows).sort()]))).toEqual({
       AR: ["individual"],
       BR: ["business", "individual"],
@@ -39,12 +39,12 @@ describe("ONBOARDING_REQUIREMENTS", () => {
 
   test("includes fixed provider discriminators needed to execute action steps", () => {
     const mxBusinessCreation = ONBOARDING_REQUIREMENTS.MX.business?.steps.find(
-      step => step.operationId === "createAlfredpayBusinessCustomer"
+      step => step.operationId === "createDomesticBusinessCustomer"
     );
     expect(mxBusinessCreation?.fixedBody).toEqual({ country: "MX" });
 
     const usBusinessOpened = ONBOARDING_REQUIREMENTS.US.business?.steps.find(
-      step => step.operationId === "notifyAlfredpayKycRedirectOpened"
+      step => step.operationId === "notifyDomesticKycRedirectOpened"
     );
     expect(usBusinessOpened?.fixedBody).toEqual({ country: "US", type: "BUSINESS" });
   });
@@ -52,11 +52,11 @@ describe("ONBOARDING_REQUIREMENTS", () => {
   test("returns the complete Avenia business operation sequence", () => {
     expect(ONBOARDING_REQUIREMENTS.BR.business?.steps.map(step => step.operationId ?? step.kind)).toEqual([
       "createSubaccount",
-      "createAveniaKybDocument",
+      "createBrKybDocument",
       "direct-upload",
       "hosted",
-      "createAveniaKybUbo",
-      "submitAveniaKybLevel1Api"
+      "createBrKybUbo",
+      "submitBrKybLevel1Api"
     ]);
   });
 });

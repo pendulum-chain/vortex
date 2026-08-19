@@ -1,4 +1,4 @@
-import {AveniaAccountType, AveniaDocumentType, BrlaApiError, BrlaApiService, FiatToken, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
+import {AveniaAccountType, BrDocumentType, BrlaApiError, BrlaApiService, FiatToken, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
 import {afterEach, beforeEach, describe, expect, it, mock, spyOn} from "bun:test";
 import httpStatus from "http-status";
 import sequelize from "../../config/database";
@@ -522,7 +522,7 @@ describe("importKycToken", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
-    expect(res.body).toEqual({ error: "The Avenia token import outcome requires reconciliation" });
+    expect(res.body).toEqual({ error: "The token import outcome requires reconciliation" });
     expect(JSON.stringify(res.body)).not.toContain("secret-token");
   });
 
@@ -694,7 +694,7 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect(res.body).toEqual({ error: "The Avenia KYC submission requires reconciliation" });
+    expect(res.body).toEqual({ error: "The KYC submission requires reconciliation" });
     expect(getKycAttempts).not.toHaveBeenCalled();
     expect(subaccountInfo).not.toHaveBeenCalled();
   });
@@ -768,7 +768,7 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
-    expect(res.body).toEqual({ error: "Avenia returned an inconsistent KYC attempt" });
+    expect(res.body).toEqual({ error: "The provider returned an inconsistent KYC attempt" });
     expect(update).not.toHaveBeenCalled();
     expect(kycUpdate).not.toHaveBeenCalled();
   });
@@ -783,7 +783,7 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
-    expect(res.body).toEqual({ error: "Avenia returned an inconsistent KYC attempt" });
+    expect(res.body).toEqual({ error: "The provider returned an inconsistent KYC attempt" });
     expect(update).not.toHaveBeenCalled();
     expect(kycUpdate).not.toHaveBeenCalled();
   });
@@ -842,7 +842,7 @@ describe("fetchSubaccountKycStatus", () => {
     await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect(res.body).toEqual({ error: "The imported Avenia KYC attempt requires reconciliation" });
+    expect(res.body).toEqual({ error: "The imported KYC attempt requires reconciliation" });
     expect(getKycAttempts).not.toHaveBeenCalled();
     expect(subaccountInfo).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
@@ -1939,7 +1939,7 @@ describe("getUploadUrls", () => {
 
     const res = createResponse();
     await getUploadUrls(
-      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "user-1" } as any,
+      { body: { documentType: BrDocumentType.ID, taxId: "11222333000181" }, userId: "user-1" } as any,
       res as any
     );
 
@@ -1962,7 +1962,7 @@ describe("getUploadUrls", () => {
 
     const res = createResponse();
     await getUploadUrls(
-      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "attacker" } as any,
+      { body: { documentType: BrDocumentType.ID, taxId: "11222333000181" }, userId: "attacker" } as any,
       res as any
     );
 
@@ -1982,7 +1982,7 @@ describe("getUploadUrls", () => {
 
     const res = createResponse();
     await getUploadUrls(
-      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "business-user" } as any,
+      { body: { documentType: BrDocumentType.ID, taxId: "11222333000181" }, userId: "business-user" } as any,
       res as any
     );
 
@@ -2005,7 +2005,7 @@ describe("getUploadUrls", () => {
 
     const res = createResponse();
     await getUploadUrls(
-      { body: { documentType: AveniaDocumentType.ID, taxId: "08786985906" }, userId: "user-1" } as any,
+      { body: { documentType: BrDocumentType.ID, taxId: "08786985906" }, userId: "user-1" } as any,
       res as any
     );
 
@@ -2257,10 +2257,10 @@ describe("Avenia API KYB", () => {
   function documentResponse(id: string) {
     const documentType =
       id === "certificate-1"
-        ? AveniaDocumentType.CERTIFICATE_OF_INCORPORATION
+        ? BrDocumentType.CERTIFICATE_OF_INCORPORATION
         : id === "tax-document-1"
-          ? AveniaDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT
-          : AveniaDocumentType.PASSPORT;
+          ? BrDocumentType.COMPANY_TAX_IDENTIFICATION_DOCUMENT
+          : BrDocumentType.PASSPORT;
     return {
       document: { documentType, id, ready: true, uploadStatusFront: "PROCESSED" }
     };
@@ -2313,7 +2313,7 @@ describe("Avenia API KYB", () => {
     const res = createResponse();
     await createKybDocument(
       {
-        body: { documentType: AveniaDocumentType.CERTIFICATE_OF_INCORPORATION },
+        body: { documentType: BrDocumentType.CERTIFICATE_OF_INCORPORATION },
         credential: { profileId: "user-1" },
         query: { subAccountId: "subaccount-1" }
       } as any,
@@ -2322,7 +2322,7 @@ describe("Avenia API KYB", () => {
 
     expect(res.statusCode).toBe(httpStatus.CREATED);
     expect(createDocument).toHaveBeenCalledWith(
-      AveniaDocumentType.CERTIFICATE_OF_INCORPORATION,
+      BrDocumentType.CERTIFICATE_OF_INCORPORATION,
       false,
       "subaccount-1"
     );
@@ -2339,7 +2339,7 @@ describe("Avenia API KYB", () => {
     const res = createResponse();
     await createKybDocument(
       {
-        body: { documentType: AveniaDocumentType.CERTIFICATE_OF_INCORPORATION },
+        body: { documentType: BrDocumentType.CERTIFICATE_OF_INCORPORATION },
         query: { subAccountId: "subaccount-1" },
         userId: "attacker"
       } as any,
@@ -2359,7 +2359,7 @@ describe("Avenia API KYB", () => {
           createUbo,
           getUploadedDocument: mock(async () => ({
             document: {
-              documentType: AveniaDocumentType.PASSPORT,
+              documentType: BrDocumentType.PASSPORT,
               id: "identity-1",
               ready: false,
               uploadStatusFront: "PROCESSING"
@@ -2798,7 +2798,7 @@ describe("Avenia API KYB", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
-    expect(res.body).toEqual({ error: "Avenia request failed" });
+    expect(res.body).toEqual({ error: "Provider request failed" });
     expect(getKycAttempts).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,5 +1,5 @@
 import { KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@vortexfi/shared";
-import type { BrlaGetKycStatusResponse } from "@vortexfi/shared";
+import type { BrGetKycStatusResponse } from "@vortexfi/shared";
 import { describe, expect, it } from "bun:test";
 import { createActor, fromPromise, waitFor } from "xstate";
 import type { AveniaKycApi, KybLevel1Response } from "./api";
@@ -29,7 +29,7 @@ function deferred<T>() {
 
 type SubaccountOutput = {
   subAccountId: string;
-  maybeKycAttemptStatus?: BrlaGetKycStatusResponse;
+  maybeKycAttemptStatus?: BrGetKycStatusResponse;
   isCompany: boolean;
   kybUrls?: KybLevel1Response;
 };
@@ -290,7 +290,7 @@ describe("aveniaKycMachine", () => {
     const actor = createTestActor({
       createSubaccountActor: subaccountActorWith({
         isCompany: false,
-        maybeKycAttemptStatus: { status: "PROCESSING" } as unknown as BrlaGetKycStatusResponse,
+        maybeKycAttemptStatus: { status: "PROCESSING" } as unknown as BrGetKycStatusResponse,
         subAccountId: "sub-3"
       }),
       verifyStatusActor: fromPromise(() => new Promise<VerifyStatusActorOutput>(() => {}))

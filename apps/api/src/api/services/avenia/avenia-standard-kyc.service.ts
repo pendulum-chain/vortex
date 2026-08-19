@@ -97,18 +97,18 @@ async function claimAuthorizedStandardMethod(args: SubmitStandardAveniaKycArgs):
       transaction
     });
     if (!providerCustomer || providerCustomer.provider !== "avenia" || providerCustomer.customerType !== "individual") {
-      throw conflict("Standard individual Avenia KYC requires an individual Avenia customer");
+      throw conflict("Standard individual KYC requires an individual customer account");
     }
     const cases = await KycCase.findAll({
       lock: transaction.LOCK.UPDATE,
       transaction,
       where: { provider: "avenia", providerCustomerId: providerCustomer.id, type: "kyc" }
     });
-    if (cases.length !== 1) throw conflict("Exactly one canonical Avenia KYC case is required");
+    if (cases.length !== 1) throw conflict("Exactly one canonical KYC case is required");
     const kycCase = cases[0];
     await assertCurrentAuthorization(args, transaction, providerCustomer);
     if (providerCustomer.status === VerificationStatus.Approved || kycCase.status === VerificationStatus.Approved) {
-      throw conflict("The Avenia KYC case is already approved");
+      throw conflict("The KYC case is already approved");
     }
     if (kycCase.verificationMethod === "sumsub_share_token") throw conflict("This KYC case uses Sumsub token import");
     if (!kycCase.verificationMethod) await kycCase.update({ verificationMethod: "standard" }, { transaction });
@@ -119,13 +119,13 @@ async function claimAuthorizedStandardMethod(args: SubmitStandardAveniaKycArgs):
 function reconciliationError(): APIError {
   return new APIError({
     isPublic: true,
-    message: "The Avenia KYC submission outcome requires reconciliation",
+    message: "The KYC submission outcome requires reconciliation",
     status: httpStatus.BAD_GATEWAY
   });
 }
 
 function preProviderCheckError(): APIError {
-  return new APIError({ isPublic: true, message: "Avenia KYC pre-provider checks failed", status: httpStatus.BAD_GATEWAY });
+  return new APIError({ isPublic: true, message: "KYC pre-provider checks failed", status: httpStatus.BAD_GATEWAY });
 }
 
 function fingerprintPayload(payload: KycLevel1Payload): string {
@@ -158,7 +158,7 @@ function assertSubmissionBinding(
     submission.subjectProfileId !== args.subjectProfileId ||
     (!allowDifferentPayload && submission.payloadFingerprint !== payloadFingerprint)
   ) {
-    throw conflict("The Avenia KYC submission does not match this request");
+    throw conflict("The KYC submission does not match this request");
   }
 }
 
@@ -178,7 +178,7 @@ async function prepareSubmission(
     }
     await assertCurrentAuthorization(args, transaction, providerCustomer);
     if (kycCase.status === VerificationStatus.Approved || providerCustomer.status === VerificationStatus.Approved) {
-      throw conflict("This Avenia customer is already approved");
+      throw conflict("This customer is already approved");
     }
     const existing = kycCase.verificationSubmission;
     if (existing && existing.status !== "failed") {
@@ -226,7 +226,7 @@ async function prepareRetrySubmission(
     }
     await assertCurrentAuthorization(args, transaction, providerCustomer);
     if (kycCase.status === VerificationStatus.Approved || providerCustomer.status === VerificationStatus.Approved) {
-      throw conflict("This Avenia customer is already approved");
+      throw conflict("This customer is already approved");
     }
     assertSubmissionBinding(previous, args, payloadFingerprint, true);
     await kycCase.update(
@@ -276,7 +276,7 @@ async function claimPreparedSubmission(
       throw new Error("Standard KYC submission state disappeared");
     }
     if (kycCase.status === VerificationStatus.Approved || providerCustomer.status === VerificationStatus.Approved) {
-      throw conflict("This Avenia customer is already approved");
+      throw conflict("This customer is already approved");
     }
     assertSubmissionBinding(submission, args, payloadFingerprint);
     if (submission.status !== "prepared") return false;
@@ -316,7 +316,7 @@ async function confirmSubmission(kycCaseId: string, providerCustomerId: string, 
       throw new Error("Standard KYC submission claim disappeared");
     }
     if (submission.status === "confirmed") {
-      if (kycCase.providerCaseId !== attemptId) throw conflict("The Avenia KYC attempt requires reconciliation");
+      if (kycCase.providerCaseId !== attemptId) throw conflict("The KYC attempt requires reconciliation");
       return;
     }
     if (submission.status !== "submitted" && submission.status !== "ambiguous") {
@@ -385,7 +385,7 @@ async function reconcileSubmission(
   const submission = kycCase?.verificationSubmission;
   if (!kycCase || !submission) throw reconciliationError();
   assertSubmissionBinding(submission, args, payloadFingerprint);
-  if (!kycCase.submittedAt) throw conflict("The Avenia KYC submission requires manual reconciliation");
+  if (!kycCase.submittedAt) throw conflict("The KYC submission requires manual reconciliation");
   let attempt: KycAttempt;
   try {
     if (kycCase.providerCaseId) {
@@ -406,7 +406,7 @@ async function reconcileSubmission(
         : [];
       const excluded = new Set([...submission.attemptBaselineIds, ...bound.map(row => row.providerCaseId)]);
       const candidates = eligible.filter(candidate => !excluded.has(candidate.id));
-      if (candidates.length !== 1) throw conflict("The Avenia KYC submission requires manual reconciliation");
+      if (candidates.length !== 1) throw conflict("The KYC submission requires manual reconciliation");
       attempt = candidates[0];
     }
   } catch (error) {
@@ -425,7 +425,7 @@ async function reconcileSubmission(
 
 export async function submitStandardAveniaKyc(args: SubmitStandardAveniaKycArgs): Promise<KycLevel1Response> {
   assertAuthorizationShape(args);
-  if (args.providerCustomer.status === VerificationStatus.Approved) throw conflict("This Avenia customer is already approved");
+  if (args.providerCustomer.status === VerificationStatus.Approved) throw conflict("This customer is already approved");
   const claimedCase = await claimAuthorizedStandardMethod(args);
   const payloadFingerprint = fingerprintPayload(args.payload);
   let kycCase = await prepareSubmission(args, claimedCase.id, payloadFingerprint);

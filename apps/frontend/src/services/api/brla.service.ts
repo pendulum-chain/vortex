@@ -1,9 +1,9 @@
 import {
-  AveniaKYCDataUpload,
-  AveniaKYCDataUploadRequest,
-  BrlaGetUserRemainingLimitResponse,
-  BrlaGetUserResponse,
-  BrlaValidatePixKeyResponse,
+  BrGetUserRemainingLimitResponse,
+  BrGetUserResponse,
+  BrKYCDataUpload,
+  BrKYCDataUploadRequest,
+  BrValidatePixKeyResponse,
   RampDirection
 } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
@@ -19,8 +19,8 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The user's EVM wallet address
    */
-  static async getUser(taxId: string): Promise<BrlaGetUserResponse> {
-    return apiRequest<BrlaGetUserResponse>("get", `${this.BASE_PATH}/getUser`, undefined, {
+  static async getUser(taxId: string): Promise<BrGetUserResponse> {
+    return apiRequest<BrGetUserResponse>("get", `${this.BASE_PATH}/getUser`, undefined, {
       params: { taxId }
     });
   }
@@ -39,8 +39,8 @@ export class BrlaService {
    * @param pixKey The PIX key to validate
    * @returns Whether the PIX key is valid
    */
-  static async validatePixKey(pixKey: string): Promise<BrlaValidatePixKeyResponse> {
-    return apiRequest<BrlaValidatePixKeyResponse>("get", `${this.BASE_PATH}/validatePixKey`, undefined, {
+  static async validatePixKey(pixKey: string): Promise<BrValidatePixKeyResponse> {
+    return apiRequest<BrValidatePixKeyResponse>("get", `${this.BASE_PATH}/validatePixKey`, undefined, {
       params: { pixKey }
     });
   }
@@ -51,8 +51,8 @@ export class BrlaService {
    * @param direction The ramp direction
    * @returns The remaining limit
    */
-  static async getUserRemainingLimit(taxId: string, direction: RampDirection): Promise<BrlaGetUserRemainingLimitResponse> {
-    return apiRequest<BrlaGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
+  static async getUserRemainingLimit(taxId: string, direction: RampDirection): Promise<BrGetUserRemainingLimitResponse> {
+    return apiRequest<BrGetUserRemainingLimitResponse>("get", `${this.BASE_PATH}/getUserRemainingLimit`, undefined, {
       params: { direction, taxId }
     });
   }
@@ -62,7 +62,7 @@ export class BrlaService {
    * @param request The subaccount creation request
    * @returns The upload URLs and their corresponding IDs
    */
-  static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
-    return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
+  static async getUploadUrls(request: BrKYCDataUploadRequest): Promise<BrKYCDataUpload> {
+    return apiRequest<BrKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
   }
 }

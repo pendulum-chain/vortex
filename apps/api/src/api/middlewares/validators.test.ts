@@ -1,4 +1,4 @@
-import { AveniaDocumentType, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
+import { BrDocumentType, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
 import { describe, expect, it, mock } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -104,7 +104,7 @@ describe("validateCreateBestQuoteInput - networks whitelist", () => {
 describe("Avenia API KYB validators", () => {
   it("rejects double-sided corporate documents", () => {
     const req = {
-      body: { documentType: AveniaDocumentType.CERTIFICATE_OF_INCORPORATION, isDoubleSided: true }
+      body: { documentType: BrDocumentType.CERTIFICATE_OF_INCORPORATION, isDoubleSided: true }
     } as Request;
     const res = buildRes();
     const next = mock(() => undefined) as unknown as NextFunction;
@@ -117,7 +117,7 @@ describe("Avenia API KYB validators", () => {
 
   it("accepts double-sided UBO identification documents", () => {
     const req = {
-      body: { documentType: AveniaDocumentType.ID, isDoubleSided: true }
+      body: { documentType: BrDocumentType.ID, isDoubleSided: true }
     } as Request;
     const res = buildRes();
     const next = mock(() => undefined) as unknown as NextFunction;

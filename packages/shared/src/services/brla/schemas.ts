@@ -4,7 +4,6 @@ import {
   AveniaAccountInfoResponse,
   AveniaDocument,
   AveniaDocumentGetResponse,
-  AveniaDocumentType,
   AveniaFeeType,
   AveniaImportKycTokenResponse,
   AveniaOperationFee,
@@ -14,11 +13,12 @@ import {
   AveniaSubaccountAccountInfo,
   AveniaSubaccountWallet,
   AveniaTicketStatus,
-  AveniaUboResponse,
   AveniaVerificationAttemptResponse,
   AveniaWebhook,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
+  BrDocumentType,
+  BrUboResponse,
   DocumentUploadResponse,
   GetKycAttemptResponse,
   KybLevel1Response,
@@ -157,7 +157,7 @@ export const aveniaAccountInfoSchema = z.looseObject({
 export const aveniaDocumentResponseSchema = z.looseObject({
   document: z.looseObject({
     createdAt: z.string().min(1).optional(),
-    documentType: z.enum(AveniaDocumentType),
+    documentType: z.enum(BrDocumentType),
     id: z.string().min(1),
     ready: z.boolean(),
     updatedAt: z.string().min(1).optional(),
@@ -193,7 +193,7 @@ export const aveniaDocumentUploadResponseSchema = z.looseObject({
 /** The identifier returned by UBO creation. */
 export const aveniaUboResponseSchema = z.looseObject({
   id: z.string().min(1)
-}) satisfies z.ZodType<AveniaUboResponse>;
+}) satisfies z.ZodType<BrUboResponse>;
 
 /** The attempt identifier returned by API-based KYC and KYB Level 1 submissions. */
 export const aveniaLevel1ResponseSchema = z.looseObject({

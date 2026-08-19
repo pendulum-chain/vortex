@@ -31,12 +31,12 @@ describe("getOnboardingRequirements", () => {
     expect(response.body).toMatchObject({
       country: "BR",
       customerType: "business",
-      flow: "avenia-br-business-level-1-api-kyb",
-      provider: "avenia"
+      flow: "br-business-level-1-api-kyb",
+      family: "br"
     });
     expect(response.body).not.toHaveProperty("fields");
     const steps = (response.body as { steps: Array<{ method?: string; operationId?: string }> }).steps;
-    expect(steps.map(step => step.operationId).filter(Boolean)).toContain("submitAveniaKybLevel1Api");
+    expect(steps.map(step => step.operationId).filter(Boolean)).toContain("submitBrKybLevel1Api");
     expect(steps.some(step => step.method === "GET")).toBe(false);
   });
 

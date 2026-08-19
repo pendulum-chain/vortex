@@ -7,17 +7,17 @@ import {
   AveniaDocumentResponse,
   AveniaImportKycTokenRequest,
   AveniaImportKycTokenResponse,
-  AveniaKybLevel1Payload,
   AveniaPayinTicket,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   AveniaSwapTicket,
-  AveniaUboPayload,
-  AveniaUboResponse,
   AveniaVerificationAttemptResponse,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
+  BrKybLevel1Payload,
+  BrUboPayload,
+  BrUboResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -96,7 +96,7 @@ export interface EndpointMapping {
   };
   [Endpoint.Level1Api]: {
     POST: {
-      body: KycLevel1Payload | AveniaKybLevel1Payload;
+      body: KycLevel1Payload | BrKybLevel1Payload;
       response: KycLevel1Response;
     };
     GET: {
@@ -196,8 +196,8 @@ export interface EndpointMapping {
   };
   [Endpoint.Ubos]: {
     POST: {
-      body: AveniaUboPayload;
-      response: AveniaUboResponse;
+      body: BrUboPayload;
+      response: BrUboResponse;
     };
     GET: {
       body: undefined;

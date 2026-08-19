@@ -17,7 +17,7 @@ export function assertAveniaImportedTaxIdentity(
 ): void {
   const taxId = account?.accountInfo.taxId;
   if (typeof taxId === "string" && taxId.trim() && hashTaxReference(taxId) !== customer.taxReferenceHash) {
-    throw new Error("The imported Avenia KYC identity does not match the canonical customer");
+    throw new Error("The imported KYC identity does not match the canonical customer");
   }
 }
 
@@ -151,13 +151,13 @@ export async function updateAveniaKycOutcomeForCustomer(
       transaction,
       where: { id: expectedCase.id, providerCaseId: expectedCase.providerCaseId, providerCustomerId: lockedRecord.id }
     });
-    if (cases.length !== 1) throw new Error("The Avenia KYC case binding requires reconciliation");
+    if (cases.length !== 1) throw new Error("The KYC case binding requires reconciliation");
     const kycCase = cases[0];
     if (
       expectedCase.providerCaseId === null &&
       (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
     ) {
-      throw new Error("The Avenia KYC case binding requires reconciliation");
+      throw new Error("The KYC case binding requires reconciliation");
     }
 
     const approved =
@@ -209,13 +209,13 @@ export async function updateAveniaKycProgressForCustomer(
         providerCustomerId: lockedRecord.id
       }
     });
-    if (cases.length !== 1) throw new Error("The Avenia KYC case binding requires reconciliation");
+    if (cases.length !== 1) throw new Error("The KYC case binding requires reconciliation");
     const kycCase = cases[0];
     if (
       expectedCase.providerCaseId === null &&
       (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
     ) {
-      throw new Error("The Avenia KYC case binding requires reconciliation");
+      throw new Error("The KYC case binding requires reconciliation");
     }
 
     const terminalStatus = [lockedRecord.status, kycCase.status].includes(VerificationStatus.Approved)

@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredPayStatus,
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   AlfredpayKycStatus,
   BrlaApiService,
   KycAttemptResult,
@@ -283,9 +283,9 @@ describe("GET /v1/onboarding/status", () => {
     const { user } = await createAuthedUser("alfredpay-started@example.com");
     const view = await createAlfredpayCustomer(user.id, {
       alfredPayId: "alfredpay-started",
-      country: AlfredPayCountry.MX,
+      country: DomesticCountry.MX,
       status: AlfredPayStatus.Consulted,
-      type: AlfredpayCustomerType.INDIVIDUAL
+      type: DomesticCustomerType.INDIVIDUAL
     });
 
     const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "alfredpay-started" } });
@@ -302,7 +302,7 @@ describe("GET /v1/onboarding/status", () => {
 
   it("reflects an Alfredpay approval that lands after the wizard closed, without a reopen", async () => {
     const { user, token } = await createAuthedUser("alfredpay-late-approval@example.com");
-    const customer = await createTestAlfredpayCustomer(user.id, { alfredPayId: "ap-late", country: AlfredPayCountry.MX });
+    const customer = await createTestAlfredpayCustomer(user.id, { alfredPayId: "ap-late", country: DomesticCountry.MX });
     // Submitted, provider still reviewing — the state the card is stuck on once the modal closes.
     await customer.update({ status: VerificationStatus.InReview });
 
@@ -962,7 +962,7 @@ describe("GET /v1/onboarding/status", () => {
       status: VerificationStatus.Approved,
       type: "kyc"
     });
-    const alfredpay = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
+    const alfredpay = await createTestAlfredpayCustomer(user.id, { country: DomesticCountry.MX });
     await alfredpay.update({ status: VerificationStatus.InReview });
 
     const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });

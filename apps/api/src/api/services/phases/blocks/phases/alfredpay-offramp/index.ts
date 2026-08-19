@@ -10,7 +10,7 @@ import { startAlfredpayOfframp } from "./lifecycle";
 import {
   type AlfredpayOfframpRegistrationFacts,
   type AlfredpayOfframpRegistrationInput,
-  registerAlfredpayOfframp
+  registerDomesticOfframp
 } from "./registration";
 import { AlfredpayOfframpContext, simulateAlfredpayOfframp } from "./simulation";
 import { prepareAlfredpayOfframpTxs } from "./transactions";
@@ -37,7 +37,7 @@ export function AlfredpayOfframp<FromToken extends EvmToken, FromNetwork extends
     name: "AlfredpayOfframp",
     phases: ["squidRouterPermitExecute", "fundEphemeral", "finalSettlementSubsidy", "alfredpayOfframpTransfer"],
     prepareTxs: prepareAlfredpayOfframpTxs,
-    register: registerAlfredpayOfframp,
+    register: registerDomesticOfframp,
     simulate: simulateAlfredpayOfframp(fromToken, fromNetwork),
     start: startAlfredpayOfframp
   };

@@ -67,7 +67,7 @@ async function getAveniaLimits(userId: string): Promise<UserLimit[]> {
     response = await BrlaApiService.getInstance().getSubaccountUsedLimit(account.subAccountId);
   } catch (error) {
     if (error instanceof BrlaApiError) {
-      throw new APIError({ message: "Avenia limits are unavailable", status: httpStatus.BAD_GATEWAY });
+      throw new APIError({ message: "Provider limits are unavailable", status: httpStatus.BAD_GATEWAY });
     }
     throw error;
   }
@@ -78,7 +78,7 @@ async function getAveniaLimits(userId: string): Promise<UserLimit[]> {
 
   const { year, month } = brl.usedLimit;
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    throw new APIError({ message: "Avenia returned invalid limit period", status: httpStatus.BAD_GATEWAY });
+    throw new APIError({ message: "The provider returned an invalid limit period", status: httpStatus.BAD_GATEWAY });
   }
   const period = calendarMonthPeriod(year, month);
 

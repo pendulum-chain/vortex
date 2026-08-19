@@ -1,9 +1,9 @@
 import {
   AlfredPayStatus,
-  AlfredpayCustomerType,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
+  DomesticCustomerType,
   type SubmitKybInformationResponse,
   type SubmitKycInformationResponse
 } from "@vortexfi/shared";
@@ -77,7 +77,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
     actors: {
       checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
         const country = input.country || "US";
-        return api.getAlfredpayStatus(country);
+        return api.getDomesticStatus(country);
       }),
 
       createCustomer: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -104,14 +104,14 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         const country = input.country || "US";
         return api.notifyKycRedirectFinished(
           country,
-          input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+          input.business ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL
         );
       }),
       notifyOpened: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
         const country = input.country || "US";
         return api.notifyKycRedirectOpened(
           country,
-          input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+          input.business ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL
         );
       }),
       pollStatus: fromPromise(async ({ input, signal }: { input: AlfredpayKycContext; signal: AbortSignal }) => {
@@ -124,7 +124,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           try {
             const response = await api.getKycStatus(
               country,
-              input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+              input.business ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL
             );
             if (
               response.status === AlfredPayStatus.Success ||
@@ -153,7 +153,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
       }),
       retryKyc: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
         const country = input.country || "US";
-        return api.retryKyc(country, input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL);
+        return api.retryKyc(country, input.business ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL);
       }),
 
       sendKybSubmissionActor: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -269,7 +269,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           try {
             const status = await api.getKycStatus(
               country,
-              input.business ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL
+              input.business ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL
             );
             if (
               status.status === AlfredPayStatus.Verifying ||
