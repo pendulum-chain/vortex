@@ -312,6 +312,24 @@
       "slug": "kyb-deep-link",
       "source": "docs/api/pages/13-kyb-deep-link.md",
       "title": "KYB Deep Link"
+    },
+    {
+      "order": 14,
+      "seo": {
+        "keywords": [
+          "managed profiles",
+          "headless onboarding",
+          "sub-accounts",
+          "delegated ramps",
+          "B2B crypto payouts",
+          "KYC on behalf"
+        ],
+        "metaDescription": "Create and operate headless Vortex profiles for your own customers: provisioning, delegated KYC/KYB onboarding, child credentials, and ramping on their behalf.",
+        "metaTitle": "Managed Profiles — Onboard And Ramp For Your Customers"
+      },
+      "slug": "managed-profiles",
+      "source": "docs/api/pages/14-managed-profiles.md",
+      "title": "Managed Profiles"
     }
   ],
   "publicDocsUrl": "https://api-docs.vortexfinance.co/"

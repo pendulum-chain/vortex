@@ -234,4 +234,8 @@ Non-negotiable rules for an agent implementing these flows:
 - **BR individuals: the verification method locks permanently.** The first standard document, liveness artifact, submission, or status read commits the account to the `standard` method; a Sumsub token import commits it to `sumsub_share_token` and blocks the standard path. Decide the method before touching either flow.
 - **Pin `requirementsVersion`** alongside the docs commit and SDK version you already record (Section A), and re-run discovery when it changes.
 
+### H.1 Onboarding For Your Own Customers (Managed Profiles)
+
+Platforms that onboard their own users headlessly — no Vortex login or UI for the end customer — create **managed child profiles** and run every onboarding and ramp operation on the child's behalf, either with the manager credential plus `X-Managed-Profile-Id` or with child-owned credentials. All discovery-published onboarding steps and the full ramp lifecycle accept this delegation, subject to the manager's corridor policy; webhooks do not (poll instead). The walkthrough with examples is [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles); the authoritative contract is in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Agents implementing this pattern must key their idempotency and state on the manager-scoped `externalSubjectId` → `profileId` mapping, and must complete a BR child's Sumsub token import **before** any status read for that child (the method-lock rule above).
+
 ---

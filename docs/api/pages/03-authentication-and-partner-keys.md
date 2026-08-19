@@ -52,6 +52,8 @@ Webhook registration and deletion do not support managed children. `X-Managed-Pr
 
 ### Manage Headless Profiles
 
+This section is the authoritative contract; for a step-by-step walkthrough with examples, see [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
+
 An active manager may use its Supabase session or profile-bound secret credential on these endpoints:
 
 | Endpoint | Purpose |
