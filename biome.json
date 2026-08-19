@@ -124,6 +124,18 @@
       }
     }
   },
+  "overrides": [
+    {
+      "assist": {
+        "actions": {
+          "source": {
+            "useSortedKeys": "off"
+          }
+        }
+      },
+      "includes": ["packages/sdk/package.json"]
+    }
+  ],
   "vcs": {
     "clientKind": "git",
     "enabled": true,

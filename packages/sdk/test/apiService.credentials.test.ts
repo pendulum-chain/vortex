@@ -51,6 +51,51 @@ describe("ApiService credentials", () => {
     );
   });
 
+  test("resolves and sends a configured access token", async () => {
+    const fetchMock = mock(() => Promise.resolve(Response.json(rampInfo)));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await new ApiService("https://api.example", "pk_test_public", undefined, async () => "access-token").getRampInfo();
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual(
+      expect.objectContaining({ Authorization: "Bearer access-token", "X-Public-Key": "pk_test_public" })
+    );
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
+  });
+
+  test("resolves the access token again for each request", async () => {
+    const fetchMock = mock(() => Promise.resolve(Response.json(rampInfo)));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const tokens = ["first-token", "refreshed-token"];
+    const accessTokenProvider = mock(async () => tokens.shift());
+    const apiService = new ApiService("https://api.example", undefined, undefined, accessTokenProvider);
+
+    await apiService.getRampInfo();
+    await apiService.getRampInfo();
+
+    expect(accessTokenProvider).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual(
+      expect.objectContaining({ Authorization: "Bearer first-token" })
+    );
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toEqual(
+      expect.objectContaining({ Authorization: "Bearer refreshed-token" })
+    );
+  });
+
+  test("prefers a secret key over an access token provider", async () => {
+    const fetchMock = mock(() => Promise.resolve(Response.json(rampInfo)));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const accessTokenProvider = mock(async () => "access-token");
+
+    await new ApiService("https://api.example", undefined, "sk_test_secret", accessTokenProvider).getRampInfo();
+
+    expect(accessTokenProvider).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual(
+      expect.objectContaining({ "X-API-Key": "sk_test_secret" })
+    );
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+  });
+
   test("preserves a credential mismatch error code", async () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(

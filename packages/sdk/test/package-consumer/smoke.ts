@@ -1,6 +1,7 @@
 import { FiatToken, VortexSdk } from "@vortexfi/sdk";
 
 const sdk = new VortexSdk({
+  accessTokenProvider: async () => "current-access-token",
   apiBaseUrl: "https://api-sandbox.vortexfinance.co",
   offrampFundingMode: "deferred",
   storeEphemeralKeys: false
