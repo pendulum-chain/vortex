@@ -37,25 +37,25 @@ Use `/v1/brl/*` for BRL account and verification operations. The previous `/v1/b
 
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
-A normal partner key cannot select an arbitrary user. An enabled managed-profile manager may use a secret `sk_*` key or Supabase session with `X-Managed-Profile-Id` to drive supported BRLA KYC operations for its directly managed child when the manager has the `BR` corridor and the child's immutable type is allowed by both current manager policy and Vortex's BR capability matrix. A null manager customer-type policy adds no further restriction. A public `pk_*` key is insufficient. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
+A normal partner key cannot select an arbitrary user. An enabled managed-profile manager may use a secret `sk_*` key or Supabase session with `X-Managed-Profile-Id` to drive supported BR KYC operations for its directly managed child when the manager has the `BR` corridor and the child's immutable type is allowed by both current manager policy and Vortex's BR capability matrix. A null manager customer-type policy adds no further restriction. A public `pk_*` key is insufficient. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 
 ### Individual KYC By API
 
-The standard Brazilian individual flow (`avenia-br-individual-level-1-kyc`, mode `hybrid`) can be driven through the API; only the selfie liveness step opens a provider-hosted URL. The sequence published by discovery is:
+The standard Brazilian individual flow (mode `hybrid` in discovery) can be driven through the API; only the selfie liveness step opens a provider-hosted URL. The sequence published by discovery is:
 
-1. `POST /v1/brl/createSubaccount` — create the individual Avenia subaccount (skip when one already exists).
+1. `POST /v1/brl/createSubaccount` — create the individual provider subaccount (skip when one already exists).
 2. `POST /v1/brl/getUploadUrls` — create the identity-document and selfie upload targets. Only `ID` and `DRIVERS-LICENSE` are accepted for the identity document. The response's `idUpload.id` and `selfieUpload.id` are the document references the final submission needs.
 3. `PUT` the identity-document bytes to the returned presigned upload URL.
 4. Open the returned liveness URL and let the user complete the provider-hosted selfie capture.
 5. `POST /v1/brl/newKyc` — submit the Level 1 payload referencing `subAccountId`, `uploadedDocumentId`, and `uploadedSelfieId`. The endpoint waits a built-in 5 seconds for upstream document propagation before submitting, so expect the request to take at least that long.
 
-Track the outcome through `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>` or `GET /v1/onboarding/status`. Only Avenia `COMPLETED + APPROVED` completes KYC; the status mapping and the method-lock rules are shared with the token import documented below — in particular, the first standard document, liveness artifact, submission, or status read permanently selects the `standard` method, after which a Sumsub token import returns `409`.
+Track the outcome through `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>` or `GET /v1/onboarding/status`. Only a provider `COMPLETED + APPROVED` result completes KYC; the status mapping and the method-lock rules are shared with the token import documented below — in particular, the first standard document, liveness artifact, submission, or status read permanently selects the `standard` method, after which a Sumsub token import returns `409`.
 
 ### Individual KYC By Sumsub Share Token
 
-An API-only alternative can import a caller-supplied Sumsub share token into an existing individual Avenia account. The path is enabled under approved Vortex policy even though final legal/consent wording, Avenia environment enablement, recipient IDs, and provider retry confirmations remain unresolved. This documentation does not claim that a live sandbox import has been verified.
+An API-only alternative can import a caller-supplied Sumsub share token into an existing individual provider account. The path is enabled under approved Vortex policy even though final legal/consent wording, provider environment enablement, recipient IDs, and provider retry confirmations remain unresolved. This documentation does not claim that a live sandbox import has been verified.
 
-The direct profile or controlling manager first provisions exactly one active Brazilian individual Avenia customer through the normal account flow. Import the token before reading KYC or aggregate onboarding status: a status read permanently selects a still-null method as `standard`, after which token import returns `409`. Then call:
+The direct profile or controlling manager first provisions exactly one active Brazilian individual provider customer through the normal account flow. Import the token before reading KYC or aggregate onboarding status: a status read permanently selects a still-null method as `standard`, after which token import returns `409`. Then call:
 
 ```http
 POST /v1/brl/kyc/import-token
@@ -70,7 +70,7 @@ Content-Type: application/json
 }
 ```
 
-Use either a profile-bound secret key or a Supabase Bearer session. Omit `X-Managed-Profile-Id` for a direct non-managed profile. For a managed child, only its controlling manager may import with the selector; direct managed-child credentials are rejected. Authentication and authorization happen before strict body validation, and Vortex transactionally rechecks the manager's active status, exact active relationship, current BR and individual permissions, and the child's active entity before preparing or submitting the import. Revocation before submission prevents the Avenia import call. The body allows exactly the two fields shown, `importToken` must contain 1 to 1024 UTF-8 bytes, and `consentAttested` must be literal `true`. Do not send CPF, tax ID, `subAccountId`, Sumsub applicant ID, profile/entity IDs, provider-customer IDs, or any other identity selector.
+Use either a profile-bound secret key or a Supabase Bearer session. Omit `X-Managed-Profile-Id` for a direct non-managed profile. For a managed child, only its controlling manager may import with the selector; direct managed-child credentials are rejected. Authentication and authorization happen before strict body validation, and Vortex transactionally rechecks the manager's active status, exact active relationship, current BR and individual permissions, and the child's active entity before preparing or submitting the import. Revocation before submission prevents the provider import call. The body allows exactly the two fields shown, `importToken` must contain 1 to 1024 UTF-8 bytes, and `consentAttested` must be literal `true`. Do not send CPF, tax ID, `subAccountId`, Sumsub applicant ID, profile/entity IDs, provider-customer IDs, or any other identity selector.
 
 Vortex records every token-claim attestation in the case's submission JSON as an append-only actor, subject, timestamp, and provisional consent-policy entry. A provider-`401` retry under a new key appends rather than replacing the earlier evidence. These attestations are not a substitute for the caller's legal basis, applicant disclosures, biometric or special-category consent, or cross-organization transfer obligations.
 
@@ -78,24 +78,24 @@ A token-import claim returns `202 Accepted`:
 
 ```json
 {
-  "attemptId": "<exact-avenia-attempt-id>",
+  "attemptId": "<exact-provider-attempt-id>",
   "status": "pending"
 }
 ```
 
-`pending` means only that Avenia accepted the import. After `202`, clients poll `GET /v1/onboarding/status` (the authenticated aggregate onboarding view) or `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>`; `attemptId` is correlation data from the accepted response, not public status-poll input. Vortex polls that exact attempt internally rather than the latest account attempt. `PENDING` remains pending, `PROCESSING` is in review, and `COMPLETED + REJECTED` is rejected. `EXPIRED` remains non-approved and locally pending for reconciliation while Vortex retains the external `EXPIRED` status. Only Avenia `COMPLETED + APPROVED` completes KYC. Sumsub status, token possession, the `202` response, client assertions, and the Avenia webhook cannot approve onboarding; the webhook is notification-only.
+`pending` means only that the provider accepted the import. After `202`, clients poll `GET /v1/onboarding/status` (the authenticated aggregate onboarding view) or `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>`; `attemptId` is correlation data from the accepted response, not public status-poll input. Vortex polls that exact attempt internally rather than the latest account attempt. `PENDING` remains pending, `PROCESSING` is in review, and `COMPLETED + REJECTED` is rejected. `EXPIRED` remains non-approved and locally pending for reconciliation while Vortex retains the external `EXPIRED` status. Only a provider `COMPLETED + APPROVED` result completes KYC. Sumsub status, token possession, the `202` response, client assertions, and the provider webhook cannot approve onboarding; the webhook is notification-only.
 
 #### Method Lock And Safe Retries
 
 The first normal document/liveness artifact or normal submission permanently selects the `standard` method. A token-import claim permanently selects `sumsub_share_token` and blocks every normal KYC mutation. Vortex serializes this immutable choice on the canonical KYC case. Pre-provider failures mark the submission failed but do not unlock or change the selected method. Standard submission also uses durable `prepared`, `submitted`, `confirmed`, and `ambiguous` state so retries reconcile an existing provider attempt instead of blindly creating another. Its identity payload and echoed provider errors are omitted from logs and public errors.
 
-- Repeating a confirmed request with the same idempotency key and token returns the stored attempt and does not call Avenia again.
+- Repeating a confirmed request with the same idempotency key and token returns the stored attempt and does not repeat the provider call.
 - Reusing a key with another token returns `409 The idempotency key was used with a different token`.
 - A prior failed request returns `409 A failed token import requires a new idempotency key`. This includes a failed pre-provider attempt-baseline read even though Vortex did not send the token, and the provider-`401` case described below.
-- Repeating the same key and token for a submitted or ambiguous claim may safely reconcile the durable claim through Avenia status/history reads and return the exact attempt; this never repeats the provider token-import POST or sends the token again.
+- Repeating the same key and token for a submitted or ambiguous claim may safely reconcile the durable claim through provider status/history reads and return the exact attempt; this never repeats the provider token-import POST or sends the token again.
 - Concurrent claims and outcomes that cannot be uniquely reconciled return a stable `409` or `502` reconciliation error. Do not switch keys or replay the token.
-- Avenia provider `401` returns `412 Avenia token import is not enabled`. This is the sole post-send outcome classified as failed/retriable, and retry requires a new idempotency key.
-- Every other initial post-send provider error, timeout, transport failure, malformed success, provider 5xx, or local confirmation failure returns `502 The Avenia token import outcome requires reconciliation`. Never retry the token automatically or under a new key; only a same-key/same-token reconciliation request is safe.
+- A provider `401` returns `412` with a stable token-import-not-enabled error. This is the sole post-send outcome classified as failed/retriable, and retry requires a new idempotency key.
+- Every other initial post-send provider error, timeout, transport failure, malformed success, provider 5xx, or local confirmation failure returns `502` with a stable reconciliation-required error. Never retry the token automatically or under a new key; only a same-key/same-token reconciliation request is safe.
 
 Other prerequisite and immutable-method conflicts return `409` with a stable, non-secret `error` string. Invalid strict input returns `400`. Authentication and selector failures retain the structured authentication errors documented in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
@@ -103,11 +103,11 @@ Treat the share token as a secret. Keep it only long enough to make this request
 
 ### Business KYB Level 1 By API
 
-Brazilian business verification (`avenia-br-business-level-1-api-kyb`, mode `api`) runs entirely through the API. Authentication is the same as the rest of the family: a profile-bound secret key or Supabase Bearer session, or a controlling manager using `X-Managed-Profile-Id` for a directly managed business child with the `BR` corridor. The subaccount must be a company (CNPJ) account; KYB operations on an individual account return `400`.
+Brazilian business verification (mode `api` in discovery) runs entirely through the API. Authentication is the same as the rest of the family: a profile-bound secret key or Supabase Bearer session, or a controlling manager using `X-Managed-Profile-Id` for a directly managed business child with the `BR` corridor. The subaccount must be a company (CNPJ) account; KYB operations on an individual account return `400`.
 
 The sequence, including the readiness reads that discovery intentionally omits:
 
-1. `POST /v1/brl/createSubaccount` — create the company Avenia subaccount from the company name and CNPJ (skip when one already exists). The response's `subAccountId` is a query parameter on every following step.
+1. `POST /v1/brl/createSubaccount` — create the company provider subaccount from the company name and CNPJ (skip when one already exists). The response's `subAccountId` is a query parameter on every following step.
 2. `POST /v1/brl/kyb/documents?subAccountId=...` — create one upload target per document: `CERTIFICATE-OF-INCORPORATION` and `COMPANY-TAX-IDENTIFICATION-DOCUMENT` for the company, one identity document (`ID`, `DRIVERS-LICENSE`, `PASSPORT`, or `RESIDENCE-PERMIT`) per UBO, and optionally `SELFIE-FROM-LIVENESS` per UBO. The `201` response carries the document `id` plus presigned `uploadURLFront` (and `uploadURLBack` when `isDoubleSided`), or a `livenessUrl` for the liveness type.
 3. `PUT` the raw file bytes to each presigned URL (one request per side). Liveness documents are completed by opening the `livenessUrl` instead of uploading.
 4. `GET /v1/brl/kyb/documents/{documentId}` — poll until `ready` is `true` before referencing a document anywhere. `uploadStatusFront`/`uploadStatusBack` and `uploadErrorFront`/`uploadErrorBack` explain a stuck upload; referencing an unready document later returns `409 Document is not ready`.
@@ -156,7 +156,7 @@ Each corridor requires the user to complete KYC for the corridor's country befor
 Onboarding can be completed three ways:
 
 - **Vortex app or hosted Widget** — always available. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
-- **API-driven** (`mode: "api"` in discovery) — Argentina individuals, and Colombia and Mexico individuals and businesses. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. The `/v1/ar`, `/v1/co`, and `/v1/mx` prefixes may be used in place of the discovered `/v1/alfredpay` prefix; the prefix determines the country and overrides any country supplied in the query or body. Request shapes come from the referenced OpenAPI schemas, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls. The legacy `/v1/alfredpay` prefix remains supported and uses each step's `fixedBody` country discriminator.
+- **API-driven** (`mode: "api"` in discovery) — Argentina individuals, and Colombia and Mexico individuals and businesses. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. The `/v1/ar`, `/v1/co`, and `/v1/mx` prefixes may be used in place of the discovered legacy provider prefix; the country prefix determines the country and overrides any country supplied in the query or body. Request shapes come from the referenced OpenAPI schemas, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls. The discovered legacy prefix remains supported and uses each step's `fixedBody` country discriminator.
 - **Provider-hosted** (`mode: "hosted"` in discovery) — United States, both customer types. After creating the provider customer, open the provider-hosted verification URL, then report `kycRedirectOpened` and, when the user says they finished, `kycRedirectFinished`. Both notifications are bookkeeping only — they never approve a verification; the provider's decision is authoritative.
 
 Argentina business onboarding is not supported. After finalizing any flow, track the outcome through `GET /v1/onboarding/status`; provider review is asynchronous and there is no synchronous approval response.
@@ -175,7 +175,7 @@ After `POST /v1/ramp/start`, the response's `achPaymentData` contains the bank t
 
 Per-currency minimum and maximum amounts are enforced at quote time and refreshed periodically from the payment partner. A quote outside the limits fails with a descriptive error; prompt the user to adjust the amount.
 
-Authenticated clients can request account limits with `POST /v1/limits`, passing a list of corridor country codes. The response contains separate onramp and offramp maximums, consumed amounts, units, and calendar-month boundaries. Avenia usage and period values come from the provider. Alfredpay usage is calculated from completed Vortex ramps and cached for 60 seconds; its calendar-month reset is a Vortex assumption because Alfredpay's public API does not publish quota-period semantics.
+Authenticated clients can request account limits with `POST /v1/limits`, passing a list of corridor country codes. The response contains separate onramp and offramp maximums, consumed amounts, units, and calendar-month boundaries. BR usage and period values come from the payment partner. Bank-transfer-corridor usage is calculated from completed Vortex ramps and cached for 60 seconds; its calendar-month reset is a Vortex assumption because the partner's public API does not publish quota-period semantics.
 
 ## EUR (SEPA)
 

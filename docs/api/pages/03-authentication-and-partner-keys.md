@@ -17,7 +17,7 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Ramp register/update/start/status/history/errors | No | Yes | Yes |
 | Act for an authorized managed child | No | Yes | Yes |
 | Manage a directly owned child's credentials | No | Yes | Yes |
-| Import an Avenia individual-KYC share token | No | Yes | Yes |
+| Import an individual-KYC share token (BR) | No | Yes | Yes |
 | Webhook management (non-managed subjects only) | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
