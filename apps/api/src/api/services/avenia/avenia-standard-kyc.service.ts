@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  BrlaApiError,
   BrlaApiService,
   type KycAttempt,
   KycAttemptResult,
@@ -126,6 +127,23 @@ function reconciliationError(): APIError {
 
 function preProviderCheckError(): APIError {
   return new APIError({ isPublic: true, message: "KYC pre-provider checks failed", status: httpStatus.BAD_GATEWAY });
+}
+
+// A deterministic client rejection creates no attempt, so the claim can be released for a
+// corrected retry. Timeouts, rate limits, conflicts and 5xx may still have reached Avenia and
+// stay ambiguous. Mirrors the UBO creation classification in avenia-kyb.service.ts.
+function isDeterministicProviderRejection(error: unknown): boolean {
+  return error instanceof BrlaApiError && error.status >= 400 && error.status < 500 && ![408, 409, 429].includes(error.status);
+}
+
+// Avenia's own status is not forwarded: its 4xx codes describe Vortex's provider request, not the
+// caller's, and its detail is already redacted by the client's sensitive-body mode.
+function providerRejectionError(): APIError {
+  return new APIError({
+    isPublic: true,
+    message: "The provider rejected the KYC submission. Correct the submitted details and try again.",
+    status: httpStatus.BAD_REQUEST
+  });
 }
 
 function fingerprintPayload(payload: KycLevel1Payload): string {
@@ -493,7 +511,11 @@ export async function submitStandardAveniaKyc(args: SubmitStandardAveniaKycArgs)
   let attemptId: string;
   try {
     attemptId = (await brlaApiService.submitKycLevel1(args.payload)).id;
-  } catch {
+  } catch (error) {
+    if (isDeterministicProviderRejection(error)) {
+      await updateClaim(kycCase.id, { errorClassification: "provider_rejected", status: "failed" }, ["submitted"]);
+      throw providerRejectionError();
+    }
     await quarantineSubmission(kycCase.id).catch(() => undefined);
     throw reconciliationError();
   }

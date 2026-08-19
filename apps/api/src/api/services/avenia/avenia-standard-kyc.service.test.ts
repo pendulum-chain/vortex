@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { BrlaApiService, type KycAttempt, KycAttemptResult, KycAttemptStatus, type KycLevel1Payload } from "@vortexfi/shared";
+import {
+  BrlaApiError,
+  BrlaApiService,
+  type KycAttempt,
+  KycAttemptResult,
+  KycAttemptStatus,
+  type KycLevel1Payload
+} from "@vortexfi/shared";
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import sequelize from "../../../config/database";
 import CustomerEntity from "../../../models/customerEntity.model";
@@ -69,6 +76,7 @@ interface HarnessOptions {
   submittedAt?: Date | null;
   submission?: IndividualKycSubmission;
   submitError?: boolean;
+  submitRejectionStatus?: number;
   verificationMethod?: KycCase["verificationMethod"];
   verificationAttempt?: Partial<KycAttempt>;
 }
@@ -120,6 +128,14 @@ function harness(options: HarnessOptions = {}) {
   sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as never;
   const submitKycLevel1 = mock(async () => {
     if (options.submitError) throw new Error("response lost");
+    if (options.submitRejectionStatus) {
+      throw new BrlaApiError({
+        endpoint: "/v2/kyc/new-level-1/api",
+        method: "POST",
+        responseBody: "Sensitive provider response omitted",
+        status: options.submitRejectionStatus
+      });
+    }
     if (options.approveDuringSubmit) {
       providerCustomer.status = VerificationStatus.Approved;
       kycCase.status = VerificationStatus.Approved;
@@ -305,6 +321,55 @@ describe("submitStandardAveniaKyc", () => {
     });
     expect(state.submitKycLevel1).toHaveBeenCalledTimes(1);
     timeout.mockRestore();
+  });
+
+  it("releases the claim for a corrected retry after a deterministic provider rejection", async () => {
+    const state = harness({ submitRejectionStatus: 400 });
+    const timeout = spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void) => {
+      callback();
+      return 0;
+    }) as typeof setTimeout);
+
+    await expect(submitStandardAveniaKyc({ ...request, providerCustomer: state.providerCustomer })).rejects.toMatchObject({
+      status: 400
+    });
+    expect(state.kycCase.verificationSubmission).toMatchObject({
+      errorClassification: "provider_rejected",
+      status: "failed"
+    });
+
+    // A failed claim is re-preparable, so the corrected payload reaches Avenia instead of
+    // deadlocking on a fingerprint mismatch.
+    const corrected = { ...payload, taxIdNumber: "corrected-tax-id" };
+    state.submitKycLevel1.mockImplementation(async () => ({ id: "attempt-2" }));
+    await expect(
+      submitStandardAveniaKyc({ ...request, payload: corrected, providerCustomer: state.providerCustomer })
+    ).resolves.toEqual({ id: "attempt-2" });
+    expect(state.kycCase.verificationSubmission).toMatchObject({
+      payloadFingerprint: fingerprint(corrected),
+      status: "confirmed"
+    });
+    expect(state.submitKycLevel1).toHaveBeenCalledTimes(2);
+    timeout.mockRestore();
+  });
+
+  it("still quarantines a retryable provider status that may have created an attempt", async () => {
+    for (const status of [408, 429, 500, 502]) {
+      const state = harness({ submitRejectionStatus: status });
+      const timeout = spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void) => {
+        callback();
+        return 0;
+      }) as typeof setTimeout);
+
+      await expect(submitStandardAveniaKyc({ ...request, providerCustomer: state.providerCustomer })).rejects.toMatchObject({
+        status: 502
+      });
+      expect(state.kycCase.verificationSubmission).toMatchObject({
+        errorClassification: "provider_outcome_unknown",
+        status: "ambiguous"
+      });
+      timeout.mockRestore();
+    }
   });
 
   it("binds the exact attempt when approval wins before local confirmation", async () => {
