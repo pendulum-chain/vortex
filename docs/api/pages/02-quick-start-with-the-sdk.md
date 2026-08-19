@@ -1,6 +1,6 @@
 # Quick Start With The SDK
 
-This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
+This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk` in Node.js or a modern browser.
 
 ## Install
 
@@ -10,7 +10,7 @@ npm install @vortexfi/sdk
 bun add @vortexfi/sdk
 ```
 
-## Initialize
+## Initialize In Node.js
 
 ```js
 import {
@@ -34,6 +34,20 @@ const sdk = new VortexSdk(config);
 
 `publicKey` is sent as `X-Public-Key` (and retained in quote bodies for compatibility) for attribution, approved low-sensitivity reads, and discount eligibility. `secretKey` is sent as `X-API-Key` and must only be used server-side. Both values should come from the same API credential; a mixed pair returns `403 CREDENTIAL_MISMATCH`. A valid secret may be used without a public value.
 
+## Initialize In A Browser
+
+Browser integrations use the user's renewable Supabase session and never configure `secretKey`:
+
+```js
+const sdk = new VortexSdk({
+  apiBaseUrl: "https://api.vortexfinance.co",
+  publicKey: "pk_live_...",
+  accessTokenProvider: async () => getCurrentSession()?.accessToken
+});
+```
+
+The configured browser origin must be present in the API deployment's `BROWSER_SDK_ORIGINS` allowlist. The browser build rejects `secretKey` at construction.
+
 You can check the authenticated subject's sanitized corridor readiness without exposing exact limits or profile data:
 
 ```js
@@ -41,7 +55,7 @@ const info = await sdk.getRampInfo();
 console.log(info.corridors.BR?.kycStatus, info.corridors.BR?.canBuy);
 ```
 
-Constructing `VortexSdk` opens three WebSocket connections (Pendulum, Moonbeam, Hydration). Reuse one instance per process; do not construct a new SDK per request.
+Constructing `VortexSdk` does not open chain WebSockets. Required connections are initialized lazily when returned transactions need them. Reuse one instance per active integration flow.
 
 ## BRL Onramp (Buy)
 
@@ -154,7 +168,7 @@ console.log(started.achPaymentData);
 
 No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
 
-Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires the configured `secretKey` to resolve to an onboarded profile. The same profile must have completed KYC for the corridor's country, so registration resolves to its verified payment profile automatically. A `publicKey`-only registration is rejected. Raw API integrations may alternatively register with the user's Supabase Bearer session.
+Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires either a configured `secretKey` or an `accessTokenProvider` returning the current Supabase Bearer session to resolve to an onboarded profile. The same profile must have completed KYC for the corridor's country, so registration resolves to its verified payment profile automatically. A `publicKey`-only registration is rejected. Never expose an `sk_*` in browser code.
 
 The SDK cannot mint credentials or run KYC. Onboard the real user through the Vortex app or Widget, or use Vortex's managed-profile workflow, then use a credential bound to that profile. The secret is shown only once at creation; see [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys). This applies to buys and sells in all four corridors.
 
@@ -216,6 +230,6 @@ Most updates happen inside the SDK. For BRL buys, `registerRamp` already submits
 
 The SDK creates fresh ephemeral accounts per ramp, signs the transactions Vortex returns, submits ramp updates, and can persist a local backup of ephemeral secrets. This removes the most error-prone parts of a custom integration.
 
-If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup. The default backup is an **unencrypted** JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat it as sensitive key material; encrypt it, restrict the directory, or disable storage and implement your own store. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
+The default backup is **unencrypted**: Node.js writes `ephemerals_{rampId}.json` in the current working directory, while browsers write that key to same-origin localStorage. Treat either as sensitive key material. Browser storage is prototype-grade and readable by every script on the origin. Setting `storeEphemeralKeys: false` disables the SDK backup entirely. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 
 ---

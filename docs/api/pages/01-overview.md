@@ -27,12 +27,12 @@ The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integra
 
 | Stack / use case | Recommended path |
 |---|---|
-| Trusted Node.js backend | `@vortexfi/sdk` |
+| Custom Node.js or browser integration | `@vortexfi/sdk` |
 | Python backend | `vortex-sdk-python` (process-bridge wrapper around the Node SDK) |
 | Browser / mobile / hosted checkout | Vortex Widget |
 | Any other language or runtime | Direct API integration following the SDK's behavior |
 
-The SDK is intended for **trusted server-side Node.js** only. Browser support is not enabled. For browser-driven UX, embed the Widget instead of calling the API directly from the browser.
+The SDK publishes Node.js and modern-browser builds. Server integrations authenticate with a user-linked `sk_*`; browser integrations must use a renewable Supabase Bearer session through `accessTokenProvider` and must never embed an `sk_*`. Browser origins must be explicitly approved in the API's `BROWSER_SDK_ORIGINS` configuration. The hosted Widget remains the lowest-effort production UI.
 
 ## Custody Model
 

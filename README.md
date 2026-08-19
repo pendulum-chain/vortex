@@ -12,6 +12,7 @@ This is a Bun monorepo.
 |---|---|
 | [`apps/api`](apps/api/) | Express API, ramp engine, provider integrations, PostgreSQL workers |
 | [`apps/frontend`](apps/frontend/) | Public site and embeddable ramp widget |
+| [`apps/demo`](apps/demo/) | Minimal browser SDK example for a BRL/PIX onramp |
 | [`apps/dashboard`](apps/dashboard/) | Authenticated customer dashboard |
 | [`apps/rebalancer`](apps/rebalancer/) | Liquidity rebalancing service |
 | [`packages/shared`](packages/shared/) | Shared contracts, token/network configuration, and signing utilities |
@@ -33,13 +34,14 @@ bun dev
 ```
 
 In a fresh Git worktree, run `bun bootstrap:worktree` instead of `bun install`; it also
-builds the shared workspace required by the apps.
+builds the shared and SDK workspaces required by the apps.
 
 The default development command starts the shared package, API, and widget. Run other
 surfaces explicitly:
 
 ```bash
 bun dev:dashboard
+bun dev:demo
 bun dev:rebalancer
 ```
 

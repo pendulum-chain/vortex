@@ -2,15 +2,15 @@
 
 ## What This Does
 
-Supabase OTP is the primary authentication mechanism for end-users (browser-based frontend). Users authenticate by entering their email address and receiving a one-time password (OTP). Supabase handles OTP generation, delivery, and verification — the Vortex API trusts Supabase-issued JWTs.
+Supabase OTP is the primary authentication mechanism for end-users in the widget, dashboard, and browser SDK demo. Users authenticate by entering their email address and receiving a one-time password. Supabase handles OTP generation, delivery, and verification; the Vortex API trusts Supabase-issued JWTs.
 
 The flow:
-1. Frontend calls Supabase directly to send OTP to user's email
+1. The browser calls the Vortex auth endpoints, which delegate OTP delivery and verification to Supabase
 2. User enters OTP in frontend
 3. Supabase verifies OTP and issues a JWT access token
 4. Frontend includes JWT in `Authorization: Bearer <token>` header on API requests
 5. API middleware (`supabaseAuth.ts`) verifies the JWT via `SupabaseAuthService.verifyToken()` and attaches `userId` to the request
-6. Access tokens are short-lived. The widget and dashboard verify stored access tokens on startup and fall back to `POST /v1/auth/refresh` when verification fails. They also refresh through that endpoint just before expiry and after a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures (Supabase unreachable / 5xx) return `503` so the frontend keeps the session and retries.
+6. Access tokens are short-lived. The widget and dashboard verify stored access tokens on startup and refresh just before expiry or after a `401`. The browser SDK demo stores its access and refresh tokens under `vortex-demo-auth:v1`, refreshes before expiry, treats malformed cached JWTs as requiring refresh, and returns to OTP login after an authenticated SDK request receives `401`. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures return `503` so clients retain the session.
 
 Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
@@ -30,12 +30,14 @@ Routes that accept either a Supabase session or a secret API credential verify t
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
 10. **Managed profiles MUST NOT have an OTP identity** — `profiles.kind = managed` requires a null email and represents no Supabase Auth identity. Provisioning must never create or associate a Supabase user for a managed profile; bearer middleware continues to trust authoritative Supabase token validation.
+11. **Prototype browser token storage MUST be treated as XSS-readable** — The browser SDK demo stores access and refresh tokens in plaintext same-origin localStorage. It MUST NOT claim HttpOnly isolation. Its deployment origin requires CSP, dependency integrity, and XSS prevention, and it is not the hosted production-custody recommendation.
 
 ## Threat Vectors & Mitigations
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Configured token expiry (1 week); TLS enforcement; HttpOnly cookies if applicable |
+| **Browser demo XSS** | Same-origin script reads the demo refresh token, PIX instructions, ramp history, or SDK ephemeral backups from localStorage | This is an explicit prototype limitation. Restrict allowed origins, deploy a strict CSP, minimize same-origin third-party code, and use the hosted Widget when this custody model is unacceptable. |
 | **Supabase service key leak** | Attacker obtains `SUPABASE_SERVICE_KEY` and gains broad administrative privileges | Access-token verification uses the least-privileged Auth client; service-role use is limited to administrative operations. The key remains server-only and independently rotatable. |
 | **Supabase outage** | Supabase is unreachable — verification calls fail | Both middleware variants fail closed with `503`; no fallback to anonymous or unverified access and no false invalid-token signal. |
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |
