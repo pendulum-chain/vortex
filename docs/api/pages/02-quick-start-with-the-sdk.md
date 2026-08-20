@@ -232,4 +232,6 @@ The SDK creates fresh ephemeral accounts per ramp, signs the transactions Vortex
 
 The default backup is **unencrypted**: Node.js writes `ephemerals_{rampId}.json` in the current working directory, while browsers write that key to same-origin localStorage. Treat either as sensitive key material. Browser storage is prototype-grade and readable by every script on the origin. Setting `storeEphemeralKeys: false` disables the SDK backup entirely. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 
+For quote request races, browser token refresh, wallet-network checks, resumable payment screens, and safe polling, see [Custom UI Integration](https://api-docs.vortexfinance.co/custom-ui-integration).
+
 ---

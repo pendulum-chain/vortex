@@ -303,6 +303,24 @@
       "slug": "kyb-deep-link",
       "source": "docs/api/pages/13-kyb-deep-link.md",
       "title": "KYB Deep Link"
+    },
+    {
+      "order": 14,
+      "seo": {
+        "keywords": [
+          "custom crypto on-ramp UI",
+          "Vortex SDK integration",
+          "payment UI best practices",
+          "resilient checkout integration",
+          "wallet network validation",
+          "ramp status polling"
+        ],
+        "metaDescription": "Build a resilient custom Vortex UI with safe quote handling, browser token refresh, wallet checks, resumable payments, start reconciliation, and status polling.",
+        "metaTitle": "Custom UI Integration Best Practices — Vortex"
+      },
+      "slug": "custom-ui-integration",
+      "source": "docs/api/pages/14-custom-ui-integration.md",
+      "title": "Custom UI Integration"
     }
   ],
   "publicDocsUrl": "https://api-docs.vortexfinance.co/"
