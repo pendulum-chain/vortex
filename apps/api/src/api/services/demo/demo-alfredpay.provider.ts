@@ -1,9 +1,9 @@
 import {
   AlfredpayApiService,
-  DomesticCustomerType,
   type AlfredpayKybCustomerAndBusiness,
   AlfredpayKybStatus,
   type CreateAlfredpayCustomerResponse,
+  DomesticCustomerType,
   type GetKybRedirectLinkResponse,
   type GetKybStatusResponse,
   type GetKybSubmissionResponse,
