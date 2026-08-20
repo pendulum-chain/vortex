@@ -10,10 +10,8 @@
 /en/widget                     /_shell.html  200
 /pt-BR/widget                  /_shell.html  200
 
-# `pt-br` is accepted case-insensitively by the locale route but is not prerendered,
-# so the lowercase form renders client-side from the shell.
-/pt-br                         /_shell.html  200
-/pt-br/*                       /_shell.html  200
+# Support the lowercase widget alias without turning unknown localized paths into soft 404s.
+/pt-br/widget                  /_shell.html  200
 
 # Everything else is a real 404
 /*                             /404.html    404
