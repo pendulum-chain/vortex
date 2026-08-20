@@ -55,6 +55,18 @@ describe("wagmiConfig without a DOM", () => {
   });
 });
 
+describe("Supabase config without environment variables", () => {
+  it("can be imported for prerendering and validates only when auth is used", async () => {
+    vi.stubEnv("VITE_SUPABASE_URL", "");
+    vi.stubEnv("VITE_SUPABASE_ANON_KEY", "");
+
+    const { getSupabaseClient } = await import("../config/supabase");
+
+    expect(() => getSupabaseClient()).toThrow("Missing Supabase environment variables");
+    vi.unstubAllEnvs();
+  });
+});
+
 describe("Globe without a DOM", () => {
   const html = renderToString(<Globe />);
 
