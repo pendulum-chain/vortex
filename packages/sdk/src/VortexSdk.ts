@@ -1,16 +1,16 @@
 import {
   AccountMeta,
-  AlfredPayCountry,
-  AlfredpayFiatAccount,
   CreateQuoteRequest,
   createMoonbeamEphemeral,
   createPendulumEphemeral,
+  DomesticCountry,
+  DomesticFiatAccount,
   EphemeralAccount,
   EphemeralAccountType,
   EvmTransactionData,
   GetRampInfoResponse,
   GetRampStatusResponse,
-  isAlfredpayToken,
+  isDomesticToken,
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
@@ -25,20 +25,20 @@ import {
 } from "@vortexfi/shared";
 import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712.js";
 import { TransactionSigningError } from "./errors.js";
-import { AlfredpayHandler } from "./handlers/AlfredpayHandler.js";
 import { BrlHandler } from "./handlers/BrlHandler.js";
+import { DomesticHandler } from "./handlers/DomesticHandler.js";
 import { MykoboHandler } from "./handlers/MykoboHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
 import { NetworkManager } from "./services/NetworkManager.js";
 import { storeEphemeralKeys } from "./storage.js";
 import type {
-  AlfredpayOfframpAdditionalData,
-  AlfredpayOfframpUpdateAdditionalData,
-  AlfredpayOnrampAdditionalData,
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
+  DomesticOfframpAdditionalData,
+  DomesticOfframpUpdateAdditionalData,
+  DomesticOnrampAdditionalData,
   EurOfframpAdditionalData,
   EurOfframpUpdateAdditionalData,
   EurOnrampAdditionalData,
@@ -56,7 +56,7 @@ export class VortexSdk {
   private accessTokenProvider: VortexSdkConfig["accessTokenProvider"];
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
-  private alfredpayHandler: AlfredpayHandler;
+  private domesticHandler: DomesticHandler;
   private mykoboHandler: MykoboHandler;
   private storeEphemeralKeys: boolean;
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
@@ -81,7 +81,7 @@ export class VortexSdk {
       this.signTransactions.bind(this)
     );
 
-    this.alfredpayHandler = new AlfredpayHandler(
+    this.domesticHandler = new DomesticHandler(
       this.apiService,
       this,
       this.generateEphemerals.bind(this),
@@ -108,8 +108,8 @@ export class VortexSdk {
     return this.apiService.getQuote(quoteId);
   }
 
-  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
-    return this.apiService.listAlfredpayFiatAccounts(country);
+  async listDomesticFiatAccounts(country: DomesticCountry): Promise<DomesticFiatAccount[]> {
+    return this.apiService.listDomesticFiatAccounts(country);
   }
 
   async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
@@ -143,10 +143,10 @@ export class VortexSdk {
     let unsignedTransactions: UnsignedTx[] = [];
 
     if (quote.rampType === RampDirection.BUY) {
-      if (isAlfredpayToken(quote.inputCurrency)) {
-        rampProcess = await this.alfredpayHandler.registerAlfredpayOnramp(
+      if (isDomesticToken(quote.inputCurrency)) {
+        rampProcess = await this.domesticHandler.registerDomesticOnramp(
           quote.id,
-          additionalData as AlfredpayOnrampAdditionalData
+          additionalData as DomesticOnrampAdditionalData
         );
         unsignedTransactions = [];
       } else if (quote.from === "pix") {
@@ -166,9 +166,9 @@ export class VortexSdk {
       if (this.offrampFundingMode !== "deferred") {
         await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
       }
-      if (isAlfredpayToken(quote.outputCurrency)) {
-        const offrampData = additionalData as AlfredpayOfframpAdditionalData;
-        rampProcess = await this.alfredpayHandler.registerAlfredpayOfframp(quote.id, offrampData);
+      if (isDomesticToken(quote.outputCurrency)) {
+        const offrampData = additionalData as DomesticOfframpAdditionalData;
+        rampProcess = await this.domesticHandler.registerDomesticOfframp(quote.id, offrampData);
         unsignedTransactions = await this.getUserTransactions(rampProcess, offrampData.walletAddress);
       } else if (quote.to === "pix") {
         rampProcess = await this.brlHandler.registerBrlOfframp(quote.id, additionalData as BrlOfframpAdditionalData);
@@ -194,19 +194,16 @@ export class VortexSdk {
     additionalUpdateData: UpdateRampAdditionalData<Q>
   ): Promise<RampProcess> {
     if (quote.rampType === RampDirection.BUY) {
-      if (isAlfredpayToken(quote.inputCurrency)) {
-        throw new Error("Alfredpay onramp does not require any further data");
+      if (isDomesticToken(quote.inputCurrency)) {
+        throw new Error("This onramp does not require any further data");
       } else if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp does not require any further data");
       }
     } else if (quote.rampType === RampDirection.SELL) {
-      if (isAlfredpayToken(quote.outputCurrency)) {
-        return this.alfredpayHandler.updateAlfredpayOfframp(
-          rampId,
-          additionalUpdateData as AlfredpayOfframpUpdateAdditionalData
-        );
+      if (isDomesticToken(quote.outputCurrency)) {
+        return this.domesticHandler.updateDomesticOfframp(rampId, additionalUpdateData as DomesticOfframpUpdateAdditionalData);
       } else if (quote.to === "pix") {
         return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {

@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, RampDirection, RegisterRampRequest } from "@vortexfi/shared";
+import { FiatToken, isDomesticToken, RampDirection, RegisterRampRequest } from "@vortexfi/shared";
 import { RampContext } from "../types";
 
 export enum RegisterRampErrorType {
@@ -68,7 +68,7 @@ export function buildRegisterRampAdditionalData(
     };
   }
 
-  if (rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
+  if (rampType === RampDirection.BUY && isDomesticToken(executionInput.fiatToken)) {
     return {
       destinationAddress: executionInput.sourceOrDestinationAddress,
       fiatAccountId: executionInput.selectedFiatAccountId,
@@ -77,7 +77,7 @@ export function buildRegisterRampAdditionalData(
     };
   }
 
-  if (rampType === RampDirection.SELL && isAlfredpayToken(executionInput.fiatToken)) {
+  if (rampType === RampDirection.SELL && isDomesticToken(executionInput.fiatToken)) {
     return {
       fiatAccountId: executionInput.selectedFiatAccountId,
       sessionId: input.externalSessionId,

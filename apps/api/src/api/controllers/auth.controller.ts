@@ -3,6 +3,7 @@ import logger from "../../config/logger";
 import User from "../../models/user.model";
 import { RefreshTokenError, SupabaseAuthService } from "../services/auth";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { restoreDemoAccountOnLogin } from "../services/demo/demo-account.service";
 import { markManagedProfileClaimed, normalizeManagedProfileEmail } from "../services/managed-profile.service";
 
 export class AuthController {
@@ -100,6 +101,9 @@ export class AuthController {
       } catch (entityError) {
         logger.error("Failed to create customer entity for new profile:", entityError);
       }
+
+      // Sandbox demo account only; a no-op everywhere else.
+      await restoreDemoAccountOnLogin(email);
 
       return res.json({
         access_token: result.access_token,

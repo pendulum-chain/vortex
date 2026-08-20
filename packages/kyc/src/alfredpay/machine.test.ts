@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   AlfredPayStatus,
-  type AlfredpayCreateCustomerResponse,
-  type AlfredpayGetKycRedirectLinkResponse,
-  type AlfredpayGetKycStatusResponse,
+  type DomesticCreateCustomerResponse,
+  type DomesticGetKycRedirectLinkResponse,
+  type DomesticGetKycStatusResponse,
   type AlfredpayKybCustomerAndBusiness,
-  type AlfredpayStatusResponse,
+  type DomesticStatusResponse,
   type SubmitKybInformationResponse,
   type SubmitKycInformationResponse
 } from "@vortexfi/shared";
@@ -42,13 +42,13 @@ const alfredpayKycMachine = createAlfredpayKycMachine({
 
 const notifyActor = () => fromPromise<{ success: boolean }, AlfredpayKycContext>(async () => ({ success: true }));
 
-const statusOf = (status: AlfredPayStatus) => ({ status }) as AlfredpayStatusResponse;
+const statusOf = (status: AlfredPayStatus) => ({ status }) as DomesticStatusResponse;
 const kycStatusOf = (status: AlfredPayStatus, lastFailure?: string) =>
-  ({ lastFailure, status }) as AlfredpayGetKycStatusResponse;
+  ({ lastFailure, status }) as DomesticGetKycStatusResponse;
 
 const baseInput: AlfredpayKycContext = { country: "US" };
 
-const kycLink: AlfredpayGetKycRedirectLinkResponse = {
+const kycLink: DomesticGetKycRedirectLinkResponse = {
   submissionId: "link-sub-1",
   verification_url: "https://verify.alfred.example"
 };
@@ -91,7 +91,7 @@ describe("alfredpayKycMachine", () => {
     });
 
     it("polls a Verifying status through to VerificationDone and Done", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Verifying)),
         pollStatus: fromPromise(() => poll.promise)
@@ -127,7 +127,7 @@ describe("alfredpayKycMachine", () => {
     it("USER_RETRY from FailureKyc retries and returns to the link flow for iFrame countries", async () => {
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Failed)),
-        getKycLink: fromPromise(() => new Promise<AlfredpayGetKycRedirectLinkResponse>(() => {})),
+        getKycLink: fromPromise(() => new Promise<DomesticGetKycRedirectLinkResponse>(() => {})),
         retryKyc: fromPromise(async () => kycLink)
       });
       actor.start();
@@ -140,11 +140,11 @@ describe("alfredpayKycMachine", () => {
 
     it("a 404 (no customer) routes to CustomerDefinition where the customer type can be toggled", async () => {
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
           throw new Error("Request failed with status 404");
         }),
-        createCustomer: fromPromise(async () => ({}) as AlfredpayCreateCustomerResponse),
-        getKycLink: fromPromise(() => new Promise<AlfredpayGetKycRedirectLinkResponse>(() => {}))
+        createCustomer: fromPromise(async () => ({}) as DomesticCreateCustomerResponse),
+        getKycLink: fromPromise(() => new Promise<DomesticGetKycRedirectLinkResponse>(() => {}))
       });
       actor.start();
 
@@ -164,7 +164,7 @@ describe("alfredpayKycMachine", () => {
     it("a non-404 status check error lands in Failure and RETRY_PROCESS re-runs the check", async () => {
       let calls = 0;
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(() => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(() => {
           calls += 1;
           if (calls === 1) return Promise.reject(new Error("service unavailable"));
           return new Promise(() => {});
@@ -182,7 +182,7 @@ describe("alfredpayKycMachine", () => {
 
     it("CANCEL_PROCESS from Failure finishes the machine with the error in the output", async () => {
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
           throw new Error("service unavailable");
         })
       });
@@ -197,14 +197,14 @@ describe("alfredpayKycMachine", () => {
 
   describe("iFrame link flow (US)", () => {
     it("gets a link, opens it, and reports a failed verification with the lastFailure message", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyFinished: notifyActor(),
         notifyOpened: notifyActor(),
         pollStatus: fromPromise(() => poll.promise),
-        waitForValidation: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {}))
+        waitForValidation: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {}))
       });
       actor.start();
 
@@ -227,12 +227,12 @@ describe("alfredpayKycMachine", () => {
     });
 
     it("background validation completing moves FillingKyc to PollingStatus without user action", async () => {
-      const validation = deferred<AlfredpayGetKycStatusResponse>();
+      const validation = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyOpened: notifyActor(),
-        pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+        pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
         waitForValidation: fromPromise(() => validation.promise)
       });
       actor.start();
@@ -250,7 +250,7 @@ describe("alfredpayKycMachine", () => {
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyOpened: notifyActor(),
-        waitForValidation: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {}))
+        waitForValidation: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {}))
       });
       actor.start();
 
@@ -266,7 +266,7 @@ describe("alfredpayKycMachine", () => {
     it("moves to Failure when fetching the KYC link fails", async () => {
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
-        getKycLink: fromPromise<AlfredpayGetKycRedirectLinkResponse, AlfredpayKycContext>(async () => {
+        getKycLink: fromPromise<DomesticGetKycRedirectLinkResponse, AlfredpayKycContext>(async () => {
           throw new Error("link service down");
         })
       });
@@ -281,7 +281,7 @@ describe("alfredpayKycMachine", () => {
     const mxInput: AlfredpayKycContext = { ...baseInput, country: "MX" };
 
     it("submits the form, uploads documents, and sends the submission through to polling", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor(
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
@@ -363,7 +363,7 @@ describe("alfredpayKycMachine", () => {
                 { relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }
               ] as unknown as AlfredpayKybCustomerAndBusiness[]
           ),
-          pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+          pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
           sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse),
@@ -444,7 +444,7 @@ describe("alfredpayKycMachine", () => {
                 { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
               ] as unknown as AlfredpayKybCustomerAndBusiness[]
           ),
-          pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+          pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
           sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse),
@@ -519,7 +519,7 @@ describe("alfredpayKycMachine", () => {
     it("does not allow an AR individual to toggle to business", async () => {
       const actor = createTestActor(
         {
-          checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+          checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
             throw new Error("Request failed with status 404");
           })
         },
@@ -576,7 +576,7 @@ describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
     };
     const api = {
       findKybCustomerAndBusiness: async () => [{ relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }],
-      getAlfredpayStatus: async () => statusOf(AlfredPayStatus.Consulted),
+      getDomesticStatus: async () => statusOf(AlfredPayStatus.Consulted),
       getKycStatus: async () => new Promise(() => {}),
       sendKybSubmission: async (_country: string, submissionId: string) => {
         calls.sent.push(submissionId);

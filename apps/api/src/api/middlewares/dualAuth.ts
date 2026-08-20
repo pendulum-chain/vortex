@@ -33,6 +33,22 @@ export function optionalPartnerOrUserAuth() {
   return dualAuthHandler({ requireCredentials: false });
 }
 
+/** Requires dual auth to have resolved a concrete profile principal. */
+export function requireProfileBoundPrincipal(req: Request, res: Response, next: NextFunction): void {
+  if (req.userId || req.authenticatedCredentialProfileId) {
+    next();
+    return;
+  }
+
+  res.status(401).json({
+    error: {
+      code: "AUTHENTICATION_REQUIRED",
+      message: "A profile-bound secret key or Bearer token is required.",
+      status: 401
+    }
+  });
+}
+
 function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {

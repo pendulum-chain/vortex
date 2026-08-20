@@ -37,187 +37,6 @@ AlchemyPayPriceResponse: {
   totalFee: number;
 }
 
-AlfredpayAddFiatAccountRequest: {
-  accountBankCode?: string;
-  accountName?: string;
-  accountNumber: string;
-  accountType?: string;
-  bankCity?: string;
-  bankCountry?: string;
-  bankPostalCode?: string;
-  bankState?: string;
-  bankStreet?: string;
-  beneficiaryCity?: string;
-  beneficiaryCountry?: string;
-  beneficiaryPostalCode?: string;
-  beneficiaryState?: string;
-  beneficiaryStreet?: string;
-  country: string;
-  documentNumber?: string;
-  documentType?: string;
-  isExternal?: boolean;
-  routingNumber?: string;
-  type: enum AlfredpayFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
-}
-
-AlfredpayAddFiatAccountResponse: {
-  fiatAccountId: string;
-}
-
-AlfredpayCreateCustomerRequest: {
-  country: string;
-}
-
-AlfredpayCreateCustomerResponse: {
-  createdAt: string;
-}
-
-AlfredpayDeleteFiatAccountRequest: {
-  country: string;
-}
-
-AlfredpayFiatAccountRequirement: {
-  field: string;
-  hint?: string;
-  label: string;
-  options?: Array<{
-    label: string;
-    value: string;
-  }>;
-  placeholder?: string;
-  required: boolean;
-  type: "email" | "phone" | "select" | "text";
-}
-
-AlfredpayFiatAccountRequirementsRequest: {
-  country: string;
-  paymentMethod: string;
-}
-
-AlfredpayFiatAccountRequirementsResponse: Array<{
-  field: string;
-  hint?: string;
-  label: string;
-  options?: Array<{
-    label: string;
-    value: string;
-  }>;
-  placeholder?: string;
-  required: boolean;
-  type: "email" | "phone" | "select" | "text";
-}>
-
-AlfredpayGetKybRedirectLinkResponse: {
-  submissionId: string;
-  verification_url: string;
-}
-
-AlfredpayGetKybStatusRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayGetKybStatusResponse: {
-  alfred_pay_id: string;
-  country: string;
-  lastFailure?: string;
-  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
-  updated_at: string;
-}
-
-AlfredpayGetKycRedirectLinkRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayGetKycRedirectLinkResponse: {
-  submissionId: string;
-  verification_url: string;
-}
-
-AlfredpayGetKycStatusRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayGetKycStatusResponse: {
-  alfred_pay_id: string;
-  country: string;
-  lastFailure?: string;
-  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
-  updated_at: string;
-}
-
-AlfredpayKycRedirectFinishedRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayKycRedirectFinishedResponse: {
-  success: boolean;
-}
-
-AlfredpayKycRedirectOpenedRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayKycRedirectOpenedResponse: {
-  success: boolean;
-}
-
-AlfredpayListFiatAccountsRequest: {
-  country: string;
-}
-
-AlfredpayListFiatAccountsResponse: Array<{
-  accountName?: string;
-  accountNumber: string;
-  accountType: string;
-  bankCity?: string;
-  bankCountry?: string;
-  bankPostalCode?: string;
-  bankState?: string;
-  bankStreet?: string;
-  createdAt?: string;
-  customerId: string;
-  fiatAccountId: string;
-  metadata?: {
-    accountHolderName?: string;
-    bankCity?: string;
-    bankCountry?: string;
-    bankPostalCode?: string;
-    bankState?: string;
-    bankStreet?: string;
-    beneficiaryAddress?: {
-      city?: string;
-      country?: string;
-      postalCode?: string;
-      stateProvince?: string;
-      street?: string;
-    };
-    documentNumber?: string;
-    documentType?: string;
-  };
-  routingNumber?: string;
-  type: enum AlfredpayFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
-}>
-
-AlfredpayRetryKycRequest: {
-  country: string;
-  type?: AlfredpayCustomerType.BUSINESS | AlfredpayCustomerType.INDIVIDUAL;
-}
-
-AlfredpayStatusRequest: {
-  country: string;
-}
-
-AlfredpayStatusResponse: {
-  country: string;
-  creationTime: string;
-  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
-}
-
 AllPricesResponse: {
   alchemypay?: {
     reason: {
@@ -371,7 +190,96 @@ AssethubToBrlaStorageRequest: {
   timestamp: string;
 }
 
-AveniaKYCDataUpload: {
+BrAddress: {
+  cep: string;
+  city: string;
+  complement?: string;
+  district: string;
+  number: string;
+  state: string;
+  street: string;
+}
+
+BrCreateSubaccountRequest: {
+  accountType: enum AveniaAccountType { COMPANY = "COMPANY", INDIVIDUAL = "INDIVIDUAL" };
+  name: string;
+  quoteId?: string;
+  sessionId?: string;
+  taxId: string;
+}
+
+BrCreateSubaccountResponse: {
+  subAccountId: string;
+}
+
+BrErrorResponse: {
+  details?: string;
+  error: string;
+}
+
+BrGetKycStatusRequest: {
+  taxId: string;
+}
+
+BrGetKycStatusResponse: {
+  failureReason?: KycFailureReason.BIRTHDATE | KycFailureReason.FACE | KycFailureReason.NAME | KycFailureReason.TAX_ID | KycFailureReason.UNKNOWN;
+  level: string;
+  result?: KycAttemptResult.APPROVED | KycAttemptResult.REJECTED;
+  status: enum KycAttemptStatus { COMPLETED = "COMPLETED", EXPIRED = "EXPIRED", PENDING = "PENDING", PROCESSING = "PROCESSING" };
+  type: "KYC";
+}
+
+BrGetRampStatusRequest: {
+  taxId: string;
+}
+
+BrGetRampStatusResponse: {
+  status: string;
+  type: string;
+}
+
+BrGetSelfieLivenessUrlRequest: {
+  taxId: string;
+}
+
+BrGetSelfieLivenessUrlResponse: {
+  id: string;
+  livenessUrl: string;
+  uploadURLFront: string;
+  validateLivenessToken: string;
+}
+
+BrGetUserRemainingLimitRequest: {
+  direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  taxId?: string;
+}
+
+BrGetUserRemainingLimitResponse: {
+  remainingLimit: number;
+}
+
+BrGetUserRequest: {
+  taxId?: string;
+}
+
+BrGetUserResponse: {
+  evmAddress: string;
+  identityStatus: "CONFIRMED" | "NOT-IDENTIFIED";
+  kycLevel: number;
+  subAccountId: string;
+}
+
+BrImportKycTokenRequest: {
+  consentAttested: true;
+  importToken: string;
+}
+
+BrImportKycTokenResponse: {
+  attemptId: string;
+  status: "pending";
+}
+
+BrKYCDataUpload: {
   idUpload: {
     id: string;
     uploadURLBack?: string;
@@ -385,99 +293,26 @@ AveniaKYCDataUpload: {
   };
 }
 
-AveniaKYCDataUploadRequest: {
-  documentType: enum AveniaDocumentType { DRIVERS_LICENSE = "DRIVERS-LICENSE", ID = "ID", PASSPORT = "PASSPORT", SELFIE = "SELFIE", SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS" };
+BrKYCDataUploadRequest: {
+  documentType: enum BrDocumentType { CERTIFICATE_OF_INCORPORATION = "CERTIFICATE-OF-INCORPORATION", COMPANY_TAX_IDENTIFICATION_DOCUMENT = "COMPANY-TAX-IDENTIFICATION-DOCUMENT", DRIVERS_LICENSE = "DRIVERS-LICENSE", ID = "ID", PASSPORT = "PASSPORT", RESIDENCE_PERMIT = "RESIDENCE-PERMIT", SELFIE = "SELFIE", SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS" };
   isDoubleSided?: boolean;
   taxId: string;
 }
 
-BrlaAddress: {
-  cep: string;
-  city: string;
-  complement?: string;
-  district: string;
-  number: string;
-  state: string;
-  street: string;
-}
+BrKYCDocType: enum BrKYCDocType { CNH = "CNH", RG = "RG" }
 
-BrlaCreateSubaccountRequest: {
-  accountType: enum AveniaAccountType { COMPANY = "COMPANY", INDIVIDUAL = "INDIVIDUAL" };
-  name: string;
-  quoteId?: string;
-  sessionId?: string;
-  taxId: string;
-}
-
-BrlaCreateSubaccountResponse: {
-  subAccountId: string;
-}
-
-BrlaErrorResponse: {
-  details?: string;
-  error: string;
-}
-
-BrlaGetKycStatusRequest: {
+BrPostRecordInitialKycAttemptRequest: {
   quoteId: string;
   sessionId?: string;
   taxId: string;
 }
 
-BrlaGetKycStatusResponse: {
-  failureReason?: KycFailureReason.BIRTHDATE | KycFailureReason.FACE | KycFailureReason.NAME | KycFailureReason.TAX_ID | KycFailureReason.UNKNOWN;
-  level: string;
-  result: enum KycAttemptResult { APPROVED = "APPROVED", REJECTED = "REJECTED" };
-  status: enum KycAttemptStatus { COMPLETED = "COMPLETED", EXPIRED = "EXPIRED", PENDING = "PENDING", PROCESSING = "PROCESSING" };
-  type: "KYC";
+BrValidatePixKeyRequest: {
+  pixKey: string;
 }
 
-BrlaGetRampStatusRequest: {
-  taxId: string;
-}
-
-BrlaGetRampStatusResponse: {
-  status: string;
-  type: string;
-}
-
-BrlaGetSelfieLivenessUrlRequest: {
-  taxId: string;
-}
-
-BrlaGetSelfieLivenessUrlResponse: {
-  id: string;
-  livenessUrl: string;
-  uploadURLFront: string;
-  validateLivenessToken: string;
-}
-
-BrlaGetUserRemainingLimitRequest: {
-  direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  taxId?: string;
-}
-
-BrlaGetUserRemainingLimitResponse: {
-  remainingLimit: number;
-}
-
-BrlaGetUserRequest: {
-  taxId?: string;
-}
-
-BrlaGetUserResponse: {
-  evmAddress: string;
-  identityStatus: "CONFIRMED" | "NOT-IDENTIFIED";
-  kycLevel: number;
-  subAccountId: string;
-}
-
-BrlaKYCDocType: enum BrlaKYCDocType { CNH = "CNH", RG = "RG" }
-
-BrlaPostRecordInitialKycAttemptRequest: {
-  quoteId: string;
-  sessionId?: string;
-  taxId: string;
+BrValidatePixKeyResponse: {
+  valid: boolean;
 }
 
 BrlaToAssethubStorageRequest: {
@@ -508,14 +343,6 @@ BrlaToEvmStorageRequest: {
   squidRouterApproveTx: string;
   squidRouterSwapTx: string;
   timestamp: string;
-}
-
-BrlaValidatePixKeyRequest: {
-  pixKey: string;
-}
-
-BrlaValidatePixKeyResponse: {
-  valid: boolean;
 }
 
 BundledPriceResult: {
@@ -606,6 +433,187 @@ DeleteWebhookResponse: {
   success: boolean;
 }
 
+DomesticAddFiatAccountRequest: {
+  accountBankCode?: string;
+  accountName?: string;
+  accountNumber: string;
+  accountType?: string;
+  bankCity?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+  bankState?: string;
+  bankStreet?: string;
+  beneficiaryCity?: string;
+  beneficiaryCountry?: string;
+  beneficiaryPostalCode?: string;
+  beneficiaryState?: string;
+  beneficiaryStreet?: string;
+  country: string;
+  documentNumber?: string;
+  documentType?: string;
+  isExternal?: boolean;
+  routingNumber?: string;
+  type: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
+}
+
+DomesticAddFiatAccountResponse: {
+  fiatAccountId: string;
+}
+
+DomesticCreateCustomerRequest: {
+  country: string;
+}
+
+DomesticCreateCustomerResponse: {
+  createdAt: string;
+}
+
+DomesticDeleteFiatAccountRequest: {
+  country: string;
+}
+
+DomesticFiatAccountRequirement: {
+  field: string;
+  hint?: string;
+  label: string;
+  options?: Array<{
+    label: string;
+    value: string;
+  }>;
+  placeholder?: string;
+  required: boolean;
+  type: "email" | "phone" | "select" | "text";
+}
+
+DomesticFiatAccountRequirementsRequest: {
+  country: string;
+  paymentMethod: string;
+}
+
+DomesticFiatAccountRequirementsResponse: Array<{
+  field: string;
+  hint?: string;
+  label: string;
+  options?: Array<{
+    label: string;
+    value: string;
+  }>;
+  placeholder?: string;
+  required: boolean;
+  type: "email" | "phone" | "select" | "text";
+}>
+
+DomesticGetKybRedirectLinkResponse: {
+  submissionId: string;
+  verification_url: string;
+}
+
+DomesticGetKybStatusRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticGetKybStatusResponse: {
+  alfred_pay_id: string;
+  country: string;
+  lastFailure?: string;
+  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
+  updated_at: string;
+}
+
+DomesticGetKycRedirectLinkRequest: {
+  country: string;
+}
+
+DomesticGetKycRedirectLinkResponse: {
+  submissionId: string;
+  verification_url: string;
+}
+
+DomesticGetKycStatusRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticGetKycStatusResponse: {
+  alfred_pay_id: string;
+  country: string;
+  lastFailure?: string;
+  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
+  updated_at: string;
+}
+
+DomesticKycRedirectFinishedRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticKycRedirectFinishedResponse: {
+  success: boolean;
+}
+
+DomesticKycRedirectOpenedRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticKycRedirectOpenedResponse: {
+  success: boolean;
+}
+
+DomesticListFiatAccountsRequest: {
+  country: string;
+}
+
+DomesticListFiatAccountsResponse: Array<{
+  accountName?: string;
+  accountNumber: string;
+  accountType: string;
+  bankCity?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+  bankState?: string;
+  bankStreet?: string;
+  createdAt?: string;
+  customerId: string;
+  fiatAccountId: string;
+  metadata?: {
+    accountHolderName?: string;
+    bankCity?: string;
+    bankCountry?: string;
+    bankPostalCode?: string;
+    bankState?: string;
+    bankStreet?: string;
+    beneficiaryAddress?: {
+      city?: string;
+      country?: string;
+      postalCode?: string;
+      stateProvince?: string;
+      street?: string;
+    };
+    documentNumber?: string;
+    documentType?: string;
+  };
+  routingNumber?: string;
+  type: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
+}>
+
+DomesticRetryKycRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticStatusRequest: {
+  country: string;
+  type?: DomesticCustomerType.BUSINESS | DomesticCustomerType.INDIVIDUAL;
+}
+
+DomesticStatusResponse: {
+  country: string;
+  creationTime: string;
+  status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
+}
+
 EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
 
 EphemeralAccountType: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" }
@@ -639,6 +647,47 @@ EvmTransactionData: {
 FiatCurrency: FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD
 
 FlowType: OfframpHandlerType.ASSETHUB_TO_BRLA | OfframpHandlerType.EVM_TO_BRLA | OnrampHandlerType.BRLA_TO_ASSETHUB | OnrampHandlerType.BRLA_TO_EVM
+
+GetOnboardingRequirementsErrorResponse: {
+  error: {
+    code: "INVALID_ONBOARDING_REQUIREMENTS_QUERY" | "ONBOARDING_REQUIREMENTS_NOT_FOUND";
+    message: string;
+    status: 400 | 404;
+  };
+}
+
+GetOnboardingRequirementsResponse: {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  family: "br" | "domestic";
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
+}
 
 GetQuoteRequest: {
   id: string;
@@ -998,7 +1047,72 @@ MoonpayPriceResponse: {
   totalFee: number;
 }
 
+ONBOARDING_REQUIREMENTS: Record<"AR" | "BR" | "CO" | "MX" | "US", Partial<Record<"business" | "individual", {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  family: "br" | "domestic";
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
+}>>>
+
 OfframpHandlerType: enum OfframpHandlerType { ASSETHUB_TO_BRLA = "assethub-to-brla", EVM_TO_BRLA = "evm-to-brla" }
+
+OnboardingDocumentRequirement: {
+  acceptedMediaTypes?: Array<string>;
+  collection?: "direct-upload" | "hosted";
+  description?: string;
+  required: boolean;
+  requiredWhen?: string;
+  type: string;
+}
+
+OnboardingFlowFamily: "br" | "domestic"
+
+OnboardingFlowMode: "api" | "hosted" | "hybrid"
+
+OnboardingRequirementStep: {
+  condition?: string;
+  derivedValues?: Record<string, string>;
+  description: string;
+  fixedBody?: Record<string, string>;
+  fixedQuery?: Record<string, string>;
+  kind: "api" | "direct-upload" | "hosted";
+  method?: "POST" | "PUT";
+  operationId?: string;
+  order: number;
+  path?: string;
+  repeatFor?: string;
+  requestSchema?: string;
+}
+
+OnboardingRequirementsCountry: "AR" | "BR" | "CO" | "MX" | "US"
+
+OnboardingStepKind: "api" | "direct-upload" | "hosted"
 
 OnrampHandlerType: enum OnrampHandlerType { BRLA_TO_ASSETHUB = "brla-to-assethub", BRLA_TO_EVM = "brla-to-evm" }
 
@@ -2009,7 +2123,6 @@ UnsignedTx: {
 
 UpdateRampRequest: {
   additionalData?: {
-    [key: string]: unknown;
     assethubToPendulumHash?: string;
     squidRouterApproveHash?: string;
     squidRouterNoPermitApproveHash?: string;
@@ -2312,6 +2425,39 @@ WebhookPayloadBase: {
   transactionType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
 }
 
+getOnboardingRequirements: (country: "AR" | "BR" | "CO" | "MX" | "US", customerType: "business" | "individual") => undefined | {
+  country: "AR" | "BR" | "CO" | "MX" | "US";
+  customerType: "business" | "individual";
+  documentationUrl: string;
+  documents: Array<{
+    acceptedMediaTypes?: Array<string>;
+    collection?: "direct-upload" | "hosted";
+    description?: string;
+    required: boolean;
+    requiredWhen?: string;
+    type: string;
+  }>;
+  family: "br" | "domestic";
+  flow: string;
+  mode: "api" | "hosted" | "hybrid";
+  openapiUrl: string;
+  requirementsVersion: string;
+  steps: Array<{
+    condition?: string;
+    derivedValues?: Record<string, string>;
+    description: string;
+    fixedBody?: Record<string, string>;
+    fixedQuery?: Record<string, string>;
+    kind: "api" | "direct-upload" | "hosted";
+    method?: "POST" | "PUT";
+    operationId?: string;
+    order: number;
+    path?: string;
+    repeatFor?: string;
+    requestSchema?: string;
+  }>;
+}
+
 isEvmTransactionData: (data: Array<{
   domain: {
     chainId?: number;
@@ -2545,7 +2691,7 @@ APIResponseError: class APIResponseError {
 
 AccessTokenProvider: () => Promise<null | string | undefined>
 
-AlfredPayCountry: enum AlfredPayCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
+AlfredPayCountry: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
 
 AlfredpayCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD
 
@@ -2579,10 +2725,10 @@ AlfredpayFiatAccount: {
     documentType?: string;
   };
   routingNumber?: string;
-  type: enum AlfredpayFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
+  type: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
 }
 
-AlfredpayFiatAccountType: enum AlfredpayFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" }
+AlfredpayFiatAccountType: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" }
 
 AlfredpayOfframpAdditionalData: {
   fiatAccountId: string;
@@ -2590,13 +2736,14 @@ AlfredpayOfframpAdditionalData: {
   walletAddress: string;
 }
 
-AlfredpayOfframpError: class AlfredpayOfframpError {
-  constructor(message: string, status?: number);
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
+AlfredpayOfframpError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
 AlfredpayOfframpQuote: {
@@ -2651,22 +2798,24 @@ AlfredpayOnrampAdditionalData: {
   walletAddress?: string;
 }
 
-AlfredpayOnrampError: class AlfredpayOnrampError {
-  constructor(message: string, status?: number);
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
+AlfredpayOnrampError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
-AlfredpayOnrampKycRequiredError: class AlfredpayOnrampKycRequiredError {
-  constructor(message: string, status?: number);
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
+AlfredpayOnrampKycRequiredError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
 AlfredpayOnrampQuote: {
@@ -3116,6 +3265,169 @@ CreateQuoteRequest: {
   paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+}
+
+DomesticCountry: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
+
+DomesticCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD
+
+DomesticFiatAccount: {
+  accountName?: string;
+  accountNumber: string;
+  accountType: string;
+  bankCity?: string;
+  bankCountry?: string;
+  bankPostalCode?: string;
+  bankState?: string;
+  bankStreet?: string;
+  createdAt?: string;
+  customerId: string;
+  fiatAccountId: string;
+  metadata?: {
+    accountHolderName?: string;
+    bankCity?: string;
+    bankCountry?: string;
+    bankPostalCode?: string;
+    bankState?: string;
+    bankStreet?: string;
+    beneficiaryAddress?: {
+      city?: string;
+      country?: string;
+      postalCode?: string;
+      stateProvince?: string;
+      street?: string;
+    };
+    documentNumber?: string;
+    documentType?: string;
+  };
+  routingNumber?: string;
+  type: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
+}
+
+DomesticFiatAccountType: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" }
+
+DomesticOfframpAdditionalData: {
+  fiatAccountId: string;
+  sessionId?: string;
+  walletAddress: string;
+}
+
+DomesticOfframpError: class DomesticOfframpError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+DomesticOfframpQuote: {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  outputCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD;
+  rampType: RampDirection.SELL;
+}
+
+DomesticOfframpUpdateAdditionalData: {
+  assethubToPendulumHash?: string;
+  squidRouterApproveHash?: string;
+  squidRouterSwapHash?: string;
+}
+
+DomesticOnrampAdditionalData: {
+  destinationAddress: string;
+  fiatAccountId?: string;
+  sessionId?: string;
+  walletAddress?: string;
+}
+
+DomesticOnrampError: class DomesticOnrampError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+DomesticOnrampKycRequiredError: class DomesticOnrampKycRequiredError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+DomesticOnrampQuote: {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.POL | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  inputCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD;
+  rampType: RampDirection.BUY;
 }
 
 EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
@@ -3795,22 +4107,24 @@ KycInvalidError: class KycInvalidError {
   readonly status: number;
 }
 
-MissingAlfredpayOfframpParametersError: class MissingAlfredpayOfframpParametersError {
-  constructor(message?: string);
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
+MissingAlfredpayOfframpParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
-MissingAlfredpayOnrampParametersError: class MissingAlfredpayOnrampParametersError {
-  constructor();
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
+MissingAlfredpayOnrampParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
 MissingBrlOfframpParametersError: class MissingBrlOfframpParametersError {
@@ -3823,6 +4137,24 @@ MissingBrlOfframpParametersError: class MissingBrlOfframpParametersError {
 }
 
 MissingBrlParametersError: class MissingBrlParametersError {
+  constructor();
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MissingDomesticOfframpParametersError: class MissingDomesticOfframpParametersError {
+  constructor(message?: string);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MissingDomesticOnrampParametersError: class MissingDomesticOnrampParametersError {
   constructor();
   readonly code?: string;
   readonly errors?: Array<unknown>;
@@ -6251,7 +6583,7 @@ VortexSdk: class VortexSdk {
       }>>;
     };
   }>>;
-  listAlfredpayFiatAccounts: (country: enum AlfredPayCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }) => Promise<Array<{
+  listDomesticFiatAccounts: (country: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }) => Promise<Array<{
     accountName?: string;
     accountNumber: string;
     accountType: string;
@@ -6281,7 +6613,7 @@ VortexSdk: class VortexSdk {
       documentType?: string;
     };
     routingNumber?: string;
-    type: enum AlfredpayFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
+    type: enum DomesticFiatAccountType { ACH = "ACH", ACH_BOL = "ACH_BOL", ACH_CHL = "ACH_CHL", ACH_DOM = "ACH_DOM", B89 = "B89", BANK_CN = "BANK_CN", BANK_USA = "BANK_USA", COELSA = "COELSA", PIX = "PIX", SPEI = "SPEI" };
   }>>;
   registerRamp: <Q extends {
     alfredpayInputLimits?: {

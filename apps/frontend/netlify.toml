@@ -4,10 +4,12 @@
 # CAUTION: once this file is on the deployed branch it overrides the build settings
 # configured in the Netlify UI — review it against the current UI configuration.
 #
-# Redirect rules live in `_redirects` (copied into dist by the build), not here.
+# Redirect rules live in `_redirects` (copied into dist/client by the build), not here.
+# Marketing routes are prerendered to static HTML by TanStack Start, so they are plain files
+# under `dist/client`; only the SSR-disabled widget route needs a rewrite.
 # The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
 # own domain; this build does not include it.
 
 [build]
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend"
-  publish = "dist"
+  publish = "dist/client"

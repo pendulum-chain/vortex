@@ -11,6 +11,8 @@ The observed surface includes:
 - Ramp register, update, start, status, and error-log retrieval.
 - Request correlation through `X-Request-ID` / `X-Correlation-ID` and response `X-Request-ID`.
 
+Avenia standard-KYC and token-import controller/provider operations are not currently emitted to `api_client_events`. A sanitized `auth_dual` failure may still be emitted by authentication before the route-local KYC body parser runs. Identity payloads, raw tokens, request bodies, fingerprints, consent data, and provider details remain strictly excluded from all observability channels.
+
 Events are persisted in `api_client_events` and structured logs are emitted through the existing backend logger. The event table is an operational telemetry store, not a source of truth for ramp state. Ramp execution failures remain in `RampState.errorLogs`; client observability events are request-level records used for alerting and incident investigation.
 
 Internal operators can inspect these events through `GET /v1/admin/api-client-events`, which is protected by the dedicated `Authorization: Bearer <METRICS_DASHBOARD_SECRET>` middleware. `METRICS_DASHBOARD_SECRET` must be different from `ADMIN_SECRET` to reduce blast radius.
@@ -29,6 +31,8 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 10. **Credential mismatch MUST be observable without exposing values** — `CREDENTIAL_MISMATCH` events may identify the request, endpoint, and safe credential IDs/prefixes, but must not persist either full key value or combine the mismatched contexts into one authoritative subject.
 11. **Startup credential failures MUST be operationally visible but fail closed** — missing schema elements, constraints, indexes, or a remaining legacy credential table must be logged without key values; observability failure must not allow the server to listen.
 12. **Public `ramp-info` telemetry MUST remain sanitized** — events may record operation, outcome, credential ID/strength, safe prefix, duration, and HTTP status. They must not include the response projection, KYC details, profile selectors, provider identifiers, or exact limits.
+13. **KYC token-import telemetry MUST exclude token material** — Token-import and standard-KYC controller/provider operations do not currently emit `api_client_events`; sanitized `auth_dual` failures may be emitted before KYC body parsing. `importToken`, the request body, token fingerprints, consent payloads, identity payloads, provider request/response details, and free-form provider errors MUST NOT enter `api_client_events`, structured logs, traces, Sentry, metrics, or support exports. Any future instrumentation may record only bounded operation/outcome data, HTTP status, duration, request ID, safe authenticated credential attribution, and stable public error classifications.
+14. **Standard KYC provider logging MUST omit identity payloads** — Level 1 names, birth dates, tax IDs, emails, addresses, document IDs, selfie IDs, request bodies, and provider errors that may echo those values MUST NOT enter logs, traces, Sentry, metrics, or support exports. The Avenia client may log only endpoint/method context and a fixed sensitive-payload omission marker, and thrown provider errors must contain a fixed sanitized response body.
 
 ## Threat Vectors & Mitigations
 
@@ -46,6 +50,8 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 | **BI embed secret leak** — A future Metabase embed is generated in client-side code | Generate signed embed URLs only from the backend. Do not place Metabase signing secrets in publicly exposed environment variables. |
 | **Mismatch logs leak two credentials** — Error instrumentation records both full presented halves | Emit `CREDENTIAL_MISMATCH` with safe IDs/prefixes only and never attach raw headers or request bodies. |
 | **Public eligibility telemetry becomes a shadow profile store** — `ramp-info` events persist KYC state or provider details | Record only request outcome metadata; keep the response and all identity/provider details out of events. |
+| **KYC share token captured by telemetry** — Generic request summarization stores `importToken`, consent data, a token fingerprint, or a provider error containing request configuration | Token-import controller/provider operations do not currently emit API client events. Authentication may emit a sanitized `auth_dual` failure before body parsing. The shared sanitizer still excludes sensitive fields, raw bodies and nested metadata are forbidden, provider errors are sanitized, and any future instrumentation may observe only stable bounded outcome classifications. |
+| **Standard KYC identity echoed into logs** — Request debugging or an Avenia validation error captures names, tax IDs, addresses, document identifiers, or other submitted identity data | Standard Level 1 submission uses sensitive-body mode, which omits the request payload and replaces provider response/error details with fixed text before the error reaches callers or logging. |
 
 ## Audit Checklist
 
@@ -63,3 +69,6 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 - [ ] Verify credential events use immutable credential ID/strength and safe prefixes without full `X-Public-Key` or `X-API-Key` values.
 - [ ] Verify `CREDENTIAL_MISMATCH` records no mixed authoritative subject and no presented key values.
 - [ ] Verify future `ramp-info` events omit KYC projection data, exact limits, profile selectors, and provider identifiers.
+- [x] Verify token-import and standard-KYC controller/provider operations are not emitted to `api_client_events`. **PASS** — neither controller emits client events; sanitized `auth_dual` failures can be emitted before body parsing, the shared sanitizer excludes `importToken`, and tests assert the raw value is absent from sanitized client-event output.
+- [ ] Verify production logs, Sentry, traces, metrics, and support exports contain no raw Sumsub token, token fingerprint, provider request configuration, or token-import body.
+- [x] Verify shared Avenia standard-KYC request and error logging contains no submitted identity values. **PASS** — the client uses sensitive-body mode and tests assert a sentinel is absent from every logger level and thrown-error representation.

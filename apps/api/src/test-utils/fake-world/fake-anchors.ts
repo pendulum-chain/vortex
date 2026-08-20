@@ -1,12 +1,9 @@
 import {
   AlfredpayApiService,
   type AlfredpayFee,
-  type AlfredpayFiatAccount,
   type AlfredpayFiatPaymentInstructions,
-  type AlfredpayOfframpQuote,
   AlfredpayOfframpStatus,
   type AlfredpayOfframpTransaction,
-  type AlfredpayOnrampQuote,
   AlfredpayOnrampStatus,
   type AlfredpayOnrampStatusMetadata,
   type AlfredpayOnrampTransaction,
@@ -19,6 +16,9 @@ import {
   type CreateAlfredpayOnrampQuoteRequest,
   type CreateAlfredpayOnrampRequest,
   type CreateAlfredpayOnrampResponse,
+  type DomesticFiatAccount,
+  type DomesticOfframpQuote,
+  type DomesticOnrampQuote,
   type GetAlfredpayOnrampTransactionResponse,
   MykoboApiError,
   MykoboApiService,
@@ -282,7 +282,7 @@ export class FakeAlfredpay {
   readonly offrampOrders: CreateAlfredpayOfframpRequest[] = [];
   readonly offrampTransactions = new Map<string, AlfredpayOfframpTransaction>();
   /** Accounts served by listFiatAccounts, keyed by Alfredpay customer id. */
-  readonly fiatAccountsByCustomer = new Map<string, AlfredpayFiatAccount[]>();
+  readonly fiatAccountsByCustomer = new Map<string, DomesticFiatAccount[]>();
   private counter = 0;
 
   /**
@@ -331,7 +331,7 @@ export class FakeAlfredpay {
     return { ...instructions };
   }
 
-  private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): AlfredpayOnrampQuote {
+  private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): DomesticOnrampQuote {
     const fromAmount = request.fromAmount ?? "0";
     return {
       chain: request.chain,
@@ -348,7 +348,7 @@ export class FakeAlfredpay {
     };
   }
 
-  private offrampQuote(request: CreateAlfredpayOfframpQuoteRequest): AlfredpayOfframpQuote {
+  private offrampQuote(request: CreateAlfredpayOfframpQuoteRequest): DomesticOfframpQuote {
     const fromAmount = request.fromAmount ?? "0";
     return {
       chain: request.chain,
@@ -397,7 +397,7 @@ export class FakeAlfredpay {
       this.offrampTransactions.set(transactionId, transaction);
       return transaction;
     },
-    createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest): Promise<AlfredpayOfframpQuote> =>
+    createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> =>
       this.offrampQuote(request),
     createOnramp: async (request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> => {
       this.onrampOrders.push(request);
@@ -434,7 +434,7 @@ export class FakeAlfredpay {
       this.onCreateOnramp?.({ depositAddress: request.depositAddress, transactionId });
       return { fiatPaymentInstructions: this.instructionsFor(request.fromCurrency), transaction };
     },
-    createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> =>
+    createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<DomesticOnrampQuote> =>
       this.onrampQuote(request),
     getOfframpTransaction: async (transactionId: string): Promise<CreateAlfredpayOfframpResponse> => {
       const transaction = this.offrampTransactions.get(transactionId);
@@ -455,7 +455,7 @@ export class FakeAlfredpay {
         status: this.onrampStatus
       };
     },
-    listFiatAccounts: async (customerId: string): Promise<AlfredpayFiatAccount[]> =>
+    listFiatAccounts: async (customerId: string): Promise<DomesticFiatAccount[]> =>
       this.fiatAccountsByCustomer.get(customerId) ?? []
   };
 

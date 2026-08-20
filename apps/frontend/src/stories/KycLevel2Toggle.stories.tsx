@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { AveniaDocumentType } from "@vortexfi/shared";
+import { BrDocumentType } from "@vortexfi/shared";
 import { useState } from "react";
 import { KycLevel2Toggle } from "../components/KycLevel2Toggle";
 
 interface StoryArgs {
-  activeDocType?: AveniaDocumentType;
+  activeDocType?: BrDocumentType;
 }
 
-const KycLevel2ToggleWrapper = ({ activeDocType = AveniaDocumentType.ID }: StoryArgs) => {
+const KycLevel2ToggleWrapper = ({ activeDocType = BrDocumentType.ID }: StoryArgs) => {
   const [docType, setDocType] = useState(activeDocType);
 
   return (
@@ -18,10 +18,10 @@ const KycLevel2ToggleWrapper = ({ activeDocType = AveniaDocumentType.ID }: Story
 };
 
 const InteractiveDemo = () => {
-  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.ID);
+  const [docType, setDocType] = useState<BrDocumentType>(BrDocumentType.ID);
   const [toggleCount, setToggleCount] = useState(0);
 
-  const handleToggle = (newDocType: AveniaDocumentType) => {
+  const handleToggle = (newDocType: BrDocumentType) => {
     setDocType(newDocType);
     setToggleCount(prev => prev + 1);
   };
@@ -30,7 +30,7 @@ const InteractiveDemo = () => {
     <div className="w-full max-w-sm space-y-4">
       <div className="rounded bg-gray-100 p-4">
         <p className="font-medium text-sm">
-          Selected document: {docType === AveniaDocumentType.ID ? "RG (ID Card)" : "CNH (Driver's License)"}
+          Selected document: {docType === BrDocumentType.ID ? "RG (ID Card)" : "CNH (Driver's License)"}
         </p>
         <p className="text-gray-500 text-sm">Toggle count: {toggleCount}</p>
       </div>
@@ -47,16 +47,16 @@ interface DocumentInfo {
 }
 
 const KycFlowDemo = () => {
-  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.ID);
+  const [docType, setDocType] = useState<BrDocumentType>(BrDocumentType.ID);
 
   const documentInfo: Record<string, DocumentInfo> = {
-    [AveniaDocumentType.ID]: {
+    [BrDocumentType.ID]: {
       description: "Brazilian national identity card (Registro Geral)",
       icon: "RG",
       instructions: ["Front side of the document", "Back side of the document", "Must be valid and not expired"],
       title: "Identity Card (RG)"
     },
-    [AveniaDocumentType.DRIVERS_LICENSE]: {
+    [BrDocumentType.DRIVERS_LICENSE]: {
       description: "Brazilian driver's license (Carteira Nacional de Habilitacao)",
       icon: "CNH",
       instructions: ["Front side of the license", "Back side of the license", "Must be valid and not expired"],
@@ -96,7 +96,7 @@ const meta: Meta<StoryArgs> = {
     activeDocType: {
       control: "select",
       description: "Currently selected document type",
-      options: [AveniaDocumentType.ID, AveniaDocumentType.DRIVERS_LICENSE]
+      options: [BrDocumentType.ID, BrDocumentType.DRIVERS_LICENSE]
     }
   },
   component: KycLevel2ToggleWrapper,
@@ -118,7 +118,7 @@ type Story = StoryObj<StoryArgs>;
 
 export const Default: Story = {
   args: {
-    activeDocType: AveniaDocumentType.ID
+    activeDocType: BrDocumentType.ID
   },
   parameters: {
     docs: {
@@ -132,7 +132,7 @@ export const Default: Story = {
 
 export const DriversLicenseSelected: Story = {
   args: {
-    activeDocType: AveniaDocumentType.DRIVERS_LICENSE
+    activeDocType: BrDocumentType.DRIVERS_LICENSE
   },
   parameters: {
     docs: {
@@ -168,7 +168,7 @@ export const KycFlow: Story = {
 
 export const ReducedMotion: Story = {
   args: {
-    activeDocType: AveniaDocumentType.ID
+    activeDocType: BrDocumentType.ID
   },
   parameters: {
     docs: {

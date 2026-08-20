@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import { supabase } from "../config/supabase";
+import { getSupabaseClient } from "../config/supabase";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 export interface AuthTokens {
@@ -176,7 +176,7 @@ export class AuthService {
    * Sign out
    */
   static async signOut(): Promise<void> {
-    await supabase.auth.signOut();
+    await getSupabaseClient().auth.signOut();
     this.clearTokens();
   }
 }

@@ -1,11 +1,11 @@
 import type {
-  AlfredpayCreateCustomerResponse,
-  AlfredpayCustomerType,
-  AlfredpayGetKybRedirectLinkResponse,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
   AlfredpayKybCustomerAndBusiness,
-  AlfredpayStatusResponse,
+  DomesticCreateCustomerResponse,
+  DomesticCustomerType,
+  DomesticGetKybRedirectLinkResponse,
+  DomesticGetKycRedirectLinkResponse,
+  DomesticGetKycStatusResponse,
+  DomesticStatusResponse,
   SubmitKybInformationRequest,
   SubmitKybInformationResponse,
   SubmitKycInformationRequest,
@@ -31,35 +31,35 @@ function fileForm(fields: Record<string, string>, file: File): FormData {
 
 export function createAlfredpayKycApi(apiClient: AlfredpayKycApiClient): AlfredpayKycApi {
   return {
-    createBusinessCustomer(country: string): Promise<AlfredpayCreateCustomerResponse> {
-      return apiClient.post<AlfredpayCreateCustomerResponse>("/alfredpay/createBusinessCustomer", { country });
+    createBusinessCustomer(country: string): Promise<DomesticCreateCustomerResponse> {
+      return apiClient.post<DomesticCreateCustomerResponse>("/alfredpay/createBusinessCustomer", { country });
     },
-    createIndividualCustomer(country: string): Promise<AlfredpayCreateCustomerResponse> {
-      return apiClient.post<AlfredpayCreateCustomerResponse>("/alfredpay/createIndividualCustomer", { country });
+    createIndividualCustomer(country: string): Promise<DomesticCreateCustomerResponse> {
+      return apiClient.post<DomesticCreateCustomerResponse>("/alfredpay/createIndividualCustomer", { country });
     },
     findKybCustomerAndBusiness(country: string): Promise<AlfredpayKybCustomerAndBusiness[]> {
       return apiClient.get<AlfredpayKybCustomerAndBusiness[]>("/alfredpay/findKybCustomerAndBusiness", { params: { country } });
     },
-    getAlfredpayStatus(country: string): Promise<AlfredpayStatusResponse> {
-      return apiClient.get<AlfredpayStatusResponse>("/alfredpay/alfredpayStatus", { params: { country } });
+    getDomesticStatus(country: string): Promise<DomesticStatusResponse> {
+      return apiClient.get<DomesticStatusResponse>("/alfredpay/alfredpayStatus", { params: { country } });
     },
-    getKybRedirectLink(country: string): Promise<AlfredpayGetKybRedirectLinkResponse> {
-      return apiClient.get<AlfredpayGetKybRedirectLinkResponse>("/alfredpay/getKybRedirectLink", { params: { country } });
+    getKybRedirectLink(country: string): Promise<DomesticGetKybRedirectLinkResponse> {
+      return apiClient.get<DomesticGetKybRedirectLinkResponse>("/alfredpay/getKybRedirectLink", { params: { country } });
     },
-    getKycRedirectLink(country: string): Promise<AlfredpayGetKycRedirectLinkResponse> {
-      return apiClient.get<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/getKycRedirectLink", { params: { country } });
+    getKycRedirectLink(country: string): Promise<DomesticGetKycRedirectLinkResponse> {
+      return apiClient.get<DomesticGetKycRedirectLinkResponse>("/alfredpay/getKycRedirectLink", { params: { country } });
     },
-    getKycStatus(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycStatusResponse> {
-      return apiClient.get<AlfredpayGetKycStatusResponse>("/alfredpay/getKycStatus", { params: { country, type } });
+    getKycStatus(country: string, type?: DomesticCustomerType): Promise<DomesticGetKycStatusResponse> {
+      return apiClient.get<DomesticGetKycStatusResponse>("/alfredpay/getKycStatus", { params: { country, type } });
     },
-    notifyKycRedirectFinished(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }> {
+    notifyKycRedirectFinished(country: string, type?: DomesticCustomerType): Promise<{ success: boolean }> {
       return apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectFinished", { country, type });
     },
-    notifyKycRedirectOpened(country: string, type?: AlfredpayCustomerType): Promise<{ success: boolean }> {
+    notifyKycRedirectOpened(country: string, type?: DomesticCustomerType): Promise<{ success: boolean }> {
       return apiClient.post<{ success: boolean }>("/alfredpay/kycRedirectOpened", { country, type });
     },
-    retryKyc(country: string, type?: AlfredpayCustomerType): Promise<AlfredpayGetKycRedirectLinkResponse> {
-      return apiClient.post<AlfredpayGetKycRedirectLinkResponse>("/alfredpay/retryKyc", { country, type });
+    retryKyc(country: string, type?: DomesticCustomerType): Promise<DomesticGetKycRedirectLinkResponse> {
+      return apiClient.post<DomesticGetKycRedirectLinkResponse>("/alfredpay/retryKyc", { country, type });
     },
     async sendKybSubmission(country: string, submissionId: string): Promise<void> {
       await apiClient.post("/alfredpay/sendKybSubmission", { country, submissionId });

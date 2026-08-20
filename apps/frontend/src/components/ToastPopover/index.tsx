@@ -22,7 +22,7 @@ function getSnapshot() {
 }
 
 export function useHasActiveToasts() {
-  return useSyncExternalStore(subscribe, getSnapshot) > 0;
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot) > 0;
 }
 
 export const ToastPopover = (props: ToastContainerProps) => {

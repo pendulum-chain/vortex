@@ -1,71 +1,71 @@
 import {
   AlfredPayStatus,
-  AlfredpayCustomerType,
-  AlfredpayFiatAccount,
-  AlfredpayFiatAccountType,
   CreateAlfredpayCustomerResponse,
+  DomesticCustomerType,
+  DomesticFiatAccount,
+  DomesticFiatAccountType,
   GetKybRedirectLinkResponse,
   GetKycRedirectLinkResponse,
   GetKycStatusResponse
 } from "../services/alfredpay/types";
 
 // GET /alfredpay/alfredpayStatus?country=:country
-export interface AlfredpayStatusRequest {
+export interface DomesticStatusRequest {
   country: string;
+  type?: DomesticCustomerType;
 }
 
-export interface AlfredpayStatusResponse {
+export interface DomesticStatusResponse {
   status: AlfredPayStatus;
   country: string;
   creationTime: string;
 }
 
 // POST /alfredpay/createIndividualCustomer
-export interface AlfredpayCreateCustomerRequest {
+export interface DomesticCreateCustomerRequest {
   country: string;
 }
 
-export interface AlfredpayCreateCustomerResponse {
+export interface DomesticCreateCustomerResponse {
   createdAt: string;
 }
 
 // GET /alfredpay/getKycRedirectLink?country=:country
-export interface AlfredpayGetKycRedirectLinkRequest {
+export interface DomesticGetKycRedirectLinkRequest {
   country: string;
-  type?: AlfredpayCustomerType;
 }
 
-export type AlfredpayGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;
+export type DomesticGetKycRedirectLinkResponse = GetKycRedirectLinkResponse;
 
-export type AlfredpayGetKybRedirectLinkResponse = GetKybRedirectLinkResponse;
+export type DomesticGetKybRedirectLinkResponse = GetKybRedirectLinkResponse;
 
 // POST /alfredpay/kycRedirectOpened
-export interface AlfredpayKycRedirectOpenedRequest {
+export interface DomesticKycRedirectOpenedRequest {
   country: string;
-  type?: AlfredpayCustomerType;
+  type?: DomesticCustomerType;
 }
 
-export interface AlfredpayKycRedirectOpenedResponse {
+export interface DomesticKycRedirectOpenedResponse {
   success: boolean;
 }
 
 // POST /alfredpay/kycRedirectFinished
-export interface AlfredpayKycRedirectFinishedRequest {
+export interface DomesticKycRedirectFinishedRequest {
   country: string;
-  type?: AlfredpayCustomerType;
+  type?: DomesticCustomerType;
 }
 
-export interface AlfredpayKycRedirectFinishedResponse {
+export interface DomesticKycRedirectFinishedResponse {
   success: boolean;
 }
 
 // GET /alfredpay/getKycStatus?country=:country&type=:type
-export interface AlfredpayGetKycStatusRequest {
+export interface DomesticGetKycStatusRequest {
   country: string;
-  type?: AlfredpayCustomerType;
+  type?: DomesticCustomerType;
 }
 
-export interface AlfredpayGetKycStatusResponse {
+export interface DomesticGetKycStatusResponse {
   status: AlfredPayStatus;
   lastFailure?: string;
   updated_at: string;
@@ -73,23 +73,23 @@ export interface AlfredpayGetKycStatusResponse {
   country: string;
 }
 
-export type AlfredpayGetKybStatusRequest = AlfredpayGetKycStatusRequest;
-export type AlfredpayGetKybStatusResponse = AlfredpayGetKycStatusResponse;
+export type DomesticGetKybStatusRequest = DomesticGetKycStatusRequest;
+export type DomesticGetKybStatusResponse = DomesticGetKycStatusResponse;
 
-export interface AlfredpayRetryKycRequest {
+export interface DomesticRetryKycRequest {
   country: string;
-  type?: AlfredpayCustomerType;
+  type?: DomesticCustomerType;
 }
 
-export interface AlfredpayListFiatAccountsRequest {
+export interface DomesticListFiatAccountsRequest {
   country: string;
 }
 
-export type AlfredpayListFiatAccountsResponse = AlfredpayFiatAccount[];
+export type DomesticListFiatAccountsResponse = DomesticFiatAccount[];
 
-export interface AlfredpayAddFiatAccountRequest {
+export interface DomesticAddFiatAccountRequest {
   country: string;
-  type: AlfredpayFiatAccountType;
+  type: DomesticFiatAccountType;
   accountNumber: string;
   accountType?: string;
   accountName?: string;
@@ -110,20 +110,20 @@ export interface AlfredpayAddFiatAccountRequest {
   isExternal?: boolean;
 }
 
-export interface AlfredpayAddFiatAccountResponse {
+export interface DomesticAddFiatAccountResponse {
   fiatAccountId: string;
 }
 
-export interface AlfredpayDeleteFiatAccountRequest {
+export interface DomesticDeleteFiatAccountRequest {
   country: string;
 }
 
-export interface AlfredpayFiatAccountRequirementsRequest {
+export interface DomesticFiatAccountRequirementsRequest {
   country: string;
   paymentMethod: string;
 }
 
-export interface AlfredpayFiatAccountRequirement {
+export interface DomesticFiatAccountRequirement {
   field: string;
   label: string;
   type: "text" | "select" | "phone" | "email";
@@ -133,4 +133,4 @@ export interface AlfredpayFiatAccountRequirement {
   hint?: string;
 }
 
-export type AlfredpayFiatAccountRequirementsResponse = AlfredpayFiatAccountRequirement[];
+export type DomesticFiatAccountRequirementsResponse = DomesticFiatAccountRequirement[];
