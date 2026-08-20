@@ -43,31 +43,38 @@ const wagmiAdapter = new WagmiAdapter({
   transports
 });
 
-createAppKit({
-  adapters: [wagmiAdapter],
-  enableEIP6963: true,
-  enableWalletGuide: false,
-  // Some wallets are not always shown. We can define them with their ID found [here](https://walletguide.walletconnect.network/)
-  featuredWalletIds: [
-    "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // metamask
-    "a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393", // phantom
-    "18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1" // rabby
-  ],
-  features: {
-    analytics: false,
-    email: false,
-    onramp: false,
-    socials: false,
-    swaps: false
-  },
-  metadata,
-  // @ts-expect-error - networks is not typed
-  networks,
-  projectId,
-  themeMode: "light",
-  themeVariables: {
-    "--w3m-accent": "oklch(0.26 0.07 260)"
-  }
-});
+// AppKit registers custom elements and a browser-global modal singleton, so it must not run
+// during prerender: `__root.tsx` imports this module for `wagmiConfig`, which would otherwise
+// drag the whole modal into the server bundle for every marketing page. Every consumer of the
+// AppKit hooks (EVMWalletButton, SwapSubmitButton, QuoteSubmitButtons) lives under the widget
+// route, which is `ssr: false`, so they only ever render after this has run in the browser.
+if (typeof window !== "undefined") {
+  createAppKit({
+    adapters: [wagmiAdapter],
+    enableEIP6963: true,
+    enableWalletGuide: false,
+    // Some wallets are not always shown. We can define them with their ID found [here](https://walletguide.walletconnect.network/)
+    featuredWalletIds: [
+      "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // metamask
+      "a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393", // phantom
+      "18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1" // rabby
+    ],
+    features: {
+      analytics: false,
+      email: false,
+      onramp: false,
+      socials: false,
+      swaps: false
+    },
+    metadata,
+    // @ts-expect-error - networks is not typed
+    networks,
+    projectId,
+    themeMode: "light",
+    themeVariables: {
+      "--w3m-accent": "oklch(0.26 0.07 260)"
+    }
+  });
+}
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
