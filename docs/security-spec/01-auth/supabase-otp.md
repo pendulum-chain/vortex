@@ -30,6 +30,7 @@ Routes that accept either a Supabase session or a secret API credential verify t
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
 10. **Managed profiles MUST NOT have an OTP identity** — `profiles.kind = managed` requires a null email and represents no Supabase Auth identity. Provisioning must never create or associate a Supabase user for a managed profile; bearer middleware continues to trust authoritative Supabase token validation.
+11. **The sandbox demo restore MUST NOT alter authentication outcomes** — `verifyOTP` calls `restoreDemoAccountOnLogin(email)` after Supabase has already verified the OTP and the profile has been resolved. The hook returns immediately unless `DEPLOYMENT_ENV=sandbox` **and** the verified email equals `DEMO_ACCOUNT_EMAIL` (compared trimmed and lowercased), it never creates or elevates an identity — the profile must already exist, because `profiles.id` is the Supabase Auth UUID and cannot be forged — and every error it raises is caught and logged rather than propagated, so it can neither grant nor deny a login. See `docs/adr-0004-sandbox-demo-environment.md`.
 
 ## Threat Vectors & Mitigations
 
@@ -41,6 +42,7 @@ Routes that accept either a Supabase session or a secret API credential verify t
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |
 | **Token reuse after logout** | User "logs out" in frontend but JWT is still valid server-side | Supabase token invalidation on signout; short expiry window limits exposure |
 | **userId injection** | Attacker sends crafted request with `userId` in body/headers to bypass auth | `req.userId` is set exclusively by middleware; controllers read from `req.userId` not from request body |
+| **Demo restore reached in production** | An operator sets `DEMO_ACCOUNT_EMAIL` to a real user on a non-sandbox deployment, hoping the login hook rewrites that account's state | `restoreDemoAccountOnLogin` returns before any database access unless `DEPLOYMENT_ENV=sandbox`, and `restoreDemoAccount` itself throws on the same condition. Both guards are covered by tests. |
 
 ## Audit Checklist
 
@@ -57,3 +59,4 @@ Routes that accept either a Supabase session or a secret API credential verify t
 - [x] Frontend refresh goes through `/v1/auth/refresh` (not the anon-key client) and clears the session only on a `401`, retrying transient failures — **PASS**
 - [x] `/v1/auth/refresh` returns `401` only for a confirmed-invalid refresh token and `503` for transient/unexpected failures (so an outage cannot force logout) — **PASS**
 - [x] Optional auth is limited to anonymous quote discovery and non-mutating BRLA preflight endpoints; protected KYC/resource mutations require authentication, and an indeterminate presented credential never falls back to anonymous. **PASS**
+- [x] The demo restore hook in `verifyOTP` runs after verification, is gated on `DEPLOYMENT_ENV=sandbox` plus an exact demo-email match, and cannot change the login result — **PASS** (`demo-account.integration.test.ts`).
