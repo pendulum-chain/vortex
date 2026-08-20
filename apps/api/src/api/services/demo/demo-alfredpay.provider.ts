@@ -1,6 +1,6 @@
 import {
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   type AlfredpayKybCustomerAndBusiness,
   AlfredpayKybStatus,
   type CreateAlfredpayCustomerResponse,
@@ -49,8 +49,8 @@ class DemoAlfredpayKyb {
     return `demo-${prefix}-${this.processSeed}-${this.counter}`;
   }
 
-  async createCustomer(email: string, type: AlfredpayCustomerType, country: string): Promise<CreateAlfredpayCustomerResponse> {
-    if (type !== AlfredpayCustomerType.BUSINESS) {
+  async createCustomer(email: string, type: DomesticCustomerType, country: string): Promise<CreateAlfredpayCustomerResponse> {
+    if (type !== DomesticCustomerType.BUSINESS) {
       // KYC is not part of the demo corridor; an invented id here would be persisted and then
       // fail with confusing provider 404s on every later real-client call.
       return this.realGetInstance().createCustomer(email, type, country);

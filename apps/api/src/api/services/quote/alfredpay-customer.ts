@@ -1,14 +1,14 @@
-import { AlfredPayCountry, FiatToken, isAlfredpayToken } from "@vortexfi/shared";
+import { DomesticCountry, FiatToken, isDomesticToken } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
-const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
-  [FiatToken.USD]: AlfredPayCountry.US,
-  [FiatToken.MXN]: AlfredPayCountry.MX,
-  [FiatToken.COP]: AlfredPayCountry.CO,
-  [FiatToken.ARS]: AlfredPayCountry.AR
+const fiatToCountry: Partial<Record<FiatToken, DomesticCountry>> = {
+  [FiatToken.USD]: DomesticCountry.US,
+  [FiatToken.MXN]: DomesticCountry.MX,
+  [FiatToken.COP]: DomesticCountry.CO,
+  [FiatToken.ARS]: DomesticCountry.AR
 };
 
 export const ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE =
@@ -58,9 +58,9 @@ export async function resolveAlfredpayQuoteCustomerId(fiatCurrency: string, user
  * every corridor. Quote creation uses `resolveAlfredpayQuoteCustomerId` instead.
  */
 export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: string): Promise<string> {
-  if (!isAlfredpayToken(fiatCurrency as FiatToken)) {
+  if (!isDomesticToken(fiatCurrency as FiatToken)) {
     throw new APIError({
-      message: `Unsupported Alfredpay currency: ${fiatCurrency}`,
+      message: `Unsupported currency: ${fiatCurrency}`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -68,7 +68,7 @@ export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: s
   const country = fiatToCountry[fiatCurrency as FiatToken];
   if (!country) {
     throw new APIError({
-      message: `Unsupported Alfredpay currency: ${fiatCurrency}`,
+      message: `Unsupported currency: ${fiatCurrency}`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -80,14 +80,14 @@ export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: s
 
   if (!customer) {
     throw new APIError({
-      message: `No completed Alfredpay KYC profile found for ${fiatCurrency}. Complete Alfredpay KYC before registering a ramp.`,
+      message: `No completed KYC profile found for ${fiatCurrency}. Complete KYC before registering a ramp.`,
       status: httpStatus.BAD_REQUEST
     });
   }
 
   if (customer.status !== VerificationStatus.Approved) {
     throw new APIError({
-      message: `Alfredpay KYC status is ${customer.status}. Complete Alfredpay KYC before registering a ramp.`,
+      message: `KYC status is ${customer.status}. Complete KYC before registering a ramp.`,
       status: httpStatus.BAD_REQUEST
     });
   }

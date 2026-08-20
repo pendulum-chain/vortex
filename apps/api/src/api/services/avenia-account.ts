@@ -34,7 +34,7 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
 
   if (candidates.length === 0) {
     throw new APIError({
-      message: "No completed Avenia profile found for this API key user.",
+      message: "No completed provider profile found for this API key user.",
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -47,7 +47,7 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
     const preferred = candidates.filter(candidate => candidate.customerEntityId === profile?.activeCustomerEntityId);
     if (preferred.length !== 1) {
       throw new APIError({
-        message: `Multiple completed Avenia profiles found for this API key user (${candidates.length}). Account selection is not yet supported.`,
+        message: `Multiple completed provider profiles found for this API key user (${candidates.length}). Account selection is not yet supported.`,
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -55,7 +55,7 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
   }
   if (!providerCustomer.providerSubaccountId || !providerCustomer.taxReference) {
     throw new APIError({
-      message: "Avenia subaccount is not yet provisioned for this user.",
+      message: "The BR subaccount is not yet provisioned for this user.",
       status: httpStatus.BAD_REQUEST
     });
   }

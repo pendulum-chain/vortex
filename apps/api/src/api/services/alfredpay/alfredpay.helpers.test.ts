@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredpayCustomerType, EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { DomesticCustomerType, EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import RampState from "../../../models/rampState.model";
 import {
@@ -18,7 +18,7 @@ describe("resolveAlfredpayQuoteLimits", () => {
     });
 
     expect(limits).toMatchObject({
-      customer: AlfredpayCustomerType.INDIVIDUAL,
+      customer: DomesticCustomerType.INDIVIDUAL,
       fiat: FiatToken.MXN,
       stablecoin: EvmToken.USDT
     });

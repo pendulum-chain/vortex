@@ -1,8 +1,8 @@
 import { type AlfredpayKycApi, createAlfredpayKycApi } from "@vortexfi/kyc";
 import type {
-  AlfredpayAddFiatAccountRequest,
-  AlfredpayAddFiatAccountResponse,
-  AlfredpayListFiatAccountsResponse
+  DomesticAddFiatAccountRequest,
+  DomesticAddFiatAccountResponse,
+  DomesticListFiatAccountsResponse
 } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
@@ -12,14 +12,14 @@ import { apiClient } from "./api-client";
  * KYB and US provider-hosted KYB.
  */
 export const AlfredpayService: AlfredpayKycApi & {
-  addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse>;
+  addFiatAccount(payload: DomesticAddFiatAccountRequest): Promise<DomesticAddFiatAccountResponse>;
   deleteFiatAccount(fiatAccountId: string, country: string): Promise<void>;
-  listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse>;
+  listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse>;
 } = {
   ...createAlfredpayKycApi(apiClient),
 
-  addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse> {
-    return apiClient.post<AlfredpayAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload);
+  addFiatAccount(payload: DomesticAddFiatAccountRequest): Promise<DomesticAddFiatAccountResponse> {
+    return apiClient.post<DomesticAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload);
   },
 
   async deleteFiatAccount(fiatAccountId: string, country: string): Promise<void> {
@@ -31,7 +31,7 @@ export const AlfredpayService: AlfredpayKycApi & {
    * `fiatAccountId` is the offramp payout target — the dashboard turns each into a
    * "send to yourself" recipient. 404s when the caller has no AlfredPay customer yet.
    */
-  listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse> {
-    return apiClient.get<AlfredpayListFiatAccountsResponse>("/alfredpay/fiatAccounts", { params: { country }, signal });
+  listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse> {
+    return apiClient.get<DomesticListFiatAccountsResponse>("/alfredpay/fiatAccounts", { params: { country }, signal });
   }
 };

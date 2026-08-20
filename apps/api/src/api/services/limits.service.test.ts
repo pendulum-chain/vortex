@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredPayCountry, BrlaApiService, EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { DomesticCountry, BrlaApiService, EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import CustomerEntity from "../../models/customerEntity.model";
 import ProviderCustomer from "../../models/providerCustomer.model";
 import RampState from "../../models/rampState.model";
@@ -90,7 +90,7 @@ describe("getUserLimits", () => {
   it("passes through Avenia BRL max, used, and reported month", async () => {
     ProviderCustomer.findAll = mock(async () => [
       {
-        country: AlfredPayCountry.BR,
+        country: DomesticCountry.BR,
         customerType: "individual",
         providerSubaccountId: "subaccount-1",
         taxReference: "12345678901"

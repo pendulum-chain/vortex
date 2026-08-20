@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
-import { FiatToken } from "@vortexfi/shared";
+import { EPaymentMethod, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import type { Transaction } from "sequelize";
 import sequelize from "../../../config/database";
@@ -28,6 +28,26 @@ function stubQuote(overrides: { userId: string | null }): void {
     inputCurrency: FiatToken.EURC,
     status: "pending",
     userId: overrides.userId
+  })) as unknown as typeof QuoteTicket.findByPk;
+}
+
+function stubMoonbeamQuote(): void {
+  QuoteTicket.findByPk = mock(async () => ({
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    flowVariant: config.flowVariant,
+    from: EPaymentMethod.PIX,
+    id: "quote-1",
+    inputCurrency: FiatToken.BRL,
+    metadata: {
+      blocks: {},
+      flow: { id: "BrlOnrampAssethubUsdc" },
+      globals: { fees: { usd: {} }, request: {} }
+    },
+    outputCurrency: "USDC",
+    rampType: RampDirection.BUY,
+    status: "pending",
+    to: Networks.AssetHub,
+    userId: "user-a"
   })) as unknown as typeof QuoteTicket.findByPk;
 }
 
@@ -100,6 +120,15 @@ describe("RampService.registerRamp user gating", () => {
 
     const error = await expectRegisterError("user-a", httpStatus.FORBIDDEN);
     expect(error.type).toBe("TECHNICAL_PROFILE_NOT_RAMP_ELIGIBLE");
+  });
+
+  it("rejects Moonbeam-dependent quotes before ephemeral freshness queries", async () => {
+    stubMoonbeamQuote();
+
+    const error = await expectRegisterError("user-a", httpStatus.SERVICE_UNAVAILABLE);
+
+    expect(error.message).toContain("Moonbeam-dependent ramps are unavailable");
+    expect(queryMock).not.toHaveBeenCalled();
   });
 
   it("rejects unsupported recipient-directed payout context instead of silently treating it as self-offramp data", async () => {

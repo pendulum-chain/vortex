@@ -16,7 +16,7 @@ describe("Alfredpay offramp start lifecycle", () => {
   });
 
   it("retains defensive validation when no provider transaction exists", async () => {
-    await expect(startAlfredpayOfframp(context({}))).rejects.toThrow("Missing Alfredpay user ID in ramp state");
-    await expect(startAlfredpayOfframp(context({}, ""))).rejects.toThrow("Missing Alfredpay quote ID in metadata");
+    await expect(startAlfredpayOfframp(context({}))).rejects.toThrow("Missing provider user ID in ramp state");
+    await expect(startAlfredpayOfframp(context({}, ""))).rejects.toThrow("Missing provider quote ID in metadata");
   });
 });

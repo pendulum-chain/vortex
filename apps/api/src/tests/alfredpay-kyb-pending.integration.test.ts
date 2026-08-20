@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredPayStatus,
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   AlfredpayKycStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
@@ -87,9 +87,9 @@ async function createBusinessCustomer(email: string) {
   const token = testUserToken(user.id, email);
   await createAlfredpayCustomer(user.id, {
     alfredPayId: "ap-kyb-pending",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     status: AlfredPayStatus.Consulted,
-    type: AlfredpayCustomerType.BUSINESS
+    type: DomesticCustomerType.BUSINESS
   });
   return { token, user };
 }

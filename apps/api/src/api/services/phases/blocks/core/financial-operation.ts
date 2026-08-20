@@ -14,7 +14,13 @@ export interface RunFinancialOperationArgs<Result> {
   attemptClass: string;
   provider: string;
   request: unknown;
+  /** Reconciles confirmed rows and adopts unclaimed rows across an explicitly compatible request-schema rollout. */
+  adoptSafeRequestHash?: boolean;
+  /** Converts a request mismatch into the phase processor's manual-reconciliation signal instead of the default 409. */
+  reconcileRequestMismatch?: boolean;
   retryFailed?: boolean;
+  /** Keeps observing a claimed side effect after phase cancellation so its durable outcome can still be recorded. */
+  settleAfterAbort?: boolean;
   signal?: AbortSignal;
   /** Runs only after replay/reconciliation is exhausted and immediately before claiming a new side effect. */
   beforePerform?(): Promise<void>;
@@ -78,11 +84,14 @@ export async function runFinancialOperation<Result>({
   attemptClass,
   provider,
   request,
+  adoptSafeRequestHash = false,
+  reconcileRequestMismatch = false,
   beforePerform,
   perform,
   reconcile,
   externalId,
   retryFailed = false,
+  settleAfterAbort = false,
   signal
 }: RunFinancialOperationArgs<Result>): Promise<Result> {
   throwIfAborted(signal);
@@ -111,11 +120,43 @@ export async function runFinancialOperation<Result>({
     where: { operationKey }
   });
 
-  if (operation.requestHash !== requestHash && !(operation.status === "failed" && retryFailed)) {
-    throw new APIError({
-      message: `Financial operation ${operation.id} was already claimed with different inputs`,
-      status: httpStatus.CONFLICT
+  const requestHashMismatch = operation.requestHash !== requestHash;
+  const requestMismatchError = () =>
+    reconcileRequestMismatch
+      ? new FinancialOperationReconciliationRequiredError(operation, "was already claimed with different inputs")
+      : new APIError({
+          message: `Financial operation ${operation.id} was already claimed with different inputs`,
+          status: httpStatus.CONFLICT
+        });
+  const mayAdoptRequestHash = adoptSafeRequestHash && operation.status === "not_started";
+  const mayReconcileLegacyConfirmed = adoptSafeRequestHash && operation.status === "confirmed" && reconcile !== undefined;
+
+  if (requestHashMismatch && mayReconcileLegacyConfirmed) {
+    const reconciled = await reconcile(operation);
+    if (reconciled === null) throw requestMismatchError();
+    const stored = serializable(reconciled);
+    await operation.update({
+      externalId: externalId?.(reconciled) ?? operation.externalId,
+      requestHash,
+      response: stored,
+      status: "confirmed"
     });
+    return reconciled;
+  }
+  if (requestHashMismatch && !(operation.status === "failed" && retryFailed) && !mayAdoptRequestHash) {
+    throw requestMismatchError();
+  }
+  if (requestHashMismatch && mayAdoptRequestHash) {
+    const [adopted] = await FinancialOperation.update(
+      { requestHash },
+      { where: { id: operation.id, requestHash: operation.requestHash, status: "not_started" } }
+    );
+    if (adopted !== 1) {
+      await operation.reload();
+      if (operation.requestHash !== requestHash) throw requestMismatchError();
+    } else {
+      operation.requestHash = requestHash;
+    }
   }
   if (!created) {
     if (operation.status === "confirmed" && operation.response !== null) {
@@ -143,7 +184,25 @@ export async function runFinancialOperation<Result>({
       // Only an explicit FinancialOperationRejectedError may enter this branch.
       // That signal means the integration proved no financial side effect occurred,
       // so corrected input may safely reuse the stable operation identity.
-      await operation.update({ errorMessage: null, requestHash, response: null, status: "not_started" });
+      const [reset] = await FinancialOperation.update(
+        { errorMessage: null, requestHash, response: null, status: "not_started" },
+        { where: { id: operation.id, requestHash: operation.requestHash, status: "failed" } }
+      );
+      if (reset !== 1) {
+        const reloadedOperation = await FinancialOperation.findByPk(operation.id, { rejectOnEmpty: true });
+        if (reloadedOperation.requestHash !== requestHash) throw requestMismatchError();
+        if (reloadedOperation.status === "confirmed" && reloadedOperation.response !== null) {
+          return reloadedOperation.response as Result;
+        }
+        if (reloadedOperation.status !== "not_started") {
+          throw new FinancialOperationReconciliationRequiredError(reloadedOperation, `has ${reloadedOperation.status} outcome`);
+        }
+      } else {
+        operation.errorMessage = null;
+        operation.requestHash = requestHash;
+        operation.response = null;
+        operation.status = "not_started";
+      }
     } else if (operation.status === "not_started") {
       // The creator could have crashed before claiming the operation. Claiming is an
       // atomic state change made before the provider call, so only this state is safe
@@ -160,9 +219,11 @@ export async function runFinancialOperation<Result>({
 
   const [claimed] = await FinancialOperation.update(
     { errorMessage: null, status: "submitted" },
-    { where: { id: operation.id, status: "not_started" } }
+    { where: { id: operation.id, requestHash, status: "not_started" } }
   );
   if (claimed !== 1) {
+    const reloadedOperation = await FinancialOperation.findByPk(operation.id, { rejectOnEmpty: true });
+    if (reloadedOperation.requestHash !== requestHash) throw requestMismatchError();
     throw new FinancialOperationReconciliationRequiredError(operation, "is already in progress");
   }
 
@@ -174,7 +235,7 @@ export async function runFinancialOperation<Result>({
   }
 
   try {
-    const result = await abortableCall(signal, () => perform(operationKey));
+    const result = settleAfterAbort ? await perform(operationKey) : await abortableCall(signal, () => perform(operationKey));
     const stored = serializable(result);
     await operation.update({
       externalId: externalId?.(result) ?? null,

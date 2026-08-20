@@ -45,6 +45,7 @@ This boundary is non-negotiable: if ephemeral secrets are lost while a ramp is i
 - New integrators: [Quick Start With The SDK](https://api-docs.vortexfinance.co/quick-start-with-the-sdk).
 - Building for a non-Node stack: [AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration).
 - Hosted checkout: [Widget Integration](https://api-docs.vortexfinance.co/widget-integration).
+- Onboarding and ramping for your own customers: [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
 
 ## Terms
 

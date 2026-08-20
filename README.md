@@ -32,6 +32,9 @@ bun install
 bun dev
 ```
 
+In a fresh Git worktree, run `bun bootstrap:worktree` instead of `bun install`; it also
+builds the shared workspace required by the apps.
+
 The default development command starts the shared package, API, and widget. Run other
 surfaces explicitly:
 
@@ -75,7 +78,8 @@ Workspace-specific setup and caveats live in their `README.md` or `CLAUDE.md`.
 - [`docs/api/`](docs/api/README.md) contains the public OpenAPI source and partner guides.
 - [`docs/README.md`](docs/README.md) indexes current architecture, product, operations,
   decisions, incidents, and proposals.
-- [`CLAUDE.md`](CLAUDE.md) and scoped `CLAUDE.md` files contain coding-agent rules.
+- [`AGENTS.md`](AGENTS.md) links to the canonical root [`CLAUDE.md`](CLAUDE.md); scoped
+  `CLAUDE.md` files contain app and package rules.
 
 ## AI integration guidance
 

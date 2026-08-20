@@ -4,7 +4,7 @@ import {
   getNetworkDisplayName,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
-  isAlfredpayToken,
+  isDomesticToken,
   Networks,
   OnChainToken,
   RampDirection,
@@ -48,7 +48,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: inputAssetSymbol,
       fromNetwork: fromNetworkDisplayName
     });
-  const squidRouterSourceNetwork = isAlfredpayToken(quote.inputCurrency) ? Networks.Polygon : Networks.Base;
+  const squidRouterSourceNetwork = isDomesticToken(quote.inputCurrency) ? Networks.Polygon : Networks.Base;
   const squidRouterSourceDisplayName = getNetworkDisplayName(squidRouterSourceNetwork);
   const getSquidRouterSwapMessage = () => {
     if (squidRouterSourceNetwork === toNetwork) {

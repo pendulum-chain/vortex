@@ -104,9 +104,11 @@ async function getArbitrumExecutionGasLimits(
 
 export function calculatePresignedGasBudgetRaw(rawTransaction: `0x${string}`): bigint {
   const transaction = parseTransaction(rawTransaction as TransactionSerialized);
-  const feePerGas = transaction.maxFeePerGas ?? transaction.gasPrice;
-  if (transaction.gas === undefined || feePerGas === undefined) {
-    throw new Error("EVM destination transaction is missing gas or fee data");
+  // viem decodes zero-valued fee scalars as absent (zero is RLP-encoded as an empty byte
+  // string), so an absent fee means the signed transaction genuinely carries a zero fee.
+  const feePerGas = transaction.maxFeePerGas ?? transaction.gasPrice ?? 0n;
+  if (transaction.gas === undefined) {
+    throw new Error("EVM destination transaction is missing gas data");
   }
   return transaction.gas * feePerGas;
 }

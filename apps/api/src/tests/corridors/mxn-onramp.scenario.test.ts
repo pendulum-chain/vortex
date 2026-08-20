@@ -15,6 +15,7 @@ import Big from "big.js";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import FinancialOperation from "../../models/financialOperation.model";
 import type Partner from "../../models/partner.model";
@@ -320,7 +321,15 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
    * - submitted raw ERC-20 transfers are applied to the in-memory ledger.
    */
   function scriptHappyWorld(setup: CorridorSetup): void {
+    const fundingAccount = getEvmFundingAccount(Networks.Polygon);
     world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Polygon, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(
+      Networks.Polygon,
+      ALFREDPAY_ERC20_TOKEN,
+      fundingAccount.address,
+      parseUnits("1000000", ALFREDPAY_ERC20_DECIMALS)
+    );
     world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, setup.mintAmountRaw);
     world.evm.onTransaction = tx => {
       // Presigned transfers arrive serialized; funding-account transfers (subsidy

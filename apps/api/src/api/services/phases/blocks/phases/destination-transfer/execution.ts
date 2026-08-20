@@ -4,7 +4,6 @@ import {
   EvmNetworks,
   EvmTokenDetails,
   getOnChainTokenDetails,
-  multiplyByPowerOfTen,
   RampPhase
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem";
@@ -16,6 +15,8 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
+import { getBlockMetadata } from "../../core/metadata";
+import { DestinationTransferContext } from "./simulation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -77,7 +78,10 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     }
 
     const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
-    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
+    // The precondition must demand the exact raw integer the presigned transfer spends (and the
+    // preceding subsidy funded); reconstructing it from the decimal quote.outputAmount can round
+    // one raw unit above the funded amount and wedge the ramp.
+    const expectedAmountRaw = getBlockMetadata(quote.metadata, DestinationTransferContext).amountRaw;
     const destinationNetwork = quote.network as EvmNetworks;
     const { destinationTransferTxHash, destinationAddress } = state.state as StateMetadata;
 

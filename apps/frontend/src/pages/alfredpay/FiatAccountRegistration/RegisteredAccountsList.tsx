@@ -1,4 +1,4 @@
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { useTranslation } from "react-i18next";
 import { MenuButtons } from "../../../components/MenuButtons";
 import { AccountCardDeck } from "./AccountCardDeck";
@@ -6,7 +6,7 @@ import { AccountCardSkeleton } from "./AccountCardSkeleton";
 import { KycRequiredBanner } from "./KycRequiredBanner";
 
 interface RegisteredAccountsListProps {
-  accounts: AlfredpayFiatAccount[];
+  accounts: DomesticFiatAccount[];
   country: string;
   isLoading: boolean;
   kycApproved: boolean;

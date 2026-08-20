@@ -1,7 +1,15 @@
 import {describe, expect, it, mock} from "bun:test";
+import { EstimateGasExecutionError, ExecutionRevertedError } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import {Networks} from "../../helpers";
 import logger from "../../logger";
-import {EvmClientManager, getEvmNetworks, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
+import {
+  EvmClientManager,
+  getEvmNetworks,
+  isDeterministicPreBroadcastRevert,
+  redactRpcUrlForLogs,
+  sanitizeRpcErrorMessage
+} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
@@ -95,5 +103,62 @@ describe("EvmClientManager read contract retries", () => {
       managerWithMockedClient.getClient = originalGetClient;
       logger.current = originalLogger;
     }
+  });
+});
+
+describe("EvmClientManager transaction retries", () => {
+  it("recognizes only an estimate-gas execution revert as a deterministic pre-broadcast failure", () => {
+    const executionRevert = new ExecutionRevertedError({ message: "transfer amount exceeds balance" });
+    const estimateGasRevert = new EstimateGasExecutionError(executionRevert, {});
+
+    expect(isDeterministicPreBroadcastRevert(new Error("send failed", { cause: estimateGasRevert }))).toBe(true);
+    expect(isDeterministicPreBroadcastRevert(executionRevert)).toBe(false);
+    expect(isDeterministicPreBroadcastRevert(new Error("transport timeout"))).toBe(false);
+  });
+
+  it("preserves the last cause after retrying an ambiguous send failure", async () => {
+    const manager = EvmClientManager.getInstance();
+    const managerWithMockedClient = manager as EvmClientManager & {
+      getWalletClient: EvmClientManager["getWalletClient"];
+    };
+    const originalGetWalletClient = managerWithMockedClient.getWalletClient;
+    const originalLogger = logger.current;
+    const account = privateKeyToAccount("0x1111111111111111111111111111111111111111111111111111111111111111");
+    const failures: Error[] = [];
+    let thrown: unknown;
+
+    logger.current = {
+      debug: mock(() => {}),
+      error: mock(() => {}),
+      info: mock(() => {}),
+      warn: mock(() => {})
+    };
+    managerWithMockedClient.getWalletClient = (() =>
+      ({
+        sendTransaction: async () => {
+          const failure = new Error(`timeout ${failures.length + 1}`);
+          failures.push(failure);
+          throw failure;
+        }
+      }) as unknown as ReturnType<EvmClientManager["getWalletClient"]>) as EvmClientManager["getWalletClient"];
+
+    try {
+      await manager.sendTransactionWithBlindRetry(
+        Networks.Base,
+        account,
+        { to: "0x2222222222222222222222222222222222222222" },
+        1,
+        0
+      );
+    } catch (error) {
+      thrown = error;
+    } finally {
+      managerWithMockedClient.getWalletClient = originalGetWalletClient;
+      logger.current = originalLogger;
+    }
+
+    expect(failures).toHaveLength(2);
+    expect((thrown as Error & { cause?: unknown }).cause).toBe(failures[1]);
+    expect(isDeterministicPreBroadcastRevert(thrown)).toBe(false);
   });
 });

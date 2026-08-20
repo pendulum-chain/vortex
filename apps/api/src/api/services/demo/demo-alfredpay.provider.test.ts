@@ -1,6 +1,6 @@
 import {
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   AlfredpayKybStatus,
   type GetAllConfigsResponse,
   type SubmitKybInformationRequest
@@ -30,7 +30,7 @@ const KYB_SUBMISSION = {
 describe("demo alfredpay provider", () => {
   it("moves a submission from pending to in review once it is sent", async () => {
     const service = createDemoAlfredpayService(fakeRealClient);
-    const customerId = (await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+    const customerId = (await service.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO")).customerId;
 
     const { submissionId } = await service.submitKybInformation(customerId, KYB_SUBMISSION);
     expect((await service.getKybStatus(customerId, submissionId)).status).toBe(AlfredpayKybStatus.PENDING);
@@ -42,7 +42,7 @@ describe("demo alfredpay provider", () => {
   // The whole point of the demo corridor: the same wizard has to be walkable again and again.
   it("accepts a fresh submission after a completed one", async () => {
     const service = createDemoAlfredpayService(fakeRealClient);
-    const customerId = (await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+    const customerId = (await service.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO")).customerId;
 
     const first = await service.submitKybInformation(customerId, KYB_SUBMISSION);
     await service.sendKybSubmission(customerId, first.submissionId);
@@ -60,7 +60,7 @@ describe("demo alfredpay provider", () => {
 
   it("returns the related-person ids the file uploads need", async () => {
     const service = createDemoAlfredpayService(fakeRealClient);
-    const customerId = (await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+    const customerId = (await service.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO")).customerId;
     await service.submitKybInformation(customerId, KYB_SUBMISSION);
 
     const [details] = await service.getKybBusinessDetails(customerId);
@@ -80,18 +80,18 @@ describe("demo alfredpay provider", () => {
   it("passes individual customer creation through to the real client", async () => {
     const realCalls: string[] = [];
     const real = {
-      createCustomer: async (_email: string, type: AlfredpayCustomerType) => {
+      createCustomer: async (_email: string, type: DomesticCustomerType) => {
         realCalls.push(type);
         return { createdAt: new Date().toISOString(), customerId: "real-customer-1" };
       }
     } as unknown as AlfredpayApiService;
     const service = createDemoAlfredpayService(() => real);
 
-    const individual = await service.createCustomer("demo@example.com", AlfredpayCustomerType.INDIVIDUAL, "CO");
-    const business = await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO");
+    const individual = await service.createCustomer("demo@example.com", DomesticCustomerType.INDIVIDUAL, "CO");
+    const business = await service.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO");
 
     expect(individual.customerId).toBe("real-customer-1");
-    expect(realCalls).toEqual([AlfredpayCustomerType.INDIVIDUAL]);
+    expect(realCalls).toEqual([DomesticCustomerType.INDIVIDUAL]);
     expect(business.customerId).toMatch(/^demo-customer-/);
   });
 
@@ -101,8 +101,8 @@ describe("demo alfredpay provider", () => {
     const first = createDemoAlfredpayService(fakeRealClient);
     const second = createDemoAlfredpayService(fakeRealClient);
 
-    const a = (await first.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
-    const b = (await second.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO")).customerId;
+    const a = (await first.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO")).customerId;
+    const b = (await second.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO")).customerId;
 
     expect(a).not.toBe(b);
   });
@@ -119,7 +119,7 @@ describe("demo alfredpay provider", () => {
 
       expect(AlfredpayApiService.getInstance).not.toBe(originalGetInstance);
       const service = AlfredpayApiService.getInstance();
-      const customer = await service.createCustomer("demo@example.com", AlfredpayCustomerType.BUSINESS, "CO");
+      const customer = await service.createCustomer("demo@example.com", DomesticCustomerType.BUSINESS, "CO");
       expect(customer.customerId).toMatch(/^demo-customer-/);
     } finally {
       config.demoProviderEnabled = originalFlag;

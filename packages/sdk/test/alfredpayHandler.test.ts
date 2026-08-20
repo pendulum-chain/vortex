@@ -1,5 +1,5 @@
 // Regression coverage for the Alfredpay (USD / MXN / COP / ARS) on/off-ramp flows.
-// Exercises the real AlfredpayHandler against an in-memory backend (no network,
+// Exercises the real DomesticHandler against an in-memory backend (no network,
 // RPC, KYC, or on-chain funds) to lock in routing, request payloads, and call
 // ordering. Run: cd packages/sdk && bun test
 
@@ -9,7 +9,7 @@ import {
   EphemeralAccountType,
   FiatToken,
   GetRampStatusResponse,
-  isAlfredpayToken,
+  isDomesticToken,
   Networks,
   PresignedTx,
   RampDirection,
@@ -18,8 +18,8 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import {MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError} from "../src/errors";
-import {AlfredpayHandler} from "../src/handlers/AlfredpayHandler";
+import {MissingDomesticOfframpParametersError, MissingDomesticOnrampParametersError} from "../src/errors";
+import {DomesticHandler} from "../src/handlers/DomesticHandler";
 import {ApiService} from "../src/services/ApiService";
 import type {VortexSdkContext} from "../src/types";
 
@@ -126,29 +126,29 @@ function setup(overrides: { unsignedTxs?: UnsignedTx[]; currentPhase?: RampProce
     return txs.map((t, i) => ({ ...t, txData: `presigned_${i}` }));
   };
 
-  const handler = new AlfredpayHandler(apiService, context, generateEphemerals, signTransactions);
+  const handler = new DomesticHandler(apiService, context, generateEphemerals, signTransactions);
   return { calls, handler };
 }
 
-describe("isAlfredpayToken routing", () => {
+describe("isDomesticToken routing", () => {
   test("USD/MXN/COP/ARS route to Alfredpay", () => {
     for (const t of [FiatToken.USD, FiatToken.MXN, FiatToken.COP, FiatToken.ARS]) {
-      expect(isAlfredpayToken(t)).toBe(true);
+      expect(isDomesticToken(t)).toBe(true);
     }
   });
 
   test("BRL/EURC do not route to Alfredpay", () => {
     for (const t of [FiatToken.BRL, FiatToken.EURC]) {
-      expect(isAlfredpayToken(t)).toBe(false);
+      expect(isDomesticToken(t)).toBe(false);
     }
   });
 });
 
-describe("AlfredpayHandler onramp", () => {
+describe("DomesticHandler onramp", () => {
   test("registers, stores ephemerals, signs, then updates", async () => {
     const { calls, handler } = setup({ unsignedTxs: [makeUnsignedTx("fundEphemeral", "5SUBSTRATE")] });
 
-    const result = await handler.registerAlfredpayOnramp("quote_1", {
+    const result = await handler.registerDomesticOnramp("quote_1", {
       destinationAddress: WALLET,
       fiatAccountId: FIAT_ACCOUNT,
       walletAddress: WALLET
@@ -169,15 +169,15 @@ describe("AlfredpayHandler onramp", () => {
 
   test("throws when destinationAddress missing", async () => {
     const { handler } = setup();
-    await expect(handler.registerAlfredpayOnramp("q", { destinationAddress: "", fiatAccountId: FIAT_ACCOUNT })).rejects.toBeInstanceOf(
-      MissingAlfredpayOnrampParametersError
+    await expect(handler.registerDomesticOnramp("q", { destinationAddress: "", fiatAccountId: FIAT_ACCOUNT })).rejects.toBeInstanceOf(
+      MissingDomesticOnrampParametersError
     );
   });
 
   test("registers without fiatAccountId (backend only requires destinationAddress for onramp)", async () => {
     const { calls, handler } = setup();
 
-    const result = await handler.registerAlfredpayOnramp("quote_1", { destinationAddress: WALLET });
+    const result = await handler.registerDomesticOnramp("quote_1", { destinationAddress: WALLET });
 
     expect(result.id).toBe("ramp_1");
     const reg = payloadFor<RegisterRampRequest>(calls, "registerRamp");
@@ -186,11 +186,11 @@ describe("AlfredpayHandler onramp", () => {
   });
 });
 
-describe("AlfredpayHandler offramp", () => {
+describe("DomesticHandler offramp", () => {
   test("registers with fiatAccountId + walletAddress (no destinationAddress)", async () => {
     const { calls, handler } = setup({ unsignedTxs: [makeUnsignedTx("squidRouterApprove", WALLET)] });
 
-    const result = await handler.registerAlfredpayOfframp("quote_2", { fiatAccountId: FIAT_ACCOUNT, walletAddress: WALLET });
+    const result = await handler.registerDomesticOfframp("quote_2", { fiatAccountId: FIAT_ACCOUNT, walletAddress: WALLET });
 
     expect(result.id).toBe("ramp_1");
     expect(calls.map(c => c.method)).toEqual(["registerRamp", "storeEphemerals", "signTransactions", "updateRamp"]);
@@ -202,24 +202,24 @@ describe("AlfredpayHandler offramp", () => {
 
   test("throws when fiatAccountId missing", async () => {
     const { handler } = setup();
-    await expect(handler.registerAlfredpayOfframp("q", { fiatAccountId: "", walletAddress: WALLET })).rejects.toBeInstanceOf(
-      MissingAlfredpayOfframpParametersError
+    await expect(handler.registerDomesticOfframp("q", { fiatAccountId: "", walletAddress: WALLET })).rejects.toBeInstanceOf(
+      MissingDomesticOfframpParametersError
     );
   });
 
   test("throws when walletAddress missing", async () => {
     const { handler } = setup();
-    await expect(handler.registerAlfredpayOfframp("q", { fiatAccountId: FIAT_ACCOUNT, walletAddress: "" })).rejects.toBeInstanceOf(
-      MissingAlfredpayOfframpParametersError
+    await expect(handler.registerDomesticOfframp("q", { fiatAccountId: FIAT_ACCOUNT, walletAddress: "" })).rejects.toBeInstanceOf(
+      MissingDomesticOfframpParametersError
     );
   });
 });
 
-describe("AlfredpayHandler offramp update", () => {
+describe("DomesticHandler offramp update", () => {
   test("forwards squidRouter hashes with no presignedTxs after phase check", async () => {
     const { calls, handler } = setup({ currentPhase: "initial" });
 
-    await handler.updateAlfredpayOfframp("ramp_1", { squidRouterApproveHash: "0xA", squidRouterSwapHash: "0xS" });
+    await handler.updateDomesticOfframp("ramp_1", { squidRouterApproveHash: "0xA", squidRouterSwapHash: "0xS" });
 
     expect(calls.map(c => c.method)).toEqual(["getRampStatus", "updateRamp"]);
     const upd = payloadFor<UpdateRampRequest>(calls, "updateRamp");
@@ -229,6 +229,6 @@ describe("AlfredpayHandler offramp update", () => {
 
   test("throws when ramp is not on the initial phase", async () => {
     const { handler } = setup({ currentPhase: "fundEphemeral" });
-    await expect(handler.updateAlfredpayOfframp("ramp_1", {})).rejects.toThrow(/current phase/);
+    await expect(handler.updateDomesticOfframp("ramp_1", {})).rejects.toThrow(/current phase/);
   });
 });

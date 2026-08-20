@@ -14,8 +14,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 |---|---|---|
 | `FUNDING_SECRET` | **Removed/obsolete** — was the Stellar funding account keypair; Stellar/Spacewalk support was removed (migration 028). Unset in deployments; no code reads it. | None (obsolete) |
 | `PENDULUM_FUNDING_SEED` | Pendulum funding account seed | Drain of Pendulum funding pool — affects all subsidization |
-| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Calls `executeXCM` on Moonbeam receiver contract | Unauthorized XCM execution on Moonbeam — could route funds incorrectly |
-| `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
+| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Historical name retained as a compatibility fallback for general EVM funding/account derivation and local status-address output; runtime Moonbeam execution is disabled | Drain of the active EVM funding pool and exposure of any unreconciled balance at the derived historical Moonbeam address |
+| `MOONBEAM_FUNDING_PRIVATE_KEY` | Legacy-named compatibility fallback for EVM subsidization transfers on active EVM chains; BRLA payouts and fee distribution on Base | Drain of the EVM funding pool on active chains plus any unreconciled historical address balance |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
 | `METRICS_DASHBOARD_SECRET` | Read-only observability API bearer token | Read-only access to sanitized API client event data |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
@@ -36,8 +36,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Secret | Purpose | Blast Radius |
 |---|---|---|
-| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for all EVM chains (Base, Polygon, Moonbeam). Used by both Base and legacy flows. | Drain of rebalancer funds on ALL EVM chains — Base, Polygon, and Moonbeam. Single point of failure for all EVM-based rebalancing. |
-| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account (sr25519 seed). Only required for legacy flow (`--legacy` flag). | Drain of rebalancer Pendulum funds. Not needed for the default Base flow. |
+| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for active Base/Polygon automation and the historically derived Moonbeam account. | Drain of active rebalancer funds and exposure of any unreconciled historical Moonbeam balance. |
+| `PENDULUM_ACCOUNT_SECRET` | Historical rebalancer Pendulum account seed retained for manual legacy-state reconciliation. The CLI rejects `--legacy`. | Drain of any remaining rebalancer Pendulum funds; not used by active automation. |
 
 ### Shared
 
@@ -58,12 +58,13 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 9. **`MYKOBO_CLIENT_DOMAIN` MUST be set in production** — Not a secret, but operationally critical: when unset, Mykobo silently applies its default fee tier (~5x worse than the negotiated rate). Quote-engine fee defaults will then diverge from what Mykobo actually charges. Deployment automation MUST treat a missing `MYKOBO_CLIENT_DOMAIN` as a hard failure rather than letting it fall through to default-tier fees.
 10. **Observability MUST follow the same no-secret rule as logs** — API client events, request correlation logs, metrics, and observability data must not contain full API keys, bearer tokens, provider credentials, private keys, seeds, raw request headers, or raw request bodies. Sanitized request summaries may be stored only when they are allowlisted, scalar, and stripped of secrets or sensitive payment/user data. See `07-operations/client-observability.md`.
 11. **Provider endpoint URLs MUST be treated as integrity-sensitive configuration** — Non-secret provider URL env vars such as `FASTFOREX_API_URL` and `MYKOBO_BASE_URL` must not be user-controllable or mutable at runtime by untrusted actors. A malicious URL can redirect outbound provider calls even when no secret is leaked.
+12. **Sumsub share tokens MUST be treated as transient secrets** — Raw import tokens may exist only in request memory during the Avenia exchange. They MUST NOT be persisted or emitted to logs, URLs, provider error details, Sentry, analytics, traces, metrics, API client events, support artifacts, or responses. Only a SHA-256 digest may be stored for equality checks.
 
 ## Threat Vectors & Mitigations
 
 | Threat | Mitigation |
 |---|---|
-| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes: all funding accounts (Pendulum, Moonbeam, Base), all database access, admin access, all third-party API keys. The only mitigation is infrastructure hardening (firewalls, SSH hardening, monitoring). |
+| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes active Pendulum/Base/EVM funding accounts, any unreconciled historical Moonbeam address, database/admin access, and third-party API keys. |
 | **Environment variable leak via error page or debug endpoint** — Misconfigured error handler dumps `process.env` | Express error handler strips stack traces in non-development mode. However, there is no explicit guard against dumping environment variables. A bug in error handling could expose secrets. |
 | **Ephemeral webhook keys after restart** — Without `WEBHOOK_PRIVATE_KEY`, webhook signatures change on every restart | Webhook consumers lose the ability to verify signatures from the previous instance. This is a reliability issue, not a direct security vulnerability, but it could cause consumers to reject legitimate webhooks or accept unverified ones (if they fall back to no-verification). |
 | **Credential rotation requires redeployment** — No runtime rotation mechanism | To rotate any secret, the environment variable must be updated and the service restarted. During the rotation window, the old secret may still be valid (e.g., API keys at third parties). There is no way to do zero-downtime rotation. |
@@ -72,6 +73,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | **Google Sheets credentials** — Access to fee logging spreadsheet | Could expose fee data and ramp metadata. Could manipulate fee records. Lower severity than financial keys but still a data leak. |
 | **`SUPABASE_SERVICE_KEY` used for all database operations** — No principle of least privilege | The service key bypasses all RLS. If any code path leaks this key, the attacker has unrestricted database access. A more secure approach would use the anon key with RLS for read operations and the service key only for privileged writes. |
 | **Observability event leak** — Operational telemetry captures secret values or payment/KYC data | Client observability uses a sanitized event schema, 16-character key prefixes only, allowlisted scalar request summaries, scalar metadata filtering, and explicit exclusion of raw headers/bodies, tax IDs, PIX data, KYC data, and private material. |
+| **KYC data disclosure** — A bearer-like share token or standard identity payload is logged or retained in operational data | Sensitive provider requests suppress body and response details; observability rejects secret KYC inputs; persistence retains only SHA-256 equality digests. |
 
 ## Audit Checklist
 
@@ -91,3 +93,4 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [x] Map the full blast radius: if the API server is compromised, list every account, service, and database that becomes accessible. **PASS (comprehensive)** — full blast radius documented in the Secret Inventory table above.
 - [x] **FINDING F-062 (MEDIUM)**: Verify SDK does not log API keys or secrets to console. **PASS (FIXED)** — removed `console.log("Creating quote with request:", request)` from `ApiService.ts` that was leaking the full request object including API key.
 - [ ] Verify API client event persistence stores only 16-character key prefixes and never stores full `X-API-Key`, bearer tokens, raw auth headers, or request bodies.
+- [x] Verify Avenia share tokens are request-memory-only and provider request/error logging is suppressed. **PASS** — the import client uses sensitive-body mode and persistence stores only a SHA-256 digest.

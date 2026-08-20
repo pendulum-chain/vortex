@@ -16,8 +16,10 @@ describe("sanitizeApiClientEvent", () => {
       metadata: {
         apiKey: "pk_live_secret",
         endpoint: "/v1/ramp/start",
+        importToken: "opaque-share-token",
         nested: { unsafe: true },
-        taxId: "12345678900"
+        taxId: "12345678900",
+        tokenFingerprint: "fingerprint"
       },
       operation: "ramp_start",
       partnerName: "p".repeat(150),
