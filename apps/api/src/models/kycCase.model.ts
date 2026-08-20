@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import type CustomerEntity from "./customerEntity.model";
+import type ProviderCustomer from "./providerCustomer.model";
 import type { ProviderName, VerificationStatus } from "./providerCustomer.model";
 
 export type KycCaseType = "kyc" | "kyb";
@@ -99,6 +100,7 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
 
   // Association helper
   declare customerEntity?: CustomerEntity;
+  declare providerCustomer?: ProviderCustomer;
 }
 
 KycCase.init(

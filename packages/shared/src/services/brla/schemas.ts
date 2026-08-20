@@ -227,7 +227,10 @@ const aveniaAttemptSchema = z.looseObject({
     .transform(value => value ?? undefined),
   retryable: z.boolean().optional(),
   status: z.enum(KycAttemptStatus),
-  submissionData: z.record(z.string(), z.unknown()).optional(),
+  submissionData: z
+    .record(z.string(), z.unknown())
+    .nullish()
+    .transform(value => value ?? undefined),
   updatedAt: z.string().datetime({ offset: true })
 }) satisfies z.ZodType<KycAttempt>;
 
