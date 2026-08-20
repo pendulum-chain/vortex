@@ -9,13 +9,12 @@ import { AuthService } from "./services/auth";
 import { initializeEvmTokens } from "./services/tokens";
 import "./helpers/googleTranslate";
 
-// Sentry must initialize before the app renders. The TanStack Router tracing integration
-// needs the router instance, which Start only hands over once hydration resolves — so the
-// router is optional here, for the path where hydration never resolves at all.
-function initSentry(router?: Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0]) {
+// Sentry must initialize before router hydration so startup failures are reportable. The
+// router tracing integration is attached once Start hands over the router instance.
+function initSentry(): boolean {
   const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
   if (!sentryDsn) {
-    return;
+    return false;
   }
 
   Sentry.init({
@@ -27,10 +26,7 @@ function initSentry(router?: Parameters<typeof Sentry.tanstackRouterBrowserTraci
     ignoreErrors: SENTRY_IGNORE_ERRORS,
     // Explicit replay masking — these are the defaults, but pinned for a KYC/KYB app so a future
     // default change can't start leaking user input into replays.
-    integrations: [
-      ...(router ? [Sentry.tanstackRouterBrowserTracingIntegration(router)] : []),
-      Sentry.replayIntegration({ blockAllMedia: true, maskAllText: true })
-    ],
+    integrations: [Sentry.replayIntegration({ blockAllMedia: true, maskAllText: true })],
     // Capture 100% of sessions where an error occurs; sample plain sessions only in prod.
     replaysOnErrorSampleRate: 1.0,
     replaysSessionSampleRate: config.isProd ? 0.1 : 1.0,
@@ -47,14 +43,20 @@ function initSentry(router?: Parameters<typeof Sentry.tanstackRouterBrowserTraci
   if (restoredUserId) {
     Sentry.setUser({ id: restoredUserId });
   }
+
+  return true;
 }
+
+const sentryInitialized = initSentry();
 
 // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
 initializeEvmTokens();
 
 hydrateStart()
   .then(router => {
-    initSentry(router);
+    if (sentryInitialized) {
+      Sentry.addIntegration(Sentry.tanstackRouterBrowserTracingIntegration(router));
+    }
 
     startTransition(() => {
       hydrateRoot(document, <RouterProvider router={router} />, {
@@ -67,8 +69,6 @@ hydrateStart()
   .catch(error => {
     // Hydration never produced a router, so the app will never mount. On a prerendered marketing
     // route the visitor is left with static, inert HTML; on `/widget` (ssr: false) the page stays
-    // blank. Without this, Sentry is never initialized and the failure dies as an unhandled
-    // rejection — the one class of bug we would have no telemetry for.
-    initSentry();
+    // blank. Report the failure through the base monitoring initialized above.
     Sentry.captureException(error);
   });
