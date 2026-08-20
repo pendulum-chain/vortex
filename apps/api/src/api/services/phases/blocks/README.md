@@ -493,9 +493,9 @@ Offramp source phases carry the request's bridged USD valuation through the
 typed `PhaseIO` boundary so downstream subsidy math does not read another
 phase's metadata.
 
-The three subsidy phases independently call `computeExpectedOutput(ctx)`
-and persist distinct contexts. Their values no longer overwrite one shared
-`subsidy` key.
+Subsidy blocks that derive expected output independently call
+`computeExpectedOutput(ctx, tokenDecimals)` and persist distinct contexts.
+Their values no longer overwrite one shared `subsidy` key.
 
 ### Conventions (non-negotiable)
 

@@ -176,25 +176,25 @@ export class InvalidPixKeyError extends BrlOfframpError {
   }
 }
 
-// Alfredpay Onramp specific errors
-export class AlfredpayOnrampError extends RegisterRampError {
+// Domestic-corridor onramp specific errors
+export class DomesticOnrampError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOnrampError";
+    this.name = "DomesticOnrampError";
   }
 }
 
-export class MissingAlfredpayOnrampParametersError extends AlfredpayOnrampError {
+export class MissingDomesticOnrampParametersError extends DomesticOnrampError {
   constructor() {
-    super("Parameter destinationAddress is required for Alfredpay onramp", 400);
-    this.name = "MissingAlfredpayOnrampParametersError";
+    super("Parameter destinationAddress is required for this onramp", 400);
+    this.name = "MissingDomesticOnrampParametersError";
   }
 }
 
-export class AlfredpayOnrampKycRequiredError extends AlfredpayOnrampError {
+export class DomesticOnrampKycRequiredError extends DomesticOnrampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOnrampKycRequiredError";
+    this.name = "DomesticOnrampKycRequiredError";
   }
 }
 
@@ -214,18 +214,18 @@ function extractErrorStatus(response: Record<string, unknown>): number | undefin
   return undefined;
 }
 
-// Alfredpay Offramp specific errors
-export class AlfredpayOfframpError extends RegisterRampError {
+// Domestic-corridor offramp specific errors
+export class DomesticOfframpError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOfframpError";
+    this.name = "DomesticOfframpError";
   }
 }
 
-export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpError {
-  constructor(message = "Parameters fiatAccountId and walletAddress are required for Alfredpay offramp") {
+export class MissingDomesticOfframpParametersError extends DomesticOfframpError {
+  constructor(message = "Parameters fiatAccountId and walletAddress are required for this offramp") {
     super(message, 400);
-    this.name = "MissingAlfredpayOfframpParametersError";
+    this.name = "MissingDomesticOfframpParametersError";
   }
 }
 
@@ -521,24 +521,24 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
         return new InvalidPixKeyError();
       }
-      if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
-        return new MissingAlfredpayOnrampParametersError();
+      if (errorMessage === "Parameter destinationAddress is required for this onramp") {
+        return new MissingDomesticOnrampParametersError();
       }
       if (
         errorMessage ===
-          "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists." ||
-        errorMessage.startsWith("No completed Alfredpay KYC profile found") ||
-        errorMessage.startsWith("Alfredpay KYC status is")
+          "This onramp requires a completed KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-customer mapping exists." ||
+        errorMessage.startsWith("No completed KYC profile found") ||
+        errorMessage.startsWith("KYC status is")
       ) {
-        return new AlfredpayOnrampKycRequiredError(errorMessage, normalizedStatus);
+        return new DomesticOnrampKycRequiredError(errorMessage, normalizedStatus);
       }
-      if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
-        return new MissingAlfredpayOfframpParametersError(errorMessage);
+      if (errorMessage === "fiatAccountId is required for this offramp") {
+        return new MissingDomesticOfframpParametersError(errorMessage);
       }
-      // Shared across BRL, Alfredpay and Mykobo offramp routes (missing walletAddress);
+      // Shared across BRL, domestic-corridor and Mykobo offramp routes (missing walletAddress);
       // the message carries no corridor, so it cannot be mapped to a corridor-specific class.
       if (errorMessage === "User address must be provided for offramping.") {
-        return new MissingAlfredpayOfframpParametersError(errorMessage);
+        return new MissingDomesticOfframpParametersError(errorMessage);
       }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();
@@ -608,3 +608,20 @@ export async function handleAPIResponse<T>(response: Response, endpoint: string)
     throw new NetworkError(`Failed to parse response from ${endpoint}`, error as Error);
   }
 }
+
+/*
+ * Deprecated provider-named error aliases. The error classes are named after the
+ * corridor family they belong to so they stay stable if the payment partner changes.
+ * These aliases keep previous imports working and are removed in the next major release.
+ */
+
+/** @deprecated Renamed to {@link DomesticOnrampError}. */
+export const AlfredpayOnrampError = DomesticOnrampError;
+/** @deprecated Renamed to {@link DomesticOnrampKycRequiredError}. */
+export const AlfredpayOnrampKycRequiredError = DomesticOnrampKycRequiredError;
+/** @deprecated Renamed to {@link DomesticOfframpError}. */
+export const AlfredpayOfframpError = DomesticOfframpError;
+/** @deprecated Renamed to {@link MissingDomesticOnrampParametersError}. */
+export const MissingAlfredpayOnrampParametersError = MissingDomesticOnrampParametersError;
+/** @deprecated Renamed to {@link MissingDomesticOfframpParametersError}. */
+export const MissingAlfredpayOfframpParametersError = MissingDomesticOfframpParametersError;

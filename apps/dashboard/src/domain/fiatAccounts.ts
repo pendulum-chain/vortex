@@ -1,4 +1,4 @@
-import { type AlfredpayAddFiatAccountRequest, AlfredpayFiatAccountType } from "@vortexfi/shared";
+import { type DomesticAddFiatAccountRequest, DomesticFiatAccountType } from "@vortexfi/shared";
 import { z } from "zod";
 
 export type AlfredpayCorridorId = "AR" | "CO" | "MX" | "US";
@@ -15,7 +15,7 @@ export interface FiatAccountField {
 interface FiatAccountConfig {
   fields: FiatAccountField[];
   methodLabel: string;
-  type: AlfredpayFiatAccountType;
+  type: DomesticFiatAccountType;
 }
 
 // Ported from apps/frontend/src/constants/fiatAccountForms.ts and fiatAccountMethods.ts.
@@ -37,7 +37,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
       }
     ],
     methodLabel: "COELSA",
-    type: AlfredpayFiatAccountType.COELSA
+    type: DomesticFiatAccountType.COELSA
   },
   CO: {
     fields: [
@@ -58,7 +58,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
       { label: "Document number", name: "documentNumber", type: "text" }
     ],
     methodLabel: "ACH Colombia",
-    type: AlfredpayFiatAccountType.ACH
+    type: DomesticFiatAccountType.ACH
   },
   MX: {
     fields: [
@@ -66,7 +66,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
       { label: "Account holder name", name: "accountName", type: "text" }
     ],
     methodLabel: "SPEI",
-    type: AlfredpayFiatAccountType.SPEI
+    type: DomesticFiatAccountType.SPEI
   },
   US: {
     fields: [
@@ -82,7 +82,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
       { label: "Account number", name: "accountNumber", type: "text" }
     ],
     methodLabel: "US bank account",
-    type: AlfredpayFiatAccountType.BANK_USA
+    type: DomesticFiatAccountType.BANK_USA
   }
 };
 
@@ -113,7 +113,7 @@ export function fiatAccountDefaultValues(corridorId: AlfredpayCorridorId): Recor
 export function toAddFiatAccountRequest(
   corridorId: AlfredpayCorridorId,
   values: Record<string, string | undefined>
-): AlfredpayAddFiatAccountRequest {
+): DomesticAddFiatAccountRequest {
   return {
     accountBankCode: values.accountBankCode,
     accountName: values.accountName,

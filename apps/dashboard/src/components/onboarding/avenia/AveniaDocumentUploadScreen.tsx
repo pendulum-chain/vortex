@@ -1,5 +1,5 @@
 import type { UploadIds } from "@vortexfi/kyc";
-import { AveniaDocumentType } from "@vortexfi/shared";
+import { BrDocumentType } from "@vortexfi/shared";
 import { CheckCircle2, FileText, Loader2, UploadCloud } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,13 +34,13 @@ async function uploadFile(file: File, url: string) {
 }
 
 export function AveniaDocumentUploadScreen({ onBack, onSubmit, taxId }: AveniaDocumentUploadScreenProps) {
-  const [docType, setDocType] = useState<AveniaDocumentType>(AveniaDocumentType.DRIVERS_LICENSE);
+  const [docType, setDocType] = useState<BrDocumentType>(BrDocumentType.DRIVERS_LICENSE);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const requiresBack = docType === AveniaDocumentType.ID;
+  const requiresBack = docType === BrDocumentType.ID;
   const canSubmit = !!taxId && !!front && (!requiresBack || !!back) && !isUploading;
 
   const handleSubmit = async () => {
@@ -84,7 +84,7 @@ export function AveniaDocumentUploadScreen({ onBack, onSubmit, taxId }: AveniaDo
           <Label>Document type</Label>
           <Select
             onValueChange={value => {
-              setDocType(value as AveniaDocumentType);
+              setDocType(value as BrDocumentType);
               setFront(null);
               setBack(null);
               setError(null);
@@ -95,8 +95,8 @@ export function AveniaDocumentUploadScreen({ onBack, onSubmit, taxId }: AveniaDo
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={AveniaDocumentType.DRIVERS_LICENSE}>Driver's license (CNH)</SelectItem>
-              <SelectItem value={AveniaDocumentType.ID}>Identity card (RG)</SelectItem>
+              <SelectItem value={BrDocumentType.DRIVERS_LICENSE}>Driver's license (CNH)</SelectItem>
+              <SelectItem value={BrDocumentType.ID}>Identity card (RG)</SelectItem>
             </SelectContent>
           </Select>
         </div>

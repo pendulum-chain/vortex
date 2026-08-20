@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import {
   AlfredpayApiService,
   type AlfredpayConfigPair,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   FiatToken,
   type GetAllConfigsResponse,
   RampDirection
@@ -37,12 +37,12 @@ const configsResponse: GetAllConfigsResponse = {
     // The only trustworthy row: wildcard MXN -> USDC with explicit decimals.
     pair({ id: "valid-wildcard" }),
     // Junk rows as served live; the INDIVIDUAL one would take precedence if indexed.
-    pair({ decimals: null, id: "junk-individual", typeCustomer: AlfredpayCustomerType.INDIVIDUAL }),
+    pair({ decimals: null, id: "junk-individual", typeCustomer: DomesticCustomerType.INDIVIDUAL }),
     pair({ decimals: null, id: "junk-wildcard" }),
     pair({ decimals: "", id: "junk-empty-decimals" }),
     pair({ decimals: null, fromCurrency: null, id: "junk-null-currency" }),
     // Oversized decimals would make Big(10).pow throw and abort the whole refresh.
-    pair({ decimals: "999999999999999999999999", id: "junk-huge-decimals", typeCustomer: AlfredpayCustomerType.INDIVIDUAL })
+    pair({ decimals: "999999999999999999999999", id: "junk-huge-decimals", typeCustomer: DomesticCustomerType.INDIVIDUAL })
   ]
 };
 
@@ -60,7 +60,7 @@ describe("AlfredpayLimitsService.refresh", () => {
     await (service as unknown as { refresh(): Promise<void> }).refresh();
 
     // From the valid wildcard row: 50.00 / 170799.99 scaled by 10^2 — not 10^0.
-    const limits = service.getLimits(FiatToken.MXN, "USDC", AlfredpayCustomerType.INDIVIDUAL, RampDirection.BUY);
+    const limits = service.getLimits(FiatToken.MXN, "USDC", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY);
     expect(limits).toEqual({ maxRaw: "17079999", minRaw: "5000" });
   });
 
@@ -74,7 +74,7 @@ describe("AlfredpayLimitsService.refresh", () => {
               maxQuantity: "250000",
               minQuantity: "1000",
               toCurrency: "USDT",
-              typeCustomer: AlfredpayCustomerType.INDIVIDUAL
+              typeCustomer: DomesticCustomerType.INDIVIDUAL
             })
           ]
         })
@@ -83,7 +83,7 @@ describe("AlfredpayLimitsService.refresh", () => {
     const service = new (AlfredpayLimitsService as unknown as { new (): AlfredpayLimitsService })();
     await (service as unknown as { refresh(): Promise<void> }).refresh();
 
-    expect(service.getLimits(FiatToken.ARS, "USDT", AlfredpayCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual({
+    expect(service.getLimits(FiatToken.ARS, "USDT", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual({
       maxRaw: "25000000",
       minRaw: "100000"
     });

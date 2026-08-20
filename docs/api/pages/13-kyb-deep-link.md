@@ -14,7 +14,7 @@ It is a variant of the [hosted widget](https://api-docs.vortexfinance.co/widget-
 - **Mexico / Colombia / USA** route to the local payment partner's business KYB form (the business customer type is preselected).
 - Europe is intentionally excluded — it is individual KYC only and requires a connected wallet, so it cannot complete a quote-less KYB deep link.
 
-After the hosted steps, the widget checks Avenia's status through Vortex. Pending or in-review attempts remain on the status screen, rejected or expired attempts show a retry path, and only an Avenia `COMPLETED` + `APPROVED` result enables the **KYB Completed** screen. *Continue* returns the user to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
+After the hosted steps, the widget checks the provider's status through Vortex. Pending or in-review attempts remain on the status screen, rejected or expired attempts show a retry path, and only a provider `COMPLETED` + `APPROVED` result enables the **KYB Completed** screen. *Continue* returns the user to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
 
 ## URL Parameters
 
@@ -62,6 +62,6 @@ window.open(
 
 ## Underlying KYB Onboarding
 
-For Brazil, the deep link drives `POST /v1/brla/createSubaccount` **without** a `quoteId` — the subaccount is created from the company name and CNPJ collected on the form, and the optional quote association is simply omitted. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for how BRL onboarding relates to the ramp flow.
+For Brazil, the deep link drives `POST /v1/brl/createSubaccount` **without** a `quoteId` — the subaccount is created from the company name and CNPJ collected on the form, and the optional quote association is simply omitted. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for how BRL onboarding relates to the ramp flow.
 
 ---

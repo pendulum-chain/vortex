@@ -109,7 +109,7 @@ interface MockBackendOptions {
   rampStatusOverrides?: (complete: boolean) => Record<string, unknown>;
   // Status served on GET /v1/alfredpay/alfredpayStatus (Alfredpay KYC gate). Default: SUCCESS.
   alfredpayStatus?: string;
-  // Accounts served on GET /v1/alfredpay/fiatAccounts (AlfredpayListFiatAccountsResponse).
+  // Accounts served on GET /v1/alfredpay/fiatAccounts (DomesticListFiatAccountsResponse).
   // Alfredpay offramps require one: the summary's Confirm button stays disabled without a
   // selectable fiat account. Default: none configured (the route 404s like any unmatched path).
   fiatAccounts?: (country: string) => unknown;
@@ -192,7 +192,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    // Avenia/BRLA KYC gate: an existing, KYC-confirmed user (BrlaGetUserResponse shape),
+    // Avenia/BRLA KYC gate: an existing, KYC-confirmed user (BrGetUserResponse shape),
     // so validateKyc reports kycNeeded=false and the ramp can proceed to the summary.
     if (path === "/v1/brla/getUser" && method === "GET") {
       brlaGetUserRequests.push(url.searchParams.get("taxId") ?? "");

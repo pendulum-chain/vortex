@@ -13,13 +13,14 @@ export const PendulumSubsidizePre: Phase<
   name: "PendulumSubsidizePre",
   phases: ["subsidizePreSwap"],
   async simulate(input, ctx) {
-    const expected = await computeExpectedOutput(ctx);
+    const inputDetails = getPendulumDetails(FiatToken.BRL);
+    const expected = await computeExpectedOutput(ctx, inputDetails.decimals);
     return {
       metadata: {
         expectedOutputAmountDecimal: expected.decimal,
         expectedOutputAmountRaw: expected.raw,
         inputCurrency: input.token,
-        inputDecimals: getPendulumDetails(FiatToken.BRL).decimals,
+        inputDecimals: inputDetails.decimals,
         network: Networks.Pendulum,
         targetInputAmountRaw: input.amountRaw
       },

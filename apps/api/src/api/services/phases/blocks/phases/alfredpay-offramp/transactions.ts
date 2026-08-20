@@ -107,7 +107,7 @@ export async function prepareAlfredpayOfframpTxs(
   dependencies: AlfredpayOfframpTransactionDependencies = {}
 ): Promise<PreparedPhaseTxs> {
   const facts = ctx.ownRegistrationFacts;
-  if (!facts) throw new Error("Alfredpay offramp registration facts are required");
+  if (!facts) throw new Error("Domestic-corridor offramp registration facts are required");
   const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
   const fromNetwork = ctx.ownMetadata.fromNetwork;
   const inputDetails = getOnChainTokenDetails(fromNetwork, ctx.globals.request.inputCurrency) as EvmTokenDetails | undefined;

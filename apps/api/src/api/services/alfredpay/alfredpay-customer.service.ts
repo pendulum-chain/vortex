@@ -1,9 +1,9 @@
 import {
-  AlfredPayCountry,
   AlfredPayStatus,
   AlfredpayApiService,
-  AlfredpayCustomerType,
-  AlfredpayKycStatus
+  AlfredpayKycStatus,
+  DomesticCountry,
+  DomesticCustomerType
 } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import CustomerEntity from "../../../models/customerEntity.model";
@@ -13,12 +13,12 @@ import User from "../../../models/user.model";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 import { enqueueAlfredpayVerificationNotification } from "./verification-notifications";
 
-export function alfredpayTypeToCustomerType(type: AlfredpayCustomerType): ProviderCustomerType {
-  return type === AlfredpayCustomerType.BUSINESS ? "business" : "individual";
+export function alfredpayTypeToCustomerType(type: DomesticCustomerType): ProviderCustomerType {
+  return type === DomesticCustomerType.BUSINESS ? "business" : "individual";
 }
 
-export function customerTypeToAlfredpayType(customerType: ProviderCustomerType): AlfredpayCustomerType {
-  return customerType === "business" ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL;
+export function customerTypeToAlfredpayType(customerType: ProviderCustomerType): DomesticCustomerType {
+  return customerType === "business" ? DomesticCustomerType.BUSINESS : DomesticCustomerType.INDIVIDUAL;
 }
 
 const COUNTRY_RAIL: Record<string, string> = {
@@ -42,8 +42,8 @@ const COUNTRY_RAIL: Record<string, string> = {
  */
 export interface AlfredpayCustomerView {
   alfredPayId: string;
-  country: AlfredPayCountry;
-  type: AlfredpayCustomerType;
+  country: DomesticCountry;
+  type: DomesticCustomerType;
   status: AlfredPayStatus;
   lastFailureReasons: string[] | null;
   createdAt: Date;
@@ -151,7 +151,7 @@ async function syncKycCase(record: ProviderCustomer, providerCaseId?: string): P
 function toView(record: ProviderCustomer): AlfredpayCustomerView {
   return {
     alfredPayId: record.providerCustomerId ?? "",
-    country: record.country as AlfredPayCountry,
+    country: record.country as DomesticCountry,
     createdAt: record.createdAt,
     lastFailureReasons: record.lastFailureReasons,
     status: toAlfredPayStatus(record),
@@ -194,8 +194,8 @@ function toView(record: ProviderCustomer): AlfredpayCustomerView {
  */
 export async function findAlfredpayCustomer(
   userId: string,
-  country: AlfredPayCountry,
-  type?: AlfredpayCustomerType
+  country: DomesticCountry,
+  type?: DomesticCustomerType
 ): Promise<AlfredpayCustomerView | null> {
   const entityIds = type
     ? await findCustomerEntityIdsForProfile(userId)
@@ -383,7 +383,7 @@ export async function isAlfredpayCustomerClaimedByAnotherProfile(providerCustome
 
 export async function createAlfredpayCustomer(
   userId: string,
-  values: { alfredPayId: string; country: AlfredPayCountry; status: AlfredPayStatus; type: AlfredpayCustomerType }
+  values: { alfredPayId: string; country: DomesticCountry; status: AlfredPayStatus; type: DomesticCustomerType }
 ): Promise<AlfredpayCustomerView> {
   const customerType = alfredpayTypeToCustomerType(values.type);
   // Keep a profile's rows of one customer_type on a single entity, preferring the entity

@@ -106,7 +106,7 @@ function capSubsidy(idealSubsidy: Big, expectedOutput: Big, maxSubsidy: number):
   return idealSubsidy.gt(maxAllowed) ? maxAllowed : idealSubsidy;
 }
 
-export async function computeExpectedOutput(ctx: PhaseCtx): Promise<{ decimal: Big; raw: string }> {
+export async function computeExpectedOutput(ctx: PhaseCtx, decimals: number): Promise<{ decimal: Big; raw: string }> {
   let expectedOutputAmount = new Big(ctx.request.inputAmount);
   try {
     const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(ctx.request.inputCurrency);
@@ -118,7 +118,7 @@ export async function computeExpectedOutput(ctx: PhaseCtx): Promise<{ decimal: B
   } catch (error) {
     ctx.addNote(`computeExpectedOutput: oracle price unavailable, using input amount. Error: ${error}`);
   }
-  const expectedOutputAmountRaw = expectedOutputAmount.times(new Big(10).pow(6)).toFixed(0, 0);
+  const expectedOutputAmountRaw = expectedOutputAmount.times(new Big(10).pow(decimals)).toFixed(0, 0);
   return { decimal: expectedOutputAmount, raw: expectedOutputAmountRaw };
 }
 
@@ -126,11 +126,11 @@ export async function simulateSubsidizePre<Token extends TokenBrand, Chain exten
   input: PhaseIO<Token, Chain>,
   ctx: PhaseCtx
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePreMetadata>> {
-  const expected = await computeExpectedOutput(ctx);
   const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
   if (!tokenDetails) {
     throw new Error(`SubsidizePre: Missing token details for ${input.token} on ${input.chain}`);
   }
+  const expected = await computeExpectedOutput(ctx, tokenDetails.decimals);
   ctx.addNote(`SubsidizePre: expected output ${expected.decimal.toFixed()} ${input.token}`);
   return {
     metadata: {

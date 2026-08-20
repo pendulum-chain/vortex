@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
-  AlfredPayCountry,
-  AlfredpayFiatAccountType,
+  DomesticCountry,
+  DomesticFiatAccountType,
   AveniaTicketStatus,
   EPaymentMethod,
   EvmToken,
@@ -79,7 +79,7 @@ function installChainIdShim(): { restore: () => void } {
  * pix), classifies and submits the user-wallet squid transactions
  * (getUserTransactionType / getTransactionToBroadcast / submitUserTransactions
  * / submitUserTxHash), reports hashes via the typed updateRamp, and drives the
- * ramp to completion — plus getQuote and listAlfredpayFiatAccounts, which had
+ * ramp to completion — plus getQuote and listDomesticFiatAccounts, which had
  * no contract coverage.
  */
 describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
@@ -334,26 +334,26 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
   );
 
   it(
-    "listAlfredpayFiatAccounts returns the caller's registered fiat accounts",
+    "listDomesticFiatAccounts returns the caller's registered fiat accounts",
     async () => {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
-      const customer = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
+      const customer = await createTestAlfredpayCustomer(user.id, { country: DomesticCountry.MX });
       world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
         {
           accountNumber: "646180157000000004",
           accountType: "checking",
           customerId: customer.providerCustomerId as string,
           fiatAccountId: "fiat-account-1",
-          type: AlfredpayFiatAccountType.SPEI
+          type: DomesticFiatAccountType.SPEI
         }
       ]);
 
       const sdk = new VortexSdk({ apiBaseUrl: app.baseUrl, secretKey: plaintextKey, storeEphemeralKeys: false });
-      const accounts = await sdk.listAlfredpayFiatAccounts(AlfredPayCountry.MX);
+      const accounts = await sdk.listDomesticFiatAccounts(DomesticCountry.MX);
       expect(accounts).toHaveLength(1);
       expect(accounts[0].fiatAccountId).toBe("fiat-account-1");
-      expect(accounts[0].type).toBe(AlfredpayFiatAccountType.SPEI);
+      expect(accounts[0].type).toBe(DomesticFiatAccountType.SPEI);
     },
     30000
   );

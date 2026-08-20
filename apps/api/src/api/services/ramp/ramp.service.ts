@@ -8,7 +8,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusResponse,
   IbanPaymentData,
-  isAlfredpayToken,
+  isDomesticToken,
   Networks,
   QuoteError,
   RampDirection,
@@ -48,12 +48,22 @@ import { preflightEvmDestinationFeeWithinQuote } from "../phases/blocks/core/evm
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
 import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
+import { isMoonbeamRuntimeDisabled } from "../phases/moonbeam-runtime";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
+
+const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
+  "assethubToPendulumHash",
+  "squidRouterApproveHash",
+  "squidRouterNoPermitApproveHash",
+  "squidRouterNoPermitSwapHash",
+  "squidRouterNoPermitTransferHash",
+  "squidRouterSwapHash"
+]);
 
 function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
@@ -178,6 +188,20 @@ export class RampService extends BaseRampService {
     }
   }
 
+  private static assertMoonbeamRuntimeAvailable(descriptor: {
+    flowId?: string;
+    from: unknown;
+    to: unknown;
+    transactionNetworks?: readonly unknown[];
+  }): void {
+    if (isMoonbeamRuntimeDisabled(descriptor)) {
+      throw new APIError({
+        message: "Moonbeam-dependent ramps are unavailable while Moonbeam runtime operations are disabled.",
+        status: httpStatus.SERVICE_UNAVAILABLE
+      });
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -279,6 +303,12 @@ export class RampService extends BaseRampService {
           status: httpStatus.SERVICE_UNAVAILABLE
         });
       }
+
+      RampService.assertMoonbeamRuntimeAvailable({
+        flowId: getFlowMetadata(quote.metadata).flow?.id,
+        from: quote.from,
+        to: quote.to
+      });
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
@@ -431,6 +461,16 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertMoonbeamRuntimeAvailable({
+        flowId: getFlowMetadata(quote.metadata).flow?.id ?? rampState.state.flow?.id,
+        from: rampState.from,
+        to: rampState.to,
+        transactionNetworks: [
+          ...rampState.unsignedTxs.map(transaction => transaction.network),
+          ...presignedTxs.map(transaction => transaction.network)
+        ]
+      });
+
       // Check if the ramp is in a state that allows updates
       if (rampState.currentPhase !== "initial") {
         throw new APIError({
@@ -440,6 +480,16 @@ export class RampService extends BaseRampService {
       }
 
       RampService.assertStartDeadlineNotExceeded(rampState);
+
+      const unsupportedAdditionalDataField = Object.keys(additionalData ?? {}).find(
+        key => !CLIENT_WRITABLE_RAMP_STATE_FIELDS.has(key)
+      );
+      if (unsupportedAdditionalDataField) {
+        throw new APIError({
+          message: `Ramp additionalData field '${unsupportedAdditionalDataField}' cannot be updated by clients`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
@@ -568,10 +618,17 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertMoonbeamRuntimeAvailable({
+        flowId: getFlowMetadata(quote.metadata).flow?.id ?? rampState.state.flow?.id,
+        from: rampState.from,
+        to: rampState.to,
+        transactionNetworks: rampState.unsignedTxs.map(transaction => transaction.network)
+      });
+
       this.validateRampStateData(rampState, quote);
       if (options.requirePaidAveniaTicket && !rampState.state.aveniaTicketId) {
         throw new APIError({
-          message: "Ramp does not have an Avenia payment ticket",
+          message: "Ramp does not have a provider payment ticket",
           status: httpStatus.CONFLICT
         });
       }
@@ -940,7 +997,7 @@ export class RampService extends BaseRampService {
       });
     }
     if (quote.rampType === RampDirection.BUY && !additionalData?.destinationAddress) {
-      const provider = isAlfredpayToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
+      const provider = isDomesticToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
       throw new APIError({
         message: `Parameter destinationAddress is required for ${provider}onramp`,
         status: httpStatus.BAD_REQUEST
@@ -1047,7 +1104,7 @@ export class RampService extends BaseRampService {
   }
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
-    if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+    if (rampState.type === RampDirection.SELL && !isDomesticToken(quote.outputCurrency as FiatToken)) {
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,

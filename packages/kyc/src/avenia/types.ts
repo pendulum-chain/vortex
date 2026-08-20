@@ -1,4 +1,4 @@
-import type { BrlaGetKycStatusResponse, KycFailureReason } from "@vortexfi/shared";
+import type { BrGetKycStatusResponse, KycFailureReason } from "@vortexfi/shared";
 
 export enum KycStatus {
   PENDING = "PENDING",
@@ -81,7 +81,7 @@ export interface AveniaKycContext {
   kybStep?: "company" | "representative" | "verification";
   companyVerificationStarted?: boolean;
   representativeVerificationStarted?: boolean;
-  maybeKycAttemptStatus?: BrlaGetKycStatusResponse;
+  maybeKycAttemptStatus?: BrGetKycStatusResponse;
 }
 
 export type AveniaKycOutput = AveniaKycContext;

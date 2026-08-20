@@ -1,6 +1,6 @@
 import {
-  AlfredpayCustomerType,
   type CorridorCountry,
+  DomesticCustomerType,
   FIAT_TOKEN_CORRIDOR,
   FiatToken,
   type LimitsCorridor
@@ -33,9 +33,9 @@ export function getManagedProfileCountryCorridor(req: Request): CorridorCountry 
 
 export function getManagedProfileAlfredpayCustomerType(req: Request): CustomerEntityType | undefined {
   if (hasConflictingParameter(req, "type")) return undefined;
-  const customerType = req.query.type ?? req.body?.type ?? AlfredpayCustomerType.INDIVIDUAL;
-  if (customerType === AlfredpayCustomerType.INDIVIDUAL) return "individual";
-  if (customerType === AlfredpayCustomerType.BUSINESS) return "business";
+  const customerType = req.query.type ?? req.body?.type ?? DomesticCustomerType.INDIVIDUAL;
+  if (customerType === DomesticCustomerType.INDIVIDUAL) return "individual";
+  if (customerType === DomesticCustomerType.BUSINESS) return "business";
   return undefined;
 }
 

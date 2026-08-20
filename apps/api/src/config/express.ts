@@ -12,6 +12,7 @@ import { converter, handler, notFound } from "../api/middlewares/error";
 import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
 import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
+import brlaKycImportRoutes from "../api/routes/v1/brla-kyc-import.route";
 
 import { corsOptions } from "./corsConfig";
 import { config } from "./vars";
@@ -50,6 +51,12 @@ app.use(requestContext);
 // request logging. dev: console | production: file
 app.use(morgan(logs));
 
+// secure apps by setting various HTTP headers
+app.use(helmet());
+
+// Authenticate and authorize this sensitive token-bearing request before buffering JSON.
+app.use(["/v1/brl/kyc/import-token", "/v1/brla/kyc/import-token"], brlaKycImportRoutes);
+
 // Mounted ahead of the JSON parser: Avenia signs the raw request body, and a payload
 // that has been parsed and re-serialised does not reproduce those bytes exactly.
 // Own, small limit: webhook events are a few KB, and this unauthenticated route should
@@ -66,9 +73,6 @@ app.use(compress());
 // lets you use HTTP verbs such as PUT or DELETE
 // in places where the client doesn't support it
 app.use(methodOverride());
-
-// secure apps by setting various HTTP headers
-app.use(helmet());
 
 // mount api token routes
 app.use("/v1", routes);

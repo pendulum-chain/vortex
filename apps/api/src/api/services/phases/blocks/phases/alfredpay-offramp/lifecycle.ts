@@ -10,10 +10,10 @@ export async function startAlfredpayOfframp<Metadata extends AlfredpayOfframpMet
     return {};
   }
   if (!ctx.metadata?.quoteId) {
-    throw new APIError({ message: "Missing Alfredpay quote ID in metadata", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "Missing provider quote ID in metadata", status: httpStatus.BAD_REQUEST });
   }
   if (!ctx.state.alfredpayUserId) {
-    throw new APIError({ message: "Missing Alfredpay user ID in ramp state", status: httpStatus.BAD_REQUEST });
+    throw new APIError({ message: "Missing provider user ID in ramp state", status: httpStatus.BAD_REQUEST });
   }
   if (!ctx.state.fiatAccountId) {
     throw new APIError({ message: "Missing fiatAccountId in ramp state", status: httpStatus.BAD_REQUEST });

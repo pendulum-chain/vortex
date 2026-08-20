@@ -15,7 +15,7 @@ Squid Router is a cross-chain swap/routing protocol built on Axelar's General Me
 It handles cross-chain swap execution, Axelar bridge status monitoring, and gas subsidization on the destination chain.
 
 **Provider type:** Cross-chain router
-**Chains involved:** Base, Polygon, Moonbeam, Ethereum, Arbitrum, BSC, Avalanche, etc. (any EVM destination supported by Squid)
+**Chains involved:** Base, Polygon, Ethereum, Arbitrum, BSC, Avalanche, and other enabled EVM destinations supported by Squid. Moonbeam identifiers may remain in historical records, but direct-to/from-Moonbeam ramps are runtime-disabled.
 **Block executors:**
 - `phases/blocks/phases/squid-router-swap/execution.ts` — Submits presigned approve + swap transactions on the source EVM chain.
 - The same `phases/blocks/phases/squid-router-swap/execution.ts` module owns `squidRouterPay`: abort-aware Axelar status/arrival monitoring, gas payment, stuck-confirm recovery, deduplicated supplemental gas, and stuck alerts. Monitoring never marks the phase successful without executed status or destination arrival.

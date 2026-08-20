@@ -36,8 +36,8 @@ import {
   AlfredpayFeeType,
   alfredpayFiatAccountsResponseSchema,
   type AlfredpayFiatAccountFields,
-  AlfredpayCustomerType,
-  AlfredpayFiatAccountType,
+  DomesticCustomerType,
+  DomesticFiatAccountType,
   AlfredpayFiatCurrency,
   alfredpayKybBusinessDetailsResponseSchema,
   AlfredpayKybFileType,
@@ -75,7 +75,7 @@ interface FiatAccountLifecycleCase {
   country: "AR" | "CO" | "MX";
   customerId: string;
   expectedFields: Record<string, unknown>;
-  type: AlfredpayFiatAccountType;
+  type: DomesticFiatAccountType;
 }
 
 const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
@@ -84,7 +84,7 @@ const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
     country: "AR",
     customerId: AR_COMPLETED_CUSTOMER_ID,
     expectedFields: { accountNumber: AR_CONTRACT_ACCOUNT_NUMBER, accountType: "CBU" },
-    type: AlfredpayFiatAccountType.COELSA
+    type: DomesticFiatAccountType.COELSA
   },
   {
     accountFields: {
@@ -96,7 +96,7 @@ const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
     country: "CO",
     customerId: CO_COMPLETED_CUSTOMER_ID,
     expectedFields: { accountName: "BANCOLOMBIA", accountNumber: "12345678901", accountType: "AHORRO" },
-    type: AlfredpayFiatAccountType.ACH
+    type: DomesticFiatAccountType.ACH
   },
   {
     accountFields: {
@@ -107,7 +107,7 @@ const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
     country: "MX",
     customerId: MX_COMPLETED_CUSTOMER_ID,
     expectedFields: { accountNumber: "012020477538404708", accountType: "CLABE" },
-    type: AlfredpayFiatAccountType.SPEI
+    type: DomesticFiatAccountType.SPEI
   }
 ];
 
@@ -317,7 +317,7 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
         accountType: "checking",
         customerId: "cust-1",
         fiatAccountId: "fa-1",
-        type: AlfredpayFiatAccountType.SPEI
+        type: DomesticFiatAccountType.SPEI
       }
     ]);
     const accounts = await fake.asService().listFiatAccounts("cust-1");
@@ -635,7 +635,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYC_FLOW)("Alfredpay individual 
       const api = AlfredpayApiService.getInstance();
       const email = `vortex-kyc-contract-${Date.now()}@example.com`;
 
-      const customer = await api.createCustomer(email, AlfredpayCustomerType.INDIVIDUAL, "MX");
+      const customer = await api.createCustomer(email, DomesticCustomerType.INDIVIDUAL, "MX");
       console.info(`[contract:kyc] createCustomer -> ${JSON.stringify(customer)}`);
       expect(customer.customerId).toBeTruthy();
 
@@ -699,7 +699,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYB_FLOW)("Alfredpay KYB sandbox
       const api = AlfredpayApiService.getInstance();
       const email = `vortex-kyb-contract-${Date.now()}@example.com`;
 
-      const customer = await api.createCustomer(email, AlfredpayCustomerType.BUSINESS, "MX");
+      const customer = await api.createCustomer(email, DomesticCustomerType.BUSINESS, "MX");
       console.info(`[contract:kyb] createCustomer -> ${JSON.stringify(customer)}`);
       const customerId = customer.customerId;
       expect(customerId).toBeTruthy();

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import { AccessTokenVerificationError, SupabaseAuthService } from "../services/auth";
-import { requirePartnerOrUserAuth } from "./dualAuth";
+import { requirePartnerOrUserAuth, requireProfileBoundPrincipal } from "./dualAuth";
 
 function request(authorization: string): Request {
   return {
@@ -73,5 +73,40 @@ describe("dual authentication Bearer verification", () => {
 
     expect(req.userId).toBe("user-1");
     expect(next).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("requireProfileBoundPrincipal", () => {
+  it("accepts a Bearer-authenticated profile", () => {
+    const next = mock(() => undefined) as NextFunction;
+
+    requireProfileBoundPrincipal({ userId: "user-1" } as Request, response(), next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a profile-bound secret credential", () => {
+    const next = mock(() => undefined) as NextFunction;
+
+    requireProfileBoundPrincipal({ authenticatedCredentialProfileId: "profile-1" } as Request, response(), next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an ownerless secret credential before downstream validation", () => {
+    const res = response();
+    const next = mock(() => undefined) as NextFunction;
+
+    requireProfileBoundPrincipal({ credential: { profileId: null } } as unknown as Request, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "A profile-bound secret key or Bearer token is required.",
+        status: 401
+      }
+    });
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -9,7 +9,7 @@ import {
   FiatToken,
   Networks
 } from "@vortexfi/shared";
-import { registerAlfredpayOfframp } from "../phases/alfredpay-offramp/registration";
+import { registerDomesticOfframp } from "../phases/alfredpay-offramp/registration";
 import type { AlfredpayOfframpMetadata } from "../phases/alfredpay-offramp/simulation";
 
 const safeExpiration = new Date(Date.now() + 10 * 60_000).toISOString();
@@ -96,7 +96,7 @@ describe("Alfredpay offramp registration", () => {
         toCurrency: FiatToken.MXN
       }))
     } as never;
-    const result = await registerAlfredpayOfframp(context(), {
+    const result = await registerDomesticOfframp(context(), {
       resolveCustomerId: async () => "customer-1",
       service
     });
@@ -130,7 +130,7 @@ describe("Alfredpay offramp registration", () => {
       }))
     } as never;
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("drifted");
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -151,7 +151,7 @@ describe("Alfredpay offramp registration", () => {
       }))
     } as never;
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("drifted");
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -172,7 +172,7 @@ describe("Alfredpay offramp registration", () => {
       }))
     } as never;
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("drifted");
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -194,7 +194,7 @@ describe("Alfredpay offramp registration", () => {
     } as never;
 
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("drifted");
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -228,7 +228,7 @@ describe("Alfredpay offramp registration", () => {
     } as never;
 
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("Created Alfredpay offramp order drifted");
     expect(createOrder).toHaveBeenCalledTimes(1);
   });
@@ -262,7 +262,7 @@ describe("Alfredpay offramp registration", () => {
     } as never;
 
     await expect(
-      registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
     ).rejects.toThrow("Created Alfredpay offramp order drifted");
     expect(createOrder).toHaveBeenCalledTimes(1);
   });
@@ -295,7 +295,7 @@ describe("Alfredpay offramp registration", () => {
       }))
     } as never;
 
-    const result = await registerAlfredpayOfframp(context(), {
+    const result = await registerDomesticOfframp(context(), {
       resolveCustomerId: async () => "customer-1",
       service
     });
@@ -334,7 +334,7 @@ describe("Alfredpay offramp registration", () => {
       } as never;
 
       await expect(
-        registerAlfredpayOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+        registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
       ).rejects.toThrow("Created Alfredpay offramp order drifted");
       expect(createOrder).toHaveBeenCalledTimes(1);
     }

@@ -1,7 +1,7 @@
 import type {
-  AlfredPayCountry,
-  AlfredpayFiatAccount,
   CreateQuoteRequest,
+  DomesticCountry,
+  DomesticFiatAccount,
   GetRampInfoResponse,
   GetRampStatusResponse,
   QuoteResponse,
@@ -144,8 +144,8 @@ export class ApiService {
     return handleAPIResponse<{ valid: boolean }>(response, "/v1/brla/validatePixKey");
   }
 
-  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
-    const url = new URL(`${this.apiBaseUrl}/v1/alfredpay/fiatAccounts`);
+  async listDomesticFiatAccounts(country: DomesticCountry): Promise<DomesticFiatAccount[]> {
+    const url = new URL(`${this.apiBaseUrl}/v1/domestic/fiatAccounts`);
     url.searchParams.append("country", country);
 
     const response = await fetch(url.toString(), {
@@ -153,6 +153,6 @@ export class ApiService {
       method: "GET"
     });
 
-    return handleAPIResponse<AlfredpayFiatAccount[]>(response, `/v1/alfredpay/fiatAccounts?country=${country}`);
+    return handleAPIResponse<DomesticFiatAccount[]>(response, `/v1/domestic/fiatAccounts?country=${country}`);
   }
 }
