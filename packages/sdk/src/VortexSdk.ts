@@ -31,7 +31,7 @@ import { MykoboHandler } from "./handlers/MykoboHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
 import { NetworkManager } from "./services/NetworkManager.js";
-import { storeEphemeralKeys } from "./storage.js";
+import { isBrowserBuild, storeEphemeralKeys } from "./storage.js";
 import type {
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
@@ -62,7 +62,7 @@ export class VortexSdk {
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
 
   constructor(config: VortexSdkConfig) {
-    if (typeof window !== "undefined" && config.secretKey) {
+    if ((isBrowserBuild || typeof window !== "undefined") && config.secretKey) {
       throw new Error("Browser SDK integrations must use accessTokenProvider and must not configure secretKey.");
     }
 

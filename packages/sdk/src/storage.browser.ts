@@ -7,4 +7,7 @@ async function retrieveEphemeralKeys(key: string): Promise<unknown | null> {
   return data ? JSON.parse(data) : null;
 }
 
-export { storeEphemeralKeys, retrieveEphemeralKeys };
+// Compile-time marker: true only in the browser bundle, which substitutes this module for storage.ts.
+const isBrowserBuild = true;
+
+export { storeEphemeralKeys, retrieveEphemeralKeys, isBrowserBuild };

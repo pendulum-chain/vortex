@@ -28,6 +28,18 @@ try {
   if (!String(error).includes("must not configure secretKey")) throw error;
 }
 
+// Web/Service Workers have no `window`; the browser artifact must still reject secret keys.
+const windowStub = globalThis.window;
+delete globalThis.window;
+try {
+  new VortexSdk({ apiBaseUrl: "https://api.example", secretKey: "sk_test_worker_leak" });
+  throw new Error("Expected browser-build secretKey configuration to fail without window");
+} catch (error) {
+  if (!String(error).includes("must not configure secretKey")) throw error;
+} finally {
+  globalThis.window = windowStub;
+}
+
 const sdk = new VortexSdk({ apiBaseUrl: "https://api.example" });
 await sdk.storeEphemerals(
   {
