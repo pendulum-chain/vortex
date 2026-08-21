@@ -173,7 +173,7 @@
 
     "@types/ws": ["@types/ws@8.5.3", "", { "dependencies": { "@types/node": "*" } }, "sha512-6YOoWjruKj1uLf3INHH7D3qTXwFfEsg1kf3c0uDdSBJwfa/llkwIjrAGV7j7mVgGNbzTQ3HiHKKDXl6bJPD97w=="],
 
-    "@vortexfi/sdk": ["@vortexfi/sdk@0.9.0-rc.2", "", { "dependencies": { "@vortexfi/shared": "=0.3.0" }, "peerDependencies": { "@polkadot/api": "^16.4.6", "stellar-sdk": "^13.1.0", "viem": "^2.37.9" } }, "sha512-WR02OjxNqE5rASt24G5AroFyQ6jWawtoPUA+h1an08C363QOdQtFhJRHTzkF+HZqX6k4D0Z9JchwzV+Oltyv4g=="],
+    "@vortexfi/sdk": ["@vortexfi/sdk@0.9.0-rc.3", "", { "dependencies": { "@vortexfi/shared": "=0.3.0" }, "peerDependencies": { "@polkadot/api": "^16.4.6", "stellar-sdk": "^13.1.0", "viem": "^2.37.9" } }, "sha512-nzJlQomAndgW2UFAFeAk7KRYtrdvMvN44n77ge0G74eWETry2VkipeZsTDIoM87wKs3svDLm75fAVQxQvbO0jg=="],
 
     "@vortexfi/shared": ["@vortexfi/shared@0.3.0", "", { "dependencies": { "@paraspell/sdk-pjs": "^11.8.5", "@pendulum-chain/api-solang": "^0.7.3", "@pendulum-chain/types": "^1.1.1", "@polkadot/api": "^16.4.6", "@polkadot/api-contract": "^16.4.6", "@polkadot/keyring": "^13.5.6", "@polkadot/types": "^16.4.6", "@polkadot/types-codec": "^16.4.6", "@polkadot/util": "^13.5.6", "@polkadot/util-crypto": "^13.5.6", "@scure/bip39": "^2.2.0", "@types/node-forge": "^1.3.14", "@wagmi/core": "^2.22.1", "big.js": "^7.0.1", "node-forge": "^1.3.1", "p-queue": "^9.1.0", "stellar-sdk": "^13.1.0", "web3": "4.16.0", "winston": "3.18.3", "zod": "^4.3.6" }, "peerDependencies": { "viem": "^2.37.9" } }, "sha512-31IGmP0x7KNfaYdEsrxSuQDlIdMGAuPuuNf8fzFomFuvEU5cUg/cXK09joXKjbX3i+N0c5Jf2CEmFaduYHK7GA=="],
 
