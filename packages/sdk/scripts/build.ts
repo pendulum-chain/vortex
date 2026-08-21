@@ -8,6 +8,7 @@ const result = await Bun.build({
   entrypoints: [entrypoint],
   external: ["@polkadot/api", "stellar-sdk"],
   format: "esm",
+  minify: true,
   outdir: resolve(packageRoot, "dist/browser"),
   plugins: [
     {
