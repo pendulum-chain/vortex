@@ -64,7 +64,8 @@ export function ImpersonateDialog({
         <DialogHeader>
           <DialogTitle>Log in as {target.email}?</DialogTitle>
           <DialogDescription>
-            You'll act as this customer until the session expires in 30 minutes. This is logged against your account.
+            You'll act as this customer until the session expires in 30 minutes. This is logged against your account, and money
+            movement is disabled.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

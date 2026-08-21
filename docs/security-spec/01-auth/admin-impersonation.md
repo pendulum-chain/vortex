@@ -8,9 +8,10 @@ surface — the per-operator, Supabase-identity-bearing counterpart to the share
 main-account only: there is no parent/child account table, and the sub-account layer
 modelled on Avenia's subaccount API is deferred to v2.
 
-Depth is **FULL**: while impersonating, the operator acts with the target profile's complete
-rights, including money movement. There is no reduced-scope or read-only impersonation mode in
-v1; this is the primary residual risk this document exists to bound (see the risk register,
+Depth is broad but excludes ramp money movement. While impersonating, the operator may create
+quotes and inspect ramp status, history, and errors, but `POST /v1/ramp/register`, `POST
+/v1/ramp/update`, and `POST /v1/ramp/start` reject the request. Other customer-account mutations
+remain available, so this is not a general read-only impersonation mode (see the risk register,
 RISK-018).
 
 ### Routes
@@ -70,7 +71,8 @@ route reachable by a Supabase bearer token — not only a dedicated impersonatio
 
 `vortex_admin` is not grantable through `POST /v1/admin/profile-roles` — that route is guarded
 only by the shared `ADMIN_SECRET`, and holding `vortex_admin` is sufficient to impersonate any
-customer at FULL depth, so that secret must never be sufficient by itself to grant it.
+customer with broad read and mutation rights, so that secret must never be sufficient by itself
+to grant it.
 `HTTP_GRANTABLE_PROFILE_ROLES` (`profileRole.model.ts`) lists only `discount_manager`;
 `addProfileRole` returns `403 ROLE_NOT_HTTP_GRANTABLE` for anything else. `removeProfileRole`
 deliberately still revokes any role, including `vortex_admin`, as a safety valve; removing that
@@ -159,7 +161,7 @@ and requires deployment/database access rather than an HTTP credential — see
     the operator even though it is recorded against the target's account.
 14. **`vortex_admin` MUST NOT be grantable through the `ADMIN_SECRET`-guarded
     `POST /v1/admin/profile-roles` route** — that shared secret must not, by itself, be sufficient
-    to gain FULL-depth impersonation rights (i.e., money movement) over any customer; granting
+    to gain broad read and mutation rights over any customer; granting
     `vortex_admin` requires an out-of-band operator process outside the shared-secret surface.
     **Enforced**: `HTTP_GRANTABLE_PROFILE_ROLES = ["discount_manager"]` in `profileRole.model.ts`;
     `addProfileRole` checks membership and returns `403 ROLE_NOT_HTTP_GRANTABLE` for `vortex_admin`
@@ -172,6 +174,13 @@ and requires deployment/database access rather than an HTTP credential — see
     both profile foreign keys in migration 063 use `ON DELETE RESTRICT`. Operators must resolve
     retention/deletion policy explicitly instead of erasing security history through a profile
     cascade.
+16. **An impersonated request MUST NOT register, update, or start a ramp** — the three mutating
+    ramp routes apply `rejectImpersonation` after optional or required bearer authentication and
+    before managed-profile authorization or controller execution. During active maintenance, the
+    existing maintenance guard returns `503` before authentication; it still prevents controller
+    execution and mutation. Quote creation and ramp GET routes deliberately omit the impersonation
+    guard, so support operators can discover rates and inspect target-owned ramps without
+    initiating or advancing money movement.
 
 ## Threat Vectors & Mitigations
 
@@ -182,22 +191,21 @@ and requires deployment/database access rather than an HTTP credential — see
 | Impersonation used to mint a permanent backdoor | Operator (or an attacker who obtained an operator's token) mints an API secret key while impersonating, which outlives the session | `rejectImpersonation` on `/v1/api-credentials` (Invariant 11) |
 | Privilege re-escalation / impersonation chaining | An impersonated request is used to start a second impersonation session, list sessions, or browse accounts | `requireVortexAdmin`'s `rejectImpersonation` step refuses `GET /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation` outright (Invariant 12) |
 | Impersonated caller abuses the self-revoke carve-out to end someone else's session | Operator impersonating profile A presents that token against profile B's `sessionId` | Rejected with `403 IMPERSONATION_NOT_ALLOWED`: the carve-out only matches when the path `:sessionId` equals the caller's own `req.impersonation.sessionId` (Invariant 12) |
-| Unattributed money movement | Operator disputes having performed an action while impersonating | Per-operator Supabase identity recorded as `actorProfileId` on the session row (Invariant 3); `impersonationSessionId`/`impersonatorProfileId` on every `api_client_events` row raised during the request (Invariant 13) |
+| Impersonation initiates or advances money movement | Operator calls ramp register, update, or start while acting as a customer | All three mutating ramp routes apply `rejectImpersonation` after principal resolution and before controller execution (Invariant 16); quote creation and ramp inspection remain available |
 | Self-impersonation used to launder attribution | Operator targets their own profile to blur operator/target identity | Rejected at both the application layer and a database `CHECK` constraint (Invariant 3) |
 | Stale sessions surviving an incident response kill switch | Operator response to a suspected compromise is "disable impersonation", but existing tokens keep working | `IMPERSONATION_ENABLED=false` invalidates all live sessions on next resolution, not just new mints (Invariant 6) |
 | Removed operator role leaves previously minted tokens usable | An operator is deprovisioned while one or more impersonation sessions remain live | Role removal atomically revokes all non-revoked sessions, and token resolution independently re-checks `vortex_admin` on every use (Invariants 5 and 8) |
 | Token brute force / guessing | Attacker attempts to guess a valid `vtx_imp_*` value | 256 bits of randomness in the token; lookup requires an exact SHA-256 hash match |
-| Shared-secret surface used to self-grant impersonation rights | An operator (or anyone) with `ADMIN_SECRET` calls `POST /v1/admin/profile-roles` to grant themselves `vortex_admin`, turning a shared secret into money-movement rights over any customer | `vortex_admin` excluded from `HTTP_GRANTABLE_PROFILE_ROLES` (Invariant 14); the only grant path is `scripts/grant-vortex-admin.ts`, which requires deployment/database access, not an HTTP credential |
+| Shared-secret surface used to self-grant impersonation rights | An operator (or anyone) with `ADMIN_SECRET` calls `POST /v1/admin/profile-roles` to grant themselves `vortex_admin`, turning a shared secret into broad customer-account access | `vortex_admin` excluded from `HTTP_GRANTABLE_PROFILE_ROLES` (Invariant 14); the only grant path is `scripts/grant-vortex-admin.ts`, which requires deployment/database access, not an HTTP credential |
 | Concurrent session creation races the supersession check | Two near-simultaneous `POST /impersonation` calls for the same (actor, target) both attempt to supersede and mint | Actor-row transaction locking serializes creation; the partial unique index rejects any second non-revoked row if locking regresses (Invariant 7) |
 | Profile deletion erases the impersonation audit trail | Deleting a target or operator cascades into session history | Both foreign keys use `ON DELETE RESTRICT`, preserving the audit record until retention is handled explicitly (Invariant 15) |
 
 ## Gaps Identified During This Review
 
-- FULL-depth impersonation (Invariant 3 does not restrict scope, only identity and target) is
-  a deliberate v1 design decision, not an oversight, but it remains the primary residual risk:
-  any compromised operator account or misused session can move a customer's funds. There is no
-  read-only or reduced-scope impersonation mode. Tracked as an accepted risk in the risk register
-  (RISK-018), not as an open implementation gap.
+- Ramp money movement is denied, but impersonation is still broader than a read-only support
+  mode: provider onboarding, KYC/KYB, recipient, active-entity, and notification mutations remain
+  available. A compromised operator account can therefore still make sensitive changes to a
+  customer's account. Tracked as an accepted risk in the risk register (RISK-018).
 - The operator-facing frontend that consumes `/v1/admin-console/*` lives in `apps/dashboard`
   (account search UI, and a non-dismissible banner naming the impersonated account while a
   session is active). Its behavior is tracked in
@@ -239,6 +247,9 @@ and requires deployment/database access rather than an HTTP credential — see
 - [x] `req.impersonation` is set only within `resolveBearerPrincipal()`, consumed by
       `supabaseAuth.ts` and `dualAuth.ts` — **PASS**.
 - [x] `rejectImpersonation` blocks `/v1/api-credentials` (credential minting) — **PASS**.
+- [x] `rejectImpersonation` blocks `POST /v1/ramp/register`, `POST /v1/ramp/update`, and `POST
+      /v1/ramp/start`, while quote creation reaches normal validation and ramp history remains
+      readable — **PASS** (`ramp.route.test.ts`).
 - [x] `requireVortexAdmin` (`requireAuth → rejectImpersonation → role check`) gates `GET
       /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation`; an
       impersonated caller is refused all four — **PASS** (`admin-console.route.test.ts`, "refuses
@@ -249,9 +260,9 @@ and requires deployment/database access rather than an HTTP credential — see
       revoke any session — **PASS** (`admin-console.route.test.ts`, all four cases under "DELETE
       /impersonation/:sessionId while impersonating").
 - [x] Every `api_client_events` row raised while `req.impersonation` is set carries
-      `impersonationSessionId` and `impersonatorProfileId` in `metadata`, including successful
-      quote/ramp operations and maintenance denials — **PASS** (`quote.controller.test.ts`,
-      `ramp.controller.test.ts`, `maintenanceGuard.test.ts`).
+      `impersonationSessionId` and `impersonatorProfileId` in `metadata`, including quote
+      operations and maintenance denials — **PASS** (`quote.controller.test.ts`,
+      `maintenanceGuard.test.ts`).
 - [x] `vortex_admin` is excluded from grant via `POST /v1/admin/profile-roles`
       (`403 ROLE_NOT_HTTP_GRANTABLE`), while revocation of any role including `vortex_admin`
       remains available via `DELETE` on that same route — **PASS**
@@ -265,6 +276,7 @@ and requires deployment/database access rather than an HTTP credential — see
       documented — **PASS** (`scripts/grant-vortex-admin.ts`, `bun run grant:vortex-admin
       <email>`).
 - [x] The operator-facing frontend that consumes `/v1/admin-console/*` presents a
-      non-dismissible banner naming the impersonated account while a session is active —
+      non-dismissible banner naming the impersonated account and warning that money movement is
+      disabled while a session is active —
       **PASS** (`apps/dashboard/src/components/layout/ImpersonationBanner.tsx`, rendered from
       `routes/_app.tsx`); behavior tracked in `docs/product-dashboard.md`.

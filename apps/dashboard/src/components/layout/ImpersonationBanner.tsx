@@ -42,10 +42,15 @@ export function ImpersonationBanner() {
 
   return (
     <div className="sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-3 bg-warning px-4 py-2 text-sm text-warning-foreground">
-      <span className="min-w-0 break-all">
-        You are acting as <strong>{session.targetEmail}</strong>
-        <> · {formatRemaining(remainingMs)} remaining</>
-      </span>
+      <div className="min-w-0">
+        <p className="break-all">
+          You are acting as <strong>{session.targetEmail}</strong>
+          <> · {formatRemaining(remainingMs)} remaining</>
+        </p>
+        <p className="font-medium text-xs">
+          Money movement is disabled. You can create quotes and inspect ramps, but cannot register, update, or start one.
+        </p>
+      </div>
       <Button onClick={handleExit} size="sm" type="button" variant="outline">
         Exit
       </Button>

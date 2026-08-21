@@ -9,9 +9,9 @@ export type ProfileRoleName = "discount_manager" | "vortex_admin";
 export const PROFILE_ROLE_NAMES: ProfileRoleName[] = ["discount_manager", "vortex_admin"];
 
 // Roles grantable through POST /v1/admin/profile-roles, which is guarded only by the shared
-// ADMIN_SECRET. vortex_admin confers the ability to act as any customer — including moving
-// their money — so that secret must never be sufficient to grant it; it is granted
-// out-of-band instead (see scripts/grant-vortex-admin.ts). Revocation stays available for
+// ADMIN_SECRET. vortex_admin confers broad access to act as any customer, so that secret must
+// never be sufficient to grant it; it is granted out-of-band instead (see
+// scripts/grant-vortex-admin.ts). Revocation stays available for
 // every role via DELETE, as a safety valve.
 export const HTTP_GRANTABLE_PROFILE_ROLES: ProfileRoleName[] = ["discount_manager"];
 

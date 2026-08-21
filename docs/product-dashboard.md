@@ -392,11 +392,12 @@ surface; its security controls are normative in
 - See active and recent impersonation sessions: `GET /v1/admin-console/impersonation`.
 - End a session immediately: `DELETE /v1/admin-console/impersonation/:sessionId`.
 
-**Depth is FULL, not scoped.** Once impersonating, the operator acts with the target account's
-complete rights, including money movement — there is no read-only or reduced-capability
-impersonation mode in v1. An impersonated request cannot mint a durable API credential or
-re-enter the admin console (no privilege re-escalation, no chaining), with one narrow exception
-so an operator can end its own session.
+**Money movement is excluded, but the session is not generally read-only.** An operator may
+create quotes and inspect ramp status, history, and errors, but the backend rejects ramp
+registration, update, and start while impersonating. Other customer-account mutations remain
+available. An impersonated request also cannot mint a durable API credential or re-enter the
+admin console (no privilege re-escalation, no chaining), with one narrow exception so an operator
+can end its own session.
 
 **Admin impersonation targets authenticated profiles only.** Managed headless profiles and their
 manager-child relationships now exist as a separate delegation layer. An operator does not
@@ -412,7 +413,8 @@ Both inherit the `/admin` parent route's redirect to `/overview` unless `roles` 
 `GET /v1/onboarding/status` contains `vortex_admin`, and the sidebar's Admin item follows the
 same gate. While a session is live,
 `ImpersonationBanner` is rendered above the topbar on every `_app` route — non-dismissible,
-naming the impersonated account and offering "Exit". Because the operator's own Supabase tokens
+naming the impersonated account, warning that money movement is disabled, and offering "Exit".
+Because the operator's own Supabase tokens
 are kept beside one atomic impersonation-session record rather than replaced, exiting is local
 and instant. The record is observed across tabs, and every enter, exit, expiry, or cross-tab
 replacement clears account-scoped query, notification, transfer, and wallet state.

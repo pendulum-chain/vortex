@@ -2470,7 +2470,7 @@ export interface components {
         };
         ManagedSelectorErrorResponse: {
             error: {
-                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, or `MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, `MANAGED_PROFILE_ACCESS_DENIED`, or `IMPERSONATION_NOT_ALLOWED`. */
                 code: string;
                 message: string;
                 status: number;
@@ -6081,7 +6081,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Quote ownership or managed-profile authorization failed. */
+            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6230,7 +6230,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6392,7 +6392,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;

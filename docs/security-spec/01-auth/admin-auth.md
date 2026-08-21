@@ -42,9 +42,9 @@ the shared credential; individual admin identities are out of scope for this cha
 7. **Admin auth on `/v1/admin/*` MUST NOT attach any identity to the request** — Unlike Supabase auth (which sets `userId`) or API key auth (which sets `authenticatedPartner`), admin auth on this surface is identity-less. No `req.adminUser` or similar should exist. This invariant is scoped to `/v1/admin/*`: the separate `/v1/admin-console/*` surface is intentionally identity-bearing — it authenticates via Supabase and carries the operator's profile ID — by design; see [`admin-impersonation.md`](admin-impersonation.md).
 8. **`vortex_admin` MUST NOT be grantable through `POST /v1/admin/profile-roles`** — that
    route is guarded only by `ADMIN_SECRET`, and `vortex_admin` grants access to
-   `/v1/admin-console/*` including FULL-depth customer impersonation
+   `/v1/admin-console/*` including broad customer-account impersonation
    ([`admin-impersonation.md`](admin-impersonation.md)). If the shared secret could grant that
-   role, it would be sufficient by itself to gain money-movement rights over any customer,
+   role, it would be sufficient by itself to gain sensitive read and mutation rights over any customer,
    collapsing the separation this document's "What This Does" section describes. Granting
    `vortex_admin` must go through an out-of-band operator process outside this route.
    **Enforced**: `profileRole.model.ts` exports

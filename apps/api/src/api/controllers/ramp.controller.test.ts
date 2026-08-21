@@ -6,7 +6,7 @@ import { classifyApiClientError } from "../observability/errorClassifier";
 import { buildRampRequestMetadata, formatProviderContext, mapProviderFailure } from "./ramp.controller";
 
 describe("buildRampRequestMetadata", () => {
-  it("attributes successful money-movement events to the impersonation session", () => {
+  it("includes impersonation attribution in ramp request metadata", () => {
     const metadata = buildRampRequestMetadata(
       {
         body: { additionalData: { taxId: "sensitive" }, quoteId: "quote-1", signingAccounts: ["account-1"] },
