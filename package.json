@@ -142,7 +142,7 @@
     "test:rebalancer": "cd apps/rebalancer && bun test",
     "test:sdk": "bun run --cwd packages/sdk test",
     "test:shared": "cd packages/shared && bun test",
-    "typecheck": "bun run build:sdk && bun run --cwd packages/shared typecheck && bun run --cwd packages/sdk typecheck && bun run --cwd packages/kyc typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/demo typecheck && bun run --cwd apps/frontend typecheck && bun run --cwd apps/dashboard typecheck && bun run --cwd apps/rebalancer typecheck",
+    "typecheck": "bun run build:shared && bun run build:sdk && bun run --cwd packages/shared typecheck && bun run --cwd packages/sdk typecheck && bun run --cwd packages/kyc typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/demo typecheck && bun run --cwd apps/frontend typecheck && bun run --cwd apps/dashboard typecheck && bun run --cwd apps/rebalancer typecheck",
     "verify": "biome check --no-errors-on-unmatched",
     "wire-contract:check": "bun scripts/wire-contract/generate-report.ts --check",
     "wire-contract:update": "bun scripts/wire-contract/generate-report.ts --update"
