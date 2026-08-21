@@ -22,7 +22,8 @@ export interface RampSnapshot {
 }
 
 const AUTH_STORAGE_KEY = "vortex-demo-auth:v1";
-const HISTORY_STORAGE_KEY = "vortex-demo-history:v1";
+const HISTORY_STORAGE_PREFIX = "vortex-demo-history:v2:";
+const LEGACY_HISTORY_STORAGE_KEY = "vortex-demo-history:v1";
 const MAX_HISTORY_ITEMS = 20;
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -81,17 +82,27 @@ async function postJson(fetcher: Fetcher, url: string, body: unknown): Promise<u
   return response.json();
 }
 
-function jwtExpiresAt(accessToken: string): number | null {
+function jwtPayload(accessToken: string): Record<string, unknown> | null {
   try {
     const payload = accessToken.split(".")[1];
     if (!payload) return null;
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const decoded = JSON.parse(atob(padded)) as { exp?: unknown };
-    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+    const decoded = JSON.parse(atob(padded)) as unknown;
+    return isRecord(decoded) ? decoded : null;
   } catch {
     return null;
   }
+}
+
+function jwtExpiresAt(accessToken: string): number | null {
+  const exp = jwtPayload(accessToken)?.exp;
+  return typeof exp === "number" ? exp * 1000 : null;
+}
+
+export function jwtSubject(accessToken: string): string | null {
+  const sub = jwtPayload(accessToken)?.sub;
+  return typeof sub === "string" && sub ? sub : null;
 }
 
 export function loadAuthTokens(storage: StorageLike): AuthTokens | null {
@@ -181,44 +192,66 @@ export function createAccessTokenProvider(
   };
 }
 
-export function loadRampHistory(storage: StorageLike): RampSnapshot[] {
-  const value = readJson(storage, HISTORY_STORAGE_KEY);
+export function isTerminalRampStatus(status?: string): boolean {
+  return status === "COMPLETE" || status === "FAILED";
+}
+
+function historyKey(subject: string): string {
+  return `${HISTORY_STORAGE_PREFIX}${subject}`;
+}
+
+export function loadRampHistory(storage: StorageLike, subject: string): RampSnapshot[] {
+  try {
+    storage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable in private browsing.
+  }
+  const value = readJson(storage, historyKey(subject));
   if (!Array.isArray(value)) return [];
   return value.filter(isRampSnapshot).slice(0, MAX_HISTORY_ITEMS);
 }
 
-export function storeRampSnapshot(storage: StorageLike, snapshot: RampSnapshot): RampSnapshot[] {
-  const history = [snapshot, ...loadRampHistory(storage).filter(item => item.id !== snapshot.id)].slice(0, MAX_HISTORY_ITEMS);
-  writeJson(storage, HISTORY_STORAGE_KEY, history);
+export function storeRampSnapshot(storage: StorageLike, subject: string, snapshot: RampSnapshot): RampSnapshot[] {
+  const history = [snapshot, ...loadRampHistory(storage, subject).filter(item => item.id !== snapshot.id)].slice(
+    0,
+    MAX_HISTORY_ITEMS
+  );
+  writeJson(storage, historyKey(subject), history);
   return history;
 }
 
-export function markRampStarted(storage: StorageLike, rampId: string, currentPhase: string, status?: string): RampSnapshot[] {
-  const history = loadRampHistory(storage).map(item =>
+export function markRampStarted(
+  storage: StorageLike,
+  subject: string,
+  rampId: string,
+  currentPhase: string,
+  status?: string
+): RampSnapshot[] {
+  const history = loadRampHistory(storage, subject).map(item =>
     item.id === rampId ? { ...item, awaitingPayment: false, currentPhase, depositQrCode: undefined, status } : item
   );
-  writeJson(storage, HISTORY_STORAGE_KEY, history);
+  writeJson(storage, historyKey(subject), history);
   return history;
 }
 
-export function clearPendingPayment(storage: StorageLike, rampId: string): RampSnapshot[] {
-  const history = loadRampHistory(storage).map(item =>
+export function clearPendingPayment(storage: StorageLike, subject: string, rampId: string): RampSnapshot[] {
+  const history = loadRampHistory(storage, subject).map(item =>
     item.id === rampId ? { ...item, awaitingPayment: false, depositQrCode: undefined } : item
   );
-  writeJson(storage, HISTORY_STORAGE_KEY, history);
+  writeJson(storage, historyKey(subject), history);
   return history;
 }
 
 export function updateRampSnapshots(
   storage: StorageLike,
+  subject: string,
   updates: ReadonlyArray<Pick<RampSnapshot, "currentPhase" | "id" | "status">>
 ): RampSnapshot[] {
   const updatesById = new Map(updates.map(update => [update.id, update]));
-  const history = loadRampHistory(storage).map(item => {
+  const history = loadRampHistory(storage, subject).map(item => {
     const update = updatesById.get(item.id);
     if (!update) return item;
-    const terminal = update.status === "COMPLETE" || update.status === "FAILED";
-    const leftPayment = item.awaitingPayment && (update.currentPhase !== "initial" || terminal);
+    const leftPayment = item.awaitingPayment && (update.currentPhase !== "initial" || isTerminalRampStatus(update.status));
     return {
       ...item,
       awaitingPayment: leftPayment ? false : item.awaitingPayment,
@@ -227,6 +260,28 @@ export function updateRampSnapshots(
       status: update.status
     };
   });
-  writeJson(storage, HISTORY_STORAGE_KEY, history);
+  writeJson(storage, historyKey(subject), history);
   return history;
+}
+
+export async function reconcileRampStart(
+  storage: StorageLike,
+  subject: string,
+  rampId: string,
+  getStatus: (rampId: string) => Promise<{ currentPhase: unknown; status?: unknown }>
+): Promise<RampSnapshot[] | null> {
+  try {
+    const current = await getStatus(rampId);
+    if (String(current.currentPhase) === "initial") return null;
+    return markRampStarted(
+      storage,
+      subject,
+      rampId,
+      String(current.currentPhase),
+      current.status === undefined ? undefined : String(current.status)
+    );
+  } catch {
+    // Keep the original start error; status reconciliation is best effort.
+    return null;
+  }
 }

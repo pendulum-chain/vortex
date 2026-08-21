@@ -14,10 +14,13 @@ import {
   clearAuthTokens,
   clearPendingPayment,
   createAccessTokenProvider,
+  isTerminalRampStatus,
+  jwtSubject,
   loadAuthTokens,
   loadRampHistory,
   markRampStarted,
   type RampSnapshot,
+  reconcileRampStart,
   requestOtp,
   storeRampSnapshot,
   updateRampSnapshots,
@@ -38,6 +41,7 @@ type Screen = "quote" | "history" | "payment";
 type PaymentRamp = RampSnapshot & { depositQrCode: string };
 
 const POLL_INTERVAL_MS = 8_000;
+const MAX_POLL_INTERVAL_MS = 60_000;
 const BRL_AMOUNT = /^\d+(?:\.\d{1,2})?$/;
 
 function errorMessage(error: unknown): string {
@@ -70,6 +74,10 @@ function isUnauthorized(error: unknown): boolean {
   return error instanceof VortexSdkError && error.status === 401;
 }
 
+function findPendingPayment(items: RampSnapshot[]): PaymentRamp | undefined {
+  return items.find((item): item is PaymentRamp => item.awaitingPayment === true && Boolean(item.depositQrCode));
+}
+
 export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: VortexModalProps) {
   const [amount, setAmount] = useState("100");
   const [authStage, setAuthStage] = useState<AuthStage>("email");
@@ -84,6 +92,7 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [screen, setScreen] = useState<Screen>("quote");
+  const [subject, setSubject] = useState<string | null>(null);
   const quoteRequestId = useRef(0);
 
   const accessTokenProvider = useMemo(() => createAccessTokenProvider(apiBaseUrl, window.localStorage), [apiBaseUrl]);
@@ -98,17 +107,17 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
 
   useEffect(() => {
     if (!open) return;
-    const storedHistory = loadRampHistory(window.localStorage);
-    const pendingPayment = storedHistory.find(
-      (item): item is PaymentRamp => item.awaitingPayment === true && Boolean(item.depositQrCode)
-    );
-    const authenticated = Boolean(loadAuthTokens(window.localStorage));
-    setAuthStage(authenticated ? "ready" : "email");
+    const tokens = loadAuthTokens(window.localStorage);
+    const activeSubject = tokens ? jwtSubject(tokens.accessToken) : null;
+    const storedHistory = activeSubject ? loadRampHistory(window.localStorage, activeSubject) : [];
+    const pendingPayment = findPendingPayment(storedHistory);
+    setAuthStage(tokens ? "ready" : "email");
     setError(null);
     setHistory(storedHistory);
     setMenuOpen(false);
     setPaymentRamp(pendingPayment ?? null);
-    setScreen(pendingPayment && authenticated ? "payment" : "quote");
+    setScreen(pendingPayment ? "payment" : "quote");
+    setSubject(activeSubject);
   }, [open]);
 
   useEffect(() => {
@@ -141,12 +150,17 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
     return () => window.clearTimeout(timer);
   }, [amount, open, screen, sdk]);
 
-  const historyIds = history.map(item => item.id).join(",");
+  const activeRampIds = history
+    .filter(item => !isTerminalRampStatus(item.status))
+    .map(item => item.id)
+    .join(",");
   useEffect(() => {
-    if (!open || !historyIds) return;
-    const ids = historyIds.split(",");
+    if (!open || !subject || !activeRampIds) return;
+    const ids = activeRampIds.split(",");
+    const pollSubject = subject;
     let active = true;
     let pollTimer: number | undefined;
+    let pollDelay = POLL_INTERVAL_MS;
 
     const poll = async () => {
       const results = await Promise.allSettled(ids.map(id => sdk.getRampStatus(id)));
@@ -156,8 +170,9 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
           ? [{ currentPhase: String(result.value.currentPhase), id: ids[index], status: String(result.value.status) }]
           : []
       );
+      pollDelay = updates.length ? POLL_INTERVAL_MS : Math.min(pollDelay * 2, MAX_POLL_INTERVAL_MS);
       if (updates.length) {
-        const nextHistory = updateRampSnapshots(window.localStorage, updates);
+        const nextHistory = updateRampSnapshots(window.localStorage, pollSubject, updates);
         setHistory(nextHistory);
         setPaymentRamp(current => {
           if (!current || nextHistory.find(item => item.id === current.id)?.awaitingPayment !== false) return current;
@@ -165,7 +180,7 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
           return null;
         });
       }
-      pollTimer = window.setTimeout(() => void poll(), POLL_INTERVAL_MS);
+      pollTimer = window.setTimeout(() => void poll(), pollDelay);
     };
 
     void poll();
@@ -173,7 +188,7 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
       active = false;
       if (pollTimer) window.clearTimeout(pollTimer);
     };
-  }, [historyIds, open, sdk]);
+  }, [activeRampIds, open, sdk, subject]);
 
   useEffect(() => {
     if (!paymentRamp) {
@@ -210,27 +225,37 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
         await requestOtp(apiBaseUrl, email.trim());
         setAuthStage("otp");
       } else if (authStage === "otp") {
-        await verifyOtp(apiBaseUrl, email.trim(), otp.trim(), window.localStorage);
+        const tokens = await verifyOtp(apiBaseUrl, email.trim(), otp.trim(), window.localStorage);
+        const nextSubject = jwtSubject(tokens.accessToken);
+        const nextHistory = nextSubject ? loadRampHistory(window.localStorage, nextSubject) : [];
+        const pendingPayment = findPendingPayment(nextHistory);
+        setSubject(nextSubject);
+        setHistory(nextHistory);
         setAuthStage("ready");
-        if (paymentRamp) setScreen("payment");
+        setPaymentRamp(pendingPayment ?? null);
+        if (pendingPayment) setScreen("payment");
       } else {
         if (!quote) throw new Error("A current quote is required to continue");
-        const activeQuote = new Date(quote.expiresAt).getTime() > Date.now() ? quote : await createBrlQuote(sdk, amount);
-        setQuote(activeQuote);
-        const { rampProcess } = await sdk.registerRamp(activeQuote, { destinationAddress });
+        if (!subject) throw new Error("Sign in again before creating the PIX payment");
+        if (new Date(quote.expiresAt).getTime() <= Date.now()) {
+          setQuote(await createBrlQuote(sdk, amount));
+          setError("Your quote expired, so it was refreshed. Review the updated amounts and continue.");
+          return;
+        }
+        const { rampProcess } = await sdk.registerRamp(quote, { destinationAddress });
         if (!rampProcess.depositQrCode) throw new Error("PIX payment instructions were not returned");
         const snapshot = {
           awaitingPayment: true,
           createdAt: rampProcess.createdAt,
           currentPhase: String(rampProcess.currentPhase),
           depositQrCode: rampProcess.depositQrCode,
-          expiresAt: new Date(rampProcess.expiresAt ?? activeQuote.expiresAt).toISOString(),
+          expiresAt: new Date(rampProcess.expiresAt ?? quote.expiresAt).toISOString(),
           id: rampProcess.id,
           inputAmount: rampProcess.inputAmount,
           outputAmount: rampProcess.outputAmount,
           status: String(rampProcess.status)
         };
-        setHistory(storeRampSnapshot(window.localStorage, snapshot));
+        setHistory(storeRampSnapshot(window.localStorage, subject, snapshot));
         setPaymentRamp(snapshot);
         setScreen("payment");
       }
@@ -238,6 +263,9 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
       if (isUnauthorized(actionError)) {
         clearAuthTokens(window.localStorage);
         setAuthStage("email");
+        setHistory([]);
+        setPaymentRamp(null);
+        setSubject(null);
       }
       setError(errorMessage(actionError));
     } finally {
@@ -246,7 +274,7 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
   };
 
   const handlePaymentMade = async () => {
-    if (!paymentRamp || loading) return;
+    if (!paymentRamp || !subject || loading) return;
     if (Date.parse(paymentRamp.expiresAt) <= Date.now()) {
       setPaymentExpired(true);
       setError("This PIX payment window has expired. Do not pay this code.");
@@ -256,7 +284,9 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
     setLoading(true);
     try {
       const started = await sdk.startRamp(paymentRamp.id);
-      setHistory(markRampStarted(window.localStorage, paymentRamp.id, String(started.currentPhase), String(started.status)));
+      setHistory(
+        markRampStarted(window.localStorage, subject, paymentRamp.id, String(started.currentPhase), String(started.status))
+      );
       setPaymentRamp(null);
       setQuote(null);
       setScreen("quote");
@@ -264,23 +294,20 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
       if (isUnauthorized(startError)) {
         clearAuthTokens(window.localStorage);
         setAuthStage("email");
+        setHistory([]);
+        setPaymentRamp(null);
+        setSubject(null);
         setScreen("quote");
         setError("Your session expired. Sign in again to confirm this payment.");
         return;
       }
-      try {
-        const current = await sdk.getRampStatus(paymentRamp.id);
-        if (String(current.currentPhase) !== "initial") {
-          setHistory(
-            markRampStarted(window.localStorage, paymentRamp.id, String(current.currentPhase), String(current.status))
-          );
-          setPaymentRamp(null);
-          setQuote(null);
-          setScreen("quote");
-          return;
-        }
-      } catch {
-        // Keep the original start error; status reconciliation is best effort.
+      const reconciled = await reconcileRampStart(window.localStorage, subject, paymentRamp.id, id => sdk.getRampStatus(id));
+      if (reconciled) {
+        setHistory(reconciled);
+        setPaymentRamp(null);
+        setQuote(null);
+        setScreen("quote");
+        return;
       }
       setError(errorMessage(startError));
     } finally {
@@ -289,8 +316,8 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
   };
 
   const handleExpiredPayment = () => {
-    if (!paymentRamp) return;
-    setHistory(clearPendingPayment(window.localStorage, paymentRamp.id));
+    if (!paymentRamp || !subject) return;
+    setHistory(clearPendingPayment(window.localStorage, subject, paymentRamp.id));
     setPaymentRamp(null);
     setQuote(null);
     setScreen("quote");
@@ -301,6 +328,9 @@ export function VortexModal({ apiBaseUrl, destinationAddress, onClose, open }: V
     clearAuthTokens(window.localStorage);
     setAuthStage("email");
     setOtp("");
+    setHistory([]);
+    setPaymentRamp(null);
+    setSubject(null);
     setScreen("quote");
     setMenuOpen(false);
     setError(null);
