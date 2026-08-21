@@ -801,7 +801,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
           appliedSubsidyUsd: "9.31395",
           capReason: "partner",
           deliveredOutput: "17023.505755",
-          requestedTargetOutput: "17025.5"
+          requestedTargetOutput: "17025.5",
+          requiredSubsidyIsLowerBound: false
         })
       );
     } finally {
@@ -880,7 +881,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
           appliedSubsidyUsd: "1",
           capReason: "provider",
           providerMaximumInput: "1000",
-          requiredSubsidyUsd: ">1"
+          requiredSubsidyIsLowerBound: true,
+          requiredSubsidyUsd: "1"
         })
       );
     } finally {

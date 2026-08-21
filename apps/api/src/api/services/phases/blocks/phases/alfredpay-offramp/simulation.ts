@@ -180,13 +180,17 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       }
       return raw;
     };
-    const providerInputDecimal = (raw: Big): string => raw.div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)).toString();
+    const rawUnit = new Big(10).pow(ALFREDPAY_ERC20_DECIMALS);
+    const rawToDecimal = (raw: Big): string => raw.div(rawUnit).toString();
+    const atLeastZero = (value: Big): Big => (value.gt(0) ? value : new Big(0));
+    const clampRaw = (value: Big, low: Big, high: Big): Big => (value.lt(low) ? low : value.gt(high) ? high : value);
+    const subsidyForInputRaw = (inputRaw: Big): Big => atLeastZero(inputRaw.plus(feeReserveRaw).minus(bridgeOutputRaw));
     const matchesProviderPair = (quote: Awaited<ReturnType<typeof createProviderQuote>>): boolean =>
       (quote.chain === undefined || quote.chain === AlfredpayChain.MATIC) &&
       quote.fromCurrency === ALFREDPAY_ONCHAIN_CURRENCY &&
       quote.toCurrency === toCurrency;
     const createFixedInputQuote = async (raw: Big) => {
-      const requestedFromAmount = providerInputDecimal(raw);
+      const requestedFromAmount = rawToDecimal(raw);
       const quote = await createProviderQuote({ fromAmount: requestedFromAmount });
       if (!matchesProviderPair(quote) || !new Big(quote.fromAmount).eq(requestedFromAmount)) {
         throw new Error(
@@ -203,14 +207,13 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     const allowedSubsidyRaw = partnerCapRaw.lt(runtimeCapRaw) ? partnerCapRaw : runtimeCapRaw;
     const requestedTargetOutput = expectedOutput.round(2, Big.roundUp);
 
-    let providerQuote: Awaited<ReturnType<typeof createProviderQuote>> | undefined;
-    let targetRequiredSubsidyRaw = new Big(0);
-    let targetWasCapped = false;
-    let providerLimitBoundCap = false;
-    let providerMaximumInput: string | undefined;
-    let requiredSubsidyUsd: string | undefined;
+    // The deposit Vortex funds is clamped into [baseline, ceiling]: never below the fee-net
+    // baseline, never above the subsidy this quote authorises, and never above what the
+    // provider will trade. That clamp is the whole cap policy.
+    const vortexCeilingRaw = baselineProviderInputRaw.plus(allowedSubsidyRaw);
+    let targetQuote: Awaited<ReturnType<typeof createProviderQuote>> | undefined;
+    let providerMaximumInputRaw: Big | undefined;
     if (subsidyEnabled) {
-      let targetQuote: Awaited<ReturnType<typeof createProviderQuote>> | undefined;
       try {
         targetQuote = await createProviderQuote({ toAmount: requestedTargetOutput.toFixed(2) });
       } catch (error) {
@@ -221,50 +224,32 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
         ) {
           throw error;
         }
-        const providerMaximumInputRaw = multiplyByPowerOfTen(error.quantity, ALFREDPAY_ERC20_DECIMALS).round(0, Big.roundDown);
+        providerMaximumInputRaw = multiplyByPowerOfTen(error.quantity, ALFREDPAY_ERC20_DECIMALS).round(0, Big.roundDown);
         if (providerMaximumInputRaw.lt(baselineProviderInputRaw)) {
           throw error;
         }
-        const vortexCappedInputRaw = baselineProviderInputRaw.plus(allowedSubsidyRaw);
-        const cappedInputRaw = providerMaximumInputRaw.lt(vortexCappedInputRaw)
-          ? providerMaximumInputRaw
-          : vortexCappedInputRaw;
-        providerLimitBoundCap = providerMaximumInputRaw.lt(vortexCappedInputRaw);
-        providerMaximumInput = providerInputDecimal(providerMaximumInputRaw);
-        const providerMaximumSubsidyRaw = providerMaximumInputRaw.plus(feeReserveRaw).minus(bridgeOutputRaw);
-        requiredSubsidyUsd = `>${(providerMaximumSubsidyRaw.gt(0) ? providerMaximumSubsidyRaw : new Big(0))
-          .div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS))
-          .toString()}`;
-        targetWasCapped = true;
-        providerQuote = await createFixedInputQuote(cappedInputRaw);
       }
-      if (targetQuote) {
-        if (!matchesProviderPair(targetQuote) || new Big(targetQuote.toAmount).lt(requestedTargetOutput)) {
-          throw new Error(
-            `AlfredpayOfframp: Exact-output quote returned ${targetQuote.fromCurrency}/${targetQuote.toCurrency} ${targetQuote.toAmount}, below requested ${requestedTargetOutput.toFixed(2)} ${ctx.request.outputCurrency}`
-          );
-        }
-        const targetProviderInputRaw = providerInputRaw(targetQuote.fromAmount);
-        targetRequiredSubsidyRaw = targetProviderInputRaw.plus(feeReserveRaw).minus(bridgeOutputRaw);
-        requiredSubsidyUsd = (targetRequiredSubsidyRaw.gt(0) ? targetRequiredSubsidyRaw : new Big(0))
-          .div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS))
-          .toString();
-
-        if (targetRequiredSubsidyRaw.lte(0)) {
-          providerQuote = await createFixedInputQuote(baselineProviderInputRaw);
-        } else if (targetRequiredSubsidyRaw.lte(allowedSubsidyRaw)) {
-          providerQuote = targetQuote;
-        } else {
-          targetWasCapped = true;
-          providerQuote = await createFixedInputQuote(baselineProviderInputRaw.plus(allowedSubsidyRaw));
-        }
-      }
-    } else {
-      providerQuote = await createFixedInputQuote(baselineProviderInputRaw);
     }
-    if (!providerQuote) {
-      throw new Error("AlfredpayOfframp: Provider quote selection did not produce a quote");
+    if (targetQuote && (!matchesProviderPair(targetQuote) || new Big(targetQuote.toAmount).lt(requestedTargetOutput))) {
+      throw new Error(
+        `AlfredpayOfframp: Exact-output quote returned ${targetQuote.fromCurrency}/${targetQuote.toCurrency} ${targetQuote.toAmount}, below requested ${requestedTargetOutput.toFixed(2)} ${ctx.request.outputCurrency}`
+      );
     }
+    const ceilingRaw =
+      providerMaximumInputRaw !== undefined && providerMaximumInputRaw.lt(vortexCeilingRaw)
+        ? providerMaximumInputRaw
+        : vortexCeilingRaw;
+    const targetTerms = targetQuote ? { inputRaw: providerInputRaw(targetQuote.fromAmount), quote: targetQuote } : undefined;
+    const selectedInputRaw = !subsidyEnabled
+      ? baselineProviderInputRaw
+      : targetTerms
+        ? clampRaw(targetTerms.inputRaw, baselineProviderInputRaw, ceilingRaw)
+        : ceilingRaw;
+    const targetWasCapped = subsidyEnabled && (!targetTerms || selectedInputRaw.lt(targetTerms.inputRaw));
+    const providerQuote =
+      targetTerms && selectedInputRaw.eq(targetTerms.inputRaw)
+        ? targetTerms.quote
+        : await createFixedInputQuote(selectedInputRaw);
     const expirationDate = new Date(providerQuote.expiration);
     if (!hasSafeAlfredpayQuoteLifetime(providerQuote.expiration)) {
       throw new Error(
@@ -273,10 +258,9 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     }
 
     const providerInputAmountRaw = providerInputRaw(providerQuote.fromAmount);
-    const providerInput = providerInputAmountRaw.div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS));
-    const requiredSubsidyRaw = providerInputAmountRaw.plus(feeReserveRaw).minus(bridgeOutputRaw);
-    const subsidyAmountRaw = requiredSubsidyRaw.gt(0) ? requiredSubsidyRaw : new Big(0);
-    if (subsidyAmountRaw.gt(allowedSubsidyRaw) && subsidyEnabled) {
+    const providerInput = providerInputAmountRaw.div(rawUnit);
+    const subsidyAmountRaw = subsidyForInputRaw(providerInputAmountRaw);
+    if (subsidyAmountRaw.gt(allowedSubsidyRaw)) {
       throw new Error(
         `AlfredpayOfframp: Provider input requires ${subsidyAmountRaw.toString()} subsidy raw units, above the quoted cap ${allowedSubsidyRaw.toString()}`
       );
@@ -288,25 +272,29 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       );
     }
     if (targetWasCapped && outputAmount.lt(requestedTargetOutput)) {
-      const capReason = providerLimitBoundCap
+      const capReason = !ceilingRaw.eq(vortexCeilingRaw)
         ? "provider"
         : partnerCapRaw.eq(runtimeCapRaw)
           ? "partner-and-runtime"
           : partnerCapRaw.lt(runtimeCapRaw)
             ? "partner"
             : "runtime";
+      const requiredSubsidyBasisRaw = targetTerms?.inputRaw ?? providerMaximumInputRaw;
       logger.warn("ALFREDPAY_OFFRAMP_TARGET_DISCOUNT_CAPPED", {
         adjustedTargetDiscount: adjustedTargetDiscount.toString(),
-        allowedSubsidyUsd: allowedSubsidyRaw.div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)).toString(),
-        appliedSubsidyUsd: subsidyAmountRaw.div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)).toString(),
+        allowedSubsidyUsd: rawToDecimal(allowedSubsidyRaw),
+        appliedSubsidyUsd: rawToDecimal(subsidyAmountRaw),
         capReason,
         deliveredOutput: outputAmount.toString(),
         fiatCurrency: ctx.request.outputCurrency,
         inputAmountUsd: inputAmountUsd.toString(),
         partnerId: partner?.id,
-        providerMaximumInput,
+        providerMaximumInput: providerMaximumInputRaw && rawToDecimal(providerMaximumInputRaw),
         requestedTargetOutput: requestedTargetOutput.toString(),
-        requiredSubsidyUsd
+        // Without an exact-output quote the provider never priced the target, so its maximum
+        // input only bounds the subsidy the target would have needed from below.
+        requiredSubsidyIsLowerBound: targetTerms === undefined,
+        requiredSubsidyUsd: requiredSubsidyBasisRaw && rawToDecimal(subsidyForInputRaw(requiredSubsidyBasisRaw))
       });
       ctx.addNote(
         `AlfredpayOfframp: target output ${requestedTargetOutput.toString()} capped to ${outputAmount.toString()} ${ctx.request.outputCurrency}`
@@ -373,7 +361,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
           }
         },
         quoteId: providerQuote.quoteId,
-        subsidyAmountDecimal: subsidyAmountRaw.div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)),
+        subsidyAmountDecimal: subsidyAmountRaw.div(rawUnit),
         subsidyAmountRaw: subsidyAmountRaw.toFixed(0),
         token: ALFREDPAY_EVM_TOKEN,
         toToken: bridge.toToken
