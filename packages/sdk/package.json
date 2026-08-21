@@ -45,7 +45,7 @@
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
-    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --format=esm --external=\"@polkadot/api\" --external=\"stellar-sdk\" && bun ./scripts/build.ts",
+    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --format=esm --external=\"@polkadot/api\" --external=\"@vortexfi/shared\" --external=\"stellar-sdk\" && bun ./scripts/build.ts",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
     "format": "prettier --write .",
