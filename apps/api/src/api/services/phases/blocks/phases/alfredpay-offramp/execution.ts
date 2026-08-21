@@ -396,6 +396,7 @@ type AlfredpayOfframpTerms = Pick<AlfredpayOfframpMetadata, "currency" | "inputA
   fiatAccountId: string;
 };
 
+/** Hashed so the per-order attempt class stays inside the column's 64-character budget. */
 function recoveryAttemptClass(transactionId: string): string {
   const suffix = createHash("sha256").update(transactionId).digest("hex").slice(0, 32);
   return `alfredpay-recovery:${suffix}`;
@@ -470,7 +471,6 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
       fiatAccountId
     };
 
-    const alfredpayApiService = AlfredpayApiService.getInstance();
     const evmClientManager = EvmClientManager.getInstance();
     if (!alfredpayOfframpTransferTxHash) {
       const { txData: offrampTransfer } = this.getPresignedTransaction(state, "alfredpayOfframpTransfer");
@@ -482,82 +482,7 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
         const { hash: txHash } = await this.runFinancialOperation(state, {
           attemptClass: "alfredpay-final-transfer",
           beforePerform: async () => {
-            const currentTransactionId = state.state.alfredpayTransactionId as string;
-            const recoveryOperation = await FinancialOperation.findOne({
-              where: {
-                attemptClass: recoveryAttemptClass(currentTransactionId),
-                phase: this.getPhaseName(),
-                provider: "alfredpay",
-                scopeId: state.id,
-                scopeType: "ramp"
-              }
-            });
-            let currentTx: Awaited<ReturnType<AlfredpayApiService["getOfframpTransaction"]>>;
-            if (recoveryOperation && ["submitted", "unknown", "confirmed"].includes(recoveryOperation.status)) {
-              const recovered = await this.recreateAlfredpayOfframp(state, currentTransactionId, promised, signal);
-              if (!recovered) {
-                throw this.createRecoverableError(
-                  "AlfredpayOfframpTransferExecutor: persisted replacement order could not be replayed; pausing before transfer"
-                );
-              }
-              currentTx = recovered.alfredpayTx;
-              state = recovered.state;
-            } else {
-              currentTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(currentTransactionId));
-              if (!currentTx) {
-                throw this.createRecoverableError(
-                  `AlfredpayOfframpTransferExecutor: Transaction ${currentTransactionId} not found in Alfredpay.`
-                );
-              }
-              if (currentTx.transactionId !== currentTransactionId) {
-                throw this.createRecoverableError(
-                  "AlfredpayOfframpTransferExecutor: provider returned a different transaction; pausing before transfer"
-                );
-              }
-              if (currentTx.status === AlfredpayOfframpStatus.FAILED) {
-                throw { failureReason: "Alfredpay reported FAILED status before transfer", kind: "failed" as const };
-              }
-              if (currentTx.status !== AlfredpayOfframpStatus.CREATED) {
-                throw this.createReconciliationRequiredError(
-                  `AlfredpayOfframpTransferExecutor: provider order ${currentTransactionId} is already ${currentTx.status} without a confirmed local transfer`
-                );
-              }
-              if (!hasSafeAlfredpayExecutionLifetime(currentTx.expiration)) {
-                const recovered = await this.recreateAlfredpayOfframp(state, currentTransactionId, promised, signal);
-                if (!recovered) {
-                  throw this.createRecoverableError(
-                    "AlfredpayOfframpTransferExecutor: no replacement order can preserve the promised payout; pausing before transfer"
-                  );
-                }
-                currentTx = recovered.alfredpayTx;
-                state = recovered.state;
-              } else if (!matchesImmutableOfframpIdentity(currentTx, promised, currentTransactionId)) {
-                throw this.createRecoverableError(
-                  "AlfredpayOfframpTransferExecutor: provider order identity drifted; pausing before transfer"
-                );
-              } else if (!matchesPromisedOfframpTerms(currentTx, promised, currentTransactionId)) {
-                logger.error("ALFREDPAY_OFFRAMP_ORDER_TERMS_REJECTED", {
-                  promisedFromAmount: new Big(promised.inputAmountDecimal as unknown as string).toString(),
-                  promisedToAmount: new Big(promised.outputAmountDecimal as unknown as string).toString(),
-                  transactionFromAmount: currentTx.fromAmount,
-                  transactionId: currentTx.transactionId,
-                  transactionToAmount: currentTx.toAmount
-                });
-                throw this.createRecoverableError(
-                  "AlfredpayOfframpTransferExecutor: provider order no longer matches the promised payout; pausing before transfer"
-                );
-              }
-            }
-            if (!hasSafeAlfredpayExecutionLifetime(currentTx.expiration)) {
-              throw this.createRecoverableError(
-                "AlfredpayOfframpTransferExecutor: replacement order has insufficient lifetime; pausing before transfer"
-              );
-            }
-            if (currentTx.status !== AlfredpayOfframpStatus.CREATED) {
-              throw this.createReconciliationRequiredError(
-                `AlfredpayOfframpTransferExecutor: replacement order ${currentTx.transactionId} is already ${currentTx.status}`
-              );
-            }
+            state = await this.ensureLiveProviderOrder(state, promised, signal);
             try {
               await ensurePresignedTransferFunded(signedTransaction, network, this.getPhaseName(), signal);
             } catch (error) {
@@ -617,28 +542,11 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
       }
     }
 
+    // The poll re-reads the order and re-checks the promised terms on its first iteration,
+    // so it is the single post-transfer drift gate.
     const activeTransactionId = state.state.alfredpayTransactionId as string;
-    const alfredpayTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(activeTransactionId));
-    if (!alfredpayTx) {
-      throw this.createRecoverableError(
-        `AlfredpayOfframpTransferExecutor: Transaction ${activeTransactionId} not found after provider transfer.`
-      );
-    }
-    if (!matchesPromisedOfframpTerms(alfredpayTx, promised, activeTransactionId)) {
-      logger.error("ALFREDPAY_OFFRAMP_POST_TRANSFER_TERMS_DRIFT", {
-        promisedFromAmount: new Big(promised.inputAmountDecimal as unknown as string).toString(),
-        promisedToAmount: new Big(promised.outputAmountDecimal as unknown as string).toString(),
-        transactionFromAmount: alfredpayTx.fromAmount,
-        transactionId: alfredpayTx.transactionId,
-        transactionToAmount: alfredpayTx.toAmount
-      });
-      throw this.createRecoverableError(
-        "AlfredpayOfframpTransferExecutor: provider terms drifted after transfer; manual reconciliation required"
-      );
-    }
-
     try {
-      await this.pollAlfredpayOfframpStatus(alfredpayTx.transactionId, promised, ALFREDPAY_POLL_INTERVAL_MS, signal);
+      await this.pollAlfredpayOfframpStatus(activeTransactionId, promised, ALFREDPAY_POLL_INTERVAL_MS, signal);
     } catch (error) {
       if (isAlfredpayFailedStatusError(error)) return this.transitionToNextPhase(state, "failed");
       throw this.createRecoverableError(
@@ -646,6 +554,94 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
       );
     }
     return state;
+  }
+
+  /**
+   * Last-mile gate before the irreversible deposit: resolve the order this transfer will
+   * fund, replacing it when it cannot outlive broadcast and indexing, and refuse to proceed
+   * unless it still matches the payout the quote promised. Returns the (possibly rebound) state.
+   */
+  private async ensureLiveProviderOrder(
+    state: RampState,
+    promised: AlfredpayOfframpTerms,
+    signal?: AbortSignal
+  ): Promise<RampState> {
+    const alfredpayApiService = AlfredpayApiService.getInstance();
+    const currentTransactionId = state.state.alfredpayTransactionId as string;
+    const replaceOrder = async (reason: string) => {
+      const recovered = await this.recreateAlfredpayOfframp(state, currentTransactionId, promised, signal);
+      if (!recovered) throw this.createRecoverableError(`AlfredpayOfframpTransferExecutor: ${reason}`);
+      return recovered;
+    };
+
+    const recoveryOperation = await FinancialOperation.findOne({
+      where: {
+        attemptClass: recoveryAttemptClass(currentTransactionId),
+        phase: this.getPhaseName(),
+        provider: "alfredpay",
+        scopeId: state.id,
+        scopeType: "ramp"
+      }
+    });
+    let currentTx: Awaited<ReturnType<AlfredpayApiService["getOfframpTransaction"]>>;
+    let currentState = state;
+    if (recoveryOperation && ["submitted", "unknown", "confirmed"].includes(recoveryOperation.status)) {
+      ({ alfredpayTx: currentTx, state: currentState } = await replaceOrder(
+        "persisted replacement order could not be replayed; pausing before transfer"
+      ));
+    } else {
+      currentTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(currentTransactionId));
+      if (!currentTx) {
+        throw this.createRecoverableError(
+          `AlfredpayOfframpTransferExecutor: Transaction ${currentTransactionId} not found in Alfredpay.`
+        );
+      }
+      if (currentTx.transactionId !== currentTransactionId) {
+        throw this.createRecoverableError(
+          "AlfredpayOfframpTransferExecutor: provider returned a different transaction; pausing before transfer"
+        );
+      }
+      if (currentTx.status === AlfredpayOfframpStatus.FAILED) {
+        throw { failureReason: "Alfredpay reported FAILED status before transfer", kind: "failed" as const };
+      }
+      if (currentTx.status !== AlfredpayOfframpStatus.CREATED) {
+        throw this.createReconciliationRequiredError(
+          `AlfredpayOfframpTransferExecutor: provider order ${currentTransactionId} is already ${currentTx.status} without a confirmed local transfer`
+        );
+      }
+      if (!hasSafeAlfredpayExecutionLifetime(currentTx.expiration)) {
+        ({ alfredpayTx: currentTx, state: currentState } = await replaceOrder(
+          "no replacement order can preserve the promised payout; pausing before transfer"
+        ));
+      } else if (!matchesImmutableOfframpIdentity(currentTx, promised, currentTransactionId)) {
+        throw this.createRecoverableError(
+          "AlfredpayOfframpTransferExecutor: provider order identity drifted; pausing before transfer"
+        );
+      } else if (!matchesPromisedOfframpTerms(currentTx, promised, currentTransactionId)) {
+        logger.error("ALFREDPAY_OFFRAMP_ORDER_TERMS_REJECTED", {
+          promisedFromAmount: new Big(promised.inputAmountDecimal as unknown as string).toString(),
+          promisedToAmount: new Big(promised.outputAmountDecimal as unknown as string).toString(),
+          transactionFromAmount: currentTx.fromAmount,
+          transactionId: currentTx.transactionId,
+          transactionToAmount: currentTx.toAmount
+        });
+        throw this.createRecoverableError(
+          "AlfredpayOfframpTransferExecutor: provider order no longer matches the promised payout; pausing before transfer"
+        );
+      }
+    }
+
+    if (!hasSafeAlfredpayExecutionLifetime(currentTx.expiration)) {
+      throw this.createRecoverableError(
+        "AlfredpayOfframpTransferExecutor: replacement order has insufficient lifetime; pausing before transfer"
+      );
+    }
+    if (currentTx.status !== AlfredpayOfframpStatus.CREATED) {
+      throw this.createReconciliationRequiredError(
+        `AlfredpayOfframpTransferExecutor: replacement order ${currentTx.transactionId} is already ${currentTx.status}`
+      );
+    }
+    return currentState;
   }
 
   private async recreateAlfredpayOfframp(
