@@ -1,6 +1,5 @@
 import "dotenv/config";
 
-import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, VortexSdk, type VortexSdkConfig } from "@vortexfi/sdk";
 
@@ -39,20 +38,19 @@ function createSdk(): VortexSdk {
   return new VortexSdk(config);
 }
 
-function printLocalPackage(): void {
+function printPackage(): void {
   const require = createRequire(import.meta.url);
-  const entry = realpathSync(require.resolve("@vortexfi/sdk"));
-  if (!entry.endsWith("/packages/sdk/dist/index.js")) {
-    throw new Error(`Expected the linked local SDK Node artifact, resolved ${entry}`);
-  }
+  const entry = require.resolve("@vortexfi/sdk");
+  const manifest = require("@vortexfi/sdk/package.json") as { version: string };
 
   console.log(`Node runtime: ${process.version}`);
-  console.log(`Local SDK artifact: ${entry}`);
+  console.log(`SDK version: ${manifest.version}`);
+  console.log(`SDK artifact: ${entry}`);
 }
 
 async function main(): Promise<void> {
   const command = readCommand();
-  printLocalPackage();
+  printPackage();
 
   if (command === "check") {
     new VortexSdk({

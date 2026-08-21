@@ -1,16 +1,14 @@
-# Local Node Consumer
+# Published Node Consumer
 
-This private example consumes the local `@vortexfi/sdk` through Bun's package-link mechanism instead of importing SDK source files. Every command rebuilds the linked SDK, compiles this project with strict NodeNext settings, and runs the emitted JavaScript with Node.
+This private example consumes the `next` release of `@vortexfi/sdk`, compiles with strict NodeNext settings, and runs the emitted JavaScript with Node.
 
 ```bash
 cd packages/sdk/examples/node-consumer
-bun run bootstrap
+bun install --frozen-lockfile
 bun run check
 ```
 
-`bootstrap` registers `packages/sdk` as the local `@vortexfi/sdk` package and links it into this project. Later SDK patches are picked up automatically; the example commands rebuild the linked package before execution.
-
-`check` verifies the local package export and Node-only secret-key configuration without making an API request. An anonymous sandbox quote needs no credentials:
+`check` reports the installed SDK version and verifies its Node-only secret-key configuration without making an API request. An anonymous sandbox quote needs no credentials:
 
 ```bash
 bun run quote
@@ -25,7 +23,7 @@ bun run status    # secret key or Supabase access token; requires RAMP_ID
 
 The access-token option is intentionally static for a short manual check. A long-running Node integration should provide renewable session logic or use a server-side secret credential.
 
-The complete corridor examples also import the linked `@vortexfi/sdk` package and run their compiled output with Node:
+The complete corridor examples also import the published `@vortexfi/sdk` package and run their compiled output with Node:
 
 ```bash
 bun run example:brl-onramp
