@@ -1056,30 +1056,66 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "quoted subsidy cap: bridge under-delivery pauses without treasury funding",
+    "settlement cap: bridge slippage inside the delivery gate is funded, not halted",
     async () => {
-      const setup = await setUpRegisteredRamp();
+      const setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      expect(metadata.subsidyAmountRaw).toBe("0");
+      scriptHappyWorld(setup);
       world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
-      // Only 90% of the expected USDT arrived (exactly the minimum bridge
-      // delivery ratio, so the balance poll passes). The quote authorized zero
-      // subsidy, so the observed bridge shortfall must not become treasury loss.
+      const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("10", 6));
+      // Squid delivered 5 USDT less than the estimate it was quoted from. The delivery gate
+      // already accepts a shortfall this size, so settlement must fund it rather than stall a
+      // ramp whose provider order is bound to the full quoted deposit.
+      const shortfall = parseUnits("5", 6);
       world.evm.setErc20Balance(
         Networks.Polygon,
         ALFREDPAY_ERC20_TOKEN,
         setup.ephemeral.address,
-        (setup.inputAmountRaw * 9n) / 10n
+        BigInt(metadata.bridgeOutputAmountRaw) - shortfall
+      );
+
+      await processRampWithoutCompletionEmail(setup.rampId);
+
+      expect((await RampState.findByPk(setup.rampId))?.currentPhase).toBe("complete");
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(
+        BigInt(metadata.inputAmountRaw)
+      );
+      const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+      expect(settlementSubsidies).toHaveLength(1);
+      expect(Number(settlementSubsidies[0].amount)).toBe(5);
+    },
+    30000
+  );
+
+  it(
+    "settlement cap: a shortfall above the absolute cap still refuses treasury funding",
+    async () => {
+      const setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
+      const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("100", 6));
+      // 50 USDT short: still inside the delivery gate, but far above
+      // MAX_FINAL_SETTLEMENT_SUBSIDY_USD, which remains the absolute treasury bound.
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        setup.ephemeral.address,
+        BigInt(metadata.bridgeOutputAmountRaw) - parseUnits("50", 6)
       );
 
       await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("finalSettlementSubsidy");
-      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(final?.errorLogs.some(log => log.error.includes("quote's subsidy cap"))).toBe(true);
+      expect(final?.errorLogs.some(log => log.error.includes("exceeds maximum allowed"))).toBe(true);
 
       // The deposit transfer never reached the chain and treasury sent nothing.
       expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
+      const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+      expect(settlementSubsidies).toHaveLength(0);
     },
     30000
   );

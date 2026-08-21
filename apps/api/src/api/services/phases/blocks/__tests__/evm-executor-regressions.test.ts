@@ -1251,8 +1251,10 @@ describe("EVM block executor regressions", () => {
     }
   });
 
-  it("does not fund AlfredPay bridge under-delivery beyond the quoted subsidy", async () => {
-    checkBalance.mockResolvedValue(new Big("900000"));
+  it("does not fund AlfredPay bridge under-delivery below the delivery gate", async () => {
+    // 80% delivered, under the 90% arrival threshold: the gate itself refuses, so the phase
+    // never reaches the settlement cap and treasury sends nothing.
+    checkBalance.mockResolvedValue(new Big("800000"));
     findQuote.mockResolvedValue({
       metadata: {
         blocks: {
@@ -1287,13 +1289,58 @@ describe("EVM block executor regressions", () => {
     executor.createSubsidy = mock(async () => undefined);
 
     await expect(executor.executePhase(state)).rejects.toMatchObject({
-      isRecoverable: true,
-      message: expect.stringContaining("subsidy cap")
+      message: expect.stringContaining("Balance did not meet the limit")
     });
 
     expect(checkEvmBalanceForToken).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "900000" }));
     expect(executor.createSubsidy).not.toHaveBeenCalled();
     expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("funds an AlfredPay bridge shortfall that sits inside the delivery gate", async () => {
+    // Exactly the 90% arrival threshold: the gate accepted this delivery, so the settlement cap
+    // must accept it too. Anything else strands a ramp whose provider order is already bound to
+    // the full quoted deposit.
+    checkBalance.mockResolvedValue(new Big("900000"));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          alfredpayOfframp: {
+            bridgeOutputAmountRaw: "1000000",
+            inputAmountRaw: "1000000",
+            subsidyAmountRaw: "0"
+          }
+        },
+        flow: { id: "AlfredpayOfframp", version: 3 },
+        globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", vortex: "0" } }, request: {} }
+      },
+      network: Networks.Polygon,
+      outputAmount: "1",
+      outputCurrency: FiatToken.MXN
+    });
+    const state = {
+      id: "ramp-gate-shortfall",
+      quoteId: "quote-gate-shortfall",
+      state: {
+        evmEphemeralAddress: "0x2222222222222222222222222222222222222222",
+        transactionPlan: {
+          settlementBaselines: {
+            "polygon:0x2222222222222222222222222222222222222222:0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "0"
+          }
+        }
+      },
+      type: RampDirection.SELL,
+      update: mock(async () => state)
+    } as unknown as RampState;
+    const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+
+    const error = await executor.executePhase(state).then(
+      () => null,
+      (thrown: unknown) => thrown
+    );
+
+    expect((error as { message?: string } | null)?.message ?? "").not.toContain("subsidy cap");
   });
 
   it("refreshes the final settlement shortfall after acquiring the funding slot", async () => {

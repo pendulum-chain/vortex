@@ -277,13 +277,24 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       `FinalSettlementSubsidyExecutor: subsidyAmountRaw=${subsidyAmountRaw.toString()} (required=${requiredBalanceRaw.toString()} - actualBalance=${actualBalance.toString()})`
     );
 
+    // The delivery gate above accepts a bridge shortfall down to
+    // SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS of the quoted output, so settlement must be
+    // willing to fund that same shortfall: the quoted discount subsidy covers the promised
+    // rate, and this allowance covers the execution variance the gate already tolerated.
+    // MAX_FINAL_SETTLEMENT_SUBSIDY_USD below still bounds the total in absolute terms.
+    const alfredpaySettlementCapRaw = isAlfredpayOfframp
+      ? new Big(alfredpayMetadata.subsidyAmountRaw).plus(
+          new Big(alfredpayMetadata.bridgeOutputAmountRaw).mul(10_000 - SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS).div(10_000)
+        )
+      : new Big(0);
     const assertAlfredpayQuoteCap = (amountRaw: Big, observedBalanceRaw: Big): void => {
-      if (!isAlfredpayOfframp || amountRaw.lte(alfredpayMetadata.subsidyAmountRaw)) return;
+      if (!isAlfredpayOfframp || amountRaw.lte(alfredpaySettlementCapRaw)) return;
       logger.warn("ALFREDPAY_OFFRAMP_SETTLEMENT_SUBSIDY_CAP_EXCEEDED", {
         observedBalanceRaw: observedBalanceRaw.toFixed(0),
         quotedSubsidyAmountRaw: alfredpayMetadata.subsidyAmountRaw,
         rampId: state.id,
-        requiredSubsidyAmountRaw: amountRaw.toFixed(0)
+        requiredSubsidyAmountRaw: amountRaw.toFixed(0),
+        settlementCapRaw: alfredpaySettlementCapRaw.toFixed(0)
       });
       throw this.createRecoverableError(
         "FinalSettlementSubsidyExecutor: observed bridge delivery would exceed the AlfredPay quote's subsidy cap"
