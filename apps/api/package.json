@@ -97,6 +97,7 @@
     "preview:emails": "bun src/scripts/preview-emails.ts",
     "preview:emails:watch": "bun --watch src/scripts/preview-emails.ts",
     "register:avenia-webhook": "bun src/scripts/register-avenia-webhook.ts",
+    "seed:demo": "bun scripts/seed-demo-account.ts",
     "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",

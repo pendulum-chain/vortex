@@ -24,6 +24,11 @@ const TOKEN_REFRESH_RETRY_MS = 30 * 1000; // retry after a transient failure
 export { readRampEphemerals, removeRampEphemeral, updateRampEphemeral } from "../services/rampEphemerals";
 
 function readPersistedRampState(): Snapshot<unknown> | undefined {
+  // No persisted state to restore during SSR/prerender; the client re-reads it on hydration.
+  if (typeof localStorage === "undefined") {
+    return undefined;
+  }
+
   try {
     const raw = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
     if (!raw) return undefined;

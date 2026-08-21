@@ -11,6 +11,7 @@ import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
+import { installDemoProviders } from "./api/services/demo/demo-alfredpay.provider";
 import {
   assertPersistedBlockFlowVersionsSupported,
   registerBlockFlowHandlers
@@ -55,6 +56,9 @@ const initializeApp = async () => {
 
     // Initialize RSA keys for webhook signing
     cryptoService.initializeKeys();
+
+    // Sandbox demo deployments only; a no-op everywhere else.
+    installDemoProviders();
 
     // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
     await initializeEvmTokens();

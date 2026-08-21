@@ -21,6 +21,11 @@ const GLOBE_SIZES = {
   sm: 560
 } as const;
 
+// The rendered size comes from CSS, not from `size`, so the prerendered HTML is already correct
+// at every breakpoint instead of shifting on hydration. Tailwind only sees literal class strings,
+// so these must be spelled out; they mirror GLOBE_SIZES and the breakpoints in getGlobeSize.
+const GLOBE_SIZE_CLASSES = "h-[560px] w-[560px] sm:h-[780px] sm:w-[780px] lg:h-[960px] lg:w-[960px]";
+
 const CURRENCY_MARKERS = [
   { currency: "usd", icon: USD_ICON, lat: 38.91, lng: -77.04 },
   { currency: "brl", icon: BRL_ICON, lat: -15.8, lng: -47.89 },
@@ -31,6 +36,8 @@ const CURRENCY_MARKERS = [
 ] as const;
 
 function getGlobeSize(): number {
+  // No viewport during SSR/prerender; the size is corrected on hydration.
+  if (typeof window === "undefined") return GLOBE_SIZES.lg;
   if (window.matchMedia("(min-width: 1024px)").matches) return GLOBE_SIZES.lg;
   if (window.matchMedia("(min-width: 640px)").matches) return GLOBE_SIZES.md;
   return GLOBE_SIZES.sm;
@@ -185,16 +192,14 @@ export const Globe = ({ className }: GlobeProps) => {
 
   return (
     <div
-      className={cn("absolute cursor-grab select-none active:cursor-grabbing", className)}
-      style={{ height: size, touchAction: "manipulation", width: size }}
+      className={cn("absolute cursor-grab select-none active:cursor-grabbing", GLOBE_SIZE_CLASSES, className)}
+      style={{ touchAction: "manipulation" }}
       {...dragHandlers}
     >
-      <canvas
-        height={size * window.devicePixelRatio}
-        ref={canvasRef}
-        style={{ height: size, width: size }}
-        width={size * window.devicePixelRatio}
-      />
+      {/* cobe replaces the backing store with a devicePixelRatio-scaled buffer on mount, and
+          nothing is drawn before then, so these attributes only need to match between the
+          server and client render. */}
+      <canvas className={GLOBE_SIZE_CLASSES} height={GLOBE_SIZES.lg} ref={canvasRef} width={GLOBE_SIZES.lg} />
       <div className="pointer-events-none absolute inset-0">
         {CURRENCY_MARKERS.map((m, i) => (
           <img
