@@ -34,15 +34,6 @@ Anything rendered by a marketing route is prerendered in a DOM-less environment,
 
 `src/tests/ssr-safety.test.tsx` guards these; keep it in the default `node` environment.
 
-### One Vite copy
-
-`lightningcss` is a direct devDependency even though nothing imports it. Vite lists it as an
-*optional peer*, and `@tanstack/start-plugin-core` depends on it, so without it bun installs a
-second copy of Vite for the plugin. Start decides whether to install its SSR dev middleware with
-an `instanceof` check against its own Vite, so two copies make that check fail silently: the dev
-server starts fine and then 404s every route. Keep the dependency; `src/tests/vite-single-instance.test.ts`
-guards it.
-
 ### XState v5
 
 - Use `setup({ ... }).createMachine(...)` — not `createMachine` directly.
