@@ -6,7 +6,7 @@ Vortex is a cross-border payment gateway that converts between fiat currencies (
 
 - **API** (`apps/api`) — Express backend handling ramp orchestration, quote generation, auth, and external service integration
 - **Frontend** (`apps/frontend`) — React SPA for end-user flows
-- **SDK** (`packages/sdk`) — Stateless Node.js SDK abstracting API calls and ephemeral key management for partner integrations
+- **SDK** (`packages/sdk`) — Stateless Node.js/browser SDK abstracting API calls and ephemeral key management for partner integrations
 - **Rebalancer** (`apps/rebalancer`) — Automated liquidity management across chains
 - **Smart Contracts** (`contracts/relayer`) — TokenRelayer.sol for ERC-20 meta-transaction relaying on EVM chains
 

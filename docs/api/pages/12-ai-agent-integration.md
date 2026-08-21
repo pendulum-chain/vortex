@@ -17,16 +17,16 @@ When you point an AI coding agent at Vortex:
 
 | Your runtime | Path |
 |---|---|
-| Node.js (server-side, trusted) | Use [`@vortexfi/sdk`](https://www.npmjs.com/package/@vortexfi/sdk). |
+| Node.js or modern browser with a custom UX | Use [`@vortexfi/sdk`](https://www.npmjs.com/package/@vortexfi/sdk); browser code must authenticate through `accessTokenProvider`, never an `sk_*`. |
 | Python (server-side, trusted) | Use [`vortex-sdk-python`](https://pypi.org/project/vortex-sdk-python). |
-| Browser, mobile, WebView | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
+| Browser, mobile, or WebView preferring a hosted UX and hosted custody | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
 Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU). The corridor determines the register-time fields and the fiat settlement step, not the integration shape — see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
-Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
+Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
 ## C. Python (`vortex-sdk-python`)
 
@@ -64,7 +64,7 @@ Operational notes specific to the Python wrapper:
 
 - A Node.js runtime must be available on the host. The wrapper manages its own Node process.
 - Ephemeral key storage rules from the Node SDK apply: by default `ephemerals_{rampId}.json` is written **unencrypted** in the working directory.
-- The Node SDK opens three persistent WebSocket connections on init; reuse one `VortexSdk(...)` instance for the lifetime of your service.
+- The Node SDK initializes chain WebSocket connections lazily when returned transactions require them; reuse one `VortexSdk(...)` instance for the lifetime of your service.
 
 Refer to the PyPI page for the latest version, function names, and breaking-change notes: <https://pypi.org/project/vortex-sdk-python>.
 

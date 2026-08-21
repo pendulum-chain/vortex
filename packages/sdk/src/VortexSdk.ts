@@ -31,7 +31,7 @@ import { MykoboHandler } from "./handlers/MykoboHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
 import { NetworkManager } from "./services/NetworkManager.js";
-import { storeEphemeralKeys } from "./storage.js";
+import { isBrowserBuild, storeEphemeralKeys } from "./storage.js";
 import type {
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
@@ -53,6 +53,7 @@ export class VortexSdk {
   private apiService: ApiService;
   private publicKey: string | undefined;
   private secretKey: string | undefined;
+  private accessTokenProvider: VortexSdkConfig["accessTokenProvider"];
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private domesticHandler: DomesticHandler;
@@ -61,12 +62,17 @@ export class VortexSdk {
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
 
   constructor(config: VortexSdkConfig) {
-    this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
+    if ((isBrowserBuild || typeof window !== "undefined") && config.secretKey) {
+      throw new Error("Browser SDK integrations must use accessTokenProvider and must not configure secretKey.");
+    }
+
+    this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey, config.accessTokenProvider);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
     this.offrampFundingMode = config.offrampFundingMode ?? "prefunded";
     this.publicKey = config.publicKey;
     this.secretKey = config.secretKey;
+    this.accessTokenProvider = config.accessTokenProvider;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -92,7 +98,7 @@ export class VortexSdk {
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
     // Quotes are anonymous-eligible for every corridor (rate discovery); the user-linked
-    // secretKey is only required at registerRamp.
+    // secret key or access token is only required at registerRamp.
     const apiRequest = { ...request, api: true, apiKey: this.publicKey };
     const baseQuote = await this.apiService.createQuote(apiRequest);
     return baseQuote as ExtendedQuoteResponse<T>;
@@ -129,10 +135,8 @@ export class VortexSdk {
     rampProcess: RampProcess;
     unsignedTransactions: UnsignedTx[];
   }> {
-    if (!this.secretKey) {
-      throw new Error(
-        "Ramp registration requires a secretKey (sk_*) that resolves to a Vortex user. Use a user-scoped key or a partner key delegated to a user."
-      );
+    if (!this.secretKey && !this.accessTokenProvider) {
+      throw new Error("Ramp registration requires a secretKey (sk_*) or accessTokenProvider that resolves to a Vortex user.");
     }
 
     let rampProcess: RampProcess;
@@ -344,11 +348,7 @@ export class VortexSdk {
     }
 
     const fileName = `ephemerals_${rampId}.json`;
-    try {
-      await storeEphemeralKeys(fileName, ephemeralItems);
-    } catch (error) {
-      console.error(`Error storing ephemeral key for ${rampId}:`, error);
-    }
+    await storeEphemeralKeys(fileName, ephemeralItems);
   }
 
   private async generateEphemerals(): Promise<{

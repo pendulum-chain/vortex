@@ -1,6 +1,16 @@
-import { CreateQuoteRequest, EPaymentMethod, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
-import { VortexSdkConfig } from "../src/types";
-import { VortexSdk } from "../src/VortexSdk";
+import "dotenv/config";
+
+import {
+  CreateQuoteRequest,
+  EPaymentMethod,
+  EvmToken,
+  FiatToken,
+  Networks,
+  QuoteResponse,
+  RampDirection,
+  VortexSdk,
+  VortexSdkConfig
+} from "@vortexfi/sdk";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -21,7 +31,7 @@ async function runBrlOnrampExample() {
       // Optional: provide custom WebSocket URLs
       moonbeamWsUrl: undefined,
       pendulumWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
-      publicKey: requireEnv("VORTEX_PUBLIC_KEY"), // 'wss://custom-pendulum-rpc.com',
+      publicKey: process.env.VORTEX_PUBLIC_KEY?.trim() || undefined, // 'wss://custom-pendulum-rpc.com',
       secretKey: requireEnv("VORTEX_SECRET_KEY"), // default is `true`
       // Optional: store ephemeral keys for later use
       storeEphemeralKeys: true // default is `true`
@@ -52,8 +62,7 @@ async function runBrlOnrampExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOnrampData = {
-      destinationAddress: requireEnv("DESTINATION_ADDRESS"),
-      taxId: requireEnv("BRL_TAX_ID")
+      destinationAddress: requireEnv("DESTINATION_ADDRESS")
     };
 
     const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
@@ -65,11 +74,7 @@ async function runBrlOnrampExample() {
       console.log(`   Deposit QR Code: ${rampProcess.depositQrCode}`);
     }
 
-    // Step 4: Start the BRL onramp process AFTER PAYMENT
-    console.log("📝 Step 4: Starting BRL onramp...");
-
-    // Ensure making the payment BEFORE starting the ramp
-    const _startedRamp = await sdk.startRamp(rampProcess.id);
+    console.log("Complete the PIX payment before calling sdk.startRamp(rampProcess.id).");
   } catch (error) {
     console.error("❌ Error in BRL Onramp Example:", error);
 
@@ -82,15 +87,12 @@ async function runBrlOnrampExample() {
   }
 }
 
-// Run the example if this file is executed directly
-if (require.main === module) {
-  runBrlOnrampExample()
-    .then(() => {
-      console.log("\n✨ Example execution completed");
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("\n💥 Example execution failed:", error);
-      process.exit(1);
-    });
-}
+runBrlOnrampExample()
+  .then(() => {
+    console.log("\n✨ Example execution completed");
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error("\n💥 Example execution failed:", error);
+    process.exit(1);
+  });

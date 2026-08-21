@@ -11,3 +11,4 @@ cd "$vortex_repo_root"
 
 TMPDIR="$vortex_tmp_root" bun install --frozen-lockfile --cache-dir="$vortex_cache_dir"
 TMPDIR="$vortex_tmp_root" bun run build:shared
+TMPDIR="$vortex_tmp_root" bun run build:sdk

@@ -1,0 +1,34 @@
+{
+  "dependencies": {
+    "@polkadot/api": "16.4.6",
+    "@vortexfi/sdk": "next",
+    "dotenv": "^16.4.7",
+    "stellar-sdk": "13.1.0",
+    "viem": "2.37.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "name": "@vortexfi/sdk-local-node-consumer",
+  "private": true,
+  "scripts": {
+    "build": "bun x tsc -p tsconfig.json",
+    "check": "bun run build && node dist/index.js check",
+    "example:brl-offramp": "bun run build && node dist/exampleBrlOfframp.js",
+    "example:brl-onramp": "bun run build && node dist/exampleBrlOnramp.js",
+    "example:eur-offramp": "bun run build && node dist/exampleEurOfframp.js",
+    "example:eur-onramp": "bun run build && node dist/exampleEurOnramp.js",
+    "example:mxn-offramp": "bun run build && node dist/exampleMxnOfframp.js",
+    "example:mxn-onramp": "bun run build && node dist/exampleMxnOnramp.js",
+    "quote": "bun run build && node dist/index.js quote",
+    "ramp-info": "bun run build && node dist/index.js ramp-info",
+    "status": "bun run build && node dist/index.js status",
+    "typecheck": "bun x tsc -p tsconfig.json --noEmit"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

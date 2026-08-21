@@ -8,7 +8,8 @@ state or a user's wallet.
 ## Main components
 
 - `VortexSdk.ts` is the public orchestrator.
-- `services/ApiService.ts` owns HTTP requests and error mapping.
+- `services/ApiService.ts` owns HTTP requests, per-request access-token resolution,
+  API-key precedence, and error mapping.
 - `services/NetworkManager.ts` owns the RPC connections needed for ephemeral signing and
   initializes only the networks required for ephemeral signing. Quote and registration
   HTTP calls do not wait for chain WebSockets.
@@ -27,9 +28,10 @@ createQuote
   -> getRampStatus
 ```
 
-Quotes are eligible for anonymous rate discovery. Registration requires a user-linked
-secret key because provider identity is resolved server-side for that user. The SDK does
-not mint keys or complete KYC/KYB.
+Quotes are eligible for anonymous rate discovery. Registration requires either a user-linked
+secret key or a Supabase access-token provider because provider identity is resolved server-side
+for that user. Secret keys take precedence when both authentication mechanisms are configured.
+The SDK does not mint keys or complete KYC/KYB.
 
 `registerRamp` returns user-owned transactions separately from ephemeral-owned
 transactions. The SDK signs only the ephemeral-owned set. For user-owned entries, the
@@ -43,15 +45,18 @@ through `getUserTransactionType`, `getTypedDataToSign`, and
 - Ephemeral accounts are generated per registration and are required for recovery until
   the ramp's recovery window ends.
 - Ramp IDs and business correlation state belong to the integrating application.
-- `storeEphemeralKeys` defaults to enabled for Node-based recovery; applications with
-  their own secure storage may disable it and persist the material themselves.
+- `storeEphemeralKeys` defaults to enabled and writes a JSON file in Node.js or plain
+  `localStorage` in browsers. Browser persistence is intentionally prototype-grade;
+  applications with their own secure storage may disable it and persist the material themselves.
 
 ## Package boundary
 
-The SDK is published as a Node.js ESM package from `dist/index.js`, with declarations in
-`dist/index.d.ts`. Relative imports and re-exports in `src` use `.js` extensions because
-TypeScript resolves them to the `.ts` source files but preserves the runtime paths in emitted
-declarations; the SDK ESLint configuration enforces this for NodeNext compatibility. `bun test`
-runs lint, unit tests, builds the package, checks it from a NodeNext consumer, and smoke-loads the
-output. The public API and examples belong in [`README.md`](README.md); partner-facing
-integration guides belong in [`docs/api/`](../../docs/api/README.md).
+The SDK publishes conditional ESM artifacts: Node.js resolves `dist/index.js` and browser
+bundlers resolve `dist/browser/index.js`, with shared declarations in `dist/index.d.ts`.
+Relative imports and re-exports in `src` use `.js` extensions because TypeScript resolves them
+to the `.ts` source files but preserves the runtime paths in emitted declarations; the SDK
+ESLint configuration enforces this for NodeNext compatibility. The package test pipeline runs
+lint and unit tests, builds both artifacts, checks the declarations from a NodeNext consumer,
+and smoke-loads both package conditions. The public API and examples belong in
+[`README.md`](README.md);
+partner-facing integration guides belong in [`docs/api/`](../../docs/api/README.md).

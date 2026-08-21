@@ -1,6 +1,6 @@
 # Widget Integration
 
-The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended path when your application runs in a browser, mobile WebView, or anywhere you cannot run `@vortexfi/sdk` server-side.
+The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended browser path when you do not need a fully custom UX or do not want to accept browser-side ephemeral custody.
 
 ## Endpoint
 
@@ -152,8 +152,9 @@ Webhook management uses the corresponding server-side secret through `X-API-Key`
 
 | Scenario | Use |
 |---|---|
-| Browser / mobile app, no trusted backend | Widget |
-| Trusted Node.js backend, custom UX | `@vortexfi/sdk` |
+| Browser / mobile app, hosted UX | Widget |
+| Custom browser UX on an approved origin, accepting prototype localStorage custody | `@vortexfi/sdk` with Bearer auth |
+| Custom Node.js UX | `@vortexfi/sdk` with a secret credential |
 | Trusted Python backend | `vortex-sdk-python` |
 | Other backend stacks | Direct API ([AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration)) |
 
