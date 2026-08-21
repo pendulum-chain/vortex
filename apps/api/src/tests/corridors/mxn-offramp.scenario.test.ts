@@ -1,7 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock, setSystemTime, spyOn } from "bun:test";
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
+  AlfredpayChain,
+  AlfredpayFeeType,
   AlfredpayOfframpStatus,
   type EvmTransactionData,
   EvmToken,
@@ -12,11 +14,20 @@ import {
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { BaseError, ContractFunctionExecutionError, decodeFunctionData, erc20Abi, parseTransaction } from "viem";
+import {
+  BaseError,
+  ContractFunctionExecutionError,
+  decodeFunctionData,
+  erc20Abi,
+  parseTransaction
+} from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
+import type { AlfredpayOfframpMetadata } from "../../api/services/phases/blocks/phases/alfredpay-offramp/simulation";
+import { AlfredpayOfframpTransferExecutor } from "../../api/services/phases/blocks/phases/alfredpay-offramp/execution";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
+import logger from "../../config/logger";
 import FinancialOperation from "../../models/financialOperation.model";
 import Subsidy from "../../models/subsidy.model";
 import QuoteTicket from "../../models/quoteTicket.model";
@@ -51,6 +62,7 @@ interface EvmTxBlueprint extends EvmTransactionData {
 interface CorridorSetup {
   rampId: string;
   quoteId: string;
+  quoteOutputAmount: string;
   /** Raw (6-decimal) USDT amount the offramp moves. */
   inputAmountRaw: bigint;
   signedOfframpTransfer: `0x${string}`;
@@ -94,9 +106,24 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     // tests that rely on the native-swap settlement path stay deterministic.
     world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, getEvmFundingAccount(Networks.Polygon).address, 0n);
     world.squidRouter.computeToAmount = params => params.fromAmount;
+    world.squidRouter.computeToAmountMin = params => world.squidRouter.computeToAmount(params);
     world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     world.alfredpay.offrampRate = ALFREDPAY_OFFRAMP_RATE;
-    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    world.alfredpay.offrampMaxFromAmount = null;
+    world.alfredpay.onCreateOfframpQuote = undefined;
+    world.alfredpay.offrampQuoteToAmountAdjustmentOnce = null;
+    world.alfredpay.nextOfframpQuoteExpiration = null;
+    world.alfredpay.nextOfframpQuoteChain = null;
+    world.alfredpay.nextOfframpExpiration = null;
+    world.alfredpay.nextOfframpOrderStatus = null;
+    world.alfredpay.nextOfframpRereadStatus = null;
+    world.alfredpay.nextOfframpTransactionId = null;
+    world.alfredpay.offrampOrders.splice(0);
+    world.alfredpay.issuedOfframpQuotes.clear();
+    world.alfredpay.offrampStatusOverrides.clear();
+    world.alfredpay.offrampTransactions.clear();
+    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.CREATED;
+    world.alfredpay.quoteFees = [];
     // Fresh deposit address per test: the in-memory EVM ledger persists across
     // tests, so a shared address would accumulate balances between scenarios.
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
@@ -115,12 +142,12 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
+  async function createQuoteViaApi(inputAmount = "100"): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
     const squidRouteCount = world.squidRouter.requestedRoutes.length;
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Polygon,
-        inputAmount: "100",
+        inputAmount,
         inputCurrency: EvmToken.USDT,
         network: Networks.Polygon,
         outputCurrency: FiatToken.MXN,
@@ -163,13 +190,13 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     return blueprint?.txData as unknown as EvmTxBlueprint;
   }
 
-  async function setUpRegisteredRamp(): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(inputAmount = "100"): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id);
-    const quote = await createQuoteViaApi();
+    const quote = await createQuoteViaApi(inputAmount);
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -250,6 +277,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       ephemeral,
       inputAmountRaw,
       quoteId: quote.id,
+      quoteOutputAmount: quote.outputAmount,
       rampId: ramp.id,
       signedOfframpTransfer,
       userTransferBlueprint,
@@ -288,11 +316,31 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         recipient,
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
+      if (recipient.toLowerCase() === world.alfredpay.offrampDepositAddress.toLowerCase()) {
+        world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+      }
     };
   }
 
   function submissionsOf(signedTransfer: `0x${string}`): number {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
+  }
+
+  async function processRampWithoutCompletionEmail(rampId: string): Promise<void> {
+    // Completion-email enqueueing is deliberately detached from phase processing.
+    // This corridor suite resets the database between scenarios, so remove the
+    // unrelated recipient before processing to prevent that background query from
+    // racing the next test's TRUNCATE.
+    await RampState.update({ userId: null }, { where: { id: rampId } });
+    await phaseProcessor.processRamp(rampId);
+  }
+
+  async function getAlfredpayMetadata(quoteId: string): Promise<AlfredpayOfframpMetadata> {
+    const quote = await QuoteTicket.findByPk(quoteId);
+    const metadata = (quote?.metadata as unknown as { blocks?: { alfredpayOfframp?: AlfredpayOfframpMetadata } })?.blocks
+      ?.alfredpayOfframp;
+    expect(metadata).toBeDefined();
+    return metadata as AlfredpayOfframpMetadata;
   }
 
   it("quotes direct Polygon USDT 1:1 without requesting a Squid route", async () => {
@@ -365,6 +413,134 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     );
   });
 
+  it("registration can retry safely after a pre-order provider quote drift", async () => {
+    const user = await createTestUser();
+    await createTestAlfredpayCustomer(user.id);
+    const quote = await createQuoteViaApi();
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const userWallet = privateKeyToAccount(generatePrivateKey());
+    const orderCount = world.alfredpay.offrampOrders.length;
+    world.alfredpay.offrampQuoteToAmountAdjustmentOnce = "-0.01";
+
+    const first = await app.request("/v1/ramp/register", {
+      body: JSON.stringify({
+        additionalData: { fiatAccountId: FIAT_ACCOUNT_ID, walletAddress: userWallet.address },
+        quoteId: quote.id,
+        signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+    expect(first.status).toBe(422);
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount);
+    expect(
+      await FinancialOperation.findOne({ where: { attemptClass: "registration", scopeId: quote.id } })
+    ).toMatchObject({ status: "failed" });
+
+    await registerViaApi(quote.id, user.id, ephemeral, userWallet);
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(
+      await FinancialOperation.findOne({ where: { attemptClass: "registration", scopeId: quote.id } })
+    ).toMatchObject({ status: "confirmed" });
+  });
+
+  it("cross-chain quotes keep using Squid's estimated output", async () => {
+    world.squidRouter.computeToAmount = () => parseUnits("999", 6).toString();
+    world.squidRouter.computeToAmountMin = () => parseUnits("989", 6).toString();
+    world.squidRouter.toTokenDecimals = 6;
+    const quoteResponse = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Base,
+        inputAmount: "1000",
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: "spei"
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    expect(quoteResponse.status).toBe(201);
+    const quote = (await quoteResponse.json()) as { id: string; outputAmount: string };
+    const metadata = await getAlfredpayMetadata(quote.id);
+    expect(metadata.bridgeOutputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(quote.outputAmount).toBe("19980.00");
+
+    const user = await createTestUser();
+    await createTestAlfredpayCustomer(user.id);
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const userWallet = privateKeyToAccount(generatePrivateKey());
+    world.squidRouter.computeToAmountMin = () => parseUnits("900", 6).toString();
+    const registration = await app.request("/v1/ramp/register", {
+      body: JSON.stringify({
+        additionalData: { fiatAccountId: FIAT_ACCOUNT_ID, walletAddress: userWallet.address },
+        quoteId: quote.id,
+        signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+    expect(registration.status).toBe(201);
+    expect(await RampState.findOne({ where: { quoteId: quote.id } })).toBeDefined();
+  });
+
+  it("does not persist an Alfredpay quote that expires before safe registration and signing", async () => {
+    world.alfredpay.nextOfframpQuoteExpiration = new Date(Date.now() + 5_000).toISOString();
+    const quoteCount = await QuoteTicket.count();
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Polygon,
+        inputAmount: "1000",
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: "spei"
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+
+    expect(response.status).not.toBe(201);
+    expect(await QuoteTicket.count()).toBe(quoteCount);
+  });
+
+  it("measures provider quote lifetime after provider latency instead of from the pricing snapshot", async () => {
+    const startedAt = new Date("2026-08-11T12:00:00.000Z");
+    setSystemTime(startedAt);
+    world.alfredpay.nextOfframpQuoteExpiration = new Date(startedAt.getTime() + 25_000).toISOString();
+    world.alfredpay.onCreateOfframpQuote = () => setSystemTime(new Date(startedAt.getTime() + 20_000));
+    const quoteCount = await QuoteTicket.count();
+    try {
+      const response = await app.request("/v1/quotes", {
+        body: JSON.stringify({
+          from: Networks.Polygon,
+          inputAmount: "1000",
+          inputCurrency: EvmToken.USDT,
+          network: Networks.Polygon,
+          outputCurrency: FiatToken.MXN,
+          rampType: RampDirection.SELL,
+          to: "spei"
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(response.status).not.toBe(201);
+      expect(await QuoteTicket.count()).toBe(quoteCount);
+    } finally {
+      world.alfredpay.onCreateOfframpQuote = undefined;
+      setSystemTime();
+    }
+  });
+
   it(
     "happy path: processes the full Alfredpay offramp phase sequence to complete",
     async () => {
@@ -372,7 +548,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       scriptHappyWorld(setup);
       const depositAddress = world.alfredpay.offrampDepositAddress;
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("complete");
@@ -474,7 +650,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       );
       const depositAddress = world.alfredpay.offrampDepositAddress;
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("complete");
@@ -491,34 +667,44 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "fee + target discount: the deposit reflects the promised net rate while the full fee is collected",
+    "15 bps target: reconciles Alfredpay spread and fees while funding the executable settlement",
     async () => {
       const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
-      // 17 MXN fee = 1 USD; a 1% target promises 1717 MXN gross. The subsidy is
-      // sized against the fee-net actual (1683 MXN), so the deposit becomes
-      // (1683 + 34) / 17 = 101 USDT while the 1 USDT fee is still collected.
+      world.alfredpay.offrampRate = 16.9;
+      world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
       await updatePartnerPricing("vortex", RampDirection.SELL, {
         markupCurrency: FiatToken.MXN,
         markupType: "absolute",
         markupValue: 17,
-        maxSubsidy: 0.1,
+        maxSubsidy: 0.0095,
         payoutAddressEvm: vortexPayout,
-        targetDiscount: 0.01
+        targetDiscount: 0.0015
       });
 
-      const setup = await setUpRegisteredRamp();
-      expect(setup.inputAmountRaw).toBe(parseUnits("101", 6));
+      const setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      expect(setup.quoteOutputAmount).toBe("17025.50");
+      expect(setup.inputAmountRaw).toBe(parseUnits("1008.431953", 6));
+      expect(metadata.subsidyAmountRaw).toBe(parseUnits("9.431953", 6).toString());
+      expect(Number(metadata.outputAmountDecimal)).toBeCloseTo(17025.5000057, 6);
+      expect(Number(metadata.pricing.customer.referenceDifferenceBps)).toBeCloseTo(15, 5);
+      expect(Number(metadata.pricing.reference.rate)).toBe(17);
+      expect(Number(metadata.pricing.provider.grossRate)).toBe(16.9);
+      expect(Number(metadata.pricing.provider.feeAmount)).toBe(17);
+      expect(
+        BigInt(metadata.inputAmountRaw) + parseUnits("1", 6) - BigInt(metadata.bridgeOutputAmountRaw)
+      ).toBe(BigInt(metadata.subsidyAmountRaw));
 
       const rampState = await RampState.findByPk(setup.rampId);
       const allUnsignedTxs = rampState?.unsignedTxs ?? [];
 
-      // The refund fallback returns the user's bridged 100 USDT — NOT the subsidized
-      // deposit plus fees (102), which would hand the platform subsidy to the user
+      // The refund fallback returns the user's bridged 1000 USDT — not the subsidized
+      // deposit plus fees, which would hand the platform subsidy to the user
       // on a failed ramp.
       const fallbackBlueprint = allUnsignedTxs.find(tx => tx.phase === "alfredpayOfframpTransferFallback");
       const fallbackData = (fallbackBlueprint?.txData as unknown as { data: `0x${string}` }).data;
       const fallbackArgs = decodeFunctionData({ abi: erc20Abi, data: fallbackData }).args as [string, bigint];
-      expect(fallbackArgs[1]).toBe(parseUnits("100", 6));
+      expect(fallbackArgs[1]).toBe(parseUnits("1000", 6));
 
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
@@ -563,31 +749,233 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       expect(updateResponse.status).toBe(200);
 
       scriptHappyWorld(setup);
-      // The ephemeral starts with ONLY the user's bridged 100 USDT: final settlement
-      // must top it up to deposit + fee (102), i.e. a 2 USDT platform subsidy paid
-      // from the funding account's USDT balance.
-      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, parseUnits("100", 6));
+      // The ephemeral starts with only the user's bridged 1000 USDT. Final settlement
+      // funds the exact provider input plus the 1 USDT fee reserve.
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, parseUnits("1000", 6));
       const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
       world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("10", 6));
       const depositAddress = world.alfredpay.offrampDepositAddress;
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("complete");
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(parseUnits("101", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(
+        parseUnits("1008.431953", 6)
+      );
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
       expect(submissionsOf(signedFeeTransfer)).toBe(1);
 
-      // The settlement subsidy covered deposit + fee minus the user's 100 USDT:
-      // exactly 2 USDT. Sizing the target without the fee would record 1 instead
-      // and starve the fee transfer on a real chain.
       const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
       expect(settlementSubsidies).toHaveLength(1);
-      expect(Number(settlementSubsidies[0].amount)).toBe(2);
+      expect(Number(settlementSubsidies[0].amount)).toBeCloseTo(9.431953, 6);
     },
     30000
   );
+
+  it("partner subsidy cap: returns the best executable quote below the target", async () => {
+    world.alfredpay.offrampRate = 16.9;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.0093,
+      targetDiscount: 0.0015
+    });
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const quote = await createQuoteViaApi("1000");
+      const metadata = await getAlfredpayMetadata(quote.id);
+      expect(quote.outputAmount).toBe("17023.50");
+      expect(metadata.inputAmountRaw).toBe(parseUnits("1008.31395", 6).toString());
+      expect(metadata.subsidyAmountRaw).toBe(parseUnits("9.31395", 6).toString());
+      expect(Number(metadata.outputAmountDecimal)).toBeCloseTo(17023.505755, 6);
+      expect(Number(metadata.pricing.customer.referenceDifferenceBps)).toBeCloseTo(13.8269147, 6);
+      expect(Number(metadata.pricing.customer.referenceDifferenceBps)).toBeLessThan(15);
+      expect(warning).toHaveBeenCalledWith(
+        "ALFREDPAY_OFFRAMP_TARGET_DISCOUNT_CAPPED",
+        expect.objectContaining({
+          allowedSubsidyUsd: "9.31395",
+          appliedSubsidyUsd: "9.31395",
+          capReason: "partner",
+          deliveredOutput: "17023.505755",
+          requestedTargetOutput: "17025.5",
+          requiredSubsidyIsLowerBound: false
+        })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("runtime subsidy cap: returns and settles the best quote at exactly ten USDT", async () => {
+    world.alfredpay.offrampRate = 16.9;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      maxSubsidy: 0.1,
+      targetDiscount: 0.02
+    });
+
+    const warning = spyOn(logger, "warn");
+    let setup!: CorridorSetup;
+    try {
+      setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      expect(setup.quoteOutputAmount).toBe("17052.00");
+      expect(metadata.inputAmountRaw).toBe(parseUnits("1010", 6).toString());
+      expect(metadata.subsidyAmountRaw).toBe(parseUnits("10", 6).toString());
+      expect(Number(metadata.pricing.customer.referenceDifferenceBps)).toBeLessThan(200);
+      expect(warning).toHaveBeenCalledWith(
+        "ALFREDPAY_OFFRAMP_TARGET_DISCOUNT_CAPPED",
+        expect.objectContaining({
+          allowedSubsidyUsd: "10",
+          appliedSubsidyUsd: "10",
+          capReason: "runtime",
+          deliveredOutput: "17052",
+          requestedTargetOutput: "17340"
+        })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+
+    scriptHappyWorld(setup);
+    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, parseUnits("1000", 6));
+    const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("10", 6));
+    const depositAddress = world.alfredpay.offrampDepositAddress;
+
+    await processRampWithoutCompletionEmail(setup.rampId);
+
+    expect((await RampState.findByPk(setup.rampId))?.currentPhase).toBe("complete");
+    expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(parseUnits("1010", 6));
+    const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+    expect(settlementSubsidies).toHaveLength(1);
+    expect(Number(settlementSubsidies[0].amount)).toBe(10);
+  });
+
+  it("provider maximum: falls back to the best fixed-input quote instead of rejecting", async () => {
+    world.alfredpay.offrampRate = 16.9;
+    world.alfredpay.offrampMaxFromAmount = "1000";
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.1,
+      targetDiscount: 0.02
+    });
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const quote = await createQuoteViaApi("1000");
+      const metadata = await getAlfredpayMetadata(quote.id);
+      expect(quote.outputAmount).toBe("16883.00");
+      expect(metadata.inputAmountRaw).toBe(parseUnits("1000", 6).toString());
+      expect(metadata.subsidyAmountRaw).toBe(parseUnits("1", 6).toString());
+      expect(warning).toHaveBeenCalledWith(
+        "ALFREDPAY_OFFRAMP_TARGET_DISCOUNT_CAPPED",
+        expect.objectContaining({
+          appliedSubsidyUsd: "1",
+          capReason: "provider",
+          providerMaximumInput: "1000",
+          requiredSubsidyIsLowerBound: true,
+          requiredSubsidyUsd: "1"
+        })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("rejects when the provider maximum cannot cover the fee-net baseline input", async () => {
+    world.alfredpay.offrampRate = 16.9;
+    world.alfredpay.offrampMaxFromAmount = "998";
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.1,
+      targetDiscount: 0.02
+    });
+    const quoteCount = await QuoteTicket.count();
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Polygon,
+        inputAmount: "1000",
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: "spei"
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+
+    expect(response.status).not.toBe(201);
+    expect(await QuoteTicket.count()).toBe(quoteCount);
+  });
+
+  it("favorable provider pricing returns the natural upside without a subsidy", async () => {
+    world.alfredpay.offrampRate = 20;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.1,
+      targetDiscount: 0.0015
+    });
+
+    const quote = await createQuoteViaApi("1000");
+    const metadata = await getAlfredpayMetadata(quote.id);
+    expect(quote.outputAmount).toBe("19963.00");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(metadata.subsidyAmountRaw).toBe("0");
+    expect(Number(metadata.pricing.customer.referenceDifferenceBps)).toBeGreaterThan(15);
+  });
+
+  it("zero target discount leaves provider spread and fees unsubsidized", async () => {
+    world.alfredpay.offrampRate = 16.9;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.1,
+      targetDiscount: 0
+    });
+
+    const quote = await createQuoteViaApi("1000");
+    const metadata = await getAlfredpayMetadata(quote.id);
+    expect(quote.outputAmount).toBe("16866.10");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(metadata.subsidyAmountRaw).toBe("0");
+  });
+
+  it("negative target discount remains a rate floor without enabling subsidy", async () => {
+    world.alfredpay.offrampRate = 16.7;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0.1,
+      targetDiscount: -0.01
+    });
+
+    const quote = await createQuoteViaApi("1000");
+    const metadata = await getAlfredpayMetadata(quote.id);
+    expect(quote.outputAmount).toBe("16666.30");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(metadata.subsidyAmountRaw).toBe("0");
+    expect(Number(metadata.adjustedTargetDiscount)).toBe(-0.01);
+  });
 
   it(
     "ambiguous funding failure: an RPC outage pauses the ramp for reconciliation",
@@ -612,7 +1000,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       world.evm.failNextSends = 1;
       world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("fundEphemeral");
@@ -654,7 +1042,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         state: { ...rampState.state, squidRouterNoPermitTransferHash: tamperedHash }
       });
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("failed");
@@ -668,33 +1056,66 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "subsidy cap (F-001): a settlement shortfall needing more than MAX_FINAL_SETTLEMENT_SUBSIDY_USD of native fails instead of paying",
+    "settlement cap: bridge slippage inside the delivery gate is funded, not halted",
     async () => {
-      const setup = await setUpRegisteredRamp();
+      const setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      expect(metadata.subsidyAmountRaw).toBe("0");
+      scriptHappyWorld(setup);
       world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
-      // Only 90% of the expected USDT arrived (exactly the minimum bridge
-      // delivery ratio, so the balance poll passes): the 10 USDT shortfall
-      // must be subsidized. The funding account holds no USDT, so the handler
-      // prices a native→USDT swap; at 0.5 USD/MATIC the required ~22 MATIC
-      // (incl. the 10% buffer) is worth $11 — above the $10 F-001 cap.
+      const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("10", 6));
+      // Squid delivered 5 USDT less than the estimate it was quoted from. The delivery gate
+      // already accepts a shortfall this size, so settlement must fund it rather than stall a
+      // ramp whose provider order is bound to the full quoted deposit.
+      const shortfall = parseUnits("5", 6);
       world.evm.setErc20Balance(
         Networks.Polygon,
         ALFREDPAY_ERC20_TOKEN,
         setup.ephemeral.address,
-        (setup.inputAmountRaw * 9n) / 10n
+        BigInt(metadata.bridgeOutputAmountRaw) - shortfall
       );
-      world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) / 2n / 10n ** 12n).toString();
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
+
+      expect((await RampState.findByPk(setup.rampId))?.currentPhase).toBe("complete");
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(
+        BigInt(metadata.inputAmountRaw)
+      );
+      const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+      expect(settlementSubsidies).toHaveLength(1);
+      expect(Number(settlementSubsidies[0].amount)).toBe(5);
+    },
+    30000
+  );
+
+  it(
+    "settlement cap: a shortfall above the absolute cap still refuses treasury funding",
+    async () => {
+      const setup = await setUpRegisteredRamp("1000");
+      const metadata = await getAlfredpayMetadata(setup.quoteId);
+      world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
+      const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("100", 6));
+      // 50 USDT short: still inside the delivery gate, but far above
+      // MAX_FINAL_SETTLEMENT_SUBSIDY_USD, which remains the absolute treasury bound.
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        setup.ephemeral.address,
+        BigInt(metadata.bridgeOutputAmountRaw) - parseUnits("50", 6)
+      );
+
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("failed");
-      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
       expect(final?.errorLogs.some(log => log.error.includes("exceeds maximum allowed"))).toBe(true);
 
-      // The deposit transfer never reached the chain and nothing was subsidized.
+      // The deposit transfer never reached the chain and treasury sent nothing.
       expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
+      const settlementSubsidies = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+      expect(settlementSubsidies).toHaveLength(0);
     },
     30000
   );
@@ -706,12 +1127,441 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       scriptHappyWorld(setup);
       world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FAILED;
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await processRampWithoutCompletionEmail(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("failed");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address)).toBe(
+        setup.inputAmountRaw
+      );
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
     },
     30000
   );
+
+  it("does not deposit into an order whose provider lifecycle is already advanced", async () => {
+    for (const status of [
+      AlfredpayOfframpStatus.ON_CHAIN_DEPOSIT_RECEIVED,
+      AlfredpayOfframpStatus.TRADE_COMPLETED,
+      AlfredpayOfframpStatus.FIAT_TRANSFER_INITIATED,
+      AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED
+    ]) {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      world.alfredpay.offrampStatus = status;
+      const registered = await RampState.findByPk(setup.rampId);
+      expect(registered).toBeDefined();
+      const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+        executePhase(state: RampState): Promise<RampState>;
+      };
+
+      await expect(executor.executePhase(registered as RampState)).rejects.toThrow(
+        `is already ${status} without a confirmed local transfer`
+      );
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address)).toBe(
+        setup.inputAmountRaw
+      );
+    }
+  });
+
+  it(
+    "expired-order recovery keeps the provider origin bound to the depositing ephemeral",
+    async () => {
+      world.alfredpay.nextOfframpTransactionId = "123e4567-e89b-12d3-a456-426614174000";
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      const orderCount = world.alfredpay.offrampOrders.length;
+      const registered = await RampState.findByPk(setup.rampId);
+      const transactionId = registered?.state.alfredpayTransactionId;
+      expect(transactionId).toBeTruthy();
+      const transaction = world.alfredpay.offrampTransactions.get(transactionId ?? "");
+      expect(transaction).toBeDefined();
+      if (transaction) transaction.expiration = new Date(0).toISOString();
+
+      await processRampWithoutCompletionEmail(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+      expect(world.alfredpay.offrampOrders.at(-1)?.originAddress).toBe(setup.ephemeral.address);
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+      const recoveryOperation = await FinancialOperation.findOne({
+        where: { phase: "alfredpayOfframpTransfer", provider: "alfredpay", scopeId: setup.rampId }
+      });
+      expect(recoveryOperation).toMatchObject({ externalId: expect.any(String), status: "confirmed" });
+      expect(recoveryOperation?.attemptClass.startsWith("alfredpay-recovery:")).toBe(true);
+      expect(recoveryOperation?.attemptClass.length).toBeLessThanOrEqual(64);
+    },
+    30000
+  );
+
+  it("replays a confirmed replacement before inspecting the stale order after a persistence crash", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    const transactionId = registered?.state.alfredpayTransactionId;
+    const transaction = world.alfredpay.offrampTransactions.get(transactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!registered || !transaction) throw new Error("missing registered Alfredpay recovery fixture");
+    transaction.expiration = new Date(0).toISOString();
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+    const originalTransactionId = transaction.transactionId;
+    const originalUpdate = registered.update.bind(registered);
+    let crashed = false;
+    registered.update = mock(async values => {
+      const nextTransactionId = (values.state as typeof registered.state | undefined)?.alfredpayTransactionId;
+      if (!crashed && nextTransactionId && nextTransactionId !== originalTransactionId) {
+        crashed = true;
+        throw new Error("simulated crash before replacement id persistence");
+      }
+      return originalUpdate(values);
+    }) as typeof registered.update;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    try {
+      await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+    } finally {
+      registered.update = originalUpdate as typeof registered.update;
+    }
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    const replacementTransactionId = world.alfredpay.offrampTransactions.keys().toArray().at(-1);
+    expect(replacementTransactionId).toBeTruthy();
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+
+    // The stale order is now FAILED. The confirmed replacement journal must
+    // replay before this mutable response can incorrectly fail the ramp.
+    world.alfredpay.offrampStatusOverrides.set(originalTransactionId, AlfredpayOfframpStatus.FAILED);
+    await executor.executePhase(registered);
+
+    expect(registered.state.alfredpayTransactionId).toBe(replacementTransactionId);
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+  });
+
+  it("does not rebind or fund a confirmed replacement whose create status is already advanced", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay replacement-status fixture");
+    const originalTransactionId = registered.state.alfredpayTransactionId as string;
+    const transaction = world.alfredpay.offrampTransactions.get(originalTransactionId);
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.nextOfframpOrderStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_INITIATED;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toThrow("is already FIAT_TRANSFER_INITIATED");
+    await expect(executor.executePhase(registered)).rejects.toThrow("is already FIAT_TRANSFER_INITIATED");
+
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
+
+  it("does not rebind or fund a confirmed replacement whose reread status is already advanced", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay replacement-reread fixture");
+    const originalTransactionId = registered.state.alfredpayTransactionId as string;
+    const transaction = world.alfredpay.offrampTransactions.get(originalTransactionId);
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.nextOfframpRereadStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_INITIATED;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toThrow("is already FIAT_TRANSFER_INITIATED");
+    await expect(executor.executePhase(registered)).rejects.toThrow("is already FIAT_TRANSFER_INITIATED");
+
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
+
+  it("fails without funding when a confirmed replacement reread reports FAILED", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay failed-replacement fixture");
+    const originalTransactionId = registered.state.alfredpayTransactionId as string;
+    const transaction = world.alfredpay.offrampTransactions.get(originalTransactionId);
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.nextOfframpRereadStatus = AlfredpayOfframpStatus.FAILED;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    const first = await executor.executePhase(registered);
+    const second = await executor.executePhase(registered);
+
+    expect(first.currentPhase).toBe("failed");
+    expect(second.currentPhase).toBe("failed");
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
+
+  it(
+    "expired-order recovery retries a proven-safe rejection after provider terms improve",
+    async () => {
+      world.alfredpay.offrampRate = 16.9;
+      await updatePartnerPricing("vortex", RampDirection.SELL, {
+        maxSubsidy: 0.0095,
+        targetDiscount: 0.0015
+      });
+      const setup = await setUpRegisteredRamp("1000");
+      const orderCount = world.alfredpay.offrampOrders.length;
+      const registered = await RampState.findByPk(setup.rampId);
+      const transactionId = registered?.state.alfredpayTransactionId;
+      expect(transactionId).toBeTruthy();
+      const transaction = world.alfredpay.offrampTransactions.get(transactionId ?? "");
+      expect(transaction).toBeDefined();
+      if (transaction) transaction.expiration = new Date(0).toISOString();
+      world.alfredpay.offrampRate = 16;
+
+      const fundingAddress = getEvmFundingAccount(Networks.Polygon).address;
+      const principalRaw = parseUnits("1000", 6);
+      scriptHappyWorld(setup);
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, principalRaw);
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, fundingAddress, parseUnits("10", 6));
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.userWallet.address, 0n);
+
+      await processRampWithoutCompletionEmail(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("alfredpayOfframpTransfer");
+      expect(world.alfredpay.offrampOrders).toHaveLength(orderCount);
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address)).toBe(
+        setup.inputAmountRaw
+      );
+      expect(final?.errorLogs.some(log => log.error.includes("no replacement order can preserve"))).toBe(true);
+
+      world.alfredpay.offrampRate = 16.9;
+      const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+        executePhase(state: RampState): Promise<RampState>;
+      };
+      await executor.executePhase(final as RampState);
+      expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+    },
+    30000
+  );
+
+  it("recovers from immutable terms after a drifted live order expires", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay drift fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    const immutableDeposit = transaction.depositAddress;
+    transaction.depositAddress = privateKeyToAccount(generatePrivateKey()).address;
+    transaction.toAmount = "0";
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+
+    transaction.expiration = new Date(0).toISOString();
+    const orderCount = world.alfredpay.offrampOrders.length;
+    await executor.executePhase(registered);
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(world.alfredpay.offrampOrders.at(-1)?.customerId).toBe(registered.state.alfredpayUserId);
+    expect(world.alfredpay.offrampDepositAddress).toBe(immutableDeposit);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+  });
+
+  it("uses canonical block facts when compatibility identity projections drift", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay canonical-identity fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay canonical-identity transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    const canonicalFacts = registered.state.blockState?.alfredpayOfframp as
+      | { alfredpayUserId?: string; fiatAccountId?: string }
+      | undefined;
+    expect(canonicalFacts?.alfredpayUserId).toBeTruthy();
+    expect(canonicalFacts?.fiatAccountId).toBeTruthy();
+    await registered.update({
+      state: {
+        ...registered.state,
+        alfredpayUserId: "drifted-compatibility-customer",
+        fiatAccountId: "drifted-compatibility-account"
+      }
+    });
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await executor.executePhase(registered);
+
+    const replacement = world.alfredpay.offrampOrders.at(-1);
+    expect(replacement?.customerId).toBe(canonicalFacts?.alfredpayUserId);
+    expect(replacement?.fiatAccountId).toBe(canonicalFacts?.fiatAccountId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+  });
+
+  it("rejects a wrong-chain recovery quote before creating a replacement order", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay recovery-chain fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay recovery-chain transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.nextOfframpQuoteChain = AlfredpayChain.ETH;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
+
+  it("replays a confirmed provider transfer before inspecting mutable provider terms", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay transfer fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+    const originalUpdate = registered.update.bind(registered);
+    registered.update = mock(async () => {
+      throw new Error("simulated crash before provider transfer hash persistence");
+    }) as typeof registered.update;
+    try {
+      await expect(executor.executePhase(registered)).rejects.toThrow("simulated crash");
+    } finally {
+      registered.update = originalUpdate as typeof registered.update;
+    }
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+
+    // The transfer has already consumed the ephemeral balance. Even if the
+    // provider's mutable response now drifts and expires, journal replay must
+    // persist the deterministic main-transfer hash before any new recovery.
+    world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, 0n);
+    transaction.expiration = new Date(0).toISOString();
+    transaction.toAmount = "0";
+    const orderCount = world.alfredpay.offrampOrders.length;
+    await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+
+    const replayed = await RampState.findByPk(setup.rampId);
+    expect(replayed?.state.alfredpayOfframpTransferTxHash).toBeTruthy();
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount);
+  });
+
+  it("replaces a provider order that cannot safely outlive broadcast and indexing", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay lifetime fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    transaction.expiration = new Date(Date.now() + 30_000).toISOString();
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await executor.executePhase(registered);
+
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+  });
+
+  it("does not fund a replacement order whose remaining lifetime is unsafe", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay expiration fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    const originalTransactionId = transaction.transactionId;
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.nextOfframpExpiration = "not-a-valid-date";
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+
+    await expect(executor.executePhase(registered)).rejects.toMatchObject({ isRecoverable: true });
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(registered.state.alfredpayTransactionId).toBe(originalTransactionId);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
+
+  it("reconciles a confirmed replacement that changes the immutable deposit instead of creating duplicates", async () => {
+    const setup = await setUpRegisteredRamp();
+    scriptHappyWorld(setup);
+    const registered = await RampState.findByPk(setup.rampId);
+    expect(registered).toBeDefined();
+    if (!registered) throw new Error("missing registered Alfredpay replacement fixture");
+    const transaction = world.alfredpay.offrampTransactions.get(registered.state.alfredpayTransactionId ?? "");
+    expect(transaction).toBeDefined();
+    if (!transaction) throw new Error("missing Alfredpay transaction fixture");
+    transaction.expiration = new Date(0).toISOString();
+    world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address;
+    const orderCount = world.alfredpay.offrampOrders.length;
+    const executor = new AlfredpayOfframpTransferExecutor() as unknown as {
+      executePhase(state: RampState): Promise<RampState>;
+    };
+
+    await expect(executor.executePhase(registered)).rejects.toThrow("does not match immutable terms");
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+
+    await expect(executor.executePhase(registered)).rejects.toThrow("does not match immutable terms");
+    expect(world.alfredpay.offrampOrders).toHaveLength(orderCount + 1);
+    expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+  });
 });

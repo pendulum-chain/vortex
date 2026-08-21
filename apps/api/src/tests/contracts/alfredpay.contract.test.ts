@@ -26,6 +26,7 @@
  *   RUN_LIVE_TESTS=1 ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 bun test alfredpay.contract
  */
 import { describe, expect, test } from "bun:test";
+import Big from "big.js";
 import {
   AlfredpayApiService,
   AlfredpayChain,
@@ -198,6 +199,7 @@ function onrampQuoteRequest(fromAmount: string): CreateAlfredpayOnrampQuoteReque
 describe("Alfredpay external API contract — hermetic (fake)", () => {
   function seededFake() {
     const fake = new FakeAlfredpay();
+    fake.offrampRate = 17;
     fake.quoteFees = [{ amount: "12.50", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
     return fake;
   }
@@ -216,6 +218,18 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
       toCurrency: AlfredpayFiatCurrency.MXN
     });
     expect(() => alfredpayQuoteResponseSchema.parse(offrampQuote)).not.toThrow();
+    expect(offrampQuote.toAmount).toBe("497.5");
+
+    const exactOutputQuote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toAmount: "497.5",
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
+    expect(exactOutputQuote.fromAmount).toBe("30");
+    expect(exactOutputQuote.toAmount).toBe("497.5");
   });
 
   test("fake onramp order and transaction polling satisfy their contracts", async () => {
@@ -239,20 +253,60 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
 
   test("fake offramp order and transaction polling satisfy their contracts", async () => {
     const api = seededFake().asService();
+    const quote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: "30",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
     const order = await api.createOfframp({
-      amount: "30",
+      amount: quote.fromAmount,
       chain: AlfredpayChain.MATIC,
       customerId: "cust-1",
       fiatAccountId: "fa-1",
       fromCurrency: AlfredpayOnChainCurrency.USDC,
       originAddress: TEST_ADDRESS,
-      quoteId: "quote-1",
+      quoteId: quote.quoteId,
       toCurrency: AlfredpayFiatCurrency.MXN
     });
     expect(() => alfredpayOfframpTransactionSchema.parse(order)).not.toThrow();
+    expect(order).toMatchObject({
+      fromAmount: quote.fromAmount,
+      fromCurrency: quote.fromCurrency,
+      quoteId: quote.quoteId,
+      toAmount: quote.toAmount,
+      toCurrency: quote.toCurrency
+    });
 
     const transaction = await api.getOfframpTransaction(order.transactionId);
     expect(() => alfredpayOfframpTransactionSchema.parse(transaction)).not.toThrow();
+  });
+
+  test("fake offramp orders stay bound to an issued matching quote", async () => {
+    const api = seededFake().asService();
+    const quote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: "30",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
+    const request = {
+      amount: quote.fromAmount,
+      chain: AlfredpayChain.MATIC,
+      customerId: "cust-1",
+      fiatAccountId: "fa-1",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      originAddress: TEST_ADDRESS,
+      quoteId: quote.quoteId,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    };
+
+    await expect(api.createOfframp({ ...request, quoteId: "unknown-quote" })).rejects.toThrow("unknown offramp quote");
+    await expect(api.createOfframp({ ...request, amount: "31" })).rejects.toThrow("does not match quote");
   });
 
   test("fake fiat account listing satisfies the contract", async () => {
@@ -344,6 +398,43 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
         })
       );
       if (offrampQuote) alfredpayQuoteResponseSchema.parse(offrampQuote);
+
+      const exactOutputQuote = await runLive("alfredpay createOfframpQuote by output", () =>
+        api().createOfframpQuote({
+          chain: AlfredpayChain.MATIC,
+          fromCurrency: AlfredpayOnChainCurrency.USDT,
+          metadata: QUOTE_METADATA,
+          paymentMethodType: AlfredpayPaymentMethodType.BANK,
+          toAmount: "500",
+          toCurrency: AlfredpayFiatCurrency.MXN
+        })
+      );
+      if (exactOutputQuote) {
+        alfredpayQuoteResponseSchema.parse(exactOutputQuote);
+        expect(Number(exactOutputQuote.fromAmount)).toBeGreaterThan(0);
+        expect(new Big(exactOutputQuote.toAmount).gte(500)).toBe(true);
+        const roundTripQuote = await runLive("alfredpay exact-output fixed-input round trip", () =>
+          api().createOfframpQuote({
+            chain: AlfredpayChain.MATIC,
+            fromAmount: exactOutputQuote.fromAmount,
+            fromCurrency: AlfredpayOnChainCurrency.USDT,
+            metadata: QUOTE_METADATA,
+            paymentMethodType: AlfredpayPaymentMethodType.BANK,
+            toCurrency: AlfredpayFiatCurrency.MXN
+          })
+        );
+        if (roundTripQuote) {
+          expect(roundTripQuote.fromCurrency).toBe(exactOutputQuote.fromCurrency);
+          expect(roundTripQuote.toCurrency).toBe(exactOutputQuote.toCurrency);
+          expect(new Big(roundTripQuote.fromAmount).eq(exactOutputQuote.fromAmount)).toBe(true);
+          expect(new Big(roundTripQuote.toAmount).eq(exactOutputQuote.toAmount)).toBe(true);
+          expect(
+            AlfredpayApiService.sumFeesByCurrency(roundTripQuote.fees, AlfredpayFiatCurrency.MXN).eq(
+              AlfredpayApiService.sumFeesByCurrency(exactOutputQuote.fees, AlfredpayFiatCurrency.MXN)
+            )
+          ).toBe(true);
+        }
+      }
     },
     60_000
   );
@@ -367,6 +458,33 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       expect(limitError.kind).toBe("above");
       expect(limitError.quantity).toMatch(/^\d+(\.\d+)?$/);
       expect(limitError.fromCurrency.length).toBeGreaterThan(0);
+    },
+    60_000
+  );
+
+  test(
+    "an absurd exact-output offramp pins the provider maximum-input error contract",
+    async () => {
+      const limitError = await runLive("alfredpay exact-output offramp limit breach", async () => {
+        try {
+          await api().createOfframpQuote({
+            chain: AlfredpayChain.MATIC,
+            fromCurrency: AlfredpayOnChainCurrency.USDT,
+            metadata: QUOTE_METADATA,
+            paymentMethodType: AlfredpayPaymentMethodType.BANK,
+            toAmount: "999999999999",
+            toCurrency: AlfredpayFiatCurrency.MXN
+          });
+          return null;
+        } catch (error) {
+          if (error instanceof AlfredpayTradeLimitError) return error;
+          throw error;
+        }
+      });
+      if (!limitError) return;
+      expect(limitError.kind).toBe("above");
+      expect(limitError.fromCurrency).toBe(AlfredpayOnChainCurrency.USDT);
+      expect(limitError.quantity).toMatch(/^\d+(\.\d+)?$/);
     },
     60_000
   );
@@ -465,10 +583,24 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       );
       if (!order) return;
       alfredpayOfframpTransactionSchema.parse(order);
+      expect(order).toMatchObject({
+        fromAmount: quote.fromAmount,
+        fromCurrency: quote.fromCurrency,
+        quoteId: quote.quoteId,
+        toAmount: quote.toAmount,
+        toCurrency: quote.toCurrency
+      });
 
       const transaction = await runLive("alfredpay getOfframpTransaction", () => api().getOfframpTransaction(order.transactionId));
       if (!transaction) return;
       alfredpayOfframpTransactionSchema.parse(transaction);
+      expect(transaction).toMatchObject({
+        fromAmount: quote.fromAmount,
+        fromCurrency: quote.fromCurrency,
+        quoteId: quote.quoteId,
+        toAmount: quote.toAmount,
+        toCurrency: quote.toCurrency
+      });
     },
     120_000
   );

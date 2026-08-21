@@ -23,7 +23,7 @@ Post-process handlers registered in `apps/api/src/api/services/phases/post-proce
 
 - **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
 - **MoonbeamPostProcessHandler** — A no-RPC compatibility tombstone. It returns success so legacy `moonbeamCleanup` retry errors can be cleared, but it does not submit a sweep. Consequently, `cleanupCompleted` does not prove that historical Moonbeam funds moved; see RISK-020.
-- **PolygonPostProcessHandler** — On Polygon-routed ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero. This is active for Alfredpay corridors and also protects any still-in-flight legacy Polygon ramps.
+- **PolygonPostProcessHandler** — On completed Polygon-routed ramps with a `polygonCleanup` or legacy `polygonCleanupAxlUsdc` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Cleanup is skipped when the ephemeral balance is zero. This is active for Alfredpay corridors and also protects still-in-flight legacy Polygon ramps.
 - **HydrationPostProcessHandler** — On BUY ramps with a `hydrationCleanup` presigned extrinsic, submits the cleanup extrinsic.
 - **AssetHubPostProcessHandler** — Registered but inert. `shouldProcess` returns `false` unconditionally; `process` returns `[true, null]`. No on-chain action is performed. Effectively a placeholder for future AssetHub cleanup.
 
