@@ -483,9 +483,10 @@ describe("BrlaApiService.sendRequest path templating", () => {
     const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
     Object.assign(service, { apiKey: "test-api-key", privateKey });
 
-    await service.getKybAttemptStatus("attempt-9");
+    await service.getKybAttemptStatus("attempt-9", "sub account");
 
     expect(requestedUrl).toContain("/v2/kyc/attempts/attempt-9");
+    expect(requestedUrl).toContain("subAccountId=sub%20account");
     expect(requestedUrl).not.toContain("{attemptId}");
     // A hung connection must not stall callers forever — cron workers with
     // waitForCompletion would otherwise never run another cycle.

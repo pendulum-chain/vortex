@@ -178,36 +178,54 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             customer.customerType === "business" &&
             customer.status !== VerificationStatus.Approved &&
             customer.status !== VerificationStatus.Rejected &&
+            !!customer.providerSubaccountId &&
             !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId &&
             shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
           const kycCase = kycCasesByProviderCustomer.get(customer.id);
-          if (!kycCase?.providerCaseId) return;
+          if (!kycCase?.providerCaseId || !customer.providerSubaccountId) return;
           try {
-            const { attempt } = await BrlaApiService.getInstance().getKybAttemptStatus(kycCase.providerCaseId);
+            const { attempt } = await BrlaApiService.getInstance().getKybAttemptStatus(
+              kycCase.providerCaseId,
+              customer.providerSubaccountId
+            );
+            if (attempt.id !== kycCase.providerCaseId) {
+              throw new Error("Avenia returned a mismatched KYB attempt");
+            }
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
             const rejected =
               attempt.status === KycAttemptStatus.EXPIRED ||
               (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
             // A PENDING attempt is one the user never finished (hosted steps not completed) — keep it
             // pending so the dashboard offers Continue; in_review only once Avenia is PROCESSING.
-            const status = approved
-              ? VerificationStatus.Approved
-              : rejected
-                ? VerificationStatus.Rejected
-                : attempt.status === KycAttemptStatus.PENDING
-                  ? VerificationStatus.Pending
-                  : VerificationStatus.InReview;
-            const lifecycle = {
-              ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
-              ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
-            };
-            await Promise.all([
-              customer.update({ status, statusExternal: attempt.status }),
-              kycCase.update({ status, statusExternal: attempt.status, ...lifecycle })
-            ]);
-          } catch {
+            const refreshed =
+              approved || rejected
+                ? await updateAveniaKycOutcomeForCustomer(
+                    customer,
+                    approved ? VerificationStatus.Approved : VerificationStatus.Rejected,
+                    attempt.status,
+                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId }
+                  )
+                : await updateAveniaKycProgressForCustomer(
+                    customer,
+                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+                    attempt.status === KycAttemptStatus.PENDING ? VerificationStatus.Pending : VerificationStatus.InReview,
+                    attempt.status
+                  );
+            customer.set("status", refreshed.status);
+            customer.set("statusExternal", refreshed.statusExternal);
+          } catch (error) {
+            const providerStatus =
+              error && typeof error === "object" && "status" in error && typeof error.status === "number"
+                ? error.status
+                : undefined;
+            logger.warn("Avenia business KYB status refresh failed", {
+              errorName: error instanceof Error ? error.name : "UnknownError",
+              providerCaseId: kycCase.providerCaseId,
+              providerCustomerId: customer.id,
+              providerStatus
+            });
             // Status aggregation remains available while Avenia is temporarily unavailable.
           }
         })

@@ -70,6 +70,7 @@ import {
   assertAveniaHostedKybCanInitiate,
   createAveniaUboOnce,
   getOrCreateAveniaKybCase,
+  isAveniaBusinessKybLevel,
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
 } from "../services/avenia/avenia-kyb.service";
@@ -963,7 +964,7 @@ async function reconcileActiveAveniaKybAttempt(
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
   const activeAttempts = attempts.filter(
     attempt =>
-      attempt.levelName === "kyb-level-1" &&
+      isAveniaBusinessKybLevel(attempt.levelName) &&
       (attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.PROCESSING)
   );
   if (activeAttempts.length === 0) {

@@ -21,6 +21,10 @@ import { isDeterministicProviderRejection } from "./provider-errors";
 
 const kybCaseCreations = new Map<string, Promise<KycCase>>();
 
+export function isAveniaBusinessKybLevel(levelName: string): boolean {
+  return levelName === "kyb-level-1" || levelName === "level-1";
+}
+
 function hashUboValue(value: unknown): string {
   const canonicalize = (input: unknown): unknown => {
     if (Array.isArray(input)) return input.map(canonicalize);
@@ -219,7 +223,7 @@ export async function assertAveniaHostedKybCanInitiate(
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
   const hasApprovedKybAttempt = attempts.some(
     attempt =>
-      attempt.levelName === "kyb-level-1" &&
+      isAveniaBusinessKybLevel(attempt.levelName) &&
       attempt.status === KycAttemptStatus.COMPLETED &&
       attempt.result === KycAttemptResult.APPROVED
   );
@@ -227,7 +231,7 @@ export async function assertAveniaHostedKybCanInitiate(
     throw new APIError({ message: "This company is already approved", status: httpStatus.CONFLICT });
   }
   const hasProcessingKybAttempt = attempts.some(
-    attempt => attempt.levelName === "kyb-level-1" && attempt.status === KycAttemptStatus.PROCESSING
+    attempt => isAveniaBusinessKybLevel(attempt.levelName) && attempt.status === KycAttemptStatus.PROCESSING
   );
   if (hasProcessingKybAttempt) {
     throw new APIError({

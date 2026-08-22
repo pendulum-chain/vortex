@@ -203,15 +203,18 @@ describe("Avenia KYB Level 1 response schemas", () => {
       result: null,
       resultMessage: null,
       status: "PENDING",
+      submissionData: null,
       updatedAt: "2026-03-19T22:09:52.629984Z"
     };
     expect(aveniaKybAttemptStatusSchema.parse({ attempt: pending }).attempt).toMatchObject({
       result: undefined,
-      resultMessage: undefined
+      resultMessage: undefined,
+      submissionData: undefined
     });
     expect(aveniaKycAttemptsSchema.parse({ attempts: [pending] }).attempts[0]).toMatchObject({
       result: undefined,
-      resultMessage: undefined
+      resultMessage: undefined,
+      submissionData: undefined
     });
   });
 
