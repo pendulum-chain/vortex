@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import { setupTestDatabase } from "../test-utils/db";
-import { getPendingMigrations, runMigrations } from "./migrator";
+import { getPendingMigrations, revertLastMigration, revertMigration, runMigrations } from "./migrator";
 
 // Old-name/new-name pairs of the migrations renumbered to clear the duplicate-055 prefix.
 // Must stay in sync with MIGRATION_RENAMES in migrator.ts.
@@ -64,6 +64,25 @@ describe("migration metadata reconciliation", () => {
     expect(await metaNames(jsName)).toEqual([jsName]);
   });
 
+  it("normalizes TypeScript old-name rows before applying migration renames", async () => {
+    const [oldJsName, newJsName] = RENAMED[0];
+    const oldTsName = oldJsName.replace(/\.js$/, ".ts");
+    await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name IN (:oldJsName, :oldTsName, :newJsName)`, {
+      replacements: { newJsName, oldJsName, oldTsName }
+    });
+    await sequelize.query(`INSERT INTO "SequelizeMeta" (name) VALUES (:oldTsName)`, { replacements: { oldTsName } });
+
+    try {
+      await runMigrations();
+
+      expect(await metaNames(oldTsName)).toEqual([]);
+      expect(await metaNames(oldJsName)).toEqual([]);
+      expect(await metaNames(newJsName)).toEqual([newJsName]);
+    } finally {
+      await runMigrations();
+    }
+  });
+
   it("renames old-name SequelizeMeta entries instead of re-running the migrations", async () => {
     // Simulate a database that executed the files under their pre-rename names (staging).
     for (const [oldName, newName] of RENAMED) {
@@ -103,5 +122,39 @@ describe("migration metadata reconciliation", () => {
     expect(await metaNames(newName)).toEqual([newName]);
 
     await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name = :oldName`, { replacements: { oldName } });
+  });
+
+  it("reconciles legacy TypeScript metadata before reverting the last migration", async () => {
+    const jsName = "066-add-kyc-verification-state.js";
+    const tsName = "066-add-kyc-verification-state.ts";
+    await sequelize.query(`UPDATE "SequelizeMeta" SET name = :tsName WHERE name = :jsName`, {
+      replacements: { jsName, tsName }
+    });
+
+    try {
+      await revertLastMigration();
+
+      expect(await metaNames(tsName)).toEqual([]);
+      expect(await metaNames(jsName)).toEqual([]);
+    } finally {
+      await runMigrations();
+    }
+  });
+
+  it("accepts a TypeScript migration name when reverting a specific migration", async () => {
+    const jsName = "066-add-kyc-verification-state.js";
+    const tsName = "066-add-kyc-verification-state.ts";
+    await sequelize.query(`UPDATE "SequelizeMeta" SET name = :tsName WHERE name = :jsName`, {
+      replacements: { jsName, tsName }
+    });
+
+    try {
+      await revertMigration(tsName);
+
+      expect(await metaNames(tsName)).toEqual([]);
+      expect(await metaNames(jsName)).toEqual([]);
+    } finally {
+      await runMigrations();
+    }
   });
 });

@@ -240,6 +240,7 @@ export const runMigrations = async (): Promise<void> => {
 // Revert last migration
 export const revertLastMigration = async (): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
     await umzug.down();
     logger.info("Last migration reverted successfully");
   } catch (error) {
@@ -251,6 +252,7 @@ export const revertLastMigration = async (): Promise<void> => {
 // Revert all migrations
 export const revertAllMigrations = async (): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
     await umzug.down({ to: 0 });
     logger.info("All migrations reverted successfully");
   } catch (error) {
@@ -262,20 +264,24 @@ export const revertAllMigrations = async (): Promise<void> => {
 // Revert specific migration
 export const revertMigration = async (name: string): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
+    const canonicalName = getCanonicalMigrationName(name);
     const executed = await umzug.executed();
-    const index = executed.findIndex(m => m.name === name);
+    const index = executed.findIndex(m => m.name === canonicalName);
 
     if (index === -1) {
-      throw new Error(`Migration ${name} not found in executed migrations`);
+      throw new Error(`Migration ${canonicalName} not found in executed migrations`);
     }
 
     // If it's the first migration, revert all (to 0)
     // Otherwise, revert to the previous migration
     const to = index === 0 ? 0 : executed[index - 1].name;
 
-    logger.info(`Reverting to ${index === 0 ? "initial state" : to} (will revert ${name} and any subsequent migrations)`);
+    logger.info(
+      `Reverting to ${index === 0 ? "initial state" : to} (will revert ${canonicalName} and any subsequent migrations)`
+    );
     await umzug.down({ to });
-    logger.info(`Migration ${name} reverted successfully`);
+    logger.info(`Migration ${canonicalName} reverted successfully`);
   } catch (error) {
     logger.error(`Error reverting migration ${name}:`, error);
     throw error;
