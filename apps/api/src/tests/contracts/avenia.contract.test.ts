@@ -9,8 +9,9 @@
  *  - AVENIA_CONTRACT_SUBACCOUNT_ID
  *  - AVENIA_CONTRACT_WEBHOOK_URL (temporary webhook-management lifecycle)
  *
- * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid) and
- * one temporary webhook are created per run. The webhook is deleted in `finally`.
+ * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid), two
+ * empty document targets (no bytes uploaded), and one temporary webhook are created
+ * per run. The webhook is deleted in `finally`.
  * Payout tickets are covered hermetically only — creating one live would move
  * BRLA balance, and reading one needs the id of a real payout.
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
@@ -35,6 +36,7 @@ import {
   aveniaWebhookRegistrationSchema,
   aveniaWebhooksListSchema,
   BlockchainSendMethod,
+  BrDocumentType,
   BrlaApiService,
   BrlaCurrency,
   type PayInQuoteParams
@@ -178,6 +180,29 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         } else {
           console.warn("[contract:live] avenia validatePixKey skipped: subaccount has no pixKey");
         }
+      }
+    },
+    60_000
+  );
+
+  test.skipIf(!SUBACCOUNT_ID)(
+    "POST /documents returns file-upload and hosted-liveness targets",
+    async () => {
+      const document = await runLive("avenia create document upload target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.ID, false, SUBACCOUNT_ID as string)
+      );
+      if (document) {
+        expect(document.id).toBeTruthy();
+        expect(document.uploadURLFront).toBeTruthy();
+      }
+
+      const liveness = await runLive("avenia create hosted liveness target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, SUBACCOUNT_ID as string)
+      );
+      if (liveness) {
+        expect(liveness.id).toBeTruthy();
+        expect(liveness.livenessUrl).toBeTruthy();
+        expect(liveness.validateLivenessToken).toBeTruthy();
       }
     },
     60_000

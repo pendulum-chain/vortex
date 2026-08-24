@@ -261,14 +261,14 @@ the PR-blocking api suite) and against the real partner API (`RUN_LIVE_TESTS=1`,
 `contracts.yml`, non-blocking).
 
 Sandbox shakiness is priced in: an error from the live call itself is *inconclusive*
-(warn + skip); only a successful response that violates the schema fails. The nightly sets
+(warn + skip), except that a `ZodError` from parsing a successful response is rethrown and fails the test. The nightly sets
 `CONTRACT_EXPECT_LIVE=1`, which fails a run where zero live calls completed, so credential rot or
 a dead endpoint alerts within a day instead of rotting as green. Covered: SquidRouter (`/v2/route`
 live; the status endpoint only hermetically — it needs a real recent transaction hash), Alfredpay
 (configs, quotes both directions, the trade-limit 409 error shape live with credentials only;
 order creation/polling, fiat accounts and KYC status live behind pre-provisioned sandbox fixtures,
 see `.env.example`), Avenia/BRLA (quotes live with credentials only; limits/balances/account-info,
-pix-key validation and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
+pix-key validation, ordinary and hosted-liveness document target creation, and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
 payout tickets hermetically only — creating one live would move funds), and the CoinGecko
 `simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
 patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
