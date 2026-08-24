@@ -27,7 +27,7 @@ test("ordinary users cannot navigate to managed profiles", async ({ page }) => {
 });
 
 test("a manager selects and stops acting for a managed profile", async ({ page }) => {
-  const backend = await mockBackend(page, { managedProfiles: [CHILD], roles: ["vortex_admin"] });
+  const backend = await mockBackend(page, { managedProfiles: [CHILD], onboardingState: "started", roles: ["vortex_admin"] });
   await seedSession(page);
   await page.goto("/managed-profiles");
 
@@ -42,6 +42,10 @@ test("a manager selects and stops acting for a managed profile", async ({ page }
 
   await expect(page).toHaveURL(/\/overview$/);
   await expect(page.getByText(`Acting for ${CHILD_EMAIL}`)).toBeVisible();
+  await expect(page.getByText("KYC/KYB is read-only while acting for another profile.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "KYC is read-only while acting" })).toBeDisabled();
+  await page.goto("/overview?onboarding=MX");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.reload();
   await expect(page.getByText(`Acting for ${CHILD_EMAIL}`)).toBeVisible();
 
@@ -50,6 +54,7 @@ test("a manager selects and stops acting for a managed profile", async ({ page }
   await expect(page.getByRole("link", { name: "Admin" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Managed profiles" })).toHaveCount(0);
 
+  await page.waitForLoadState("networkidle");
   const apiCredentialRequestCount = backend.apiRequests.filter(request => request.path === "/v1/api-credentials").length;
   await page.goto("/api-keys");
   await expect(page).toHaveURL(/\/overview$/);
@@ -67,6 +72,31 @@ test("a manager selects and stops acting for a managed profile", async ({ page }
   await expect(page.getByRole("heading", { name: "Managed profiles" })).toBeVisible();
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
+test("admin impersonation keeps verification status visible but blocks onboarding deep links", async ({ page }) => {
+  await mockBackend(page, { onboardingState: "started" });
+  await seedSession(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "vortex_dashboard_impersonation_session",
+      JSON.stringify({
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        sessionId: "impersonation-e2e-1",
+        targetEmail: "target@example.test",
+        targetProfileId: "target-e2e-1",
+        token: "vtx_imp_e2e-token"
+      })
+    );
+  });
+
+  await page.goto("/overview?onboarding=MX");
+
+  await expect(page.getByText("You are acting as")).toBeVisible();
+  await expect(page.getByText("KYC/KYB is read-only while acting for another profile.")).toBeVisible();
+  await expect(page.getByText("Started", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "KYC is read-only while acting" })).toBeDisabled();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("long managed identifiers and the acting banner fit a mobile viewport", async ({ page }) => {

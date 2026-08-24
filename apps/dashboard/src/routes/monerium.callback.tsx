@@ -12,6 +12,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiClient } from "@/services/api/api-client";
 import { AuthService } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth.store";
+import { useImpersonationSession } from "@/stores/impersonation.store";
 import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 const searchSchema = z.object({
@@ -42,10 +43,11 @@ function callbackFrom(search: z.infer<typeof searchSchema>): MoneriumOAuthCallba
 }
 
 function MoneriumCallbackPage() {
+  const impersonation = useImpersonationSession();
   const managedProfile = useManagedProfileSelection();
   const user = useAuthStore(state => state.user);
 
-  if (managedProfile) return <Navigate replace to="/overview" />;
+  if (impersonation || managedProfile) return <Navigate replace to="/overview" />;
   if (!user && !AuthService.getTokens()) return <Navigate replace to="/login" />;
 
   return <MoneriumCallback />;

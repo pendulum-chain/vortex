@@ -45,6 +45,9 @@ two people.
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
   Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+- KYC/KYB is owner-only in the dashboard. During admin impersonation or while a manager acts for
+  a managed child, onboarding cards and statuses remain visible, but start, continue, retry, and
+  provider re-authentication actions are disabled and onboarding deep links do not open a flow.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
@@ -188,14 +191,15 @@ and customer-type policy on every delegated authorization decision.
   becomes invalid, the dashboard clears child mode and returns to the manager's selection page
   rather than silently retrying against the manager's own resources.
 
-**Child-mode navigation.** Onboarding, Recipients, Get a quote, New transfer, Transactions, and
-Limits remain available where their API routes support managed-child authorization. Generic API
-keys, Settings and notification preferences, the admin console, webhook management, and
-email-bound Monerium/Mykobo operations remain manager-scoped or unavailable and must not be shown
-as child operations. The dashboard API client adds `X-Managed-Profile-Id` only when a service
-explicitly opts into a supported delegated route; it must never attach the header indiscriminately,
-because an endpoint that ignores it would otherwise operate on the manager while the UI claims to
-show the child.
+**Child-mode navigation.** Onboarding status, Recipients, Get a quote, New transfer, Transactions,
+and Limits remain available where their API routes support managed-child authorization. KYC/KYB
+actions are read-only: a manager cannot start, continue, retry, or re-authenticate verification for
+the child from the dashboard. Generic API keys, Settings and notification preferences, the admin
+console, webhook management, and email-bound Monerium/Mykobo operations remain manager-scoped or
+unavailable and must not be shown as child operations. The dashboard API client adds
+`X-Managed-Profile-Id` only when a service explicitly opts into a supported delegated route; it
+must never attach the header indiscriminately, because an endpoint that ignores it would otherwise
+operate on the manager while the UI claims to show the child.
 
 **Recipients in child mode.** The selected child is the sender and owns its invitations and
 sender-recipient relationships. The manager may list recipients, create invitations, archive
@@ -214,6 +218,8 @@ page, while exiting the admin impersonation session returns the operator to `/ad
 impersonation of a headless child remains unsupported. The admin account list and detail identify
 managed rows by child contact email, show the controlling manager's email, and offer a composed
 **Act as** action that starts the manager impersonation and immediately selects that child.
+KYC/KYB remains read-only throughout direct or composed admin impersonation; the operator can inspect
+the target's verification status but cannot open or mutate a provider verification flow.
 
 ## High-level implementation strategy
 

@@ -8,11 +8,11 @@ surface — the per-operator, Supabase-identity-bearing counterpart to the share
 are direct session targets. Managed headless profiles are reached by impersonating their
 authenticated manager and composing that session with the existing managed-profile selector.
 
-Depth is broad but excludes ramp money movement. While impersonating, the operator may create
-quotes and inspect ramp status, history, and errors, but `POST /v1/ramp/register`, `POST
-/v1/ramp/update`, and `POST /v1/ramp/start` reject the request. Other customer-account mutations
-remain available, so this is not a general read-only impersonation mode (see the risk register,
-RISK-018).
+Depth is broad but excludes ramp money movement and provider verification actions. While
+impersonating, the operator may create quotes and inspect ramp and KYC/KYB status, history, and
+errors, but ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and
+OAuth actions reject the request. Other customer-account mutations remain available, so this is
+not a general read-only impersonation mode (see the risk register, RISK-018).
 
 ### Routes
 
@@ -187,6 +187,11 @@ and requires deployment/database access rather than an HTTP credential — see
     execution and mutation. Quote creation and ramp GET routes deliberately omit the impersonation
     guard, so support operators can discover rates and inspect target-owned ramps without
     initiating or advancing money movement.
+17. **An impersonated request MUST NOT initiate or mutate KYC/KYB** — provider action routes apply
+    `rejectImpersonation` after principal resolution and before controller execution or multipart
+    buffering. Aggregate and provider status reads deliberately omit the guard so verification
+    status remains observable. Normal managed-profile API delegation remains supported; the
+    dashboard independently keeps KYC/KYB read-only while a manager acts for a child.
 
 ## Threat Vectors & Mitigations
 
@@ -208,10 +213,10 @@ and requires deployment/database access rather than an HTTP credential — see
 
 ## Gaps Identified During This Review
 
-- Ramp money movement is denied, but impersonation is still broader than a read-only support
-  mode: provider onboarding, KYC/KYB, recipient, active-entity, and notification mutations remain
-  available. A compromised operator account can therefore still make sensitive changes to a
-  customer's account. Tracked as an accepted risk in the risk register (RISK-018).
+- Ramp money movement and KYC/KYB actions are denied, but impersonation is still broader than a
+  read-only support mode: recipient, active-entity, and notification mutations remain available. A
+  compromised operator account can therefore still make sensitive changes to a customer's account.
+  Tracked as an accepted risk in the risk register (RISK-018).
 - The operator-facing frontend that consumes `/v1/admin-console/*` lives in `apps/dashboard`
   (account search UI, and a non-dismissible banner naming the impersonated account while a
   session is active). Its behavior is tracked in
@@ -256,6 +261,9 @@ and requires deployment/database access rather than an HTTP credential — see
 - [x] `rejectImpersonation` blocks `POST /v1/ramp/register`, `POST /v1/ramp/update`, and `POST
       /v1/ramp/start`, while quote creation reaches normal validation and ramp history remains
       readable — **PASS** (`ramp.route.test.ts`).
+- [x] `rejectImpersonation` blocks Alfredpay, Avenia, Monerium, and Mykobo KYC/KYB action routes
+      during admin impersonation while aggregate status stays readable — **PASS**
+      (`provider-verification.route.test.ts`).
 - [x] `requireVortexAdmin` (`requireAuth → rejectImpersonation → role check`) gates `GET
       /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation`; an
       impersonated caller is refused all four — **PASS** (`admin-console.route.test.ts`, "refuses

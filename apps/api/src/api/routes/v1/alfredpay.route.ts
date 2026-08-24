@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateAlfredpayCustomerType, validateResultCountry } from "../../middlewares/alfredpay.middleware";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import {
@@ -26,6 +27,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  rejectImpersonation,
   AlfredpayController.createIndividualCustomer
 );
 router.get(
@@ -33,6 +35,7 @@ router.get(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  rejectImpersonation,
   AlfredpayController.getKycRedirectLink
 );
 router.post(
@@ -40,6 +43,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  rejectImpersonation,
   AlfredpayController.kycRedirectOpened
 );
 router.post(
@@ -47,6 +51,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  rejectImpersonation,
   AlfredpayController.kycRedirectFinished
 );
 router.get(
@@ -61,6 +66,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: getManagedProfileAlfredpayCustomerType }),
+  rejectImpersonation,
   AlfredpayController.retryKyc
 );
 router.post(
@@ -68,6 +74,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  rejectImpersonation,
   AlfredpayController.createBusinessCustomer
 );
 router.get(
@@ -75,6 +82,7 @@ router.get(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  rejectImpersonation,
   AlfredpayController.getKybRedirectLink
 );
 
@@ -84,6 +92,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  rejectImpersonation,
   validateKycSubmission,
   AlfredpayController.submitKycInformation
 );
@@ -93,6 +102,7 @@ router.post(
   // Authenticate the relationship and immutable entity type before buffering. The country
   // corridor can only be authorized after multer exposes the multipart body.
   authorizeManagedProfile({ customerType: "individual" }),
+  rejectImpersonation,
   upload.single("file"),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
@@ -103,6 +113,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "individual" }),
+  rejectImpersonation,
   AlfredpayController.sendKycSubmission
 );
 
@@ -112,6 +123,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  rejectImpersonation,
   validateKybSubmission,
   AlfredpayController.submitKybInformation
 );
@@ -120,6 +132,7 @@ router.post(
   requirePartnerOrUserAuth(),
   // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
   authorizeManagedProfile({ customerType: "business" }),
+  rejectImpersonation,
   upload.single("file"),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
@@ -137,6 +150,7 @@ router.post(
   requirePartnerOrUserAuth(),
   // See submitKycFile: identity/type are pre-buffer checks; country policy is post-parse.
   authorizeManagedProfile({ customerType: "business" }),
+  rejectImpersonation,
   upload.single("file"),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
@@ -147,6 +161,7 @@ router.post(
   requirePartnerOrUserAuth(),
   validateResultCountry,
   authorizeManagedProfile({ corridor: getManagedProfileCountryCorridor, customerType: "business" }),
+  rejectImpersonation,
   AlfredpayController.sendKybSubmission
 );
 
