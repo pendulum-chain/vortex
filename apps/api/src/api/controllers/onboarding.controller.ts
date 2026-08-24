@@ -210,7 +210,11 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                     customer,
                     approved ? VerificationStatus.Approved : VerificationStatus.Rejected,
                     attempt.status,
-                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId }
+                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+                    // When this poll wins the race to the terminal outcome, the authenticated
+                    // route 409s and the KYB worker skips the settled case — so the failure
+                    // reason and the outcome email must be persisted here or never.
+                    { attempt, profileId: userId, subject: "business" }
                   )
                 : await updateAveniaKycProgressForCustomer(
                     customer,
