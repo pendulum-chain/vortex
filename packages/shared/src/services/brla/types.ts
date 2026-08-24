@@ -530,9 +530,15 @@ export interface DocumentUploadResponse {
   id: string;
   uploadURLFront: string;
   uploadURLBack?: string;
-  livenessUrl?: string;
-  validateLivenessToken?: string;
 }
+
+export interface LivenessDocumentResponse {
+  id: string;
+  livenessUrl: string;
+  validateLivenessToken: string;
+}
+
+export type AveniaDocumentUploadResponse = DocumentUploadResponse | LivenessDocumentResponse;
 
 export interface AveniaDocument {
   id: string;

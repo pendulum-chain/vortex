@@ -1,6 +1,7 @@
 import {
   AveniaAccountType,
   AveniaDocumentResponse,
+  AveniaDocumentUploadResponse,
   BrCreateSubaccountRequest,
   BrCreateSubaccountResponse,
   BrDocumentType,
@@ -27,7 +28,6 @@ import {
   BrValidatePixKeyRequest,
   BrValidatePixKeyResponse,
   DocumentUploadRequest,
-  DocumentUploadResponse,
   FiatToken,
   isValidCnpj,
   KybAttemptStatusResponse,
@@ -796,9 +796,8 @@ export const getSelfieLivenessUrl = async (
 
     res.status(httpStatus.OK).json({
       id: selfieUrl.id,
-      livenessUrl: selfieUrl.livenessUrl ?? "",
-      uploadURLFront: selfieUrl.uploadURLFront,
-      validateLivenessToken: selfieUrl.validateLivenessToken ?? ""
+      livenessUrl: selfieUrl.livenessUrl,
+      validateLivenessToken: selfieUrl.validateLivenessToken
     });
   } catch (error) {
     logger.error(error);
@@ -883,7 +882,6 @@ export const getUploadUrls = async (
       selfieUpload: {
         id: selfieUrl.id,
         livenessUrl: selfieUrl.livenessUrl,
-        uploadURLFront: selfieUrl.uploadURLFront,
         validateLivenessToken: selfieUrl.validateLivenessToken
       }
     });
@@ -1012,7 +1010,7 @@ async function reconcileActiveAveniaKybAttempt(
 
 export const createKybDocument = async (
   req: Request<unknown, unknown, DocumentUploadRequest, { subAccountId?: string }>,
-  res: Response<DocumentUploadResponse | BrErrorResponse>
+  res: Response<AveniaDocumentUploadResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);

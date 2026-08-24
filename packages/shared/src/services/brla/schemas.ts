@@ -26,6 +26,7 @@ import {
   KycAttemptResult,
   KycAttemptStatus,
   KycLevel1Response,
+  LivenessDocumentResponse,
   Limit,
   PixInputTicketOutput,
   PixKeyData,
@@ -181,14 +182,19 @@ export const aveniaDocumentsSchema = z.looseObject({
   documents: z.array(aveniaDocumentResponseSchema.shape.document)
 }) satisfies z.ZodType<AveniaDocumentGetResponse>;
 
-/** The upload target returned when an Avenia document record is created. */
+/** The pre-signed upload target returned for a file-backed Avenia document. */
 export const aveniaDocumentUploadResponseSchema = z.looseObject({
   id: z.string().min(1),
-  livenessUrl: z.string().min(1).optional(),
   uploadURLBack: z.string().optional(),
-  uploadURLFront: z.string().min(1),
-  validateLivenessToken: z.string().min(1).optional()
+  uploadURLFront: z.string().min(1)
 }) satisfies z.ZodType<DocumentUploadResponse>;
+
+/** The provider-hosted capture target returned for SELFIE-FROM-LIVENESS. */
+export const aveniaLivenessDocumentResponseSchema = z.looseObject({
+  id: z.string().min(1),
+  livenessUrl: z.string().min(1),
+  validateLivenessToken: z.string().min(1)
+}) satisfies z.ZodType<LivenessDocumentResponse>;
 
 /** The identifier returned by UBO creation. */
 export const aveniaUboResponseSchema = z.looseObject({
