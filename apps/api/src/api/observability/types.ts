@@ -10,7 +10,9 @@ export type ApiClientOperation =
   | "ramp_update"
   | "ramp_start"
   | "ramp_status"
-  | "ramp_errors";
+  | "ramp_errors"
+  | "admin_impersonation_start"
+  | "admin_impersonation_end";
 
 export type ApiClientEventStatus = "success" | "failure";
 

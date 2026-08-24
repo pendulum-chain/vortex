@@ -95,7 +95,15 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   }, []);
 
   function confirmPayment() {
+    const ownerProfileId = transferActor.getSnapshot().context.activeOwnerProfileId;
+    if (!ownerProfileId || transferActor.getSnapshot().context.meta?.ownerProfileId !== ownerProfileId) {
+      return;
+    }
     const subscription = transferActor.subscribe(snapshot => {
+      if (snapshot.context.activeOwnerProfileId !== ownerProfileId) {
+        subscription.unsubscribe();
+        return;
+      }
       if (snapshot.matches("Tracking")) {
         subscription.unsubscribe();
         toast.success("Pay-in initiated", { description: "We’ll update your transaction as the payment settles." });
@@ -106,7 +114,7 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         toast.error("Could not start pay-in", { description: snapshot.context.errorMessage ?? undefined });
       }
     });
-    transferActor.send({ type: "PAYMENT_CONFIRMED" });
+    transferActor.send({ ownerProfileId, type: "PAYMENT_CONFIRMED" });
   }
 
   function leavePaymentSetup() {

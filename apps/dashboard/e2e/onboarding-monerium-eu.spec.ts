@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mockBackend } from "./support/mockBackend";
+import { E2E_MANAGED_PROFILE_ID, mockBackend } from "./support/mockBackend";
 import { E2E_USER_EMAIL, E2E_USER_ID, SESSION_KEYS, seedSession } from "./support/session";
 
 // EU onboarding (KYC and KYB) is temporarily disabled: the corridor card must not offer any
@@ -49,6 +49,53 @@ test("Monerium callback refreshes an expired dashboard session, then lands on th
   await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
   await expect(page.getByRole("dialog").getByText("KYC is currently disabled in Europe.")).toBeVisible();
   expect(backend.auth.refreshes).toBe(1);
+});
+
+test("Monerium callback does not complete OAuth while impersonating", async ({ page }) => {
+  const backend = await mockBackend(page, { moneriumKyc: true });
+  await seedSession(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "vortex_dashboard_impersonation_session",
+      JSON.stringify({
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        sessionId: "impersonation-e2e-1",
+        targetEmail: "target@example.test",
+        targetProfileId: "target-e2e-1",
+        token: "vtx_imp_e2e-token"
+      })
+    );
+  });
+
+  await page.goto("/monerium/callback?code=e2e-code&state=e2e-state");
+
+  await expect(page).toHaveURL(/\/overview$/);
+  expect(backend.apiRequests.filter(request => request.path === "/v1/monerium/oauth/complete")).toEqual([]);
+});
+
+test("Monerium callback does not complete OAuth while acting for a managed child", async ({ page }) => {
+  const backend = await mockBackend(page, { moneriumKyc: true });
+  await seedSession(page);
+  await page.addInitScript(
+    ({ managerProfileId, targetProfileId }) => {
+      localStorage.setItem(
+        "vortex_dashboard_managed_profile_selection",
+        JSON.stringify({
+          customerType: "individual",
+          externalSubjectId: "managed-child-e2e",
+          managerProfileId,
+          targetEmail: "managed-child@example.test",
+          targetProfileId
+        })
+      );
+    },
+    { managerProfileId: E2E_USER_ID, targetProfileId: E2E_MANAGED_PROFILE_ID }
+  );
+
+  await page.goto("/monerium/callback?code=e2e-code&state=e2e-state");
+
+  await expect(page).toHaveURL(/\/overview$/);
+  expect(backend.apiRequests.filter(request => request.path === "/v1/monerium/oauth/complete")).toEqual([]);
 });
 
 test("in-review Monerium onboarding requiring reauthentication is disabled instead of actionable", async ({ page }) => {

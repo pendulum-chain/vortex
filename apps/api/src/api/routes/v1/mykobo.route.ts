@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import * as mykoboController from "../../controllers/mykobo.controller";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
@@ -13,6 +14,6 @@ const profileUpload = upload.fields([
 ]);
 
 router.route("/profiles").get(requireAuth, mykoboController.getProfileController);
-router.route("/profiles").post(requireAuth, profileUpload, mykoboController.createProfileController);
+router.route("/profiles").post(requireAuth, rejectImpersonation, profileUpload, mykoboController.createProfileController);
 
 export default router;

@@ -119,17 +119,25 @@ export const RecipientsService = {
   },
   /** Hide a pending invitation from the list; the link stays redeemable. */
   archiveInvitation(id: string): Promise<{ id: string; archived: boolean }> {
-    return apiClient.patch<{ id: string; archived: boolean }>(`/recipients/invitations/${id}`, { archived: true });
+    return apiClient.patch<{ id: string; archived: boolean }>(
+      `/recipients/invitations/${id}`,
+      { archived: true },
+      { managedProfile: true }
+    );
   },
   /** Archive an accepted relationship — removed from the list, recipient's KYC unaffected. */
   archiveRecipient(id: string): Promise<{ id: string; relationshipStatus: string }> {
-    return apiClient.patch<{ id: string; relationshipStatus: string }>(`/recipients/${id}`, { status: "archived" });
+    return apiClient.patch<{ id: string; relationshipStatus: string }>(
+      `/recipients/${id}`,
+      { status: "archived" },
+      { managedProfile: true }
+    );
   },
   createInvite(body: CreateInviteRequest): Promise<CreateInviteResponse> {
-    return apiClient.post<CreateInviteResponse>("/recipients/invite", body);
+    return apiClient.post<CreateInviteResponse>("/recipients/invite", body, { managedProfile: true });
   },
   list(): Promise<ListRecipientsResponse> {
-    return apiClient.get<ListRecipientsResponse>("/recipients");
+    return apiClient.get<ListRecipientsResponse>("/recipients", { managedProfile: true });
   },
   /** Gate-checked invite preview for the confirm screen; leaves the invite untouched. */
   previewInvite(token: string): Promise<InvitePreviewResponse> {

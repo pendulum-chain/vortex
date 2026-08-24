@@ -42,5 +42,5 @@ export function buildQuoteRequest(params: QuoteParams): CreateQuoteRequest {
 }
 
 export function fetchQuote(params: QuoteParams): Promise<QuoteResponse> {
-  return apiClient.post<QuoteResponse>("/quotes", buildQuoteRequest(params));
+  return apiClient.post<QuoteResponse>("/quotes", buildQuoteRequest(params), { managedProfile: true });
 }

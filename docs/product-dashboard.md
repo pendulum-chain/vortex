@@ -26,7 +26,10 @@ two people.
  self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
  remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo.
+ onboarding uses Monerium but active EUR ramps resolve Mykobo. The API and dashboard implement
+ managed headless profiles and route-scoped manager delegation: active managers can select a child,
+ act through supported dashboard surfaces, and return to their own account without changing the
+ authenticated manager identity.
 
 
 ## User stories
@@ -42,6 +45,9 @@ two people.
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
   Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+- KYC/KYB is owner-only in the dashboard. During admin impersonation or while a manager acts for
+  a managed child, onboarding cards and statuses remain visible, but start, continue, retry, and
+  provider re-authentication actions are disabled and onboarding deep links do not open a flow.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
@@ -141,6 +147,87 @@ two people.
   category — recipient-approval alerts — was dropped for now: no such notification type exists
   in the backend yet.)
 
+### Managed profiles (implemented)
+
+This is managed-child delegation, not another login or admin impersonation mechanism. A managed
+child is headless and has no Supabase identity. The manager remains the authenticated actor, and
+supported API requests carry the selected child's profile ID in `X-Managed-Profile-Id`. The API
+must continue to verify the active manager, direct active relationship, child entity, corridor,
+and customer-type policy on every delegated authorization decision.
+
+- As an active managed-profile manager, I see **Managed profiles** in the sidebar. Ordinary users
+  do not see the item. Manager detection uses the authenticated manager lifecycle API rather than
+  a client-side role claim.
+- As a manager, I can keep using the dashboard as my own account when no child is selected.
+- As a manager, I open **Managed profiles** and see my active children. Each row identifies the
+  child by contact email and external subject ID, shows its immutable customer type, and shows the
+  corridors authorized for the manager. Corridors are manager policy, not per-child grants.
+- As a manager, I use a row's three-dot menu to open a confirmation dialog and choose **Act for
+  this profile**. The product must not call this action “Log in as” or “Impersonate”.
+- Confirming stores the selection, clears account-scoped query and notification state, disconnects
+  the displayed wallet session, and redirects to `/overview`. It MUST NOT clear ramp ephemerals,
+  payment instructions, ramp identifiers, or other recovery material owned by the manager or a
+  previously selected child. The selection persists across navigation and browser refreshes until
+  explicitly stopped, and is bound to the authenticated manager profile so it cannot survive a
+  change of login identity.
+- While acting for a child, a persistent yellow banner above the topbar names the child and offers
+  **Stop acting**. Stopping clears the selection and returns to `/managed-profiles` under the
+  manager's own account.
+- Entering child mode, switching children, or stopping child mode is blocked while the transfer
+  machine is in its client-owned preparation and signing sequence. This sequence starts when a
+  submitted transfer enters final quote/balance validation and includes ramp registration,
+  ephemeral signing, user-wallet signing or broadcast, and submission of the signed ramp update.
+  The selector and banner explain that the current signing step must finish or fail before the
+  identity can change; they never reset the machine to force the switch through.
+- Once the ramp and all currently required signatures are durably submitted to the backend, an
+  identity change is allowed. A BUY awaiting payment keeps its payment instructions and ramp ID
+  under the originating manager/child identity. A started ramp continues on the backend and
+  remains discoverable in that identity's transaction history even if local polling stops.
+  Returning to the originating identity restores any resumable payment state.
+- Transfer resume state is keyed by the effective owner identity (manager profile when acting as
+  self, otherwise managed child profile), not one global dashboard key. It must never be displayed,
+  resumed, or submitted under another selected identity.
+- If the selected relationship is deleted, the manager is disabled, or authorization otherwise
+  becomes invalid, the dashboard clears child mode and returns to the manager's selection page
+  rather than silently retrying against the manager's own resources.
+
+**Child-mode navigation.** Onboarding status, Recipients, Get a quote, New transfer, Transactions,
+and Limits remain available where their API routes support managed-child authorization. KYC/KYB
+actions are read-only: a manager cannot start, continue, retry, or re-authenticate verification for
+the child from the dashboard. Generic API keys, Settings and notification preferences, the admin
+console, webhook management, and email-bound Monerium/Mykobo operations remain manager-scoped or
+unavailable and must not be shown as child operations. The dashboard API client adds
+`X-Managed-Profile-Id` only when a service explicitly opts into a supported delegated route; it
+must never attach the header indiscriminately, because an endpoint that ignores it would otherwise
+operate on the manager while the UI claims to show the child.
+
+The legacy Monerium and Mykobo routes are the known instance of that ignored-header behavior: they
+always use the authenticated manager identity. Dashboard services do not opt them into managed
+selection, and child-mode onboarding actions remain disabled.
+
+**Recipients in child mode.** The selected child is the sender and owns its invitations and
+sender-recipient relationships. The manager may list recipients, create invitations, archive
+invitations, update or archive relationships, and check eligibility on the child's behalf.
+Invitation creation remains subject to the manager's corridor policy. Privileged discount
+attachment checks the authenticated manager actor's `discount_manager` role rather than granting
+that role to the child. Invite preview and acceptance are not delegated: those actions belong to
+the authenticated invitee, and a headless managed child cannot accept an invitation. Recipient
+management remains onboarding/advisory functionality until third-party recipient payout is
+implemented; selecting a child does not make recipient-directed ramp registration available.
+
+**Composition with admin impersonation.** A `vortex_admin` may impersonate an authenticated
+manager and then use that manager identity to select one of its direct managed children. These are
+two separate states: stopping child selection returns to the impersonated manager's managed-profile
+page, while exiting the admin impersonation session returns the operator to `/admin`. Direct admin
+impersonation of a headless child remains unsupported. The admin account list and detail identify
+managed rows by child contact email, show the controlling manager's email, and offer a composed
+**Act as** action that starts the manager impersonation and immediately selects that child.
+KYC/KYB remains read-only throughout direct or composed admin impersonation; the operator can inspect
+the target's verification status but cannot open or mutate a provider verification flow.
+Managed-child creation/deletion and manager/child credential creation/revocation are also blocked
+during impersonation, while their list/read operations remain available. Alfredpay fiat-account
+creation and deletion remain available by accepted operator policy.
+
 ## High-level implementation strategy
 
 The dashboard is the same stack as the widget, and reuses its logic wherever the logic is
@@ -194,6 +281,13 @@ provider-shaped rather than UI-shaped.
   transactions page omits the matching initial BUY ramp from history and offers **Resume payment**
   in a prominent standalone card. Resume affordances are scoped
   to the account that created the ramp; switching accounts does not expose its payment details.
+  Managed-child selection extends this rule by keying resumable snapshots to the effective owner
+  profile rather than using one global snapshot. Selection changes are forbidden while the machine
+  is in `CheckingQuote`, `CheckingBalance`, `Registering`, or `SigningUserTxs`. Once registration
+  and signing updates are durably accepted, its owner-scoped `AwaitingPayment` snapshot or backend
+  transaction record survives selection changes and is available again when that owner is selected.
+  Ramp ephemeral storage is independent recovery custody and is never pruned or cleared by
+  manager/child selection.
   The customer can return to the same instructions while the payment window remains open. Once
   the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
   expired ramp remains rejected by the API.
@@ -295,6 +389,62 @@ provider-shaped rather than UI-shaped.
   selection fall back deterministically to their oldest entity in
   `getOrCreateCustomerEntityForProfile`. Whether users will ever be able to *switch* the active
   entity (individual ↔ company) remains open.
+
+## Admin console (operator surface)
+
+A separate, operator-facing surface exists alongside the customer-facing dashboard described
+above: profiles holding the `vortex_admin` role reach `/v1/admin-console/*` and can act on a
+customer's behalf. It is documented here as the product-level counterpart to the customer
+surface; its security controls are normative in
+[`security-spec/01-auth/admin-impersonation.md`](security-spec/01-auth/admin-impersonation.md).
+
+**What v1 lets an operator do:**
+
+- Look up an account: `GET /v1/admin-console/accounts` (list/search) and
+  `GET /v1/admin-console/accounts/:profileId` (single account).
+- Start impersonating a customer: `POST /v1/admin-console/impersonation` with the target
+  profile id, returning a 30-minute, non-renewable session token.
+- See active and recent impersonation sessions: `GET /v1/admin-console/impersonation`.
+- End a session immediately: `DELETE /v1/admin-console/impersonation/:sessionId`.
+
+**Money movement is excluded, but the session is not generally read-only.** An operator may
+create quotes and inspect ramp status, history, and errors, but the backend rejects ramp
+registration, update, and start while impersonating. Other customer-account mutations remain
+available. An impersonated request also cannot mint a durable API credential or re-enter the
+admin console (no privilege re-escalation, no chaining), with one narrow exception so an operator
+can end its own session.
+
+**Admin impersonation targets authenticated profiles only.** Managed headless profiles and their
+manager-child relationships now exist as a separate delegation layer. An operator does not
+impersonate a headless child directly: the operator may impersonate its authenticated manager and
+then select the child through the same route-scoped managed-profile authorization used by that
+manager. The dashboard implements that selector and child-mode experience as described above.
+
+**Operator surface in this app.** The `/v1/admin-console/*` layer is implemented and covered by
+tests, and the frontend that consumes it ships here: `/admin` (searchable, paginated account
+table with a "Log in as" action behind a confirmation dialog) and `/admin/$profileId`
+(entities, their provider accounts and KYC cases, plus recent sessions against that account).
+Both inherit the `/admin` parent route's redirect to `/overview` unless `roles` from
+`GET /v1/onboarding/status` contains `vortex_admin`, and the sidebar's Admin item follows the
+same gate. While a session is live,
+`ImpersonationBanner` is rendered above the topbar on every `_app` route — non-dismissible,
+naming the impersonated account, warning that money movement is disabled, and offering "Exit".
+Because the operator's own Supabase tokens
+are kept beside one atomic impersonation-session record rather than replaced, exiting is local
+and instant. The record is observed across tabs, and every enter, exit, expiry, or cross-tab
+replacement clears account-scoped query, notification, transfer, and wallet state.
+
+**Verified against a running stack.** Migrations 067 and 068 apply from a clean schema, and the
+flow (grant the role, log in, list accounts, impersonate, exit) is covered against a local API
+with Supabase auth: the impersonated principal resolves to the target,
+`/v1/admin-console/*` and API-credential minting refuse an impersonated caller with 403, the
+exit path requests self-revocation, and a revoked token is rejected on its next use.
+
+Exiting revokes the session server-side on a best-effort basis: the banner clears and the
+operator returns to their own session even if that `DELETE` fails, so a failed network call can
+never strand them in someone else's account. When it does fail, the server-side row stays live
+until the 30-minute TTL expires — the local UI state is not proof the session is closed. The
+audit view (`GET /v1/admin-console/impersonation`) is authoritative.
 
 ---
 

@@ -20,6 +20,7 @@ interface CorridorCardProps {
   account: SenderAccount;
   corridor: Corridor;
   onStart: () => void;
+  verificationReadOnly?: boolean;
 }
 
 const ROUTE_HINT: Record<OnboardingRoute, { icon: typeof FileText; label: string } | null> = {
@@ -38,7 +39,7 @@ const BAR_TONE: Record<OnboardingStatus, string> = {
   started: "bg-primary"
 };
 
-export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) {
+export function CorridorCard({ account, corridor, onStart, verificationReadOnly = false }: CorridorCardProps) {
   const kind = onboardingKindFor(corridor, account.type);
   const available = isOnboardingAvailable(corridor, kind);
   const onboarding = account.onboardings[corridor.id];
@@ -114,6 +115,10 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
               fiatAccounts.refetch();
             }}
           />
+        ) : verificationReadOnly && actionable ? (
+          <Button className="w-full" disabled variant="outline">
+            {kind.toUpperCase()} is read-only while acting
+          </Button>
         ) : disabled ? (
           <Button className="w-full" disabled variant="outline">
             {kind.toUpperCase()} is temporarily unavailable
