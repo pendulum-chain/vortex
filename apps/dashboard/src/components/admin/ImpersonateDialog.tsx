@@ -95,11 +95,7 @@ export function ImpersonateDialog({
           </Button>
           <Button disabled={startImpersonation.isPending} onClick={onConfirm} type="button">
             <LogIn />
-            {startImpersonation.isPending
-              ? "Starting…"
-              : target.managedProfile
-                ? "Act as managed profile"
-                : "Log in as customer"}
+            {startImpersonation.isPending ? "Starting…" : "Login as"}
           </Button>
         </DialogFooter>
       </DialogContent>

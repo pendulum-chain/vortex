@@ -56,7 +56,7 @@ function AccountDetail() {
           <p className="text-muted-foreground text-sm">Account since {new Date(data.createdAt).toLocaleDateString()}</p>
         </div>
         <Button disabled={!target} onClick={() => setImpersonateTarget(target)} type="button">
-          {data.kind === "managed" ? "Act as" : "Log in as"}
+          Login as
         </Button>
       </StaggerItem>
 

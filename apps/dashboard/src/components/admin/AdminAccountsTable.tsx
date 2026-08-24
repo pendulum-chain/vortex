@@ -89,7 +89,7 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccountSummary
                     variant="outline"
                   >
                     <LogIn />
-                    {account.kind === "managed" ? "Act as" : "Log in as"}
+                    Login as
                   </Button>
                 </TableCell>
               </TableRow>
