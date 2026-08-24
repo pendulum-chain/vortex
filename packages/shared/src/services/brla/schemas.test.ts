@@ -202,6 +202,7 @@ describe("Avenia KYB Level 1 response schemas", () => {
       levelName: "sumsub-token-recipient",
       result: null,
       resultMessage: null,
+      retryable: null,
       status: "PENDING",
       submissionData: null,
       updatedAt: "2026-03-19T22:09:52.629984Z"
@@ -209,11 +210,13 @@ describe("Avenia KYB Level 1 response schemas", () => {
     expect(aveniaKybAttemptStatusSchema.parse({ attempt: pending }).attempt).toMatchObject({
       result: undefined,
       resultMessage: undefined,
+      retryable: undefined,
       submissionData: undefined
     });
     expect(aveniaKycAttemptsSchema.parse({ attempts: [pending] }).attempts[0]).toMatchObject({
       result: undefined,
       resultMessage: undefined,
+      retryable: undefined,
       submissionData: undefined
     });
   });

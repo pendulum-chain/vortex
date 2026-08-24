@@ -225,7 +225,10 @@ const aveniaAttemptSchema = z.looseObject({
     .string()
     .nullish()
     .transform(value => value ?? undefined),
-  retryable: z.boolean().optional(),
+  retryable: z
+    .boolean()
+    .nullish()
+    .transform(value => value ?? undefined),
   status: z.enum(KycAttemptStatus),
   submissionData: z
     .record(z.string(), z.unknown())
