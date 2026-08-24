@@ -11,8 +11,10 @@ authenticated manager and composing that session with the existing managed-profi
 Impersonation is not read-only. The operator may create quotes, inspect ramp and KYC/KYB status,
 history, and errors, and perform customer-account mutations outside the protected boundaries.
 Ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and OAuth actions
-reject the request. Durable credential minting is also denied because it would outlive the session
-(see the risk register, RISK-018).
+reject the request. Durable credential minting and revocation are denied, as are managed-child
+creation and deletion. Alfredpay fiat-account creation and deletion remain deliberately available:
+these provider-side payout-account mutations outlive the session and are part of the accepted
+operator capability (see the risk register, RISK-018).
 
 ### Routes
 
@@ -193,6 +195,13 @@ and requires deployment/database access rather than an HTTP credential — see
     buffering. Aggregate and provider status reads deliberately omit the guard so verification
     status remains observable. Normal managed-profile API delegation remains supported; the
     dashboard independently keeps KYC/KYB read-only while a manager acts for a child.
+18. **An impersonated request MUST NOT mutate managed-child or credential lifecycle** — manager and
+    child credential creation/revocation plus managed-child creation/deletion apply
+    `rejectImpersonation`. Credential and managed-profile list/read operations remain available for
+    support inspection. This boundary prevents an operator session from minting a durable backdoor,
+    disabling integrations through credential revocation, or creating/deleting retained child
+    identities. Alfredpay fiat-account creation and deletion are intentionally outside this denial:
+    their durable provider-side mutation is explicitly accepted by RISK-018.
 
 ## Threat Vectors & Mitigations
 
@@ -214,9 +223,10 @@ and requires deployment/database access rather than an HTTP credential — see
 
 ## Gaps Identified During This Review
 
-- Ramp money movement and KYC/KYB actions are denied, but recipient, active-entity, and notification
-  mutations remain available. A compromised operator account can therefore still make sensitive
-  changes to a customer's account.
+- Ramp money movement, KYC/KYB actions, managed-child lifecycle, and credential lifecycle mutations
+  are denied, but recipient, active-entity, notification, and Alfredpay fiat-account mutations remain
+  available. A compromised operator account can therefore still make sensitive and durable changes
+  to a customer's account and provider-side payout accounts.
   Tracked as an accepted risk in the risk register (RISK-018).
 - The operator-facing frontend that consumes `/v1/admin-console/*` lives in `apps/dashboard`
   (account search UI, and a non-dismissible banner naming the impersonated account while a
@@ -291,6 +301,11 @@ and requires deployment/database access rather than an HTTP credential — see
 - [x] An out-of-band, idempotent operator process for granting `vortex_admin` exists and is
       documented — **PASS** (`scripts/grant-vortex-admin.ts`, `bun run grant:vortex-admin
       <email>`).
+- [x] Managed-child creation/deletion and manager/child credential creation/revocation reject
+      impersonation, while list/read operations remain available — **PASS**
+      (`api-credentials.route.test.ts`).
+- [x] Alfredpay fiat-account creation and deletion remain available during impersonation by accepted
+      policy; KYC/KYB actions remain denied — **PASS** (`alfredpay.route.ts`; RISK-018).
 - [x] The operator-facing frontend that consumes `/v1/admin-console/*` presents a
       non-dismissible banner naming the impersonated account and warning that money movement is
       disabled while a session is active —

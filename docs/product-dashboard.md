@@ -201,6 +201,10 @@ unavailable and must not be shown as child operations. The dashboard API client 
 must never attach the header indiscriminately, because an endpoint that ignores it would otherwise
 operate on the manager while the UI claims to show the child.
 
+The legacy Monerium and Mykobo routes are the known instance of that ignored-header behavior: they
+always use the authenticated manager identity. Dashboard services do not opt them into managed
+selection, and child-mode onboarding actions remain disabled.
+
 **Recipients in child mode.** The selected child is the sender and owns its invitations and
 sender-recipient relationships. The manager may list recipients, create invitations, archive
 invitations, update or archive relationships, and check eligibility on the child's behalf.
@@ -220,6 +224,9 @@ managed rows by child contact email, show the controlling manager's email, and o
 **Act as** action that starts the manager impersonation and immediately selects that child.
 KYC/KYB remains read-only throughout direct or composed admin impersonation; the operator can inspect
 the target's verification status but cannot open or mutate a provider verification flow.
+Managed-child creation/deletion and manager/child credential creation/revocation are also blocked
+during impersonation, while their list/read operations remain available. Alfredpay fiat-account
+creation and deletion remain available by accepted operator policy.
 
 ## High-level implementation strategy
 

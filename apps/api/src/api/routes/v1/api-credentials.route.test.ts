@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import express from "express";
 import { config } from "../../../config/vars";
+import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfileRole from "../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
@@ -75,6 +76,44 @@ describe("rejectImpersonation wiring on credential routes", () => {
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("IMPERSONATION_NOT_ALLOWED");
+  });
+
+  it("refuses managed lifecycle mutations and credential revocation while impersonating", async () => {
+    const actor = await createTestUser();
+    const target = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
+    const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
+    const profileId = crypto.randomUUID();
+    const credentialId = crypto.randomUUID();
+    const requests = [
+      { method: "POST", url: "/v1/managed-profiles" },
+      { method: "DELETE", url: `/v1/managed-profiles/${profileId}` },
+      { method: "DELETE", url: `/v1/managed-profiles/${profileId}/api-credentials/${credentialId}` },
+      { method: "DELETE", url: `${BASE_PATH}/${credentialId}` }
+    ];
+
+    for (const request of requests) {
+      const res = await fetch(`${baseUrl}${request.url}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        method: request.method
+      });
+
+      expect(res.status).toBe(403);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("IMPERSONATION_NOT_ALLOWED");
+    }
+  });
+
+  it("keeps credential and managed-profile list reads available while impersonating", async () => {
+    const actor = await createTestUser();
+    const target = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
+    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: target.id });
+    const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
+    const headers = { Authorization: `Bearer ${token}` };
+
+    expect((await fetch(`${baseUrl}${BASE_PATH}`, { headers })).status).toBe(200);
+    expect((await fetch(`${baseUrl}/v1/managed-profiles`, { headers })).status).toBe(200);
   });
 
   it("allows a plain authenticated (non-impersonated) caller through", async () => {

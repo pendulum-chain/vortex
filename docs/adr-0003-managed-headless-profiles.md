@@ -45,7 +45,9 @@ requests. Historical and status reads remain available where reconciliation requ
 Sender-side recipient operations are delegated to the child's sender entity, with invite creation
 constrained by current manager corridor policy and privileged invite discounts constrained by the
 manager actor's role. Invite preview and acceptance remain bearer-invitee operations and reject
-managed selection. Email-bound Mykobo and Monerium operations remain unsupported.
+managed selection. Email-bound Mykobo and Monerium operations remain unsupported. Their legacy
+routes ignore `X-Managed-Profile-Id` and remain scoped to the authenticated manager, so managed
+clients must not send the selector to them.
 
 The accepted Alfredpay cross-manager email-identity exception is tracked as RISK-019 in
 the [security risk register](security-spec/RISK-REGISTER.md). Normative behavior is defined by
