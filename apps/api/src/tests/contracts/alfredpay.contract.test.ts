@@ -275,13 +275,16 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
     expect(order).toMatchObject({
       fromAmount: quote.fromAmount,
       fromCurrency: quote.fromCurrency,
-      quoteId: quote.quoteId,
+      quote: { quoteId: quote.quoteId },
       toAmount: quote.toAmount,
       toCurrency: quote.toCurrency
     });
+    expect(order).not.toHaveProperty("quoteId");
 
     const transaction = await api.getOfframpTransaction(order.transactionId);
     expect(() => alfredpayOfframpTransactionSchema.parse(transaction)).not.toThrow();
+    expect(transaction).toMatchObject({ quote: { quoteId: quote.quoteId } });
+    expect(transaction).not.toHaveProperty("quoteId");
   });
 
   test("fake offramp orders stay bound to an issued matching quote", async () => {
@@ -586,7 +589,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       expect(order).toMatchObject({
         fromAmount: quote.fromAmount,
         fromCurrency: quote.fromCurrency,
-        quoteId: quote.quoteId,
+        quote: { quoteId: quote.quoteId },
         toAmount: quote.toAmount,
         toCurrency: quote.toCurrency
       });
@@ -597,7 +600,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       expect(transaction).toMatchObject({
         fromAmount: quote.fromAmount,
         fromCurrency: quote.fromCurrency,
-        quoteId: quote.quoteId,
+        quote: { quoteId: quote.quoteId },
         toAmount: quote.toAmount,
         toCurrency: quote.toCurrency
       });
