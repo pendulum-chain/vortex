@@ -6,11 +6,22 @@ import {
   type RampProcess,
   type UnsignedTx
 } from "@vortexfi/shared";
+import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createActor, fromPromise, waitFor } from "xstate";
 import type { TransferQuoteRequest } from "./transfer.actors";
-import { transferMachine } from "./transfer.machine";
+
+mock.module("@/services/transactions/userSigning", () => ({
+  signAndSubmitEvmTransaction: () => {
+    throw new Error("Unexpected wallet signing in transfer machine test");
+  },
+  signMultipleTypedData: () => {
+    throw new Error("Unexpected wallet signing in transfer machine test");
+  }
+}));
+
+const { transferMachine } = await import("./transfer.machine");
 
 const quote = { id: "quote-buy", rampType: RampDirection.BUY } as QuoteResponse;
 const quoteRequest: TransferQuoteRequest = {
