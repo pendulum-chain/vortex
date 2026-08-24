@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import sequelize from "../../../config/database";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
-import { createAveniaUboOnce, getOrCreateAveniaKybCase } from "./avenia-kyb.service";
+import { createAveniaUboOnce, getOrCreateAveniaKybCase, isAveniaBusinessKybLevel } from "./avenia-kyb.service";
 
 const originalFindOrCreate = KycCase.findOrCreate;
 const originalFindByPk = KycCase.findByPk;
@@ -139,5 +139,17 @@ describe("getOrCreateAveniaKybCase", () => {
     await expect(getOrCreateAveniaKybCase(account)).rejects.toThrow("database unavailable");
     expect(await getOrCreateAveniaKybCase(account)).toBe(kycCase);
     expect(findOrCreate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("isAveniaBusinessKybLevel", () => {
+  it("recognizes every observed company level generation without accepting unrelated attempts", () => {
+    // All three names observed in production: current v2, its unsuffixed predecessor,
+    // and the legacy pre-rename level.
+    expect(isAveniaBusinessKybLevel("kyb-level-1-v2")).toBe(true);
+    expect(isAveniaBusinessKybLevel("kyb-level-1")).toBe(true);
+    expect(isAveniaBusinessKybLevel("level-1")).toBe(true);
+    expect(isAveniaBusinessKybLevel("sumsub-token-recipient")).toBe(false);
+    expect(isAveniaBusinessKybLevel("level-10")).toBe(false);
   });
 });
