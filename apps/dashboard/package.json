@@ -47,7 +47,7 @@
     "build": "vite build",
     "dev": "vite dev --port 5174 --host",
     "preview": "vite preview --port 5174",
-    "test": "bun test src",
+    "test": "bun test src --max-concurrency 1",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "verify": "biome check --no-errors-on-unmatched"
