@@ -9,86 +9,41 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MoneriumCallbackRouteImport } from './routes/monerium.callback'
-import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as AppTransferRouteImport } from './routes/_app/transfer'
-import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
-import { Route as AppQuoteRouteImport } from './routes/_app/quote'
-import { Route as AppOverviewRouteImport } from './routes/_app/overview'
-import { Route as AppManagedProfilesRouteImport } from './routes/_app/managed-profiles'
-import { Route as AppLimitsRouteImport } from './routes/_app/limits'
-import { Route as AppApiKeysRouteImport } from './routes/_app/api-keys'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppApiKeysRouteImport } from './routes/_app/api-keys'
+import { Route as AppLimitsRouteImport } from './routes/_app/limits'
+import { Route as AppManagedProfilesRouteImport } from './routes/_app/managed-profiles'
+import { Route as AppOverviewRouteImport } from './routes/_app/overview'
+import { Route as AppQuoteRouteImport } from './routes/_app/quote'
+import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
+import { Route as AppTransferRouteImport } from './routes/_app/transfer'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as MoneriumCallbackRouteImport } from './routes/monerium.callback'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin.index'
 import { Route as AppAdminProfileIdRouteImport } from './routes/_app/admin.$profileId'
 
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MoneriumCallbackRoute = MoneriumCallbackRouteImport.update({
-  id: '/monerium/callback',
-  path: '/monerium/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InviteTokenRoute = InviteTokenRouteImport.update({
-  id: '/invite/$token',
-  path: '/invite/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppTransferRoute = AppTransferRouteImport.update({
-  id: '/transfer',
-  path: '/transfer',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTransactionsRoute = AppTransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRecipientsRoute = AppRecipientsRouteImport.update({
-  id: '/recipients',
-  path: '/recipients',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppQuoteRoute = AppQuoteRouteImport.update({
-  id: '/quote',
-  path: '/quote',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOverviewRoute = AppOverviewRouteImport.update({
-  id: '/overview',
-  path: '/overview',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppManagedProfilesRoute = AppManagedProfilesRouteImport.update({
-  id: '/managed-profiles',
-  path: '/managed-profiles',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLimitsRoute = AppLimitsRouteImport.update({
-  id: '/limits',
-  path: '/limits',
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApiKeysRoute = AppApiKeysRouteImport.update({
@@ -96,10 +51,55 @@ const AppApiKeysRoute = AppApiKeysRouteImport.update({
   path: '/api-keys',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminRoute = AppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AppLimitsRoute = AppLimitsRouteImport.update({
+  id: '/limits',
+  path: '/limits',
   getParentRoute: () => AppRoute,
+} as any)
+const AppManagedProfilesRoute = AppManagedProfilesRouteImport.update({
+  id: '/managed-profiles',
+  path: '/managed-profiles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOverviewRoute = AppOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppQuoteRoute = AppQuoteRouteImport.update({
+  id: '/quote',
+  path: '/quote',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRecipientsRoute = AppRecipientsRouteImport.update({
+  id: '/recipients',
+  path: '/recipients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionsRoute = AppTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransferRoute = AppTransferRouteImport.update({
+  id: '/transfer',
+  path: '/transfer',
+  getParentRoute: () => AppRoute,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneriumCallbackRoute = MoneriumCallbackRouteImport.update({
+  id: '/monerium/callback',
+  path: '/monerium/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
   id: '/',
@@ -234,11 +234,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -248,81 +248,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/monerium/callback': {
-      id: '/monerium/callback'
-      path: '/monerium/callback'
-      fullPath: '/monerium/callback'
-      preLoaderRoute: typeof MoneriumCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invite/$token': {
-      id: '/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/invite/$token'
-      preLoaderRoute: typeof InviteTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/transfer': {
-      id: '/_app/transfer'
-      path: '/transfer'
-      fullPath: '/transfer'
-      preLoaderRoute: typeof AppTransferRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/transactions': {
-      id: '/_app/transactions'
-      path: '/transactions'
-      fullPath: '/transactions'
-      preLoaderRoute: typeof AppTransactionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/recipients': {
-      id: '/_app/recipients'
-      path: '/recipients'
-      fullPath: '/recipients'
-      preLoaderRoute: typeof AppRecipientsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/quote': {
-      id: '/_app/quote'
-      path: '/quote'
-      fullPath: '/quote'
-      preLoaderRoute: typeof AppQuoteRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/overview': {
-      id: '/_app/overview'
-      path: '/overview'
-      fullPath: '/overview'
-      preLoaderRoute: typeof AppOverviewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/managed-profiles': {
-      id: '/_app/managed-profiles'
-      path: '/managed-profiles'
-      fullPath: '/managed-profiles'
-      preLoaderRoute: typeof AppManagedProfilesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/limits': {
-      id: '/_app/limits'
-      path: '/limits'
-      fullPath: '/limits'
-      preLoaderRoute: typeof AppLimitsRouteImport
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/api-keys': {
@@ -332,12 +269,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApiKeysRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/admin': {
-      id: '/_app/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AppAdminRouteImport
+    '/_app/limits': {
+      id: '/_app/limits'
+      path: '/limits'
+      fullPath: '/limits'
+      preLoaderRoute: typeof AppLimitsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/managed-profiles': {
+      id: '/_app/managed-profiles'
+      path: '/managed-profiles'
+      fullPath: '/managed-profiles'
+      preLoaderRoute: typeof AppManagedProfilesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/overview': {
+      id: '/_app/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof AppOverviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/quote': {
+      id: '/_app/quote'
+      path: '/quote'
+      fullPath: '/quote'
+      preLoaderRoute: typeof AppQuoteRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/recipients': {
+      id: '/_app/recipients'
+      path: '/recipients'
+      fullPath: '/recipients'
+      preLoaderRoute: typeof AppRecipientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transactions': {
+      id: '/_app/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof AppTransactionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transfer': {
+      id: '/_app/transfer'
+      path: '/transfer'
+      fullPath: '/transfer'
+      preLoaderRoute: typeof AppTransferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monerium/callback': {
+      id: '/monerium/callback'
+      path: '/monerium/callback'
+      fullPath: '/monerium/callback'
+      preLoaderRoute: typeof MoneriumCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/admin/': {
       id: '/_app/admin/'

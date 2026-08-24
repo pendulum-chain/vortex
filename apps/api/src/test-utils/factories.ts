@@ -1,8 +1,8 @@
 import {
-  AlfredPayCountry,
   AlfredPayType,
   AveniaAccountType,
   type DestinationType,
+  DomesticCountry,
   EPaymentMethod,
   EvmToken,
   FiatToken,
@@ -196,12 +196,12 @@ export async function updatePartnerPricing(
 /** An Alfredpay-KYC'd customer linked to a user, as required by MXN/COP/USD/ARS ramp registration. */
 export async function createTestAlfredpayCustomer(
   userId: string,
-  overrides: Partial<{ alfredPayId: string; country: AlfredPayCountry }> = {}
+  overrides: Partial<{ alfredPayId: string; country: DomesticCountry }> = {}
 ): Promise<ProviderCustomer> {
   const seq = nextSeq();
   const entity = await getOrCreateCustomerEntityForProfile(userId);
   return ProviderCustomer.create({
-    country: overrides.country ?? AlfredPayCountry.MX,
+    country: overrides.country ?? DomesticCountry.MX,
     customerEntityId: entity.id,
     customerType: "individual",
     provider: "alfredpay",

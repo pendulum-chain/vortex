@@ -7,7 +7,7 @@ import {
   QuoteResponse
 } from "@vortexfi/shared";
 import { erc20Abi } from "viem";
-import { InsufficientBalanceError } from "./errors";
+import { InsufficientBalanceError } from "./errors.js";
 
 /**
  * Pre-flight guard for offramps: verify the user's source wallet holds the quoted input amount

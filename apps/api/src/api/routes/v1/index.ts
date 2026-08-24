@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
+import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
 import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
@@ -108,10 +109,10 @@ router.use("/siwe", siweRoutes);
 router.use("/session", sessionRoutes);
 
 /**
- * GET v1/brla
- * POST v1/brla
+ * GET v1/brl (legacy alias: v1/brla)
+ * POST v1/brl (legacy alias: v1/brla)
  */
-router.use("/brla", brlaRoutes);
+router.use(["/brl", "/brla"], brlaRoutes);
 
 /**
  * GET/POST v1/ramp
@@ -160,10 +161,15 @@ router.use("/maintenance", maintenanceRoutes);
 router.use("/auth", authRoutes);
 
 /**
- * GET v1/alfredpay
- * POST v1/alfredpay
+ * GET v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ * POST v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ *
+ * The country-prefixed mounts make the corridor canonical through the URL. The
+ * country-neutral mounts read the country from the request instead, so they also
+ * serve corridors that have no dedicated prefix.
  */
-router.use("/alfredpay", alfredpayRoutes);
+router.use(["/domestic", "/alfredpay"], alfredpayRoutes);
+router.use(["/mx", "/co", "/ar"], setAlfredpayCountryFromRoute, alfredpayRoutes);
 
 /**
  * GET v1/mykobo/profiles

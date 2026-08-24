@@ -4,6 +4,36 @@ import type CustomerEntity from "./customerEntity.model";
 import type { ProviderName, VerificationStatus } from "./providerCustomer.model";
 
 export type KycCaseType = "kyc" | "kyb";
+export type KycVerificationMethod = "standard" | "sumsub_share_token";
+export type IndividualKycSubmissionStatus = "prepared" | "submitted" | "confirmed" | "ambiguous" | "failed";
+
+export interface ConsentAttestation {
+  actorProfileId: string;
+  subjectProfileId: string;
+  policyVersion: string;
+  attestedAt: string;
+}
+
+export interface IndividualKycSubmission {
+  status: IndividualKycSubmissionStatus;
+  actorProfileId: string;
+  subjectProfileId: string;
+  idempotencyKeyHash?: string;
+  tokenFingerprint?: string;
+  payloadFingerprint?: string;
+  attemptBaselineIds: string[];
+  errorClassification?: string;
+  consentAttestations?: ConsentAttestation[];
+}
+
+export interface UboSubmission {
+  status: "prepared" | "confirmed" | "ambiguous" | "failed";
+  payloadFingerprint: string;
+  attemptedAt: string;
+  confirmedAt?: string;
+  providerUboId?: string;
+  httpStatus?: number;
+}
 
 // Unified KYC/KYB verification attempts, independent of the provider account row.
 // Replaces the dead kyc_level_2 table (no data conversion — it had no readers).
@@ -21,6 +51,9 @@ export interface KycCaseAttributes {
   submittedAt: Date | null;
   approvedAt: Date | null;
   rejectedAt: Date | null;
+  uboSubmissions: Record<string, UboSubmission>;
+  verificationMethod: KycVerificationMethod | null;
+  verificationSubmission: IndividualKycSubmission | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +70,9 @@ type KycCaseCreationAttributes = Optional<
   | "submittedAt"
   | "approvedAt"
   | "rejectedAt"
+  | "uboSubmissions"
+  | "verificationMethod"
+  | "verificationSubmission"
   | "createdAt"
   | "updatedAt"
 >;
@@ -55,6 +91,9 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
   declare submittedAt: Date | null;
   declare approvedAt: Date | null;
   declare rejectedAt: Date | null;
+  declare uboSubmissions: Record<string, UboSubmission>;
+  declare verificationMethod: KycVerificationMethod | null;
+  declare verificationSubmission: IndividualKycSubmission | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 
@@ -145,11 +184,28 @@ KycCase.init(
       defaultValue: "kyc",
       type: DataTypes.STRING(8)
     },
+    uboSubmissions: {
+      allowNull: false,
+      defaultValue: {},
+      field: "ubo_submissions",
+      type: DataTypes.JSONB
+    },
     updatedAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    verificationMethod: {
+      allowNull: true,
+      field: "verification_method",
+      type: DataTypes.STRING(32),
+      validate: { isIn: [["standard", "sumsub_share_token"]] }
+    },
+    verificationSubmission: {
+      allowNull: true,
+      field: "verification_submission",
+      type: DataTypes.JSONB
     }
   },
   {

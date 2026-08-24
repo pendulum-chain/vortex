@@ -2,18 +2,15 @@ import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
+import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
 import {
-  AlfredpayCustomerType,
   AlfredpayFee,
   AlfredpayFiatAccountFields,
-  AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
   AlfredpayKybCustomerAndBusiness,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
-  AlfredpayOfframpQuote,
-  AlfredpayOnrampQuote,
   AlfredpayTradeLimitError,
   CreateAlfredpayCustomerResponse,
   CreateAlfredpayFiatAccountRequest,
@@ -24,6 +21,10 @@ import {
   CreateAlfredpayOnrampQuoteRequest,
   CreateAlfredpayOnrampRequest,
   CreateAlfredpayOnrampResponse,
+  DomesticCustomerType,
+  DomesticFiatAccountType,
+  DomesticOfframpQuote,
+  DomesticOnrampQuote,
   FindAlfredpayCustomerResponse,
   GetAlfredpayOnrampTransactionResponse,
   GetAllConfigsResponse,
@@ -209,7 +210,7 @@ export class AlfredpayApiService {
 
   public async createCustomer(
     email: string,
-    type: AlfredpayCustomerType,
+    type: DomesticCustomerType,
     country: string
   ): Promise<CreateAlfredpayCustomerResponse> {
     const payload = {
@@ -281,19 +282,21 @@ export class AlfredpayApiService {
     return { message: "ok" };
   }
 
-  public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {
+  public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<DomesticOnrampQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
-    return (await this.executeRequest(path, "POST", request)) as AlfredpayOnrampQuote;
+    return (await this.executeRequest(path, "POST", request)) as DomesticOnrampQuote;
   }
 
-  public async createOfframpQuote(request: CreateAlfredpayOfframpQuoteRequest): Promise<AlfredpayOfframpQuote> {
+  public async createOfframpQuote(request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
-    return (await this.executeRequest(path, "POST", request)) as AlfredpayOfframpQuote;
+    const response = await this.executeRequest(path, "POST", request);
+    // The loose schema preserves provider fields outside Vortex's consumed subset.
+    return alfredpayQuoteResponseSchema.parse(response) as unknown as DomesticOfframpQuote;
   }
 
-  public async getQuote(quoteId: string): Promise<AlfredpayOnrampQuote | AlfredpayOfframpQuote> {
+  public async getQuote(quoteId: string): Promise<DomesticOnrampQuote | DomesticOfframpQuote> {
     const path = `/api/v1/third-party-service/penny/quotes/${quoteId}`;
-    return (await this.executeRequest(path, "GET")) as AlfredpayOnrampQuote | AlfredpayOfframpQuote;
+    return (await this.executeRequest(path, "GET")) as DomesticOnrampQuote | DomesticOfframpQuote;
   }
 
   public async createOnramp(request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> {
@@ -308,17 +311,19 @@ export class AlfredpayApiService {
 
   public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
     const path = "/api/v1/third-party-service/penny/offramp";
-    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "POST", request);
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async getOfframpTransaction(transactionId: string): Promise<CreateAlfredpayOfframpResponse> {
     const path = `/api/v1/third-party-service/penny/offramp/${transactionId}`;
-    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "GET");
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async createFiatAccount(
     customerId: string,
-    type: AlfredpayFiatAccountType,
+    type: DomesticFiatAccountType,
     fiatAccountFields: AlfredpayFiatAccountFields,
     isExternal: boolean
   ): Promise<CreateAlfredpayFiatAccountResponse> {

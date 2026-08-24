@@ -493,9 +493,9 @@ Offramp source phases carry the request's bridged USD valuation through the
 typed `PhaseIO` boundary so downstream subsidy math does not read another
 phase's metadata.
 
-The three subsidy phases independently call `computeExpectedOutput(ctx)`
-and persist distinct contexts. Their values no longer overwrite one shared
-`subsidy` key.
+Subsidy blocks that derive expected output independently call
+`computeExpectedOutput(ctx, tokenDecimals)` and persist distinct contexts.
+Their values no longer overwrite one shared `subsidy` key.
 
 ### Conventions (non-negotiable)
 
@@ -592,6 +592,16 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
    `EUR_ONRAMP_BASE_SAME_CHAIN_SWAP` with one Base-built same-chain Squid swap
    immediately before destination transfer. No same-chain variant includes
    Squid pay, backups, or final settlement.
+9. **AlfredPay SELL reconciliation stays block-owned.** `AlfredpayOfframp`
+   derives the fiat target from the exact Vortex reference snapshot, requests
+   AlfredPay's executable exact-output terms, and caps the raw settlement top-up.
+   It does not add a cross-reading subsidy block or make the provider rate a
+   global price source. `finalSettlementSubsidy` consumes the persisted provider
+   input and quoted bridge output without recalculating quote economics or exceeding
+   the persisted subsidy. Provider orders remain bound to those persisted terms; if
+   an expired order cannot be replaced
+   without degrading them, execution pauses before the single-use provider transfer
+   and leaves the funds on the client-custodied Polygon ephemeral for reconciliation.
 
 ### Runtime ownership
 

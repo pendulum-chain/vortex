@@ -1,7 +1,7 @@
 import type {
-  AlfredPayCountry,
-  AlfredpayFiatAccount,
   CreateQuoteRequest,
+  DomesticCountry,
+  DomesticFiatAccount,
   GetRampInfoResponse,
   GetRampStatusResponse,
   QuoteResponse,
@@ -13,17 +13,18 @@ import type {
   UpdateRampRequest,
   UpdateRampResponse
 } from "@vortexfi/shared";
-import { handleAPIResponse } from "../errors";
-import type { BrlKycResponse } from "../types";
+import { handleAPIResponse } from "../errors.js";
+import type { AccessTokenProvider, BrlKycResponse } from "../types.js";
 
 export class ApiService {
   constructor(
     private readonly apiBaseUrl: string,
     private readonly publicKey?: string,
-    private readonly secretKey?: string
+    private readonly secretKey?: string,
+    private readonly accessTokenProvider?: AccessTokenProvider
   ) {}
 
-  private buildHeaders(): Record<string, string> {
+  private async buildHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
@@ -32,6 +33,11 @@ export class ApiService {
     }
     if (this.secretKey) {
       headers["X-API-Key"] = this.secretKey;
+    } else if (this.accessTokenProvider) {
+      const accessToken = await this.accessTokenProvider();
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
     }
     return headers;
   }
@@ -39,7 +45,7 @@ export class ApiService {
   async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/quotes`, {
       body: JSON.stringify(request),
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "POST"
     });
 
@@ -48,7 +54,7 @@ export class ApiService {
 
   async getQuote(quoteId: string): Promise<QuoteResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/quotes/${quoteId}`, {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
@@ -58,7 +64,7 @@ export class ApiService {
   async registerRamp(request: RegisterRampRequest): Promise<RegisterRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/register`, {
       body: JSON.stringify(request),
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "POST"
     });
 
@@ -68,7 +74,7 @@ export class ApiService {
   async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/update`, {
       body: JSON.stringify(request),
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "POST"
     });
     return handleAPIResponse<UpdateRampResponse>(response, "/v1/ramp/update");
@@ -77,7 +83,7 @@ export class ApiService {
   async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp/start`, {
       body: JSON.stringify(request),
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "POST"
     });
 
@@ -87,7 +93,7 @@ export class ApiService {
   async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     const url = new URL(`${this.apiBaseUrl}/v1/ramp/${rampId}`);
     const response = await fetch(url.toString(), {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
@@ -96,7 +102,7 @@ export class ApiService {
 
   async getRampInfo(): Promise<GetRampInfoResponse> {
     const response = await fetch(`${this.apiBaseUrl}/v1/ramp-info`, {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
@@ -110,7 +116,7 @@ export class ApiService {
     }
 
     const response = await fetch(url.toString(), {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
@@ -125,7 +131,7 @@ export class ApiService {
     url.searchParams.append("direction", direction);
 
     const response = await fetch(url.toString(), {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
@@ -137,22 +143,22 @@ export class ApiService {
     url.searchParams.append("pixKey", pixKey);
 
     const response = await fetch(url.toString(), {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
     return handleAPIResponse<{ valid: boolean }>(response, "/v1/brla/validatePixKey");
   }
 
-  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
-    const url = new URL(`${this.apiBaseUrl}/v1/alfredpay/fiatAccounts`);
+  async listDomesticFiatAccounts(country: DomesticCountry): Promise<DomesticFiatAccount[]> {
+    const url = new URL(`${this.apiBaseUrl}/v1/domestic/fiatAccounts`);
     url.searchParams.append("country", country);
 
     const response = await fetch(url.toString(), {
-      headers: this.buildHeaders(),
+      headers: await this.buildHeaders(),
       method: "GET"
     });
 
-    return handleAPIResponse<AlfredpayFiatAccount[]>(response, `/v1/alfredpay/fiatAccounts?country=${country}`);
+    return handleAPIResponse<DomesticFiatAccount[]>(response, `/v1/domestic/fiatAccounts?country=${country}`);
   }
 }

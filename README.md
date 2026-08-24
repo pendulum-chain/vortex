@@ -12,6 +12,7 @@ This is a Bun monorepo.
 |---|---|
 | [`apps/api`](apps/api/) | Express API, ramp engine, provider integrations, PostgreSQL workers |
 | [`apps/frontend`](apps/frontend/) | Public site and embeddable ramp widget |
+| [`apps/demo`](apps/demo/) | Minimal browser SDK example for a BRL/PIX onramp |
 | [`apps/dashboard`](apps/dashboard/) | Authenticated customer dashboard |
 | [`apps/rebalancer`](apps/rebalancer/) | Liquidity rebalancing service |
 | [`packages/shared`](packages/shared/) | Shared contracts, token/network configuration, and signing utilities |
@@ -32,11 +33,15 @@ bun install
 bun dev
 ```
 
+In a fresh Git worktree, run `bun bootstrap:worktree` instead of `bun install`; it also
+builds the shared and SDK workspaces required by the apps.
+
 The default development command starts the shared package, API, and widget. Run other
 surfaces explicitly:
 
 ```bash
 bun dev:dashboard
+bun dev:demo
 bun dev:rebalancer
 ```
 
@@ -75,7 +80,8 @@ Workspace-specific setup and caveats live in their `README.md` or `CLAUDE.md`.
 - [`docs/api/`](docs/api/README.md) contains the public OpenAPI source and partner guides.
 - [`docs/README.md`](docs/README.md) indexes current architecture, product, operations,
   decisions, incidents, and proposals.
-- [`CLAUDE.md`](CLAUDE.md) and scoped `CLAUDE.md` files contain coding-agent rules.
+- [`AGENTS.md`](AGENTS.md) links to the canonical root [`CLAUDE.md`](CLAUDE.md); scoped
+  `CLAUDE.md` files contain app and package rules.
 
 ## AI integration guidance
 

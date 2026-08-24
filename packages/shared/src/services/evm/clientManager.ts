@@ -58,6 +58,33 @@ function isNonRetryableReadContractError(error: Error): boolean {
   return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
+function hasErrorName(value: object, name: string): boolean {
+  return "name" in value && (value as { name?: unknown }).name === name;
+}
+
+/**
+ * Matches only the typed error chain a viem gas estimation produces for a deterministic
+ * execution revert. Callers must apply it to a raw estimation error raised before any
+ * broadcast attempt of the same operation; a send failure never proves this.
+ * Matching uses viem's stable error names rather than instanceof so it holds across the
+ * multiple bundled viem copies in this monorepo.
+ */
+export function isDeterministicPreBroadcastRevert(error: unknown): boolean {
+  let current = error;
+  let foundEstimateGasError = false;
+  let foundExecutionRevert = false;
+  const seen = new Set<unknown>();
+
+  while (current !== null && (typeof current === "object" || typeof current === "function") && !seen.has(current)) {
+    seen.add(current);
+    foundEstimateGasError ||= hasErrorName(current, "EstimateGasExecutionError");
+    foundExecutionRevert ||= hasErrorName(current, "ExecutionRevertedError");
+    current = "cause" in current ? (current as { cause?: unknown }).cause : undefined;
+  }
+
+  return foundEstimateGasError && foundExecutionRevert;
+}
+
 export function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
   // Note on defining RPC URLs: '' is equal to viem's default RPC for that chain: http().
   return [
@@ -218,9 +245,9 @@ export class EvmClientManager {
       }
     }
 
-    // TODO should we return the raw rpc error here, instead of just the message?
     throw new Error(
-      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`
+      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`,
+      { cause: lastError }
     );
   }
 

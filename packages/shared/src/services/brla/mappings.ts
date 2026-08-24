@@ -4,14 +4,20 @@ import {
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
-  AveniaKybAttemptStatusResponse,
+  AveniaDocumentResponse,
+  AveniaImportKycTokenRequest,
+  AveniaImportKycTokenResponse,
   AveniaPayinTicket,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   AveniaSwapTicket,
+  AveniaVerificationAttemptResponse,
   AveniaWebhookRegistration,
   AveniaWebhooksListResponse,
+  BrKybLevel1Payload,
+  BrUboPayload,
+  BrUboResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -30,12 +36,15 @@ export enum Endpoint {
   GetSubaccount = "/v2/account/sub-accounts",
   AccountLimits = "/v2/account/limits",
   PixInfo = "/v2/account/bank-accounts/brl/pix-info",
-  KycLevel1 = "/v2/kyc/new-level-1/api",
+  Level1Api = "/v2/kyc/new-level-1/api",
+  ImportKycToken = "/v2/kyc/import-token/",
   KybLevel1WebSdk = "/v2/kyc/new-level-1/web-sdk",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info",
   Documents = "/v2/documents",
+  GetDocument = "/v2/documents/{documentId}",
+  Ubos = "/v2/account/ubos",
   GetKycAttempt = "/v2/kyc/attempts",
   GetKybAttempt = "/v2/kyc/attempts/{attemptId}",
   Balances = "/v2/account/balances",
@@ -85,10 +94,24 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.KycLevel1]: {
+  [Endpoint.Level1Api]: {
     POST: {
-      body: KycLevel1Payload;
+      body: KycLevel1Payload | BrKybLevel1Payload;
       response: KycLevel1Response;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.ImportKycToken]: {
+    POST: {
+      body: AveniaImportKycTokenRequest;
+      response: AveniaImportKycTokenResponse;
     };
     GET: {
       body: undefined;
@@ -157,6 +180,34 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
+  [Endpoint.GetDocument]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaDocumentResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Ubos]: {
+    POST: {
+      body: BrUboPayload;
+      response: BrUboResponse;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
   [Endpoint.GetKycAttempt]: {
     POST: {
       body: undefined;
@@ -192,7 +243,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: AveniaKybAttemptStatusResponse;
+      response: AveniaVerificationAttemptResponse;
     };
     PATCH: {
       body: undefined;

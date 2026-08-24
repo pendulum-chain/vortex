@@ -30,7 +30,7 @@ interface SellJourneyCase {
   /** The corridor's payout destination (mapFiatToDestination in shared). */
   to: string;
   outputAmount: string;
-  /** The registered payout account served by GET /v1/alfredpay/fiatAccounts (AlfredpayFiatAccount). */
+  /** The registered payout account served by GET /v1/alfredpay/fiatAccounts (DomesticFiatAccount). */
   fiatAccount: Record<string, unknown> & { accountName: string; fiatAccountId: string };
   /** The success page's per-token arrival text (pages.success.arrivalText.sell in en.json). */
   arrivalText: string;

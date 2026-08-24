@@ -1,3 +1,4 @@
+import { sanitizeRpcErrorMessage } from "@vortexfi/shared";
 import { StreamOptions } from "morgan";
 import winston, { format } from "winston";
 import { getRampId } from "./ramp-context";
@@ -45,7 +46,9 @@ export function formatLogEntry(info: LogEntry): string {
   );
   const metadataSuffix = Object.keys(metadata).length > 0 ? ` ${stringifyMetadata(metadata)}` : "";
 
-  return `${timestampPrefix} ${String(level)}${label ? ` ${String(label)}` : ""} ${rampPrefix}${String(message)}${metadataSuffix}`;
+  return sanitizeRpcErrorMessage(
+    `${timestampPrefix} ${String(level)}${label ? ` ${String(label)}` : ""} ${rampPrefix}${String(message)}${metadataSuffix}`
+  );
 }
 
 const customFormat = winston.format.printf(formatLogEntry);

@@ -7,6 +7,7 @@ import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import type { PartnerPricingSource } from "./types";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
+  controllingManagerProfileId?: string;
   userId?: string;
 };
 
@@ -52,7 +53,7 @@ async function findPartnerByIdForRamp(
   return partner;
 }
 
-async function findAssignedPartnerId(userId: string, now: Date): Promise<string | null> {
+async function findAssignment(userId: string, now: Date): Promise<{ partnerId: string | null } | null> {
   const assignment = await ProfilePartnerAssignment.findOne({
     order: [["createdAt", "DESC"]],
     where: {
@@ -62,7 +63,7 @@ async function findAssignedPartnerId(userId: string, now: Date): Promise<string 
     }
   });
 
-  return assignment?.partnerId ?? null;
+  return assignment ? { partnerId: assignment.partnerId } : null;
 }
 
 export async function resolveQuotePartner(
@@ -82,14 +83,31 @@ export async function resolveQuotePartner(
   }
 
   if (request.userId) {
-    const assignedPartnerId = await findAssignedPartnerId(request.userId, now);
-    if (assignedPartnerId) {
-      const partner = await findPartnerByIdForRamp(assignedPartnerId, request.rampType, fiatCurrency);
+    const assignment = await findAssignment(request.userId, now);
+    if (assignment) {
+      const partner = assignment.partnerId
+        ? await findPartnerByIdForRamp(assignment.partnerId, request.rampType, fiatCurrency)
+        : null;
       return {
         ownerPartnerId: null,
         partner,
         pricingPartnerId: partner?.id ?? null,
-        source: "profileAssignment"
+        source: partner ? "profileAssignment" : "none"
+      };
+    }
+  }
+
+  if (request.controllingManagerProfileId) {
+    const assignment = await findAssignment(request.controllingManagerProfileId, now);
+    if (assignment) {
+      const partner = assignment.partnerId
+        ? await findPartnerByIdForRamp(assignment.partnerId, request.rampType, fiatCurrency)
+        : null;
+      return {
+        ownerPartnerId: null,
+        partner,
+        pricingPartnerId: partner?.id ?? null,
+        source: partner ? "managerProfileAssignment" : "none"
       };
     }
   }

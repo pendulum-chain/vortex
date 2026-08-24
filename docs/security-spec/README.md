@@ -66,7 +66,7 @@ documents win.
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
-| XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
+| XCM Transfers | `06-cross-chain/xcm-transfers.md` | Dormant Pendulum↔Moonbeam↔AssetHub compatibility and re-enable constraints |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |

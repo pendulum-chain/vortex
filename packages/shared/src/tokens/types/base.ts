@@ -44,7 +44,7 @@ export interface FiatDetails {
   name: string;
 }
 
-export enum AlfredpayCustomerType {
+export enum DomesticCustomerType {
   INDIVIDUAL = "INDIVIDUAL",
   BUSINESS = "BUSINESS"
 }
@@ -69,8 +69,8 @@ export interface RawAmountLimits {
  * - `offramp` raw values are scaled by the STABLECOIN decimals (USDC/USDT = 6).
  */
 export interface AlfredpayLimitsTable {
-  onramp: Record<AlfredpayStablecoinKey, Record<AlfredpayCustomerType, RawAmountLimits>>;
-  offramp: Record<AlfredpayStablecoinKey, Record<AlfredpayCustomerType, RawAmountLimits>>;
+  onramp: Record<AlfredpayStablecoinKey, Record<DomesticCustomerType, RawAmountLimits>>;
+  offramp: Record<AlfredpayStablecoinKey, Record<DomesticCustomerType, RawAmountLimits>>;
 }
 
 export interface BaseFiatTokenDetails {

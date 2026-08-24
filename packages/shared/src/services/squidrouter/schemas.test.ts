@@ -43,6 +43,24 @@ describe("squidrouterRouteResponseSchema", () => {
   test("rejects a non-raw-units toAmount", () => {
     const body = validRouteBody();
     body.route.estimate.toAmount = "9.95";
+    expect(() => squidrouterRouteResponseSchema.safeParse(body)).not.toThrow();
+    expect(squidrouterRouteResponseSchema.safeParse(body).success).toBe(false);
+  });
+
+  test("requires a raw-units toAmountMin", () => {
+    const missing = validRouteBody();
+    delete (missing.route.estimate as Record<string, unknown>).toAmountMin;
+    expect(() => squidrouterRouteResponseSchema.parse(missing)).toThrow();
+
+    const malformed = validRouteBody();
+    malformed.route.estimate.toAmountMin = "9.90";
+    expect(() => squidrouterRouteResponseSchema.safeParse(malformed)).not.toThrow();
+    expect(squidrouterRouteResponseSchema.safeParse(malformed).success).toBe(false);
+  });
+
+  test("rejects a guaranteed minimum above the estimated output", () => {
+    const body = validRouteBody();
+    body.route.estimate.toAmountMin = "9950001";
     expect(() => squidrouterRouteResponseSchema.parse(body)).toThrow();
   });
 

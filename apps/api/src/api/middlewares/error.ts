@@ -68,6 +68,14 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
       stack: err.stack,
       status: err.status
     });
+  } else if (isBodyParserError(err)) {
+    convertedError = new APIError({
+      isPublic: true,
+      message: err.type === "entity.parse.failed" ? "Invalid JSON payload" : "Request body too large",
+      stack: err.stack,
+      status: err.status,
+      type: err.type
+    });
   } else if (!(err instanceof APIError)) {
     convertedError = new APIError({
       message: err.message,
@@ -80,6 +88,14 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
 
   return handler(convertedError, req, res, next);
 };
+
+function isBodyParserError(err: Error | ValidationError): err is Error & { status: 400 | 413; type: string } {
+  const bodyParserError = err as Error & { status?: number; type?: string };
+  return (
+    (bodyParserError.type === "entity.parse.failed" && bodyParserError.status === httpStatus.BAD_REQUEST) ||
+    (bodyParserError.type === "entity.too.large" && bodyParserError.status === httpStatus.REQUEST_ENTITY_TOO_LARGE)
+  );
+}
 
 /**
  * Catch 404 and forward to error handler

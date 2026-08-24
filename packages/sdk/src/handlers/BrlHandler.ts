@@ -9,15 +9,15 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors";
-import type { ApiService } from "../services/ApiService";
+import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors.js";
+import type { ApiService } from "../services/ApiService.js";
 import type {
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
   RampHandler,
   VortexSdkContext
-} from "../types";
+} from "../types.js";
 
 export class BrlHandler implements RampHandler {
   private apiService: ApiService;

@@ -1,8 +1,6 @@
-import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { multiplyByPowerOfTen } from "@vortexfi/shared";
 import Big from "big.js";
-import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
-import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
+import { assertLegacyRebalancerDisabled } from "./cli.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
@@ -16,74 +14,30 @@ import {
   shouldTriggerOpportunisticUsdcToBrla
 } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import { checkInitialUsdcBalanceOnBase, compareRoutesUpfront } from "./rebalance/usdc-brla-usdc-base/steps.ts";
-import { getBaseNablaCoverageRatio, getSwapPoolsWithCoverageRatio } from "./services/indexer";
+import { getBaseNablaCoverageRatio } from "./services/indexer";
 import {
-  BrlaToAxlUsdcStateManager,
   BrlaToUsdcBaseRebalancePhase,
   BrlaToUsdcBaseStateManager,
-  RebalancePhase,
   UsdcBaseRebalancePhase,
   UsdcBaseStateManager,
   type WinningRoute
 } from "./services/stateManager.ts";
-import { getConfig, getPendulumAccount } from "./utils/config.ts";
+import { getConfig } from "./utils/config.ts";
 
 const args = process.argv.slice(2);
 const forceRestart = args.includes("--restart");
-const useLegacy = args.includes("--legacy");
+try {
+  assertLegacyRebalancerDisabled(args);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 const manualAmount = args.find(arg => !arg.startsWith("--")) || null;
 const routeArg = args.find(arg => arg.startsWith("--route="));
 const forcedRoute = routeArg ? (routeArg.split("=")[1] as "squidrouter" | "avenia" | "nabla-main") : undefined;
 if (forcedRoute && !["squidrouter", "avenia", "nabla-main"].includes(forcedRoute)) {
   console.error("Invalid --route value. Must be 'squidrouter', 'avenia', or 'nabla-main'.");
   process.exit(1);
-}
-
-async function checkForRebalancingLegacy() {
-  const config = getConfig();
-  const amountAxlUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
-
-  if (forceRestart) {
-    console.log("Force restart enabled. Starting legacy rebalancing regardless of coverage ratios.");
-  } else {
-    const swapPoolsWithCoverage = await getSwapPoolsWithCoverageRatio();
-
-    const brlaPool = swapPoolsWithCoverage.find(pool => pool.pool.token.symbol === "BRLA");
-    if (!brlaPool) {
-      console.log("No BRLA swap pool found.");
-      return;
-    }
-    const usdcAxlPool = swapPoolsWithCoverage.find(pool => pool.pool.token.symbol === "USDC.axl");
-    if (!usdcAxlPool) {
-      console.log("No USDC.axl swap pool found.");
-      return;
-    }
-
-    if (brlaPool.coverageRatio >= 1 + config.rebalancingThreshold && usdcAxlPool.coverageRatio <= 1) {
-      console.log("Coverage ratios of BRLA and USDC.axl require rebalancing.");
-    } else {
-      console.log("Coverage ratios do not require rebalancing.");
-      return;
-    }
-  }
-
-  await cryptoWaitReady();
-  const pendulumAccount = getPendulumAccount();
-
-  const stateManager = new BrlaToAxlUsdcStateManager();
-  const state = await stateManager.getState();
-  const isResuming = !forceRestart && state && state.currentPhase !== RebalancePhase.Idle;
-
-  if (!isResuming) {
-    const rebalancerAccountBalance = await checkInitialPendulumBalance(pendulumAccount.address, amountAxlUsdc);
-    if (config.rebalancingUsdToBrlMinBalance && rebalancerAccountBalance.lt(config.rebalancingUsdToBrlMinBalance)) {
-      throw new Error(
-        `Rebalancer account balance ${rebalancerAccountBalance} is below the minimum required balance of ${config.rebalancingUsdToBrlMinBalance} to perform rebalancing.`
-      );
-    }
-  }
-
-  await rebalanceBrlaToUsdcAxl(amountAxlUsdc, forceRestart);
 }
 
 async function getTodayBridgedUsdRaw(): Promise<Big> {
@@ -474,10 +428,9 @@ async function checkForRebalancing() {
   await runUsdcToBrla(deviationBps);
 }
 
-const rebalanceFn = useLegacy ? checkForRebalancingLegacy : checkForRebalancing;
-console.log(`Using ${useLegacy ? "legacy" : "new"} rebalancing flow.`);
+console.log("Using Base rebalancing flow.");
 
-rebalanceFn()
+checkForRebalancing()
   .then(() => {
     console.log("Rebalancing process completed successfully.");
     process.exit(0);

@@ -13,7 +13,7 @@ export const PendulumOfframpSubsidizePre: Phase<
   name: "PendulumOfframpSubsidizePre",
   phases: ["subsidizePreSwap"],
   async simulate(input, ctx) {
-    const expected = await computeExpectedOutput(ctx);
+    const expected = await computeExpectedOutput(ctx, PENDULUM_USDC_ASSETHUB.decimals);
     return {
       metadata: {
         expectedOutputAmountDecimal: expected.decimal,

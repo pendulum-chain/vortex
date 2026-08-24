@@ -133,16 +133,25 @@ always occur only after all user-facing phases is incorrect.
 ### Alfredpay corridors: solvency and failure safety
 
 - **Charging** — the onramp deducts vortex/partner components from the provider mint
-  before sizing the bridge/transfer leg; the offramp deducts them from the bridged USD
-  leg before pricing the Alfredpay deposit. The residual stays reserved on the Polygon
-  ephemeral until `distributeFees`.
+  before sizing the bridge/transfer leg. The offramp converts the snapshotted
+  network/vortex/partner components to one canonical raw USDT reserve and subtracts
+  it from bridge proceeds before provider pricing. The residual stays reserved on the
+  Polygon ephemeral until `distributeFees`.
 - **Solvency** — the onramp pre-swap settlement reserves the swap target PLUS the fee
   residual (`SubsidizePreMetadata.feeReserveRaw`), and the offramp
-  `finalSettlementSubsidy` targets deposit + fees, so a short provider leg cannot
-  starve the fee transfers.
+  exact-output quote sizes an executable provider deposit after spread/provider fees.
+  `finalSettlementSubsidy` targets that deposit plus the same canonical fee reserve,
+  so a short provider leg cannot starve the fee transfers. Quote-time partner/runtime
+  caps apply to this full settlement top-up; a binding cap lowers the provider input
+  and payout rather than changing or dropping the fee transfers. Runtime settlement
+  cannot pay above the persisted quoted subsidy if a bridge under-delivers.
 - **Failure safety** — fees are collected only after the user-facing leg succeeded.
-  The offramp refund fallback is sized deposit + charged fees so a failed ramp
-  returns the user's full value; the onramp mint fallback stays full-mint.
+  The prepared offramp fallback is sized from the persisted quoted bridge output and
+  excludes the platform-funded settlement top-up, so it cannot leak subsidy to the
+  user. Automated expired-order recovery does not broadcast that same-nonce
+  contingency: when replacement cannot preserve the quote, execution pauses before
+  the provider transfer and leaves principal/top-up on the client-custodied Polygon
+  ephemeral for authorized reconciliation. The onramp mint fallback stays full-mint.
 - **Rollout** — the fee phase shipped as flow version 2 of the three Alfredpay flows
   with a drain-then-deploy gate; persisted v1 identities fail closed at
   registration/dispatch and require manual recovery.
@@ -156,7 +165,9 @@ Big.js modes are explicit where security-sensitive:
 | Quote component/display totals | half-up to the documented decimal precision |
 | Substrate distribution raw units | round down (`toFixed(0, 0)`) |
 | EVM distribution raw units | half-up (`toFixed(0)`) |
-| Provider-side amounts that require truncation | round down |
+| AlfredPay target fiat output | round up to provider fiat precision |
+| AlfredPay USDT input / subsidy | exact 6-decimal raw-unit reconciliation; over-precision fails |
+| Other provider-side amounts that require truncation | round down |
 
 The EVM/Substrate raw-unit difference is current behavior, not a universal invariant.
 Changing it requires explicit compatibility and accounting review because existing

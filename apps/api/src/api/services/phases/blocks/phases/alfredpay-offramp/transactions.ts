@@ -13,7 +13,7 @@ import {
   type SignedTypedData
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { ContractFunctionExecutionError, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../../config/vars";
 import erc20ABI from "../../../../../../contracts/ERC20";
@@ -107,7 +107,7 @@ export async function prepareAlfredpayOfframpTxs(
   dependencies: AlfredpayOfframpTransactionDependencies = {}
 ): Promise<PreparedPhaseTxs> {
   const facts = ctx.ownRegistrationFacts;
-  if (!facts) throw new Error("Alfredpay offramp registration facts are required");
+  if (!facts) throw new Error("Domestic-corridor offramp registration facts are required");
   const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
   const fromNetwork = ctx.ownMetadata.fromNetwork;
   const inputDetails = getOnChainTokenDetails(fromNetwork, ctx.globals.request.inputCurrency) as EvmTokenDetails | undefined;
@@ -135,7 +135,7 @@ export async function prepareAlfredpayOfframpTxs(
           })) as string;
           return { domain: await resolveAlfredpayPermitDomain(publicClient, inputToken, chainId, tokenName), nonce };
         } catch (error) {
-          if (error instanceof ContractFunctionExecutionError) return null;
+          if (error instanceof Error && error.name === "ContractFunctionExecutionError") return null;
           throw error;
         }
       })();
@@ -263,11 +263,8 @@ export async function prepareAlfredpayOfframpTxs(
     toAddress: facts.depositAddress as `0x${string}`,
     toToken: ALFREDPAY_ERC20_TOKEN
   });
-  // The fallback refunds the user's full bridged value: deposit plus charged
-  // vortex/partner fees MINUS any platform subsidy. bridgeOutputAmountRaw is exactly
-  // that — for undiscounted quotes it equals deposit + fees, while the net-rate
-  // deposit of a discounted quote additionally contains the platform subsidy, which
-  // must never be paid out to the user on a failed ramp.
+  // The fallback refunds the user's quoted bridged value and excludes the
+  // platform-funded subsidy that is not part of the user's principal.
   const fallbackTransfer = await createDestinationTransferTransaction({
     amountRaw: ctx.ownMetadata.bridgeOutputAmountRaw,
     destinationNetwork: Networks.Polygon,

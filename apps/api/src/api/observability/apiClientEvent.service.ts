@@ -13,6 +13,8 @@ const SENSITIVE_METADATA_KEYS = new Set([
   "depositqrcode",
   "ephemeralaccounts",
   "ibanpaymentdata",
+  "import_token",
+  "importtoken",
   "pixdestination",
   "presignedtxs",
   "rawbody",
@@ -21,6 +23,7 @@ const SENSITIVE_METADATA_KEYS = new Set([
   "signingaccounts",
   "taxid",
   "token",
+  "tokenfingerprint",
   "walletaddress",
   "x-api-key"
 ]);

@@ -50,6 +50,7 @@ export const createQuote = async (
     const quote = await quoteService.createQuote({
       apiCredentialId: req.credential?.credentialId,
       apiKey: publicApiKey,
+      controllingManagerProfileId: req.managedProfileContext?.controllingManagerProfileId,
       from,
       inputAmount,
       inputCurrency,
@@ -113,6 +114,7 @@ export const createBestQuote = async (
     const quote = await quoteService.createBestQuote({
       apiCredentialId: req.credential?.credentialId,
       apiKey: publicApiKey,
+      controllingManagerProfileId: req.managedProfileContext?.controllingManagerProfileId,
       countryCode,
       from,
       inputAmount,

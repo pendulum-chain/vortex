@@ -1,9 +1,10 @@
-# CLAUDE.md
+# Coding-agent guidance
 
-Guidance for Claude Code (claude.ai/code) working in this repository. This root file
-holds **cross-cutting** context only. Each app/package has its own `CLAUDE.md` with
-scoped architecture and commands — `cd` into the relevant one before working there, and
-read it first.
+This is the canonical root instruction file for coding agents in this repository;
+`AGENTS.md` links here so Codex and Claude use the same guidance. This file holds
+**cross-cutting** context only. Each app/package has its own `CLAUDE.md` with scoped
+architecture and commands — `cd` into the relevant one before working there, and read it
+first.
 
 ## Project Overview
 
@@ -16,6 +17,7 @@ via XCM (Cross-Consensus Messaging).
 Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using workspaces:
 
 - **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
+- **apps/demo** — minimal browser SDK integration → [`apps/demo/CLAUDE.md`](apps/demo/CLAUDE.md)
 - **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
 - **apps/dashboard** — authenticated React dashboard → [`apps/dashboard/CLAUDE.md`](apps/dashboard/CLAUDE.md)
 - **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)
@@ -31,20 +33,36 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 > subdirectory's `CLAUDE.md`.
 
 ```bash
-bun install          # install all dependencies
-bun dev              # frontend + backend + shared concurrently
-bun dev:frontend     # http://127.0.0.1:5173
-bun dev:backend      # http://localhost:3000
-bun dev:dashboard    # http://localhost:5174
+bun install            # install all dependencies
+bun bootstrap:worktree # install in a fresh worktree and build shared
+bun dev                # frontend + backend + shared concurrently
+bun dev:frontend       # http://127.0.0.1:5173
+bun dev:demo
+bun dev:backend        # http://localhost:3000
+bun dev:dashboard      # http://localhost:5174
 bun dev:rebalancer
 
 bun build            # build all workspaces in dependency order
 bun build:shared     # rebuild shared (see below)
 
 bun lint             # Biome lint          bun lint:fix   # auto-fix
-bun format           # format all           bun verify     # check without fixing
-bun typecheck        # type check
+bun format             # format all           bun verify     # check without fixing
+bun typecheck          # type check
 ```
+
+### Bootstrap fresh worktrees
+
+Run `bun bootstrap:worktree` before tests or development in a new worktree. It installs
+the frozen lockfile using a writable, worktree-specific temporary directory and cache,
+then builds `@vortexfi/shared` and `@vortexfi/sdk` so workspace imports resolve. Set
+`VORTEX_WORKTREE_TMPDIR` only when the default temporary location is unsuitable.
+
+### Netlify deployment diagnostics
+
+Public deploy metadata does not imply that Netlify build metadata or logs are public.
+Use an authenticated Netlify CLI/API route or the corresponding GitHub check output for
+private build details. After a 401, verify the endpoint and active Netlify account instead
+of retrying with guessed or extracted credentials.
 
 ### Always rebuild shared after changing it
 
@@ -99,7 +117,7 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 
 - **type** — `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `chore`, `ci`, or
   `revert`.
-- **scope** — the workspace touched: `api`, `frontend`, `dashboard`, `rebalancer`,
+- **scope** — the workspace touched: `api`, `frontend`, `demo`, `dashboard`, `rebalancer`,
   `shared`, `kyc`, or `sdk`. Use `repo` for cross-cutting changes (root config, CI, monorepo
   tooling). One workspace dominates a mixed change? Use that. Truly global? `repo`.
 - **summary** — imperative mood ("add", not "added"/"adds"), lowercase after the colon,
@@ -110,18 +128,33 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
   change for a reviewer (e.g. "Add searchable token selection to the dashboard"). The
   conventional format applies to commits only; PRs are merged with merge commits, so
   every individual commit lands in history — format each one.
+- **PR base branch** — all feature, fix, documentation, refactor, and maintenance PRs
+  MUST target `staging`, never `main`. The only PRs allowed to target `main` are explicit
+  staging-to-production promotion/release PRs requested by the user. When creating a PR,
+  pass `--base staging` explicitly and verify the resulting PR's base branch before
+  reporting completion.
 
 Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
 feature specs`.
 
-## No Over-Engineering
+## Lean, Safe Fixes
 
-- Don't add features, refactors, or "improvements" beyond what was asked.
-- Don't add docstrings/comments to code you didn't touch.
-- Don't create helpers/utilities for one-time operations.
-- Don't validate inputs that can't be invalid (internal calls, typed params).
-- Three similar lines is better than a premature abstraction.
+For fixes, prefer the smallest change that fully resolves the demonstrated root cause
+while preserving existing behavior. "Smallest" means the fewest concepts, states, code
+paths, and files a reader must understand — not merely the fewest lines. Never trade away
+correctness, regression coverage, or required edge cases for brevity.
+
+Before implementing a non-trivial fix:
+
+1. State the root cause and the leanest sufficient approach.
+2. Prefer changing the existing control flow and data model over adding a parallel path.
+3. Add a service, job, state, fallback, dependency, or abstraction only when a concrete
+   requirement cannot be met safely without it; name that requirement.
+
+Before finalizing, make a simplification pass. Remove speculative flexibility, duplicate
+state, unnecessary branches, single-use helpers, and indirection that do not protect a
+demonstrated requirement. Keep the regression test that proves the leaner fix is safe.
 
 ## Testing
 
@@ -175,15 +208,8 @@ Before implementing:
 
 ## 2. Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+Follow **Lean, Safe Fixes** above. Optimize for fewer concepts and code paths, not clever
+or artificially short code.
 
 ## 3. Surgical Changes
 

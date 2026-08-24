@@ -5,6 +5,7 @@ import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import { findAveniaCustomerByTaxId } from "../services/avenia/avenia-customer.service";
+import { isMoonbeamRuntimeDisabledForState } from "../services/phases/moonbeam-runtime";
 import { SlackNotifier } from "../services/slack.service";
 
 const DEFAULT_CRON_TIME = "*/15 * * * *";
@@ -155,16 +156,24 @@ class UnhandledPaymentWorker {
   }
 
   private async processStatesForUnhandledPayments(states: RampState[]): Promise<void> {
-    if (states.length === 0) {
+    const statesToCheck = states.filter(state => {
+      if (!isMoonbeamRuntimeDisabledForState(state)) {
+        return true;
+      }
+      this.processedStateIds.add(state.id);
+      return false;
+    });
+
+    if (statesToCheck.length === 0) {
       return;
     }
 
-    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps)
-    // Also filter out states that have already been alerted for unhandled payments.
-    const statesByTaxId: Record<string, RampState[]> = states.reduce(
+    // Group states by taxId, filtering for states that have a ticket ID (only pix onramps).
+    // Historical alerts suppress failed-state notifications, but not initial-ramp recovery.
+    const statesByTaxId: Record<string, RampState[]> = statesToCheck.reduce(
       (acc, state) => {
         const { taxId, aveniaTicketId, unhandledPaymentAlertSent } = state.state;
-        if (taxId && aveniaTicketId && !unhandledPaymentAlertSent) {
+        if (taxId && aveniaTicketId && (state.currentPhase === "initial" || !unhandledPaymentAlertSent)) {
           if (!acc[taxId]) {
             acc[taxId] = [];
           }
@@ -191,7 +200,6 @@ class UnhandledPaymentWorker {
           const subAccountId = state.state.subAccountId ?? legacySubAccountId;
           if (!subAccountId) {
             logger.warn(`No Avenia provider account found for state ${state.id}. Skipping state.`);
-            this.processedStateIds.add(state.id);
             continue;
           }
           const grouped = statesBySubAccountId.get(subAccountId) ?? [];
@@ -209,7 +217,6 @@ class UnhandledPaymentWorker {
             if (!ticketIdFromState) {
               // Should not be hit due to the filter in the reducer.
               logger.warn(`UnhandledPaymentWorker: State ${state.id} is missing an aveniaTicketId. Skipping.`);
-              this.processedStateIds.add(state.id);
               continue;
             }
 
@@ -237,8 +244,6 @@ class UnhandledPaymentWorker {
               if (state.currentPhase !== "initial") {
                 await this.updateAlertedState(state);
               }
-            } else {
-              this.processedStateIds.add(state.id);
             }
           }
         }

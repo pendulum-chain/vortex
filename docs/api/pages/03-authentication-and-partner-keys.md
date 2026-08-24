@@ -17,6 +17,7 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Ramp register/update/start/status/history/errors | No | Yes | Yes |
 | Act for an authorized managed child | No | Yes | Yes |
 | Manage a directly owned child's credentials | No | Yes | Yes |
+| Import an individual-KYC share token (BR) | No | Yes | Yes |
 | Webhook management (non-managed subjects only) | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
@@ -37,15 +38,21 @@ X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 ```
 
-A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, quote pricing, and ramp history resolve from the child subject.
+A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, and ramp history resolve from the child subject. Quote pricing uses the child's active profile assignment when present, otherwise the controlling manager profile's active assignment, then default Vortex pricing. This precedence is identical for manager-delegated requests and direct child credentials.
 
 The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors; and sender-side recipient operations. Sender-side recipient operations are invite creation, recipient and pending-invitation listing, invitation archive/unarchive, recipient relationship updates, and recipient eligibility reads. These recipient operations currently require a Supabase Bearer session; an `sk_*` key does not authorize them. Invite preview and acceptance remain invitee-scoped and do not support `X-Managed-Profile-Id`; a headless managed child cannot authenticate as an invitee or accept an invitation. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. The EUR corridor's flows remain bound to a verified login email and do not support managed children.
+
+`POST /v1/brl/kyc/import-token` is a deliberate exception to direct child credential access. A controlling manager may call it with the manager's secret key or Supabase session plus `X-Managed-Profile-Id`, but a credential owned by the managed child is rejected with `403 MANAGED_PROFILE_ACCESS_DENIED`, even without the selector. Direct non-managed profiles may import for themselves with their own secret key or session. Public keys and ownerless credentials cannot import. The legacy `/v1/brla/kyc/import-token` path remains an equivalent migration alias.
+
+Authentication, direct-child rejection, and managed authorization run before strict validation of `Idempotency-Key` and the request body. An unauthenticated caller therefore receives an authentication error rather than learning whether a bearer-like personal-data transfer token or attestation is well formed. The request has no profile, user, CPF, subaccount, applicant, entity, or provider-customer selector in its body or query; identity is derived only from the authenticated effective profile.
 
 Webhook registration and deletion do not support managed children. `X-Managed-Profile-Id` returns `400 MANAGED_PROFILE_UNSUPPORTED`, and a direct child credential returns `403 MANAGED_PROFILE_ACCESS_DENIED`. Managed-child integrations must poll the child-scoped ramp status/history endpoints. A manager credential without the selector remains manager-owned and therefore cannot register a webhook for a child-owned quote.
 
 `X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 ### Manage Headless Profiles
+
+This section is the authoritative contract; for a step-by-step walkthrough with examples, see [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
 
 An active manager may use its Supabase session or profile-bound secret credential on these endpoints:
 
