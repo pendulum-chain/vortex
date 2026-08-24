@@ -211,7 +211,9 @@ implemented; selecting a child does not make recipient-directed ramp registratio
 manager and then use that manager identity to select one of its direct managed children. These are
 two separate states: stopping child selection returns to the impersonated manager's managed-profile
 page, while exiting the admin impersonation session returns the operator to `/admin`. Direct admin
-impersonation of a headless child remains unsupported.
+impersonation of a headless child remains unsupported. The admin account list and detail identify
+managed rows by child contact email, show the controlling manager's email, and offer a composed
+**Act as** action that starts the manager impersonation and immediately selects that child.
 
 ## High-level implementation strategy
 
@@ -419,7 +421,7 @@ are kept beside one atomic impersonation-session record rather than replaced, ex
 and instant. The record is observed across tabs, and every enter, exit, expiry, or cross-tab
 replacement clears account-scoped query, notification, transfer, and wallet state.
 
-**Verified against a running stack.** Migrations 062 and 063 apply from a clean schema, and the
+**Verified against a running stack.** Migrations 067 and 068 apply from a clean schema, and the
 flow (grant the role, log in, list accounts, impersonate, exit) is covered against a local API
 with Supabase auth: the impersonated principal resolves to the target,
 `/v1/admin-console/*` and API-credential minting refuse an impersonated caller with 403, the

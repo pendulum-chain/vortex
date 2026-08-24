@@ -2,11 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn
 import express from "express";
 import { config } from "../../../../config/vars";
 import AdminImpersonationSession from "../../../../models/adminImpersonationSession.model";
+import ManagedProfileManager from "../../../../models/managedProfileManager.model";
 import ProfileRole from "../../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../../test-utils/db";
 import { createTestAlfredpayCustomer, createTestUser } from "../../../../test-utils/factories";
 import { SupabaseAuthService } from "../../../services/auth";
 import { createSession } from "../../../services/impersonation.service";
+import { createManagedProfile } from "../../../services/managed-profile-lifecycle.service";
 import accountsRoutes from "./accounts.route";
 import impersonationRoutes from "./impersonation.route";
 
@@ -70,6 +72,65 @@ describe("admin-console routes", () => {
       expect(account).toBeDefined();
       expect(account?.entities.length).toBe(1);
       expect(account?.verificationSummary.approved).toBe(1);
+    });
+
+    it("identifies a managed profile and its authenticated manager", async () => {
+      const admin = await createAdmin();
+      const manager = await createTestUser();
+      await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+      const { managedProfile } = await createManagedProfile({
+        contactEmail: "managed-child@example.com",
+        creationSource: "vortex",
+        customerType: "business",
+        externalSubjectId: "customer_%42",
+        managerProfileId: manager.id
+      });
+      const headers = authAs(admin);
+
+      const listResponse = await fetch(`${baseUrl}/accounts?search=managed-child`, { headers });
+      expect(listResponse.status).toBe(200);
+      const listBody = (await listResponse.json()) as { accounts: Array<Record<string, unknown> & { id: string }> };
+      expect(listBody.accounts.find(account => account.id === managedProfile.profileId)).toMatchObject({
+        email: null,
+        kind: "managed",
+        managedProfile: {
+          contactEmail: "managed-child@example.com",
+          customerType: "business",
+          externalSubjectId: "customer_%42",
+          manager: { email: manager.email, isActive: true, profileId: manager.id },
+          status: "active"
+        }
+      });
+
+      const managerSearchResponse = await fetch(`${baseUrl}/accounts?search=${encodeURIComponent(manager.email)}`, { headers });
+      expect(managerSearchResponse.status).toBe(200);
+      const managerSearchBody = (await managerSearchResponse.json()) as { accounts: Array<{ id: string }> };
+      expect(managerSearchBody.accounts.map(account => account.id)).toContain(managedProfile.profileId);
+
+      const paginatedSearchResponse = await fetch(
+        `${baseUrl}/accounts?search=${encodeURIComponent(manager.email)}&limit=1`,
+        { headers }
+      );
+      expect(paginatedSearchResponse.status).toBe(200);
+      expect(await paginatedSearchResponse.json()).toMatchObject({ nextCursor: "1", total: 2 });
+
+      const literalSearchResponse = await fetch(`${baseUrl}/accounts?search=${encodeURIComponent("_%")}`, { headers });
+      expect(literalSearchResponse.status).toBe(200);
+      const literalSearchBody = (await literalSearchResponse.json()) as { accounts: Array<{ id: string }> };
+      expect(literalSearchBody.accounts.map(account => account.id)).toEqual([managedProfile.profileId]);
+
+      const detailResponse = await fetch(`${baseUrl}/accounts/${managedProfile.profileId}`, { headers });
+      expect(detailResponse.status).toBe(200);
+      expect(await detailResponse.json()).toMatchObject({
+        email: null,
+        id: managedProfile.profileId,
+        kind: "managed",
+        managedProfile: {
+          contactEmail: "managed-child@example.com",
+          customerType: "business",
+          manager: { email: manager.email, isActive: true, profileId: manager.id }
+        }
+      });
     });
 
     it("returns full detail for a single profile", async () => {

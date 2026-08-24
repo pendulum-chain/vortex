@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { AdminAccountSummary } from "@/services/api/admin-console.service";
+import { type AdminImpersonationTarget, getAdminAccountLabel, toAdminImpersonationTarget } from "./admin-account-ui";
 import { ImpersonateDialog } from "./ImpersonateDialog";
 
 function formatDate(value: string): string {
@@ -16,7 +17,7 @@ function verificationEntries(summary: AdminAccountSummary["verificationSummary"]
 }
 
 export function AdminAccountsTable({ accounts }: { accounts: AdminAccountSummary[] }) {
-  const [target, setTarget] = useState<{ id: string; email: string } | null>(null);
+  const [target, setTarget] = useState<AdminImpersonationTarget | null>(null);
 
   return (
     <>
@@ -32,54 +33,68 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccountSummary
           </TableRow>
         </TableHeader>
         <TableBody>
-          {accounts.map(account => (
-            <TableRow key={account.id}>
-              <TableCell>
-                <Link className="font-medium hover:underline" params={{ profileId: account.id }} to="/admin/$profileId">
-                  {account.email}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {account.entities.length === 0 ? (
-                    <span className="text-muted-foreground text-xs">None</span>
-                  ) : (
-                    account.entities.map(entity => (
-                      <Badge key={entity.id} variant="outline">
-                        {entity.type} · {entity.status}
-                      </Badge>
-                    ))
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {verificationEntries(account.verificationSummary).length === 0 ? (
-                    <span className="text-muted-foreground text-xs">None</span>
-                  ) : (
-                    verificationEntries(account.verificationSummary).map(([status, count]) => (
-                      <Badge key={status} variant="secondary">
-                        {count} {status.replace("_", " ")}
-                      </Badge>
-                    ))
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{account.activePartnerName ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{formatDate(account.createdAt)}</TableCell>
-              <TableCell className="text-right">
-                <Button
-                  onClick={() => setTarget({ email: account.email, id: account.id })}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <LogIn />
-                  Log in as
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {accounts.map(account => {
+            const impersonationTarget = toAdminImpersonationTarget(account);
+            return (
+              <TableRow key={account.id}>
+                <TableCell>
+                  <div className="grid gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link className="font-medium hover:underline" params={{ profileId: account.id }} to="/admin/$profileId">
+                        {getAdminAccountLabel(account)}
+                      </Link>
+                      {account.kind === "managed" && <Badge variant="secondary">Managed</Badge>}
+                    </div>
+                    {account.managedProfile && (
+                      <span className="text-muted-foreground text-xs">
+                        Managed by {account.managedProfile.manager.email ?? account.managedProfile.manager.profileId}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {account.entities.length === 0 ? (
+                      <span className="text-muted-foreground text-xs">None</span>
+                    ) : (
+                      account.entities.map(entity => (
+                        <Badge key={entity.id} variant="outline">
+                          {entity.type} · {entity.status}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {verificationEntries(account.verificationSummary).length === 0 ? (
+                      <span className="text-muted-foreground text-xs">None</span>
+                    ) : (
+                      verificationEntries(account.verificationSummary).map(([status, count]) => (
+                        <Badge key={status} variant="secondary">
+                          {count} {status.replace("_", " ")}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{account.activePartnerName ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{formatDate(account.createdAt)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    disabled={!impersonationTarget}
+                    onClick={() => setTarget(impersonationTarget)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <LogIn />
+                    {account.kind === "managed" ? "Act as" : "Log in as"}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
       {accounts.length === 0 && (

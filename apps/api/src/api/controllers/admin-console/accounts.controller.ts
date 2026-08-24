@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { Op } from "sequelize";
+import { literal, Op } from "sequelize";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
 import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
+import ManagedProfile from "../../../models/managedProfile.model";
+import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
@@ -46,20 +49,39 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const limit = clampLimit(req.query.limit);
     const offset = parseCursor(req.query.cursor);
+    const searchPattern = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+    const managedIdentityMatch = sequelize.escape(searchPattern);
 
     const { rows: profiles, count: total } = await User.findAndCountAll({
-      attributes: ["id", "email", "createdAt"],
+      attributes: ["id", "email", "kind", "createdAt"],
       limit: limit + 1,
       offset,
       order: [["createdAt", "DESC"]],
-      where: search ? { email: { [Op.iLike]: `%${search}%` } } : {}
+      where: search
+        ? {
+            [Op.or]: [
+              { email: { [Op.iLike]: searchPattern } },
+              literal(`EXISTS (
+                SELECT 1
+                FROM managed_profiles AS managed
+                LEFT JOIN profiles AS manager_profile ON manager_profile.id = managed.manager_profile_id
+                WHERE managed.profile_id = "User".id
+                  AND (
+                    managed.contact_email ILIKE ${managedIdentityMatch}
+                    OR managed.external_subject_id ILIKE ${managedIdentityMatch}
+                    OR manager_profile.email ILIKE ${managedIdentityMatch}
+                  )
+              )`)
+            ]
+          }
+        : {}
     });
 
     const hasMore = profiles.length > limit;
     const pageProfiles = hasMore ? profiles.slice(0, limit) : profiles;
     const profileIds = pageProfiles.map(profile => profile.id);
 
-    const [entities, activeAssignments] = await Promise.all([
+    const [entities, activeAssignments, managedRelationships] = await Promise.all([
       profileIds.length ? CustomerEntity.findAll({ where: { profileId: profileIds } }) : [],
       profileIds.length
         ? ProfilePartnerAssignment.findAll({
@@ -69,8 +91,19 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
               userId: profileIds
             }
           })
-        : []
+        : [],
+      profileIds.length ? ManagedProfile.findAll({ where: { profileId: profileIds } }) : []
     ]);
+    const managerProfileIds = [...new Set(managedRelationships.map(relationship => relationship.managerProfileId))];
+    const [managerProfiles, managerConfigs] = await Promise.all([
+      managerProfileIds.length ? User.findAll({ attributes: ["id", "email"], where: { id: managerProfileIds } }) : [],
+      managerProfileIds.length ? ManagedProfileManager.findAll({ where: { profileId: managerProfileIds } }) : []
+    ]);
+    const managedRelationshipByProfileId = new Map(
+      managedRelationships.map(relationship => [relationship.profileId, relationship])
+    );
+    const managerProfileById = new Map(managerProfiles.map(manager => [manager.id, manager]));
+    const managerConfigById = new Map(managerConfigs.map(manager => [manager.profileId, manager]));
 
     const entityIds = entities.map(entity => entity.id);
     const providerCustomers = entityIds.length
@@ -81,6 +114,9 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
     res.status(httpStatus.OK).json({
       accounts: pageProfiles.map(profile => {
         const profileEntities = entities.filter(entity => entity.profileId === profile.id);
+        const managedRelationship = managedRelationshipByProfileId.get(profile.id);
+        const managerProfile = managedRelationship ? managerProfileById.get(managedRelationship.managerProfileId) : undefined;
+        const managerConfig = managedRelationship ? managerConfigById.get(managedRelationship.managerProfileId) : undefined;
         const verificationSummary = emptyVerificationSummary();
         for (const customer of providerCustomers) {
           if (entityProfileById.get(customer.customerEntityId) === profile.id) {
@@ -94,6 +130,21 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
           email: profile.email,
           entities: profileEntities.map(entity => ({ id: entity.id, status: entity.status, type: entity.type })),
           id: profile.id,
+          kind: profile.kind,
+          managedProfile:
+            managedRelationship && managerProfile && managerConfig
+              ? {
+                  contactEmail: managedRelationship.contactEmail,
+                  customerType: profileEntities[0]?.type ?? null,
+                  externalSubjectId: managedRelationship.externalSubjectId,
+                  manager: {
+                    email: managerProfile.email,
+                    isActive: managerConfig.isActive,
+                    profileId: managerProfile.id
+                  },
+                  status: managedRelationship.status
+                }
+              : null,
           verificationSummary
         };
       }),
@@ -133,10 +184,13 @@ export async function getAccount(req: Request<{ profileId: string }>, res: Respo
       return;
     }
 
-    const entities = await CustomerEntity.findAll({ where: { profileId } });
+    const [entities, managedRelationship] = await Promise.all([
+      CustomerEntity.findAll({ where: { profileId } }),
+      ManagedProfile.findOne({ where: { profileId } })
+    ]);
     const entityIds = entities.map(entity => entity.id);
 
-    const [providerCustomers, kycCases, impersonationSessions] = await Promise.all([
+    const [providerCustomers, kycCases, impersonationSessions, managerProfile, managerConfig] = await Promise.all([
       entityIds.length
         ? ProviderCustomer.findAll({ order: [["updatedAt", "DESC"]], where: { customerEntityId: entityIds } })
         : [],
@@ -146,7 +200,9 @@ export async function getAccount(req: Request<{ profileId: string }>, res: Respo
         limit: 20,
         order: [["createdAt", "DESC"]],
         where: { targetProfileId: profileId }
-      })
+      }),
+      managedRelationship ? User.findByPk(managedRelationship.managerProfileId, { attributes: ["id", "email"] }) : null,
+      managedRelationship ? ManagedProfileManager.findByPk(managedRelationship.managerProfileId) : null
     ]);
 
     const kycCaseByProviderCustomer = new Map<string, KycCase>();
@@ -208,7 +264,22 @@ export async function getAccount(req: Request<{ profileId: string }>, res: Respo
           revokedAt: session.revokedAt,
           revokedReason: session.revokedReason
         };
-      })
+      }),
+      kind: profile.kind,
+      managedProfile:
+        managedRelationship && managerProfile && managerConfig
+          ? {
+              contactEmail: managedRelationship.contactEmail,
+              customerType: entities[0]?.type ?? null,
+              externalSubjectId: managedRelationship.externalSubjectId,
+              manager: {
+                email: managerProfile.email,
+                isActive: managerConfig.isActive,
+                profileId: managerProfile.id
+              },
+              status: managedRelationship.status
+            }
+          : null
     });
   } catch (error) {
     logger.error("Error reading admin-console account detail:", error);

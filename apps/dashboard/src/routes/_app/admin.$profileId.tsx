@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import {
+  type AdminImpersonationTarget,
+  getAdminAccountLabel,
+  toAdminImpersonationTarget
+} from "@/components/admin/admin-account-ui";
 import { ImpersonateDialog } from "@/components/admin/ImpersonateDialog";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +20,7 @@ export const Route = createFileRoute("/_app/admin/$profileId")({
 function AccountDetail() {
   const { profileId } = Route.useParams();
   const account = useAdminAccount(profileId);
-  const [impersonateTarget, setImpersonateTarget] = useState<{ id: string; email: string } | null>(null);
+  const [impersonateTarget, setImpersonateTarget] = useState<AdminImpersonationTarget | null>(null);
 
   if (account.isLoading) {
     return <Skeleton className="mx-auto mt-20 h-80 max-w-3xl" />;
@@ -33,16 +38,25 @@ function AccountDetail() {
   }
 
   const data = account.data;
+  const target = toAdminImpersonationTarget(data);
 
   return (
     <Stagger className="mx-auto grid max-w-4xl gap-6">
       <StaggerItem className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-balance font-semibold text-2xl tracking-tight">{data.email}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-balance font-semibold text-2xl tracking-tight">{getAdminAccountLabel(data)}</h1>
+            {data.kind === "managed" && <Badge variant="secondary">Managed</Badge>}
+          </div>
+          {data.managedProfile && (
+            <p className="text-muted-foreground text-sm">
+              Managed by {data.managedProfile.manager.email ?? data.managedProfile.manager.profileId}
+            </p>
+          )}
           <p className="text-muted-foreground text-sm">Account since {new Date(data.createdAt).toLocaleDateString()}</p>
         </div>
-        <Button onClick={() => setImpersonateTarget({ email: data.email, id: data.id })} type="button">
-          Log in as
+        <Button disabled={!target} onClick={() => setImpersonateTarget(target)} type="button">
+          {data.kind === "managed" ? "Act as" : "Log in as"}
         </Button>
       </StaggerItem>
 

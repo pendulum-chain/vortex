@@ -16,6 +16,7 @@ let identityChangeAllowed = true;
 let activatedOwner: string | null = null;
 
 const { AuthService } = await import("@/services/auth");
+const { enterImpersonation } = await import("./impersonation.store");
 const { applyStoredManagedProfileForTests, clearManagedProfile, clearManagedProfileSelection, selectManagedProfile } =
   await import("./managed-profile.store");
 function configureIdentityEffects(): void {
@@ -66,6 +67,31 @@ describe("managed profile transitions", () => {
     assert.equal(AuthService.getManagedProfileSelection()?.managerProfileId, "manager-1");
     assert.equal(accountStateClears, 1);
     assert.equal(activatedOwner, "child-1");
+  });
+
+  it("binds a child selected immediately after entering manager impersonation", () => {
+    assert.equal(
+      enterImpersonation({
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        sessionId: "session-1",
+        targetEmail: "impersonated-manager@example.com",
+        targetProfileId: "manager-2",
+        token: "vtx_imp_token"
+      }),
+      true
+    );
+    assert.equal(
+      selectManagedProfile({
+        customerType: "individual",
+        externalSubjectId: "customer-42",
+        targetEmail: "child@example.com",
+        targetProfileId: "child-2"
+      }),
+      true
+    );
+
+    assert.equal(AuthService.getManagedProfileSelection()?.managerProfileId, "manager-2");
+    assert.equal(AuthService.getEffectiveProfileId(), "child-2");
   });
 
   it("guards before mutating selection", () => {

@@ -2704,8 +2704,8 @@ export interface components {
             credentials: components["schemas"]["ApiCredential"][];
         };
         ListManagedProfilesResponse: {
-            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             managedProfiles: components["schemas"]["ManagedProfile"][];
+            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             pagination: components["schemas"]["ManagedProfilePagination"];
         };
         MalformedJsonErrorResponse: {

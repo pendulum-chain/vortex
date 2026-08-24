@@ -5,14 +5,31 @@ export type AdminVerificationStatus = "pending" | "started" | "in_review" | "app
 
 export interface AdminCustomerEntity {
   id: string;
-  type: string;
+  type: "business" | "individual";
   status: string;
 }
 
-/** One row of GET /admin-console/accounts. */
-export interface AdminAccountSummary {
+export interface AdminManagedProfile {
+  contactEmail: string | null;
+  customerType: "business" | "individual" | null;
+  externalSubjectId: string;
+  manager: {
+    email: string | null;
+    isActive: boolean;
+    profileId: string;
+  };
+  status: "active" | "deleted";
+}
+
+export interface AdminAccountIdentity {
   id: string;
-  email: string;
+  email: string | null;
+  kind: "authenticated" | "managed";
+  managedProfile: AdminManagedProfile | null;
+}
+
+/** One row of GET /admin-console/accounts. */
+export interface AdminAccountSummary extends AdminAccountIdentity {
   createdAt: string;
   entities: AdminCustomerEntity[];
   /** Provider-customer counts per verification status, across all of the account's entities. */
@@ -80,9 +97,7 @@ export interface AdminImpersonationSessionRecord extends AdminImpersonationSessi
   target: AdminSessionParty;
 }
 
-export interface AdminAccountDetail {
-  id: string;
-  email: string;
+export interface AdminAccountDetail extends AdminAccountIdentity {
   createdAt: string;
   activeEntityId: string | null;
   entities: AdminCustomerEntityDetail[];

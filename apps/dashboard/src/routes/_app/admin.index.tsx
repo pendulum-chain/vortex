@@ -43,7 +43,7 @@ function AdminAccountsPage() {
                 setSearch(event.target.value);
                 setCursorStack([]);
               }}
-              placeholder="Search by email…"
+              placeholder="Search by email or external ID…"
               value={search}
             />
           </CardHeader>

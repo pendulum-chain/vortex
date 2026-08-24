@@ -4,9 +4,9 @@
 
 `vortex_admin` operators can act as a customer's profile through the `/v1/admin-console/*`
 surface — the per-operator, Supabase-identity-bearing counterpart to the shared-secret
-`/v1/admin/*` surface documented in [`admin-auth.md`](admin-auth.md). v1 scope is Vortex →
-main-account only: there is no parent/child account table, and the sub-account layer
-modelled on Avenia's subaccount API is deferred to v2.
+`/v1/admin/*` surface documented in [`admin-auth.md`](admin-auth.md). Authenticated profiles
+are direct session targets. Managed headless profiles are reached by impersonating their
+authenticated manager and composing that session with the existing managed-profile selector.
 
 Depth is broad but excludes ramp money movement. While impersonating, the operator may create
 quotes and inspect ramp status, history, and errors, but `POST /v1/ramp/register`, `POST
@@ -20,8 +20,8 @@ All routes live under `/v1/admin-console/*` (`accounts.route.ts`, `impersonation
 
 | Route | Guard | Success | Notable errors |
 |---|---|---|---|
-| `GET /accounts?search=&cursor=&limit=` | `requireVortexAdmin` | `200` — paginated, email-`search`-filtered account list | — |
-| `GET /accounts/:profileId` | `requireVortexAdmin` | `200` — entities, provider customers, KYC cases, recent impersonation sessions targeting this profile | `400 INVALID_PROFILE_ID`; `404 USER_NOT_FOUND` |
+| `GET /accounts?search=&cursor=&limit=` | `requireVortexAdmin` | `200` — paginated account list; search matches login email, managed contact/external ID, or controlling-manager email; managed rows include child contact identity and controlling-manager identity | — |
+| `GET /accounts/:profileId` | `requireVortexAdmin` | `200` — profile kind, managed relationship when present, entities, provider customers, KYC cases, and recent direct impersonation sessions targeting this profile | `400 INVALID_PROFILE_ID`; `404 USER_NOT_FOUND` |
 | `POST /impersonation` `{ targetProfileId }` | `requireVortexAdmin` | `201 { token, sessionId, expiresAt, target: { id, email } }` | `400 INVALID_IMPERSONATION_INPUT` (malformed `targetProfileId`); `400 IMPERSONATION_TARGET_INVALID` (self-target, unknown target — from `ImpersonationTargetError`); `403 VORTEX_ADMIN_REQUIRED` if the role is removed during creation; `503 IMPERSONATION_DISABLED` (kill switch off — the caller is authorized, the capability is off, so this is a capability error, not an auth error) |
 | `GET /impersonation?limit=` | `requireVortexAdmin` | `200 { sessions: [...] }` — active-first audit view; a non-positive or malformed limit falls back to the default | — |
 | `DELETE /impersonation/:sessionId` | see Invariant 12 | `204` | `400 INVALID_IMPERSONATION_SESSION_ID`; `403 IMPERSONATION_NOT_ALLOWED`; `403 VORTEX_ADMIN_REQUIRED`; `404 IMPERSONATION_SESSION_NOT_FOUND` |
@@ -61,6 +61,12 @@ Invariant 12 for the exact self-revoke mechanism this enables.
    `rejectImpersonation` to gate on.
 5. `GET /v1/admin-console/impersonation` lists sessions for audit (active first, then recent);
    `DELETE /v1/admin-console/impersonation/:sessionId` revokes one immediately.
+
+For a managed child, the dashboard starts the session against the authenticated manager returned
+by the account lookup, then stores the child profile ID as the managed-profile selection. The
+impersonation audit target remains the manager. Delegated requests carry `X-Managed-Profile-Id`
+and continue through the normal active-manager, direct-relationship, entity, customer-type, and
+corridor authorization checks. No impersonation token directly targets a headless profile.
 
 Both `requireAuth`/`optionalAuth` (`supabaseAuth.ts`) and the dual-auth handlers
 (`dualAuth.ts`) call `resolveBearerPrincipal()`, so an impersonation token is honored on any
@@ -171,7 +177,7 @@ and requires deployment/database access rather than an HTTP credential — see
     valve (verified: "still allows revoking vortex_admin even though it cannot be granted via
     HTTP"). See [`admin-auth.md`](admin-auth.md) Invariant 8.
 15. **Session audit history MUST NOT disappear when an actor or target profile is deleted** —
-    both profile foreign keys in migration 063 use `ON DELETE RESTRICT`. Operators must resolve
+    both profile foreign keys in migration 068 use `ON DELETE RESTRICT`. Operators must resolve
     retention/deletion policy explicitly instead of erasing security history through a profile
     cascade.
 16. **An impersonated request MUST NOT register, update, or start a ramp** — the three mutating
