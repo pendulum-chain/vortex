@@ -2,14 +2,14 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import { setupTestDatabase } from "../test-utils/db";
-import { runMigrations } from "./migrator";
+import { getPendingMigrations, runMigrations } from "./migrator";
 
 // Old-name/new-name pairs of the migrations renumbered to clear the duplicate-055 prefix.
 // Must stay in sync with MIGRATION_RENAMES in migrator.ts.
 const RENAMED = [
-  ["055-create-api-credentials.ts", "057-create-api-credentials.ts"],
-  ["057-create-partner-managed-profiles.ts", "058-create-partner-managed-profiles.ts"],
-  ["058-add-api-credential-id-to-quote-tickets.ts", "059-add-api-credential-id-to-quote-tickets.ts"]
+  ["055-create-api-credentials.js", "057-create-api-credentials.js"],
+  ["057-create-partner-managed-profiles.js", "058-create-partner-managed-profiles.js"],
+  ["058-add-api-credential-id-to-quote-tickets.js", "059-add-api-credential-id-to-quote-tickets.js"]
 ] as const;
 
 async function metaNames(name: string): Promise<string[]> {
@@ -20,7 +20,7 @@ async function metaNames(name: string): Promise<string[]> {
   return rows.map(row => row.name);
 }
 
-describe("migration rename reconciliation", () => {
+describe("migration metadata reconciliation", () => {
   beforeAll(async () => {
     await setupTestDatabase();
     // Self-heal: a previously aborted run of this suite may have left old-name rows behind.
@@ -34,6 +34,34 @@ describe("migration rename reconciliation", () => {
       expect(await metaNames(newName)).toEqual([newName]);
       expect(await metaNames(oldName)).toEqual([]);
     }
+  });
+
+  it("recognizes compiled migration records while loading TypeScript source files", async () => {
+    const jsName = "009-update-ramp-direction-enums.js";
+    const tsName = "009-update-ramp-direction-enums.ts";
+    await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name IN (:jsName, :tsName)`, {
+      replacements: { jsName, tsName }
+    });
+    await sequelize.query(`INSERT INTO "SequelizeMeta" (name) VALUES (:jsName)`, { replacements: { jsName } });
+
+    const pending = await getPendingMigrations();
+
+    expect(pending).not.toContain(jsName);
+    expect(pending).not.toContain(tsName);
+  });
+
+  it("normalizes migration records created by older TypeScript development runs", async () => {
+    const jsName = "009-update-ramp-direction-enums.js";
+    const tsName = "009-update-ramp-direction-enums.ts";
+    await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name IN (:jsName, :tsName)`, {
+      replacements: { jsName, tsName }
+    });
+    await sequelize.query(`INSERT INTO "SequelizeMeta" (name) VALUES (:tsName)`, { replacements: { tsName } });
+
+    await runMigrations();
+
+    expect(await metaNames(tsName)).toEqual([]);
+    expect(await metaNames(jsName)).toEqual([jsName]);
   });
 
   it("renames old-name SequelizeMeta entries instead of re-running the migrations", async () => {

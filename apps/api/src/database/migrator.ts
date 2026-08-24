@@ -23,6 +23,10 @@ function getAddIndexOptions(args: readonly unknown[]): Record<string, unknown> |
   return typeof options === "object" && options !== null ? (options as Record<string, unknown>) : undefined;
 }
 
+function getCanonicalMigrationName(name: string): string {
+  return name.replace(/\.ts$/, ".js");
+}
+
 // Create Umzug instance for migrations
 const umzug = new Umzug({
   context: new Proxy(sequelize.getQueryInterface(), {
@@ -155,7 +159,9 @@ const umzug = new Umzug({
       const migration = require(path);
       return {
         down: async () => migration.down(context, Sequelize),
-        name,
+        // Production loads compiled .js files while local development loads .ts files.
+        // Keep one identity in SequelizeMeta so switching runtimes cannot replay migrations.
+        name: getCanonicalMigrationName(name),
         up: async () => migration.up(context, Sequelize)
       };
     }
@@ -174,27 +180,47 @@ const MIGRATION_RENAMES: Record<string, string> = {
   "058-add-api-credential-id-to-quote-tickets": "059-add-api-credential-id-to-quote-tickets"
 };
 
-async function reconcileRenamedMigrations(): Promise<void> {
+async function reconcileMigrationMetadata(): Promise<void> {
   const [tableCheck] = await sequelize.query<{ present: boolean }>(
     `SELECT to_regclass('public."SequelizeMeta"') IS NOT NULL AS present`,
     { type: QueryTypes.SELECT }
   );
   if (!tableCheck?.present) {
-    // Fresh database: nothing recorded yet, the files run under their new names.
     return;
   }
 
+  const [result] = await sequelize.query<{ deleted: number }>(
+    `WITH inserted AS (
+       INSERT INTO "SequelizeMeta" (name)
+       SELECT regexp_replace(name, '\\.ts$', '.js')
+       FROM "SequelizeMeta"
+       WHERE name LIKE '%.ts'
+       ON CONFLICT (name) DO NOTHING
+     ),
+     deleted AS (
+       DELETE FROM "SequelizeMeta"
+       WHERE name LIKE '%.ts'
+       RETURNING name
+     )
+     SELECT count(*)::int AS deleted FROM deleted`,
+    { type: QueryTypes.SELECT }
+  );
+
+  if (result?.deleted > 0) {
+    logger.info(`Normalized ${result.deleted} TypeScript migration name(s) in SequelizeMeta`);
+  }
+
   for (const [oldBase, newBase] of Object.entries(MIGRATION_RENAMES)) {
-    for (const extension of [".ts", ".js"]) {
-      const [, renamedCount] = await sequelize.query(
-        `UPDATE "SequelizeMeta" SET name = :newName
-         WHERE name = :oldName
-           AND NOT EXISTS (SELECT 1 FROM "SequelizeMeta" WHERE name = :newName)`,
-        { replacements: { newName: newBase + extension, oldName: oldBase + extension }, type: QueryTypes.UPDATE }
-      );
-      if (renamedCount > 0) {
-        logger.info(`Renamed applied migration ${oldBase}${extension} -> ${newBase}${extension} in SequelizeMeta`);
-      }
+    const oldName = `${oldBase}.js`;
+    const newName = `${newBase}.js`;
+    const [, renamedCount] = await sequelize.query(
+      `UPDATE "SequelizeMeta" SET name = :newName
+       WHERE name = :oldName
+         AND NOT EXISTS (SELECT 1 FROM "SequelizeMeta" WHERE name = :newName)`,
+      { replacements: { newName, oldName }, type: QueryTypes.UPDATE }
+    );
+    if (renamedCount > 0) {
+      logger.info(`Renamed applied migration ${oldName} -> ${newName} in SequelizeMeta`);
     }
   }
 }
@@ -202,7 +228,7 @@ async function reconcileRenamedMigrations(): Promise<void> {
 // Run migrations
 export const runMigrations = async (): Promise<void> => {
   try {
-    await reconcileRenamedMigrations();
+    await reconcileMigrationMetadata();
     await umzug.up();
     logger.info("Migrations completed successfully");
   } catch (error) {
