@@ -245,7 +245,6 @@ BrGetSelfieLivenessUrlRequest: {
 BrGetSelfieLivenessUrlResponse: {
   id: string;
   livenessUrl: string;
-  uploadURLFront: string;
   validateLivenessToken: string;
 }
 
@@ -287,9 +286,8 @@ BrKYCDataUpload: {
   };
   selfieUpload: {
     id: string;
-    livenessUrl?: string;
-    uploadURLFront: string;
-    validateLivenessToken?: string;
+    livenessUrl: string;
+    validateLivenessToken: string;
   };
 }
 
