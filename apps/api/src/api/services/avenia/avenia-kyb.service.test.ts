@@ -143,9 +143,13 @@ describe("getOrCreateAveniaKybCase", () => {
 });
 
 describe("isAveniaBusinessKybLevel", () => {
-  it("recognizes current and legacy company levels without accepting unrelated attempts", () => {
+  it("recognizes every observed company level generation without accepting unrelated attempts", () => {
+    // All three names observed in production: current v2, its unsuffixed predecessor,
+    // and the legacy pre-rename level.
+    expect(isAveniaBusinessKybLevel("kyb-level-1-v2")).toBe(true);
     expect(isAveniaBusinessKybLevel("kyb-level-1")).toBe(true);
     expect(isAveniaBusinessKybLevel("level-1")).toBe(true);
     expect(isAveniaBusinessKybLevel("sumsub-token-recipient")).toBe(false);
+    expect(isAveniaBusinessKybLevel("level-10")).toBe(false);
   });
 });

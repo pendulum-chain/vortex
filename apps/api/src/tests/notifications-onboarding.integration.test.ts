@@ -124,14 +124,23 @@ describe("ramp completion notification reconciliation", () => {
     });
 
     // Partner-owned: an entity with no profile has nobody to email and must not
-    // occupy a batch slot (the worker filters it in the join).
+    // occupy a batch slot (the worker filters it in the join). Give it a fully bound
+    // business account so the missing profile — not the provider-customer join — is
+    // provably what excludes it.
     const partnerEntity = await CustomerEntity.create({ profileId: null, status: "active", type: "business" });
+    const partnerBusiness = await ProviderCustomer.create({
+      customerEntityId: partnerEntity.id,
+      customerType: "business",
+      provider: "avenia",
+      providerSubaccountId: "kyb-poll-partner-sub",
+      status: VerificationStatus.InReview
+    });
     await KycCase.create({
       customerEntityId: partnerEntity.id,
       level: "level_1",
       provider: "avenia",
       providerCaseId: "attempt-partner",
-      providerCustomerId: null,
+      providerCustomerId: partnerBusiness.id,
       status: VerificationStatus.InReview,
       type: "kyb"
     });
@@ -1024,6 +1033,9 @@ describe("GET /v1/onboarding/status", () => {
       type: "kyb"
     });
     const getInstance = BrlaApiService.getInstance;
+    const originalError = logger.error;
+    const errorLog = mock(() => logger) as typeof logger.error;
+    logger.error = errorLog;
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -1042,8 +1054,14 @@ describe("GET /v1/onboarding/status", () => {
       expect(response.status).toBe(200);
     } finally {
       BrlaApiService.getInstance = getInstance;
+      logger.error = originalError;
     }
 
+    // The mismatch is an integrity event, not provider flakiness: it must surface at
+    // error level with both attempt ids, matching the KYB worker's guard.
+    expect(errorLog).toHaveBeenCalledWith(
+      "Avenia returned attempt other-attempt when asked for current-attempt; skipping business status refresh"
+    );
     await business.reload();
     await kycCase.reload();
     expect(business.status).toBe(VerificationStatus.InReview);

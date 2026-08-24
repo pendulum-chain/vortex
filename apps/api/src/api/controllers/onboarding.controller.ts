@@ -191,7 +191,12 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
               customer.providerSubaccountId
             );
             if (attempt.id !== kycCase.providerCaseId) {
-              throw new Error("Avenia returned a mismatched KYB attempt");
+              // Integrity event, not a transient provider failure — mirror the KYB worker's
+              // mismatch guard: log which attempt came back and leave local state untouched.
+              logger.error(
+                `Avenia returned attempt ${attempt.id} when asked for ${kycCase.providerCaseId}; skipping business status refresh`
+              );
+              return;
             }
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
             const rejected =

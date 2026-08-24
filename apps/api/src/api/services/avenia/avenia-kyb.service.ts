@@ -22,7 +22,12 @@ import { isDeterministicProviderRejection } from "./provider-errors";
 const kybCaseCreations = new Map<string, Promise<KycCase>>();
 
 export function isAveniaBusinessKybLevel(levelName: string): boolean {
-  return levelName === "kyb-level-1" || levelName === "level-1";
+  // Avenia has shipped three names for the company level: legacy "level-1", "kyb-level-1",
+  // and the current "kyb-level-1-v2". A rename does not error — this filter just stops
+  // matching, silently disabling the duplicate-attempt and already-approved guards — so
+  // match the family instead of pinning the name of the day. The nightly Avenia contract
+  // test asserts company subaccounts return only names in this family.
+  return levelName === "level-1" || levelName.startsWith("kyb-level-1");
 }
 
 function hashUboValue(value: unknown): string {
