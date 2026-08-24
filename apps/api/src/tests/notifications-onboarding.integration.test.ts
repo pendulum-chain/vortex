@@ -10,6 +10,7 @@ import {
   KycAttemptStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
+import { enqueueVerificationNotification } from "../api/services/avenia/verification-notifications";
 import { reconcileMissedRampCompletedEmails } from "../api/services/email";
 import { emitNotification } from "../api/services/notifications/notification.service";
 import KybStatusWorker from "../api/workers/kyb-status.worker";
@@ -1012,6 +1013,249 @@ describe("GET /v1/onboarding/status", () => {
     expect(business.status).toBe(VerificationStatus.Approved);
     expect(kycCase.status).toBe(VerificationStatus.Approved);
     expect(kycCase.approvedAt).toBeInstanceOf(Date);
+  });
+
+  it("persists the mapped failure reason on both rows and queues the email when the dashboard poll settles a KYB rejection", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-rejected-reason@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "rejected-subaccount",
+      taxId: "66777888000186"
+    });
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "rejected-attempt",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      type: "kyb"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({
+            attempt: {
+              id: "rejected-attempt",
+              result: KycAttemptResult.REJECTED,
+              resultMessage: "the company name does not match the registry",
+              status: KycAttemptStatus.COMPLETED,
+              updatedAt: "2026-08-24T00:00:00.000Z"
+            }
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        entities: Array<{
+          accounts: Array<{ kycCase: { failureReasons: string[] | null } | null; provider: string; state: string }>;
+        }>;
+      };
+      const aveniaAccount = body.entities[0].accounts.find(account => account.provider === "avenia");
+      expect(aveniaAccount?.state).toBe("rejected");
+      expect(aveniaAccount?.kycCase?.failureReasons).toEqual(["name"]);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.Rejected);
+    expect(business.lastFailureReasons).toEqual(["name"]);
+    expect(kycCase.status).toBe(VerificationStatus.Rejected);
+    expect(kycCase.failureReasons).toEqual(["name"]);
+    expect(kycCase.rejectedAt).toBeInstanceOf(Date);
+
+    const rows = await EmailNotification.findAll({ where: { resourceId: "rejected-attempt" } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe(NotificationType.VerificationRejected);
+    expect(rows[0].userId).toBe(user.id);
+    expect(rows[0].payload).toMatchObject({
+      reason: "the company name does not match the registry",
+      subject: "business"
+    });
+  });
+
+  it("queues exactly one approval email and clears stale failure reasons when the dashboard poll settles a KYB approval", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-approved-email@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "approved-email-subaccount",
+      taxId: "77888999000167"
+    });
+    // A retried attempt after an earlier rejection: approval must clear the stale reasons,
+    // matching what GET /v1/brla/kyb/attempt-status writes when it wins instead.
+    await business.update({
+      lastFailureReasons: ["unknown"],
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING
+    });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      failureReasons: ["unknown"],
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "approved-email-attempt",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      type: "kyb"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({
+            attempt: {
+              id: "approved-email-attempt",
+              result: KycAttemptResult.APPROVED,
+              status: KycAttemptStatus.COMPLETED,
+              updatedAt: "2026-08-24T00:00:00.000Z"
+            }
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.Approved);
+    expect(business.lastFailureReasons).toEqual([]);
+    expect(kycCase.status).toBe(VerificationStatus.Approved);
+    expect(kycCase.failureReasons).toEqual([]);
+
+    const rows = await EmailNotification.findAll();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe(NotificationType.VerificationApproved);
+    expect(rows[0].resourceId).toBe("approved-email-attempt");
+    expect(rows[0].userId).toBe(user.id);
+  });
+
+  it("does not double-send when the webhook, worker, or authenticated route replays a dashboard-settled outcome", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-settled-race@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "settled-race-subaccount",
+      taxId: "88999000000148"
+    });
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+    await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "settled-race-attempt",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      type: "kyb"
+    });
+    const attempt = {
+      id: "settled-race-attempt",
+      result: KycAttemptResult.APPROVED,
+      status: KycAttemptStatus.COMPLETED,
+      updatedAt: "2026-08-24T00:00:00.000Z"
+    };
+    const getKybAttemptStatus = mock(async () => ({ attempt }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(() => ({ getKybAttemptStatus }) as unknown as BrlaApiService);
+
+    try {
+      const settle = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(settle.status).toBe(200);
+      expect(await EmailNotification.count({ where: { resourceId: "settled-race-attempt" } })).toBe(1);
+
+      // Webhook replay: the receiver enqueues the same attempt for the same owner.
+      await enqueueVerificationNotification(attempt, user.id, "business");
+
+      // Worker sweep: a settled case is excluded by its terminal status and the queued-outcome anti-join.
+      const worker = new KybStatusWorker() as unknown as { poll: () => Promise<void> };
+      await worker.poll();
+
+      // Authenticated route replay: an approved account short-circuits before persistence or enqueue.
+      const route = await api.request("/v1/brla/kyb/attempt-status?attemptId=settled-race-attempt", {
+        headers: authHeaders(token)
+      });
+      expect(route.status).toBe(200);
+      expect(((await route.json()) as { result: string }).result).toBe(KycAttemptResult.APPROVED);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    // Only the dashboard settle hit the provider; every replay deduped to the single row.
+    expect(getKybAttemptStatus).toHaveBeenCalledTimes(1);
+    expect(await EmailNotification.count({ where: { resourceId: "settled-race-attempt" } })).toBe(1);
+  });
+
+  it("keeps an approval and queues no rejection email when a stale rejected read loses the race", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-stale-rejection@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "stale-rejection-subaccount",
+      taxId: "99000111000129"
+    });
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "stale-rejection-attempt",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      type: "kyb"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => {
+            // The authenticated route wins the race with an approval while this poll's
+            // provider read is in flight and comes back stale-rejected.
+            await business.update({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED });
+            await kycCase.update({
+              approvedAt: new Date(),
+              status: VerificationStatus.Approved,
+              statusExternal: KycAttemptStatus.COMPLETED
+            });
+            return {
+              attempt: {
+                id: "stale-rejection-attempt",
+                result: KycAttemptResult.REJECTED,
+                resultMessage: "the company name does not match the registry",
+                status: KycAttemptStatus.COMPLETED,
+                updatedAt: "2026-08-24T00:00:00.000Z"
+              }
+            };
+          })
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.Approved);
+    expect(business.lastFailureReasons).toEqual([]);
+    expect(kycCase.status).toBe(VerificationStatus.Approved);
+    expect(kycCase.failureReasons).toEqual([]);
+    expect(await EmailNotification.count()).toBe(0);
   });
 
   it("does not mutate business onboarding when exact polling returns a mismatched attempt", async () => {
