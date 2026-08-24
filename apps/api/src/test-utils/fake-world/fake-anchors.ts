@@ -439,7 +439,6 @@ export class FakeAlfredpay {
         fromCurrency: request.fromCurrency,
         memo: request.memo,
         quote,
-        quoteId: request.quoteId,
         status,
         toAmount: quote.toAmount,
         toCurrency: request.toCurrency,
