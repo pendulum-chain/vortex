@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import { setupTestDatabase } from "../test-utils/db";
-import { getPendingMigrations, revertLastMigration, revertMigration, runMigrations } from "./migrator";
+import { getExecutedMigrations, getPendingMigrations, revertLastMigration, revertMigration, runMigrations } from "./migrator";
 
 // Old-name/new-name pairs of the migrations renumbered to clear the duplicate-055 prefix.
 // Must stay in sync with MIGRATION_RENAMES in migrator.ts.
@@ -125,8 +125,9 @@ describe("migration metadata reconciliation", () => {
   });
 
   it("reconciles legacy TypeScript metadata before reverting the last migration", async () => {
-    const jsName = "066-add-kyc-verification-state.js";
-    const tsName = "066-add-kyc-verification-state.ts";
+    const jsName = (await getExecutedMigrations()).at(-1);
+    if (!jsName) throw new Error("Expected at least one executed migration");
+    const tsName = jsName.replace(/\.js$/, ".ts");
     await sequelize.query(`UPDATE "SequelizeMeta" SET name = :tsName WHERE name = :jsName`, {
       replacements: { jsName, tsName }
     });

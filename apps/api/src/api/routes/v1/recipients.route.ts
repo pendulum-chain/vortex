@@ -55,7 +55,12 @@ router.post(
  * GET /v1/recipients
  * List the sender's recipients (relationship + onboarding status) and pending invitations.
  */
-router.get("/", requireAuth, authorizeManagedProfile(), listRecipients as unknown as (req: Request, res: Response) => void);
+router.get(
+  "/",
+  requireAuth,
+  authorizeManagedProfile({ enforceCustomerTypePolicy: true }),
+  listRecipients as unknown as (req: Request, res: Response) => void
+);
 
 /**
  * PATCH /v1/recipients/invitations/:id

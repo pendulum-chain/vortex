@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { config } from "../../config/vars";
+import ProfileRole from "../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser } from "../../test-utils/factories";
 import { SupabaseAuthService } from "../services/auth";
@@ -39,6 +40,7 @@ describe("resolveBearerPrincipal", () => {
   it("resolves a live impersonation token to the target, not the actor", async () => {
     const actor = await createTestUser();
     const target = await createTestUser({ email: "target@example.com" });
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token, session } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
 
     const principal = await resolveBearerPrincipal(token);
@@ -79,6 +81,7 @@ describe("resolveBearerPrincipal", () => {
   it("returns invalid for an expired impersonation token", async () => {
     const actor = await createTestUser();
     const target = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token, session } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
     await session.update({ expiresAt: new Date(Date.now() - 1000) });
 
@@ -88,6 +91,7 @@ describe("resolveBearerPrincipal", () => {
   it("returns invalid for a revoked impersonation token", async () => {
     const actor = await createTestUser();
     const target = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token, session } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
     await revokeSession(session.id, "manual revoke");
 

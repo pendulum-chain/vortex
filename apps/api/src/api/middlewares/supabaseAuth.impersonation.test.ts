@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../../config/vars";
+import ProfileRole from "../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser } from "../../test-utils/factories";
 import { SupabaseAuthService } from "../services/auth";
@@ -45,6 +46,7 @@ describe("Supabase auth middleware under impersonation", () => {
   it("requireAuth sets req.userId to the target and attaches req.impersonation", async () => {
     const actor = await createTestUser({ email: "operator@example.com" });
     const target = await createTestUser({ email: "customer@example.com" });
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token, session } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
 
     const req = request(`Bearer ${token}`);
@@ -67,6 +69,7 @@ describe("Supabase auth middleware under impersonation", () => {
   it("optionalAuth sets req.userId to the target and attaches req.impersonation", async () => {
     const actor = await createTestUser({ email: "operator2@example.com" });
     const target = await createTestUser({ email: "customer2@example.com" });
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
 
     const req = request(`Bearer ${token}`);
@@ -83,6 +86,7 @@ describe("Supabase auth middleware under impersonation", () => {
   it("sets req.userEmail to the target's email, never the operator's", async () => {
     const actor = await createTestUser({ email: "operator3@example.com" });
     const target = await createTestUser({ email: "customer3@example.com" });
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
     const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
 
     const req = request(`Bearer ${token}`);

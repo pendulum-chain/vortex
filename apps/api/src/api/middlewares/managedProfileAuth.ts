@@ -40,6 +40,7 @@ type CustomerTypeResolver =
 interface ManagedProfileAuthOptions {
   corridor?: CorridorResolver;
   customerType?: CustomerTypeResolver;
+  enforceCustomerTypePolicy?: boolean;
 }
 
 export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {}) {
@@ -213,7 +214,7 @@ async function authorizeCustomerType(
     return false;
   }
   if (
-    ((options.corridor !== undefined || options.customerType !== undefined) &&
+    ((options.corridor !== undefined || options.customerType !== undefined || options.enforceCustomerTypePolicy) &&
       allowedCustomerTypes !== null &&
       allowedCustomerTypes !== undefined &&
       !allowedCustomerTypes.includes(customerType)) ||

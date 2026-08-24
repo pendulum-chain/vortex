@@ -751,7 +751,7 @@ describe("GET /v1/recipients", () => {
 
     await ManagedProfileManager.update({ allowedCustomerTypes: null }, { where: { profileId: manager.user.id } });
     await ManagedProfile.update(
-      { status: "deleted" },
+      { deletedAt: new Date(), status: "deleted" },
       { where: { managerProfileId: manager.user.id, profileId: child.profileId } }
     );
     expect((await api.request("/v1/recipients", { headers })).status).toBe(403);
