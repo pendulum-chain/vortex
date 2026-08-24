@@ -217,10 +217,12 @@ const aveniaAttemptSchema = z.looseObject({
   createdAt: z.string().datetime({ offset: true }),
   id: z.string().min(1),
   levelName: z.string().min(1),
+  // Production also sends result: "" (not null) on unsettled attempts — observed
+  // 2026-08-24 on company subaccounts, where it failed the parse of the whole page.
   result: z
-    .enum(KycAttemptResult)
+    .union([z.enum(KycAttemptResult), z.literal("")])
     .nullish()
-    .transform(value => value ?? undefined),
+    .transform(value => value || undefined),
   resultMessage: z
     .string()
     .nullish()
