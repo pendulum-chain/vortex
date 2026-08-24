@@ -8,11 +8,11 @@ surface — the per-operator, Supabase-identity-bearing counterpart to the share
 are direct session targets. Managed headless profiles are reached by impersonating their
 authenticated manager and composing that session with the existing managed-profile selector.
 
-Depth is broad but excludes ramp money movement and provider verification actions. While
-impersonating, the operator may create quotes and inspect ramp and KYC/KYB status, history, and
-errors, but ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and
-OAuth actions reject the request. Other customer-account mutations remain available, so this is
-not a general read-only impersonation mode (see the risk register, RISK-018).
+Impersonation is not read-only. The operator may create quotes, inspect ramp and KYC/KYB status,
+history, and errors, and perform customer-account mutations outside the protected boundaries.
+Ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and OAuth actions
+reject the request. Durable credential minting is also denied because it would outlive the session
+(see the risk register, RISK-018).
 
 ### Routes
 
@@ -139,9 +139,10 @@ and requires deployment/database access rather than an HTTP credential — see
     ([`supabase-otp.md`](supabase-otp.md) invariant 3) — no controller or service sets it
     directly.
 11. **An impersonated request MUST NOT be able to mint durable credentials** —
-    `rejectImpersonation` is applied ahead of `/v1/api-credentials` (`api-credentials.route.ts`):
-    a credential minted while acting as someone else would outlive the 30-minute session and
-    become a standing backdoor into the target's account.
+    `rejectImpersonation` is applied ahead of both `POST /v1/api-credentials` and `POST
+    /v1/managed-profiles/:profileId/api-credentials`: a credential minted while acting as someone
+    else would outlive the 30-minute session and become a standing backdoor into the target or a
+    managed child.
 12. **An impersonated request MUST NOT be able to reach the admin console, except to end its own
     session** — There is exactly one carve-out, and it is narrow by construction:
     `DELETE /v1/admin-console/impersonation/:sessionId` is mounted behind `requireAuth` only, not
@@ -199,7 +200,7 @@ and requires deployment/database access rather than an HTTP credential — see
 |---|---|---|
 | Database dump exposes usable tokens | Attacker reads `admin_impersonation_sessions` from a backup or replica | Only a SHA-256 hash is stored; the raw token is never persisted (Invariant 2) |
 | Stolen or leaked impersonation token replayed after the operator's intent has ended | Token captured via logs, browser history, or a compromised operator device | 30-minute non-renewable TTL (Invariant 4); instant hash-based revocation via `DELETE /impersonation/:sessionId` (Invariant 8); re-checked liveness on every use (Invariant 5) |
-| Impersonation used to mint a permanent backdoor | Operator (or an attacker who obtained an operator's token) mints an API secret key while impersonating, which outlives the session | `rejectImpersonation` on `/v1/api-credentials` (Invariant 11) |
+| Impersonation used to mint a permanent backdoor | Operator (or an attacker who obtained an operator's token) mints an API secret key for the target or a managed child while impersonating, which outlives the session | `rejectImpersonation` on both credential-creation routes (Invariant 11) |
 | Privilege re-escalation / impersonation chaining | An impersonated request is used to start a second impersonation session, list sessions, or browse accounts | `requireVortexAdmin`'s `rejectImpersonation` step refuses `GET /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation` outright (Invariant 12) |
 | Impersonated caller abuses the self-revoke carve-out to end someone else's session | Operator impersonating profile A presents that token against profile B's `sessionId` | Rejected with `403 IMPERSONATION_NOT_ALLOWED`: the carve-out only matches when the path `:sessionId` equals the caller's own `req.impersonation.sessionId` (Invariant 12) |
 | Impersonation initiates or advances money movement | Operator calls ramp register, update, or start while acting as a customer | All three mutating ramp routes apply `rejectImpersonation` after principal resolution and before controller execution (Invariant 16); quote creation and ramp inspection remain available |
@@ -213,9 +214,9 @@ and requires deployment/database access rather than an HTTP credential — see
 
 ## Gaps Identified During This Review
 
-- Ramp money movement and KYC/KYB actions are denied, but impersonation is still broader than a
-  read-only support mode: recipient, active-entity, and notification mutations remain available. A
-  compromised operator account can therefore still make sensitive changes to a customer's account.
+- Ramp money movement and KYC/KYB actions are denied, but recipient, active-entity, and notification
+  mutations remain available. A compromised operator account can therefore still make sensitive
+  changes to a customer's account.
   Tracked as an accepted risk in the risk register (RISK-018).
 - The operator-facing frontend that consumes `/v1/admin-console/*` lives in `apps/dashboard`
   (account search UI, and a non-dismissible banner naming the impersonated account while a
@@ -257,7 +258,8 @@ and requires deployment/database access rather than an HTTP credential — see
       token — **PASS**.
 - [x] `req.impersonation` is set only within `resolveBearerPrincipal()`, consumed by
       `supabaseAuth.ts` and `dualAuth.ts` — **PASS**.
-- [x] `rejectImpersonation` blocks `/v1/api-credentials` (credential minting) — **PASS**.
+- [x] `rejectImpersonation` blocks credential minting through `/v1/api-credentials` and the
+      managed-profile credential-creation route — **PASS** (`api-credentials.route.test.ts`).
 - [x] `rejectImpersonation` blocks `POST /v1/ramp/register`, `POST /v1/ramp/update`, and `POST
       /v1/ramp/start`, while quote creation reaches normal validation and ramp history remains
       readable — **PASS** (`ramp.route.test.ts`).
