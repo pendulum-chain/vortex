@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 import { createActor, fromPromise, waitFor } from "xstate";
 import type { TransferQuoteRequest } from "./transfer.actors";
-import { transferMachine } from "./transfer.machine";
 
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const values = new Map<string, string>();
@@ -25,6 +24,16 @@ Object.defineProperty(globalThis, "localStorage", {
 mock.module("@/hooks/useTransactions", () => ({ TRANSACTIONS_QUERY_KEY: "transactions" }));
 mock.module("@/lib/notify", () => ({ notifyTransferCompleted: () => undefined }));
 mock.module("@/lib/queryClient", () => ({ queryClient: { invalidateQueries: () => undefined } }));
+mock.module("@/services/transactions/userSigning", () => ({
+  signAndSubmitEvmTransaction: () => {
+    throw new Error("Unexpected wallet signing in transfer actor test");
+  },
+  signMultipleTypedData: () => {
+    throw new Error("Unexpected wallet signing in transfer actor test");
+  }
+}));
+
+const { transferMachine } = await import("./transfer.machine");
 
 const quote = { id: "quote-buy", rampType: RampDirection.BUY } as QuoteResponse;
 const quoteRequest: TransferQuoteRequest = {

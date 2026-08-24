@@ -49,7 +49,7 @@ function userFromTokens(tokens: AuthTokens): AuthUser {
 export function clearAccountState(): void {
   queryClient.clear();
   useNotificationsStore.getState().clear();
-  void disconnect(wagmiConfig);
+  if (typeof document !== "undefined") void disconnect(wagmiConfig);
 }
 
 AuthService.configureIdentityTransitionEffects({ activateTransferOwner, canChangeEffectiveIdentity, clearAccountState });
