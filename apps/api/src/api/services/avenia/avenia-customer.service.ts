@@ -6,6 +6,8 @@ import logger from "../../../config/logger";
 import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
+import { VerificationSubject } from "../email/types";
+import { enqueueVerificationNotification, mapKycFailureReason, NotifiableAttempt } from "./verification-notifications";
 
 export function hashTaxReference(taxId: string): string {
   return crypto.createHash("sha256").update(normalizeTaxId(taxId), "utf8").digest("hex");
@@ -137,7 +139,11 @@ export async function updateAveniaKycOutcomeForCustomer(
   record: ProviderCustomer,
   outcome: VerificationStatus.Approved | VerificationStatus.Rejected,
   statusExternal: string,
-  expectedCase: { id: string; providerCaseId: string | null }
+  expectedCase: { id: string; providerCaseId: string | null },
+  // When the caller holds the settled attempt, a terminal transition also persists its
+  // mapped failure reason and enqueues the outcome email — parity with the authenticated
+  // KYB route, so whichever path wins the race leaves the same state behind.
+  notify?: { attempt: NotifiableAttempt; profileId: string; subject: VerificationSubject }
 ): Promise<ProviderCustomer> {
   return sequelize.transaction(async transaction => {
     const lockedRecord = await ProviderCustomer.findByPk(record.id, {
@@ -173,16 +179,36 @@ export async function updateAveniaKycOutcomeForCustomer(
           : kycCase.statusExternal;
     const now = new Date();
 
-    await lockedRecord.update({ status, statusExternal: effectiveStatusExternal }, { transaction });
+    // Side effects follow the outcome that was actually persisted: a stale rejected read
+    // arriving after an approval keeps the approval and must not record a failure reason
+    // or email a rejection.
+    const appliedNotify = notify && (outcome === VerificationStatus.Approved || !approved) ? notify : undefined;
+    const failureReason = appliedNotify && !approved ? mapKycFailureReason(appliedNotify.attempt.resultMessage) : null;
+
+    await lockedRecord.update(
+      {
+        status,
+        statusExternal: effectiveStatusExternal,
+        ...(appliedNotify ? { lastFailureReasons: failureReason ? [failureReason] : [] } : {})
+      },
+      { transaction }
+    );
     await kycCase.update(
       {
         approvedAt: approved ? (kycCase.approvedAt ?? now) : null,
         rejectedAt: approved ? null : (kycCase.rejectedAt ?? now),
         status,
-        statusExternal: effectiveStatusExternal
+        statusExternal: effectiveStatusExternal,
+        ...(appliedNotify ? { failureReasons: failureReason ? [failureReason] : [] } : {})
       },
       { transaction }
     );
+    if (appliedNotify) {
+      // Queue only after the case binding was proven above. Enqueuing is idempotent on the
+      // attempt id, and a queue failure rolls back the terminal state so a later poll can
+      // retry the notification (parity with GET /v1/brla/kyb/attempt-status).
+      await enqueueVerificationNotification(appliedNotify.attempt, appliedNotify.profileId, appliedNotify.subject);
+    }
     return lockedRecord;
   });
 }
