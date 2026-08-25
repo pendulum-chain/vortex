@@ -187,6 +187,9 @@ router.use("/monerium", moneriumRoutes);
 /**
  * Monerium B2B whitelabel onramp.
  * POST /v1/monerium-b2b/webhook — HMAC-authenticated durable-inbox webhook receiver.
+ * GET /v1/monerium-b2b/account — the acting profile's onramp account (manager
+ *   delegation or child credential; EU/business policy).
+ * GET /v1/monerium-b2b/deposits — the acting profile's deposits with conversion status.
  */
 router.use("/monerium-b2b", moneriumB2bRoutes);
 
