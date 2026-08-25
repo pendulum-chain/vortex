@@ -10,10 +10,13 @@ export enum MoneriumAccountStatus {
 
 // Persistent B2B onramp account (docs/prd/monerium-b2b-implementation-plan.md §3):
 // one row per client = one Monerium profile + IBAN + deployed forwarder. Long-lived,
-// repeatedly funded — deliberately NOT a RampState.
+// repeatedly funded — deliberately NOT a RampState. profileId is the MONERIUM profile
+// UUID; vortexProfileId is the owning Vortex managed profile (nullable only for rows
+// that predate the managed-profile mapping).
 export interface MoneriumAccountAttributes {
   id: string;
   profileId: string;
+  vortexProfileId: string | null;
   iban: string | null;
   forwarderAddress: string;
   destination: string;
@@ -28,7 +31,7 @@ export interface MoneriumAccountAttributes {
 
 type MoneriumAccountCreationAttributes = Optional<
   MoneriumAccountAttributes,
-  "id" | "iban" | "configVersion" | "status" | "dormantSince" | "createdAt" | "updatedAt"
+  "id" | "vortexProfileId" | "iban" | "configVersion" | "status" | "dormantSince" | "createdAt" | "updatedAt"
 >;
 
 class MoneriumAccount
@@ -37,6 +40,7 @@ class MoneriumAccount
 {
   declare id: string;
   declare profileId: string;
+  declare vortexProfileId: string | null;
   declare iban: string | null;
   declare forwarderAddress: string;
   declare destination: string;
@@ -114,6 +118,11 @@ MoneriumAccount.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    vortexProfileId: {
+      allowNull: true,
+      field: "vortex_profile_id",
+      type: DataTypes.UUID
     }
   },
   {

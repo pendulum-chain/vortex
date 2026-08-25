@@ -5,6 +5,7 @@ import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middle
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
 import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
+import adminMoneriumB2bRoutes from "./admin/monerium-b2b.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
@@ -275,6 +276,13 @@ router.use("/admin/profile-roles", profileRolesRoutes);
  */
 router.use("/admin/managed-profile-managers", managedProfileManagersRoutes);
 router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
+
+/**
+ * Admin route mapping Monerium-onboarded corporates to managed profiles and their
+ * deployed forwarder accounts (idempotent).
+ * POST /v1/admin/monerium-b2b/accounts
+ */
+router.use("/admin/monerium-b2b", adminMoneriumB2bRoutes);
 
 /**
  * Admin routes for API client observability dashboards

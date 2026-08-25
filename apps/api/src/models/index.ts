@@ -37,6 +37,8 @@ MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "
 MoneriumFiatDeposit.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
 MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions", foreignKey: "accountId" });
 MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumAccount.belongsTo(User, { as: "vortexProfile", foreignKey: "vortexProfileId" });
+User.hasOne(MoneriumAccount, { as: "moneriumAccount", foreignKey: "vortexProfileId" });
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
