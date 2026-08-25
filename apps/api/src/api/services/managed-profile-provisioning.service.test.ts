@@ -2,9 +2,10 @@ import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
 import User from "../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestUser } from "../../test-utils/factories";
+import { createTestPartner, createTestUser } from "../../test-utils/factories";
 import {
   ManagedProfileProvisioningError,
   provisionManagedProfile
@@ -63,6 +64,44 @@ describe("managed profile provisioning", () => {
       profileId: result.profileId,
       status: "active"
     });
+  });
+
+  it("fixes partner pricing attribution to a newly provisioned profile", async () => {
+    const manager = await createManager();
+    const partner = await createTestPartner();
+
+    const result = await provisionManagedProfile({
+      attributingPartnerId: partner.id,
+      contactEmail: "attributed@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "customer-attributed",
+      managerProfileId: manager.id
+    });
+
+    expect(await ProfilePartnerAssignment.findAll({ where: { userId: result.profileId } })).toMatchObject([
+      { isActive: true, partnerId: partner.id, partnerName: partner.name }
+    ]);
+  });
+
+  it("does not create or change attribution for unattributed or already-existing profiles", async () => {
+    const manager = await createManager();
+    const partner = await createTestPartner();
+    const input = {
+      contactEmail: "unattributed@example.com",
+      creationSource: "manager" as const,
+      customerType: "individual" as const,
+      externalSubjectId: "customer-unattributed",
+      managerProfileId: manager.id
+    };
+
+    const created = await provisionManagedProfile(input);
+    expect(await ProfilePartnerAssignment.count({ where: { userId: created.profileId } })).toBe(0);
+
+    // A later retry with attribution must not retroactively assign the existing profile.
+    const retried = await provisionManagedProfile({ ...input, attributingPartnerId: partner.id });
+    expect(retried.created).toBe(false);
+    expect(await ProfilePartnerAssignment.count({ where: { userId: created.profileId } })).toBe(0);
   });
 
   it("returns the existing profile for an idempotent retry", async () => {

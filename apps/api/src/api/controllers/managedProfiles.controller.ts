@@ -86,6 +86,9 @@ export async function postManagedProfile(req: Request, res: Response): Promise<v
     }
 
     const result = await createManagedProfile({
+      // Server-resolved from the acting secret credential; Bearer-authenticated managers
+      // carry no partner attribution and provision without a pricing assignment.
+      attributingPartnerId: req.credential?.partnerId ?? null,
       contactEmail,
       creationSource: "manager",
       customerType,
