@@ -377,6 +377,28 @@ describe("runFinancialOperation", () => {
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
   });
 
+  it("retries typed definitive rejections without requiring reconciliation", async () => {
+    const perform = mock(async () => {
+      throw new FinancialOperationRejectedError("Amount exceeds global limit.", {
+        status: 400,
+        type: "provider_limit_exceeded"
+      });
+    });
+    const operation = { ...baseOperation, perform, retryFailed: true };
+
+    await expect(runFinancialOperation(operation)).rejects.toMatchObject({
+      status: 400,
+      type: "provider_limit_exceeded"
+    });
+    await expect(runFinancialOperation(operation)).rejects.toMatchObject({
+      status: 400,
+      type: "provider_limit_exceeded"
+    });
+
+    expect(perform).toHaveBeenCalledTimes(2);
+    expect(await FinancialOperation.findOne()).toMatchObject({ status: "failed" });
+  });
+
   it("does not let a stale failed-operation reset overwrite another worker's submitted claim", async () => {
     await expect(
       runFinancialOperation({

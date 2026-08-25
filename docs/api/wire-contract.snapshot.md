@@ -2667,6 +2667,8 @@ APIErrorResponse: {
   isPublic?: boolean;
   message: string;
   status: number;
+  statusCode?: number;
+  type?: string;
 }
 
 APINotInitializedError: class APINotInitializedError {

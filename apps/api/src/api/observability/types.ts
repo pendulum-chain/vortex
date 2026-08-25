@@ -38,6 +38,7 @@ export type ApiClientErrorType =
   | "ramp_not_in_initial_state"
   | "service_unavailable"
   | "provider_error"
+  | "provider_limit_exceeded"
   | "internal_error"
   | "unknown_error";
 
