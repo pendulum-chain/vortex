@@ -34,7 +34,6 @@ import {
   KybLevel1Response,
   KycAttemptResult,
   KycAttemptStatus,
-  KycFailureReason,
   KycLevel1Payload,
   KycLevel1Response,
   normalizeTaxId,
@@ -70,6 +69,7 @@ import {
   assertAveniaHostedKybCanInitiate,
   createAveniaUboOnce,
   getOrCreateAveniaKybCase,
+  isAveniaBusinessKybLevel,
   requireReadyAveniaDocument,
   resolveOwnedAveniaBusinessAccount
 } from "../services/avenia/avenia-kyb.service";
@@ -80,32 +80,13 @@ import {
   reconcileAveniaIndividualKycStatusMethod
 } from "../services/avenia/avenia-kyc-import.service";
 import { submitStandardAveniaKyc } from "../services/avenia/avenia-standard-kyc.service";
-import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
+import { enqueueVerificationNotification, mapKycFailureReason } from "../services/avenia/verification-notifications";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 import { runFinancialOperation } from "../services/phases/blocks/core/financial-operation";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
-
-// Maps webhook failure reasons to standardized enum values
-function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
-  if (!webhookReason) {
-    return KycFailureReason.UNKNOWN;
-  }
-  switch (true) {
-    case webhookReason.includes("face match failure"):
-      return KycFailureReason.FACE;
-    case webhookReason.includes("name does not match"):
-      return KycFailureReason.NAME;
-    case webhookReason.includes("birthdate does not match"):
-      return KycFailureReason.BIRTHDATE;
-    case webhookReason.includes("tax id does not exist"):
-      return KycFailureReason.TAX_ID;
-    default:
-      return KycFailureReason.UNKNOWN;
-  }
-}
 
 // Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
@@ -961,7 +942,7 @@ async function reconcileActiveAveniaKybAttempt(
   const { attempts } = await brlaApiService.getKycAttempts(subAccountId);
   const activeAttempts = attempts.filter(
     attempt =>
-      attempt.levelName === "kyb-level-1" &&
+      isAveniaBusinessKybLevel(attempt.levelName) &&
       (attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.PROCESSING)
   );
   if (activeAttempts.length === 0) {

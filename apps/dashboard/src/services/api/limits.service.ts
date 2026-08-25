@@ -2,5 +2,5 @@ import type { GetUserLimitsRequest, GetUserLimitsResponse } from "@vortexfi/shar
 import { apiClient } from "./api-client";
 
 export const LimitsService = {
-  get: (request: GetUserLimitsRequest) => apiClient.post<GetUserLimitsResponse>("/limits", request)
+  get: (request: GetUserLimitsRequest) => apiClient.post<GetUserLimitsResponse>("/limits", request, { managedProfile: true })
 };

@@ -851,7 +851,7 @@ export interface paths {
         };
         /**
          * List managed profiles
-         * @description Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
+         * @description Lists children owned by the authenticated active manager, newest first, together with the manager's current corridor and customer-type policy. Policy is manager-scoped and applies to all children; it is not a per-child grant. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
          *
          *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
          */
@@ -2693,6 +2693,7 @@ export interface components {
         };
         ListManagedProfilesResponse: {
             managedProfiles: components["schemas"]["ManagedProfile"][];
+            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             pagination: components["schemas"]["ManagedProfilePagination"];
         };
         LivenessDocumentEntry: {
@@ -2742,6 +2743,13 @@ export interface components {
                 status: number;
             };
         };
+        /** @description The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child. */
+        ManagedProfileManagerPolicy: {
+            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
+            allowedCustomerTypes: ("individual" | "business")[] | null;
+            /** Format: uuid */
+            profileId: string;
+        };
         ManagedProfilePagination: {
             limit: number;
             offset: number;
@@ -2752,7 +2760,7 @@ export interface components {
         };
         ManagedSelectorErrorResponse: {
             error: {
-                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, or `MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, `MANAGED_PROFILE_ACCESS_DENIED`, or `IMPERSONATION_NOT_ALLOWED`. */
                 code: string;
                 message: string;
                 status: number;
@@ -5884,7 +5892,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of owned managed profiles and offset pagination metadata. */
+            /** @description The authenticated manager's current policy, a page of owned managed profiles, and offset pagination metadata. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7100,7 +7108,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Quote ownership or managed-profile authorization failed. */
+            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7249,7 +7257,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7411,7 +7419,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;

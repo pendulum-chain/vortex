@@ -202,17 +202,39 @@ describe("Avenia KYB Level 1 response schemas", () => {
       levelName: "sumsub-token-recipient",
       result: null,
       resultMessage: null,
+      retryable: null,
       status: "PENDING",
+      submissionData: null,
       updatedAt: "2026-03-19T22:09:52.629984Z"
     };
     expect(aveniaKybAttemptStatusSchema.parse({ attempt: pending }).attempt).toMatchObject({
       result: undefined,
-      resultMessage: undefined
+      resultMessage: undefined,
+      retryable: undefined,
+      submissionData: undefined
     });
     expect(aveniaKycAttemptsSchema.parse({ attempts: [pending] }).attempts[0]).toMatchObject({
       result: undefined,
-      resultMessage: undefined
+      resultMessage: undefined,
+      retryable: undefined,
+      submissionData: undefined
     });
+  });
+
+  test("normalizes an empty-string result on unsettled attempts", () => {
+    // Observed on production company subaccounts 2026-08-24: unsettled attempts can carry
+    // result: "" instead of null, which previously failed the parse of the whole page.
+    const unsettled = {
+      createdAt: "2026-03-19T22:09:52.629984Z",
+      id: "attempt-1",
+      levelName: "kyb-level-1-v2",
+      result: "",
+      status: "PROCESSING",
+      submissionData: null,
+      updatedAt: "2026-03-19T22:09:52.629984Z"
+    };
+    expect(aveniaKybAttemptStatusSchema.parse({ attempt: unsettled }).attempt).toMatchObject({ result: undefined });
+    expect(aveniaKycAttemptsSchema.parse({ attempts: [unsettled] }).attempts[0]).toMatchObject({ result: undefined });
   });
 
   test("normalizes Avenia's empty terminal cursor", () => {

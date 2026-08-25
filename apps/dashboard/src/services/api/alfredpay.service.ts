@@ -6,6 +6,16 @@ import type {
 } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
+const managedProfileApiClient = {
+  get: <T>(url: string, config?: { params?: Record<string, string | number | boolean | undefined>; signal?: AbortSignal }) =>
+    apiClient.get<T>(url, { ...config, managedProfile: true }),
+  post: <T>(
+    url: string,
+    data?: unknown,
+    config?: { headers?: Record<string, string>; params?: Record<string, string | number | boolean | undefined> }
+  ) => apiClient.post<T>(url, data, { ...config, managedProfile: true })
+};
+
 /**
  * The dashboard's Alfredpay endpoints. The KYC subset satisfies `AlfredpayKycApi`, which is what
  * `createAlfredpayKycMachine` verifies senders with. The same port drives MX/CO API-based company
@@ -16,14 +26,14 @@ export const AlfredpayService: AlfredpayKycApi & {
   deleteFiatAccount(fiatAccountId: string, country: string): Promise<void>;
   listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse>;
 } = {
-  ...createAlfredpayKycApi(apiClient),
+  ...createAlfredpayKycApi(managedProfileApiClient),
 
   addFiatAccount(payload: DomesticAddFiatAccountRequest): Promise<DomesticAddFiatAccountResponse> {
-    return apiClient.post<DomesticAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload);
+    return apiClient.post<DomesticAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload, { managedProfile: true });
   },
 
   async deleteFiatAccount(fiatAccountId: string, country: string): Promise<void> {
-    await apiClient.delete(`/alfredpay/fiatAccounts/${fiatAccountId}`, { params: { country } });
+    await apiClient.delete(`/alfredpay/fiatAccounts/${fiatAccountId}`, { managedProfile: true, params: { country } });
   },
 
   /**
@@ -32,6 +42,10 @@ export const AlfredpayService: AlfredpayKycApi & {
    * "send to yourself" recipient. 404s when the caller has no AlfredPay customer yet.
    */
   listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse> {
-    return apiClient.get<DomesticListFiatAccountsResponse>("/alfredpay/fiatAccounts", { params: { country }, signal });
+    return apiClient.get<DomesticListFiatAccountsResponse>("/alfredpay/fiatAccounts", {
+      managedProfile: true,
+      params: { country },
+      signal
+    });
   }
 };

@@ -1191,7 +1191,7 @@ describe("Avenia company KYB", () => {
     );
   });
 
-  it("rejects re-initiation when the stored PENDING is stale and Avenia is already processing", async () => {
+  it("rejects re-initiation when a legacy-level Avenia attempt is already processing", async () => {
     mockEntityPerProfile();
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1",
@@ -1206,7 +1206,7 @@ describe("Avenia company KYB", () => {
       () =>
         ({
           getKycAttempts: mock(async () => ({
-            attempts: [{ id: "attempt-1", levelName: "kyb-level-1", status: KycAttemptStatus.PROCESSING }]
+            attempts: [{ id: "attempt-1", levelName: "level-1", status: KycAttemptStatus.PROCESSING }]
           })),
           initiateKybLevel1: initiateMock
         }) as unknown as BrlaApiService
@@ -1219,7 +1219,7 @@ describe("Avenia company KYB", () => {
     expect(initiateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects re-initiation when Avenia already approved the company", async () => {
+  it("rejects re-initiation when Avenia already approved the company under its legacy level name", async () => {
     mockEntityPerProfile();
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1",
@@ -1237,7 +1237,7 @@ describe("Avenia company KYB", () => {
             attempts: [
               {
                 id: "attempt-1",
-                levelName: "kyb-level-1",
+                levelName: "level-1",
                 result: KycAttemptResult.APPROVED,
                 status: KycAttemptStatus.COMPLETED
               }
@@ -2634,7 +2634,7 @@ describe("Avenia API KYB", () => {
         {
           createdAt: "2026-08-12T10:00:00.000Z",
           id: "accepted-attempt",
-          levelName: "kyb-level-1",
+          levelName: "level-1",
           status: KycAttemptStatus.PENDING,
           updatedAt: "2026-08-12T10:00:00.000Z"
         }
@@ -2685,7 +2685,7 @@ describe("Avenia API KYB", () => {
           {
             createdAt: "2026-08-12T10:00:00.000Z",
             id: "conflicting-attempt",
-            levelName: "kyb-level-1",
+            levelName: "level-1",
             status: KycAttemptStatus.PROCESSING,
             updatedAt: "2026-08-12T10:01:00.000Z"
           }

@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
 import { findPartnerWithPricing } from "../api/services/partners/partner-pricing.service";
 import { config } from "../config/vars";
-import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
+import ManagedProfile from "../models/managedProfile.model";
+import ManagedProfileManager from "../models/managedProfileManager.model";
+import Notification from "../models/notification.model";
 import Partner from "../models/partner.model";
 import PartnerPricingConfig from "../models/partnerPricingConfig.model";
 import ProfilePartnerAssignment from "../models/profilePartnerAssignment.model";
@@ -40,6 +43,10 @@ function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 }
 
+function managedAuthHeaders(token: string, profileId: string): Record<string, string> {
+  return { ...authHeaders(token), "X-Managed-Profile-Id": profileId };
+}
+
 async function createAuthedUser(email: string): Promise<{ user: User; token: string }> {
   const user = await createTestUser({ email });
   return { token: testUserToken(user.id, email), user };
@@ -58,6 +65,27 @@ async function createApprovedSender(email: string): Promise<{ user: User; token:
     status: VerificationStatus.Approved
   });
   return { entity, token, user };
+}
+
+async function createManagedSender(suffix = "") {
+  const manager = await createAuthedUser(`manager${suffix}@example.com`);
+  await ManagedProfileManager.create({ allowedCorridors: ["MX"], isActive: true, profileId: manager.user.id });
+  const child = await provisionManagedProfile({
+    contactEmail: `managed-sender${suffix}@example.com`,
+    creationSource: "manager",
+    customerType: "individual",
+    externalSubjectId: `managed-sender${suffix}`,
+    managerProfileId: manager.user.id
+  });
+  await ProviderCustomer.create({
+    country: "MX",
+    customerEntityId: child.customerEntityId,
+    customerType: "individual",
+    provider: "alfredpay",
+    rail: "mxn",
+    status: VerificationStatus.Approved
+  });
+  return { child, manager };
 }
 
 const MX_CORRIDOR = { country: "MX", payoutCurrency: "mxn", rail: "mxn" };
@@ -159,6 +187,57 @@ describe("POST /v1/recipients/invite", () => {
     const { status, body } = await createInvite(sender.token);
     expect(status).toBe(403);
     expect((body.error as { code: string }).code).toBe("NO_APPROVED_CORRIDOR");
+  });
+
+  it("authorizes a managed sender corridor while preserving malformed-input errors", async () => {
+    const { child, manager } = await createManagedSender();
+    const headers = managedAuthHeaders(manager.token, child.profileId);
+
+    const malformed = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify({ payoutCurrency: "brl", rail: "brl" }),
+      headers,
+      method: "POST"
+    });
+    expect(malformed.status).toBe(400);
+    expect(((await malformed.json()) as { error: { code: string } }).error.code).toBe("INVALID_INVITE_CORRIDOR");
+
+    const denied = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify({ country: "BR", payoutCurrency: "brl", rail: "brl" }),
+      headers,
+      method: "POST"
+    });
+    expect(denied.status).toBe(403);
+
+    const allowed = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify(MX_CORRIDOR),
+      headers,
+      method: "POST"
+    });
+    expect(allowed.status).toBe(201);
+    const invitation = await RecipientInvitation.findByPk(((await allowed.json()) as { id: string }).id);
+    expect(invitation?.createdByProfileId).toBe(child.profileId);
+    expect(invitation?.senderCustomerEntityId).toBe(child.customerEntityId);
+  });
+
+  it("uses the authenticated manager's discount role for managed sender invites", async () => {
+    const { child, manager } = await createManagedSender();
+    await ProfileRole.create({ role: "discount_manager", userId: child.profileId });
+    const headers = managedAuthHeaders(manager.token, child.profileId);
+
+    const childRoleOnly = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify({ ...MX_CORRIDOR, discounts: { buyBps: 10 } }),
+      headers,
+      method: "POST"
+    });
+    expect(childRoleOnly.status).toBe(403);
+
+    await ProfileRole.create({ role: "discount_manager", userId: manager.user.id });
+    const actorRole = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify({ ...MX_CORRIDOR, discounts: { buyBps: 10 } }),
+      headers,
+      method: "POST"
+    });
+    expect(actorRole.status).toBe(201);
   });
 });
 
@@ -578,6 +657,128 @@ describe("GET /v1/recipients", () => {
     const afterBody = (await afterBusiness.json()) as { recipients: Array<{ onboardingStatus: string }> };
     expect(afterBody.recipients[0].onboardingStatus).toBe("approved");
   });
+
+  it("scopes delegated sender list, archive, relationship updates, and eligibility to the managed child", async () => {
+    const { child, manager } = await createManagedSender();
+    const recipient = await createAuthedUser("recipient@example.com");
+    const headers = managedAuthHeaders(manager.token, child.profileId);
+    const created = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify(MX_CORRIDOR),
+      headers,
+      method: "POST"
+    });
+    const invite = (await created.json()) as { id: string; token: string };
+
+    const archived = await api.request(`/v1/recipients/invitations/${invite.id}`, {
+      body: JSON.stringify({ archived: true }),
+      headers,
+      method: "PATCH"
+    });
+    expect(archived.status).toBe(200);
+    await api.request(`/v1/recipients/invitations/${invite.id}`, {
+      body: JSON.stringify({ archived: false }),
+      headers,
+      method: "PATCH"
+    });
+
+    const accepted = await acceptInvite(recipient.token, invite.token);
+    const relationshipId = accepted.body.id as string;
+    const updated = await api.request(`/v1/recipients/${relationshipId}`, {
+      body: JSON.stringify({ nickname: "Managed recipient" }),
+      headers,
+      method: "PATCH"
+    });
+    expect(updated.status).toBe(200);
+
+    const eligibility = await api.request(`/v1/recipients/${relationshipId}/eligibility`, { headers });
+    expect(eligibility.status).toBe(200);
+    expect(((await eligibility.json()) as { blockingReasonCode: string }).blockingReasonCode).toBe(
+      "recipient_onboarding_pending"
+    );
+
+    const list = await api.request("/v1/recipients", { headers });
+    const body = (await list.json()) as { recipients: Array<{ id: string; nickname: string }> };
+    expect(body.recipients).toEqual([expect.objectContaining({ id: relationshipId, nickname: "Managed recipient" })]);
+  });
+
+  it("revalidates current corridor policy for delegated recipient reads and mutations", async () => {
+    const { child, manager } = await createManagedSender();
+    const recipient = await createAuthedUser("recipient@example.com");
+    const headers = managedAuthHeaders(manager.token, child.profileId);
+    const created = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify(MX_CORRIDOR),
+      headers,
+      method: "POST"
+    });
+    const invite = (await created.json()) as { id: string; token: string };
+    const accepted = await acceptInvite(recipient.token, invite.token);
+    const relationshipId = accepted.body.id as string;
+
+    await ManagedProfileManager.update({ allowedCorridors: [] }, { where: { profileId: manager.user.id } });
+
+    const list = await api.request("/v1/recipients", { headers });
+    expect(list.status).toBe(200);
+    expect(await list.json()).toMatchObject({ pendingInvitations: [], recipients: [] });
+
+    const archive = await api.request(`/v1/recipients/invitations/${invite.id}`, {
+      body: JSON.stringify({ archived: true }),
+      headers,
+      method: "PATCH"
+    });
+    const update = await api.request(`/v1/recipients/${relationshipId}`, {
+      body: JSON.stringify({ nickname: "Denied" }),
+      headers,
+      method: "PATCH"
+    });
+    const eligibility = await api.request(`/v1/recipients/${relationshipId}/eligibility`, { headers });
+
+    expect(archive.status).toBe(403);
+    expect(update.status).toBe(403);
+    expect(eligibility.status).toBe(403);
+    expect((await SenderRecipient.findByPk(relationshipId))?.nickname).toBeNull();
+    expect((await RecipientInvitation.findByPk(invite.id))?.archivedAt).toBeNull();
+  });
+
+  it("revalidates customer-type policy and the active manager-child relationship", async () => {
+    const { child, manager } = await createManagedSender();
+    const headers = managedAuthHeaders(manager.token, child.profileId);
+
+    await ManagedProfileManager.update(
+      { allowedCustomerTypes: ["business"] },
+      { where: { profileId: manager.user.id } }
+    );
+    expect((await api.request("/v1/recipients", { headers })).status).toBe(403);
+
+    await ManagedProfileManager.update({ allowedCustomerTypes: null }, { where: { profileId: manager.user.id } });
+    await ManagedProfile.update(
+      { deletedAt: new Date(), status: "deleted" },
+      { where: { managerProfileId: manager.user.id, profileId: child.profileId } }
+    );
+    expect((await api.request("/v1/recipients", { headers })).status).toBe(403);
+  });
+
+  it("returns recipient 404 before corridor policy for another managed child's target", async () => {
+    const first = await createManagedSender("-first");
+    const second = await createManagedSender("-second");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const secondHeaders = managedAuthHeaders(second.manager.token, second.child.profileId);
+    const created = await api.request("/v1/recipients/invite", {
+      body: JSON.stringify(MX_CORRIDOR),
+      headers: secondHeaders,
+      method: "POST"
+    });
+    const invite = (await created.json()) as { token: string };
+    const accepted = await acceptInvite(recipient.token, invite.token);
+
+    await ManagedProfileManager.update({ allowedCorridors: [] }, { where: { profileId: first.manager.user.id } });
+    const response = await api.request(`/v1/recipients/${accepted.body.id}`, {
+      body: JSON.stringify({ nickname: "Not yours" }),
+      headers: managedAuthHeaders(first.manager.token, first.child.profileId),
+      method: "PATCH"
+    });
+
+    expect(response.status).toBe(404);
+  });
 });
 
 describe("PATCH /v1/recipients/invitations/:id", () => {
@@ -815,6 +1016,25 @@ describe("GET /v1/recipients/invite/:token (preview)", () => {
     expect(stored?.status).toBe("pending");
     expect(stored?.token).toBe(invite.body.token as string);
     expect(stored?.acceptedByProfileId).toBeNull();
+  });
+
+  it("rejects managed selection for preview and acceptance before using the invitee identity", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token);
+    const headers = managedAuthHeaders(recipient.token, crypto.randomUUID());
+
+    const preview = await api.request(`/v1/recipients/invite/${invite.body.token}`, { headers });
+    const acceptance = await api.request(`/v1/recipients/invite/${invite.body.token}/accept`, {
+      headers,
+      method: "POST"
+    });
+
+    expect(preview.status).toBe(400);
+    expect(((await preview.json()) as { error: { code: string } }).error.code).toBe("MANAGED_PROFILE_UNSUPPORTED");
+    expect(acceptance.status).toBe(400);
+    expect(((await acceptance.json()) as { error: { code: string } }).error.code).toBe("MANAGED_PROFILE_UNSUPPORTED");
+    expect((await RecipientInvitation.findByPk(invite.body.id as string))?.acceptedByProfileId).toBeNull();
   });
 
   it("applies the acceptance gates: unknown, expired, foreign-accepted, email-bound, own invite", async () => {

@@ -7,6 +7,7 @@
  * pre-provisioned, KYC-approved sandbox subaccount (see .env.example):
  *
  *  - AVENIA_CONTRACT_SUBACCOUNT_ID
+ *  - AVENIA_CONTRACT_COMPANY_SUBACCOUNT_ID (company attempt listing/exact read)
  *  - AVENIA_CONTRACT_WEBHOOK_URL (temporary webhook-management lifecycle)
  *
  * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid), two
@@ -17,11 +18,15 @@
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
  * `getAveniaSwapTicket` have no production consumers and are deliberately uncovered.
  *
- * TODO: Add sandbox contract coverage for every consumed Avenia KYC/KYB operation and
- * complete flow, including documents, UBOs, API submissions, attempts, and status polling.
+ * Attempt listing and exact-attempt reads are covered (read-only) once a company
+ * subaccount fixture is configured.
+ *
+ * TODO: Add sandbox contract coverage for the remaining consumed Avenia KYC/KYB
+ * operations and complete flow — documents, UBOs, and API submissions.
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";
+import { ZodError } from "zod";
 import {
   aveniaAccountBalanceSchema,
   aveniaAccountInfoSchema,
@@ -47,7 +52,13 @@ import { FakeBrla } from "../../test-utils/fake-world/fake-anchors";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 const HAS_CREDS = !!(process.env.BRLA_API_KEY && process.env.BRLA_PRIVATE_KEY);
 const SUBACCOUNT_ID = process.env.AVENIA_CONTRACT_SUBACCOUNT_ID;
+const COMPANY_SUBACCOUNT_ID = process.env.AVENIA_CONTRACT_COMPANY_SUBACCOUNT_ID;
 const WEBHOOK_URL = process.env.AVENIA_CONTRACT_WEBHOOK_URL;
+
+// Every company-level name Avenia has returned so far: legacy "level-1", "kyb-level-1",
+// and the current "kyb-level-1-v2". A future "-v3" fails this instead of quietly
+// disabling the duplicate-attempt guards that filter on it.
+const COMPANY_LEVEL_NAME = /^(kyb-)?level-1(-v\d+)?$/;
 
 if (RUN_LIVE && !HAS_CREDS) {
   console.warn("[contract:live] Avenia live half skipped: BRLA_API_KEY/BRLA_PRIVATE_KEY not set");
@@ -157,6 +168,58 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         api().createPayOutQuote({ outputAmount: "50", outputThirdParty: false })
       );
       if (payOutQuote) aveniaQuoteResponseSchema.parse(payOutQuote);
+    },
+    60_000
+  );
+
+  test.skipIf(!COMPANY_SUBACCOUNT_ID)(
+    "GET /kyc/attempts and /kyc/attempts/{attemptId} satisfy their contracts for a company subaccount",
+    async () => {
+      // Company duplicate-attempt and completion guards select attempts by `levelName`
+      // (isAveniaBusinessKybLevel), so a provider rename silently disables them: nothing
+      // errors, the filter just stops matching. Avenia has already shipped three names
+      // for this level — legacy "level-1", "kyb-level-1", and the current
+      // "kyb-level-1-v2" — so pin the family here rather than trusting a code literal.
+      let schemaError: unknown;
+      const listed = await runLive("avenia getKycAttempts (company)", async () => {
+        try {
+          return await api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string);
+        } catch (error) {
+          // getKycAttempts parses internally; a schema violation is a real contract
+          // break, not partner flakiness, so it must escape runLive's inconclusive path.
+          if (error instanceof ZodError) schemaError = error;
+          throw error;
+        }
+      });
+      if (schemaError) throw schemaError;
+      if (!listed) return;
+
+      for (const attempt of listed.attempts) {
+        expect(attempt.levelName).toMatch(COMPANY_LEVEL_NAME);
+      }
+
+      // Exact-attempt read: the shape the authenticated status route, the dashboard
+      // reconciliation and the KYB worker all consume. Avenia returns
+      // `submissionData: null` on these, which the attempt schema must normalize.
+      const newest = [...listed.attempts].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+      if (!newest) {
+        console.warn("[contract:live] avenia getVerificationAttemptStatus skipped: company subaccount has no attempts");
+        return;
+      }
+      const exact = await runLive("avenia getVerificationAttemptStatus (company)", async () => {
+        try {
+          return await api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string);
+        } catch (error) {
+          if (error instanceof ZodError) schemaError = error;
+          throw error;
+        }
+      });
+      if (schemaError) throw schemaError;
+      if (!exact) return;
+
+      // The subaccount-scoped read must return the attempt that was asked for.
+      expect(exact.attempt.id).toBe(newest.id);
+      expect(exact.attempt.levelName).toMatch(COMPANY_LEVEL_NAME);
     },
     60_000
   );

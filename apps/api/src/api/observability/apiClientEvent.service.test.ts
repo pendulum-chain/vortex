@@ -122,6 +122,24 @@ describe("buildApiClientRequestMetadata", () => {
     });
   });
 
+  it("stamps impersonation metadata when the request carries an impersonation context", () => {
+    const metadata = buildApiClientRequestMetadata({
+      impersonation: { actorProfileId: "actor-1", sessionId: "session-1" },
+      method: "GET",
+      path: "/v1/ramp/status"
+    });
+
+    expect(metadata.impersonationSessionId).toBe("session-1");
+    expect(metadata.impersonatorProfileId).toBe("actor-1");
+  });
+
+  it("omits impersonation metadata keys entirely for a non-impersonated request", () => {
+    const metadata = buildApiClientRequestMetadata({ method: "GET", path: "/v1/ramp/status" });
+
+    expect("impersonationSessionId" in metadata).toBe(false);
+    expect("impersonatorProfileId" in metadata).toBe(false);
+  });
+
   it("records only counts or presence flags for allowlisted sensitive payload fields", () => {
     const metadata = buildApiClientRequestMetadata(
       {
@@ -172,5 +190,24 @@ describe("recordApiClientEventSafe", () => {
     }) as typeof ApiClientEvent.create;
 
     await expect(recordApiClientEventSafe({ operation: "quote_create", status: "failure" })).resolves.toBeUndefined();
+  });
+
+  it("persists impersonation metadata through sanitizeMetadata", async () => {
+    let created: Record<string, unknown> | undefined;
+    ApiClientEvent.create = mock(async (attributes: Record<string, unknown>) => {
+      created = attributes;
+      return attributes as never;
+    }) as typeof ApiClientEvent.create;
+
+    const metadata = buildApiClientRequestMetadata({
+      impersonation: { actorProfileId: "actor-1", sessionId: "session-1" },
+      method: "GET",
+      path: "/v1/ramp/status"
+    });
+
+    await recordApiClientEventSafe({ metadata, operation: "ramp_status", status: "success", userId: "target-1" });
+
+    expect((created?.metadata as Record<string, unknown>).impersonationSessionId).toBe("session-1");
+    expect((created?.metadata as Record<string, unknown>).impersonatorProfileId).toBe("actor-1");
   });
 });

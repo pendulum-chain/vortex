@@ -523,15 +523,15 @@ export class BrlaApiService {
   /** Gets an individual or company verification attempt by its exact provider ID. */
   public async getVerificationAttemptStatus(
     attemptId: string,
-    subAccountId?: string
+    subAccountId: string
   ): Promise<AveniaVerificationAttemptResponse> {
-    const query = subAccountId ? `subAccountId=${encodeURIComponent(subAccountId)}` : undefined;
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return aveniaKybAttemptStatusSchema.parse(
       await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
     );
   }
 
-  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<BrKybAttemptStatusResponse> {
+  public async getKybAttemptStatus(attemptId: string, subAccountId: string): Promise<BrKybAttemptStatusResponse> {
     return this.getVerificationAttemptStatus(attemptId, subAccountId);
   }
 

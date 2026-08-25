@@ -69,9 +69,22 @@ describe("KybStatusWorker query window", () => {
 
   it("filters partner-owned entities in the join so they cannot occupy batch slots", async () => {
     const options = await captureQuery();
-    const include = (options.include as Array<{ where?: Record<string, unknown> }>)[0];
+    const include = (options.include as Array<{ as?: string; where?: Record<string, unknown> }>).find(
+      association => association.as === "customerEntity"
+    );
 
-    expect(include.where?.profileId).toBeDefined();
+    expect(include?.where?.profileId).toBeDefined();
+  });
+
+  it("requires the bound Avenia business account and its subaccount in the join", async () => {
+    const options = await captureQuery();
+    const include = (options.include as Array<{ as?: string; required?: boolean; where?: Record<string, unknown> }>).find(
+      association => association.as === "providerCustomer"
+    );
+
+    expect(include?.required).toBe(true);
+    expect(include?.where).toMatchObject({ customerType: "business", provider: "avenia" });
+    expect(include?.where?.providerSubaccountId).toBeDefined();
   });
 
   // A poll does not modify a still-pending case, so without the cursor the same first
@@ -100,7 +113,12 @@ describe("KybStatusWorker query window", () => {
   // Mirrors the authenticated route's guard: a malformed provider response must not
   // enqueue another attempt's outcome for this case's profile.
   it("discards a provider response whose attempt id does not match the case", async () => {
-    const polledCase = { customerEntity: { profileId: "user-1" }, id: "case-1", providerCaseId: "attempt-1" };
+    const polledCase = {
+      customerEntity: { profileId: "user-1" },
+      id: "case-1",
+      providerCaseId: "attempt-1",
+      providerCustomer: { providerSubaccountId: "subaccount-1" }
+    };
     KycCase.findAll = (async () => [polledCase]) as unknown as typeof KycCase.findAll;
 
     const realGetInstance = BrlaApiService.getInstance;
@@ -110,25 +128,29 @@ describe("KybStatusWorker query window", () => {
     const enqueueTouched = mock(async () => ({}) as EmailNotification);
     EmailNotification.findOne = enqueueTouched as unknown as typeof EmailNotification.findOne;
 
-    const respondWith = (id: string) =>
-      mock(
-        () =>
-          ({
-            getKybAttemptStatus: mock(async () => ({
-              attempt: { id, result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED, updatedAt: "2026-08-07" }
-            }))
-          }) as unknown as BrlaApiService
-      );
+    const respondWith = (id: string) => {
+      const getKybAttemptStatus = mock(async () => ({
+        attempt: { id, result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED, updatedAt: "2026-08-07" }
+      }));
+      return {
+        getInstance: mock(() => ({ getKybAttemptStatus }) as unknown as BrlaApiService),
+        getKybAttemptStatus
+      };
+    };
 
     try {
       const worker = new KybStatusWorker() as unknown as TestableWorker;
 
-      BrlaApiService.getInstance = respondWith("attempt-OTHER");
+      const mismatch = respondWith("attempt-OTHER");
+      BrlaApiService.getInstance = mismatch.getInstance;
       await worker.poll();
+      expect(mismatch.getKybAttemptStatus).toHaveBeenCalledWith("attempt-1", "subaccount-1");
       expect(enqueueTouched).not.toHaveBeenCalled();
 
-      BrlaApiService.getInstance = respondWith("attempt-1");
+      const match = respondWith("attempt-1");
+      BrlaApiService.getInstance = match.getInstance;
       await worker.poll();
+      expect(match.getKybAttemptStatus).toHaveBeenCalledWith("attempt-1", "subaccount-1");
       expect(enqueueTouched).toHaveBeenCalledTimes(1);
     } finally {
       BrlaApiService.getInstance = realGetInstance;

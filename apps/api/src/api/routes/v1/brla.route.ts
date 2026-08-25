@@ -1,5 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import {
@@ -44,6 +45,7 @@ router.get(
   "/getSelfieLivenessUrl",
   requirePartnerOrUserAuth(),
   authorizeManagedProfile({ corridor: "BR" }),
+  rejectImpersonation,
   brlaController.getSelfieLivenessUrl as unknown as RequestHandler
 );
 
@@ -52,18 +54,20 @@ router.get("/validatePixKey", optionalPartnerOrUserAuth(), brlaController.valida
 router
   .route("/createSubaccount")
   .post(
-    validateSubaccountCreation,
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    validateSubaccountCreation,
     brlaController.createSubaccount as unknown as RequestHandler
   );
 
 router
   .route("/getUploadUrls")
   .post(
-    validateStartKyc2,
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
+    rejectImpersonation,
+    validateStartKyc2,
     brlaController.getUploadUrls
   );
 
@@ -72,19 +76,26 @@ router
   .post(
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
+    rejectImpersonation,
     brlaController.newKyc
   );
 
 router
   .route("/kyb/new-level-1/web-sdk")
-  .post(requirePartnerOrUserAuth(), authorizeManagedProfile({ corridor: "BR" }), brlaController.initiateKybLevel1);
+  .post(
+    requirePartnerOrUserAuth(),
+    authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    brlaController.initiateKybLevel1
+  );
 
 router
   .route("/kyb/documents")
   .post(
-    validateAveniaKybDocument,
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    validateAveniaKybDocument,
     brlaController.createKybDocument as unknown as RequestHandler
   );
 
@@ -95,18 +106,20 @@ router
 router
   .route("/kyb/ubos")
   .post(
-    validateAveniaKybUbo,
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    validateAveniaKybUbo,
     brlaController.createKybUbo as unknown as RequestHandler
   );
 
 router
   .route("/kyb/new-level-1/api")
   .post(
-    validateAveniaKybLevel1,
     requirePartnerOrUserAuth(),
     authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    validateAveniaKybLevel1,
     brlaController.submitKybLevel1Api as unknown as RequestHandler
   );
 
@@ -116,6 +129,11 @@ router
 
 router
   .route("/kyc/record-attempt")
-  .post(requirePartnerOrUserAuth(), authorizeManagedProfile({ corridor: "BR" }), brlaController.recordInitialKycAttempt);
+  .post(
+    requirePartnerOrUserAuth(),
+    authorizeManagedProfile({ corridor: "BR" }),
+    rejectImpersonation,
+    brlaController.recordInitialKycAttempt
+  );
 
 export default router;
