@@ -56,7 +56,7 @@ export function QuoteExplorer() {
   // `requested*` is what the user last picked; for network and token the `active*` value below
   // is what survives reconciliation and is the only one anything reads.
   const [corridorId, setCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
-  const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Polygon);
+  const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Base);
   const [requestedToken, setRequestedToken] = useState<string>("");
   const [typedAmount, setTypedAmount] = useState("");
 
