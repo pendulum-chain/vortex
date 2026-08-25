@@ -6,6 +6,7 @@ import {
   validateAveniaLimits,
   validateAveniaOfframpRecipient
 } from "../core/avenia-registration";
+import { FinancialOperationRejectedError } from "../core/financial-operation";
 
 function limit(currency: string, overrides: Partial<Limit> = {}): Limit {
   return {
@@ -43,24 +44,29 @@ describe("Avenia block registration", () => {
       findPendingRamps: async () => [{ quote: { inputAmount: "25", outputAmount: "40" } }]
     });
 
-    await expect(
-      validateAveniaLimits(
-        "80",
-        [limit(BrlaCurrency.BRL, { maxFiatIn: "100" })],
-        RampDirection.BUY,
-        "123.456.789-01",
-        deps
-      )
-    ).rejects.toMatchObject({ message: "Amount exceeds BRL limit.", type: "provider_limit_exceeded" });
-    await expect(
-      validateAveniaLimits(
-        "20",
-        [limit(BrlaCurrency.BRL), limit("*", { maxFiatOut: "10" })],
-        RampDirection.SELL,
-        "123.456.789-01",
-        deps
-      )
-    ).rejects.toMatchObject({ message: "Amount exceeds global limit.", type: "provider_limit_exceeded" });
+    const brlLimitError = await validateAveniaLimits(
+      "80",
+      [limit(BrlaCurrency.BRL, { maxFiatIn: "100" })],
+      RampDirection.BUY,
+      "123.456.789-01",
+      deps
+    ).catch(error => error);
+    expect(brlLimitError).toBeInstanceOf(FinancialOperationRejectedError);
+    expect(brlLimitError).toMatchObject({ message: "Amount exceeds BRL limit.", status: 400, type: "provider_limit_exceeded" });
+
+    const globalLimitError = await validateAveniaLimits(
+      "20",
+      [limit(BrlaCurrency.BRL), limit("*", { maxFiatOut: "10" })],
+      RampDirection.SELL,
+      "123.456.789-01",
+      deps
+    ).catch(error => error);
+    expect(globalLimitError).toBeInstanceOf(FinancialOperationRejectedError);
+    expect(globalLimitError).toMatchObject({
+      message: "Amount exceeds global limit.",
+      status: 400,
+      type: "provider_limit_exceeded"
+    });
   });
 
   it("creates the onramp ticket for the trusted subaccount with unchanged metadata", async () => {
