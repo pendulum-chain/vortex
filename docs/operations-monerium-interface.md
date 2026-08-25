@@ -21,6 +21,27 @@ once after `401`, and applies a 10-second timeout to every call. Credentials use
 | Get user information | `GET /profiles/{profileId}` | Returns profile identity, type, name, and compliance states. It does **not** expose the submitted personal/corporate details such as email or address. | [API: Profile](https://docs.monerium.com/api/#tag/profiles/operation/profile) |
 | Monitor status changes | `profile.updated` webhook | Preferred over polling. `profile.error` is opt-in and reports rejected ingestion fields. | [Whitelabel: Monitor approval](https://docs.monerium.com/whitelabel#5-monitor-approval), [Whitelabel: Event types](https://docs.monerium.com/whitelabel#event-types) |
 
+## KYC/KYB Profile Lifecycle
+
+Monerium does not expose a separate KYC/KYB case or attempt ID. The profile UUID created by
+`POST /profiles` is the durable workflow identity; its `kind` is immutable, and details, form data,
+and verifications are sections of that same profile. Vortex therefore mirrors one `kyc_cases` row
+per Monerium `provider_customers` row and leaves `provider_case_id` unset. Repeated submissions and
+status changes update that row rather than creating a new local case.
+
+| Profile state | Meaning and next action |
+|---|---|
+| `created` | No data has been submitted. Submit the required profile sections using the same profile UUID. |
+| `incomplete` | The profile is resumable. Inspect section states and `profile.error`, correct or add the requested data, and resubmit the affected `/share`, `/details`, `/form`, or `/verifications` operation against the same profile UUID. |
+| `pending` | Monerium is reviewing the profile. Further submissions are blocked; wait for `profile.updated` to move it to `approved`, `rejected`, or back to `incomplete`. Do not create another profile or retry blindly. |
+| `approved` | KYC/KYB is complete and Monerium services are available. Further section updates return `409`. |
+| `rejected` | Final compliance rejection. Do not retry or create a replacement profile unless Monerium explicitly authorizes a new onboarding. |
+
+The current shared client implements profile reads but not `POST /profiles` or the onboarding
+`POST`/`PATCH` operations above. This lifecycle is the required behavior when that orchestration is
+added. Externally imported profiles enter Vortex directly as `approved` and do not execute these
+submission steps locally.
+
 ## Connected Addresses
 
 | Operation | Endpoint / sequence | Commentary | Source |
