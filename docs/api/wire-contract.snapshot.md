@@ -4786,6 +4786,20 @@ StartRampError: class StartRampError {
   readonly status: number;
 }
 
+StoreEphemeralKeysCallback: (keys: Array<{
+  address: string;
+  rampId: string;
+  secret: string;
+  type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+}>, rampId: string) => Promise<void>
+
+StoredEphemeralKey: {
+  address: string;
+  rampId: string;
+  secret: string;
+  type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+}
+
 SubaccountNotFoundError: class SubaccountNotFoundError {
   constructor();
   readonly code?: string;
@@ -5508,6 +5522,12 @@ VortexSdk: class VortexSdk {
     publicKey?: string;
     secretKey?: string;
     storeEphemeralKeys?: boolean;
+    storeEphemeralKeysCallback?: (keys: Array<{
+      address: string;
+      rampId: string;
+      secret: string;
+      type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+    }>, rampId: string) => Promise<void>;
   });
   createQuote: <T extends {
     api?: boolean;
@@ -8425,6 +8445,12 @@ VortexSdkConfig: {
   publicKey?: string;
   secretKey?: string;
   storeEphemeralKeys?: boolean;
+  storeEphemeralKeysCallback?: (keys: Array<{
+    address: string;
+    rampId: string;
+    secret: string;
+    type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+  }>, rampId: string) => Promise<void>;
 }
 
 VortexSdkContext: {
