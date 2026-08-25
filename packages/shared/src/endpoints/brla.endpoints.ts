@@ -62,7 +62,6 @@ export interface BrGetKycStatusResponse {
 export interface BrGetSelfieLivenessUrlResponse {
   id: string;
   livenessUrl: string;
-  uploadURLFront: string;
   validateLivenessToken: string;
 }
 
@@ -141,9 +140,8 @@ export interface BrKYCDataUploadRequest {
 export interface BrKYCDataUpload {
   selfieUpload: {
     id: string;
-    uploadURLFront: string;
-    livenessUrl?: string;
-    validateLivenessToken?: string;
+    livenessUrl: string;
+    validateLivenessToken: string;
   };
   idUpload: {
     id: string;

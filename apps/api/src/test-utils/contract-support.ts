@@ -3,14 +3,16 @@
  *
  * Partner sandboxes are allowed to be shaky: any error thrown by the live call
  * itself (network failure, 5xx, rate limit) makes the check INCONCLUSIVE — logged
- * and skipped, never failed. Only a successful response that violates a schema
- * fails a contract test, so the nightly alert channel stays meaningful.
+ * and skipped, never failed. A ZodError means the provider returned a successful
+ * response that violated a consumed schema, so it must fail the contract test.
  *
  * The nightly workflow sets CONTRACT_EXPECT_LIVE=1: a run where zero live calls
  * completed (credential rot, endpoint down all night) then fails instead of
  * rotting as green-but-empty. Counters are per test file (bun isolates files),
  * so every contract suite asserts its own live coverage.
  */
+import { ZodError } from "zod";
+
 let liveCompleted = 0;
 
 export async function runLive<T>(label: string, call: () => Promise<T>): Promise<T | null> {
@@ -19,6 +21,7 @@ export async function runLive<T>(label: string, call: () => Promise<T>): Promise
     liveCompleted += 1;
     return result;
   } catch (error) {
+    if (error instanceof ZodError) throw error;
     console.warn(`[contract:live] ${label} inconclusive: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }

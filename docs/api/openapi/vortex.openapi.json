@@ -299,14 +299,11 @@
           "livenessUrl": {
             "type": "string"
           },
-          "uploadURLFront": {
-            "type": "string"
-          },
           "validateLivenessToken": {
             "type": "string"
           }
         },
-        "required": ["id", "livenessUrl", "uploadURLFront", "validateLivenessToken"],
+        "required": ["id", "livenessUrl", "validateLivenessToken"],
         "type": "object"
       },
       "BrImportKycTokenErrorResponse": {
@@ -411,7 +408,7 @@
             "$ref": "#/components/schemas/DocumentUploadEntry"
           },
           "selfieUpload": {
-            "$ref": "#/components/schemas/DocumentUploadEntry"
+            "$ref": "#/components/schemas/LivenessDocumentEntry"
           }
         },
         "required": ["idUpload", "selfieUpload"],
@@ -483,28 +480,14 @@
         "type": "object"
       },
       "BrKybDocumentUploadResponse": {
-        "properties": {
-          "id": {
-            "type": "string"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DocumentUploadEntry"
           },
-          "livenessUrl": {
-            "format": "uri",
-            "type": "string"
-          },
-          "uploadURLBack": {
-            "format": "uri",
-            "type": "string"
-          },
-          "uploadURLFront": {
-            "format": "uri",
-            "type": "string"
-          },
-          "validateLivenessToken": {
-            "type": "string"
+          {
+            "$ref": "#/components/schemas/LivenessDocumentEntry"
           }
-        },
-        "required": ["id", "uploadURLFront"],
-        "type": "object"
+        ]
       },
       "BrKybHostedResponse": {
         "properties": {
@@ -1023,16 +1006,10 @@
           "id": {
             "type": "string"
           },
-          "livenessUrl": {
-            "type": "string"
-          },
           "uploadURLBack": {
             "type": "string"
           },
           "uploadURLFront": {
-            "type": "string"
-          },
-          "validateLivenessToken": {
             "type": "string"
           }
         },
@@ -2223,6 +2200,22 @@
           "pagination": { "$ref": "#/components/schemas/ManagedProfilePagination" }
         },
         "required": ["manager", "managedProfiles", "pagination"],
+        "type": "object"
+      },
+      "LivenessDocumentEntry": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "livenessUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "validateLivenessToken": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "livenessUrl", "validateLivenessToken"],
         "type": "object"
       },
       "MalformedJsonErrorResponse": {
@@ -4457,7 +4450,7 @@
     "/v1/brl/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
+        "description": "Returns a presigned upload URL for the user's ID document and a provider-hosted URL for selfie liveness capture. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "brGetUploadUrls",
         "parameters": [
           {
@@ -4813,7 +4806,7 @@
     },
     "/v1/brl/kyb/documents": {
       "post": {
-        "description": "Creates a document and returns presigned upload targets. Upload bytes directly to the returned URLs.",
+        "description": "Creates a document target. Ordinary documents return presigned upload URLs; `SELFIE-FROM-LIVENESS` returns a provider-hosted liveness URL instead.",
         "operationId": "createBrKybDocument",
         "parameters": [
           {

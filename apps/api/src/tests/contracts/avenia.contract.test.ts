@@ -10,8 +10,9 @@
  *  - AVENIA_CONTRACT_COMPANY_SUBACCOUNT_ID (company attempt listing/exact read)
  *  - AVENIA_CONTRACT_WEBHOOK_URL (temporary webhook-management lifecycle)
  *
- * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid) and
- * one temporary webhook are created per run. The webhook is deleted in `finally`.
+ * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid), two
+ * empty document targets (no bytes uploaded), and one temporary webhook are created
+ * per run. The webhook is deleted in `finally`.
  * Payout tickets are covered hermetically only — creating one live would move
  * BRLA balance, and reading one needs the id of a real payout.
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
@@ -25,7 +26,6 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";
-import { ZodError } from "zod";
 import {
   aveniaAccountBalanceSchema,
   aveniaAccountInfoSchema,
@@ -40,6 +40,7 @@ import {
   aveniaWebhookRegistrationSchema,
   aveniaWebhooksListSchema,
   BlockchainSendMethod,
+  BrDocumentType,
   BrlaApiService,
   BrlaCurrency,
   type PayInQuoteParams
@@ -178,18 +179,9 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       // errors, the filter just stops matching. Avenia has already shipped three names
       // for this level — legacy "level-1", "kyb-level-1", and the current
       // "kyb-level-1-v2" — so pin the family here rather than trusting a code literal.
-      let schemaError: unknown;
-      const listed = await runLive("avenia getKycAttempts (company)", async () => {
-        try {
-          return await api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string);
-        } catch (error) {
-          // getKycAttempts parses internally; a schema violation is a real contract
-          // break, not partner flakiness, so it must escape runLive's inconclusive path.
-          if (error instanceof ZodError) schemaError = error;
-          throw error;
-        }
-      });
-      if (schemaError) throw schemaError;
+      const listed = await runLive("avenia getKycAttempts (company)", () =>
+        api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string)
+      );
       if (!listed) return;
 
       for (const attempt of listed.attempts) {
@@ -204,15 +196,9 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         console.warn("[contract:live] avenia getVerificationAttemptStatus skipped: company subaccount has no attempts");
         return;
       }
-      const exact = await runLive("avenia getVerificationAttemptStatus (company)", async () => {
-        try {
-          return await api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string);
-        } catch (error) {
-          if (error instanceof ZodError) schemaError = error;
-          throw error;
-        }
-      });
-      if (schemaError) throw schemaError;
+      const exact = await runLive("avenia getVerificationAttemptStatus (company)", () =>
+        api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string)
+      );
       if (!exact) return;
 
       // The subaccount-scoped read must return the attempt that was asked for.
@@ -240,6 +226,53 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
           if (pixKeyData) aveniaPixKeyDataSchema.parse(pixKeyData);
         } else {
           console.warn("[contract:live] avenia validatePixKey skipped: subaccount has no pixKey");
+        }
+      }
+    },
+    60_000
+  );
+
+  test.skipIf(!SUBACCOUNT_ID)(
+    "POST /documents returns file-upload and hosted-liveness targets that read back through the consumed GET schemas",
+    async () => {
+      const document = await runLive("avenia create document upload target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.ID, false, SUBACCOUNT_ID as string)
+      );
+      if (document) {
+        expect(document.id).toBeTruthy();
+        expect(document.uploadURLFront).toBeTruthy();
+      }
+
+      const liveness = await runLive("avenia create hosted liveness target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, SUBACCOUNT_ID as string)
+      );
+      if (liveness) {
+        expect(liveness.id).toBeTruthy();
+        expect(liveness.livenessUrl).toBeTruthy();
+        expect(liveness.validateLivenessToken).toBeTruthy();
+      }
+
+      // A hosted-liveness row carries no uploaded bytes, so the strict single-document
+      // and listing schemas (the KYB document gate and newKyc readiness paths) must be
+      // proven against a real one — drift surfaces as a rethrown ZodError.
+      if (liveness) {
+        const livenessReadback = await runLive("avenia read back hosted liveness document", () =>
+          api().getUploadedDocument(liveness.id, SUBACCOUNT_ID as string)
+        );
+        if (livenessReadback) {
+          expect(livenessReadback.document.id).toBe(liveness.id);
+          expect(livenessReadback.document.documentType).toBe(BrDocumentType.SELFIE_FROM_LIVENESS);
+        }
+      }
+
+      if (document || liveness) {
+        const listing = await runLive("avenia list documents (readiness path)", () =>
+          api().getUploadedDocuments(SUBACCOUNT_ID as string)
+        );
+        if (listing) {
+          const listedIds = listing.documents.map(entry => entry.id);
+          if (document) expect(listedIds).toContain(document.id);
+          if (liveness) expect(listedIds).toContain(liveness.id);
         }
       }
     },

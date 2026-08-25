@@ -175,7 +175,7 @@ export interface paths {
         put?: never;
         /**
          * Get KYC document upload URLs
-         * @description Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
+         * @description Returns a presigned upload URL for the user's ID document and a provider-hosted URL for selfie liveness capture. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
@@ -257,7 +257,7 @@ export interface paths {
         put?: never;
         /**
          * Create KYB document
-         * @description Creates a document and returns presigned upload targets. Upload bytes directly to the returned URLs.
+         * @description Creates a document target. Ordinary documents return presigned upload URLs; `SELFIE-FROM-LIVENESS` returns a provider-hosted liveness URL instead.
          */
         post: operations["createBrKybDocument"];
         delete?: never;
@@ -2082,7 +2082,6 @@ export interface components {
         BrGetSelfieLivenessUrlResponse: {
             id: string;
             livenessUrl: string;
-            uploadURLFront: string;
             validateLivenessToken: string;
         };
         BrImportKycTokenErrorResponse: {
@@ -2116,7 +2115,7 @@ export interface components {
         };
         BrKYCDataUploadResponse: {
             idUpload: components["schemas"]["DocumentUploadEntry"];
-            selfieUpload: components["schemas"]["DocumentUploadEntry"];
+            selfieUpload: components["schemas"]["LivenessDocumentEntry"];
         };
         BrKybAttemptStatusResponse: {
             failureReason?: string;
@@ -2141,16 +2140,7 @@ export interface components {
                 uploadStatusFront: string;
             };
         };
-        BrKybDocumentUploadResponse: {
-            id: string;
-            /** Format: uri */
-            livenessUrl?: string;
-            /** Format: uri */
-            uploadURLBack?: string;
-            /** Format: uri */
-            uploadURLFront: string;
-            validateLivenessToken?: string;
-        };
+        BrKybDocumentUploadResponse: components["schemas"]["DocumentUploadEntry"] | components["schemas"]["LivenessDocumentEntry"];
         BrKybHostedResponse: {
             attemptId: string;
             /** Format: uri */
@@ -2323,10 +2313,8 @@ export interface components {
         DestinationType: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "pendulum" | "stellar" | "pix" | "sepa" | "cbu" | "ach" | "spei";
         DocumentUploadEntry: {
             id: string;
-            livenessUrl?: string;
             uploadURLBack?: string;
             uploadURLFront: string;
-            validateLivenessToken?: string;
         };
         DomesticAddFiatAccountRequest: {
             accountBankCode?: string;
@@ -2707,6 +2695,12 @@ export interface components {
             managedProfiles: components["schemas"]["ManagedProfile"][];
             manager: components["schemas"]["ManagedProfileManagerPolicy"];
             pagination: components["schemas"]["ManagedProfilePagination"];
+        };
+        LivenessDocumentEntry: {
+            id: string;
+            /** Format: uri */
+            livenessUrl: string;
+            validateLivenessToken: string;
         };
         MalformedJsonErrorResponse: {
             /** @constant */
