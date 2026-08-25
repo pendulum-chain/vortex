@@ -24,6 +24,8 @@ export interface MoneriumFiatDepositAttributes {
   blockHash: string | null;
   blockNumber: number | null;
   allocatedExecutionId: string | null;
+  receivedEventAt: Date | null;
+  convertedEventAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +40,8 @@ type MoneriumFiatDepositCreationAttributes = Optional<
   | "blockHash"
   | "blockNumber"
   | "allocatedExecutionId"
+  | "receivedEventAt"
+  | "convertedEventAt"
   | "createdAt"
   | "updatedAt"
 >;
@@ -58,6 +62,8 @@ class MoneriumFiatDeposit
   declare blockHash: string | null;
   declare blockNumber: number | null;
   declare allocatedExecutionId: string | null;
+  declare receivedEventAt: Date | null;
+  declare convertedEventAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -96,6 +102,11 @@ MoneriumFiatDeposit.init(
       field: "chain_id",
       type: DataTypes.INTEGER
     },
+    convertedEventAt: {
+      allowNull: true,
+      field: "converted_event_at",
+      type: DataTypes.DATE
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -122,6 +133,11 @@ MoneriumFiatDeposit.init(
       field: "monerium_order_id",
       type: DataTypes.STRING(64),
       unique: true
+    },
+    receivedEventAt: {
+      allowNull: true,
+      field: "received_event_at",
+      type: DataTypes.DATE
     },
     status: {
       allowNull: false,

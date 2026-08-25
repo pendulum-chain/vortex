@@ -31,6 +31,7 @@ import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
+import WebhookDelivery from "./webhookDelivery.model";
 
 // Define associations
 MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "accountId" });
@@ -39,6 +40,8 @@ MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions
 MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
 MoneriumAccount.belongsTo(User, { as: "vortexProfile", foreignKey: "vortexProfileId" });
 User.hasOne(MoneriumAccount, { as: "moneriumAccount", foreignKey: "vortexProfileId" });
+Webhook.hasMany(WebhookDelivery, { as: "deliveries", foreignKey: "webhookId" });
+WebhookDelivery.belongsTo(Webhook, { as: "webhook", foreignKey: "webhookId" });
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
@@ -155,7 +158,8 @@ const models = {
   SenderRecipient,
   Subsidy,
   User,
-  Webhook
+  Webhook,
+  WebhookDelivery
 };
 
 // Export models and sequelize instance

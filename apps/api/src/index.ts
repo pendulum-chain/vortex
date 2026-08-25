@@ -25,6 +25,7 @@ import MoneriumB2bWorker from "./api/workers/monerium-b2b.worker";
 import NotificationDispatchWorker from "./api/workers/notification-dispatch.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
+import WebhookOutboxWorker from "./api/workers/webhook-outbox.worker";
 
 dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
@@ -86,6 +87,7 @@ const initializeApp = async () => {
     new UnhandledPaymentWorker().start();
     new MoneriumB2bWorker().start();
     new NotificationDispatchWorker().start();
+    new WebhookOutboxWorker().start();
     // Both flow-variant backends share this database and these provider accounts. Give
     // the replacement backend sole ownership of external status polling so the legacy
     // grace-period backend does not make every Avenia/Alfredpay request a second time.

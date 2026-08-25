@@ -8,6 +8,7 @@ import { erc20Abi, getForwarderImmutables, getPublicClient, isKeeperChainConfigu
 import { runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
+import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-events";
 import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
@@ -71,6 +72,10 @@ class MoneriumB2bWorker {
 
         await runDormancyGate();
       }
+
+      // Manager-facing deposit events into the durable webhook outbox; the
+      // converted event self-gates on the read RPC for its confirmation depth.
+      await emitMoneriumDepositEvents();
 
       // Detection-only monitors (plan D3); internally rate-limited and gated on the
       // read RPC / API credentials, so this is safe to call every cycle.
