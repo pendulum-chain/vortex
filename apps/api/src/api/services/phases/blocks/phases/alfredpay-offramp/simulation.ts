@@ -154,7 +154,6 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     }
     const adjustedDifference = getAdjustedDifference(partner);
     const adjustedTargetDiscount = new Big(targetDiscount).plus(adjustedDifference);
-    const subsidyEnabled = hasConfiguredTargetDiscount(targetDiscount);
     const expectedOutput = inputAmountUsd.mul(referenceRate).mul(new Big(1).plus(adjustedTargetDiscount));
     if (expectedOutput.lte(0)) {
       throw new Error(`AlfredpayOfframp: Invalid target output ${expectedOutput.toString()}`);
@@ -210,6 +209,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     const partnerCapRaw = multiplyByPowerOfTen(partnerCapUsd, ALFREDPAY_ERC20_DECIMALS).round(0, Big.roundDown);
     const runtimeCapRaw = multiplyByPowerOfTen(MAX_FINAL_SETTLEMENT_SUBSIDY_USD, ALFREDPAY_ERC20_DECIMALS);
     const allowedSubsidyRaw = partnerCapRaw.lt(runtimeCapRaw) ? partnerCapRaw : runtimeCapRaw;
+    const subsidyEnabled = hasConfiguredTargetDiscount(targetDiscount) && allowedSubsidyRaw.gt(0);
     const requestedTargetOutput = expectedOutput.round(2, Big.roundUp);
 
     // The deposit Vortex funds is clamped into [baseline, ceiling]: never below the fee-net

@@ -281,7 +281,7 @@ export class FakeAlfredpay {
   /** Optional provider-side maximum input used to exercise capped quote boundaries. */
   offrampMaxFromAmount: string | null = null;
   /** Optional hook for deterministic provider-latency/clock tests. */
-  onCreateOfframpQuote?: () => void;
+  onCreateOfframpQuote?: (request: CreateAlfredpayOfframpQuoteRequest) => void;
   /** One-shot quote output adjustment for registration drift/retry tests. */
   offrampQuoteToAmountAdjustmentOnce: string | null = null;
   /** Optional one-shot quote expiration for quote-lifetime tests. */
@@ -453,7 +453,7 @@ export class FakeAlfredpay {
       return transaction;
     },
     createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> => {
-      this.onCreateOfframpQuote?.();
+      this.onCreateOfframpQuote?.(request);
       return this.offrampQuote(request);
     },
     createOnramp: async (request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> => {

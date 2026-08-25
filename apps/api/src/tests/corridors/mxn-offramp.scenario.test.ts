@@ -5,6 +5,7 @@ import {
   AlfredpayChain,
   AlfredpayFeeType,
   AlfredpayOfframpStatus,
+  AlfredpayTradeLimitError,
   type EvmTransactionData,
   EvmToken,
   FiatToken,
@@ -956,6 +957,30 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     expect(quote.outputAmount).toBe("16866.10");
     expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
     expect(metadata.subsidyAmountRaw).toBe("0");
+  });
+
+  it("negative target with zero subsidy cap skips the fallible exact-output probe", async () => {
+    world.alfredpay.offrampRate = 20;
+    world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
+    world.alfredpay.onCreateOfframpQuote = request => {
+      if (request.toAmount) {
+        throw AlfredpayTradeLimitError.below("900", request.fromCurrency);
+      }
+    };
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      maxSubsidy: 0,
+      targetDiscount: -0.01
+    });
+
+    const quote = await createQuoteViaApi("1000");
+    const metadata = await getAlfredpayMetadata(quote.id);
+    expect(quote.outputAmount).toBe("19963.00");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
+    expect(metadata.subsidyAmountRaw).toBe("0");
+    expect(world.alfredpay.issuedOfframpQuotes.size).toBe(1);
   });
 
   it("regression: negative target discount subsidizes up to its worse-than-reference rate floor", async () => {
