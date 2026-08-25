@@ -26,7 +26,6 @@
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";
-import { ZodError } from "zod";
 import {
   aveniaAccountBalanceSchema,
   aveniaAccountInfoSchema,
@@ -180,18 +179,9 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       // errors, the filter just stops matching. Avenia has already shipped three names
       // for this level — legacy "level-1", "kyb-level-1", and the current
       // "kyb-level-1-v2" — so pin the family here rather than trusting a code literal.
-      let schemaError: unknown;
-      const listed = await runLive("avenia getKycAttempts (company)", async () => {
-        try {
-          return await api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string);
-        } catch (error) {
-          // getKycAttempts parses internally; a schema violation is a real contract
-          // break, not partner flakiness, so it must escape runLive's inconclusive path.
-          if (error instanceof ZodError) schemaError = error;
-          throw error;
-        }
-      });
-      if (schemaError) throw schemaError;
+      const listed = await runLive("avenia getKycAttempts (company)", () =>
+        api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string)
+      );
       if (!listed) return;
 
       for (const attempt of listed.attempts) {
@@ -206,15 +196,9 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         console.warn("[contract:live] avenia getVerificationAttemptStatus skipped: company subaccount has no attempts");
         return;
       }
-      const exact = await runLive("avenia getVerificationAttemptStatus (company)", async () => {
-        try {
-          return await api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string);
-        } catch (error) {
-          if (error instanceof ZodError) schemaError = error;
-          throw error;
-        }
-      });
-      if (schemaError) throw schemaError;
+      const exact = await runLive("avenia getVerificationAttemptStatus (company)", () =>
+        api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string)
+      );
       if (!exact) return;
 
       // The subaccount-scoped read must return the attempt that was asked for.
