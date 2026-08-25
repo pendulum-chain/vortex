@@ -11,7 +11,7 @@ Monerium now owns EU dashboard KYC/KYB and recipient onboarding eligibility; Myk
 Mykobo replaces two earlier EUR rails:
 
 - The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed; Stellar/Spacewalk support was fully removed from the platform (migration 028).
-- The legacy **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. The new Monerium OAuth onboarding flow is separate and does not restore that settlement path; see `monerium.md`.
+- The legacy **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. The white-label reintegration is a new API-managed baseline and does not restore that settlement path by itself; see `monerium.md`.
 
 **Provider type:** Both (on-ramp and off-ramp)
 **Fiat currency:** EUR (Euro, SEPA)

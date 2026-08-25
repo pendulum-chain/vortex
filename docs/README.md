@@ -24,6 +24,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
 | [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
+| [`operations-monerium-interface.md`](operations-monerium-interface.md) | Focused white-label Monerium profile, address, IBAN, and payment interface reference |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |

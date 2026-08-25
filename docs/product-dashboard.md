@@ -26,7 +26,7 @@ two people.
  self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
  remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo.
+ onboarding is moving to Monerium's white-label API but active EUR ramps resolve Mykobo.
 
 
 ## User stories
@@ -41,7 +41,7 @@ two people.
 ### Onboarding (KYC/KYB)
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
-  Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+  Monerium EU onboarding is API-managed and remains inside the Vortex experience.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
@@ -51,19 +51,13 @@ two people.
   reusing the existing Avenia subaccount and issuing fresh verification links.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor started; it moves to
   in review only after Monerium reports that all required information was submitted.
-- As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
-  action only when the backend returns `MONERIUM_REAUTHENTICATION_REQUIRED` while loading the corridor.
-- **To be confirmed:** the current assumption is that Vortex cannot retrieve a user's Monerium
-  status unless the user has authenticated and Vortex holds app-specific Monerium authorization.
-  Under that assumption, missing authorization produces a `404` and the custom error above.
-  Note this assumption is already load-bearing: the user-visible **Re-authenticate with
-  Monerium** affordance is built on it, so confirming (or refuting) it with Monerium changes
-  shipped behavior, not just documentation.
+- As a sender whose Monerium onboarding is in review, I see status derived from the profile and
+  `profile.updated` events without leaving Vortex.
 - As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
   approved/rejected` — read from the provider, surviving reload. `pending` is only used for
   missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
-  Monerium's hosted OAuth KYC/KYB.
+  API-managed Monerium KYC/KYB.
 - Corridor/kind combinations without an implemented provider flow — US individual onboarding
   (the partner redirect is not wired) and AR company KYB (provider support unconfirmed) — are
   shown as **not yet available** and cannot be started. They are disabled rather than simulated:
@@ -158,8 +152,8 @@ provider-shaped rather than UI-shaped.
 
 - **Reuse the KYC machines, don't re-implement them.** `@vortexfi/kyc` holds the Avenia,
   AlfredPay, and Monerium provider machines. Each app binds them to its API client and browser
-  side effects. Monerium OAuth state, PKCE, code exchange, and tokens stay in the backend; the
-  shared machine receives only an authorization URL and normalized profile status.
+  side effects. Monerium credentials, access tokens, and provider calls stay in the backend; the
+  shared machine receives only normalized profile state and API-managed onboarding results.
 
 - **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
   quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet

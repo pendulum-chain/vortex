@@ -19,6 +19,14 @@ export async function runLive<T>(label: string, call: () => Promise<T>): Promise
     liveCompleted += 1;
     return result;
   } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "providerContractViolation" in error &&
+      error.providerContractViolation === true
+    ) {
+      throw error;
+    }
     console.warn(`[contract:live] ${label} inconclusive: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
