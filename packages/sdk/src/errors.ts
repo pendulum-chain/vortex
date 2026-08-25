@@ -4,8 +4,10 @@ export interface APIErrorResponse {
   message: string;
   errors?: unknown[];
   status: number;
+  statusCode?: number;
   isPublic?: boolean;
   code?: string;
+  type?: string;
 }
 
 export class VortexSdkError extends Error {
@@ -460,11 +462,17 @@ function extractErrorMessage(value: unknown): string | undefined {
  */
 export function parseAPIError(response: unknown, fallbackStatus?: number): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, errors, code } = response as Record<string, unknown>;
+    const { message, error, errors, code, type } = response as Record<string, unknown>;
     const normalizedStatus = extractErrorStatus(response as Record<string, unknown>) ?? fallbackStatus ?? 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
-    const nestedCode = error && typeof error === "object" ? (error as Record<string, unknown>).code : undefined;
-    const errorCode = typeof code === "string" ? code : typeof nestedCode === "string" ? nestedCode : undefined;
+    const nestedError = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined;
+    let errorCode: string | undefined;
+    for (const candidate of [code, nestedError?.code, type, nestedError?.type]) {
+      if (typeof candidate === "string") {
+        errorCode = candidate;
+        break;
+      }
+    }
 
     if (errorMessage) {
       if (errorMessage?.includes("Missing required fields")) {
