@@ -76,7 +76,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
   );
   const initialId = preselectRecipientId ?? corridorMatch?.id ?? firstSelfApproved?.id ?? "";
   const [recipientId, setRecipientId] = useState(initialId);
-  const [requestedNetwork, setRequestedNetwork] = useState(prefill?.network ?? Networks.Polygon);
+  const [requestedNetwork, setRequestedNetwork] = useState(prefill?.network ?? Networks.Base);
   const [requestedToken, setRequestedToken] = useState(prefill?.token ?? EvmToken.USDC);
   const [amount, setAmount] = useState(prefill?.amount ?? "");
   const [pixKey, setPixKey] = useState("");
