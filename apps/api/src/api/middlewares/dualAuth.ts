@@ -6,16 +6,17 @@ import {
   observeApiClientEvent
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
-import { SupabaseAuthService } from "../services/auth";
-import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
-import { setApiKeyUserId } from "./effectiveUser";
+import { AccessTokenVerificationError } from "../services/auth";
+import { getKeyType, isValidSecretKeyFormat, validatePublicApiKey, validateSecretApiKey } from "./apiKeyAuth.helpers";
+import { resolveBearerPrincipal } from "./bearerPrincipal";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
 /**
  * Dual-track authentication: accepts either a partner secret API key
  * (X-API-Key: sk_*) or a Supabase user Bearer token (Authorization: Bearer ...).
- * Exactly one of req.authenticatedPartner or req.userId is populated on success.
+ * Canonical API credential identity is populated on `req.credential`; Supabase
+ * identity remains on `req.userId`.
  */
 export function requirePartnerOrUserAuth() {
   return dualAuthHandler({ requireCredentials: true });
@@ -31,6 +32,22 @@ export function requirePartnerOrUserAuth() {
  */
 export function optionalPartnerOrUserAuth() {
   return dualAuthHandler({ requireCredentials: false });
+}
+
+/** Requires dual auth to have resolved a concrete profile principal. */
+export function requireProfileBoundPrincipal(req: Request, res: Response, next: NextFunction): void {
+  if (req.userId || req.authenticatedCredentialProfileId) {
+    next();
+    return;
+  }
+
+  res.status(401).json({
+    error: {
+      code: "AUTHENTICATION_REQUIRED",
+      message: "A profile-bound secret key or Bearer token is required.",
+      status: 401
+    }
+  });
 }
 
 function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }) {
@@ -64,16 +81,59 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
+        const publicKey = req.headers["x-public-key"] as string | undefined;
+        if (publicKey) {
+          const publicResult = await validatePublicApiKey(publicKey);
+          if (!publicResult) {
+            return res.status(401).json({
+              error: { code: "INVALID_PUBLIC_KEY", message: "The provided public API key is invalid or expired.", status: 401 }
+            });
+          }
+          if (publicResult.credential.credentialId !== result.credential.credentialId) {
+            return res.status(403).json({
+              error: { code: "CREDENTIAL_MISMATCH", message: "Public and secret credentials do not match", status: 403 }
+            });
+          }
+        }
+
         if (result.partner) {
           req.authenticatedPartner = result.partner;
         }
-        setApiKeyUserId(req, result.apiKeyUserId);
+        req.credential = result.credential;
+        req.authenticatedCredentialProfileId = result.credential.profileId;
         return next();
       }
 
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.slice(7);
-        const result = await SupabaseAuthService.verifyToken(token);
+        let result: Awaited<ReturnType<typeof resolveBearerPrincipal>>;
+        try {
+          result = await resolveBearerPrincipal(token);
+        } catch (error) {
+          if (!(error instanceof AccessTokenVerificationError)) {
+            logger.error("Unexpected Supabase access-token verifier failure", error);
+            next(error);
+            return;
+          }
+          // Callers distinguish "the provider is briefly unreachable" from "this token is
+          // rejected"; only the latter should end their session, so a transient failure keeps
+          // the 503 the Supabase-only middleware returns instead of surfacing as a 500.
+          const unavailable = error.transient;
+          logger.warn("Supabase access-token verification failed", {
+            category: unavailable ? "provider_unavailable" : "verification_error",
+            error: error.message,
+            path: req.path,
+            requestId: req.headers["x-request-id"]
+          });
+          recordDualAuthFailure(req, unavailable ? 503 : 401, unavailable ? "service_unavailable" : "auth_invalid_api_key");
+          return res.status(unavailable ? 503 : 401).json({
+            error: {
+              code: unavailable ? "AUTH_SERVICE_UNAVAILABLE" : "INVALID_BEARER_TOKEN",
+              message: unavailable ? "Authentication service unavailable" : "Authentication failed",
+              status: unavailable ? 503 : 401
+            }
+          });
+        }
         if (!result.valid) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key");
           return res.status(401).json({
@@ -85,8 +145,9 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        req.userId = result.user_id;
-        req.userEmail = result.email;
+        req.userId = result.userId;
+        req.userEmail = result.userEmail;
+        req.impersonation = result.impersonation;
         return next();
       }
 
@@ -112,7 +173,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
 function recordDualAuthFailure(
   req: Request,
   httpStatus: number,
-  errorType: "auth_missing_api_key" | "auth_invalid_api_key",
+  errorType: "auth_missing_api_key" | "auth_invalid_api_key" | "service_unavailable",
   apiKeyPrefix?: string | null
 ): void {
   observeApiClientEvent({
@@ -122,10 +183,10 @@ function recordDualAuthFailure(
     httpStatus,
     metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
     operation: "auth_dual",
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || req.apiKeyUserId || null
+    userId: req.userId || req.credential?.profileId || null
   });
 }

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   AlfredPayStatus,
-  type AlfredpayCreateCustomerResponse,
-  type AlfredpayGetKycRedirectLinkResponse,
-  type AlfredpayGetKycStatusResponse,
+  type DomesticCreateCustomerResponse,
+  type DomesticGetKycRedirectLinkResponse,
+  type DomesticGetKycStatusResponse,
   type AlfredpayKybCustomerAndBusiness,
-  type AlfredpayStatusResponse,
+  type DomesticStatusResponse,
   type SubmitKybInformationResponse,
   type SubmitKycInformationResponse
 } from "@vortexfi/shared";
@@ -18,6 +18,7 @@ import {
   AlfredpayKycMachineErrorType,
   type KybBusinessFiles,
   type KybFormData,
+  type KybQuestionnaireData,
   type MxnKycFiles
 } from "./types";
 
@@ -41,13 +42,13 @@ const alfredpayKycMachine = createAlfredpayKycMachine({
 
 const notifyActor = () => fromPromise<{ success: boolean }, AlfredpayKycContext>(async () => ({ success: true }));
 
-const statusOf = (status: AlfredPayStatus) => ({ status }) as AlfredpayStatusResponse;
+const statusOf = (status: AlfredPayStatus) => ({ status }) as DomesticStatusResponse;
 const kycStatusOf = (status: AlfredPayStatus, lastFailure?: string) =>
-  ({ lastFailure, status }) as AlfredpayGetKycStatusResponse;
+  ({ lastFailure, status }) as DomesticGetKycStatusResponse;
 
 const baseInput: AlfredpayKycContext = { country: "US" };
 
-const kycLink: AlfredpayGetKycRedirectLinkResponse = {
+const kycLink: DomesticGetKycRedirectLinkResponse = {
   submissionId: "link-sub-1",
   verification_url: "https://verify.alfred.example"
 };
@@ -55,11 +56,13 @@ const kycLink: AlfredpayGetKycRedirectLinkResponse = {
 const mxnFormData = { firstName: "Frida" } as unknown as AlfredpayKycFormData;
 const mxnFiles = { back: {} as File, front: {} as File } as MxnKycFiles;
 const kybFormData = { businessName: "ACME" } as unknown as KybFormData;
+const kybQuestionnaireData = { sourceOfFunds: "Sale of goods" } as unknown as KybQuestionnaireData;
 const kybBusinessFiles = {
   articlesIncorporation: {} as File,
   docBack: {} as File,
   docFront: {} as File,
   proofAddress: {} as File,
+  shareholderRegistry: {} as File,
   taxIdDocument: {} as File
 } as KybBusinessFiles;
 
@@ -88,7 +91,7 @@ describe("alfredpayKycMachine", () => {
     });
 
     it("polls a Verifying status through to VerificationDone and Done", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Verifying)),
         pollStatus: fromPromise(() => poll.promise)
@@ -124,7 +127,7 @@ describe("alfredpayKycMachine", () => {
     it("USER_RETRY from FailureKyc retries and returns to the link flow for iFrame countries", async () => {
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Failed)),
-        getKycLink: fromPromise(() => new Promise<AlfredpayGetKycRedirectLinkResponse>(() => {})),
+        getKycLink: fromPromise(() => new Promise<DomesticGetKycRedirectLinkResponse>(() => {})),
         retryKyc: fromPromise(async () => kycLink)
       });
       actor.start();
@@ -137,11 +140,11 @@ describe("alfredpayKycMachine", () => {
 
     it("a 404 (no customer) routes to CustomerDefinition where the customer type can be toggled", async () => {
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
           throw new Error("Request failed with status 404");
         }),
-        createCustomer: fromPromise(async () => ({}) as AlfredpayCreateCustomerResponse),
-        getKycLink: fromPromise(() => new Promise<AlfredpayGetKycRedirectLinkResponse>(() => {}))
+        createCustomer: fromPromise(async () => ({}) as DomesticCreateCustomerResponse),
+        getKycLink: fromPromise(() => new Promise<DomesticGetKycRedirectLinkResponse>(() => {}))
       });
       actor.start();
 
@@ -161,7 +164,7 @@ describe("alfredpayKycMachine", () => {
     it("a non-404 status check error lands in Failure and RETRY_PROCESS re-runs the check", async () => {
       let calls = 0;
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(() => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(() => {
           calls += 1;
           if (calls === 1) return Promise.reject(new Error("service unavailable"));
           return new Promise(() => {});
@@ -179,7 +182,7 @@ describe("alfredpayKycMachine", () => {
 
     it("CANCEL_PROCESS from Failure finishes the machine with the error in the output", async () => {
       const actor = createTestActor({
-        checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+        checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
           throw new Error("service unavailable");
         })
       });
@@ -194,14 +197,14 @@ describe("alfredpayKycMachine", () => {
 
   describe("iFrame link flow (US)", () => {
     it("gets a link, opens it, and reports a failed verification with the lastFailure message", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyFinished: notifyActor(),
         notifyOpened: notifyActor(),
         pollStatus: fromPromise(() => poll.promise),
-        waitForValidation: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {}))
+        waitForValidation: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {}))
       });
       actor.start();
 
@@ -224,12 +227,12 @@ describe("alfredpayKycMachine", () => {
     });
 
     it("background validation completing moves FillingKyc to PollingStatus without user action", async () => {
-      const validation = deferred<AlfredpayGetKycStatusResponse>();
+      const validation = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyOpened: notifyActor(),
-        pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+        pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
         waitForValidation: fromPromise(() => validation.promise)
       });
       actor.start();
@@ -247,7 +250,7 @@ describe("alfredpayKycMachine", () => {
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
         getKycLink: fromPromise(async () => kycLink),
         notifyOpened: notifyActor(),
-        waitForValidation: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {}))
+        waitForValidation: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {}))
       });
       actor.start();
 
@@ -263,7 +266,7 @@ describe("alfredpayKycMachine", () => {
     it("moves to Failure when fetching the KYC link fails", async () => {
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
-        getKycLink: fromPromise<AlfredpayGetKycRedirectLinkResponse, AlfredpayKycContext>(async () => {
+        getKycLink: fromPromise<DomesticGetKycRedirectLinkResponse, AlfredpayKycContext>(async () => {
           throw new Error("link service down");
         })
       });
@@ -278,7 +281,7 @@ describe("alfredpayKycMachine", () => {
     const mxInput: AlfredpayKycContext = { ...baseInput, country: "MX" };
 
     it("submits the form, uploads documents, and sends the submission through to polling", async () => {
-      const poll = deferred<AlfredpayGetKycStatusResponse>();
+      const poll = deferred<DomesticGetKycStatusResponse>();
       const actor = createTestActor(
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
@@ -355,9 +358,12 @@ describe("alfredpayKycMachine", () => {
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
           findKybCustomerAndBusiness: fromPromise(
-            async () => [{ relatedPersons: [{ idRelatedPerson: "rp-1" }] }] as unknown as AlfredpayKybCustomerAndBusiness[]
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
           ),
-          pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+          pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
           sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse),
@@ -370,8 +376,12 @@ describe("alfredpayKycMachine", () => {
       await waitFor(actor, s => s.matches("FillingKybForm"));
 
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
-      expect(actor.getSnapshot().value).toBe("SubmittingKybInfo");
+      expect(actor.getSnapshot().value).toBe("FillingKybQuestionnaire");
       expect(actor.getSnapshot().context.kybFormData).toEqual(kybFormData);
+
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+      expect(actor.getSnapshot().value).toBe("SubmittingKybInfo");
+      expect(actor.getSnapshot().context.kybQuestionnaireData).toEqual(kybQuestionnaireData);
 
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       expect(actor.getSnapshot().context.submissionId).toBe("kyb-sub-1");
@@ -393,6 +403,7 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
 
       await waitFor(actor, s => s.matches("Failure"));
       expect(actor.getSnapshot().context.error?.message).toContain("did not return a submission ID");
@@ -412,11 +423,75 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
 
       await waitFor(actor, s => s.matches("Failure"));
-      expect(actor.getSnapshot().context.error?.message).toContain("did not return relatedPersons[].idRelatedPerson");
+      expect(actor.getSnapshot().context.error?.message).toContain("no relatedPersons[].idRelatedPerson");
+    });
+
+    it("uses the related person of the submission being filed, not of a stale earlier business", async () => {
+      let bundledIds: string[] | undefined;
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
+          // A customer that retried carries several businesses; Alfredpay returns the stale one first.
+          findKybCustomerAndBusiness: fromPromise(
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+                { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
+          ),
+          pollStatus: fromPromise(() => new Promise<DomesticGetKycStatusResponse>(() => {})),
+          sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse),
+          submitKybRelatedPersonBundleFiles: fromPromise<void, AlfredpayKycContext>(async ({ input }) => {
+            bundledIds = input.kybRelatedPersonIds;
+          })
+        },
+        kybInput
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("FillingKybForm"));
+      actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+      await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+      actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
+
+      await waitFor(actor, s => s.matches("PollingStatus"));
+      expect(actor.getSnapshot().context.kybRelatedPersonIds).toEqual(["rp-current"]);
+      expect(bundledIds).toEqual(["rp-current"]);
+    });
+
+    it("fails when no business matches the submission being filed", async () => {
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
+          findKybCustomerAndBusiness: fromPromise(
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
+          ),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse)
+        },
+        kybInput
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("FillingKybForm"));
+      actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+      await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+      actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
+
+      await waitFor(actor, s => s.matches("Failure"));
+      expect(actor.getSnapshot().context.error?.message).toContain("no relatedPersons[].idRelatedPerson");
     });
 
     it("rejects AR business before making a provider request", async () => {
@@ -444,7 +519,7 @@ describe("alfredpayKycMachine", () => {
     it("does not allow an AR individual to toggle to business", async () => {
       const actor = createTestActor(
         {
-          checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+          checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
             throw new Error("Request failed with status 404");
           })
         },
@@ -456,5 +531,178 @@ describe("alfredpayKycMachine", () => {
       actor.send({ type: "TOGGLE_BUSINESS" });
       expect(actor.getSnapshot().context.business).toBeFalsy();
     });
+  });
+});
+
+/**
+ * The suite above replaces the KYB actors, so it never checks what they hand the API. These drive the
+ * real actors against a recording client — the merge of the two form screens and the document set are
+ * exactly what Alfredpay validates, and getting either wrong only shows up as a 110002 at finalize.
+ */
+describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
+  const companyData = {
+    address: "Av. Reforma 100",
+    businessName: "ACME",
+    city: "CDMX",
+    relatedPersons: [
+      { dateOfBirth: "1990-01-01", email: "rep@acme.example", firstName: "Ana", lastName: "Rep", nationalities: ["MX"], pep: false }
+    ],
+    state: "CDMX",
+    taxId: "AAA010101AAA",
+    website: "https://acme.example",
+    zipCode: "06600"
+  } as KybFormData;
+
+  const questionnaireData = {
+    accountPurpose: "Treasury management",
+    businessActivities: "Payments software",
+    expectedMonthlyTransactions: 120,
+    expectedMonthlyVolumeUsd: 50000,
+    isRegulatedBusiness: false,
+    operatesInSanctionedCountries: false,
+    sourceOfFunds: "Sale of goods/services",
+    transmitsCustomerFunds: false,
+    walletAddresses: "N/A"
+  } as KybQuestionnaireData;
+
+  const file = (name: string) => new File(["x"], name, { type: "image/png" });
+
+  function recordingApi() {
+    const calls = {
+      businessFiles: [] as string[],
+      personFiles: [] as string[],
+      sent: [] as string[],
+      submitted: [] as unknown[]
+    };
+    const api = {
+      findKybCustomerAndBusiness: async () => [{ relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }],
+      getDomesticStatus: async () => statusOf(AlfredPayStatus.Consulted),
+      getKycStatus: async () => new Promise(() => {}),
+      sendKybSubmission: async (_country: string, submissionId: string) => {
+        calls.sent.push(submissionId);
+      },
+      submitKybFile: async (_country: string, _submissionId: string, fileType: string) => {
+        calls.businessFiles.push(fileType);
+      },
+      submitKybInformation: async (_country: string, data: unknown) => {
+        calls.submitted.push(data);
+        return { submissionId: "kyb-sub-1" } as SubmitKybInformationResponse;
+      },
+      submitKybRelatedPersonFile: async (_country: string, relatedPersonId: string, fileType: string) => {
+        calls.personFiles.push(`${relatedPersonId}:${fileType}`);
+      }
+    } as unknown as AlfredpayKycApi;
+    return { api, calls };
+  }
+
+  it("merges the company form and the questionnaire into one Alfredpay payload", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: questionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+    expect(calls.submitted).toEqual([{ ...companyData, ...questionnaireData }]);
+  });
+
+  it("uploads all four company documents and the representative pair against the discovered person", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: questionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    await waitFor(actor, s => s.matches("PollingStatus"));
+    expect(calls.businessFiles).toEqual(["taxIdDocument", "articlesIncorporation", "proofAddress", "shareholderRegistry"]);
+    expect(calls.personFiles).toEqual(["rp-1:docFront", "rp-1:docBack"]);
+    expect(calls.sent).toEqual(["kyb-sub-1"]);
+  });
+
+  it("uploads the licence and AML policy for a regulated business", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: { ...questionnaireData, isRegulatedBusiness: true }, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        businessLicense: file("l.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png"),
+        uploadAmlPolicy: file("m.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    await waitFor(actor, s => s.matches("PollingStatus"));
+    expect(calls.businessFiles).toEqual([
+      "taxIdDocument",
+      "articlesIncorporation",
+      "proofAddress",
+      "shareholderRegistry",
+      "businessLicense",
+      "uploadAmlPolicy"
+    ]);
+  });
+
+  it("refuses to upload a regulated business's documents when the licence or AML policy is missing", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: { ...questionnaireData, isRegulatedBusiness: true }, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    // Fails before finalizing rather than filing a submission Alfredpay will reject at the last step.
+    // Unreachable from either UI (both disable submit until the set is complete) — this guards
+    // direct machine callers.
+    await waitFor(actor, s => s.matches("Failure"));
+    expect(actor.getSnapshot().context.error?.message).toContain("regulated business");
+    expect(calls.businessFiles).toEqual(["taxIdDocument", "articlesIncorporation", "proofAddress", "shareholderRegistry"]);
+    expect(calls.sent).toEqual([]);
   });
 });

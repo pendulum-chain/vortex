@@ -2,6 +2,10 @@ import { mock } from "bun:test";
 import type { RouteParams } from "@vortexfi/shared";
 import * as shared from "@vortexfi/shared";
 
+// Snapshot before any mock.module call: bun mutates the imported namespace in place,
+// so restore() spreading `shared` afterwards would reinstall the fake, not the real fns.
+const sharedReal = { ...shared };
+
 /**
  * Fake SquidRouter route source. getRoute is a plain function export of
  * @vortexfi/shared (not a singleton), so it is replaced via mock.module with
@@ -17,6 +21,10 @@ export class FakeSquidRouter {
   transactionGasLimit = "500000";
   /** Raw destination amount for a requested route. Default: 1:1 with the input. */
   computeToAmount: (params: RouteParams) => string = params => params.fromAmount;
+  /** Guaranteed raw destination amount. Default: the estimated amount. */
+  computeToAmountMin: (params: RouteParams) => string = params => this.computeToAmount(params);
+  /** USD value returned with the route estimate. */
+  toAmountUsd = "1";
   toTokenDecimals = 18;
   failNextRoute: Error | null = null;
   readonly requestedRoutes: RouteParams[] = [];
@@ -35,6 +43,8 @@ export class FakeSquidRouter {
         route: {
           estimate: {
             toAmount: this.computeToAmount(params),
+            toAmountMin: this.computeToAmountMin(params),
+            toAmountUSD: this.toAmountUsd,
             toToken: { decimals: this.toTokenDecimals }
           },
           quoteId: "fake-squid-quote",
@@ -74,7 +84,7 @@ export function installFakeSquidRouter(): { fakeSquidRouter: FakeSquidRouter; re
   return {
     fakeSquidRouter,
     restore: () => {
-      mock.module("@vortexfi/shared", () => ({ ...shared }));
+      mock.module("@vortexfi/shared", () => sharedReal);
     }
   };
 }

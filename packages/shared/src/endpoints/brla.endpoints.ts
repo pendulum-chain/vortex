@@ -1,7 +1,7 @@
 import {
   AveniaAccountType,
-  AveniaDocumentType,
   AveniaIdentityStatus,
+  BrDocumentType,
   KycAttemptResult,
   KycAttemptStatus
 } from "../services/brla/types";
@@ -16,15 +16,16 @@ export enum KycFailureReason {
 }
 
 // GET /brla/getUser?taxId=:taxId
-export interface BrlaGetUserRequest {
-  taxId: string;
+export interface BrGetUserRequest {
+  taxId?: string;
 }
 
-export interface BrlaPostRecordInitialKycAttemptRequest extends BrlaGetUserRequest {
+export interface BrPostRecordInitialKycAttemptRequest extends BrGetUserRequest {
   quoteId: string;
   sessionId?: string;
+  taxId: string;
 }
-export interface BrlaGetUserResponse {
+export interface BrGetUserResponse {
   evmAddress: string;
   kycLevel: number;
   identityStatus: AveniaIdentityStatus;
@@ -32,61 +33,58 @@ export interface BrlaGetUserResponse {
 }
 
 // GET /brla/getRampStatus?taxId=:taxId
-export interface BrlaGetRampStatusRequest {
+export interface BrGetRampStatusRequest {
   taxId: string;
 }
 
-export interface BrlaGetRampStatusResponse {
+export interface BrGetRampStatusResponse {
   type: string;
   status: string;
 }
 
-// GET /brla/getKycStatus?taxId=:taxId&quoteId=:quoteId
-export interface BrlaGetKycStatusRequest {
-  taxId: string;
-  quoteId: string;
-  sessionId?: string;
-}
-
-export interface BrlaGetSelfieLivenessUrlRequest {
+// GET /brla/getKycStatus?taxId=:taxId
+export interface BrGetKycStatusRequest {
   taxId: string;
 }
 
-export interface BrlaGetKycStatusResponse {
+export interface BrGetSelfieLivenessUrlRequest {
+  taxId: string;
+}
+
+export interface BrGetKycStatusResponse {
   type: "KYC";
   level: string;
   status: KycAttemptStatus;
-  result: KycAttemptResult;
+  result?: KycAttemptResult;
   failureReason?: KycFailureReason;
 }
 
-export interface BrlaGetSelfieLivenessUrlResponse {
+export interface BrGetSelfieLivenessUrlResponse {
   id: string;
   livenessUrl: string;
-  uploadURLFront: string;
   validateLivenessToken: string;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey
-export interface BrlaValidatePixKeyRequest {
+export interface BrValidatePixKeyRequest {
   pixKey: string;
 }
 
-export interface BrlaValidatePixKeyResponse {
+export interface BrValidatePixKeyResponse {
   valid: boolean;
 }
 
-export interface BrlaGetUserRemainingLimitRequest {
-  taxId: string;
+export interface BrGetUserRemainingLimitRequest {
+  taxId?: string;
   direction: RampDirection;
 }
 
-export interface BrlaGetUserRemainingLimitResponse {
+export interface BrGetUserRemainingLimitResponse {
   remainingLimit: number;
 }
 
 // POST /brla/createSubaccount
-export interface BrlaAddress {
+export interface BrAddress {
   cep: string;
   city: string;
   state: string;
@@ -98,42 +96,52 @@ export interface BrlaAddress {
 
 export type TaxIdType = "CPF" | "CNPJ";
 
-export interface BrlaCreateSubaccountRequest {
+export interface BrCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
-  // Optional: the KYB deep link creates a subaccount without a quote. The backend stores it as a nullable initialQuoteId.
+  // Optional: quote-less onboarding paths can create a subaccount without a quote.
   quoteId?: string;
   sessionId?: string;
 }
 
-export interface BrlaCreateSubaccountResponse {
+export interface BrCreateSubaccountResponse {
   subAccountId: string;
 }
 
-export interface BrlaErrorResponse {
+// POST /brla/kyc/import-token
+export interface BrImportKycTokenRequest {
+  importToken: string;
+  consentAttested: true;
+}
+
+export interface BrImportKycTokenResponse {
+  attemptId: string;
+  status: "pending";
+}
+
+export interface BrErrorResponse {
   error: string;
   details?: string;
 }
 
-export enum BrlaKYCDocType {
+export enum BrKYCDocType {
   RG = "RG",
   CNH = "CNH"
 }
 
 // POST /brla/startKYC2
-export interface AveniaKYCDataUploadRequest {
-  documentType: AveniaDocumentType;
+export interface BrKYCDataUploadRequest {
+  documentType: BrDocumentType;
   isDoubleSided?: boolean;
   taxId: string;
 }
 
-export interface AveniaKYCDataUpload {
+export interface BrKYCDataUpload {
   selfieUpload: {
     id: string;
-    uploadURLFront: string;
-    livenessUrl?: string;
-    validateLivenessToken?: string;
+    livenessUrl: string;
+    validateLivenessToken: string;
   };
   idUpload: {
     id: string;

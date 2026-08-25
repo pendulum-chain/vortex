@@ -29,10 +29,13 @@ const TEST_PHASE = "nablaSwap";
 describe("PhaseProcessor execution cancellation", () => {
   let polls = 0;
   const receivedSignals: (AbortSignal | undefined)[] = [];
+  const observedLockTimes: number[] = [];
 
   const hangingHandler: PhaseHandler = {
-    execute: async (_state: RampState, signal?: AbortSignal) => {
+    execute: async (state: RampState, signal?: AbortSignal) => {
       receivedSignals.push(signal);
+      const persistedState = await RampState.findByPk(state.id);
+      observedLockTimes.push(new Date(persistedState?.processingLock.lockedAt as unknown as string).getTime());
       // Poll forever, like a phase waiting for a payment that never arrives.
       await waitUntilTrue(
         async () => {
@@ -55,12 +58,12 @@ describe("PhaseProcessor execution cancellation", () => {
   beforeAll(async () => {
     await setupTestDatabase();
     await resetTestDatabase();
-    phaseRegistry.registerHandler(hangingHandler);
+    phaseRegistry.replaceHandlerForTest(hangingHandler);
   });
 
   afterAll(() => {
     if (originalHandler) {
-      phaseRegistry.registerHandler(originalHandler);
+      phaseRegistry.replaceHandlerForTest(originalHandler);
     } else {
       // The registry has no unregister API; drop the shadow entry directly.
       (phaseRegistry as unknown as { handlers: Map<string, PhaseHandler> }).handlers.delete(TEST_PHASE);
@@ -86,6 +89,8 @@ describe("PhaseProcessor execution cancellation", () => {
     expect(receivedSignals.length).toBeGreaterThanOrEqual(2);
     expect(receivedSignals.every(signal => signal instanceof AbortSignal)).toBe(true);
     expect(receivedSignals.every(signal => signal?.aborted)).toBe(true);
+    expect(observedLockTimes.length).toBe(receivedSignals.length);
+    expect(observedLockTimes.at(-1)).toBeGreaterThan(observedLockTimes[0]);
 
     // Regression: without cancellation the abandoned loops keep polling forever.
     const pollsAfterGivingUp = polls;
@@ -112,7 +117,7 @@ describe("PhaseProcessor execution cancellation", () => {
       },
       getPhaseName: () => TEST_PHASE
     };
-    phaseRegistry.registerHandler(syncThrowHandler);
+    phaseRegistry.replaceHandlerForTest(syncThrowHandler);
 
     try {
       const state = await createTestRampState({ currentPhase: TEST_PHASE });
@@ -130,7 +135,7 @@ describe("PhaseProcessor execution cancellation", () => {
       expect(reloaded?.processingLock.locked).toBe(false);
     } finally {
       process.off("unhandledRejection", onUnhandled);
-      phaseRegistry.registerHandler(hangingHandler);
+      phaseRegistry.replaceHandlerForTest(hangingHandler);
     }
   });
 

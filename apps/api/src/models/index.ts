@@ -1,10 +1,15 @@
 import sequelize from "../config/database";
+import AdminImpersonationSession from "./adminImpersonationSession.model";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
-import ApiKey from "./apiKey.model";
+import ApiCredential from "./apiCredential.model";
 import CustomerEntity from "./customerEntity.model";
+import EmailNotification from "./emailNotification.model";
+import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
+import ManagedProfile from "./managedProfile.model";
+import ManagedProfileManager from "./managedProfileManager.model";
 import MoneriumAccount from "./moneriumAccount.model";
 import MoneriumChainCursor from "./moneriumChainCursor.model";
 import MoneriumConversionExecution from "./moneriumConversionExecution.model";
@@ -13,8 +18,10 @@ import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
+import PartnerManagedProfile from "./partnerManagedProfile.model";
 import PartnerPricingConfig from "./partnerPricingConfig.model";
 import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
+import ProfileRole from "./profileRole.model";
 import ProviderCustomer from "./providerCustomer.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
@@ -22,7 +29,6 @@ import RecipientInvitation from "./recipientInvitation.model";
 import RecipientPayoutReference from "./recipientPayoutReference.model";
 import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
-import TaxId from "./taxId.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
 
@@ -47,23 +53,36 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
 
-User.hasMany(TaxId, { as: "taxIds", foreignKey: "userId" });
-TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
+User.hasMany(EmailNotification, { as: "emailNotifications", foreignKey: "userId" });
+EmailNotification.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "buyPartner", foreignKey: "buyPartnerId" });
-ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "sellPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
-Partner.hasMany(ProfilePartnerAssignment, { as: "sellProfileAssignments", foreignKey: "sellPartnerId" });
 
-// API key ↔ user binding
-User.hasMany(ApiKey, { as: "apiKeys", foreignKey: "userId" });
-ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
+User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
+ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
 
-// API key ↔ partner attribution (FK replaces the partner_name string)
-ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
-Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
+User.hasMany(AdminImpersonationSession, { as: "impersonationsPerformed", foreignKey: "actorProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "actor", foreignKey: "actorProfileId" });
+User.hasMany(AdminImpersonationSession, { as: "impersonationsReceived", foreignKey: "targetProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "target", foreignKey: "targetProfileId" });
+
+User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
+ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "partnerId" });
+ApiCredential.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
+User.hasOne(PartnerManagedProfile, { as: "managedProfile", foreignKey: "profileId" });
+PartnerManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(PartnerManagedProfile, { as: "managedProfiles", foreignKey: "partnerId" });
+PartnerManagedProfile.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
+User.hasOne(ManagedProfileManager, { as: "managedProfileManager", foreignKey: "profileId" });
+ManagedProfileManager.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+User.hasOne(ManagedProfile, { as: "managedProfileRelationship", foreignKey: "profileId" });
+ManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+ManagedProfileManager.hasMany(ManagedProfile, { as: "managedProfiles", foreignKey: "managerProfileId" });
+ManagedProfile.belongsTo(ManagedProfileManager, { as: "manager", foreignKey: "managerProfileId" });
 
 // Partner pricing split
 Partner.hasMany(PartnerPricingConfig, { as: "pricingConfigs", foreignKey: "partnerId" });
@@ -103,12 +122,17 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 
 // Initialize models
 const models = {
+  AdminImpersonationSession,
   Anchor,
   ApiClientEvent,
-  ApiKey,
+  ApiCredential,
   CustomerEntity,
+  EmailNotification,
+  FinancialOperation,
   KycCase,
   MaintenanceSchedule,
+  ManagedProfile,
+  ManagedProfileManager,
   MoneriumAccount,
   MoneriumChainCursor,
   MoneriumConversionExecution,
@@ -117,8 +141,10 @@ const models = {
   Notification,
   NotificationPreference,
   Partner,
+  PartnerManagedProfile,
   PartnerPricingConfig,
   ProfilePartnerAssignment,
+  ProfileRole,
   ProviderCustomer,
   QuoteTicket,
   RampState,
@@ -126,7 +152,6 @@ const models = {
   RecipientPayoutReference,
   SenderRecipient,
   Subsidy,
-  TaxId,
   User,
   Webhook
 };

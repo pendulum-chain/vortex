@@ -1,0 +1,13 @@
+async function storeEphemeralKeys(fileName: string, data: unknown): Promise<void> {
+  localStorage.setItem(fileName, JSON.stringify(data, null, 2));
+}
+
+async function retrieveEphemeralKeys(key: string): Promise<unknown | null> {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : null;
+}
+
+// Compile-time marker: true only in the browser bundle, which substitutes this module for storage.ts.
+const isBrowserBuild = true;
+
+export { storeEphemeralKeys, retrieveEphemeralKeys, isBrowserBuild };

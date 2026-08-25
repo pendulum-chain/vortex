@@ -61,11 +61,11 @@ test("invited US individual: invite redemption, locked region, Alfredpay hosted-
         return;
       case "/v1/alfredpay/createIndividualCustomer":
         createCustomerRequests.push(request.postDataJSON() as Record<string, unknown>);
-        // AlfredpayCreateCustomerResponse
+        // DomesticCreateCustomerResponse
         await route.fulfill({ json: { createdAt: new Date().toISOString() } });
         return;
       case "/v1/alfredpay/getKycRedirectLink":
-        // AlfredpayGetKycRedirectLinkResponse
+        // DomesticGetKycRedirectLinkResponse
         await route.fulfill({ json: { submissionId: "submission-e2e-1", verification_url: VERIFICATION_URL } });
         return;
       case "/v1/alfredpay/kycRedirectOpened":
@@ -78,7 +78,7 @@ test("invited US individual: invite redemption, locked region, Alfredpay hosted-
         return;
       case "/v1/alfredpay/getKycStatus":
         kycStatusRequests.push(url.searchParams.get("type") ?? "");
-        // AlfredpayGetKycStatusResponse
+        // DomesticGetKycStatusResponse
         await route.fulfill({
           json: {
             alfred_pay_id: "alfred-e2e-1",

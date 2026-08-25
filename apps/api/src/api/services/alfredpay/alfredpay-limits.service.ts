@@ -1,8 +1,8 @@
 import {
   AlfredpayApiService,
   AlfredpayConfigPair,
-  AlfredpayCustomerType,
   AlfredpayStablecoinKey,
+  DomesticCustomerType,
   FiatToken,
   getAnyFiatTokenDetails,
   RampDirection,
@@ -14,9 +14,10 @@ import logger from "../../../config/logger";
 /** Refreshed once on startup, then daily. Limits don't change often, so this avoids beating the API. */
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-const CUSTOMER_TYPES: AlfredpayCustomerType[] = [AlfredpayCustomerType.INDIVIDUAL, AlfredpayCustomerType.BUSINESS];
+const CUSTOMER_TYPES: DomesticCustomerType[] = [DomesticCustomerType.INDIVIDUAL, DomesticCustomerType.BUSINESS];
 
 const ALFREDPAY_FIATS: Record<string, FiatToken> = {
+  ARS: FiatToken.ARS,
   COP: FiatToken.COP,
   MXN: FiatToken.MXN,
   USD: FiatToken.USD
@@ -30,7 +31,7 @@ function cacheKey(
   direction: RampDirection,
   fiat: FiatToken,
   stablecoin: AlfredpayStablecoinKey,
-  customer: AlfredpayCustomerType
+  customer: DomesticCustomerType
 ): string {
   return `${direction}:${fiat}:${stablecoin}:${customer}`;
 }
@@ -81,7 +82,7 @@ export class AlfredpayLimitsService {
   public getLimits(
     fiat: FiatToken,
     stablecoin: AlfredpayStablecoinKey,
-    customerType: AlfredpayCustomerType,
+    customerType: DomesticCustomerType,
     direction: RampDirection
   ): RawAmountLimits {
     const cached = this.cache.get(cacheKey(direction, fiat, stablecoin, customerType));
@@ -92,7 +93,7 @@ export class AlfredpayLimitsService {
   private fallback(
     fiat: FiatToken,
     stablecoin: AlfredpayStablecoinKey,
-    customerType: AlfredpayCustomerType,
+    customerType: DomesticCustomerType,
     direction: RampDirection
   ): RawAmountLimits {
     const hardcoded = getAnyFiatTokenDetails(fiat).alfredpayLimits;
@@ -135,7 +136,7 @@ export class AlfredpayLimitsService {
       minRaw: toRaw(pair.minQuantity, decimals)
     };
 
-    const customers: AlfredpayCustomerType[] = pair.typeCustomer ? [pair.typeCustomer] : CUSTOMER_TYPES;
+    const customers: DomesticCustomerType[] = pair.typeCustomer ? [pair.typeCustomer] : CUSTOMER_TYPES;
     const isWildcard = !pair.typeCustomer;
     for (const customer of customers) {
       const key = cacheKey(direction, fiat, stablecoin, customer);

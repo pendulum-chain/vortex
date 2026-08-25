@@ -40,6 +40,11 @@ jobs:
       - name: ✏️ Typecheck
         run: bun run typecheck
 
+      - name: 🔒 Wire-contract gate
+        run: |
+          cd scripts/wire-contract && bun test && cd ../..
+          bun run wire-contract:check
+
   test:
     name: Running tests
     runs-on: ubuntu-latest

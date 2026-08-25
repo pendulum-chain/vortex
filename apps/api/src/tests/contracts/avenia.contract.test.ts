@@ -1,5 +1,5 @@
 /**
- * External API contract: Avenia/BRLA (docs/features/contract-tests.md).
+ * External API contract: Avenia/BRLA (docs/operations-testing.md).
  *
  * The same consumed-contract schemas run against the fake (hermetic, PR-blocking)
  * and against the partner API (live, nightly). Live tests skip cleanly when BRLA_*
@@ -7,13 +7,24 @@
  * pre-provisioned, KYC-approved sandbox subaccount (see .env.example):
  *
  *  - AVENIA_CONTRACT_SUBACCOUNT_ID
+ *  - AVENIA_CONTRACT_COMPANY_SUBACCOUNT_ID (company attempt listing/exact read)
+ *  - AVENIA_CONTRACT_WEBHOOK_URL (temporary webhook-management lifecycle)
  *
- * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid) is
- * created per run. Payout tickets are covered hermetically only — creating one
- * live would move BRLA balance, and reading one needs the id of a real payout.
+ * Per PRD, only one transaction (a PIX pay-in ticket, which expires unpaid), two
+ * empty document targets (no bytes uploaded), and one temporary webhook are created
+ * per run. The webhook is deleted in `finally`.
+ * Payout tickets are covered hermetically only — creating one live would move
+ * BRLA balance, and reading one needs the id of a real payout.
  * `createOnchainSwapQuote`/`createOnchainSwapTicket`/`getMainAccountBalance`/
  * `getAveniaSwapTicket` have no production consumers and are deliberately uncovered.
+ *
+ * Attempt listing and exact-attempt reads are covered (read-only) once a company
+ * subaccount fixture is configured.
+ *
+ * TODO: Add sandbox contract coverage for the remaining consumed Avenia KYC/KYB
+ * operations and complete flow — documents, UBOs, and API submissions.
  */
+import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import {
   aveniaAccountBalanceSchema,
@@ -25,7 +36,11 @@ import {
   aveniaPixInputTicketSchema,
   aveniaPixKeyDataSchema,
   aveniaQuoteResponseSchema,
+  AveniaWebhookSubscription,
+  aveniaWebhookRegistrationSchema,
+  aveniaWebhooksListSchema,
   BlockchainSendMethod,
+  BrDocumentType,
   BrlaApiService,
   BrlaCurrency,
   type PayInQuoteParams
@@ -36,9 +51,27 @@ import { FakeBrla } from "../../test-utils/fake-world/fake-anchors";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 const HAS_CREDS = !!(process.env.BRLA_API_KEY && process.env.BRLA_PRIVATE_KEY);
 const SUBACCOUNT_ID = process.env.AVENIA_CONTRACT_SUBACCOUNT_ID;
+const COMPANY_SUBACCOUNT_ID = process.env.AVENIA_CONTRACT_COMPANY_SUBACCOUNT_ID;
+const WEBHOOK_URL = process.env.AVENIA_CONTRACT_WEBHOOK_URL;
+
+// Every company-level name Avenia has returned so far: legacy "level-1", "kyb-level-1",
+// and the current "kyb-level-1-v2". A future "-v3" fails this instead of quietly
+// disabling the duplicate-attempt guards that filter on it.
+const COMPANY_LEVEL_NAME = /^(kyb-)?level-1(-v\d+)?$/;
 
 if (RUN_LIVE && !HAS_CREDS) {
   console.warn("[contract:live] Avenia live half skipped: BRLA_API_KEY/BRLA_PRIVATE_KEY not set");
+}
+if (RUN_LIVE && HAS_CREDS && !WEBHOOK_URL) {
+  console.warn("[contract:live] Avenia webhook lifecycle skipped: AVENIA_CONTRACT_WEBHOOK_URL not set");
+}
+
+async function requireLive<T>(label: string, call: () => Promise<T>): Promise<T> {
+  const result = await runLive(label, call);
+  if (result === null) {
+    throw new Error(`${label} did not complete; webhook management has not been verified`);
+  }
+  return result;
 }
 
 // Mirrors OnRampInitializeAveniaEngine / prepareOnrampBrlTransactions: BRL arrives
@@ -138,6 +171,43 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
     60_000
   );
 
+  test.skipIf(!COMPANY_SUBACCOUNT_ID)(
+    "GET /kyc/attempts and /kyc/attempts/{attemptId} satisfy their contracts for a company subaccount",
+    async () => {
+      // Company duplicate-attempt and completion guards select attempts by `levelName`
+      // (isAveniaBusinessKybLevel), so a provider rename silently disables them: nothing
+      // errors, the filter just stops matching. Avenia has already shipped three names
+      // for this level — legacy "level-1", "kyb-level-1", and the current
+      // "kyb-level-1-v2" — so pin the family here rather than trusting a code literal.
+      const listed = await runLive("avenia getKycAttempts (company)", () =>
+        api().getKycAttempts(COMPANY_SUBACCOUNT_ID as string)
+      );
+      if (!listed) return;
+
+      for (const attempt of listed.attempts) {
+        expect(attempt.levelName).toMatch(COMPANY_LEVEL_NAME);
+      }
+
+      // Exact-attempt read: the shape the authenticated status route, the dashboard
+      // reconciliation and the KYB worker all consume. Avenia returns
+      // `submissionData: null` on these, which the attempt schema must normalize.
+      const newest = [...listed.attempts].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+      if (!newest) {
+        console.warn("[contract:live] avenia getVerificationAttemptStatus skipped: company subaccount has no attempts");
+        return;
+      }
+      const exact = await runLive("avenia getVerificationAttemptStatus (company)", () =>
+        api().getVerificationAttemptStatus(newest.id, COMPANY_SUBACCOUNT_ID as string)
+      );
+      if (!exact) return;
+
+      // The subaccount-scoped read must return the attempt that was asked for.
+      expect(exact.attempt.id).toBe(newest.id);
+      expect(exact.attempt.levelName).toMatch(COMPANY_LEVEL_NAME);
+    },
+    60_000
+  );
+
   test.skipIf(!SUBACCOUNT_ID)(
     "GET /account/limits, /balances and /account-info responses satisfy their contracts",
     async () => {
@@ -156,6 +226,53 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
           if (pixKeyData) aveniaPixKeyDataSchema.parse(pixKeyData);
         } else {
           console.warn("[contract:live] avenia validatePixKey skipped: subaccount has no pixKey");
+        }
+      }
+    },
+    60_000
+  );
+
+  test.skipIf(!SUBACCOUNT_ID)(
+    "POST /documents returns file-upload and hosted-liveness targets that read back through the consumed GET schemas",
+    async () => {
+      const document = await runLive("avenia create document upload target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.ID, false, SUBACCOUNT_ID as string)
+      );
+      if (document) {
+        expect(document.id).toBeTruthy();
+        expect(document.uploadURLFront).toBeTruthy();
+      }
+
+      const liveness = await runLive("avenia create hosted liveness target", () =>
+        api().getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, SUBACCOUNT_ID as string)
+      );
+      if (liveness) {
+        expect(liveness.id).toBeTruthy();
+        expect(liveness.livenessUrl).toBeTruthy();
+        expect(liveness.validateLivenessToken).toBeTruthy();
+      }
+
+      // A hosted-liveness row carries no uploaded bytes, so the strict single-document
+      // and listing schemas (the KYB document gate and newKyc readiness paths) must be
+      // proven against a real one — drift surfaces as a rethrown ZodError.
+      if (liveness) {
+        const livenessReadback = await runLive("avenia read back hosted liveness document", () =>
+          api().getUploadedDocument(liveness.id, SUBACCOUNT_ID as string)
+        );
+        if (livenessReadback) {
+          expect(livenessReadback.document.id).toBe(liveness.id);
+          expect(livenessReadback.document.documentType).toBe(BrDocumentType.SELFIE_FROM_LIVENESS);
+        }
+      }
+
+      if (document || liveness) {
+        const listing = await runLive("avenia list documents (readiness path)", () =>
+          api().getUploadedDocuments(SUBACCOUNT_ID as string)
+        );
+        if (listing) {
+          const listedIds = listing.documents.map(entry => entry.id);
+          if (document) expect(listedIds).toContain(document.id);
+          if (liveness) expect(listedIds).toContain(liveness.id);
         }
       }
     },
@@ -191,6 +308,72 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       expect(payinTickets.map(t => t.id)).toContain(ticket.id);
     },
     120_000
+  );
+
+  test.skipIf(!WEBHOOK_URL)(
+    "POST + GET /notifications/webhooks register a webhook that can be deleted",
+    async () => {
+      const contractUrl = new URL(WEBHOOK_URL as string);
+      contractUrl.searchParams.set("contractRun", randomUUID());
+      const webhookUrl = contractUrl.toString();
+      const subscriptions = [AveniaWebhookSubscription.All];
+      let webhookId: string | null = null;
+
+      try {
+        const before = aveniaWebhooksListSchema.parse(
+          await requireLive("avenia listWebhooks (before registration)", () => api().listWebhooks())
+        );
+
+        // A previous run that died between create and delete (runner crash, cancelled job)
+        // leaks its webhook; with the hard 3-slot sandbox cap that would fail every later
+        // run until someone cleans up by hand. Reclaim marked leftovers first.
+        for (const stale of before.webhooks.filter(webhook => webhook.url.includes("contractRun="))) {
+          console.warn(`[contract:live] deleting stale contract-test webhook ${stale.id} (${stale.url})`);
+          await requireLive("avenia deleteWebhook (stale contract webhook)", () => api().deleteWebhook(stale.id));
+        }
+
+        const occupied = before.webhooks.filter(webhook => !webhook.url.includes("contractRun=")).length;
+        if (occupied >= 3) {
+          throw new Error(`Avenia sandbox already has ${occupied} webhooks; no free contract-test slot`);
+        }
+
+        const created = await requireLive("avenia createWebhook", () => api().createWebhook(webhookUrl, subscriptions));
+        webhookId = typeof created.webhookId === "string" ? created.webhookId : null;
+        const registration = aveniaWebhookRegistrationSchema.parse(created);
+        webhookId = registration.webhookId;
+
+        const after = aveniaWebhooksListSchema.parse(
+          await requireLive("avenia listWebhooks (after registration)", () => api().listWebhooks())
+        );
+        expect(after.webhooks).toContainEqual(
+          expect.objectContaining({ id: webhookId, subscriptions, url: webhookUrl })
+        );
+      } finally {
+        if (!webhookId) {
+          try {
+            const current = aveniaWebhooksListSchema.parse(await api().listWebhooks());
+            webhookId = current.webhooks.find(webhook => webhook.url === webhookUrl)?.id ?? null;
+          } catch (error) {
+            console.warn(
+              `[contract:live] could not look up temporary Avenia webhook for cleanup: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
+
+        if (webhookId) {
+          try {
+            await api().deleteWebhook(webhookId);
+          } catch (error) {
+            // A throw here would mask the error that actually failed the test; the
+            // stale-webhook sweep above reclaims the slot on the next run instead.
+            console.warn(
+              `[contract:live] could not delete temporary Avenia webhook ${webhookId}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
+      }
+    },
+    60_000
   );
 });
 

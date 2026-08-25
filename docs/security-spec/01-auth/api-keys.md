@@ -1,96 +1,133 @@
-# API Key Authentication
+# API Credential Authentication
 
 ## What This Does
 
-The API key system provides authentication for partner integrations (SDK users, third-party platforms). It uses a dual-key architecture:
+Vortex represents each public/secret key pair as one `api_credentials` row with one subject, environment, expiry, and revocation lifecycle.
 
-- **Public keys (`pk_live_*`, `pk_test_*`)** — Included in client-side code (SDK, frontend). Used for tracking which partner initiated a request. Stored in plaintext in the database. Validated via direct DB lookup.
-- **Secret keys (`sk_live_*`, `sk_test_*`)** — Server-side only. Used for authenticated operations (creating ramps, managing partner resources). Stored as bcrypt hashes in the database. Validated via prefix lookup + bcrypt comparison.
+- **Public key (`pk_live_*`, `pk_test_*`)**: browser-safe identification for quote attribution and explicitly approved low-sensitivity reads. Stored in plaintext.
+- **Secret key (`sk_live_*`, `sk_test_*`)**: server-side authentication for sensitive or state-changing operations. Stored only as a SHA-256 digest plus a 16-character lookup prefix and compared in constant time.
 
-Key format: `{pk|sk}_{live|test}_{32 alphanumeric characters}` (generated from 32 bytes of `crypto.randomBytes`).
+Both values use `{pk|sk}_{live|test}_{32 alphanumeric characters}`. Validation of either value produces the same context, differing only in strength:
 
-Three middleware components:
-- **`apiKeyAuth(options)`** — Factory that returns middleware. Reads `X-API-Key` header. Validates secret keys (sk\_). Optionally validates partner match.
-- **`validatePublicKey()`** — Validates public keys from query params or body. For tracking only, not authentication.
-- **`enforcePartnerAuth()`** — When `partnerId` is in the request body, enforces that the request is authenticated and the partner matches.
+```ts
+interface CredentialContext {
+  credentialId: string;
+  environment: "live" | "test";
+  profileId: string;
+  partnerId: string | null;
+  strength: "public" | "secret";
+}
+```
 
-### Optional user binding (`api_keys.user_id`)
+Every credential has a non-null `profile_id`. A null `partner_id` is profile-managed; a non-null `partner_id` is partner-managed and partner-attributed while still acting for exactly one profile. Runtime authorization never reads the legacy `api_keys` table and never infers ownership or pairing from a display name.
 
-A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET NULL`) lets an admin bind a secret key to a specific profile. The binding is propagated to the request as `req.apiKeyUserId` (set by `setApiKeyUserId` in the auth middleware). Controllers and services derive the **effective user id** with `getEffectiveUserId(req)`, which prefers `req.userId` (Supabase) and falls back to `req.apiKeyUserId`. Public keys never populate `req.apiKeyUserId`. Use of the effective user is required for Alfredpay quote creation, ramp registration on Avenia/BRL or Alfredpay corridors, Alfredpay fiat-account management, and the BRLA pre-flight endpoints.
+### Capability Matrix
 
-### Partner binding (`api_keys.partner_id`) and user-scoped keys
+| Operation                                                               |               Public key | Secret key | Supabase session |
+| ----------------------------------------------------------------------- | -----------------------: | ---------: | ---------------: |
+| Create quote and apply attribution                                      |                      Yes |        Yes |              Yes |
+| Create widget session                                                   |                      Yes |        Yes |              Yes |
+| Read sanitized `GET /v1/ramp-info`                                      |                      Yes |        Yes |               No |
+| Read exact used or remaining financial limits                           |                       No |        Yes |              Yes |
+| Register, update, start, or read a ramp                                 |                       No |        Yes |              Yes |
+| Read ramp history or diagnostic error logs                              |                       No |        Yes |              Yes |
+| Manage fiat/provider accounts                                           |                       No |        Yes |              Yes |
+| Act for an authorized managed child                                     |                       No |        Yes |              Yes |
+| Use a child-owned credential as the managed child                       | Public capabilities only |        Yes |              N/A |
+| Manage a directly owned child's credentials                             |                       No |        Yes |              Yes |
+| Manage webhooks                                                         |                       No |        Yes |               No |
+| Create, list, or revoke profile-managed credentials                     |                       No |         No |              Yes |
+| List or revoke partner-managed credentials of the session's own profile |                       No |         No |              Yes |
+| Create partner-managed credentials, or manage another profile's         |                       No |         No |            Admin |
 
-Partner attribution resolves through the `api_keys.partner_id` FK (migration `041-add-partner-id-to-api-keys`, backfilled from the legacy `partner_name` string against the now-unique `partners.name`). `partner_name` remains in the table as a backup column that also marks a key's origin: a key with `partner_name` set but `partner_id = NULL` is an **orphaned partner key** (its partner row was deleted — the FK is `ON DELETE SET NULL`) and is rejected outright, never degraded into a user-scoped key. A key with *both* partner columns NULL is a **user-scoped key**: it authenticates purely as the linked `user_id` and never resolves to an `AuthenticatedPartner`. The self-serve endpoints under `POST/GET/DELETE /v1/api-keys` (guarded by `requireAuth`) let any Supabase-authenticated user mint a public + secret pair bound to their own `req.userId` with `partner_id = NULL`. The admin endpoints under `/v1/admin/partners/:partnerName/api-keys` resolve the path's partner name to the unique `partners` row and bind keys via `partner_id`. Revocation is `is_active = false` plus a `revoked_at` timestamp; `scopes` (JSONB) is reserved and unused.
+Possession of a public key never authorizes exact financial usage, provider identifiers, ramp history, diagnostics, or mutations. A corresponding secret key is stronger proof and may be accepted on public-key-capable routes.
 
-### Self-serve API key endpoints
+### Credential Management
 
-`/v1/api-keys` is guarded by `requireAuth` (Supabase Bearer). The flow for a headless integrator is:
-1. `POST /v1/auth/request-otp` with `{ email }` — Supabase sends a one-time code.
-2. `POST /v1/auth/verify-otp` with `{ email, token }` — returns `{ access_token, refresh_token, user_id }`.
-3. `POST /v1/api-keys` with `Authorization: Bearer <access_token>` — creates a `pk_*`/`sk_*` pair bound to `user_id`, with `partner_name = NULL`. The secret key is returned once.
-4. Use `X-API-Key: <sk_*>` on quote/ramp endpoints. The request authenticates as the linked user (no partner attribution, no partner discount — defaults to the `vortex` partner fee configuration).
+`POST`, `GET`, and `DELETE /v1/api-credentials` require a Supabase Bearer session and are owner-scoped to the session's profile: creation always mints profile-managed credentials, while listing and revocation cover every credential of that profile, partner-managed included. During admin impersonation, listing remains available but creation and revocation return `403 IMPERSONATION_NOT_ALLOWED`. Creation generates both values in one transaction, returns the secret once, defaults to one-year expiry, and rejects expiry beyond two years. Listing returns one object per credential and never returns the secret value.
+
+A profile may have at most five non-revoked, non-expired credentials. Creation locks the profile row and performs the active count and insert in one transaction, preventing concurrent requests from exceeding the cap. `DELETE /v1/api-credentials/:credentialId` updates the one row's `revoked_at`, atomically disabling both values without a request body or second key ID.
+
+Admin partner credential operations use the same lifecycle service and require an explicit existing `profile_id` subject. The legacy `POST /v1/admin/managed-profiles` flow provisions a genuine Supabase identity and Vortex profile from explicit `partnerId`, `externalUserId`, email, and `individual`, `business`, or `technical` subject type. The `(partner_id, external_user_id)` and `profile_id` associations are unique; an existing email is reconciled only when its immutable Supabase metadata matches the same association. Individual/business subjects receive the matching customer entity. OTP verification marks the identity claimed without duplicating it. Technical subjects receive no customer entity and are explicitly rejected from customer/ramp operations. The separate headless provisioning service atomically creates a null-login-email managed profile, its active customer entity, immutable provider contact email, and manager relationship. A manager session or secret credential may issue profile-managed credentials for a directly owned active child only through the manager-scoped child-credential route; generic profile-managed and admin partner-managed credential creation reject managed subjects.
+
+### Public And Secret Consistency
+
+When both `X-Public-Key` and `X-API-Key` are supplied, both values are resolved and their `credentialId` values must match. A mismatch returns `403 CREDENTIAL_MISMATCH`; the server must not combine the public value's attribution with the secret value's subject. A quote-body/query `apiKey` and `X-Public-Key` that differ also return `403 CREDENTIAL_MISMATCH`. With a matching pair, the secret context is authoritative.
+
+### Sanitized Ramp Info
+
+`GET /v1/ramp-info` accepts `X-Public-Key` or the corresponding `X-API-Key`. It derives the profile from `CredentialContext.profileId`, except that a manager secret may select one authorized child through `X-Managed-Profile-Id`. A public key cannot authorize that selector. Direct child credentials resolve their own child profile. The endpoint does not accept body/query user, profile, email, tax-ID, or customer-entity selectors, and Supabase sessions are not accepted.
+
+Its response is an allowlisted per-corridor projection:
+
+```json
+{
+  "corridors": {
+    "BR": {
+      "kycStatus": "approved",
+      "canBuy": true,
+      "canSell": true
+    }
+  }
+}
+```
+
+`kycStatus` is one of `not_started`, `pending`, `approved`, or `rejected`. The response must not include names, email, tax identifiers, KYC failure reasons, provider/customer/subaccount IDs, customer-entity IDs, wallet or bank details, ramp history, transaction data, or exact financial limits/usage.
 
 ## Security Invariants
 
-1. **Secret keys MUST be transmitted via the `X-API-Key` header only** — Never in query parameters, request body, or URL path. The middleware reads exclusively from `req.headers["x-api-key"]`.
-2. **Secret keys MUST be stored as bcrypt hashes** — The raw secret key is never persisted. Only the `keyPrefix` (first 8 chars) and `keyHash` (bcrypt) are stored.
-3. **Public keys MUST NOT grant authentication** — The `validateApiKey()` function returns `null` for public keys, explicitly denying authentication. Public keys are for tracking/identification only.
-4. **Key format validation MUST precede database lookup** — Both `isValidSecretKeyFormat()` and `isValidApiKeyFormat()` use regex to reject malformed keys before any DB query, preventing injection and unnecessary load.
-5. **Partner resolution MUST go through the `partner_id` FK** — `validateSecretApiKey` resolves `api_keys.partner_id` to the (unique-name) `partners` row; the legacy `partner_name` column is never read for authorization. `validatePartnerMatch`/`enforcePartnerAuth` may still compare by name — with `partners.name` unique, name equality and id equality are equivalent — and both UUID and string name formats for `partnerId` remain supported in request bodies.
-6. **Expired keys MUST be rejected** — Both public and secret key validation check `expiresAt` against the current time. Expired keys are treated as invalid.
-7. **Key lookup narrows by prefix, but the prefix does NOT bound the scan** — Secret key validation narrows by `keyPrefix` (first 8 chars) and then iterates with bcrypt comparison. Since the first 8 chars are the constant `sk_live_`/`sk_test_` for every secret key, the scan covers **all** active secret keys in that environment; auth latency grows linearly with the number of active secret keys. This is why self-serve key creation is capped (see invariant 17). A future format change embedding a random key-id in the key string would restore O(1) lookup.
-8. **`enforcePartnerAuth` MUST block unauthenticated requests when `partnerId` is present** — If a request includes `partnerId` but has no authenticated partner, it MUST be rejected with 403.
-9. **`lastUsedAt` updates MUST be fire-and-forget** — The `keyRecord.update({ lastUsedAt })` call is intentionally not awaited, with errors caught and logged. This MUST NOT block or fail the auth flow.
-10. **Key generation MUST use cryptographically secure randomness** — `crypto.randomBytes(32)` is the source. Base64 encoding with character stripping is used to produce the 32-char alphanumeric portion.
-11. **Secret keys MAY carry a nullable `api_keys.user_id` to identify a delegated user context** — The binding is consumed by the `apiKeyUserId` request field and is the only path for partner secret keys to provide a non-Supabase user identity. Public keys never carry or surface a user binding.
-12. **`ON DELETE SET NULL` for `api_keys.user_id` is intentional** — Deleting a profile must not silently revoke partner keys; partner keys are operational assets and binding loss is a soft-state change.
-13. **All ramp registration MUST be rejected when no effective user is present** — `POST /v1/ramp/register` requires a Supabase user or linked secret key and `RampService.registerRamp` rejects missing effective users with `400 Invalid quote: this route requires an API key linked to a user or Supabase user authentication.`. Quote creation remains anonymous-eligible for every corridor: Alfredpay quote engines use `resolveAlfredpayQuoteCustomerId`, which puts the sentinel `"anonymous"` (or the caller's real customer id when KYC-completed) into the tracking-only quote `metadata`; the KYC-gated `resolveAlfredpayCustomerId` runs at registration before any Alfredpay *order* is created. An anonymous quote (`quote.userId = NULL`) may be claimed at registration by any authenticated caller — it carries no owner, and provider identity is derived from the claimer's own KYC records. Unlinked secret keys are not a valid identity for registration.
-14. **Only a key with no partner binding at all is user-scoped** — `validateSecretApiKey` treats a key as user-scoped only when *both* `partner_id` and `partner_name` are NULL and `user_id` is set, returning `{ partner: null, apiKeyUserId }`; the middleware leaves `req.authenticatedPartner` unset, so the request authenticates purely as the linked user. A key with `partner_name` set but `partner_id = NULL` (partner row deleted) is rejected — partner deletion is key revocation, in both `validateSecretApiKey` and `validatePublicApiKey` (the public path also rejects a dangling `partner_id` whose partner row is missing). A secret key with neither partner binding nor `user_id` is unusable and rejected as invalid.
-15. **User-scoped keys MUST interpolate no partner pricing** — When `req.authenticatedPartner` is unset, `resolveQuotePartner` finds no partner (`source: "none"`), and `calculatePartnerAndVortexFees` falls through to the default `vortex` partner's pricing config (`partner_pricing_configs`, per ramp direction). User-scoped keys never receive partner-specific discounts.
-16. **`POST/GET/DELETE /v1/api-keys` MUST require a Supabase user (`requireAuth`)** — The endpoints bind the created keys to `req.userId`; partner keys (with `partner_id`) remain admin-only under `/v1/admin/partners/:partnerName/api-keys` (`adminAuth`).
-17. **Self-serve key creation MUST be capped per user** — `createUserApiKey` rejects with `409 API_KEY_LIMIT_REACHED` when the user already has `MAX_ACTIVE_KEYS_PER_USER` (10) active keys, and rejects `expiresAt` values more than 2 years out. Because of the linear bcrypt scan (invariant 7), an unbounded self-serve endpoint would let any user degrade auth latency for the whole system. The key pair is created in a single DB transaction so a failure cannot leave an orphaned half.
+1. **One credential MUST be one row**: `api_credentials` contains exactly one public value and one secret representation with one profile, optional partner, environment, expiry, and revocation timestamp.
+2. **Every credential MUST have a real profile subject**: `profile_id` is non-null and foreign-keyed to `profiles`; ownerless credentials cannot be created or migrated.
+3. **Secret keys MUST use only `X-API-Key`**: secret values are never accepted in request bodies, query parameters, or URLs.
+4. **Public keys MUST use `X-Public-Key` for new APIs**: the legacy quote/session `apiKey` field is attribution-only compatibility input and must agree with the header when both are present.
+5. **Secret material MUST NOT be persisted**: only a SHA-256 digest and indexed 16-character lookup prefix are stored; comparison uses `crypto.timingSafeEqual`.
+6. **Format validation MUST precede lookup**: malformed or wrong-type keys are rejected before querying credentials.
+7. **Revoked, expired, and partner-deactivated credentials MUST fail both halves**: credential usability requires `revoked_at IS NULL AND expires_at > NOW()`; partner-managed credential usability additionally requires the referenced partner to have `is_active = true`.
+8. **Validation MUST return `CredentialContext`**: business code receives credential ID, environment, profile ID, partner ID, and strength rather than interpreting key-row null combinations.
+9. **Public capability MUST remain allowlisted**: public possession grants only quote/widget attribution and sanitized `ramp-info`; sensitive reads and all ramp/provider/webhook mutations require secret or session capability as listed above.
+10. **Two presented halves MUST match**: different credential IDs return `403 CREDENTIAL_MISMATCH`; no mixed context may continue downstream.
+11. **Partner resolution MUST use immutable IDs**: `partner_id` is authoritative. Partner display names are labels and route lookup inputs, never credential-pairing, migration, or authorization evidence.
+12. **Credential lifecycle MUST require a session scoped to the subject profile**: `/v1/api-credentials` binds every operation to `req.userId` as `profile_id`. Creation additionally forces `partner_id IS NULL`; list and revoke cover all credentials whose `profile_id` matches the session, including partner-managed ones — the subject a credential acts for may always see and revoke it.
+13. **Creation MUST enforce five active credentials atomically**: expired and revoked rows do not count; profile locking serializes concurrent creation.
+14. **Revocation MUST disable both values atomically and record when it happened**: one owner-scoped update sets `revoked_at` on the credential row, matching only rows where `revoked_at IS NULL` so a repeated revoke cannot rewrite the time the credential actually stopped being valid. The manager-scoped child-credential path stays idempotent — repeating it still succeeds — but only the first call writes the timestamp.
+15. **Usage timestamps MUST be independent and best-effort**: public and secret validation update their respective last-used timestamps without making auth success depend on the telemetry write.
+16. **Ramp registration MUST resolve a real profile**: secret credentials and sessions act only for their bound profile; public keys cannot register ramps or select a profile.
+17. **Managed partner subjects MUST be first-class identities**: each real individual, business, or technical subject gets a genuine unique profile and immutable partner/external-user association; individual/business subjects get the matching customer entity, while technical subjects get none and cannot perform customer or ramp operations. No shared dummy profile is allowed.
+18. **There MUST be no legacy request-path fallback**: runtime validation reads only `api_credentials`; it does not read `api_keys`, bcrypt hashes, old prefixes, unpaired halves, or name-based relationships.
+19. **Startup MUST fail closed**: after migrations and before listening, the API verifies required `api_credentials` columns, nullability, indexes, constraints, and that the legacy `api_keys` table is absent. Any failure prevents serving traffic.
+20. **`ramp-info` MUST be subject-derived and sanitized**: it accepts no user selector and returns only the documented KYC state and buy/sell booleans.
+21. **Managed-profile selection MUST be authorization-derived**: `X-Managed-Profile-Id` is accepted only on delegated routes after a Supabase session or secret credential establishes the manager actor. Secret-key middleware explicitly records the authenticated credential profile; delegated authorization MUST NOT infer authentication by inspecting `CredentialContext.strength`. Authorization requires an active manager, a direct active relationship, a managed child with exactly one customer entity matching its active entity, and, for policy-bound operations, every required corridor, canonical corridor/type support, and inclusion under any non-null manager customer-type narrowing. Null customer types add no restriction beyond the canonical matrix. The verified child becomes the effective operation subject without replacing the authenticated actor. A direct child credential cannot present the selector to act for another child.
+22. **Managed-profile lifecycle MUST remain manager-scoped and logically deleted**: `POST/GET/DELETE /v1/managed-profiles` accepts only a Supabase session or secret credential whose subject is an active configured manager. During admin impersonation, list/read operations remain available but creation and deletion return `403 IMPERSONATION_NOT_ALLOWED`. Creation derives the manager from authentication, requires immutable `externalSubjectId`, `contactEmail`, and customer type values, rejects a customer type outside the manager's non-null `allowedCustomerTypes` narrowing rather than creating a child the manager could never operate, accepts no corridor grant, is idempotent by `(manager_profile_id, external_subject_id)`, and rejects reuse of a normalized `(manager_profile_id, contact_email)` by another child. Listing defaults to active children and returns the active manager projection `{ profileId, allowedCorridors, allowedCustomerTypes }` even when the child list is empty; direct reads may return retained deleted children. Foreign children return `404`. Deletion locks the child profile and relationship, atomically marks the relationship deleted and revokes all active child credentials, preserves customer/provider/KYC/ramp records, and returns `204` on repeated requests. Deleted external subject IDs and contact emails remain permanently reserved within that manager. Database triggers enforce the immutability of both `external_subject_id` and `contact_email`, so the identity a manager's records are keyed by cannot be reassigned after creation.
+23. **Child credentials MUST remain relationship-controlled**: `POST/GET/DELETE /v1/managed-profiles/:profileId/api-credentials` requires the active controlling manager, scopes every operation by both manager and child, and is the only credential-issuance path that accepts a managed subject. During admin impersonation, credential listing remains available but creation and revocation return `403 IMPERSONATION_NOT_ALLOWED`. It issues only `partner_id = NULL` credentials under the child's shared five-active-credential cap. Credential creation locks the child profile and relationship in the same order as logical deletion. Public and secret validation of a managed child's credential dynamically requires the unique relationship and manager to remain active. Corridor-bound routes apply the manager's current corridor and optional customer-type narrowing plus the canonical corridor capability matrix, and deletion revokes both halves. Direct child credentials cannot manage webhooks or manager lifecycle resources. Manager deactivation, relationship deletion, or policy changes block authorization decisions that begin after the change commits; they do not cancel requests already authorized and in flight. The retained relationship provides manager-level attribution; durable distinction between delegated-manager and direct-child-credential requests is not required unless credential-level attribution becomes a product requirement.
 
 ## Threat Vectors & Mitigations
 
-| Threat | Attack Scenario | Mitigation |
-|---|---|---|
-| **Secret key exposure in client code** | Partner accidentally ships sk\_ key in frontend bundle | Middleware rejects pk\_ keys for authentication; documentation emphasizes server-only usage for sk\_ keys |
-| **Brute force secret key** | Attacker iterates over possible sk\_ values | 32 chars of alphanumeric = ~190 bits entropy; bcrypt cost factor 10 for comparison; rate limiting on API |
-| **Timing attack on key validation** | Attacker measures response time to distinguish "key not found" from "bcrypt mismatch" | Prefix lookup returns all matching keys → bcrypt runs for each → timing varies by key count, not by correctness |
-| **Partner impersonation** | Attacker uses one partner's API key with another partner's `partnerId` | `enforcePartnerAuth` compares the authenticated partner (resolved via `api_keys.partner_id`) against the requested partner; with unique partner names, name and id comparison are equivalent; rejects mismatches with 403 |
-| **Stale/revoked key usage** | Partner's key is deactivated but still being used | `isActive` flag checked on every validation; expired keys rejected by `expiresAt` check |
-| **Key hash enumeration** | Attacker with DB read access tries to use key hashes | bcrypt hashes are one-way; raw keys cannot be recovered from hashes |
-| **Unlinked key creating provider resources anonymously** | Partner uses a generic (unbound) sk\_ key to mint provider-side resources, then registers with a linked secret key or Supabase session to claim them | Quotes are estimates and carry no provider resources beyond a tracking-metadata customer id (`"anonymous"` sentinel for non-KYC'd callers). All provider *orders* are created at registration, where `POST /v1/ramp/register` requires credentials, `RampService.registerRamp` rejects missing effective users, and provider identity is derived from the registering user's own KYC records — so claiming an anonymous quote yields no access to anyone else's resources. |
-| **Self-serve key flooding (auth DoS)** | A user mints thousands of key pairs via `POST /v1/api-keys`, inflating the bcrypt scan for every secret-key auth | Per-user cap of `MAX_ACTIVE_KEYS_PER_USER` (10) active keys enforced with `409`; revocation frees slots. |
-| **One linked key operating on another user's quote/ramp** | Partner with a valid linked key targets a different linked user's provider-bound quote | `assertQuoteOwnership`/`assertRampOwnership` enforce `quote.userId === req.apiKeyUserId` when a linked key is in scope. The `RampService.registerRamp` cross-user check rejects the same scenario at registration time with `403`. |
-| **Anonymous subaccount creation DoS** | Unauthenticated caller hits `POST /v1/brla/createSubaccount` to spawn stranded Avenia subaccounts | The route now requires `requirePartnerOrUserAuth()`; controllers require an effective user id before calling the Avenia API. |
+| Threat                                                         | Mitigation                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Secret exposed in browser or telemetry                         | Public capability exists for browser use; secret values are server-only, returned once, and forbidden from logs/events.                                                                                |
+| Database read leaks usable secret                              | Only a high-entropy secret's SHA-256 digest and non-secret lookup prefix are stored.                                                                                                                   |
+| Public key escalates to financial access                       | Route-level capability matrix rejects public keys from sensitive reads and mutations.                                                                                                                  |
+| Caller supplies another manager's child ID                     | Delegated middleware scopes the active relationship by both authenticated manager and child profile before deriving an effective subject.                                                              |
+| Public key from one credential is combined with another secret | Resolve both and return `403 CREDENTIAL_MISMATCH` before business logic.                                                                                                                               |
+| Concurrent creation exceeds the cap                            | Lock the profile, count active non-expired credentials, and insert in one transaction.                                                                                                                 |
+| Revocation leaves one half active                              | One row and one `revoked_at` update disable both values.                                                                                                                                               |
+| Partner deactivation leaves one half active                    | Public and secret validation both require the credential's partner to be active.                                                                                                                       |
+| Legacy or ambiguous rows remain reachable                      | No legacy runtime lookup; migration 061 rejects active legacy rows and removes the table, and startup requires it to be absent. Production migration uses explicit immutable-ID mappings, never names. |
+| Shared managed identity crosses customer ownership             | Require one genuine managed profile per subject and immutable partner/external-user association.                                                                                                       |
+| Public eligibility read leaks PII or exact limits              | `ramp-info` uses an explicit projection, accepts no body/query subject selector, and permits the managed-child header only with a manager secret.                                                      |
+| Deleted or deactivated child credential remains usable         | Both credential halves dynamically require the active relationship and manager; logical deletion also revokes every child credential.                                                                  |
 
 ## Audit Checklist
 
-- [x] All endpoints requiring partner auth use `apiKeyAuth({ required: true })` or `enforcePartnerAuth()` — **PASS: `enforcePartnerAuth()` is active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. `POST /v1/ramp/register` now requires sk_ OR Supabase via `requirePartnerOrUserAuth()`. Update/start/status/errors still use `optionalPartnerOrUserAuth()` so legacy fully-anonymous ramps can be inspected or advanced only when ownership checks allow it.**
-- [x] Secret key validation (`validateSecretApiKey`) always uses bcrypt comparison, never plaintext comparison — **PASS**
-- [x] Public key validation (`validatePublicApiKey`) stores keys in plaintext (by design for lookup) but never returns auth credentials — **PASS**
-- [x] `getKeyType()` correctly identifies `pk_` as public, `sk_` as secret, and anything else as `null` — **PASS**
-- [x] Regex patterns in `isValidApiKeyFormat` and `isValidSecretKeyFormat` match the documented format exactly: `^(pk|sk)_(live|test)_[a-zA-Z0-9]{32}$` — **PASS**
-- [x] `generateApiKey()` uses `crypto.randomBytes(32)` — not `Math.random()` or other weak sources — **PASS**
-- [x] `hashApiKey()` uses bcrypt with salt rounds ≥ 10 — **PASS (saltRounds = 10)**
-- [x] Expiration check (`expiresAt`) uses `new Date() > keyRecord.expiresAt`, correctly handling `null` expiresAt (no expiration) — **PASS**
-- [x] `enforcePartnerAuth` returns 403 (not 401) when partnerId is present but no auth provided — **PASS (active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`)**
-- [x] Partner name comparison is case-sensitive and exact (no normalization that could be exploited) — **PASS**
-- [x] No endpoint accepts secret keys from query parameters or request body — **PASS**
-- [x] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats — **PARTIAL: `PARTNER_MISMATCH` leaks authenticated partner name in response details**
-- [x] `api_keys.user_id` migration (`034-add-user-id-to-api-keys`) added with `ON DELETE SET NULL`, `idx_api_keys_user_id`, and `idx_api_keys_active_user_lookup`. — **PASS**
-- [x] `api_keys.partner_name` is nullable (migration `035-make-api-key-partner-name-nullable`) and is a legacy backup column — authorization never reads it. — **PASS**
-- [x] `api_keys.partner_id` FK (migration `041-add-partner-id-to-api-keys`, backfilled from `partner_name`) is the sole partner-resolution path in `validateSecretApiKey`/`validatePublicApiKey`; user-scoped keys have `partner_id = NULL` and authenticate purely as `user_id`. — **PASS**
-- [x] Revocation stamps `revoked_at` alongside `is_active = false` (self-serve and admin revoke paths). — **PASS**
-- [x] `validateSecretApiKey` returns a `ValidatedSecretKey` wrapper `{ apiKeyId, apiKeyUserId, partner: AuthenticatedPartner | null }`; `partner` is null for user-scoped keys. — **PASS**
-- [x] `validatePublicApiKey` returns a `ValidatedPublicKey` wrapper `{ partnerName: string | null }`; `partnerName` is null for user-scoped public keys. — **PASS**
-- [x] `apiKeyAuth` and `dualAuth` populate `req.apiKeyUserId` from the validated secret key; `req.authenticatedPartner` is left unset for user-scoped keys. Public keys do not populate `req.apiKeyUserId`. — **PASS**
-- [x] `getEffectiveUserId` returns `req.userId ?? req.apiKeyUserId`. — **PASS**
-- [x] User-scoped keys interpolate no partner pricing (`resolveQuotePartner` returns `source: "none"`, fee engine falls through to default `vortex` Partner rows). — **PASS**
-- [x] `POST/GET/DELETE /v1/api-keys` require `requireAuth` (Supabase Bearer); bind created keys to `req.userId` with `partner_name = NULL`. Admin partner-key endpoints still require `adminAuth`. — **PASS**
-- [x] Quote creation is anonymous-eligible for every corridor; Alfredpay quote engines use the sentinel `"anonymous"` in tracking-only quote metadata for non-KYC'd callers (`resolveAlfredpayQuoteCustomerId`), and provider orders always resolve via the strict `resolveAlfredpayCustomerId`. — **PASS**
-- [x] `POST /v1/ramp/register` and `RampService.registerRamp` reject ramp registration without an effective user with `401` at the route or `400 Invalid quote` at the service boundary. — **PASS**
-- [x] `RampService.registerRamp` rejects registration of a quote owned by a *different* user with `403`; anonymous quotes (no owner) may be claimed by any authenticated caller, with provider identity derived from the claimer's own KYC records. — **PASS**
-- [x] `createUserApiKey` enforces `MAX_ACTIVE_KEYS_PER_USER` (10) with `409`, caps `expiresAt` at 2 years, and creates the key pair in a single transaction. — **PASS**
-- [x] `assertQuoteOwnership` and `assertRampOwnership` reject linked-key callers who try to operate on a different linked user's quote/ramp. — **PASS**
+- [x] `api_credentials` stores one public value and one secret digest/prefix with non-null `profile_id`.
+- [x] Public and secret validators return the documented `CredentialContext` and reject revoked/expired rows.
+- [x] Secret digest comparison is constant-time and lookup is bounded by the indexed 16-character prefix.
+- [x] Creation locks the profile and caps active non-expired credentials at five.
+- [x] Self-service and admin adapters call the same create/list/revoke service.
+- [x] Revocation performs one owner-scoped credential update and takes no paired-key body.
+- [x] Public/body/header and public/secret mismatches return `403 CREDENTIAL_MISMATCH`.
+- [x] Startup validates the credential schema and requires the legacy `api_keys` table to be absent.
+- [ ] Verify deployment data has zero active legacy, unpaired, or ownerless credentials before cutover; source code cannot prove production data state.
+- [x] Managed-profile provisioning is admin-authenticated, idempotent by immutable partner/external-user IDs, unique by profile, rejects conflicting email/association reuse, creates the correct individual/business entity, leaves technical subjects entity-less, and records claims after verified OTP.
+- [ ] Add route-level public/secret authentication and cross-user tests for `GET /v1/ramp-info`; the route and sanitized service/controller projection exist, but current tests do not exercise the complete HTTP middleware chain.
+- [ ] Verify every capability-matrix row has an HTTP integration test; current middleware and SDK tests cover the core key validation and mismatch behavior, not every row.

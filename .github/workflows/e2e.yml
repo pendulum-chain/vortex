@@ -1,4 +1,4 @@
-# Non-PR-blocking Playwright E2E journeys (see docs/testing-strategy.md).
+# Non-PR-blocking Playwright E2E journeys (see docs/operations-testing.md).
 # Runs nightly and on demand; failures alert but never gate merges.
 name: e2e
 
@@ -64,6 +64,15 @@ jobs:
           name: playwright-report-dashboard
           path: apps/dashboard/playwright-report/
           retention-days: 7
+
+      # Browser journeys mock the API and cannot detect deployment or upstream routing failures.
+      # Probe both live environments through a cross-chain corridor so BUY and SELL exercise Squid.
+      - name: 🩺 Live BUY/SELL quote smoke tests
+        if: always()
+        working-directory: apps/api
+        env:
+          VORTEX_QUOTE_SMOKE_URLS: https://api-staging.vortexfinance.co,https://api.vortexfinance.co
+        run: bun test src/tests/deployed-quotes.e2e.test.ts
 
       # Non-blocking runs are only useful if somebody hears about failures.
       # Uses the same webhook token the backend's Slack notifier uses

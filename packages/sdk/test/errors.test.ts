@@ -1,9 +1,11 @@
 import {describe, expect, test} from "bun:test";
 import {
-  AlfredpayOnrampKycRequiredError,
-  MissingAlfredpayOfframpParametersError,
+  DomesticOnrampKycRequiredError,
+  BrlKycStatusError,
+  MissingDomesticOfframpParametersError,
   MissingBrlOfframpParametersError,
   MissingBrlParametersError,
+  MykoboKycRequiredError,
   parseAPIError,
   VortexSdkError
 } from "../src/errors";
@@ -24,14 +26,36 @@ describe("parseAPIError", () => {
     expect(error.message).toBe("Invalid or expired Bearer token.");
   });
 
+  test("preserves stable string error codes", () => {
+    const error = parseAPIError({
+      error: { code: "CREDENTIAL_MISMATCH", message: "Credentials do not match", status: 403 }
+    });
+
+    expect(error.code).toBe("CREDENTIAL_MISMATCH");
+    expect(error.status).toBe(403);
+  });
+
+  test("preserves provider limit error types as stable codes", () => {
+    const error = parseAPIError({
+      code: 400,
+      message: "Amount exceeds global limit.",
+      statusCode: 400,
+      type: "provider_limit_exceeded"
+    });
+
+    expect(error).toBeInstanceOf(VortexSdkError);
+    expect(error.status).toBe(400);
+    expect(error.code).toBe("provider_limit_exceeded");
+  });
+
   test("maps Alfredpay onramp auth and KYC errors", () => {
     const error = parseAPIError({
       code: 401,
       message:
-        "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists."
+        "This onramp requires a completed KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-customer mapping exists."
     });
 
-    expect(error).toBeInstanceOf(AlfredpayOnrampKycRequiredError);
+    expect(error).toBeInstanceOf(DomesticOnrampKycRequiredError);
     expect(error.status).toBe(401);
   });
 
@@ -67,12 +91,36 @@ describe("parseAPIError", () => {
   test("maps the shared missing-walletAddress offramp message", () => {
     const error = parseAPIError({ code: 400, message: "User address must be provided for offramping." });
 
-    expect(error).toBeInstanceOf(MissingAlfredpayOfframpParametersError);
+    expect(error).toBeInstanceOf(MissingDomesticOfframpParametersError);
     expect(error.status).toBe(400);
   });
 
   test("named BRL parameter errors default to the current backend messages", () => {
     expect(new MissingBrlParametersError().message).toBe("Parameter destinationAddress is required for onramp");
     expect(new MissingBrlOfframpParametersError().message).toBe("pixDestination is required for offramp to BRL");
+  });
+
+  // Regression: the backend qualified this message when headless managed profiles made
+  // "no profile" and "profile without an email" distinct outcomes.
+  test("maps the current Mykobo unresolvable-profile message", () => {
+    const error = parseAPIError({
+      code: 400,
+      message: "No email-authenticated profile found for this user; cannot resolve the Mykobo customer."
+    });
+
+    expect(error).toBeInstanceOf(MykoboKycRequiredError);
+    expect(error.status).toBe(400);
+  });
+
+  // Regression: recordInitialKycAttempt moved taxId from the query string to the body and
+  // added quoteId, retiring the legacy message the parser used to match.
+  test("maps the current BRL KYC-attempt missing-parameter messages", () => {
+    const missingQuoteOrTaxId = parseAPIError({ code: 400, message: "Missing quoteId or taxId body parameter" });
+    expect(missingQuoteOrTaxId).toBeInstanceOf(BrlKycStatusError);
+    expect(missingQuoteOrTaxId.message).toBe("Missing quoteId or taxId body parameter");
+
+    const missingTaxId = parseAPIError({ code: 400, message: "Missing taxId" });
+    expect(missingTaxId).toBeInstanceOf(BrlKycStatusError);
+    expect(missingTaxId.message).toBe("Tax ID is required");
   });
 });

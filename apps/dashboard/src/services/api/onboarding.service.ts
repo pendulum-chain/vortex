@@ -30,6 +30,8 @@ export interface OnboardingEntityDto {
 export interface OnboardingStatusResponse {
   activeEntityId: string | null;
   entities: OnboardingEntityDto[];
+  /** Capability roles of the profile (e.g. "discount_manager" unlocks invite discount fields). */
+  roles: string[];
   selectionRequired: boolean;
 }
 
@@ -40,6 +42,6 @@ export const OnboardingService = {
     return apiClient.put<{ activeEntityId: string; type: ActiveEntityType }>("/onboarding/active-entity", { type });
   },
   status(): Promise<OnboardingStatusResponse> {
-    return apiClient.get<OnboardingStatusResponse>("/onboarding/status");
+    return apiClient.get<OnboardingStatusResponse>("/onboarding/status", { managedProfile: true });
   }
 };

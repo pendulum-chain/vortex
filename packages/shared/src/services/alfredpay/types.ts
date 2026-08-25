@@ -1,9 +1,9 @@
-import { AlfredpayCustomerType, FiatToken, RampCurrency } from "../../tokens/types/base";
+import { DomesticCustomerType, FiatToken, RampCurrency } from "../../tokens/types/base";
 
-export { AlfredpayCustomerType };
+export { DomesticCustomerType };
 
-export type AlfredPayType = AlfredpayCustomerType;
-export const AlfredPayType = AlfredpayCustomerType;
+export type AlfredPayType = DomesticCustomerType;
+export const AlfredPayType = DomesticCustomerType;
 
 export enum AlfredPayStatus {
   Consulted = "CONSULTED",
@@ -15,7 +15,7 @@ export enum AlfredPayStatus {
   UpdateRequired = "UPDATE_REQUIRED"
 }
 
-export enum AlfredPayCountry {
+export enum DomesticCountry {
   MX = "MX", // Mexico
   AR = "AR", // Argentina
   BR = "BR", // Brazil
@@ -30,7 +30,7 @@ export enum AlfredPayCountry {
 }
 
 export interface CreateAlfredpayCustomerRequest {
-  type: AlfredpayCustomerType;
+  type: DomesticCustomerType;
   country: string;
 }
 
@@ -118,7 +118,7 @@ export enum AlfredpayFiatCurrency {
   BOB = "BOB"
 }
 
-export type AlfredpayCurrency = AlfredpayOnChainCurrency | AlfredpayFiatCurrency;
+export type DomesticCurrency = AlfredpayOnChainCurrency | AlfredpayFiatCurrency;
 
 export enum AlfredpayChain {
   ETH = "ETH",
@@ -185,8 +185,8 @@ interface AlfredpayBaseQuoteResponse<FromCurrency, ToCurrency> {
   metadata: Record<string, unknown>;
 }
 
-export type AlfredpayOnrampQuote = AlfredpayBaseQuoteResponse<AlfredpayFiatCurrency, AlfredpayOnChainCurrency>;
-export type AlfredpayOfframpQuote = AlfredpayBaseQuoteResponse<AlfredpayOnChainCurrency, AlfredpayFiatCurrency>;
+export type DomesticOnrampQuote = AlfredpayBaseQuoteResponse<AlfredpayFiatCurrency, AlfredpayOnChainCurrency>;
+export type DomesticOfframpQuote = AlfredpayBaseQuoteResponse<AlfredpayOnChainCurrency, AlfredpayFiatCurrency>;
 
 export interface CreateAlfredpayOnrampRequest {
   customerId: string;
@@ -239,7 +239,6 @@ interface AlfredpayBaseTransaction {
   customerId: string;
   createdAt: string;
   updatedAt: string;
-  quoteId: string;
   fromCurrency: string;
   toCurrency: string;
   fromAmount: string;
@@ -249,6 +248,7 @@ interface AlfredpayBaseTransaction {
 }
 
 export interface AlfredpayOnrampTransaction extends AlfredpayBaseTransaction {
+  quoteId: string;
   status: AlfredpayOnrampStatus;
   email: string;
   paymentMethodType: AlfredpayPaymentMethodType;
@@ -256,7 +256,7 @@ export interface AlfredpayOnrampTransaction extends AlfredpayBaseTransaction {
   externalId: string;
   memo: string;
   metadata?: AlfredpayOnrampStatusMetadata | null;
-  quote: AlfredpayOnrampQuote;
+  quote: DomesticOnrampQuote;
 }
 
 export interface AlfredpayOfframpTransaction extends AlfredpayBaseTransaction {
@@ -264,7 +264,7 @@ export interface AlfredpayOfframpTransaction extends AlfredpayBaseTransaction {
   fiatAccountId: string;
   memo?: string;
   expiration: string;
-  quote: AlfredpayOfframpQuote;
+  quote: DomesticOfframpQuote;
 }
 
 export interface AlfredpayFiatPaymentInstructions {
@@ -295,7 +295,7 @@ export interface CreateAlfredpayOnrampResponse {
 
 export type CreateAlfredpayOfframpResponse = AlfredpayOfframpTransaction;
 
-export enum AlfredpayFiatAccountType {
+export enum DomesticFiatAccountType {
   SPEI = "SPEI",
   PIX = "PIX",
   COELSA = "COELSA",
@@ -339,7 +339,7 @@ export interface AlfredpayFiatAccountFields {
 
 export interface CreateAlfredpayFiatAccountRequest {
   customerId: string;
-  type: AlfredpayFiatAccountType;
+  type: DomesticFiatAccountType;
   fiatAccountFields: AlfredpayFiatAccountFields;
   isExternal: boolean;
 }
@@ -348,14 +348,14 @@ export interface CreateAlfredpayFiatAccountResponse {
   fiatAccountId: string;
 }
 
-export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
+export interface DomesticFiatAccount extends AlfredpayFiatAccountFields {
   fiatAccountId: string;
   customerId: string;
-  type: AlfredpayFiatAccountType;
+  type: DomesticFiatAccountType;
   createdAt?: string;
 }
 
-export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
+export type ListAlfredpayFiatAccountsResponse = DomesticFiatAccount[];
 
 const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
   FiatToken.USD,
@@ -364,7 +364,7 @@ const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
   FiatToken.ARS
 ]);
 
-export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+export const isDomesticToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
 /**
  * Raw shape returned by `GET …/allConfigs`. `typeCustomer: null` means the pair applies
@@ -380,7 +380,7 @@ export interface AlfredpayConfigPair {
   maxQuantity: string;
   minQuantity: string;
   decimals: string | null;
-  typeCustomer: AlfredpayCustomerType | null;
+  typeCustomer: DomesticCustomerType | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -458,11 +458,17 @@ export enum AlfredpayArgentinaDocumentType {
   DNI = "DNI"
 }
 
-// KYB form submission types
+// KYB form submission types.
+// Alfredpay self-describes the per-country requirement set at GET …/penny/kybRequirements?country=
+// (MEX and MX both resolve); that endpoint is the source of truth for what `sendKybSubmission`
+// accepts. BUSINESS_LICENSE and AML_POLICY are demanded only when `isRegulatedBusiness` is true.
 export enum AlfredpayKybFileType {
   TAX_ID_DOCUMENT = "taxIdDocument",
   ARTICLES_INCORPORATION = "articlesIncorporation",
-  PROOF_ADDRESS = "proofAddress"
+  PROOF_ADDRESS = "proofAddress",
+  SHAREHOLDER_REGISTRY = "shareholderRegistry",
+  BUSINESS_LICENSE = "businessLicense",
+  AML_POLICY = "uploadAmlPolicy"
 }
 
 /** Penny relate-person upload: only docFront + docBack (URI fields are derived server-side). */
@@ -471,7 +477,7 @@ export enum AlfredpayKybRelatedPersonFileType {
   DOC_BACK = "docBack"
 }
 
-export interface AlfredpayKybRelatedPerson {
+export interface DomesticKybRelatedPerson {
   firstName: string;
   lastName: string;
   email: string;
@@ -482,7 +488,34 @@ export interface AlfredpayKybRelatedPerson {
   pep?: boolean;
 }
 
-export interface SubmitKybInformationRequest {
+/**
+ * The compliance questionnaire Alfredpay requires before `sendKybSubmission` accepts a submission —
+ * omitting any of the required entries fails finalization with `110002 "Invalid field(s)"` naming
+ * exactly them. They are sent flat alongside the company fields; Alfredpay stores them nested under
+ * `questionnaire` in the KYB details response.
+ *
+ * Requiredness mirrors GET …/penny/kybRequirements?country= : the nine below are required for every
+ * corridor, and the two conditionals are demanded only once their trigger is true.
+ */
+export interface AlfredpayKybQuestionnaire {
+  /** Wallets interacting with Alfredpay, or "N/A" when the business is not on-chain. */
+  walletAddresses: string;
+  sourceOfFunds: string;
+  transmitsCustomerFunds: boolean;
+  /** Required by Alfredpay only when `transmitsCustomerFunds` is true. */
+  conductsComplianceScreening?: boolean;
+  /** Required by Alfredpay only when `conductsComplianceScreening` is true. */
+  complianceScreeningDescription?: string;
+  operatesInSanctionedCountries: boolean;
+  /** When true, Alfredpay additionally requires the businessLicense and uploadAmlPolicy documents. */
+  isRegulatedBusiness: boolean;
+  businessActivities: string;
+  accountPurpose: string;
+  expectedMonthlyVolumeUsd: number;
+  expectedMonthlyTransactions: number;
+}
+
+export interface SubmitKybInformationRequest extends AlfredpayKybQuestionnaire {
   businessName: string;
   taxId: string;
   country: string;
@@ -491,7 +524,7 @@ export interface SubmitKybInformationRequest {
   city: string;
   zipCode: string;
   website: string;
-  relatedPersons: AlfredpayKybRelatedPerson[];
+  relatedPersons: DomesticKybRelatedPerson[];
 }
 
 export interface SubmitKybInformationResponse {

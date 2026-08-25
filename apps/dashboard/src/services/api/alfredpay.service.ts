@@ -1,6 +1,20 @@
 import { type AlfredpayKycApi, createAlfredpayKycApi } from "@vortexfi/kyc";
-import type { AlfredpayListFiatAccountsResponse } from "@vortexfi/shared";
+import type {
+  DomesticAddFiatAccountRequest,
+  DomesticAddFiatAccountResponse,
+  DomesticListFiatAccountsResponse
+} from "@vortexfi/shared";
 import { apiClient } from "./api-client";
+
+const managedProfileApiClient = {
+  get: <T>(url: string, config?: { params?: Record<string, string | number | boolean | undefined>; signal?: AbortSignal }) =>
+    apiClient.get<T>(url, { ...config, managedProfile: true }),
+  post: <T>(
+    url: string,
+    data?: unknown,
+    config?: { headers?: Record<string, string>; params?: Record<string, string | number | boolean | undefined> }
+  ) => apiClient.post<T>(url, data, { ...config, managedProfile: true })
+};
 
 /**
  * The dashboard's Alfredpay endpoints. The KYC subset satisfies `AlfredpayKycApi`, which is what
@@ -8,16 +22,30 @@ import { apiClient } from "./api-client";
  * KYB and US provider-hosted KYB.
  */
 export const AlfredpayService: AlfredpayKycApi & {
-  listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse>;
+  addFiatAccount(payload: DomesticAddFiatAccountRequest): Promise<DomesticAddFiatAccountResponse>;
+  deleteFiatAccount(fiatAccountId: string, country: string): Promise<void>;
+  listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse>;
 } = {
-  ...createAlfredpayKycApi(apiClient),
+  ...createAlfredpayKycApi(managedProfileApiClient),
+
+  addFiatAccount(payload: DomesticAddFiatAccountRequest): Promise<DomesticAddFiatAccountResponse> {
+    return apiClient.post<DomesticAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload, { managedProfile: true });
+  },
+
+  async deleteFiatAccount(fiatAccountId: string, country: string): Promise<void> {
+    await apiClient.delete(`/alfredpay/fiatAccounts/${fiatAccountId}`, { managedProfile: true, params: { country } });
+  },
 
   /**
    * The user's saved AlfredPay payout accounts for a country (US/MX/CO/AR). Each account's
    * `fiatAccountId` is the offramp payout target — the dashboard turns each into a
    * "send to yourself" recipient. 404s when the caller has no AlfredPay customer yet.
    */
-  listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse> {
-    return apiClient.get<AlfredpayListFiatAccountsResponse>("/alfredpay/fiatAccounts", { params: { country }, signal });
+  listFiatAccounts(country: string, signal?: AbortSignal): Promise<DomesticListFiatAccountsResponse> {
+    return apiClient.get<DomesticListFiatAccountsResponse>("/alfredpay/fiatAccounts", {
+      managedProfile: true,
+      params: { country },
+      signal
+    });
   }
 };

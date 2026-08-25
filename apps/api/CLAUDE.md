@@ -10,7 +10,7 @@ architecture and commands. Run commands from `apps/api/` unless noted.
 - **Services**: business logic in `src/api/services/`.
 - **Models**: Sequelize models in `src/models/` (RampState, QuoteTicket, Partner, …).
 - **Workers**: background jobs in `src/api/workers/`.
-- **Cross-chain**: XCM handlers, Nabla AMM integration, Stellar/BRLA APIs.
+- **Cross-chain**: XCM handlers, Nabla AMM integration, BRLA APIs.
 - **Middlewares / observability / errors / helpers**: under `src/api/`.
 
 ### Ramp state machine
@@ -48,3 +48,10 @@ failed state into `failedRampStateRecovery.json` and run the recovery test.
 Changes to auth, admin routes, quote/ramp state, signing, fees, partner pricing,
 integrations, or migrations that affect invariants must be cross-checked against
 `docs/security-spec/` in the same change. See root `CLAUDE.md` → Security Spec Sync.
+
+## Documentation
+
+Follow [`docs/README.md`](../../docs/README.md). Update the block-flow README only for its
+local implementation contract; cross-module identity belongs in `docs/architecture-identity-model.md`,
+testing in `docs/operations-testing.md`, public endpoints in `docs/api/`, and security
+behavior in `docs/security-spec/`. Do not add implementation plans or agent memory files.

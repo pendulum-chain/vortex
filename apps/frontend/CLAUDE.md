@@ -10,6 +10,8 @@ frontend-scoped architecture, conventions, and commands. Run commands from
 - **Forms**: React Hook Form with Zod validation (not Yup).
 - **Data fetching**: TanStack Query.
 - **Routing**: TanStack Router — route tree auto-generated in `src/routeTree.gen.ts` (do not hand-edit).
+- **Rendering**: TanStack Start. Marketing routes are prerendered to static HTML at build time
+  (`dist/client`); `/widget` sets `ssr: false` and is served from the `_shell.html` SPA shell.
 - **State machines**: XState machines in `src/machines/` for complex flows (KYC, ramp process).
 - **Wallets**: Wagmi/AppKit (EVM) + Talisman (Polkadot).
 
@@ -20,6 +22,17 @@ frontend-scoped architecture, conventions, and commands. Run commands from
 - Avoid `setTimeout` (always comment why if used).
 - Extract complex conditional rendering into new components.
 - Skip useless comments; only comment race conditions, TODOs, or genuinely confusing code.
+
+### Server-safe code (marketing routes)
+
+Anything rendered by a marketing route is prerendered in a DOM-less environment, so:
+
+- `useSyncExternalStore` must be given a server snapshot (third argument).
+- Probe browser globals with `typeof` — `localStorage` is *undeclared* on the server, so
+  `!localStorage` and `localStorage?.x` both throw a `ReferenceError`.
+- Size from CSS, not from a measured viewport, or the layout shifts on hydration.
+
+`src/tests/ssr-safety.test.tsx` guards these; keep it in the default `node` environment.
 
 ### XState v5
 
@@ -47,5 +60,11 @@ the authority for correct instrumentation in this app.
 
 `FiatToken` has 6 values (`EURC`, `ARS`, `BRL`, `USD`, `MXN`, `COP`). Any
 `Record<FiatToken, X>` must include all six or the build fails. Common spots:
-`tokenAvailability`, `mapFiatToDestination`, success-page `ARRIVAL_TEXT_BY_TOKEN`,
-sep10 `tokenMapping`.
+`tokenAvailability`, `mapFiatToDestination`, success-page `ARRIVAL_TEXT_BY_TOKEN`.
+
+## Documentation
+
+Follow [`docs/README.md`](../../docs/README.md). Product behavior belongs in the existing
+product spec, public partner behavior in `docs/api/`, and security-sensitive flow changes
+in `docs/security-spec/`. Do not create implementation plans, progress logs, or duplicate
+machine walkthroughs; keep the machine and its tests as the local source.

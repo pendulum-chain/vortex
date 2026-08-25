@@ -23,6 +23,7 @@ packages/sdk/.env
 **/.env.production
 **/.env.staging
 !**/.env.example
+**/.env
 
 # Editor directories and files
 .vscode/*
@@ -54,9 +55,10 @@ storybook-static
 
 
 CLAUDE.local.md
-# Ignore everything under .claude except the team-shared settings.json
+# Ignore everything under .claude except the team-shared settings.json and skills
 .claude/*
 !.claude/settings.json
+!.claude/skills/
 /.roo/*
 
 # hardhat generated files in workspace contract projects
@@ -135,3 +137,4 @@ apps/dashboard/playwright-report/
 /contracts/cctp-settlement/typechain-types/common.ts
 /contracts/cctp-settlement/typechain-types/hardhat.d.ts
 /contracts/cctp-settlement/typechain-types/index.ts
+.gbrain-source

@@ -2,6 +2,7 @@ import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicGenerate } from "@polkadot/util-crypto";
 import { mnemonicToSeedSync } from "@scure/bip39";
+import { privateKeyToAccount } from "viem/accounts";
 import { EphemeralAccount } from "../index";
 
 export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
@@ -11,22 +12,20 @@ export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
-  const keyring = new Keyring({ type: "ethereum" });
-
   const privateKey = deriveEvmPrivateKeyFromMnemonic(seedPhrase);
-  const ephemeralAccountKeypair = keyring.addFromSeed(privateKey);
+  const secret = u8aToHex(privateKey) as `0x${string}`;
 
   return {
-    address: ephemeralAccountKeypair.address,
-    secret: u8aToHex(privateKey)
+    address: privateKeyToAccount(secret).address,
+    secret
   };
 }
 
 export async function createPendulumEphemeral(): Promise<EphemeralAccount> {
+  await cryptoWaitReady();
   const seedPhrase = mnemonicGenerate();
 
   const keyring = new Keyring({ type: "sr25519" });
-  await cryptoWaitReady();
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
 
   return { address: ephemeralAccountKeypair.address, secret: seedPhrase };

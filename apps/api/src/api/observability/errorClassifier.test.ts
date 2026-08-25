@@ -24,6 +24,20 @@ describe("classifyApiClientError", () => {
     ).toBe("provider_error");
   });
 
+  it("classifies provider limit rejections by their error type", () => {
+    expect(
+      classifyApiClientError(
+        new APIError({ message: "Amount exceeds global limit.", status: httpStatus.BAD_REQUEST, type: "provider_limit_exceeded" })
+      )
+    ).toBe("provider_limit_exceeded");
+    expect(
+      classifyApiClientError(new APIError({ message: "Amount exceeds global limit.", status: httpStatus.BAD_REQUEST }))
+    ).toBe("validation_error");
+    expect(classifyApiClientError(new APIError({ message: "Invalid quote payload", status: httpStatus.BAD_REQUEST }))).toBe(
+      "validation_error"
+    );
+  });
+
   it("classifies auth and ownership failures", () => {
     expect(classifyApiClientError(new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED }))).toBe(
       "auth_missing_api_key"

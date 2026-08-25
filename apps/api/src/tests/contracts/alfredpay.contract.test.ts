@@ -1,5 +1,5 @@
 /**
- * External API contract: Alfredpay (docs/features/contract-tests.md).
+ * External API contract: Alfredpay (docs/operations-testing.md).
  *
  * The same consumed-contract schemas run against the fake (hermetic, PR-blocking)
  * and against the partner API (live, nightly). Live tests skip cleanly when
@@ -14,17 +14,36 @@
  * progresses past the point where a real payment would be required (an onramp
  * stays CREATED / awaiting payment). `getQuote` has no production consumers and
  * is deliberately uncovered.
+ *
+ * Individual KYC provisioning is opt-in because it leaves a customer behind. Run it with:
+ *
+ *   RUN_LIVE_TESTS=1 ALFREDPAY_CONTRACT_RUN_KYC_FLOW=1 bun test alfredpay.contract
+ *
+ * KYB: the details read runs with the rest of the live half against a hard-coded sandbox
+ * business customer (KYB_CUSTOMER_ID). The full company-onboarding sequence is opt-in via
+ * ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 because it leaves a business customer behind per run:
+ *
+ *   RUN_LIVE_TESTS=1 ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 bun test alfredpay.contract
  */
 import { describe, expect, test } from "bun:test";
+import Big from "big.js";
 import {
   AlfredpayApiService,
   AlfredpayChain,
   alfredpayConfigsResponseSchema,
+  alfredpayCreateFiatAccountResponseSchema,
   alfredpayCreateOnrampResponseSchema,
   AlfredpayFeeType,
   alfredpayFiatAccountsResponseSchema,
-  AlfredpayFiatAccountType,
+  type AlfredpayFiatAccountFields,
+  DomesticCustomerType,
+  DomesticFiatAccountType,
   AlfredpayFiatCurrency,
+  alfredpayKybBusinessDetailsResponseSchema,
+  AlfredpayKybFileType,
+  AlfredpayKybRelatedPersonFileType,
+  AlfredpayKycFileType,
+  AlfredpayKycStatus,
   alfredpayKycStatusResponseSchema,
   alfredpayOfframpTransactionSchema,
   AlfredpayOnChainCurrency,
@@ -32,7 +51,8 @@ import {
   AlfredpayPaymentMethodType,
   alfredpayQuoteResponseSchema,
   AlfredpayTradeLimitError,
-  type CreateAlfredpayOnrampQuoteRequest
+  type CreateAlfredpayOnrampQuoteRequest,
+  type SubmitKybInformationRequest
 } from "@vortexfi/shared";
 import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 import { FakeAlfredpay } from "../../test-utils/fake-world/fake-anchors";
@@ -42,6 +62,115 @@ const HAS_CREDS = !!(process.env.ALFREDPAY_API_KEY && process.env.ALFREDPAY_API_
 const CUSTOMER_ID = process.env.ALFREDPAY_CONTRACT_CUSTOMER_ID;
 const FIAT_ACCOUNT_ID = process.env.ALFREDPAY_CONTRACT_FIAT_ACCOUNT_ID;
 const KYC_SUBMISSION_ID = process.env.ALFREDPAY_CONTRACT_KYC_SUBMISSION_ID;
+const RUN_KYC_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYC_FLOW;
+const RUN_KYB_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYB_FLOW;
+// Completed Argentina sandbox customer reserved for the create/list/delete account lifecycle.
+const AR_COMPLETED_CUSTOMER_ID = "cd0a7a0d-1b2d-4894-bbb2-f05fe3b5c7df";
+const AR_CONTRACT_ACCOUNT_NUMBER = "0720369388000033954918";
+const CO_COMPLETED_CUSTOMER_ID = "2be2683f-9594-4b8f-9578-69212b6240fd";
+const MX_COMPLETED_CUSTOMER_ID = "230ee85f-5f2d-4cbf-af7c-afa46591d9ef";
+
+interface FiatAccountLifecycleCase {
+  accountFields: AlfredpayFiatAccountFields;
+  country: "AR" | "CO" | "MX";
+  customerId: string;
+  expectedFields: Record<string, unknown>;
+  type: DomesticFiatAccountType;
+}
+
+const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
+  {
+    accountFields: { accountNumber: AR_CONTRACT_ACCOUNT_NUMBER, accountType: "CBU" },
+    country: "AR",
+    customerId: AR_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountNumber: AR_CONTRACT_ACCOUNT_NUMBER, accountType: "CBU" },
+    type: DomesticFiatAccountType.COELSA
+  },
+  {
+    accountFields: {
+      accountName: "BANCOLOMBIA",
+      accountNumber: "12345678901",
+      accountType: "AHORRO",
+      metadata: { accountHolderName: "Vortex Contract Test", documentNumber: "1234567890", documentType: "CC" }
+    },
+    country: "CO",
+    customerId: CO_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountName: "BANCOLOMBIA", accountNumber: "12345678901", accountType: "AHORRO" },
+    type: DomesticFiatAccountType.ACH
+  },
+  {
+    accountFields: {
+      accountNumber: "012020477538404708",
+      accountType: "CLABE",
+      metadata: { accountHolderName: "Vortex Contract Test" }
+    },
+    country: "MX",
+    customerId: MX_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountNumber: "012020477538404708", accountType: "CLABE" },
+    type: DomesticFiatAccountType.SPEI
+  }
+];
+
+// A sandbox MX company put through the full KYB by the flow test below, so the details read
+// exercises a fully populated business: four company documents, both representative documents, and a
+// stored `questionnaire`. Its submission is FAILED (see the flow test — the sandbox rejects the
+// blank placeholder images), which does not affect this read: details are served regardless of
+// verification outcome. Re-create it with ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 and pin the new id here
+// if Alfredpay ever clears the sandbox.
+const KYB_CUSTOMER_ID = "5f4a1e58-6b74-454c-bc89-defb8df593be";
+
+// 1x1 transparent PNG: the uploads only need a well-formed image of an accepted mime type.
+const BLANK_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+function blankPng(name = "blank.png"): File {
+  const bytes = Uint8Array.from(atob(BLANK_PNG_BASE64), character => character.charCodeAt(0));
+  return new File([bytes], name, { type: "image/png" });
+}
+
+/**
+ * The name that broke KYB in production. Alfredpay's relate-person upload answers a non-ASCII
+ * multipart filename with a bare 502 `111301 UNKNOWN_ERROR`, and macOS separates the time from
+ * AM/PM with U+202F — so every screenshot a user uploads trips it while looking like plain ASCII.
+ * AlfredpayApiService rewrites the name before sending; driving the flow with this one keeps that
+ * honest against the real endpoint, since it passes only because of the rewrite. Escaped
+ * deliberately: the literal character is invisible here.
+ */
+const MACOS_SCREENSHOT_PNG_NAME = "Screenshot 2026-07-09 at 12.23.56\u202fPM.png";
+
+function kybFlowForm(email: string): SubmitKybInformationRequest {
+  return {
+    accountPurpose: "Treasury management",
+    address: "Avenida Paseo de la Reforma 100",
+    businessActivities: "Cross-border payments software",
+    businessName: "Vortex Contract Test SA de CV",
+    city: "Ciudad de Mexico",
+    country: "MX",
+    expectedMonthlyTransactions: 120,
+    expectedMonthlyVolumeUsd: 50000,
+    // false keeps the run on the unregulated branch, which is what the document set below covers.
+    isRegulatedBusiness: false,
+    operatesInSanctionedCountries: false,
+    relatedPersons: [
+      {
+        dateOfBirth: "1990-01-01",
+        email,
+        firstName: "Ana",
+        lastName: "Rep",
+        nationalities: ["MX"],
+        // Not required for MX, but Alfredpay requires it for CO/US.
+        pep: false
+      }
+    ],
+    sourceOfFunds: "Sale of goods/services",
+    state: "CDMX",
+    taxId: "AAA010101AAA",
+    transmitsCustomerFunds: false,
+    walletAddresses: "N/A",
+    website: "https://vortex-contract-test.example.com",
+    zipCode: "06600"
+  };
+}
 
 if (RUN_LIVE && !HAS_CREDS) {
   console.warn("[contract:live] Alfredpay live half skipped: ALFREDPAY_API_KEY/ALFREDPAY_API_SECRET not set");
@@ -70,6 +199,7 @@ function onrampQuoteRequest(fromAmount: string): CreateAlfredpayOnrampQuoteReque
 describe("Alfredpay external API contract — hermetic (fake)", () => {
   function seededFake() {
     const fake = new FakeAlfredpay();
+    fake.offrampRate = 17;
     fake.quoteFees = [{ amount: "12.50", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
     return fake;
   }
@@ -88,6 +218,18 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
       toCurrency: AlfredpayFiatCurrency.MXN
     });
     expect(() => alfredpayQuoteResponseSchema.parse(offrampQuote)).not.toThrow();
+    expect(offrampQuote.toAmount).toBe("497.5");
+
+    const exactOutputQuote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toAmount: "497.5",
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
+    expect(exactOutputQuote.fromAmount).toBe("30");
+    expect(exactOutputQuote.toAmount).toBe("497.5");
   });
 
   test("fake onramp order and transaction polling satisfy their contracts", async () => {
@@ -111,20 +253,63 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
 
   test("fake offramp order and transaction polling satisfy their contracts", async () => {
     const api = seededFake().asService();
+    const quote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: "30",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
     const order = await api.createOfframp({
-      amount: "30",
+      amount: quote.fromAmount,
       chain: AlfredpayChain.MATIC,
       customerId: "cust-1",
       fiatAccountId: "fa-1",
       fromCurrency: AlfredpayOnChainCurrency.USDC,
       originAddress: TEST_ADDRESS,
-      quoteId: "quote-1",
+      quoteId: quote.quoteId,
       toCurrency: AlfredpayFiatCurrency.MXN
     });
     expect(() => alfredpayOfframpTransactionSchema.parse(order)).not.toThrow();
+    expect(order).toMatchObject({
+      fromAmount: quote.fromAmount,
+      fromCurrency: quote.fromCurrency,
+      quote: { quoteId: quote.quoteId },
+      toAmount: quote.toAmount,
+      toCurrency: quote.toCurrency
+    });
+    expect(order).not.toHaveProperty("quoteId");
 
     const transaction = await api.getOfframpTransaction(order.transactionId);
     expect(() => alfredpayOfframpTransactionSchema.parse(transaction)).not.toThrow();
+    expect(transaction).toMatchObject({ quote: { quoteId: quote.quoteId } });
+    expect(transaction).not.toHaveProperty("quoteId");
+  });
+
+  test("fake offramp orders stay bound to an issued matching quote", async () => {
+    const api = seededFake().asService();
+    const quote = await api.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: "30",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      metadata: QUOTE_METADATA,
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
+    const request = {
+      amount: quote.fromAmount,
+      chain: AlfredpayChain.MATIC,
+      customerId: "cust-1",
+      fiatAccountId: "fa-1",
+      fromCurrency: AlfredpayOnChainCurrency.USDC,
+      originAddress: TEST_ADDRESS,
+      quoteId: quote.quoteId,
+      toCurrency: AlfredpayFiatCurrency.MXN
+    };
+
+    await expect(api.createOfframp({ ...request, quoteId: "unknown-quote" })).rejects.toThrow("unknown offramp quote");
+    await expect(api.createOfframp({ ...request, amount: "31" })).rejects.toThrow("does not match quote");
   });
 
   test("fake fiat account listing satisfies the contract", async () => {
@@ -135,7 +320,7 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
         accountType: "checking",
         customerId: "cust-1",
         fiatAccountId: "fa-1",
-        type: AlfredpayFiatAccountType.SPEI
+        type: DomesticFiatAccountType.SPEI
       }
     ]);
     const accounts = await fake.asService().listFiatAccounts("cust-1");
@@ -145,6 +330,49 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
 
 describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — live", () => {
   const api = () => AlfredpayApiService.getInstance();
+
+  async function runFiatAccountLifecycle(accountCase: FiatAccountLifecycleCase): Promise<void> {
+    let fiatAccountId: string | undefined;
+    let deleted = false;
+
+    try {
+      const created = await runLive(`alfredpay create ${accountCase.country} fiat account`, () =>
+        api().createFiatAccount(accountCase.customerId, accountCase.type, accountCase.accountFields, false)
+      );
+      if (!created) return;
+      fiatAccountId = created.fiatAccountId;
+      alfredpayCreateFiatAccountResponseSchema.parse(created);
+
+      const accounts = await runLive(`alfredpay list ${accountCase.country} fiat accounts after create`, () =>
+        api().listFiatAccounts(accountCase.customerId)
+      );
+      if (!accounts) return;
+      alfredpayFiatAccountsResponseSchema.parse(accounts);
+      expect(accounts).toContainEqual(
+        expect.objectContaining({ ...accountCase.expectedFields, fiatAccountId, type: accountCase.type })
+      );
+
+      const deleteResult = await runLive(`alfredpay delete ${accountCase.country} fiat account`, () =>
+        api().deleteFiatAccount(accountCase.customerId, fiatAccountId as string)
+      );
+      if (deleteResult === null) return;
+      expect(deleteResult).toBeUndefined();
+      deleted = true;
+
+      const remainingAccounts = await runLive(`alfredpay list ${accountCase.country} fiat accounts after delete`, () =>
+        api().listFiatAccounts(accountCase.customerId)
+      );
+      if (!remainingAccounts) return;
+      alfredpayFiatAccountsResponseSchema.parse(remainingAccounts);
+      expect(remainingAccounts.some(account => account.fiatAccountId === fiatAccountId)).toBe(false);
+    } finally {
+      if (fiatAccountId && !deleted) {
+        await runLive(`alfredpay clean up ${accountCase.country} fiat account`, () =>
+          api().deleteFiatAccount(accountCase.customerId, fiatAccountId as string)
+        );
+      }
+    }
+  }
 
   test(
     "GET /configurations response satisfies the configs contract",
@@ -173,6 +401,43 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
         })
       );
       if (offrampQuote) alfredpayQuoteResponseSchema.parse(offrampQuote);
+
+      const exactOutputQuote = await runLive("alfredpay createOfframpQuote by output", () =>
+        api().createOfframpQuote({
+          chain: AlfredpayChain.MATIC,
+          fromCurrency: AlfredpayOnChainCurrency.USDT,
+          metadata: QUOTE_METADATA,
+          paymentMethodType: AlfredpayPaymentMethodType.BANK,
+          toAmount: "500",
+          toCurrency: AlfredpayFiatCurrency.MXN
+        })
+      );
+      if (exactOutputQuote) {
+        alfredpayQuoteResponseSchema.parse(exactOutputQuote);
+        expect(Number(exactOutputQuote.fromAmount)).toBeGreaterThan(0);
+        expect(new Big(exactOutputQuote.toAmount).gte(500)).toBe(true);
+        const roundTripQuote = await runLive("alfredpay exact-output fixed-input round trip", () =>
+          api().createOfframpQuote({
+            chain: AlfredpayChain.MATIC,
+            fromAmount: exactOutputQuote.fromAmount,
+            fromCurrency: AlfredpayOnChainCurrency.USDT,
+            metadata: QUOTE_METADATA,
+            paymentMethodType: AlfredpayPaymentMethodType.BANK,
+            toCurrency: AlfredpayFiatCurrency.MXN
+          })
+        );
+        if (roundTripQuote) {
+          expect(roundTripQuote.fromCurrency).toBe(exactOutputQuote.fromCurrency);
+          expect(roundTripQuote.toCurrency).toBe(exactOutputQuote.toCurrency);
+          expect(new Big(roundTripQuote.fromAmount).eq(exactOutputQuote.fromAmount)).toBe(true);
+          expect(new Big(roundTripQuote.toAmount).eq(exactOutputQuote.toAmount)).toBe(true);
+          expect(
+            AlfredpayApiService.sumFeesByCurrency(roundTripQuote.fees, AlfredpayFiatCurrency.MXN).eq(
+              AlfredpayApiService.sumFeesByCurrency(exactOutputQuote.fees, AlfredpayFiatCurrency.MXN)
+            )
+          ).toBe(true);
+        }
+      }
     },
     60_000
   );
@@ -200,6 +465,33 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
     60_000
   );
 
+  test(
+    "an absurd exact-output offramp pins the provider maximum-input error contract",
+    async () => {
+      const limitError = await runLive("alfredpay exact-output offramp limit breach", async () => {
+        try {
+          await api().createOfframpQuote({
+            chain: AlfredpayChain.MATIC,
+            fromCurrency: AlfredpayOnChainCurrency.USDT,
+            metadata: QUOTE_METADATA,
+            paymentMethodType: AlfredpayPaymentMethodType.BANK,
+            toAmount: "999999999999",
+            toCurrency: AlfredpayFiatCurrency.MXN
+          });
+          return null;
+        } catch (error) {
+          if (error instanceof AlfredpayTradeLimitError) return error;
+          throw error;
+        }
+      });
+      if (!limitError) return;
+      expect(limitError.kind).toBe("above");
+      expect(limitError.fromCurrency).toBe(AlfredpayOnChainCurrency.USDT);
+      expect(limitError.quantity).toMatch(/^\d+(\.\d+)?$/);
+    },
+    60_000
+  );
+
   test.skipIf(!CUSTOMER_ID)(
     "GET /fiatAccounts response satisfies the fiat accounts contract",
     async () => {
@@ -209,6 +501,14 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
     },
     60_000
   );
+
+  for (const accountCase of FIAT_ACCOUNT_LIFECYCLE_CASES) {
+    test(
+      `POST, GET and DELETE a ${accountCase.country} fiat account satisfy their contracts`,
+      () => runFiatAccountLifecycle(accountCase),
+      120_000
+    );
+  }
 
   test.skipIf(!CUSTOMER_ID || !KYC_SUBMISSION_ID)(
     "GET /kyc/{submissionId}/status response satisfies the KYC status contract",
@@ -286,12 +586,170 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       );
       if (!order) return;
       alfredpayOfframpTransactionSchema.parse(order);
+      expect(order).toMatchObject({
+        fromAmount: quote.fromAmount,
+        fromCurrency: quote.fromCurrency,
+        quote: { quoteId: quote.quoteId },
+        toAmount: quote.toAmount,
+        toCurrency: quote.toCurrency
+      });
 
       const transaction = await runLive("alfredpay getOfframpTransaction", () => api().getOfframpTransaction(order.transactionId));
       if (!transaction) return;
       alfredpayOfframpTransactionSchema.parse(transaction);
+      expect(transaction).toMatchObject({
+        fromAmount: quote.fromAmount,
+        fromCurrency: quote.fromCurrency,
+        quote: { quoteId: quote.quoteId },
+        toAmount: quote.toAmount,
+        toCurrency: quote.toCurrency
+      });
     },
     120_000
+  );
+
+  /**
+   * The pair the KYB document uploads depend on: `submissionId` keys the company-document
+   * uploads, `relatedPersons[].idRelatedPerson` keys the representative's. Both were modelled
+   * from Alfredpay's docs and asserted only by our own mocks until this test — see the raw
+   * payload it prints when diagnosing an upload the provider refuses.
+   */
+  test(
+    "GET /kyb/details response satisfies the KYB business details contract",
+    async () => {
+      const details = await runLive("alfredpay getKybBusinessDetails", () => api().getKybBusinessDetails(KYB_CUSTOMER_ID));
+      if (!details) return;
+      console.info(`[contract:live] kyb/details raw payload:\n${JSON.stringify(details, null, 2)}`);
+      alfredpayKybBusinessDetailsResponseSchema.parse(details);
+    },
+    60_000
+  );
+});
+
+/**
+ * Provisions the completed individual fixture consumed by the MX fiat-account lifecycle. This is
+ * opt-in because Alfredpay has no customer deletion endpoint and every run leaves a customer behind.
+ * The sandbox guarantees KYC acceptance regardless of placeholder personal data/documents.
+ */
+describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYC_FLOW)("Alfredpay individual KYC sandbox flow — live", () => {
+  test(
+    "a Mexican individual customer reaches completed KYC",
+    async () => {
+      const api = AlfredpayApiService.getInstance();
+      const email = `vortex-kyc-contract-${Date.now()}@example.com`;
+
+      const customer = await api.createCustomer(email, DomesticCustomerType.INDIVIDUAL, "MX");
+      console.info(`[contract:kyc] createCustomer -> ${JSON.stringify(customer)}`);
+      expect(customer.customerId).toBeTruthy();
+
+      const submission = await api.submitKycInformation(customer.customerId, {
+        address: "Avenida Paseo de la Reforma 100",
+        city: "Ciudad de Mexico",
+        country: "MX",
+        dateOfBirth: "1990-05-20",
+        dni: "GOMM900520MDFXYZ01",
+        email,
+        firstName: "Maria",
+        lastName: "Gomez",
+        state: "CDMX",
+        zipCode: "06600"
+      });
+      console.info(`[contract:kyc] submitKycInformation -> ${JSON.stringify(submission)}`);
+      expect(submission.submissionId).toBeTruthy();
+
+      await api.submitKycFile(customer.customerId, submission.submissionId, AlfredpayKycFileType.FRONT, blankPng("front.png"));
+      await api.submitKycFile(customer.customerId, submission.submissionId, AlfredpayKycFileType.BACK, blankPng("back.png"));
+      await api.sendKycSubmission(customer.customerId, submission.submissionId);
+
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        const status = await api.getKycStatus(customer.customerId, submission.submissionId);
+        console.info(`[contract:kyc] getKycStatus -> ${JSON.stringify(status)}`);
+        alfredpayKycStatusResponseSchema.parse(status);
+        if (status.status === AlfredpayKycStatus.COMPLETED) return;
+        if (status.status === AlfredpayKycStatus.FAILED || status.status === AlfredpayKycStatus.UPDATE_REQUIRED) {
+          throw new Error(`Sandbox KYC reached ${status.status}: ${JSON.stringify(status)}`);
+        }
+        await Bun.sleep(3_000);
+      }
+
+      throw new Error(`Sandbox KYC did not complete within 90 seconds for customer ${customer.customerId}`);
+    },
+    120_000
+  );
+});
+
+/**
+ * The full MX company KYB sequence the widget and dashboard drive, against the live sandbox:
+ * create business customer -> submit info -> 3 company documents -> details -> representative's
+ * document pair -> finalize -> status.
+ *
+ * Opt-in (ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1) rather than nightly: unlike the ramp tests, which
+ * stop before money moves, this leaves a business customer behind on every run.
+ *
+ * Deliberately not wrapped in `runLive`: this is a diagnostic probe, so a provider rejection must
+ * surface as a failure with its body rather than be logged as inconclusive. Each step prints its
+ * raw response.
+ *
+ * "Completes" means every call is accepted and every response shape holds. The submission itself is
+ * then rejected by the sandbox's verification (FAILED, ~30s) because the uploads are placeholder
+ * images — see the note on the status step.
+ */
+describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYB_FLOW)("Alfredpay KYB sandbox flow — live", () => {
+  test(
+    "a Mexican company KYB completes every step end to end",
+    async () => {
+      const api = AlfredpayApiService.getInstance();
+      const email = `vortex-kyb-contract-${Date.now()}@example.com`;
+
+      const customer = await api.createCustomer(email, DomesticCustomerType.BUSINESS, "MX");
+      console.info(`[contract:kyb] createCustomer -> ${JSON.stringify(customer)}`);
+      const customerId = customer.customerId;
+      expect(customerId).toBeTruthy();
+
+      const submission = await api.submitKybInformation(customerId, kybFlowForm(email));
+      console.info(`[contract:kyb] submitKybInformation -> ${JSON.stringify(submission)}`);
+      const submissionId = submission.submissionId;
+      expect(submissionId).toBeTruthy();
+
+      for (const fileType of [
+        AlfredpayKybFileType.TAX_ID_DOCUMENT,
+        AlfredpayKybFileType.ARTICLES_INCORPORATION,
+        AlfredpayKybFileType.PROOF_ADDRESS,
+        AlfredpayKybFileType.SHAREHOLDER_REGISTRY
+      ]) {
+        await api.submitKybFiles(customerId, submissionId, fileType, blankPng());
+        console.info(`[contract:kyb] submitKybFiles ${fileType} -> ok`);
+      }
+
+      const details = await api.getKybBusinessDetails(customerId);
+      console.info(`[contract:kyb] getKybBusinessDetails -> ${JSON.stringify(details, null, 2)}`);
+      alfredpayKybBusinessDetailsResponseSchema.parse(details);
+
+      const business = details.find(entry => entry.submissionId === submissionId);
+      expect(business).toBeDefined();
+      const relatedPersonId = business?.relatedPersons[0]?.idRelatedPerson;
+      expect(relatedPersonId).toBeTruthy();
+
+      // The step that failed in the dashboard with errorCode 111301 — see MACOS_SCREENSHOT_PNG_NAME.
+      for (const fileType of [AlfredpayKybRelatedPersonFileType.DOC_FRONT, AlfredpayKybRelatedPersonFileType.DOC_BACK]) {
+        await api.submitKybRelatedPersonFiles(customerId, relatedPersonId as string, fileType, blankPng(MACOS_SCREENSHOT_PNG_NAME));
+        console.info(`[contract:kyb] submitKybRelatedPersonFiles ${fileType} -> ok`);
+      }
+
+      await api.sendKybSubmission(customerId, submissionId);
+      console.info("[contract:kyb] sendKybSubmission -> ok");
+
+      // Alfredpay accepts the submission (IN_REVIEW), then its verification rejects it: the sandbox
+      // flips this customer to FAILED within ~30s because the uploads are blank 1x1 PNGs rather than
+      // real identity documents. That is the right outcome for placeholder images, so the contract
+      // asserted here is that every call is accepted and every response shape holds — not that
+      // verification approves. Do not "fix" a FAILED status by chasing the payload.
+      const status = await api.getKybStatus(customerId, submissionId);
+      console.info(`[contract:kyb] getKybStatus -> ${JSON.stringify(status)}`);
+      alfredpayKycStatusResponseSchema.parse(status);
+    },
+    300_000
   );
 });
 

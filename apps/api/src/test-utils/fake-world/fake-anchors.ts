@@ -1,16 +1,15 @@
 import {
   AlfredpayApiService,
+  AlfredpayChain,
   type AlfredpayFee,
-  type AlfredpayFiatAccount,
   type AlfredpayFiatPaymentInstructions,
-  type AlfredpayOfframpQuote,
   AlfredpayOfframpStatus,
   type AlfredpayOfframpTransaction,
-  type AlfredpayOnrampQuote,
   AlfredpayOnrampStatus,
   type AlfredpayOnrampStatusMetadata,
   type AlfredpayOnrampTransaction,
   AlfredpayPaymentMethodType,
+  AlfredpayTradeLimitError,
   AveniaTicketStatus,
   BrlaApiService,
   type CreateAlfredpayOfframpQuoteRequest,
@@ -19,6 +18,9 @@ import {
   type CreateAlfredpayOnrampQuoteRequest,
   type CreateAlfredpayOnrampRequest,
   type CreateAlfredpayOnrampResponse,
+  type DomesticFiatAccount,
+  type DomesticOfframpQuote,
+  type DomesticOnrampQuote,
   type GetAlfredpayOnrampTransactionResponse,
   MykoboApiError,
   MykoboApiService,
@@ -31,6 +33,7 @@ import {
   MykoboTransactionStatus,
   MykoboTransactionType
 } from "@vortexfi/shared";
+import Big from "big.js";
 
 function unimplementedProxy<T extends object>(impl: object, label: string): T {
   return new Proxy(impl, {
@@ -226,7 +229,14 @@ export class FakeBrla {
             maxChainOut: "10000000",
             maxFiatIn: "10000000",
             maxFiatOut: "10000000",
-            usedLimit: { usedChainIn: "0", usedChainOut: "0", usedFiatIn: "0", usedFiatOut: "0" }
+            usedLimit: {
+              month: new Date().getUTCMonth() + 1,
+              usedChainIn: "0",
+              usedChainOut: "0",
+              usedFiatIn: "0",
+              usedFiatOut: "0",
+              year: new Date().getUTCFullYear()
+            }
           }
         ]
       }
@@ -268,14 +278,35 @@ export class FakeAlfredpay {
   readonly transactions = new Map<string, AlfredpayOnrampTransaction>();
   /** toAmount = fromAmount * offrampRate for offramp quotes. */
   offrampRate = 1;
+  /** Optional provider-side maximum input used to exercise capped quote boundaries. */
+  offrampMaxFromAmount: string | null = null;
+  /** Optional hook for deterministic provider-latency/clock tests. */
+  onCreateOfframpQuote?: (request: CreateAlfredpayOfframpQuoteRequest) => void;
+  /** One-shot quote output adjustment for registration drift/retry tests. */
+  offrampQuoteToAmountAdjustmentOnce: string | null = null;
+  /** Optional one-shot quote expiration for quote-lifetime tests. */
+  nextOfframpQuoteExpiration: string | null = null;
+  /** Optional one-shot quote chain for recovery-boundary tests. */
+  nextOfframpQuoteChain: AlfredpayChain | null = null;
+  /** Optional one-shot transaction id for provider-length boundary tests. */
+  nextOfframpTransactionId: string | null = null;
+  /** Optional one-shot order expiration for recovery-boundary tests. */
+  nextOfframpExpiration: string | null = null;
+  /** Optional one-shot lifecycle status returned by createOfframp. */
+  nextOfframpOrderStatus: AlfredpayOfframpStatus | null = null;
+  /** Optional one-shot lifecycle status returned when that new order is re-read. */
+  nextOfframpRereadStatus: AlfredpayOfframpStatus | null = null;
   /** Status reported for every order by getOfframpTransaction. */
-  offrampStatus: AlfredpayOfframpStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+  offrampStatus: AlfredpayOfframpStatus = AlfredpayOfframpStatus.CREATED;
   /** Deposit address handed out for every offramp order. */
   offrampDepositAddress = "0x5afe00000000000000000000000000000000d0e5";
   readonly offrampOrders: CreateAlfredpayOfframpRequest[] = [];
+  readonly issuedOfframpQuotes = new Map<string, DomesticOfframpQuote>();
   readonly offrampTransactions = new Map<string, AlfredpayOfframpTransaction>();
+  /** Per-order lifecycle overrides; persistent to model monotonic provider state. */
+  readonly offrampStatusOverrides = new Map<string, AlfredpayOfframpStatus>();
   /** Accounts served by listFiatAccounts, keyed by Alfredpay customer id. */
-  readonly fiatAccountsByCustomer = new Map<string, AlfredpayFiatAccount[]>();
+  readonly fiatAccountsByCustomer = new Map<string, DomesticFiatAccount[]>();
   private counter = 0;
 
   /**
@@ -324,7 +355,7 @@ export class FakeAlfredpay {
     return { ...instructions };
   }
 
-  private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): AlfredpayOnrampQuote {
+  private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): DomesticOnrampQuote {
     const fromAmount = request.fromAmount ?? "0";
     return {
       chain: request.chain,
@@ -341,57 +372,90 @@ export class FakeAlfredpay {
     };
   }
 
-  private offrampQuote(request: CreateAlfredpayOfframpQuoteRequest): AlfredpayOfframpQuote {
-    const fromAmount = request.fromAmount ?? "0";
-    return {
-      chain: request.chain,
-      expiration: new Date(Date.now() + 5 * 60_000).toISOString(),
+  private offrampQuote(request: CreateAlfredpayOfframpQuoteRequest): DomesticOfframpQuote {
+    const fee = AlfredpayApiService.sumFeesByCurrency(this.quoteFees, request.toCurrency);
+    const fromAmount = request.fromAmount
+      ? new Big(request.fromAmount)
+      : new Big(request.toAmount ?? "0").plus(fee).div(this.offrampRate).round(6, Big.roundUp);
+    if (this.offrampMaxFromAmount && fromAmount.gt(this.offrampMaxFromAmount)) {
+      throw AlfredpayTradeLimitError.above(this.offrampMaxFromAmount, request.fromCurrency);
+    }
+    let toAmount = fromAmount.mul(this.offrampRate).minus(fee);
+    if (this.offrampQuoteToAmountAdjustmentOnce !== null) {
+      toAmount = toAmount.plus(this.offrampQuoteToAmountAdjustmentOnce);
+      this.offrampQuoteToAmountAdjustmentOnce = null;
+    }
+    const expiration = this.nextOfframpQuoteExpiration ?? new Date(Date.now() + 5 * 60_000).toISOString();
+    this.nextOfframpQuoteExpiration = null;
+    const quote = {
+      chain: this.nextOfframpQuoteChain ?? request.chain,
+      expiration,
       fees: [...this.quoteFees],
-      fromAmount,
+      fromAmount: fromAmount.toString(),
       fromCurrency: request.fromCurrency,
       metadata: {},
       paymentMethodType: request.paymentMethodType,
       quoteId: `alfredpay-offramp-quote-${++this.counter}`,
       rate: this.offrampRate.toString(),
-      toAmount: (Number(fromAmount) * this.offrampRate).toString(),
+      toAmount: toAmount.toString(),
       toCurrency: request.toCurrency
     };
+    this.nextOfframpQuoteChain = null;
+    this.issuedOfframpQuotes.set(quote.quoteId, quote);
+    return quote;
   }
 
   private readonly impl = {
     createOfframp: async (request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> => {
+      const quote = this.issuedOfframpQuotes.get(request.quoteId);
+      if (!quote) {
+        throw new Error(`FakeAlfredpay: unknown offramp quote ${request.quoteId}`);
+      }
+      if (
+        Date.parse(quote.expiration) <= Date.now() ||
+        quote.chain !== request.chain ||
+        quote.fromCurrency !== request.fromCurrency ||
+        quote.toCurrency !== request.toCurrency ||
+        !new Big(quote.fromAmount).eq(request.amount)
+      ) {
+        throw new Error(`FakeAlfredpay: offramp order request does not match quote ${request.quoteId}`);
+      }
       this.offrampOrders.push(request);
-      const transactionId = `alfredpay-offramp-${++this.counter}`;
+      const transactionId = this.nextOfframpTransactionId ?? `alfredpay-offramp-${++this.counter}`;
+      this.nextOfframpTransactionId = null;
+      const expiration = this.nextOfframpExpiration ?? new Date(Date.now() + 30 * 60_000).toISOString();
+      this.nextOfframpExpiration = null;
+      const status = this.nextOfframpOrderStatus ?? AlfredpayOfframpStatus.CREATED;
+      this.nextOfframpOrderStatus = null;
       const now = new Date().toISOString();
       const transaction: AlfredpayOfframpTransaction = {
         chain: request.chain,
         createdAt: now,
         customerId: request.customerId,
         depositAddress: this.offrampDepositAddress,
-        expiration: new Date(Date.now() + 30 * 60_000).toISOString(),
+        expiration,
         fiatAccountId: request.fiatAccountId,
         fromAmount: request.amount,
         fromCurrency: request.fromCurrency,
         memo: request.memo,
-        quote: this.offrampQuote({
-          fromAmount: request.amount,
-          fromCurrency: request.fromCurrency,
-          metadata: { businessId: "vortex", customerId: request.customerId },
-          paymentMethodType: AlfredpayPaymentMethodType.BANK,
-          toCurrency: request.toCurrency
-        }),
-        quoteId: request.quoteId,
-        status: AlfredpayOfframpStatus.CREATED,
-        toAmount: (Number(request.amount) * this.offrampRate).toString(),
+        quote,
+        status,
+        toAmount: quote.toAmount,
         toCurrency: request.toCurrency,
         transactionId,
         updatedAt: now
       };
       this.offrampTransactions.set(transactionId, transaction);
+      if (this.nextOfframpRereadStatus !== null) {
+        this.offrampStatusOverrides.set(transactionId, this.nextOfframpRereadStatus);
+        this.nextOfframpRereadStatus = null;
+      }
       return transaction;
     },
-    createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest): Promise<AlfredpayOfframpQuote> =>
-      this.offrampQuote(request),
+    createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> => {
+      this.onCreateOfframpQuote?.(request);
+      return this.offrampQuote(request);
+    },
     createOnramp: async (request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> => {
       this.onrampOrders.push(request);
       const transactionId = `alfredpay-onramp-${++this.counter}`;
@@ -427,14 +491,14 @@ export class FakeAlfredpay {
       this.onCreateOnramp?.({ depositAddress: request.depositAddress, transactionId });
       return { fiatPaymentInstructions: this.instructionsFor(request.fromCurrency), transaction };
     },
-    createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> =>
+    createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<DomesticOnrampQuote> =>
       this.onrampQuote(request),
     getOfframpTransaction: async (transactionId: string): Promise<CreateAlfredpayOfframpResponse> => {
       const transaction = this.offrampTransactions.get(transactionId);
       if (!transaction) {
         throw new Error(`FakeAlfredpay: unknown offramp transaction ${transactionId}`);
       }
-      return { ...transaction, status: this.offrampStatus };
+      return { ...transaction, status: this.offrampStatusOverrides.get(transactionId) ?? this.offrampStatus };
     },
     getOnrampTransaction: async (transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> => {
       const transaction = this.transactions.get(transactionId);
@@ -448,7 +512,7 @@ export class FakeAlfredpay {
         status: this.onrampStatus
       };
     },
-    listFiatAccounts: async (customerId: string): Promise<AlfredpayFiatAccount[]> =>
+    listFiatAccounts: async (customerId: string): Promise<DomesticFiatAccount[]> =>
       this.fiatAccountsByCustomer.get(customerId) ?? []
   };
 

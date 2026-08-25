@@ -23,7 +23,7 @@ import RampState from "../../../models/rampState.model";
 import {QuoteService} from "../quote";
 import {RampService} from "../ramp/ramp.service";
 import {PhaseProcessor} from "./phase-processor";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 
 const TAX_ID = process.env.TAX_ID;
 
@@ -159,7 +159,7 @@ QuoteTicket.create = mock(async (data: any) => {
 }
 
 // Live test: drives real chain/anchor interactions and needs TAX_ID plus funded accounts.
-// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/operations-testing.md).
 describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration Test", () => {
   it("should process an onramp (pix -> evm) through multiple phases until completion", async () => {
     try {
@@ -167,7 +167,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration 
       const rampService = new RampService();
       const quoteService = new QuoteService();
 
-      registerPhaseHandlers();
+      registerBlockFlowHandlers();
 
       const additionalData = {
         destinationAddress: EVM_DESTINATION_ADDRESS,

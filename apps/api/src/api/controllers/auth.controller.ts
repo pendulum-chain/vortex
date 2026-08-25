@@ -3,6 +3,8 @@ import logger from "../../config/logger";
 import User from "../../models/user.model";
 import { RefreshTokenError, SupabaseAuthService } from "../services/auth";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { restoreDemoAccountOnLogin } from "../services/demo/demo-account.service";
+import { markManagedProfileClaimed, normalizeManagedProfileEmail } from "../services/managed-profile.service";
 
 export class AuthController {
   /**
@@ -85,18 +87,23 @@ export class AuthController {
 
       // Sync user to local database (upsert)
       await User.upsert({
-        email: email,
+        email: normalizeManagedProfileEmail(email),
         id: result.user_id
       });
+
+      const managedSubjectType = await markManagedProfileClaimed(result.user_id);
 
       // Eagerly create the owning customer entity. Kept out of the OTP error mapping:
       // the Supabase session is already minted, so a failure here must not surface as
       // "Invalid OTP" — entity-scoped reads lazily create it as a fallback anyway.
       try {
-        await getOrCreateCustomerEntityForProfile(result.user_id);
+        if (managedSubjectType !== "technical") await getOrCreateCustomerEntityForProfile(result.user_id);
       } catch (entityError) {
         logger.error("Failed to create customer entity for new profile:", entityError);
       }
+
+      // Sandbox demo account only; a no-op everywhere else.
+      await restoreDemoAccountOnLogin(email);
 
       return res.json({
         access_token: result.access_token,

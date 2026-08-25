@@ -1,4 +1,4 @@
-import type { AlfredpayFiatAccount } from "@vortexfi/shared";
+import type { DomesticFiatAccount } from "@vortexfi/shared";
 import { CORRIDORS } from "@/domain/corridors";
 import type { AccountType, CorridorId, Recipient, SenderAccount } from "@/domain/types";
 import { CORRIDOR_BY_RAIL } from "./mappers";
@@ -87,6 +87,7 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
     corridorId,
     createdAt: dto.createdAt,
     email: dto.inviteeEmail ?? "",
+    hasSeededDiscounts: (dto.seededDiscounts?.length ?? 0) > 0,
     id: dto.id,
     inviteCode: dto.token ?? "",
     isSelf: false,
@@ -103,14 +104,17 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
  * `fiatAccountId`, so each account is a distinct "send to yourself" destination.
  */
 export function selfRecipientsFromFiatAccounts(
-  accounts: AlfredpayFiatAccount[],
+  accounts: DomesticFiatAccount[],
   corridorId: CorridorId,
   account: SenderAccount
 ): Recipient[] {
   const corridor = CORRIDORS[corridorId];
   return accounts.map(fiatAccount => {
-    const label = fiatAccount.accountName
-      ? `${fiatAccount.accountName} · ${maskAccountNumber(fiatAccount.accountNumber)}`
+    // MX/CO/US holder names arrive in metadata.accountHolderName; top-level accountName is
+    // absent for SPEI and holds the bank name for ACH/BANK_USA.
+    const holderName = fiatAccount.metadata?.accountHolderName || fiatAccount.accountName;
+    const label = holderName
+      ? `${holderName} · ${maskAccountNumber(fiatAccount.accountNumber)}`
       : maskAccountNumber(fiatAccount.accountNumber);
     return {
       accountId: account.id,

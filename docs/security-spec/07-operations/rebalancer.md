@@ -6,14 +6,14 @@ The rebalancer is a standalone service (`apps/rebalancer/`) that monitors token 
 
 The default Base rebalancer is cost-aware. A coverage-ratio breach makes a fresh cron run eligible for evaluation, but execution still depends on the configured urgency band and projected round-trip cost. Mild and moderate imbalances can be skipped when route quotes are unfavorable; severe imbalances tolerate higher configured cost. When coverage is already inside the configured bounds, the USDC → BRLA → USDC flow may still run opportunistically, but only if its projected route cost is below `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` (default 10 bps). `REBALANCING_HARD_MAX_COST_BPS` remains a hard projected-cost cap in every mode. `REBALANCING_DAILY_BRIDGE_LIMIT_USD` caps non-profitable fresh Base runs, but a quote that projects profit may bypass the daily cap while still being recorded in history after completion. When a separate profitable USDC → BRLA → USDC amount is configured, the flow evaluates that larger amount with its own fresh quotes and executes it only when that larger quote projects profit.
 
-**Current implementation:** Three rebalancing paths:
+**Current implementation:** Two active Base paths plus one dormant compatibility implementation:
 
-1. **BRLA ↔ axlUSDC (legacy, Pendulum)** — 8-step cross-chain process on Pendulum/Moonbeam/Polygon. Activated via `--legacy` flag.
+1. **BRLA ↔ axlUSDC (legacy, Pendulum)** — Historical 8-step Pendulum/Moonbeam/Polygon implementation retained for state inspection only. The CLI rejects `--legacy` before configuration or chain access.
 2. **USDC → BRLA → USDC (Base)** — Default high-coverage flow. Multi-step process on Base with route optimization across SquidRouter, Avenia, and optional main Nabla.
 3. **BRLA → USDC correction (Base)** — Default low-coverage flow. Base-only two-swap process that uses main Nabla for USDC→BRLA and the BRLA pool for BRLA→USDC.
 
 **Architecture:**
-- `index.ts` — Entry point: parses CLI args (`--legacy`, `--restart`, `--route=`, amount), checks coverage ratios, selects flow
+- `index.ts` — Entry point: rejects `--legacy`, then parses the active Base arguments (`--restart`, `--route=`, amount), checks coverage ratios, and selects a Base flow
 - `rebalance/brla-to-axlusdc/index.ts` — Legacy orchestrator: 8-step state machine on Pendulum
 - `rebalance/brla-to-axlusdc/steps.ts` — Legacy step implementations
 - `rebalance/usdc-brla-usdc-base/index.ts` — Base high-coverage orchestrator: multi-step state machine with route branching
@@ -28,10 +28,10 @@ The default Base rebalancer is cost-aware. A coverage-ratio breach makes a fresh
 
 **CLI interface:**
 ```
-bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-main]
+bun run start [amount] [--restart] [--route=squidrouter|avenia|nabla-main]
 ```
 - No flag → Base flow (default)
-- `--legacy` → Pendulum flow
+- `--legacy` → rejected with a non-zero exit before runtime configuration or RPC access
 - `--restart` → Force fresh state, ignore in-progress rebalance
 - `--route=squidrouter|avenia|nabla-main` → Constrain the high-coverage return route; the route is still quoted and cost-gated before execution
 
@@ -45,7 +45,11 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 
 ---
 
-### Flow 1: BRLA → axlUSDC (Legacy, Pendulum)
+### Flow 1: BRLA → axlUSDC (Dormant legacy compatibility)
+
+This flow is not automatically executable while Moonbeam is retired. Its implementation and state schema remain so
+historical records can be inspected and reconciled; restoring it requires the RISK-020 exit criteria and a dedicated
+security review.
 
 **Rebalancing flow:**
 1. Swap axlUSDC → BRLA on Pendulum (Nabla DEX)
@@ -57,7 +61,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 7. Verify arrival on Pendulum
 8. Clean up state
 
-**Key secrets:** `PENDULUM_ACCOUNT_SECRET` (sr25519), `EVM_ACCOUNT_SECRET` (mnemonic for Moonbeam and Polygon). These are **distinct from the API service keys** — the rebalancer operates its own accounts.
+**Historical key material:** `PENDULUM_ACCOUNT_SECRET` (sr25519) and the Moonbeam/Polygon derivation of `EVM_ACCOUNT_SECRET`. The guarded CLI does not load or use these for the dormant flow.
 
 ---
 
@@ -131,9 +135,9 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 
 ## Security Invariants
 
-### Shared (both flows)
+### Shared (active Base flows and dormant legacy state)
 
-1. **Coverage ratio check MUST precede rebalancing** — Legacy flow uses Pendulum indexer data and triggers when BRLA is over-covered while USDC.axl is not; the default Base flow uses on-chain Nabla contract reads and becomes eligible above `1 + REBALANCING_THRESHOLD_USDC_TO_BRLA` or below `1 - REBALANCING_THRESHOLD_BRLA_TO_USDC`. When Base coverage is inside the configured bounds, only the USDC → BRLA → USDC flow may run, and only under the configured opportunistic projected-cost guard. For Base flows, threshold crossing or opportunistic cost qualification is necessary but not sufficient: cost policy can still skip execution.
+1. **Coverage ratio check MUST precede active rebalancing** — Base flows use on-chain Nabla contract reads and become eligible above `1 + REBALANCING_THRESHOLD_USDC_TO_BRLA` or below `1 - REBALANCING_THRESHOLD_BRLA_TO_USDC`. When Base coverage is inside the configured bounds, only the USDC → BRLA → USDC flow may run, and only under the configured opportunistic projected-cost guard. The legacy flow MUST remain unreachable regardless of its historical Pendulum trigger logic.
 2. **State persistence MUST survive process restarts** — Each flow has its own Supabase Storage JSON file (`rebalancer_state.json` for legacy, `rebalancer_state_usdc_base.json` for Base high-coverage, `rebalancer_state_brla_to_usdc_base.json` for Base low-coverage). On restart, the rebalancer reads the file and resumes from the last completed phase.
 3. **Each phase MUST be idempotent or guarded against re-execution** — If the process crashes mid-phase and resumes, re-executing a completed phase must not cause double-swaps, double-transfers, or double-settlements. Transaction hashes and pre-action balance baselines are stored in state to detect already-completed phases and verify per-run deltas.
 4. **Rebalancer private keys MUST be isolated from API service keys** — The rebalancer keys operate separate accounts. Compromise of rebalancer keys should not affect API ramp operations, and vice versa.
@@ -163,7 +167,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 22. **SquidRouter source transactions MUST be receipt-gated before Axelar polling** — On resume, a persisted Polygon SquidRouter swap hash must be checked on Polygon before Axelar polling starts. Before retrying a failed or missing SquidRouter swap, the flow must first check whether the expected Base USDC delta already arrived from the previous attempt. If not recovered and the source receipt failed, the stale hash/quote must be cleared and the flow must request a fresh SquidRouter route instead of waiting for an Axelar execution that can never occur.
 23. **Balance arrival checks MUST be delta-based** — The Base high-coverage flow persists pre-action balances before each arrival-producing operation and waits for `starting balance + expected delta` rather than checking absolute hot-wallet/provider balances. Avenia BRLA arrival checks allow a 95% tolerance for provider-side deductions, while Base/Polygon on-chain arrival checks use the default 99.8% tolerance for rounding, route deductions, and minor quote shortfalls without sweeping unrelated leftover balances into the current run. The actual received Base USDC delta is persisted before advancing to final verification.
 24. **SquidRouter swaps MUST require available Polygon BRLA before submission** — Before requesting and submitting a fresh SquidRouter Polygon BRLA → Base USDC swap, the flow must verify the Polygon account still holds at least the BRLA amount selected for the swap. If the balance is insufficient and Base USDC recovery does not prove completion, the flow MUST throw instead of submitting an inevitably failing transaction.
-25. **`EVM_ACCOUNT_SECRET` derives the same address on all EVM chains** — A single BIP-39 mnemonic is used for Base, Polygon, and Moonbeam. This means compromise of this one secret drains the rebalancer on ALL EVM chains. `PENDULUM_ACCOUNT_SECRET` is separate and legacy-only.
+25. **`EVM_ACCOUNT_SECRET` retains a cross-chain derivation blast radius** — A single BIP-39 mnemonic derives the same address on Base, Polygon, and historically Moonbeam. Active automation uses Base/Polygon, but compromise may still expose any unreconciled historical Moonbeam balance. `PENDULUM_ACCOUNT_SECRET` is separate and dormant-legacy-only.
 26. **Terminal Avenia ticket failures MUST NOT poll indefinitely** — `checkTicketStatusPaid` treats `FAILED` as terminal and throws immediately instead of retrying until timeout. `PARTIAL-FAILED` is surfaced as a retryable ticket-specific status so the SquidRouter BRLA-to-Polygon branch can reconcile partial arrival and create a replacement ticket only for the remaining amount.
 
 ## Threat Vectors & Mitigations
@@ -173,7 +177,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 | Threat | Mitigation |
 |---|---|
 | **⚠️ State file corruption from concurrent execution** — Two rebalancer instances read the same JSON file from Supabase Storage, both decide to rebalance, both execute phases simultaneously | **NO MITIGATION.** Supabase Storage has no file locking, no atomic compare-and-swap, no conditional writes. If the rebalancer is deployed as multiple instances or triggered concurrently, state corruption and double-execution are possible. |
-| **Rebalancer key compromise** — Attacker obtains the rebalancer private key(s) | Full drain of the rebalancer's accounts on all affected chains. `EVM_ACCOUNT_SECRET` is one mnemonic for Base, Polygon, and Moonbeam; `PENDULUM_ACCOUNT_SECRET` is separate and only needed for legacy Pendulum operations. The API service accounts are separate, so ramp operations are not directly affected (but liquidity would be depleted). |
+| **Rebalancer key compromise** — Attacker obtains the rebalancer private key(s) | Full drain of active Base/Polygon accounts and any unreconciled balance at the historically derived Moonbeam address. `PENDULUM_ACCOUNT_SECRET` is retained only for dormant legacy state. API service accounts remain separate. |
 | **Hardcoded business account address** — `brlaBusinessAccountAddress` default is wrong or points to an attacker-controlled address | Funds would be sent to the wrong address. The address should be verified against BRLA's official documentation and set via environment variable, not hardcoded. |
 | **State file deletion or corruption** — Supabase Storage file is deleted or corrupted manually | The rebalancer would lose track of in-progress operations. Phases that already executed (swaps, transfers) would not be resumed, and the rebalancer would start fresh. This could leave funds stranded mid-flow. |
 | **Stale coverage ratio** — The coverage ratio is checked once at startup, but by the time the multi-step rebalance completes, the ratio may have changed significantly | No re-check between phases. The rebalance amount is calculated upfront. If conditions change during the multi-step process, the rebalance may be unnecessary or insufficient. |
@@ -185,7 +189,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 | **BRLA API manipulation** — The BRLA API returns a manipulated exchange rate for the BRLA→USDC swap | The rebalancer trusts the BRLA API response. No independent price verification is performed. A manipulated rate could result in receiving far less USDC than the BRLA value. |
 | **SquidRouter route manipulation** — SquidRouter API returns a malicious route for the USDC→axlUSDC swap | Same trust issue as with the BRLA API. The rebalancer trusts the route. No output verification against expected amounts. |
 | **5% slippage exploitation** — An attacker manipulates the Nabla DEX pool to extract up to 5% per rebalance via sandwich attacks | 5% slippage tolerance is generous. For large rebalancing amounts, this could be significant. No MEV protection on Pendulum (though parachain MEV is less prevalent than Ethereum). |
-| **Infinite Axelar polling (F-034)** — Legacy flow's Axelar polling has no timeout; if Axelar never reports success, the process hangs indefinitely | **NO MITIGATION in legacy flow.** The process will hang until manually killed or the OS reclaims resources. The Base flow resolves this with a 30-minute timeout. |
+| **Infinite Axelar polling (F-034)** — Dormant legacy code contains an unbounded Axelar loop | The CLI rejects `--legacy` before the loop can be reached. This code remains unsuitable for re-enablement without a bounded timeout and a fresh review. |
 
 ### Base flow threats
 
@@ -200,7 +204,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 | **Opportunistic rebalancing churn** — In-range coverage could repeatedly execute when quotes are merely acceptable but not needed for liquidity correction | The opportunistic path is restricted to USDC → BRLA → USDC, requires projected cost below `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` (default 10 bps), still runs the normal cost policy and daily-limit/profit decision, and records completed runs in history. Avenia-to-SquidRouter fallback during an opportunistic run is allowed only when the preflight SquidRouter quote also satisfies the opportunistic cost and daily-limit/profit approval context. |
 | **Quote-cost manipulation near thresholds** — Provider quotes near a configured boundary can nudge execution or skipping | Cost policy uses the best/forced quoted route before any side effect. Hard max-cost cap limits catastrophic execution, but provider quote trust remains a known risk. |
 | **NonceManager stale nonce** — If the process crashes after sending a transaction but before saving the nonce, the resumed execution could reuse the same nonce | **Mitigated.** `NonceManager` is re-initialized from `getTransactionCount()` on each execution. The stored transaction hashes in state also prevent re-execution of already-completed phases. |
-| **`EVM_ACCOUNT_SECRET` single-key blast radius** — One mnemonic controls all EVM chain accounts for the rebalancer | Compromise of this one secret drains rebalancer funds on Base, Polygon, and Moonbeam. The separate `PENDULUM_ACCOUNT_SECRET` limits Pendulum blast radius to the legacy flow. This is a deliberate simplification accepted for operational convenience. |
+| **`EVM_ACCOUNT_SECRET` single-key blast radius** — One mnemonic derives active Base/Polygon and historical Moonbeam accounts | Compromise drains active rebalancer balances and may expose unreconciled historical Moonbeam funds. The separate `PENDULUM_ACCOUNT_SECRET` limits the dormant Pendulum account blast radius. |
 | **SquidRouter source transaction failure, duplicate retry, or cross-chain timeout** — The Polygon source swap can fail before Axelar sees it, a previous attempt may already have delivered USDC on Base, or Axelar cross-chain execution could take longer than 30 minutes during network congestion | **Partially mitigated.** On resume, the Base flow checks for a recovered Base USDC delta before retrying, checks the persisted Polygon SquidRouter swap receipt before Axelar polling, and refuses fresh SquidRouter submissions when Polygon BRLA is below the intended input. Failed source receipts clear the stale hash/quote and retry with a fresh route only when Base recovery is not already proven. If the source succeeds but Axelar does not confirm within 30 minutes, the rebalancer throws and the next attempt resumes from `SquidRouterApproveAndSwap`. |
 | **Absolute balance false positives** — Hot wallets/provider accounts can contain leftovers from previous runs, so absolute balance checks could pass before the current run's funds arrive | **Mitigated for Base flow.** The flow stores pre-action baselines and waits for deltas on Avenia BRLA, Polygon BRLA, and Base USDC arrivals. Avenia BRLA-to-Polygon recovery also uses the persisted Polygon baseline before treating a failed ticket as recoverable. |
 | **BRLA balance tolerance** — Avenia BRLA delta checks accept 95% of expected amount as sufficient, while on-chain Base/Polygon arrival checks use 99.8% | If Avenia deducts a fee > 5%, the flow will not proceed and will time out. The tolerance prevents provider-side deductions and rounding dust from blocking valid arrivals while rejecting meaningful shortfalls. |
@@ -209,23 +213,23 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 
 ### Shared
 
-- [x] **FINDING**: State stored as JSON file in Supabase Storage — no locking, no atomic updates. Verify whether concurrent rebalancer instances are possible in the deployment configuration. **PASS (confirmed limitation)** — rebalancer is a one-shot CLI process (`process.exit(0/1)`); concurrency depends entirely on deployment scheduling (cron). No in-code concurrency guard.
-- [PARTIAL] **FINDING**: `brlaBusinessAccountAddress` has hardcoded default `0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2` — verify this is the correct BRLA business account and that it's set via environment variable in production. **PARTIAL** — address is overridable via env var but has hardcoded default; correctness of default requires external verification.
+- [ ] **FINDING**: State stored as JSON file in Supabase Storage — no locking, no atomic updates. **ACCEPTED RISK RISK-012** — rebalancer is a one-shot CLI process (`process.exit(0/1)`); concurrency depends entirely on deployment scheduling (cron). No in-code concurrency guard.
+- [ ] **FINDING**: `brlaBusinessAccountAddress` has hardcoded default `0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2` — verify this is the correct BRLA business account and that it's set via environment variable in production. **PARTIAL** — address is overridable via env var but has hardcoded default; correctness of default requires external verification.
 - [x] Verify Supabase Storage write errors are handled — what happens if state cannot be persisted after a phase completes? **PASS** — errors propagate and cause process exit; no silent data loss.
-- [PARTIAL] Verify the rebalancer has monitoring/alerting for: failed phases, insufficient balances, stuck state. **PARTIAL** — `process.exit(1)` on failure provides signal for external monitoring, but no built-in alerting. Slack notifications on completion provide some visibility.
+- [ ] Verify the rebalancer has monitoring/alerting for: failed phases, insufficient balances, stuck state. **PARTIAL** — `process.exit(1)` on failure provides signal for external monitoring, but no built-in alerting. Slack notifications on completion provide some visibility.
 - [x] Verify no rebalancer secrets are logged (check all error handlers and debug logging). **PASS** — no secret logging found.
 - [x] Check whether the rebalancer runs on a schedule (cron) or is triggered manually — determines concurrency risk. **PASS** — one-shot CLI process; concurrency controlled by external scheduler.
 - [x] Verify the `StateManager<T>` handles missing or corrupted state files gracefully (fresh start vs crash). **PASS** — missing state treated as fresh start; `upsert: true` for writes; invalid JSON treated as missing with console warning.
 
 ### Legacy flow (BRLA ↔ axlUSDC)
 
-- [x] **FINDING**: 5% slippage tolerance hardcoded in Nabla swap — verify this is acceptable for expected rebalancing amounts. **PASS (confirmed limitation)** — 5% is generous but acceptable for the current rebalancing volumes; documented as known risk.
-- [x] **FINDING**: `gasMultiplier * 5n` applied to `maxFeePerGas` — verify this doesn't cause excessive gas overpayment in production. **PASS (confirmed limitation)** — aggressive multiplier ensures inclusion; overpayment risk accepted for reliability.
-- [x] Verify legacy coverage trigger is appropriate for the expected token volumes. **PASS** — legacy flow still checks BRLA over-coverage while USDC.axl is not over-covered before starting.
+- [ ] **FINDING**: 5% slippage tolerance hardcoded in Nabla swap. **ACCEPTED CURRENT POLICY** — generous but accepted for current rebalancing volumes; changing volume requires review.
+- [ ] **FINDING**: `gasMultiplier * 5n` applied to `maxFeePerGas`. **ACCEPTED CURRENT POLICY** — aggressive inclusion policy with overpayment exposure.
+- [x] Verify legacy CLI cannot execute. **PASS** — `--legacy` exits non-zero before configuration, state loading, or RPC work; a regression test pins the guard.
 - [x] Verify the rebalancer private keys are distinct from all API service keys. **PASS** — separate env vars and accounts confirmed.
-- [PARTIAL] Verify step idempotency: can each of the 8 steps be safely re-executed after a crash? Check for nonce guards, balance checks, or transaction hash verification. **PARTIAL F-033** — steps 2, 3, 5, 6, 7 are NOT idempotent; crash between step execution and `saveState()` causes double-spend risk.
-- [PARTIAL] Verify the BRLA→USDC swap (step 3) validates the received USDC amount against expectations. **PARTIAL** — BRLA API response is trusted; no independent amount verification.
-- [FAIL] Verify the SquidRouter swap (step 5) validates the received axlUSDC amount against expectations. **FAIL F-034** — no output amount validation AND Axelar status polling has no timeout; infinite loop risk if Axelar never reports success.
+- [ ] Verify step idempotency: can each of the 8 steps be safely re-executed after a crash? Check for nonce guards, balance checks, or transaction hash verification. **PARTIAL F-033** — steps 2, 3, 5, 6, 7 are NOT idempotent; crash between step execution and `saveState()` causes double-spend risk.
+- [ ] Verify the BRLA→USDC swap (step 3) validates the received USDC amount against expectations. **PARTIAL** — BRLA API response is trusted; no independent amount verification.
+- [ ] Verify the SquidRouter swap (step 5) validates the received axlUSDC amount against expectations. **FAIL F-034** — no output amount validation AND Axelar status polling has no timeout; infinite loop risk if Axelar never reports success.
 
 ### Base flows
 
@@ -233,7 +237,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 - [x] **FINDING**: Daily bridge limit check — `REBALANCING_DAILY_BRIDGE_LIMIT_USD` (default 10,000) enforced against both Base-flow histories plus the current requested amount for paid runs. **PASS** — checked after quote/cost-policy evaluation and before fresh Base side effects for non-profitable quotes. Projected-profitable current runs bypass the cap and are still recorded in history after completion.
 - [x] **FINDING**: Opportunistic in-range trigger — Base coverage inside configured bounds can still run USDC→BRLA→USDC only when projected route cost is below `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` (default 10 bps). **PASS** — uses the same quote/cost-policy path with zero coverage deviation, then applies the configured opportunistic cap before balance checks and state-machine execution. Opportunistic Avenia fallback to SquidRouter is blocked unless the preflight SquidRouter quote independently passes the same policy and profitable-bypass requirements.
 - [x] **FINDING**: Avenia fallback to SquidRouter — if Avenia ticket creation fails, flow falls back to SquidRouter route. **PASS** — error caught, `winningRoute` updated, state saved atomically.
-- [x] **FINDING**: `EVM_ACCOUNT_SECRET` single mnemonic for all EVM chains — broad EVM blast radius across Base, Polygon, and Moonbeam. **PASS (accepted)** — deliberate simplification; documented in invariants.
+- [ ] **FINDING**: `EVM_ACCOUNT_SECRET` historically derives the same address on Base, Polygon, and Moonbeam. **ACCEPTED CURRENT ARCHITECTURE** — active runtime use is Base/Polygon; any historical Moonbeam balance remains part of RISK-020 reconciliation.
 - [x] Verify route comparison handles partial failures — what happens if one provider's quote fails? **PASS** — if every enabled route fails, throws; otherwise uses the best available route. If `--route=` is specified, only fetches that quote.
 - [x] Verify NonceManager re-initialization on resume — does it fetch fresh nonce from chain? **PASS** — `NonceManager.create()` calls `getTransactionCount()` on each execution.
 - [x] Verify BRLA balance arrival tolerance is appropriate. **PASS** — Avenia BRLA uses a 95% threshold for provider-side deductions; on-chain Base/Polygon arrivals use 99.8% to account for rounding and minor route deductions while rejecting significant shortfalls.
@@ -241,7 +245,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 - [x] Verify `waitForBrlaOnAvenia` has a timeout. **PASS** — 10-minute timeout with 5-second poll interval.
 - [x] Verify `waitUsdcOnBase` has a timeout. **PASS** — 30-minute timeout via `checkEvmBalancePeriodically`.
 - [x] Verify `waitBrlaOnPolygon` has a timeout. **PASS** — 10-minute timeout via `checkEvmBalancePeriodically`.
-- [PARTIAL] Verify the Nabla swap validates output amount against expectations. **PARTIAL** — uses `AMM_MINIMUM_OUTPUT_HARD_MARGIN` (5%) for slippage protection via `quoteSwapExactTokensForTokens`, but post-swap balance is verified by comparing pre/post BRLA balance (not against the quote). A sandwich attack could extract up to 5%.
+- [ ] Verify the Nabla swap validates output amount against expectations. **PARTIAL** — uses `AMM_MINIMUM_OUTPUT_HARD_MARGIN` (5%) for slippage protection via `quoteSwapExactTokensForTokens`, but post-swap balance is verified by comparing pre/post BRLA balance (not against the quote). A sandwich attack could extract up to 5%.
 - [x] Verify the `usdcBasePhaseOrder` overlap (`AveniaTransferToPolygon` and `AveniaSwapToUsdcBase` both at order 6; both wait phases at order 7) cannot cause incorrect phase transitions. **PASS** — routes are mutually exclusive, guarded by `if (state.winningRoute === "avenia")` / `if (state.winningRoute === "squidrouter")` checks.
 - [x] Verify Base flow arrival checks are delta-based. **PASS** — Avenia BRLA, Polygon BRLA, Avenia USDC-on-Base, and SquidRouter USDC-on-Base waits all use persisted pre-action baselines plus expected deltas. Avenia BRLA transfer recovery also uses the persisted Avenia baseline before resending. Base USDC waits use the default 99.8% tolerance and persist the actual received delta before final verification.
 - [x] Verify Nabla swap resume cannot lose the received BRLA amount. **PASS** — pre-swap BRLA baseline and swap hash are persisted; resume computes output from the persisted baseline or reuses already recorded output.

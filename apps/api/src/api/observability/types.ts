@@ -10,7 +10,9 @@ export type ApiClientOperation =
   | "ramp_update"
   | "ramp_start"
   | "ramp_status"
-  | "ramp_errors";
+  | "ramp_errors"
+  | "admin_impersonation_start"
+  | "admin_impersonation_end";
 
 export type ApiClientEventStatus = "success" | "failure";
 
@@ -36,6 +38,7 @@ export type ApiClientErrorType =
   | "ramp_not_in_initial_state"
   | "service_unavailable"
   | "provider_error"
+  | "provider_limit_exceeded"
   | "internal_error"
   | "unknown_error";
 

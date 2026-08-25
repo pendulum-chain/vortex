@@ -1,22 +1,29 @@
 import { z } from "zod";
-import { AlfredpayCustomerType } from "../../tokens/types/base";
+import { DomesticCustomerType } from "../../tokens/types/base";
 import {
+  AlfredpayChain,
   AlfredpayConfigPair,
   AlfredpayFee,
-  AlfredpayFiatAccount,
-  AlfredpayFiatAccountType,
+  AlfredpayFeeType,
+  AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
+  AlfredpayKybCustomerAndBusiness,
+  AlfredpayKybRelatedPersonDetails,
   AlfredpayKycStatus,
   AlfredpayOfframpStatus,
   AlfredpayOfframpTransaction,
-  AlfredpayOnrampQuote,
+  AlfredpayOnChainCurrency,
   AlfredpayOnrampStatus,
   AlfredpayOnrampTransaction,
+  CreateAlfredpayFiatAccountResponse,
+  DomesticFiatAccount,
+  DomesticFiatAccountType,
+  DomesticOnrampQuote,
   GetKycStatusResponse
 } from "./types";
 
 /**
- * External API contract schemas for Alfredpay (see docs/features/contract-tests.md).
+ * External API contract schemas for Alfredpay (see docs/operations-testing.md).
  *
  * These model the raw wire JSON of the fields Vortex actually consumes — not the full
  * partner response. Unknown extra fields always pass (loose objects); a removed or
@@ -30,22 +37,40 @@ type ConsumedConfigPair = Pick<
   AlfredpayConfigPair,
   "fromCurrency" | "toCurrency" | "minQuantity" | "maxQuantity" | "decimals" | "typeCustomer"
 >;
-type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency">;
-type ConsumedQuote = Pick<AlfredpayOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration"> & {
+type ConsumedFee = Pick<AlfredpayFee, "amount" | "currency" | "type">;
+type ConsumedQuote = Pick<DomesticOnrampQuote, "quoteId" | "fromAmount" | "toAmount" | "expiration" | "rate"> & {
+  chain?: AlfredpayChain;
   fees: ConsumedFee[];
+  fromCurrency: AlfredpayFiatCurrency | AlfredpayOnChainCurrency;
+  toCurrency: AlfredpayFiatCurrency | AlfredpayOnChainCurrency;
 };
 type ConsumedOnrampTransaction = Pick<AlfredpayOnrampTransaction, "status"> & {
   metadata?: { txHash?: string; failureReason?: string } | null;
 };
 type ConsumedOfframpTransaction = Pick<
   AlfredpayOfframpTransaction,
-  "transactionId" | "status" | "depositAddress" | "expiration" | "toCurrency" | "fromAmount"
+  | "transactionId"
+  | "status"
+  | "chain"
+  | "customerId"
+  | "depositAddress"
+  | "expiration"
+  | "fromAmount"
+  | "fromCurrency"
+  | "fiatAccountId"
+  | "toAmount"
+  | "toCurrency"
 >;
-type ConsumedFiatAccount = Pick<AlfredpayFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
+type ConsumedFiatAccount = Pick<DomesticFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
   metadata?: { accountHolderName?: string };
 };
+type ConsumedCreateFiatAccount = Pick<CreateAlfredpayFiatAccountResponse, "fiatAccountId">;
 type ConsumedKycStatus = Pick<GetKycStatusResponse, "status"> & {
   metadata?: { failureReason?: string } | null;
+};
+type ConsumedKybRelatedPerson = Pick<AlfredpayKybRelatedPersonDetails, "idRelatedPerson">;
+type ConsumedKybBusiness = Pick<AlfredpayKybCustomerAndBusiness, "submissionId"> & {
+  relatedPersons: ConsumedKybRelatedPerson[];
 };
 
 const DECIMAL_STRING = /^\d+(\.\d+)?$/;
@@ -66,7 +91,7 @@ export const alfredpayConfigPairSchema = z.looseObject({
   maxQuantity: z.string().regex(DECIMAL_STRING),
   minQuantity: z.string().regex(DECIMAL_STRING),
   toCurrency: z.string().min(1),
-  typeCustomer: z.enum(AlfredpayCustomerType).nullable()
+  typeCustomer: z.enum(DomesticCustomerType).nullable()
 }) satisfies z.ZodType<ConsumedConfigPair>;
 
 /** The body of a GET …/allConfigs response. */
@@ -75,21 +100,25 @@ export const alfredpayConfigsResponseSchema = z.looseObject({
 }) satisfies z.ZodType<{ supportedPairs: ConsumedConfigPair[] }>;
 
 /**
- * The body of a POST …/quotes response, BUY and SELL alike — the consumed fields are
- * direction-independent (`fromCurrency`/`toCurrency`/`rate` are never read back; Vortex
- * trusts its own request there).
+ * The body of a POST …/quotes response, BUY and SELL alike. SELL pricing and
+ * registration validate the returned currency pair before accepting amounts.
  */
 export const alfredpayQuoteResponseSchema = z.looseObject({
+  chain: z.enum(AlfredpayChain).optional(),
   expiration: parseableTimestamp,
   fees: z.array(
     z.looseObject({
       amount: z.string().regex(DECIMAL_STRING),
-      currency: z.string().min(1)
+      currency: z.string().min(1),
+      type: z.enum(AlfredpayFeeType)
     })
   ),
   fromAmount: z.string().regex(DECIMAL_STRING),
+  fromCurrency: z.union([z.enum(AlfredpayFiatCurrency), z.enum(AlfredpayOnChainCurrency)]),
   quoteId: z.string().min(1),
-  toAmount: z.string().regex(DECIMAL_STRING)
+  rate: z.string().regex(DECIMAL_STRING),
+  toAmount: z.string().regex(DECIMAL_STRING),
+  toCurrency: z.union([z.enum(AlfredpayFiatCurrency), z.enum(AlfredpayOnChainCurrency)])
 }) satisfies z.ZodType<ConsumedQuote>;
 
 /**
@@ -120,10 +149,15 @@ export const alfredpayOnrampTransactionSchema = z.looseObject({
 
 /** The body of a POST …/offramp and GET …/offramp/{id} response (same transaction shape). */
 export const alfredpayOfframpTransactionSchema = z.looseObject({
+  chain: z.enum(AlfredpayChain),
+  customerId: z.string().min(1),
   depositAddress: z.string().regex(EVM_ADDRESS),
   expiration: parseableTimestamp,
+  fiatAccountId: z.string().min(1),
   fromAmount: z.string().regex(DECIMAL_STRING),
+  fromCurrency: z.string().min(1),
   status: z.enum(AlfredpayOfframpStatus),
+  toAmount: z.string().regex(DECIMAL_STRING),
   toCurrency: z.string().min(1),
   transactionId: z.string().min(1)
 }) satisfies z.ZodType<ConsumedOfframpTransaction>;
@@ -135,9 +169,27 @@ export const alfredpayFiatAccountsResponseSchema = z.array(
     accountNumber: z.string().min(1),
     fiatAccountId: z.string().min(1),
     metadata: z.looseObject({ accountHolderName: z.string().optional() }).optional(),
-    type: z.enum(AlfredpayFiatAccountType)
+    type: z.enum(DomesticFiatAccountType)
   })
 ) satisfies z.ZodType<ConsumedFiatAccount[]>;
+
+/** The body of a POST …/fiatAccounts response. */
+export const alfredpayCreateFiatAccountResponseSchema = z.looseObject({
+  fiatAccountId: z.string().min(1)
+}) satisfies z.ZodType<ConsumedCreateFiatAccount>;
+
+/**
+ * The body of a GET …/customers/{customerId}/kyb/details response: one entry per business the
+ * customer has. `submissionId` is what ties a business to the submission being filed, and
+ * `relatedPersons[].idRelatedPerson` is the path key for the representative's document uploads
+ * (POST …/kyb/{idRelatedPerson}/files/relate-person) — the pair this endpoint exists to supply.
+ */
+export const alfredpayKybBusinessDetailsResponseSchema = z.array(
+  z.looseObject({
+    relatedPersons: z.array(z.looseObject({ idRelatedPerson: z.string().min(1) })),
+    submissionId: z.string().min(1)
+  })
+) satisfies z.ZodType<ConsumedKybBusiness[]>;
 
 /** The body of a GET …/kyc/{submissionId}/status (and KYB equivalent) response. */
 export const alfredpayKycStatusResponseSchema = z.looseObject({

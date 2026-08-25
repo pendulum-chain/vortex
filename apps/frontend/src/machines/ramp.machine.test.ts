@@ -342,6 +342,20 @@ describe("rampMachine", () => {
       await waitFor(actor, s => s.matches("RampFollowUp"));
     });
 
+    it("leaves an awaiting-payment BUY ramp without cancelling it", async () => {
+      const actor = createRampActor();
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.EURC, RampDirection.BUY);
+      actor.send({ type: "SummaryConfirm" });
+      await waitFor(actor, s => s.matches("UpdateRamp") && s.context.rampState?.ramp?.id === "ramp-1");
+
+      actor.send({ type: "GO_BACK" });
+
+      await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.rampState).toBeUndefined();
+    });
+
     it("a user-rejected signature emits a toast and resets the ramp", async () => {
       const actor = createRampActor({
         signTransactions: fromPromise(async (): Promise<RampState> => {

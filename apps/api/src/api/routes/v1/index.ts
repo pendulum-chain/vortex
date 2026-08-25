@@ -1,11 +1,18 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
+import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
+import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
+import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
+import profileRolesRoutes from "./admin/profile-roles.route";
+import adminConsoleAccountsRoutes from "./admin-console/accounts.route";
+import adminConsoleImpersonationRoutes from "./admin-console/impersonation.route";
 import alfredpayRoutes from "./alfredpay.route";
-import apiKeysRoutes from "./api-keys.route";
+import apiCredentialsRoutes from "./api-credentials.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
 import contactRoutes from "./contact.route";
@@ -13,7 +20,9 @@ import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
+import limitsRoutes from "./limits.route";
 import maintenanceRoutes from "./maintenance.route";
+import managedProfilesRoutes from "./managed-profiles.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
 import moneriumB2bRoutes from "./monerium-b2b.route";
@@ -25,6 +34,7 @@ import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
+import rampInfoRoutes from "./ramp-info.route";
 import ratingRoutes from "./rating.route";
 import recipientsRoutes from "./recipients.route";
 import sessionRoutes from "./session.route";
@@ -100,15 +110,21 @@ router.use("/siwe", siweRoutes);
 router.use("/session", sessionRoutes);
 
 /**
- * GET v1/brla
- * POST v1/brla
+ * GET v1/brl (legacy alias: v1/brla)
+ * POST v1/brl (legacy alias: v1/brla)
  */
-router.use("/brla", brlaRoutes);
+router.use(["/brl", "/brla"], brlaRoutes);
 
 /**
  * GET/POST v1/ramp
  */
 router.use("/ramp", rampRoutes);
+router.use("/ramp-info", rampInfoRoutes);
+
+/**
+ * POST v1/limits
+ */
+router.use("/limits", limitsRoutes);
 
 /**
  * GET v1/supported-payment-methods
@@ -146,10 +162,15 @@ router.use("/maintenance", maintenanceRoutes);
 router.use("/auth", authRoutes);
 
 /**
- * GET v1/alfredpay
- * POST v1/alfredpay
+ * GET v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ * POST v1/domestic|mx|co|ar (legacy alias: v1/alfredpay)
+ *
+ * The country-prefixed mounts make the corridor canonical through the URL. The
+ * country-neutral mounts read the country from the request instead, so they also
+ * serve corridors that have no dedicated prefix.
  */
-router.use("/alfredpay", alfredpayRoutes);
+router.use(["/domestic", "/alfredpay"], alfredpayRoutes);
+router.use(["/mx", "/co", "/ar"], setAlfredpayCountryFromRoute, alfredpayRoutes);
 
 /**
  * GET v1/mykobo/profiles
@@ -209,24 +230,18 @@ router.use("/notifications", notificationsRoutes);
  */
 router.use("/onboarding", onboardingRoutes);
 
-/**
- * Self-serve API key management for authenticated Supabase users.
- * Keys created here are user-scoped (no partner binding) and authenticate
- * via the X-API-Key header on quote/ramp endpoints as the linked user.
- * POST /v1/api-keys
- * GET /v1/api-keys
- * DELETE /v1/api-keys/:keyId
- */
-router.use("/api-keys", apiKeysRoutes);
+/** One-record API credential management for authenticated Supabase users. */
+router.use("/api-credentials", apiCredentialsRoutes);
+router.use("/managed-profiles", managedProfilesRoutes);
 
 /**
- * Admin routes for partner API key management
- * Uses partner name (not ID) to manage keys for all partner configurations
- * POST /v1/admin/partners/:partnerName/api-keys
- * GET /v1/admin/partners/:partnerName/api-keys
- * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
+ * Admin routes for partner-managed API credentials. The partner is addressed by
+ * its unique name; each credential is bound to one explicit profile subject.
+ * POST /v1/admin/partners/:partnerName/api-credentials
+ * GET /v1/admin/partners/:partnerName/api-credentials
+ * DELETE /v1/admin/partners/:partnerName/api-credentials/:credentialId
  */
-router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+router.use("/admin/partners/:partnerName/api-credentials", partnerApiKeysRoutes);
 
 /**
  * Admin routes for profile partner pricing assignments
@@ -237,10 +252,51 @@ router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
 router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes);
 
 /**
+ * Admin routes for partner pricing configs (optionally scoped to one fiat corridor)
+ * POST /v1/admin/partner-pricing-configs
+ * DELETE /v1/admin/partner-pricing-configs/:configId
+ */
+router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
+
+/**
+ * Admin routes for profile capability roles; profiles are addressed by id or email
+ * (unique key). POST only grants HTTP-grantable roles (discount_manager) — vortex_admin
+ * must be granted out-of-band (see scripts/grant-vortex-admin.ts) since ADMIN_SECRET
+ * alone must never be sufficient to confer it. DELETE can still revoke any role.
+ * POST /v1/admin/profile-roles
+ * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
+ */
+router.use("/admin/profile-roles", profileRolesRoutes);
+
+/**
+ * Admin routes for managed-profile manager activation and corridor configuration.
+ * PUT /v1/admin/managed-profile-managers/:profileId
+ * GET /v1/admin/managed-profile-managers/:profileId
+ */
+router.use("/admin/managed-profile-managers", managedProfileManagersRoutes);
+router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
+
+/**
  * Admin routes for API client observability dashboards
  * GET /v1/admin/api-client-events
  */
 router.use("/admin/api-client-events", apiClientEventsRoutes);
+
+/**
+ * Vortex-admin console (Supabase-authenticated + vortex_admin role). Deliberately not
+ * under /v1/admin/*, which never accepts Supabase auth as a fallback
+ * (see docs/security-spec/01-auth/admin-auth.md).
+ * GET /v1/admin-console/accounts
+ * GET /v1/admin-console/accounts/:profileId
+ */
+router.use("/admin-console/accounts", adminConsoleAccountsRoutes);
+
+/**
+ * POST /v1/admin-console/impersonation
+ * GET /v1/admin-console/impersonation
+ * DELETE /v1/admin-console/impersonation/:sessionId
+ */
+router.use("/admin-console/impersonation", adminConsoleImpersonationRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

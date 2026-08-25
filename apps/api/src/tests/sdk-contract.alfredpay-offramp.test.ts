@@ -2,8 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
-  AlfredpayFiatAccountType,
+  DomesticCountry,
+  DomesticFiatAccountType,
   AlfredpayOfframpStatus,
   EPaymentMethod,
   EvmToken,
@@ -31,7 +31,7 @@ interface CurrencyCase {
   fiat: FiatToken;
   /** Alfredpay-side currency code expected on created orders. */
   alfredpayCurrency: string;
-  country: AlfredPayCountry;
+  country: DomesticCountry;
   /** Quote destination string (payment rail). */
   rail: EPaymentMethod;
   /** USDT amount for the SELL quote (within the per-currency limits). */
@@ -44,7 +44,7 @@ interface LifecycleCase extends CurrencyCase {
   /** The user's payout account served by the fake anchor's listFiatAccounts. */
   fiatAccount: {
     fiatAccountId: string;
-    type: AlfredpayFiatAccountType;
+    type: DomesticFiatAccountType;
     accountNumber: string;
     accountType: string;
   };
@@ -60,13 +60,13 @@ interface LifecycleCase extends CurrencyCase {
 const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
   {
     alfredpayCurrency: "USD",
-    country: AlfredPayCountry.US,
+    country: DomesticCountry.US,
     fiat: FiatToken.USD,
     fiatAccount: {
       accountNumber: "021000021000000",
       accountType: "checking",
       fiatAccountId: "fiat-account-usd-1",
-      type: AlfredpayFiatAccountType.ACH
+      type: DomesticFiatAccountType.ACH
     },
     inputAmount: "5",
     offrampRate: 1,
@@ -74,13 +74,13 @@ const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
   },
   {
     alfredpayCurrency: "MXN",
-    country: AlfredPayCountry.MX,
+    country: DomesticCountry.MX,
     fiat: FiatToken.MXN,
     fiatAccount: {
       accountNumber: "002010077777777771", // CLABE
       accountType: "clabe",
       fiatAccountId: "fiat-account-mxn-1",
-      type: AlfredpayFiatAccountType.SPEI
+      type: DomesticFiatAccountType.SPEI
     },
     inputAmount: "100",
     offrampRate: 20,
@@ -88,13 +88,13 @@ const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
   },
   {
     alfredpayCurrency: "COP",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     fiat: FiatToken.COP,
     fiatAccount: {
       accountNumber: "0110123456789",
       accountType: "savings",
       fiatAccountId: "fiat-account-cop-1",
-      type: AlfredpayFiatAccountType.ACH
+      type: DomesticFiatAccountType.ACH
     },
     inputAmount: "100",
     offrampRate: 4000,
@@ -102,13 +102,13 @@ const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
   },
   {
     alfredpayCurrency: "ARS",
-    country: AlfredPayCountry.AR,
+    country: DomesticCountry.AR,
     fiat: FiatToken.ARS,
     fiatAccount: {
       accountNumber: "2850590940090418135201", // CBU
       accountType: "cbu",
       fiatAccountId: "fiat-account-ars-1",
-      type: AlfredpayFiatAccountType.COELSA
+      type: DomesticFiatAccountType.COELSA
     },
     inputAmount: "100",
     offrampRate: 1000,
@@ -175,7 +175,10 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     await resetTestDatabase();
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
-    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.CREATED;
+    // The quote simulator asks Squid for the USDT settlement leg even on the
+    // direct Polygon corridor. Squid therefore reports 6-decimal output.
+    world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     // Fresh deposit address per test: the in-memory EVM ledger persists across
     // tests, so a shared address would accumulate balances between scenarios.
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
@@ -195,7 +198,7 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
   });
 
   /** A user with a completed Alfredpay KYC profile and an SDK authenticated via their secret key. */
-  async function createUserSdk(country: AlfredPayCountry): Promise<{
+  async function createUserSdk(country: DomesticCountry): Promise<{
     sdk: VortexSdk;
     userId: string;
     customer: ProviderCustomer;
@@ -245,7 +248,10 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     const quote = await QuoteTicket.findByPk(quoteId);
     const ephemeralAddress = state?.state.evmEphemeralAddress as `0x${string}`;
     expect(ephemeralAddress).toBeTruthy();
-    const inputAmountRaw = BigInt(quote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = quote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     world.evm.setNativeBalance(Networks.Polygon, ephemeralAddress, parseUnits("2", 18));
@@ -269,6 +275,9 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
         recipient,
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
+      if (recipient.toLowerCase() === world.alfredpay.offrampDepositAddress.toLowerCase()) {
+        world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+      }
     };
     return { inputAmountRaw };
   }
@@ -294,7 +303,7 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
 
   for (const currency of FULL_LIFECYCLE_CASES) {
     it(
-      `drives the full ${currency.fiat}/${currency.rail} lifecycle: createQuote → listAlfredpayFiatAccounts → registerRamp → submitUserTransactions → startRamp → complete`,
+      `drives the full ${currency.fiat}/${currency.rail} lifecycle: createQuote → listDomesticFiatAccounts → registerRamp → submitUserTransactions → startRamp → complete`,
       async () => {
         world.alfredpay.offrampRate = currency.offrampRate;
         const { customer, sdk, userId } = await createUserSdk(currency.country);
@@ -304,7 +313,7 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
         world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
           { ...currency.fiatAccount, customerId: customer.providerCustomerId as string }
         ]);
-        const accounts = await sdk.listAlfredpayFiatAccounts(currency.country);
+        const accounts = await sdk.listDomesticFiatAccounts(currency.country);
         expect(accounts).toHaveLength(1);
         expect(accounts[0].type).toBe(currency.fiatAccount.type);
         const fiatAccountId = accounts[0].fiatAccountId;

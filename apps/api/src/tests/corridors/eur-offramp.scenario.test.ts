@@ -1,12 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
   EphemeralAccountType,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   MykoboTransactionStatus,
   MykoboTransactionType,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -14,9 +16,15 @@ import {
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
-import { prepareOfframpTransactions } from "../../api/services/transactions/offramp";
+import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
+import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
+import { MykoboOfframpPayoutContext } from "../../api/services/phases/blocks/phases/mykobo-offramp-payout/simulation";
+import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -73,15 +81,15 @@ interface CorridorSetup {
  * through the SAME code the registration service runs below its EUR
  * kill-switch (`registerRamp` throws 503 for EURC quotes before preparing any
  * transaction, so the HTTP entry point is unavailable — the seeding helper
- * mirrors only the thin glue and calls the REAL `prepareOfframpTransactions`,
- * which resolves the KYC-gated Mykobo customer, creates the WITHDRAW intent
- * and builds all blueprints). The REAL PhaseProcessor then drives initial →
+ * mirrors only the thin glue and calls the real block `Flow.register` and
+ * `prepareTxs`, which resolve the KYC-gated Mykobo customer, create the
+ * WITHDRAW intent and build all blueprints). The REAL PhaseProcessor then drives initial →
  * fundEphemeral → distributeFees → subsidizePreSwap → nablaApprove →
  * nablaSwap → subsidizePostSwap → mykoboPayoutOnBase → complete against the
  * fake external world.
  *
  * This is the hermetic-coverage precondition documented next to the
- * kill-switch and in docs/testing-strategy.md ("EUR re-enablement
+ * kill-switch and in docs/operations-testing.md ("EUR re-enablement
  * precondition"). The kill-switch itself stays on; once lifted, replace the
  * seeding helper with a plain POST /v1/ramp/register like the BRL corridor.
  */
@@ -156,6 +164,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
    * seeding below deliberately starts where this rejection ends.
    */
   async function assertRegisterEndpointStillKillSwitched(quoteId: string, userId: string, wallet: string): Promise<void> {
+    const intentCount = world.mykobo.intents.length;
     const response = await app.request("/v1/ramp/register", {
       body: JSON.stringify({
         additionalData: { destinationAddress: wallet, ipAddress: IP_ADDRESS, walletAddress: wallet },
@@ -169,6 +178,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       method: "POST"
     });
     expect(response.status).toBe(503);
+    expect(world.mykobo.intents.length).toBe(intentCount);
   }
 
   function blueprintOf(unsignedTxs: UnsignedTx[], phase: RampPhase): UnsignedTx {
@@ -178,15 +188,15 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
   }
 
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     return ephemeral.signTransaction({
       chainId: 8453,
-      data: txData.data,
-      gas: 600_000n,
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });
@@ -214,8 +224,10 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     if (!persistedQuote) {
       throw new Error("Quote not persisted");
     }
-    const swapInputRaw = BigInt(persistedQuote.metadata.nablaSwapEvm?.inputAmountForSwapRaw ?? "0");
-    const swapOutputRaw = BigInt(persistedQuote.metadata.nablaSwapEvm?.outputAmountRaw ?? "0");
+    const metadata = getFlowMetadata(persistedQuote.metadata);
+    const nablaMetadata = getBlockMetadata(metadata, NablaSwapContext);
+    const swapInputRaw = BigInt(nablaMetadata.inputAmountForSwapRaw);
+    const swapOutputRaw = BigInt(nablaMetadata.outputAmountRaw);
     expect(swapInputRaw).toBeGreaterThan(0n);
     expect(swapOutputRaw).toBeGreaterThan(0n);
 
@@ -227,16 +239,31 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts([
       { address: ephemeral.address, type: EphemeralAccountType.EVM }
     ]);
-    await validateEphemeralAccountsFresh(ephemerals);
+    await validateEphemeralAccountsFresh(ephemerals, persistedQuote);
 
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      destinationAddress: additionalData.destinationAddress,
+    const flow = resolveBlockFlow(metadata.globals.request);
+    const quoteFields = persistedQuote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: user.id },
+      input: { walletAddress: additionalData.walletAddress },
       ipAddress: additionalData.ipAddress,
-      quote: persistedQuote,
+      metadata,
+      quote: quoteFields,
       signingAccounts: normalizedSigningAccounts,
-      userAddress: additionalData.walletAddress,
+    });
+    const prepared = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      destinationAddress: additionalData.destinationAddress,
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
       userId: user.id
     });
+    const payoutState = prepared.stateMeta.blockState?.[MykoboOfframpPayoutContext.key] as Record<string, unknown>;
+    const { stateMeta, unsignedTxs } = {
+      stateMeta: { ...prepared.stateMeta, ...payoutState, walletAddress: additionalData.walletAddress },
+      unsignedTxs: prepared.unsignedTxs
+    };
 
     const [consumed] = await QuoteTicket.update(
       { status: "consumed" },
@@ -327,7 +354,10 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
    */
   function scriptHappyWorld(setup: CorridorSetup, options: { usdcShortfallRaw?: bigint } = {}): void {
     const shortfall = options.usdcShortfallRaw ?? 0n;
+    const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw - shortfall);
     world.mykobo.setTransactionStatus(setup.mykoboTransactionId, MykoboTransactionStatus.COMPLETED);
     world.evm.onTransaction = tx => {
@@ -382,9 +412,11 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       expect(quote?.status).toBe("consumed");
       const subsidies = await Subsidy.findAll();
       expect(subsidies.length).toBe(1);
-      expect(subsidies[0].token).toBe(EvmToken.USDC as unknown as SubsidyToken);
-      expect(Number(subsidies[0].amount)).toBeCloseTo(1);
-      expect(subsidies[0].phase).toBe("subsidizePreSwap");
+      expect(subsidies.map(subsidy => subsidy.phase)).toEqual(["subsidizePreSwap"]);
+      expect(subsidies.find(subsidy => subsidy.phase === "subsidizePreSwap")?.token).toBe(
+        EvmToken.USDC as unknown as SubsidyToken
+      );
+      expect(Number(subsidies.find(subsidy => subsidy.phase === "subsidizePreSwap")?.amount)).toBeCloseTo(1);
 
       // The swap and payout were each broadcast exactly once; Mykobo's
       // receivables wallet received exactly the intent value in EURC.
@@ -403,7 +435,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
   );
 
   it(
-    "transient failure: a scripted RPC outage on the payout is recorded as recoverable and the corridor still completes",
+    "ambiguous payout failure: a scripted RPC outage pauses the corridor for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -421,14 +453,19 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("mykoboPayoutOnBase");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      // The payout handler wraps broadcast errors in its own recoverable message.
+      // The phase records the transport error, then the durable operation
+      // blocks blind retries because the provider outcome is unknown.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Failed to send Mykobo payout transaction")) ?? [];
       expect(outageLogs.length).toBeGreaterThanOrEqual(1);
       expect(outageLogs.every(log => log.phase === "mykoboPayoutOnBase")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.receivablesAddress)).toBe(setup.payoutAmountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(
+        await FinancialOperation.findOne({ where: { phase: "mykoboPayoutOnBase", scopeId: setup.rampId } })
+      ).toMatchObject({ status: "unknown" });
+      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.receivablesAddress)).toBe(0n);
     },
     30000
   );
@@ -465,13 +502,13 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
         { address: ephemeral.address, type: EphemeralAccountType.EVM }
       ]);
       await expect(
-        prepareOfframpTransactions({
-          destinationAddress: userWallet.address,
+        resolveBlockFlow(getFlowMetadata((persistedQuote as QuoteTicket).metadata).globals.request).register({
+          authenticatedUser: { id: user.id },
+          input: { walletAddress: userWallet.address },
           ipAddress: IP_ADDRESS,
-          quote: persistedQuote as QuoteTicket,
+          metadata: getFlowMetadata((persistedQuote as QuoteTicket).metadata),
+          quote: (persistedQuote as QuoteTicket).get({ plain: true }),
           signingAccounts: normalizedSigningAccounts,
-          userAddress: userWallet.address,
-          userId: user.id
         })
       ).rejects.toThrow("scripted intent failure");
       expect((await QuoteTicket.findByPk(quote.id))?.status).toBe("pending");

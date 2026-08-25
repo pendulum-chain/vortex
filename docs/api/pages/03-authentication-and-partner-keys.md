@@ -1,162 +1,171 @@
 # Authentication And API Keys
 
-Vortex authenticates API clients with public/secret key pairs, and accepts Supabase Bearer session tokens for first-party user flows and key management.
+Vortex issues one API credential with two values for one profile subject:
 
-## Which Credential Do I Need?
+- `pk_live_*` / `pk_test_*` is the public value. Send it as `X-Public-Key` for quote/widget attribution and approved low-sensitivity reads. It may be used in browser code.
+- `sk_live_*` / `sk_test_*` is the secret value. Send it as `X-API-Key` for sensitive or state-changing operations. It must remain on a trusted server.
 
-| Task | Credential |
+Both values share one immutable credential ID, subject profile, optional partner, environment, expiry, and revocation lifecycle. If a request sends both values, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`.
+
+## Capability Matrix
+
+| Task | Public value | Secret value | Supabase Bearer |
+|---|---:|---:|---:|
+| Quote/widget attribution | Yes | Yes | Yes |
+| Sanitized `GET /v1/ramp-info` | Yes | Yes | No |
+| Exact limits and provider-account reads | No | Yes | Yes |
+| Ramp register/update/start/status/history/errors | No | Yes | Yes |
+| Act for an authorized managed child | No | Yes | Yes |
+| Manage a directly owned child's credentials | No | Yes | Yes |
+| Import an individual-KYC share token (BR) | No | Yes | Yes |
+| Webhook management (non-managed subjects only) | No | Yes | No |
+| Profile-managed credential lifecycle | No | No | Yes |
+
+`GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A manager secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
+
+## Subject And Partner Binding
+
+Every credential authenticates exactly one Vortex profile. A profile-managed credential has no partner and is managed by its signed-in subject. A partner-managed credential has an optional partner attribution but still authenticates only its bound profile.
+
+Ramp registration requires a real profile subject in every corridor. KYC and provider identity are derived from the authenticated profile unless the request uses the authorized managed-child flow below. For BRL, a supplied `taxId` is only a deprecated cross-check and must match the effective profile. A technical profile can operate only on provider/customer resources it actually owns.
+
+## Act For A Managed Child
+
+Vortex may enable an authenticated profile as a managed-profile manager and assign its allowed corridors and, optionally, a narrower set of customer types. On supported child-oriented endpoints, that manager can select one directly managed headless child:
+
+```http
+X-API-Key: sk_live_...
+X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
+```
+
+A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, and ramp history resolve from the child subject. Quote pricing uses the child's active profile assignment when present, otherwise the controlling manager profile's active assignment, then default Vortex pricing. This precedence is identical for manager-delegated requests and direct child credentials.
+
+The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors; and sender-side recipient operations. Sender-side recipient operations are invite creation, recipient and pending-invitation listing, invitation archive/unarchive, recipient relationship updates, and recipient eligibility reads. These recipient operations currently require a Supabase Bearer session; an `sk_*` key does not authorize them. Invite preview and acceptance remain invitee-scoped and do not support `X-Managed-Profile-Id`; a headless managed child cannot authenticate as an invitee or accept an invitation. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. The EUR corridor's flows remain bound to a verified login email and do not support managed children.
+
+`POST /v1/brl/kyc/import-token` is a deliberate exception to direct child credential access. A controlling manager may call it with the manager's secret key or Supabase session plus `X-Managed-Profile-Id`, but a credential owned by the managed child is rejected with `403 MANAGED_PROFILE_ACCESS_DENIED`, even without the selector. Direct non-managed profiles may import for themselves with their own secret key or session. Public keys and ownerless credentials cannot import. The legacy `/v1/brla/kyc/import-token` path remains an equivalent migration alias.
+
+Authentication, direct-child rejection, and managed authorization run before strict validation of `Idempotency-Key` and the request body. An unauthenticated caller therefore receives an authentication error rather than learning whether a bearer-like personal-data transfer token or attestation is well formed. The request has no profile, user, CPF, subaccount, applicant, entity, or provider-customer selector in its body or query; identity is derived only from the authenticated effective profile.
+
+Webhook registration and deletion do not support managed children. `X-Managed-Profile-Id` returns `400 MANAGED_PROFILE_UNSUPPORTED`, and a direct child credential returns `403 MANAGED_PROFILE_ACCESS_DENIED`. Managed-child integrations must poll the child-scoped ramp status/history endpoints. A manager credential without the selector remains manager-owned and therefore cannot register a webhook for a child-owned quote.
+
+`X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
+
+### Manage Headless Profiles
+
+This section is the authoritative contract; for a step-by-step walkthrough with examples, see [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
+
+An active manager may use its Supabase session or profile-bound secret credential on these endpoints:
+
+| Endpoint | Purpose |
 |---|---|
-| Quote attribution and partner pricing | `pk_*` public key (optional on quotes) |
-| Ramp registration, all corridors | **User-linked** `sk_*` secret key |
-| Webhook management | Partner secret key |
-| Minting and managing user API keys | `Authorization: Bearer` session token |
+| `POST /v1/managed-profiles` | Create an `individual` or `business` child from immutable `externalSubjectId` and provider `contactEmail` values |
+| `GET /v1/managed-profiles` | List children and the manager's current policy; defaults to active records with `limit=50&offset=0` |
+| `GET /v1/managed-profiles/:profileId` | Read an owned active or deleted child |
+| `DELETE /v1/managed-profiles/:profileId` | Logically delete an owned child and revoke its credentials |
+| `POST /v1/managed-profiles/:profileId/api-credentials` | Issue a child-owned public/secret credential pair |
+| `GET /v1/managed-profiles/:profileId/api-credentials` | List the child's credentials without secret values |
+| `DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId` | Revoke one child credential |
 
-## Public Keys
+Creation is not tied to one corridor and may create only an `individual` or `business` child. Every later corridor-bound operation checks the manager's current corridors, optional customer-type narrowing, and Vortex's canonical corridor/type support. Tightening policy blocks later authorization decisions but does not cancel a request already authorized or background processing for a ramp that already started. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, and blocks new child activity.
 
-Public keys use the `pk_live_*` or `pk_test_*` prefix. They are used for partner attribution, tracking, and partner-specific quote behavior. Public keys may be included in SDK configuration or request bodies as `apiKey`.
+Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. The response always includes `manager.profileId`, `manager.allowedCorridors`, and `manager.allowedCustomerTypes` alongside `managedProfiles` and `pagination`. This policy belongs to the manager and applies to every child; it is not copied onto individual managed profiles. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
 
-Public keys do not authenticate sensitive partner operations. An invalid or expired public key is rejected on routes that validate it; it is not silently ignored.
+The child contact email is normalized and immutable, is unique among the manager's children, is used for provider customer creation, and never becomes a Supabase login identity. A deleted child's contact email remains reserved for that manager. Partners must supply an email identity they are authorized to use; uniqueness is not global across managers. A child-owned credential authenticates directly as that child without `X-Managed-Profile-Id`. Every use dynamically requires the active manager relationship; corridor-bound mutations and exact-limit reads use the controlling manager's current corridor/type policy. A direct child credential cannot select another managed child. Logical deletion immediately invalidates and revokes both halves.
 
-## Secret Keys
+Provision one genuine managed profile per individual or business when interactive signup is unavailable. Managed profiles are headless: they have no Supabase login, OTP, or later claiming lifecycle. Do not share dummy profiles between customers or infer a subject from a credential display name.
 
-Secret keys use the `sk_live_*` or `sk_test_*` prefix. They authenticate operations through the `X-API-Key` header.
+## Secret Handling
 
-Secret keys come in two scopes:
+Vortex stores only a SHA-256 digest and a safe lookup prefix for the secret value. The full secret is returned once when the credential is created. Store it immediately in a secret manager. Never place it in browser/mobile bundles, URLs, request bodies, screenshots, analytics, logs, support tickets, or source control.
 
-- **Partner-scoped** keys are issued to a partner organization. They authenticate webhook management and partner attribution. A partner key that is not linked to a user account cannot register ramps in any corridor.
-- **User-linked** keys are minted by a user's own Vortex account (see the *Provisioning User-Linked Keys* section below). Requests authenticated with them act as that user, so KYC completed by the same account applies automatically. **Ramp registration requires a user identity in every corridor** — the ramp acts as the key's user, and corridor identity fields are derived from that account rather than taken from the request. For BRL, an explicitly provided `taxId` is accepted only as a cross-check: it must match the tax ID on the authenticated account. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
+## Provision A Profile-Managed Credential
 
-Secret keys must be treated as server-side credentials. Do not expose them in browser bundles, mobile app binaries, URLs, screenshots, analytics tools, logs, or support tickets.
-
-When a request includes `partnerId`, the API may require the secret key to authenticate the matching partner. If the authenticated partner does not match the requested partner, Vortex rejects the request.
-
-Ramp endpoints, including register, update, start, status, history, and error logs, require authentication through either a secret key or a Supabase Bearer token. Registration additionally requires the authenticated identity to resolve to a user — a secret key with no linked user is rejected with `400`.
-
-Webhook endpoints require a partner secret key and do not accept Supabase Bearer tokens.
-
-## Supabase Bearer Tokens
-
-Bearer tokens represent a signed-in Vortex user. They are used for first-party account-management flows (such as the BRLA KYC endpoints) and for minting and managing user API keys. Partner `sk_*` and `pk_*` keys do not authenticate these flows.
-
-Partners that need BRL ramps should onboard users through the Vortex application or hosted widget, or design the integration so the user has completed the required onboarding before the partner backend starts a ramp.
-
-## Provisioning User-Linked Keys
-
-A user-linked key pair can be provisioned programmatically, without contacting Vortex support: sign the user in with an email one-time password (OTP), then mint the key pair with the resulting session token.
-
-### 1. Request An Email OTP
+### 1. Request And Verify An OTP
 
 ```http
 POST /v1/auth/request-otp
 Content-Type: application/json
+
+{ "email": "user@example.com" }
 ```
-
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-Vortex emails a 6-digit code to the address. An optional `locale` string localizes the email. The response is `{ "success": true, "message": "OTP sent to email" }`.
-
-### 2. Verify The OTP
 
 ```http
 POST /v1/auth/verify-otp
 Content-Type: application/json
+
+{ "email": "user@example.com", "token": "123456" }
 ```
 
-```json
-{
-  "email": "user@example.com",
-  "token": "123456"
-}
-```
+Verification returns `access_token`, `refresh_token`, and `user_id`, creating the profile on first sign-in. `POST /v1/auth/refresh` accepts the refresh token when needed.
 
-```json
-{
-  "success": true,
-  "access_token": "eyJ...",
-  "refresh_token": "...",
-  "user_id": "00000000-0000-0000-0000-000000000000"
-}
-```
-
-An invalid or expired code returns `400`. Verification creates the user profile on first sign-in; `user_id` identifies the profile the keys will be linked to. If the user has already completed KYC in the Vortex app or Widget under the same email, this is the same profile — no extra linking step is needed.
-
-`POST /v1/auth/refresh` with `{ "refresh_token": "..." }` returns a fresh token pair when the access token expires.
-
-### 3. Create The Key Pair
+### 2. Create One Credential
 
 ```http
-POST /v1/api-keys
+POST /v1/api-credentials
 Authorization: Bearer <access_token>
 Content-Type: application/json
-```
 
-```json
 {
-  "name": "my-backend",
-  "expiresAt": "2027-07-06T00:00:00.000Z"
+  "name": "production backend",
+  "expiresAt": "2027-07-31T00:00:00.000Z"
 }
 ```
 
-Both body fields are optional. Response (`201`):
+Both fields are optional. Expiry defaults to one year, must be in the future, and cannot exceed two years. The response is one resource:
 
 ```json
 {
-  "createdAt": "2026-07-06T12:00:00.000Z",
-  "expiresAt": "2027-07-06T00:00:00.000Z",
-  "isActive": true,
-  "publicKey": {
-    "id": "...",
-    "key": "pk_live_...",
-    "keyPrefix": "pk_live_",
-    "name": "my-backend (Public)",
-    "type": "public"
-  },
-  "secretKey": {
-    "id": "...",
-    "key": "sk_live_...",
-    "keyPrefix": "sk_live_",
-    "name": "my-backend (Secret)",
-    "type": "secret"
-  }
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "production backend",
+  "profileId": "00000000-0000-0000-0000-000000000001",
+  "partnerId": null,
+  "environment": "live",
+  "publicKey": "pk_live_...",
+  "secretKey": "sk_live_...",
+  "secretKeyPrefix": "16-character safe prefix",
+  "publicLastUsedAt": null,
+  "secretLastUsedAt": null,
+  "expiresAt": "2027-07-31T00:00:00.000Z",
+  "revokedAt": null,
+  "createdAt": "2026-07-31T00:00:00.000Z",
+  "updatedAt": "2026-07-31T00:00:00.000Z"
 }
 ```
 
-- **The secret key value is returned only in this response.** Vortex stores a hash; it cannot be retrieved again. Persist it to your secret manager immediately.
-- Keys expire after one year by default; `expiresAt` may extend this to at most two years from creation.
-- A user may hold at most 10 active keys (a pair counts as two). Exceeding the cap returns `409 API_KEY_LIMIT_REACHED`; revoke unused keys first.
-- Sandbox mints `pk_test_*` / `sk_test_*`; production mints `pk_live_*` / `sk_live_*`.
+The profile may have at most five active, non-expired credentials. Exceeding the cap returns `409 CREDENTIAL_LIMIT_REACHED`. Sandbox issues `*_test_*`; production issues `*_live_*`.
 
-The `/v1/api-keys` endpoints accept only `Authorization: Bearer` session tokens — an `X-API-Key` secret key cannot mint or revoke keys.
-
-### 4. Use The Keys
-
-Configure the SDK (or send `X-API-Key` directly) with the minted pair:
+### 3. Configure The SDK
 
 ```js
 const sdk = new VortexSdk({
   apiBaseUrl: "https://api.vortexfinance.co",
-  publicKey: "pk_live_...",
-  secretKey: "sk_live_..."
+  publicKey: process.env.VORTEX_PUBLIC_KEY,
+  secretKey: process.env.VORTEX_SECRET_KEY
 });
 ```
 
-The bearer token is only needed for key management; day-to-day quoting and ramping authenticate with the secret key. See [Quick Start With The SDK](https://api-docs.vortexfinance.co/quick-start-with-the-sdk).
+A secret may be configured without a public value when only authenticated operations are needed. A public-only SDK can call `getRampInfo()` and create attributed quotes but cannot register or operate a ramp.
 
-### Managing Keys
+## List And Revoke
 
-- `GET /v1/api-keys` — lists the user's active keys (public key values are included; secret values are never returned).
-- `DELETE /v1/api-keys/{keyId}` — revokes a key; returns `204`. Pass `{ "pairedKeyId": "..." }` in the body to revoke both halves of a pair together.
+- `GET /v1/api-credentials` returns one item per credential. It includes the public value and safe secret prefix, never the secret value.
+- `DELETE /v1/api-credentials/{credentialId}` returns `204` and atomically revokes both values. It takes no request body and no second key ID.
+
+Both endpoints require the subject's Supabase Bearer session. Secret API credentials cannot create or revoke other credentials.
+
+## Common Errors
+
+| Code | Meaning |
+|---|---|
+| `INVALID_PUBLIC_KEY` | Public value is unknown, expired, or revoked. |
+| `INVALID_SECRET_KEY` / `INVALID_API_KEY` | Secret value is malformed, unknown, expired, or revoked. |
+| `CREDENTIAL_MISMATCH` | Presented public/body/header and secret values do not identify one credential. |
+| `CREDENTIAL_LIMIT_REACHED` | The profile already has five active non-expired credentials. |
+| `CREDENTIAL_NOT_FOUND` | Credential is missing, already revoked, or outside the authenticated manager's scope. |
+| `CREDENTIAL_SUBJECT_REQUIRED` | A valid profile subject was not supplied for partner-managed issuance. |
 
 ## Webhook Signing Key
 
-`GET /v1/public-key` returns the RSA-PSS public key used to verify webhook signatures. It is unrelated to partner `pk_*` public keys.
-
-## Recommended Handling
-
-Store secret keys in a secret manager or encrypted environment configuration. Rotate keys if they are exposed, no longer needed, or tied to a retired integration — for user-linked keys, revoke and re-mint through the endpoints above. Use test keys in sandbox and live keys only in production.
+`GET /v1/public-key` returns the RSA-PSS public key used to verify webhook signatures. It is unrelated to a `pk_*` API credential value.
 
 ---

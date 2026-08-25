@@ -13,6 +13,8 @@ const SENSITIVE_METADATA_KEYS = new Set([
   "depositqrcode",
   "ephemeralaccounts",
   "ibanpaymentdata",
+  "import_token",
+  "importtoken",
   "pixdestination",
   "presignedtxs",
   "rawbody",
@@ -21,6 +23,7 @@ const SENSITIVE_METADATA_KEYS = new Set([
   "signingaccounts",
   "taxid",
   "token",
+  "tokenfingerprint",
   "walletaddress",
   "x-api-key"
 ]);
@@ -33,6 +36,7 @@ interface ApiClientRequestLike {
   params?: unknown;
   path?: string;
   query?: unknown;
+  impersonation?: { sessionId: string; actorProfileId: string };
 }
 
 interface RequestMetadataOptions {
@@ -90,6 +94,13 @@ export function buildApiClientRequestMetadata(
     requestMethod: req.method || null,
     requestPath: buildTemplatedRequestPath(req.path, req.params)
   };
+
+  // Every event raised during an impersonated request stays attributable to the operator,
+  // even though `userId` on the event is the target's.
+  if (req.impersonation) {
+    metadata.impersonationSessionId = req.impersonation.sessionId;
+    metadata.impersonatorProfileId = req.impersonation.actorProfileId;
+  }
 
   addSelectedValues(metadata, "requestBody", req.body, options.bodyKeys);
   addSelectedValues(metadata, "requestParam", req.params, options.paramKeys);
@@ -214,6 +225,7 @@ function getSafeErrorMessage(errorType: ApiClientErrorType): string | null {
     none: null,
     ownership_denied: "Authenticated principal does not own the resource.",
     provider_error: "Provider operation failed.",
+    provider_limit_exceeded: "Provider account limit exceeded.",
     quote_consumed: "Quote is already consumed.",
     quote_expired: "Quote is expired.",
     quote_not_found: "Quote was not found.",

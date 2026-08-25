@@ -1,6 +1,6 @@
 import { BuildingLibraryIcon, CreditCardIcon } from "@heroicons/react/24/outline";
 import { GlobeAmericasIcon } from "@heroicons/react/24/solid";
-import { AlfredpayFiatAccountType, FiatToken } from "@vortexfi/shared";
+import { DomesticFiatAccountType, FiatToken } from "@vortexfi/shared";
 
 export type FiatAccountTypeKey = "SPEI" | "ACH" | "ACH_COL" | "WIRE" | "COELSA";
 
@@ -67,25 +67,25 @@ export const ACCOUNT_TYPE_DESCRIPTIONS: Record<FiatAccountTypeKey, string> = {
   WIRE: "components.fiatAccountMethods.descriptions.WIRE"
 };
 
-export const ACCOUNT_TYPE_TO_ALFRED_TYPE: Record<FiatAccountTypeKey, AlfredpayFiatAccountType | null> = {
-  ACH: AlfredpayFiatAccountType.ACH,
-  ACH_COL: AlfredpayFiatAccountType.ACH,
-  COELSA: AlfredpayFiatAccountType.COELSA,
-  SPEI: AlfredpayFiatAccountType.SPEI,
-  WIRE: AlfredpayFiatAccountType.BANK_USA
+export const ACCOUNT_TYPE_TO_ALFRED_TYPE: Record<FiatAccountTypeKey, DomesticFiatAccountType | null> = {
+  ACH: DomesticFiatAccountType.ACH,
+  ACH_COL: DomesticFiatAccountType.ACH,
+  COELSA: DomesticFiatAccountType.COELSA,
+  SPEI: DomesticFiatAccountType.SPEI,
+  WIRE: DomesticFiatAccountType.BANK_USA
 };
 
-export const ALFRED_TO_ACCOUNT_TYPE: Partial<Record<AlfredpayFiatAccountType, FiatAccountTypeKey>> = {
-  [AlfredpayFiatAccountType.ACH]: "ACH",
-  [AlfredpayFiatAccountType.SPEI]: "SPEI",
-  [AlfredpayFiatAccountType.BANK_USA]: "WIRE",
-  [AlfredpayFiatAccountType.COELSA]: "COELSA"
+export const ALFRED_TO_ACCOUNT_TYPE: Partial<Record<DomesticFiatAccountType, FiatAccountTypeKey>> = {
+  [DomesticFiatAccountType.ACH]: "ACH",
+  [DomesticFiatAccountType.SPEI]: "SPEI",
+  [DomesticFiatAccountType.BANK_USA]: "WIRE",
+  [DomesticFiatAccountType.COELSA]: "COELSA"
 };
 
 // Resolves the display key for a fiat account, taking country into account.
-// Colombia ACH accounts are stored as AlfredpayFiatAccountType.ACH but should display as "ACH_COL".
-export function resolveAccountTypeKey(alfredType: AlfredpayFiatAccountType, country?: string): FiatAccountTypeKey | undefined {
-  if (alfredType === AlfredpayFiatAccountType.ACH && country === "CO") return "ACH_COL";
+// Colombia ACH accounts are stored as DomesticFiatAccountType.ACH but should display as "ACH_COL".
+export function resolveAccountTypeKey(alfredType: DomesticFiatAccountType, country?: string): FiatAccountTypeKey | undefined {
+  if (alfredType === DomesticFiatAccountType.ACH && country === "CO") return "ACH_COL";
   return ALFRED_TO_ACCOUNT_TYPE[alfredType];
 }
 

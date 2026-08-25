@@ -1,16 +1,16 @@
 // Types re-exported used to create quotes.
 
 import type {
-  AlfredpayFiatAccount,
   CreateQuoteRequest,
+  DomesticFiatAccount,
   EvmTransactionData,
   PaymentMethod,
   QuoteResponse,
   SignedTypedData
 } from "@vortexfi/shared";
 import {
-  AlfredPayCountry,
-  AlfredpayFiatAccountType,
+  DomesticCountry,
+  DomesticFiatAccountType,
   EPaymentMethod,
   EphemeralAccount,
   EphemeralAccountType,
@@ -22,18 +22,49 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 
-export type { AlfredpayFiatAccount, CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse };
-export { AlfredPayCountry, AlfredpayFiatAccountType, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection };
+export type { DomesticFiatAccount, CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse };
+export { DomesticCountry, DomesticFiatAccountType, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection };
+
+/*
+ * Deprecated provider-named aliases.
+ *
+ * The public surface is named after the corridor family it serves (`Brl`, `Domestic`)
+ * so it stays stable if the underlying payment partner changes. These aliases keep the
+ * previous provider-named exports compiling and are removed in the next major release.
+ */
+
+/** @deprecated Renamed to {@link DomesticCountry}. */
+export const AlfredPayCountry = DomesticCountry;
+/** @deprecated Renamed to {@link DomesticCountry}. */
+export type AlfredPayCountry = DomesticCountry;
+/** @deprecated Renamed to {@link DomesticFiatAccountType}. */
+export const AlfredpayFiatAccountType = DomesticFiatAccountType;
+/** @deprecated Renamed to {@link DomesticFiatAccountType}. */
+export type AlfredpayFiatAccountType = DomesticFiatAccountType;
+/** @deprecated Renamed to {@link DomesticFiatAccount}. */
+export type AlfredpayFiatAccount = DomesticFiatAccount;
+/** @deprecated Renamed to {@link DomesticCurrency}. */
+export type AlfredpayCurrency = DomesticCurrency;
+/** @deprecated Renamed to {@link DomesticOnrampQuote}. */
+export type AlfredpayOnrampQuote = DomesticOnrampQuote;
+/** @deprecated Renamed to {@link DomesticOfframpQuote}. */
+export type AlfredpayOfframpQuote = DomesticOfframpQuote;
+/** @deprecated Renamed to {@link DomesticOnrampAdditionalData}. */
+export type AlfredpayOnrampAdditionalData = DomesticOnrampAdditionalData;
+/** @deprecated Renamed to {@link DomesticOfframpAdditionalData}. */
+export type AlfredpayOfframpAdditionalData = DomesticOfframpAdditionalData;
+/** @deprecated Renamed to {@link DomesticOfframpUpdateAdditionalData}. */
+export type AlfredpayOfframpUpdateAdditionalData = DomesticOfframpUpdateAdditionalData;
 
 export type AnyQuote =
   | BrlOnrampQuote
   | EurOnrampQuote
-  | AlfredpayOnrampQuote
+  | DomesticOnrampQuote
   | BrlOfframpQuote
   | EurOfframpQuote
-  | AlfredpayOfframpQuote;
+  | DomesticOfframpQuote;
 
-export type AlfredpayCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP | FiatToken.ARS;
+export type DomesticCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP | FiatToken.ARS;
 
 export type BrlOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
@@ -45,9 +76,9 @@ export type EurOnrampQuote = QuoteResponse & {
   from: EPaymentMethod.SEPA;
 };
 
-export type AlfredpayOnrampQuote = QuoteResponse & {
+export type DomesticOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
-  inputCurrency: AlfredpayCurrency;
+  inputCurrency: DomesticCurrency;
 };
 
 export type BrlOfframpQuote = QuoteResponse & {
@@ -60,23 +91,23 @@ export type EurOfframpQuote = QuoteResponse & {
   to: EPaymentMethod.SEPA;
 };
 
-export type AlfredpayOfframpQuote = QuoteResponse & {
+export type DomesticOfframpQuote = QuoteResponse & {
   rampType: RampDirection.SELL;
-  outputCurrency: AlfredpayCurrency;
+  outputCurrency: DomesticCurrency;
 };
 
-// Alfredpay branches are checked before the pix/sepa branches to mirror the runtime routing in VortexSdk.registerRamp().
+// Domestic-corridor branches are checked before the pix/sepa branches to mirror the runtime routing in VortexSdk.registerRamp().
 export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends {
   rampType: RampDirection.BUY;
-  inputCurrency: AlfredpayCurrency;
+  inputCurrency: DomesticCurrency;
 }
-  ? AlfredpayOnrampQuote
+  ? DomesticOnrampQuote
   : T extends { rampType: RampDirection.BUY; from: EPaymentMethod.PIX }
     ? BrlOnrampQuote
     : T extends { rampType: RampDirection.BUY; from: EPaymentMethod.SEPA }
       ? EurOnrampQuote
-      : T extends { rampType: RampDirection.SELL; outputCurrency: AlfredpayCurrency }
-        ? AlfredpayOfframpQuote
+      : T extends { rampType: RampDirection.SELL; outputCurrency: DomesticCurrency }
+        ? DomesticOfframpQuote
         : T extends { rampType: RampDirection.SELL; to: EPaymentMethod.PIX }
           ? BrlOfframpQuote
           : T extends { rampType: RampDirection.SELL; to: EPaymentMethod.SEPA }
@@ -86,20 +117,20 @@ export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends {
 export type AnyAdditionalData =
   | BrlOfframpAdditionalData
   | EurOfframpAdditionalData
-  | AlfredpayOfframpAdditionalData
+  | DomesticOfframpAdditionalData
   | BrlOnrampAdditionalData
   | EurOnrampAdditionalData
-  | AlfredpayOnrampAdditionalData;
+  | DomesticOnrampAdditionalData;
 
-// Branch order mirrors ExtendedQuoteResponse (Alfredpay first per direction). Keys are mutually exclusive, so order is cosmetic here.
-export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends AlfredpayOnrampQuote
-  ? AlfredpayOnrampAdditionalData
+// Branch order mirrors ExtendedQuoteResponse (domestic-corridor first per direction). Keys are mutually exclusive, so order is cosmetic here.
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends DomesticOnrampQuote
+  ? DomesticOnrampAdditionalData
   : Q extends BrlOnrampQuote
     ? BrlOnrampAdditionalData
     : Q extends EurOnrampQuote
       ? EurOnrampAdditionalData
-      : Q extends AlfredpayOfframpQuote
-        ? AlfredpayOfframpAdditionalData
+      : Q extends DomesticOfframpQuote
+        ? DomesticOfframpAdditionalData
         : Q extends BrlOfframpQuote
           ? BrlOfframpAdditionalData
           : Q extends EurOfframpQuote
@@ -109,10 +140,10 @@ export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends Alfr
 export interface BrlOnrampAdditionalData {
   destinationAddress: string;
   /**
-   * @deprecated The BRL subaccount is now derived server-side from
-   * `api_keys.user_id -> tax_ids.user_id`. The SDK still accepts the field
-   * for one release of backward compatibility, but the server rejects
-   * mismatches against the derived taxId.
+   * @deprecated The BRL account is now derived server-side from the authenticated
+   * profile's canonical customer entity and provider customer. The SDK still
+   * accepts the field for one release of backward compatibility, but the server
+   * rejects mismatches.
    */
   taxId?: string;
 }
@@ -123,7 +154,7 @@ export interface EurOnrampAdditionalData {
   ipAddress: string;
 }
 
-export interface AlfredpayOnrampAdditionalData {
+export interface DomesticOnrampAdditionalData {
   destinationAddress: string;
   fiatAccountId?: string;
   walletAddress?: string;
@@ -135,10 +166,10 @@ export interface BrlOfframpAdditionalData {
   walletAddress: string;
   receiverTaxId?: string;
   /**
-   * @deprecated The BRL subaccount is now derived server-side from
-   * `api_keys.user_id -> tax_ids.user_id`. The SDK still accepts the field
-   * for one release of backward compatibility, but the server rejects
-   * mismatches against the derived taxId.
+   * @deprecated The BRL account is now derived server-side from the authenticated
+   * profile's canonical customer entity and provider customer. The SDK still
+   * accepts the field for one release of backward compatibility, but the server
+   * rejects mismatches.
    */
   taxId?: string;
 }
@@ -150,7 +181,7 @@ export interface EurOfframpAdditionalData {
   walletAddress: string;
 }
 
-export interface AlfredpayOfframpAdditionalData {
+export interface DomesticOfframpAdditionalData {
   fiatAccountId: string;
   walletAddress: string;
   sessionId?: string;
@@ -159,16 +190,16 @@ export interface AlfredpayOfframpAdditionalData {
 export type AnyUpdateAdditionalData =
   | BrlOfframpUpdateAdditionalData
   | EurOfframpUpdateAdditionalData
-  | AlfredpayOfframpUpdateAdditionalData;
+  | DomesticOfframpUpdateAdditionalData;
 
-export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends AlfredpayOnrampQuote
-  ? never // Alfredpay onramp settles fiat off-chain; no user transactions to update.
+export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends DomesticOnrampQuote
+  ? never // Domestic-corridor onramp settles fiat off-chain; no user transactions to update.
   : Q extends BrlOnrampQuote
     ? never // No additional data required from the user for this type of ramp.
     : Q extends EurOnrampQuote
       ? never // No additional data required from the user for EUR onramp.
-      : Q extends AlfredpayOfframpQuote
-        ? AlfredpayOfframpUpdateAdditionalData
+      : Q extends DomesticOfframpQuote
+        ? DomesticOfframpUpdateAdditionalData
         : Q extends BrlOfframpQuote
           ? BrlOfframpUpdateAdditionalData
           : Q extends EurOfframpQuote
@@ -181,10 +212,10 @@ export interface OfframpUpdateAdditionalData {
   assethubToPendulumHash?: string;
 }
 
-// BRL, EUR, and Alfredpay offramps all push back the same on-chain tx hashes.
+// BRL, EUR, and domestic-corridor offramps all push back the same on-chain tx hashes.
 export interface BrlOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
 export interface EurOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
-export interface AlfredpayOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
+export interface DomesticOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
 
 export interface BrlKycResponse {
   evmAddress: string;
@@ -224,26 +255,46 @@ export interface NetworkConfig {
   wsUrl: string;
 }
 
+export type OfframpFundingMode = "prefunded" | "deferred";
+
+export type AccessTokenProvider = () => Promise<string | null | undefined>;
+
 export interface VortexSdkConfig {
   apiBaseUrl: string;
   /**
-   * Public API key (pk_live_* or pk_test_*). Sent in request bodies for tracking
-   * and partner-specific discounts. Optional during the grace period; some
-   * endpoints will require it once enforcement begins.
+   * Public API key (pk_live_* or pk_test_*). Sent as `X-Public-Key` and retained
+   * in quote request bodies for compatibility.
    */
   publicKey?: string;
   /**
-   * Secret API key (sk_live_* or sk_test_*). Sent as the `X-API-Key` header for
-   * partner authentication. Optional during the grace period; endpoints that
-   * accept a `partnerId` will require it once enforcement begins.
+   * Secret API key (sk_live_* or sk_test_*). Sent as the `X-API-Key` header.
    */
   secretKey?: string;
+  /**
+   * Resolves the current Supabase access token before each request. Intended for
+   * browser integrations where the session can refresh while the SDK is active.
+   * Ignored when `secretKey` is configured.
+   */
+  accessTokenProvider?: AccessTokenProvider;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
+  /**
+   * Maximum time to wait when a signing operation first needs a Substrate
+   * WebSocket API. Chain APIs are initialized lazily and independently.
+   * @default 15000
+   */
+  networkInitializationTimeoutMs?: number;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
+  /**
+   * Controls whether `registerRamp` checks that the source wallet holds the
+   * quoted offramp amount. Deferred integrations must fund the wallet before
+   * submitting user transactions and starting the ramp.
+   * @default "prefunded"
+   */
+  offrampFundingMode?: OfframpFundingMode;
 }
 
 // Handler interface for ramp-specific operations

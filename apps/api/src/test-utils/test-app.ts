@@ -17,8 +17,8 @@ export interface TestApp {
  */
 export async function startTestApp(): Promise<TestApp> {
   const { default: app } = await import("../config/express");
-  const { default: registerPhaseHandlers } = await import("../api/services/phases/register-handlers");
-  registerPhaseHandlers();
+  const { registerBlockFlowHandlers } = await import("../api/services/phases/blocks/register-handlers");
+  registerBlockFlowHandlers();
 
   const server: Server = await new Promise(resolve => {
     const s = app.listen(0, "127.0.0.1", () => resolve(s));

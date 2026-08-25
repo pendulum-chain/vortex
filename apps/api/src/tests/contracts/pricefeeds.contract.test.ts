@@ -1,5 +1,5 @@
 /**
- * External API contract: CoinGecko price feed (docs/features/contract-tests.md).
+ * External API contract: CoinGecko price feed (docs/operations-testing.md).
  *
  * Unlike the anchor fakes, FakePrices patches PriceFeedService's methods *above*
  * the HTTP seam (it never produces wire JSON), so the verified-fake half is
@@ -9,19 +9,29 @@
  *
  * The live half mirrors getCryptoPrice's request construction: the ids/currencies
  * requested are the ones production actually asks for ("usd-coin" as the USD proxy
- * for the CoinGecko fiat fallback with vs_currencies mxn/cop/ars, and tokenIdMap
- * entries like "ethereum" priced in usd). No credentials are strictly required:
- * with COINGECKO_API_KEY set it uses the configured (pro) base URL like production,
- * otherwise it falls back to the keyless public API, which serves the same shape.
+ * for the CoinGecko fiat fallback with vs_currencies ars/brl/eur/mxn, and tokenIdMap
+ * entries like "ethereum" priced in usd). COP is deliberately absent: CoinGecko
+ * removed it from both public and Pro supported quote currencies (observed
+ * 2026-08-04), so PriceFeedService no longer queries it as a sanity reference or
+ * last-resort fallback. No credentials are strictly required: with
+ * COINGECKO_API_KEY set this uses the configured Pro URL like production;
+ * otherwise it falls back to the keyless public API.
+ *
+ * Binance spot is the primary USD rate source for the currencies mapped in
+ * BINANCE_USDT_FIAT_SYMBOLS (imported from the service, so the live check can
+ * never drift from what production queries): its live half asserts each mapped
+ * ticker still exists and serves a usable price, so a delisted market alerts
+ * the nightly instead of silently degrading to fastforex.
  */
 import { describe, expect, test } from "bun:test";
+import { BINANCE_USDT_FIAT_SYMBOLS } from "../../api/services/priceFeed.service";
 import { coingeckoSimplePriceResponseSchema } from "../../api/services/priceFeed.schemas";
 import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 
 const REQUESTED_IDS = ["usd-coin", "ethereum"];
-const REQUESTED_CURRENCIES = ["usd", "mxn", "cop", "ars"];
+const REQUESTED_CURRENCIES = ["usd", "ars", "brl", "eur", "mxn"];
 
 describe("CoinGecko external API contract — hermetic (fixtures)", () => {
   test("accepts the consumed simple/price shape including unknown keys", () => {
@@ -69,6 +79,39 @@ describe.skipIf(!RUN_LIVE)("CoinGecko external API contract — live", () => {
       }
       for (const currency of REQUESTED_CURRENCIES) {
         expect(parsed["usd-coin"]?.[currency]).toBeGreaterThan(0);
+      }
+    },
+    60_000
+  );
+});
+
+describe.skipIf(!RUN_LIVE)("Binance external API contract — live", () => {
+  test(
+    "GET /api/v3/ticker/price serves every mapped USDT-fiat symbol",
+    async () => {
+      const { config } = await import("../../config/vars");
+      for (const symbol of Object.values(BINANCE_USDT_FIAT_SYMBOLS)) {
+        const outcome = await runLive(`binance ticker ${symbol}`, async () => {
+          const url = new URL("api/v3/ticker/price", `${config.priceProviders.binance.baseUrl}/`);
+          url.searchParams.append("symbol", symbol);
+          const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+          // Only availability failures may stay inconclusive (rate limit, geo-block,
+          // 5xx, network). A definitive 4xx — Binance answers an unknown or delisted
+          // symbol with 400 code -1121 — is exactly the drift this test exists to
+          // catch, so it is returned for assertion instead of thrown into runLive's
+          // catch-all.
+          if (response.status >= 500 || response.status === 429 || response.status === 451) {
+            throw new Error(`Binance API unavailable for ${symbol}: ${response.status} ${await response.text()}`);
+          }
+          return { body: (await response.json()) as { price?: string; symbol?: string }, status: response.status };
+        });
+        if (!outcome) continue; // inconclusive — see test-utils/contract-support.ts
+
+        expect(outcome.status).toBe(200);
+        // getBinanceUsdtToFiatRate rejects a mismatched symbol or non-positive price,
+        // so both are part of the consumed contract.
+        expect(outcome.body.symbol).toBe(symbol);
+        expect(Number(outcome.body.price)).toBeGreaterThan(0);
       }
     },
     60_000

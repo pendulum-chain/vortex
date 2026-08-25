@@ -1,7 +1,10 @@
 import { RequestHandler, Router } from "express";
 import * as rampController from "../../controllers/ramp.controller";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
+import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import { getManagedProfileQuoteCorridor, getManagedProfileRampCorridor } from "../../middlewares/managedProfileCorridor";
 
 const router = Router();
 
@@ -35,6 +38,8 @@ router.post(
   "/register",
   rejectDuringActiveMaintenance("ramp_register"),
   requirePartnerOrUserAuth(),
+  rejectImpersonation,
+  authorizeManagedProfile({ corridor: getManagedProfileQuoteCorridor }),
   rampController.registerRamp as unknown as RequestHandler
 );
 
@@ -67,6 +72,8 @@ router.post(
   "/update",
   rejectDuringActiveMaintenance("ramp_update"),
   optionalPartnerOrUserAuth(),
+  rejectImpersonation,
+  authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
   rampController.updateRamp as unknown as RequestHandler
 );
 
@@ -98,6 +105,8 @@ router.post(
   "/start",
   rejectDuringActiveMaintenance("ramp_start"),
   optionalPartnerOrUserAuth(),
+  rejectImpersonation,
+  authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
   rampController.startRamp as unknown as RequestHandler
 );
 
@@ -122,7 +131,19 @@ router.post(
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get("/:id", optionalPartnerOrUserAuth(), rampController.getRampStatus as unknown as RequestHandler);
+router.get(
+  "/history",
+  requirePartnerOrUserAuth(),
+  authorizeManagedProfile(),
+  rampController.getAuthenticatedUserRampHistory as unknown as RequestHandler
+);
+
+router.get(
+  "/:id",
+  optionalPartnerOrUserAuth(),
+  authorizeManagedProfile(),
+  rampController.getRampStatus as unknown as RequestHandler
+);
 
 /**
  * @api {get} v1/ramp/:id/errors Get error logs
@@ -138,7 +159,12 @@ router.get("/:id", optionalPartnerOrUserAuth(), rampController.getRampStatus as 
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get("/:id/errors", optionalPartnerOrUserAuth(), rampController.getErrorLogs as unknown as RequestHandler);
+router.get(
+  "/:id/errors",
+  optionalPartnerOrUserAuth(),
+  authorizeManagedProfile(),
+  rampController.getErrorLogs as unknown as RequestHandler
+);
 
 /**
  * @api {get} v1/ramp/history/:walletAddress Get transaction history
@@ -154,6 +180,11 @@ router.get("/:id/errors", optionalPartnerOrUserAuth(), rampController.getErrorLo
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  */
-router.get("/history/:walletAddress", requirePartnerOrUserAuth(), rampController.getRampHistory as unknown as RequestHandler);
+router.get(
+  "/history/:walletAddress",
+  requirePartnerOrUserAuth(),
+  authorizeManagedProfile(),
+  rampController.getRampHistory as unknown as RequestHandler
+);
 
 export default router;

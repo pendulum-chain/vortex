@@ -1,6 +1,3 @@
-// Strategy + Pipeline architecture
-// Shared types and contracts used by the quote pipeline.
-
 import {
   AmountLimits,
   CreateQuoteRequest,
@@ -14,31 +11,6 @@ import {
   XcmFees
 } from "@vortexfi/shared";
 import { Big } from "big.js";
-
-// Stage identifiers in the pipeline
-export enum StageKey {
-  Initialize = "Initialize",
-  NablaSwap = "NablaSwap",
-  MergeSubsidy = "MergeSubsidy",
-  PendulumTransfer = "PendulumTransfer",
-  HydrationSwap = "HydrationSwap",
-  SquidRouter = "SquidRouter",
-  Fee = "Fee",
-  Discount = "Discount",
-  PartnerOperation = "PartnerOperation",
-  Finalize = "Finalize"
-}
-
-// Minimal stage contract
-export interface Stage {
-  readonly key: StageKey;
-  execute(ctx: QuoteContext): Promise<void>;
-}
-
-// Engines registry for orchestrator lookup
-export type EnginesRegistry = {
-  [K in StageKey]?: Stage;
-};
 
 export interface BridgeMeta {
   effectiveExchangeRate?: string;
@@ -71,26 +43,20 @@ export interface PartnerInfo {
   name?: string | null;
   maxDynamicDifference?: number;
   minDynamicDifference?: number;
+  payoutAddressEvm?: string | null;
 }
 
-export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";
-
-// Strategy for a specific route/path
-export interface IRouteStrategy {
-  // Optional: human-friendly name for logging
-  readonly name: string;
-
-  // Ordered stages to execute for this route
-  getStages(ctx: QuoteContext): StageKey[];
-
-  getEngines(ctx: QuoteContext): EnginesRegistry;
-}
+export type PartnerPricingSource = "request" | "profileAssignment" | "managerProfileAssignment" | "none";
 
 // Quote context flows through all stages. Defined in quote-context.ts.
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
+  readonly request: CreateQuoteRequest & {
+    apiCredentialId?: string;
+    controllingManagerProfileId?: string;
+    userId?: string;
+  };
   readonly now: Date;
 
   // Partner info (if any)

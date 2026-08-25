@@ -36,6 +36,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Ethereum,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.AXLUSDC]: {
+      assetSymbol: "USDC.axl",
+      decimals: 6,
+      erc20AddressSourceChain: "0x1B81D678ffb9C0263b24A97847620C99d213eB14",
+      isNative: false,
+      network: Networks.Ethereum,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Polygon]: {
@@ -71,6 +80,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       decimals: 6,
       erc20AddressSourceChain: "0x750e4c4984a9e0f12978ea6742bc1c5d248f40ed",
       isNative: false,
+      network: Networks.Polygon,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.POL]: {
+      assetSymbol: "POL",
+      decimals: 18,
+      erc20AddressSourceChain: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      isNative: true,
       network: Networks.Polygon,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm

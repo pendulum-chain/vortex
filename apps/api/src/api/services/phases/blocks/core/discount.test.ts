@@ -1,0 +1,212 @@
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import Big from "big.js";
+import { config } from "../../../../../config/vars";
+import { priceFeedService } from "../../../priceFeed.service";
+import { QuoteContext } from "../../../quote/core/types";
+import {
+  type ActivePartner,
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getAdjustedDifference,
+  getUsdDenominatedInputAmount,
+  handleQuoteConsumptionForDiscountState,
+  hasConfiguredTargetDiscount
+} from "./discount";
+
+describe("calculateSubsidyAmount", () => {
+  it("returns 0 when actual output meets expected output", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(100), 0);
+    expect(result.toString()).toBe("0");
+  });
+
+  it("returns 0 when actual output exceeds expected output", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(110), 0);
+    expect(result.toString()).toBe("0");
+  });
+
+  it("returns 0 when maxSubsidy is disabled", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(90), 0);
+    expect(result.toString()).toBe("0");
+  });
+
+  it("caps subsidy at maxSubsidy fraction of expected output", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(80), 0.05);
+    // shortfall=20, maxAllowed=100*0.05=5
+    expect(result.toString()).toBe("5");
+  });
+
+  it("returns full shortfall when it is less than maxSubsidy cap", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(95), 0.1);
+    // shortfall=5, maxAllowed=100*0.1=10
+    expect(result.toString()).toBe("5");
+  });
+
+});
+
+// The negative-discount / rate-floor logic lives in calculateExpectedOutput, not
+// calculateSubsidyAmount (which only sees the resulting expectedOutput).
+describe("calculateExpectedOutput with negative targetDiscount (rate floor)", () => {
+  it("lowers the expected output below the oracle rate for an onramp", () => {
+    const { expectedOutput, adjustedTargetDiscount } = calculateExpectedOutput("100", new Big(1), -0.001, false, null);
+    // rate = 1 * (1 - 0.001) = 0.999
+    expect(expectedOutput.toString()).toBe("99.9");
+    expect(adjustedTargetDiscount.toString()).toBe("-0.001");
+  });
+
+  it("inverts the oracle price for offramps before applying the discount", () => {
+    const { expectedOutput } = calculateExpectedOutput("100", new Big(5), -0.01, true, null);
+    // USD-FIAT rate = 1/5 = 0.2; discounted = 0.2 * 0.99 = 0.198
+    expect(expectedOutput.toString()).toBe("19.8");
+  });
+
+  it("applies a positive targetDiscount as a rate premium", () => {
+    const { expectedOutput } = calculateExpectedOutput("100", new Big(1), 0.02, false, null);
+    expect(expectedOutput.toString()).toBe("102");
+  });
+});
+
+describe("getUsdDenominatedInputAmount", () => {
+  const brlToUsdRate = new Big("0.19475713784910216959");
+  const eurToUsdRate = new Big("1.16");
+  let rateSpy: ReturnType<typeof spyOn> | undefined;
+
+  afterEach(() => {
+    rateSpy?.mockRestore();
+    rateSpy = undefined;
+  });
+
+  const makeCtx = (inputCurrency: string, inputAmount: string, bridgedUsdcAmount?: string) =>
+    ({
+      evmToEvm: bridgedUsdcAmount ? { outputAmountDecimal: new Big(bridgedUsdcAmount) } : undefined,
+      request: { inputAmount, inputCurrency }
+    }) as unknown as QuoteContext;
+
+  it("returns the request amount unchanged for USD-like inputs", async () => {
+    const usd = await getUsdDenominatedInputAmount(makeCtx("USDC", "1000"));
+    expect(usd.toString()).toBe("1000");
+  });
+
+  it("values a BRLA input at the BRL-USD oracle rate", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(brlToUsdRate);
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
+    expect(usd.toFixed(6)).toBe("194.757138");
+  });
+
+  it("regression: a 1000 BRLA offramp to BRL targets ~1000 BRL, not inputAmount x inverted rate", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(brlToUsdRate);
+
+    // Before the fix the engine passed the raw 1000 (BRLA) into calculateExpectedOutput as if
+    // it were USD, yielding an expected output of ~5134 BRL and a massively inflated subsidy.
+    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
+    const { expectedOutput } = calculateExpectedOutput(usd.toString(), brlToUsdRate, 0, true, null);
+    expect(expectedOutput.toFixed(4)).toBe("1000.0000");
+  });
+
+  it("values a EURC input at the EUR-USD oracle rate", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(eurToUsdRate);
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("EURC", "1000"));
+    expect(usd.toFixed(2)).toBe("1160.00");
+  });
+
+  it("regression: a 1000 EURC offramp to EUR targets ~1000 EUR, not a zero-subsidy undershoot", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(eurToUsdRate);
+
+    // Before the fix the engine passed the raw 1000 (EURC) into calculateExpectedOutput as if
+    // it were USD, yielding an expected output of ~862 EUR — below the actual output, so the
+    // EURC→SEPA subsidy was silently never paid.
+    const usd = await getUsdDenominatedInputAmount(makeCtx("EURC", "1000"));
+    const { expectedOutput } = calculateExpectedOutput(usd.toString(), eurToUsdRate, 0, true, null);
+    expect(expectedOutput.toFixed(4)).toBe("1000.0000");
+  });
+
+  it("falls back to the bridged USDC amount when the fiat-peg rate lookup fails", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000", "194.757138"));
+    expect(usd.toString()).toBe("194.757138");
+  });
+
+  it("fails when the fiat-peg rate lookup fails and no USD route amount exists", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
+
+    await expect(getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"))).rejects.toThrow("Cannot value BRLA input in USD");
+  });
+
+  it("falls back to the bridged USDC amount for tokens without a fiat peg", async () => {
+    const usd = await getUsdDenominatedInputAmount(makeCtx("ETH", "0.5", "1834.201"));
+    expect(usd.toString()).toBe("1834.201");
+  });
+
+  it("fails for non-pegged input when no USD route amount is available", async () => {
+    await expect(getUsdDenominatedInputAmount(makeCtx("ETH", "0.5"))).rejects.toThrow("Cannot value ETH input in USD");
+  });
+});
+
+describe("hasConfiguredTargetDiscount", () => {
+  it("treats a negative discount as configured (worse-than-reference rate floor)", () => {
+    expect(hasConfiguredTargetDiscount(-0.01)).toBe(true);
+  });
+
+  it("treats a positive discount as configured", () => {
+    expect(hasConfiguredTargetDiscount(0.005)).toBe(true);
+  });
+
+  it("treats zero as not configured, including the DECIMAL string form", () => {
+    expect(hasConfiguredTargetDiscount(0)).toBe(false);
+    expect(hasConfiguredTargetDiscount("0.00" as unknown as number)).toBe(false);
+  });
+});
+
+describe("dynamic range applies immediately on config changes", () => {
+  const deltaD = new Big(config.quote.deltaDBasisPoints).div(10000);
+
+  function makePartner(key: string, minDynamicDifference: number, maxDynamicDifference: number): ActivePartner {
+    return {
+      id: key,
+      maxDynamicDifference,
+      maxSubsidy: 0.5,
+      minDynamicDifference,
+      name: key,
+      stateKey: `${key}:sell:*`,
+      targetDiscount: 0.01
+    };
+  }
+
+  it("starts a fresh partner state at the configured minimum", () => {
+    const partner = makePartner("range-fresh", 0.006, 0.007);
+    expect(getAdjustedDifference(partner).toString()).toBe("0.006");
+  });
+
+  it("jumps an existing difference up to a newly raised minimum on the next read", () => {
+    const before = makePartner("range-raise", 0, 0.003);
+    expect(getAdjustedDifference(before).toString()).toBe("0");
+
+    const after = { ...before, maxDynamicDifference: 0.007, minDynamicDifference: 0.006 } as ActivePartner;
+    expect(getAdjustedDifference(after).toString()).toBe("0.006");
+  });
+
+  it("drops an existing difference down to a newly lowered maximum on the next read", () => {
+    const before = makePartner("range-lower", 0.006, 0.007);
+    expect(getAdjustedDifference(before).toString()).toBe("0.006");
+
+    const after = { ...before, maxDynamicDifference: 0.003, minDynamicDifference: 0 } as ActivePartner;
+    expect(getAdjustedDifference(after).toString()).toBe("0.003");
+  });
+
+  it("clamps into the updated range on quote consumption too", () => {
+    const before = makePartner("range-consume", 0.006, 0.007);
+    expect(getAdjustedDifference(before).toString()).toBe("0.006");
+
+    const after = { ...before, maxDynamicDifference: 0.003, minDynamicDifference: 0 } as ActivePartner;
+    handleQuoteConsumptionForDiscountState(after);
+
+    const expected = ((): Big => {
+      const decremented = new Big(0.006).minus(deltaD);
+      const floored = decremented.lt(0) ? new Big(0) : decremented;
+      return floored.gt(0.003) ? new Big(0.003) : floored;
+    })();
+    expect(getAdjustedDifference(after).toString()).toBe(expected.toString());
+  });
+});

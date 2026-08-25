@@ -9,21 +9,30 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
+import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
+import { useImpersonationSession } from "@/stores/impersonation.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
-  validateSearch: z.object({ onboarding: z.literal("EU").optional() })
+  validateSearch: z.object({
+    // Corridor an accepted invite deep-linked in — pre-added so its card is ready to start.
+    invited: corridorIdSchema.optional(),
+    // Any corridor, so the quote page can deep-link a sender straight into the onboarding they lack.
+    onboarding: corridorIdSchema.optional()
+  })
 });
 
 function OverviewPage() {
   const account = useActiveAccount();
+  const impersonation = useImpersonationSession();
+  const managedProfile = useManagedProfileSelection();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
-  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>([]);
+  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>(search.invited ? [search.invited] : []);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedToAdd, setSelectedToAdd] = useState<CorridorId | "">("");
 
@@ -38,6 +47,7 @@ function OverviewPage() {
   );
   const approved = corridors.filter(corridor => account.onboardings[corridor.id]?.status === "approved").length;
   const openCorridor = activeCorridor ?? search.onboarding ?? null;
+  const verificationReadOnly = impersonation !== null || managedProfile !== null;
 
   function addCorridor() {
     if (!selectedToAdd) {
@@ -73,6 +83,17 @@ function OverviewPage() {
         </div>
       </StaggerItem>
 
+      {verificationReadOnly && (
+        <StaggerItem>
+          <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+            <p className="font-medium">KYC/KYB is read-only while acting for another profile.</p>
+            <p className="text-muted-foreground">
+              You can review verification status, but verification must be completed outside this acting session.
+            </p>
+          </div>
+        </StaggerItem>
+      )}
+
       {corridors.length > 0 ? (
         <Stagger className="grid gap-4 md:grid-cols-2">
           {corridors.map(corridor => (
@@ -83,7 +104,12 @@ function OverviewPage() {
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
             >
-              <CorridorCard account={account} corridor={corridor} onStart={() => setActiveCorridor(corridor.id)} />
+              <CorridorCard
+                account={account}
+                corridor={corridor}
+                onStart={() => setActiveCorridor(corridor.id)}
+                verificationReadOnly={verificationReadOnly}
+              />
             </StaggerItem>
           ))}
         </Stagger>
@@ -123,7 +149,7 @@ function OverviewPage() {
         </DialogContent>
       </Dialog>
 
-      {openCorridor && (
+      {openCorridor && !verificationReadOnly && (
         <OnboardingWizard
           account={account}
           corridor={CORRIDORS[openCorridor]}

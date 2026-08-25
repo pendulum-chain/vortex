@@ -100,7 +100,7 @@ const TokenSelectionDemo = () => {
   const tokens = [
     { balance: "1,234.56", name: "USDC", network: "Polkadot" },
     { balance: "567.89", name: "USDT", network: "Ethereum" },
-    { balance: "100.00", name: "BRZ", network: "Stellar" }
+    { balance: "100.00", name: "BRZ", network: "Base" }
   ];
 
   return (

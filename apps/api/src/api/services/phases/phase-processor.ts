@@ -1,18 +1,22 @@
+import { RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { runWithRampContext } from "../../../config/ramp-context";
 import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import {
+  PhaseError,
+  ReconciliationRequiredPhaseError,
+  RecoverablePhaseError,
+  UnrecoverablePhaseError
+} from "../../errors/phase-error";
+import { enqueueRampCompletedEmail } from "../email/ramp-completion";
+import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
+import { StateMetadata } from "./meta-state-types";
+import { isMoonbeamRuntimeDisabledForState } from "./moonbeam-runtime";
+import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
-
-// A malformed env override must fall back to the default: parseInt would yield NaN
-// and setTimeout(..., NaN) fires immediately, which would time out every phase instantly.
-function positiveIntFromEnv(value: string | undefined, fallback: number): number {
-  const parsed = value ? parseInt(value, 10) : Number.NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 /**
  * Process phases for a ramping process
@@ -22,9 +26,9 @@ export class PhaseProcessor {
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
   // Overridable so tests don't wait 10 minutes for the execution timeout.
-  private readonly MAX_EXECUTION_TIME_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS, 600000); // 10 minutes
+  private readonly MAX_EXECUTION_TIME_MS = getPhaseProcessorMaxExecutionTimeMs(); // 10 minutes
   // Overridable so tests don't wait 30s between recoverable-error retries.
-  private readonly DEFAULT_RETRY_DELAY_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS, 30000);
+  private readonly DEFAULT_RETRY_DELAY_MS = getPhaseProcessorRetryDelayMs();
   private lockedRamps = new Set<string>();
 
   /**
@@ -55,6 +59,11 @@ export class PhaseProcessor {
         logger.warn(
           `Refusing to process ramp ${rampId}: belongs to flow ${state.flowVariant}, this backend is ${config.flowVariant}`
         );
+        return;
+      }
+
+      if (isMoonbeamRuntimeDisabledForState(state)) {
+        logger.warn(`Holding Moonbeam-dependent ramp ${rampId} while Moonbeam runtime operations are disabled`);
         return;
       }
 
@@ -138,6 +147,21 @@ export class PhaseProcessor {
   }
 
   /**
+   * Keep the lock fresh while a ramp advances through phases and retries.
+   */
+  private async refreshLock(state: RampState): Promise<void> {
+    await RampState.update(
+      {
+        processingLock: {
+          locked: true,
+          lockedAt: new Date()
+        }
+      },
+      { where: { id: state.id } }
+    );
+  }
+
+  /**
    * Check if the lock has expired. We do this to avoid stale locks that can happen when the service crashes or restarts.
    * @param state The current ramp state
    * @private
@@ -167,19 +191,75 @@ export class PhaseProcessor {
   }
 
   /**
+   * Resolve the next phase for a ramp.
+   *
+   * If the handler explicitly changed the phase (short-circuit override), honor it.
+   * Otherwise, if a phaseFlow is defined, advance to the next phase in the sequence.
+   * If no phaseFlow exists (legacy ramp), return the handler's result as-is.
+   */
+  private resolveNextPhase(originalPhase: RampPhase, handlerResult: RampState, state: RampState): RampPhase {
+    const stateMetadata = state.state as StateMetadata;
+    const phaseFlow = stateMetadata.phaseFlow;
+
+    // Legacy ramp without phaseFlow — handler must set the next phase
+    if (!phaseFlow) {
+      return handlerResult.currentPhase;
+    }
+    if (new Set(phaseFlow).size !== phaseFlow.length) {
+      throw new Error(`PhaseProcessor: phaseFlow contains duplicate phases for ramp ${state.id}`);
+    }
+
+    const currentIndex = phaseFlow.indexOf(originalPhase);
+    if (currentIndex === -1) {
+      throw new Error(`PhaseProcessor: Phase "${originalPhase}" not found in phaseFlow for ramp ${state.id}`);
+    }
+    if (currentIndex >= phaseFlow.length - 1) {
+      throw new Error(
+        `PhaseProcessor: Phase "${originalPhase}" is the last phase in phaseFlow but not terminal for ramp ${state.id}`
+      );
+    }
+
+    const sequentialNext = phaseFlow[currentIndex + 1];
+
+    // Handler explicitly changed the phase. It may only use an edge declared by
+    // the persisted flow version; legacy flows are limited to the sequential edge
+    // or the universal fail-closed edge.
+    if (handlerResult.currentPhase !== originalPhase) {
+      const allowed = stateMetadata.flow
+        ? (() => {
+            const flow = getBlockFlowByIdentity(stateMetadata.flow);
+            flow.assertState(stateMetadata);
+            return flow.transitions[originalPhase] ?? [];
+          })()
+        : [sequentialNext, "failed"];
+      if (!allowed.includes(handlerResult.currentPhase)) {
+        throw new Error(
+          `PhaseProcessor: transition ${originalPhase} -> ${handlerResult.currentPhase} is not allowed for ramp ${state.id}`
+        );
+      }
+      return handlerResult.currentPhase;
+    }
+
+    return sequentialNext;
+  }
+
+  /**
    * Process a phase
    * @param state The current ramp state
    */
   private async processPhase(state: RampState): Promise<void> {
     try {
+      // The lock is acquired once for the whole processing chain. Refresh it before
+      // every phase attempt so long phases and retries are not mistaken for crashed work.
+      await this.refreshLock(state);
+
       const { currentPhase } = state;
       logger.info(`Processing phase ${currentPhase} for ramp ${state.id}`);
 
       // Get the phase handler
       const handler = phaseRegistry.getHandler(currentPhase);
       if (!handler) {
-        logger.warn(`No handler found for phase ${currentPhase}`);
-        return;
+        throw new UnrecoverablePhaseError(`No handler registered for phase ${currentPhase}`);
       }
 
       // Execute the phase with a maximum waiting time
@@ -207,11 +287,19 @@ export class PhaseProcessor {
         clearTimeout(timeoutId);
       });
 
+      // Resolve the next phase: handler short-circuit > explicit flow > handler-driven (legacy)
+      const nextPhase = this.resolveNextPhase(currentPhase, pendingState, state);
+
+      const phaseHistory =
+        nextPhase !== pendingState.currentPhase
+          ? [...pendingState.phaseHistory, { phase: nextPhase, timestamp: new Date() }]
+          : pendingState.phaseHistory;
+
       // Single source of authority for phase transitions.
       // Persist only the phase-related fields on the original persisted instance
       // to avoid inserting new records or clobbering unrelated columns.
       const updatedState = await state.update(
-        { currentPhase: pendingState.currentPhase, phaseHistory: pendingState.phaseHistory },
+        { currentPhase: nextPhase, phaseHistory },
         { fields: ["currentPhase", "phaseHistory"] }
       );
 
@@ -231,6 +319,12 @@ export class PhaseProcessor {
       } else if (updatedState.currentPhase === "complete") {
         logger.info(`Ramp ${state.id} completed successfully`);
         this.retriesMap.delete(state.id);
+
+        // Enqueue only; the dispatch worker owns delivery, so a failure here must not
+        // fail the ramp that already succeeded.
+        enqueueRampCompletedEmail(updatedState).catch(error => {
+          logger.error(`Error enqueuing completion email for ${state.id}: ${error}`);
+        });
       } else if (updatedState.currentPhase === "failed") {
         logger.error(`Ramp ${state.id} failed unrecoverably, giving up.`);
         this.retriesMap.delete(state.id);
@@ -246,23 +340,18 @@ export class PhaseProcessor {
         error instanceof RecoverablePhaseError ? (error as RecoverablePhaseError).minimumWaitSeconds : undefined;
 
       if (isRecoverable) {
+        // BasePhaseHandler already persisted this execution error before rethrowing it.
+        const errorUpdatedState = state;
+
+        if (error instanceof ReconciliationRequiredPhaseError) {
+          logger.error(
+            `Pausing ramp ${errorUpdatedState.id} in phase ${state.currentPhase}: financial outcome requires reconciliation`
+          );
+          this.retriesMap.delete(errorUpdatedState.id);
+          return;
+        }
+
         const currentRetries = this.retriesMap.get(state.id) || 0;
-
-        // Add error to the state
-        const errorLogs = [
-          ...state.errorLogs,
-          {
-            details: error.stack || "",
-            error: error.message || "Unknown error",
-            isPhaseError,
-            phase: state.currentPhase,
-            recoverable: isRecoverable,
-            timestamp: new Date().toISOString()
-          }
-        ];
-
-        const errorUpdatedState = await state.update({ errorLogs });
-
         const phaseHandler = phaseRegistry.getHandler(state.currentPhase);
         const maxRetries = phaseHandler?.getMaxRetries?.() ?? this.MAX_RETRIES;
 

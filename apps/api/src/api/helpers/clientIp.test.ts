@@ -1,4 +1,5 @@
 import {describe, expect, it} from "bun:test";
+import {config} from "../../config/vars";
 import {enrichAdditionalDataWithClientIp, normalizeClientIp} from "./clientIp";
 
 describe("normalizeClientIp", () => {
@@ -17,12 +18,47 @@ describe("normalizeClientIp", () => {
 
 describe("enrichAdditionalDataWithClientIp", () => {
   it("adds the normalized request IP when additional data does not include one", async () => {
-    // A non-loopback request IP: loopback would trigger the real public-IP lookup
-    // (fetchHostPublicIp) in non-production, making the result network-dependent.
     const additionalData = await enrichAdditionalDataWithClientIp({ email: "user@example.com" }, { ip: "::ffff:203.0.113.42" });
 
     expect(additionalData?.email).toBe("user@example.com");
     expect(additionalData?.ipAddress).toBe("203.0.113.42");
+  });
+
+  it("keeps a loopback request IP without a public-IP lookup outside development", async () => {
+    const originalDeploymentEnv = config.deploymentEnv;
+    const originalFetch = globalThis.fetch;
+    let lookupAttempted = false;
+    config.deploymentEnv = "staging";
+    globalThis.fetch = (async () => {
+      lookupAttempted = true;
+      throw new Error("unexpected network call");
+    }) as unknown as typeof fetch;
+
+    try {
+      const additionalData = await enrichAdditionalDataWithClientIp({ email: "user@example.com" }, { ip: "::1" });
+
+      expect(lookupAttempted).toBe(false);
+      expect(additionalData?.ipAddress).toBe("127.0.0.1");
+    } finally {
+      config.deploymentEnv = originalDeploymentEnv;
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("substitutes the host public IP for a loopback request IP in development", async () => {
+    const originalDeploymentEnv = config.deploymentEnv;
+    const originalFetch = globalThis.fetch;
+    config.deploymentEnv = "development";
+    globalThis.fetch = (async () => new Response(JSON.stringify({ ip: "203.0.113.99" }))) as unknown as typeof fetch;
+
+    try {
+      const additionalData = await enrichAdditionalDataWithClientIp({ email: "user@example.com" }, { ip: "::1" });
+
+      expect(additionalData?.ipAddress).toBe("203.0.113.99");
+    } finally {
+      config.deploymentEnv = originalDeploymentEnv;
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("keeps a provided IPv4 address over the request IP", async () => {

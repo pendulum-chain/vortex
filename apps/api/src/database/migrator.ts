@@ -1,5 +1,5 @@
 import path from "path";
-import { Sequelize } from "sequelize";
+import { QueryTypes, Sequelize } from "sequelize";
 import { MigrationParams, SequelizeStorage, Umzug } from "umzug";
 import sequelize from "../config/database";
 import logger from "../config/logger";
@@ -21,6 +21,10 @@ function getAddIndexOptions(args: readonly unknown[]): Record<string, unknown> |
   const options = args.length >= 3 ? args[2] : args[1];
 
   return typeof options === "object" && options !== null ? (options as Record<string, unknown>) : undefined;
+}
+
+function getCanonicalMigrationName(name: string): string {
+  return name.replace(/\.ts$/, ".js");
 }
 
 // Create Umzug instance for migrations
@@ -155,7 +159,9 @@ const umzug = new Umzug({
       const migration = require(path);
       return {
         down: async () => migration.down(context, Sequelize),
-        name,
+        // Production loads compiled .js files while local development loads .ts files.
+        // Keep one identity in SequelizeMeta so switching runtimes cannot replay migrations.
+        name: getCanonicalMigrationName(name),
         up: async () => migration.up(context, Sequelize)
       };
     }
@@ -163,9 +169,66 @@ const umzug = new Umzug({
   storage: new SequelizeStorage({ sequelize })
 });
 
+// These migrations were renumbered to clear the duplicate-055 prefix. Databases that
+// already executed them under the old names (staging, developer machines) must have their
+// SequelizeMeta entries renamed, or umzug re-runs the renamed files and fails on
+// createTable. This cannot be a migration itself: umzug resolves the pending list before
+// executing any of them.
+const MIGRATION_RENAMES: Record<string, string> = {
+  "055-create-api-credentials": "057-create-api-credentials",
+  "057-create-partner-managed-profiles": "058-create-partner-managed-profiles",
+  "058-add-api-credential-id-to-quote-tickets": "059-add-api-credential-id-to-quote-tickets"
+};
+
+async function reconcileMigrationMetadata(): Promise<void> {
+  const [tableCheck] = await sequelize.query<{ present: boolean }>(
+    `SELECT to_regclass('public."SequelizeMeta"') IS NOT NULL AS present`,
+    { type: QueryTypes.SELECT }
+  );
+  if (!tableCheck?.present) {
+    return;
+  }
+
+  const [result] = await sequelize.query<{ deleted: number }>(
+    `WITH inserted AS (
+       INSERT INTO "SequelizeMeta" (name)
+       SELECT regexp_replace(name, '\\.ts$', '.js')
+       FROM "SequelizeMeta"
+       WHERE name LIKE '%.ts'
+       ON CONFLICT (name) DO NOTHING
+     ),
+     deleted AS (
+       DELETE FROM "SequelizeMeta"
+       WHERE name LIKE '%.ts'
+       RETURNING name
+     )
+     SELECT count(*)::int AS deleted FROM deleted`,
+    { type: QueryTypes.SELECT }
+  );
+
+  if (result?.deleted > 0) {
+    logger.info(`Normalized ${result.deleted} TypeScript migration name(s) in SequelizeMeta`);
+  }
+
+  for (const [oldBase, newBase] of Object.entries(MIGRATION_RENAMES)) {
+    const oldName = `${oldBase}.js`;
+    const newName = `${newBase}.js`;
+    const [, renamedCount] = await sequelize.query(
+      `UPDATE "SequelizeMeta" SET name = :newName
+       WHERE name = :oldName
+         AND NOT EXISTS (SELECT 1 FROM "SequelizeMeta" WHERE name = :newName)`,
+      { replacements: { newName, oldName }, type: QueryTypes.UPDATE }
+    );
+    if (renamedCount > 0) {
+      logger.info(`Renamed applied migration ${oldName} -> ${newName} in SequelizeMeta`);
+    }
+  }
+}
+
 // Run migrations
 export const runMigrations = async (): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
     await umzug.up();
     logger.info("Migrations completed successfully");
   } catch (error) {
@@ -177,6 +240,7 @@ export const runMigrations = async (): Promise<void> => {
 // Revert last migration
 export const revertLastMigration = async (): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
     await umzug.down();
     logger.info("Last migration reverted successfully");
   } catch (error) {
@@ -188,6 +252,7 @@ export const revertLastMigration = async (): Promise<void> => {
 // Revert all migrations
 export const revertAllMigrations = async (): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
     await umzug.down({ to: 0 });
     logger.info("All migrations reverted successfully");
   } catch (error) {
@@ -199,20 +264,24 @@ export const revertAllMigrations = async (): Promise<void> => {
 // Revert specific migration
 export const revertMigration = async (name: string): Promise<void> => {
   try {
+    await reconcileMigrationMetadata();
+    const canonicalName = getCanonicalMigrationName(name);
     const executed = await umzug.executed();
-    const index = executed.findIndex(m => m.name === name);
+    const index = executed.findIndex(m => m.name === canonicalName);
 
     if (index === -1) {
-      throw new Error(`Migration ${name} not found in executed migrations`);
+      throw new Error(`Migration ${canonicalName} not found in executed migrations`);
     }
 
     // If it's the first migration, revert all (to 0)
     // Otherwise, revert to the previous migration
     const to = index === 0 ? 0 : executed[index - 1].name;
 
-    logger.info(`Reverting to ${index === 0 ? "initial state" : to} (will revert ${name} and any subsequent migrations)`);
+    logger.info(
+      `Reverting to ${index === 0 ? "initial state" : to} (will revert ${canonicalName} and any subsequent migrations)`
+    );
     await umzug.down({ to });
-    logger.info(`Migration ${name} reverted successfully`);
+    logger.info(`Migration ${canonicalName} reverted successfully`);
   } catch (error) {
     logger.error(`Error reverting migration ${name}:`, error);
     throw error;

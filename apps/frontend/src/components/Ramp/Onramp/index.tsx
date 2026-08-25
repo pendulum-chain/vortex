@@ -1,13 +1,6 @@
-import {
-  getAnyFiatTokenDetails,
-  getEvmTokensLoadedSnapshot,
-  getOnChainTokenDetailsOrDefault,
-  isNetworkEVM,
-  Networks,
-  subscribeEvmTokensLoaded
-} from "@vortexfi/shared";
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, isNetworkEVM, Networks } from "@vortexfi/shared";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEventsContext } from "../../../contexts/events";
@@ -16,6 +9,7 @@ import { useQuoteForm } from "../../../hooks/quote/useQuoteForm";
 import { useQuoteService } from "../../../hooks/quote/useQuoteService";
 import { useRampSubmission } from "../../../hooks/ramp/useRampSubmission";
 import { useRampValidation } from "../../../hooks/ramp/useRampValidation";
+import { useEvmTokensLoaded } from "../../../hooks/useEvmTokensLoaded";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useFeeComparisonStore } from "../../../stores/feeComparison";
@@ -58,7 +52,7 @@ export const Onramp = () => {
 
   const { openTokenSelectModal } = useTokenSelectionActions();
 
-  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
+  const evmTokensLoaded = useEvmTokensLoaded();
   const tokenLoading = isNetworkEVM(selectedNetwork as Networks) && !evmTokensLoaded;
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);

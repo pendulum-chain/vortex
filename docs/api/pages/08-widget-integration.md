@@ -1,6 +1,6 @@
 # Widget Integration
 
-The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended path when your application runs in a browser, mobile WebView, or anywhere you cannot run `@vortexfi/sdk` server-side.
+The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended browser path when you do not need a fully custom UX or do not want to accept browser-side ephemeral custody.
 
 ## Endpoint
 
@@ -10,7 +10,7 @@ POST /v1/session/create
 
 This single endpoint creates a widget session and returns a hosted URL. It supports two mutually exclusive request shapes depending on whether you already have a quote.
 
-Authentication: pass your partner public key (`pk_live_*` / `pk_test_*`) as `apiKey` in the body for attribution. No secret key is required to create a session.
+Authentication: send your credential's public value (`pk_live_*` / `pk_test_*`) as `X-Public-Key` for attribution. The body `apiKey` field remains accepted for widget compatibility; if both are present, they must match. Never expose the corresponding secret in widget or browser code.
 
 `externalSessionId` is **required in both modes**. It is your own opaque identifier for the session and is echoed back in [webhook payloads](https://api-docs.vortexfinance.co/webhooks) so you can correlate events to your records.
 
@@ -21,6 +21,7 @@ Use this when your application has already created a quote via `POST /v1/quotes`
 ```http
 POST /v1/session/create
 Content-Type: application/json
+X-Public-Key: pk_live_...
 ```
 
 ```json
@@ -67,7 +68,6 @@ Content-Type: application/json
   "fiat": "BRL",
   "cryptoLocked": "USDC",
   "paymentMethod": "pix",
-  "apiKey": "pk_live_...",
   "callbackUrl": "https://partner.example.com/ramp/complete",
   "walletAddressLocked": "0x1234567890123456789012345678901234567890"
 }
@@ -84,7 +84,7 @@ Content-Type: application/json
 | `fiat` | no | Fiat currency for the fiat leg (e.g. `"BRL"`). Required in practice for fiat-side ramps. |
 | `cryptoLocked` | no | Pre-selects and locks the crypto asset in the widget (e.g. `"USDC"`). |
 | `paymentMethod` | no | Payment rail (e.g. `"pix"`). Required in practice for buy flows. |
-| `apiKey` | no | Partner public key `pk_live_*` / `pk_test_*` used for attribution and partner pricing on the quotes the widget creates. |
+| `apiKey` | no | Legacy body transport for the public credential value. Prefer `X-Public-Key`; if both are present, they must match. |
 | `countryCode` | no | ISO-3166 alpha-2 country code to pre-filter eligible options. |
 | `partnerId` | no | Partner identifier for attribution. |
 | `callbackUrl` | no | URL the widget redirects to after the user successfully creates the transaction. |
@@ -146,12 +146,15 @@ Content-Type: application/json
 
 Webhook payloads include the `sessionId` so you can correlate events back to your `externalSessionId`.
 
+Webhook management uses the corresponding server-side secret through `X-API-Key`. If an integration configures both public and secret values, keep them from the same credential; mixed credentials return `403 CREDENTIAL_MISMATCH`.
+
 ## When To Use The Widget
 
 | Scenario | Use |
 |---|---|
-| Browser / mobile app, no trusted backend | Widget |
-| Trusted Node.js backend, custom UX | `@vortexfi/sdk` |
+| Browser / mobile app, hosted UX | Widget |
+| Custom browser UX on an approved origin, accepting prototype localStorage custody | `@vortexfi/sdk` with Bearer auth |
+| Custom Node.js UX | `@vortexfi/sdk` with a secret credential |
 | Trusted Python backend | `vortex-sdk-python` |
 | Other backend stacks | Direct API ([AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration)) |
 

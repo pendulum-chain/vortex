@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
-  AlfredPayCountry,
-  AlfredpayFiatAccountType,
+  DomesticCountry,
+  DomesticFiatAccountType,
   AveniaTicketStatus,
   EPaymentMethod,
   EvmToken,
@@ -13,7 +13,7 @@ import {
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { parseUnits } from "viem";
+import { decodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { VortexSdk } from "../../../../packages/sdk/src";
 import QuoteTicket from "../models/quoteTicket.model";
@@ -79,7 +79,7 @@ function installChainIdShim(): { restore: () => void } {
  * pix), classifies and submits the user-wallet squid transactions
  * (getUserTransactionType / getTransactionToBroadcast / submitUserTransactions
  * / submitUserTxHash), reports hashes via the typed updateRamp, and drives the
- * ramp to completion — plus getQuote and listAlfredpayFiatAccounts, which had
+ * ramp to completion — plus getQuote and listDomesticFiatAccounts, which had
  * no contract coverage.
  */
 describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
@@ -168,15 +168,25 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
   }
 
   /** Scripts gas + bridged USDC on Base and the swap/payout ledger effects for a registered ramp. */
-  async function scriptHappyWorld(rampId: string, quoteId: string): Promise<{ swapOutputRaw: bigint }> {
+  async function scriptHappyWorld(rampId: string, quoteId: string): Promise<{ payoutTransferRaw: bigint }> {
     const state = await RampState.findByPk(rampId);
     const quote = await QuoteTicket.findByPk(quoteId);
     const ephemeralAddress = state?.state.evmEphemeralAddress as `0x${string}`;
     expect(ephemeralAddress).toBeTruthy();
-    const swapInputRaw = BigInt(quote?.metadata.nablaSwapEvm?.inputAmountForSwapRaw ?? "0");
-    const swapOutputRaw = BigInt(quote?.metadata.nablaSwapEvm?.outputAmountRaw ?? "0");
+    const metadata = quote?.metadata as unknown as
+      | {
+          blocks: {
+            aveniaOfframpPayout?: { transferAmountRaw?: string };
+            nablaSwap?: { inputAmountForSwapRaw?: string; outputAmountRaw?: string };
+          };
+        }
+      | undefined;
+    const swapInputRaw = BigInt(metadata?.blocks.nablaSwap?.inputAmountForSwapRaw ?? "0");
+    const swapOutputRaw = BigInt(metadata?.blocks.nablaSwap?.outputAmountRaw ?? "0");
+    const payoutTransferRaw = BigInt(metadata?.blocks.aveniaOfframpPayout?.transferAmountRaw ?? "0");
     expect(swapInputRaw).toBeGreaterThan(0n);
     expect(swapOutputRaw).toBeGreaterThan(0n);
+    expect(payoutTransferRaw).toBeGreaterThanOrEqual(swapOutputRaw);
 
     const signedNablaSwap = state?.presignedTxs?.find(tx => tx.phase === "nablaSwap")?.txData as `0x${string}`;
     const signedPayout = state?.presignedTxs?.find(tx => tx.phase === "brlaPayoutOnBase")?.txData as `0x${string}`;
@@ -190,11 +200,19 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
         world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, ephemeralAddress, swapOutputRaw);
         return;
       }
+      if (!tx.serialized && tx.to?.toLowerCase() === BRLA_ON_BASE.toLowerCase() && tx.data) {
+        const decoded = decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` });
+        if (decoded.functionName === "transfer" && String(decoded.args[0]).toLowerCase() === ephemeralAddress.toLowerCase()) {
+          const balance = world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, ephemeralAddress);
+          world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, ephemeralAddress, balance + BigInt(decoded.args[1]));
+        }
+        return;
+      }
       if (tx.serialized === signedPayout) {
-        world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet, swapOutputRaw);
+        world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet, payoutTransferRaw);
       }
     };
-    return { swapOutputRaw };
+    return { payoutTransferRaw };
   }
 
   /** Polls getRampStatus (itself part of the contract) until the ramp completes. */
@@ -268,7 +286,7 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
       expect(withHashes?.state.squidRouterApproveHash).toBeTruthy();
       expect(withHashes?.state.squidRouterSwapHash).toBeTruthy();
 
-      const { swapOutputRaw } = await scriptHappyWorld(rampProcess.id, quote.id);
+      const { payoutTransferRaw } = await scriptHappyWorld(rampProcess.id, quote.id);
       const started = await sdk.startRamp(rampProcess.id);
       expect(started.id).toBe(rampProcess.id);
 
@@ -279,7 +297,7 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
 
       // End to end, the Avenia subaccount received the swap output and a pix
       // payout ticket was created.
-      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(swapOutputRaw);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(payoutTransferRaw);
       expect(world.brla.pixOutputTickets.length).toBe(1);
     },
     30000
@@ -316,26 +334,26 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
   );
 
   it(
-    "listAlfredpayFiatAccounts returns the caller's registered fiat accounts",
+    "listDomesticFiatAccounts returns the caller's registered fiat accounts",
     async () => {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
-      const customer = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
+      const customer = await createTestAlfredpayCustomer(user.id, { country: DomesticCountry.MX });
       world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
         {
           accountNumber: "646180157000000004",
           accountType: "checking",
           customerId: customer.providerCustomerId as string,
           fiatAccountId: "fiat-account-1",
-          type: AlfredpayFiatAccountType.SPEI
+          type: DomesticFiatAccountType.SPEI
         }
       ]);
 
       const sdk = new VortexSdk({ apiBaseUrl: app.baseUrl, secretKey: plaintextKey, storeEphemeralKeys: false });
-      const accounts = await sdk.listAlfredpayFiatAccounts(AlfredPayCountry.MX);
+      const accounts = await sdk.listDomesticFiatAccounts(DomesticCountry.MX);
       expect(accounts).toHaveLength(1);
       expect(accounts[0].fiatAccountId).toBe("fiat-account-1");
-      expect(accounts[0].type).toBe(AlfredpayFiatAccountType.SPEI);
+      expect(accounts[0].type).toBe(DomesticFiatAccountType.SPEI);
     },
     30000
   );

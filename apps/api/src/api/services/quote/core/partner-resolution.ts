@@ -1,12 +1,13 @@
-import { CreateQuoteRequest, RampDirection } from "@vortexfi/shared";
+import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import logger from "../../../../config/logger";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
+import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import type { PartnerPricingSource } from "./types";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
-  partnerName?: string | null;
+  controllingManagerProfileId?: string;
   userId?: string;
 };
 
@@ -22,22 +23,26 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 async function findPartnerForRamp(
   partnerRef: string,
   rampType: RampDirection,
-  source: PartnerPricingSource
+  fiatCurrency: RampCurrency
 ): Promise<PartnerWithPricing | null> {
-  const isUuid = source === "request" && UUID_PATTERN.test(partnerRef);
-  const partner = await findPartnerWithPricing(isUuid ? { id: partnerRef } : { name: partnerRef }, rampType);
+  const isUuid = UUID_PATTERN.test(partnerRef);
+  const partner = await findPartnerWithPricing(isUuid ? { id: partnerRef } : { name: partnerRef }, rampType, fiatCurrency);
 
   if (!partner) {
     logger.warn(
-      `Partner '${partnerRef}' from ${source} not found or not active for rampType=${rampType}. Proceeding with default fees.`
+      `Partner '${partnerRef}' from request not found or not active for rampType=${rampType}. Proceeding with default fees.`
     );
   }
 
   return partner;
 }
 
-async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection): Promise<PartnerWithPricing | null> {
-  const partner = await findPartnerWithPricing({ id: partnerId }, rampType);
+async function findPartnerByIdForRamp(
+  partnerId: string,
+  rampType: RampDirection,
+  fiatCurrency: RampCurrency
+): Promise<PartnerWithPricing | null> {
+  const partner = await findPartnerWithPricing({ id: partnerId }, rampType, fiatCurrency);
 
   if (!partner) {
     logger.warn(
@@ -48,7 +53,7 @@ async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection
   return partner;
 }
 
-async function findAssignedPartnerId(userId: string, now: Date): Promise<string | null> {
+async function findAssignment(userId: string, now: Date): Promise<{ partnerId: string | null } | null> {
   const assignment = await ProfilePartnerAssignment.findOne({
     order: [["createdAt", "DESC"]],
     where: {
@@ -58,15 +63,17 @@ async function findAssignedPartnerId(userId: string, now: Date): Promise<string 
     }
   });
 
-  return assignment?.partnerId ?? null;
+  return assignment ? { partnerId: assignment.partnerId } : null;
 }
 
 export async function resolveQuotePartner(
   request: QuotePartnerResolutionRequest,
   now = new Date()
 ): Promise<ResolvedQuotePartner> {
+  const fiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+
   if (request.partnerId) {
-    const partner = await findPartnerForRamp(request.partnerId, request.rampType, "request");
+    const partner = await findPartnerForRamp(request.partnerId, request.rampType, fiatCurrency);
     return {
       ownerPartnerId: partner?.id ?? null,
       partner,
@@ -75,25 +82,32 @@ export async function resolveQuotePartner(
     };
   }
 
-  if (request.partnerName) {
-    const partner = await findPartnerForRamp(request.partnerName, request.rampType, "publicKey");
-    return {
-      ownerPartnerId: partner?.id ?? null,
-      partner,
-      pricingPartnerId: partner?.id ?? null,
-      source: "publicKey"
-    };
-  }
-
   if (request.userId) {
-    const assignedPartnerId = await findAssignedPartnerId(request.userId, now);
-    if (assignedPartnerId) {
-      const partner = await findPartnerByIdForRamp(assignedPartnerId, request.rampType);
+    const assignment = await findAssignment(request.userId, now);
+    if (assignment) {
+      const partner = assignment.partnerId
+        ? await findPartnerByIdForRamp(assignment.partnerId, request.rampType, fiatCurrency)
+        : null;
       return {
         ownerPartnerId: null,
         partner,
         pricingPartnerId: partner?.id ?? null,
-        source: "profileAssignment"
+        source: partner ? "profileAssignment" : "none"
+      };
+    }
+  }
+
+  if (request.controllingManagerProfileId) {
+    const assignment = await findAssignment(request.controllingManagerProfileId, now);
+    if (assignment) {
+      const partner = assignment.partnerId
+        ? await findPartnerByIdForRamp(assignment.partnerId, request.rampType, fiatCurrency)
+        : null;
+      return {
+        ownerPartnerId: null,
+        partner,
+        pricingPartnerId: partner?.id ?? null,
+        source: partner ? "managerProfileAssignment" : "none"
       };
     }
   }

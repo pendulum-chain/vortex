@@ -78,7 +78,7 @@ export function useTokenIcon(currencyOrDetails: string | TokenDetails, network?:
   return useMemo(() => {
     // Handle token details objects
     if (typeof currencyOrDetails !== "string") {
-      // FiatTokenDetails (Stellar or Moonbeam)
+      // FiatTokenDetails (Moonbeam)
       if (isFiatTokenDetails(currencyOrDetails)) {
         return {
           iconSrc: fiatIcon

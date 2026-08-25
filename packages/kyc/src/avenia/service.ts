@@ -1,9 +1,9 @@
 import type {
-  BrlaCreateSubaccountRequest,
-  BrlaCreateSubaccountResponse,
-  BrlaGetKycStatusResponse,
-  BrlaGetSelfieLivenessUrlResponse,
-  BrlaGetUserResponse,
+  BrCreateSubaccountRequest,
+  BrCreateSubaccountResponse,
+  BrGetKycStatusResponse,
+  BrGetSelfieLivenessUrlResponse,
+  BrGetUserResponse,
   KybAttemptStatusResponse,
   KycLevel1Payload
 } from "@vortexfi/shared";
@@ -35,20 +35,20 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function createAveniaKycApi(apiClient: AveniaKycApiClient): AveniaKycApi {
   return {
-    createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse> {
-      return apiClient.post<BrlaCreateSubaccountResponse>("/brla/createSubaccount", request);
+    createSubaccount(request: BrCreateSubaccountRequest): Promise<BrCreateSubaccountResponse> {
+      return apiClient.post<BrCreateSubaccountResponse>("/brla/createSubaccount", request);
     },
     getKybAttemptStatus(attemptId: string, signal?: AbortSignal): Promise<KybAttemptStatusResponse> {
       return apiClient.get<KybAttemptStatusResponse>("/brla/kyb/attempt-status", { params: { attemptId }, signal });
     },
-    getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse> {
-      return apiClient.get<BrlaGetKycStatusResponse>("/brla/getKycStatus", { params: { quoteId, sessionId, taxId } });
+    getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrGetKycStatusResponse> {
+      return apiClient.get<BrGetKycStatusResponse>("/brla/getKycStatus", { params: { quoteId, sessionId, taxId } });
     },
-    getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse> {
-      return apiClient.get<BrlaGetSelfieLivenessUrlResponse>("/brla/getSelfieLivenessUrl", { params: { taxId } });
+    getSelfieLivenessUrl(taxId: string): Promise<BrGetSelfieLivenessUrlResponse> {
+      return apiClient.get<BrGetSelfieLivenessUrlResponse>("/brla/getSelfieLivenessUrl", { params: { taxId } });
     },
-    getUser(taxId: string): Promise<BrlaGetUserResponse> {
-      return apiClient.get<BrlaGetUserResponse>("/brla/getUser", { params: { taxId } });
+    getUser(taxId: string): Promise<BrGetUserResponse> {
+      return apiClient.get<BrGetUserResponse>("/brla/getUser", { params: { taxId } });
     },
     initiateKybLevel1(subAccountId?: string): Promise<KybLevel1Response> {
       return apiClient.post<KybLevel1Response>("/brla/kyb/new-level-1/web-sdk", undefined, {

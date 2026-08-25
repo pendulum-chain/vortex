@@ -5,12 +5,8 @@ export interface ProfilePartnerAssignmentAttributes {
   id: string;
   userId: string;
   partnerName: string;
-  /** Canonical partner FK — replaces the buy/sell pair (which were the two direction-rows of the same partner). */
+  /** Canonical partner FK. */
   partnerId: string | null;
-  /** Legacy backup column — unread after the partners split. */
-  buyPartnerId: string | null;
-  /** Legacy backup column — unread after the partners split. */
-  sellPartnerId: string | null;
   isActive: boolean;
   expiresAt: Date | null;
   createdAt: Date;
@@ -19,7 +15,7 @@ export interface ProfilePartnerAssignmentAttributes {
 
 type ProfilePartnerAssignmentCreationAttributes = Optional<
   ProfilePartnerAssignmentAttributes,
-  "id" | "createdAt" | "updatedAt" | "isActive" | "expiresAt" | "partnerId" | "buyPartnerId" | "sellPartnerId"
+  "id" | "createdAt" | "updatedAt" | "isActive" | "expiresAt" | "partnerId"
 >;
 
 class ProfilePartnerAssignment
@@ -34,10 +30,6 @@ class ProfilePartnerAssignment
 
   declare partnerId: string | null;
 
-  declare buyPartnerId: string | null;
-
-  declare sellPartnerId: string | null;
-
   declare isActive: boolean;
 
   declare expiresAt: Date | null;
@@ -49,17 +41,6 @@ class ProfilePartnerAssignment
 
 ProfilePartnerAssignment.init(
   {
-    buyPartnerId: {
-      allowNull: true,
-      field: "buy_partner_id",
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
-      references: {
-        key: "id",
-        model: "partners"
-      },
-      type: DataTypes.UUID
-    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -98,17 +79,6 @@ ProfilePartnerAssignment.init(
       field: "partner_name",
       type: DataTypes.STRING(100)
     },
-    sellPartnerId: {
-      allowNull: true,
-      field: "sell_partner_id",
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
-      references: {
-        key: "id",
-        model: "partners"
-      },
-      type: DataTypes.UUID
-    },
     updatedAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -140,14 +110,6 @@ ProfilePartnerAssignment.init(
       {
         fields: ["partner_id"],
         name: "idx_profile_partner_assignments_partner_id"
-      },
-      {
-        fields: ["buy_partner_id"],
-        name: "idx_profile_partner_assignments_buy_partner"
-      },
-      {
-        fields: ["sell_partner_id"],
-        name: "idx_profile_partner_assignments_sell_partner"
       },
       {
         fields: ["user_id", "is_active", "expires_at"],

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
+import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -46,11 +47,12 @@ router
   .route("/")
   .post(
     rejectDuringActiveMaintenance("quote_create"),
-    validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
+    validateCreateQuoteInput,
     enforcePartnerAuth(),
+    authorizeManagedProfile(),
     createQuote
   );
 
@@ -111,11 +113,12 @@ router
   .route("/best")
   .post(
     rejectDuringActiveMaintenance("quote_create_best"),
-    validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
+    validateCreateBestQuoteInput,
     enforcePartnerAuth(),
+    authorizeManagedProfile(),
     createBestQuote
   );
 

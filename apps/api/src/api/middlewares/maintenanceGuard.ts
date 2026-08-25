@@ -1,11 +1,12 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
 import { getRequestDurationMs } from "../observability/requestContext";
 import type { ApiClientOperation } from "../observability/types";
 import { MaintenanceService } from "../services/maintenance.service";
+import { getEffectiveUserId } from "./effectiveUser";
 
 const MAINTENANCE_PROBLEM_TYPE = "https://api.vortexfinance.co/problems/maintenance-window";
 const BLOCKED_OPERATIONS = [
@@ -71,7 +72,7 @@ function observeMaintenanceDenial(
   }
 ): void {
   const body = getRequestBody(req);
-  const publicApiKey = getString(body.apiKey) || req.validatedPublicKey?.apiKey;
+  const publicApiKey = getString(body.apiKey);
   const secretApiKey = getHeaderValue(req.headers?.["x-api-key"]);
 
   observeApiClientEvent({
@@ -81,20 +82,21 @@ function observeMaintenanceDenial(
     errorType: classifyApiClientError(error, httpStatus.SERVICE_UNAVAILABLE),
     httpStatus: httpStatus.SERVICE_UNAVAILABLE,
     metadata: {
+      ...buildApiClientRequestMetadata(req),
       maintenance_end: maintenanceDetails.end_datetime,
       maintenance_start: maintenanceDetails.start_datetime,
       maintenance_title: maintenanceDetails.title
     },
     operation,
-    partnerId: req.authenticatedPartner?.id || getString(body.partnerId),
-    partnerName: req.authenticatedPartner?.name || req.validatedPublicKey?.partnerName || null,
+    partnerId: req.credential?.partnerId || null,
+    partnerName: req.authenticatedPartner?.name || null,
     paymentMethod: getString(body.paymentMethod),
     quoteId: getString(body.quoteId),
     rampId: getString(body.rampId),
     rampType: getString(body.rampType),
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 

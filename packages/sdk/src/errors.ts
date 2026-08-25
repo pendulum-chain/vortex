@@ -4,7 +4,10 @@ export interface APIErrorResponse {
   message: string;
   errors?: unknown[];
   status: number;
+  statusCode?: number;
   isPublic?: boolean;
+  code?: string;
+  type?: string;
 }
 
 export class VortexSdkError extends Error {
@@ -12,14 +15,16 @@ export class VortexSdkError extends Error {
   public readonly isPublic: boolean;
   public readonly errors?: unknown[];
   public readonly originalError?: Error;
+  public readonly code?: string;
 
-  constructor(message: string, status = 500, isPublic = false, errors?: unknown[], originalError?: Error) {
+  constructor(message: string, status = 500, isPublic = false, errors?: unknown[], originalError?: Error, code?: string) {
     super(message);
     this.name = "VortexSdkError";
     this.status = status;
     this.isPublic = isPublic;
     this.errors = errors;
     this.originalError = originalError;
+    this.code = code;
   }
 }
 
@@ -173,25 +178,25 @@ export class InvalidPixKeyError extends BrlOfframpError {
   }
 }
 
-// Alfredpay Onramp specific errors
-export class AlfredpayOnrampError extends RegisterRampError {
+// Domestic-corridor onramp specific errors
+export class DomesticOnrampError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOnrampError";
+    this.name = "DomesticOnrampError";
   }
 }
 
-export class MissingAlfredpayOnrampParametersError extends AlfredpayOnrampError {
+export class MissingDomesticOnrampParametersError extends DomesticOnrampError {
   constructor() {
-    super("Parameter destinationAddress is required for Alfredpay onramp", 400);
-    this.name = "MissingAlfredpayOnrampParametersError";
+    super("Parameter destinationAddress is required for this onramp", 400);
+    this.name = "MissingDomesticOnrampParametersError";
   }
 }
 
-export class AlfredpayOnrampKycRequiredError extends AlfredpayOnrampError {
+export class DomesticOnrampKycRequiredError extends DomesticOnrampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOnrampKycRequiredError";
+    this.name = "DomesticOnrampKycRequiredError";
   }
 }
 
@@ -211,18 +216,18 @@ function extractErrorStatus(response: Record<string, unknown>): number | undefin
   return undefined;
 }
 
-// Alfredpay Offramp specific errors
-export class AlfredpayOfframpError extends RegisterRampError {
+// Domestic-corridor offramp specific errors
+export class DomesticOfframpError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
-    this.name = "AlfredpayOfframpError";
+    this.name = "DomesticOfframpError";
   }
 }
 
-export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpError {
-  constructor(message = "Parameters fiatAccountId and walletAddress are required for Alfredpay offramp") {
+export class MissingDomesticOfframpParametersError extends DomesticOfframpError {
+  constructor(message = "Parameters fiatAccountId and walletAddress are required for this offramp") {
     super(message, 400);
-    this.name = "MissingAlfredpayOfframpParametersError";
+    this.name = "MissingDomesticOfframpParametersError";
   }
 }
 
@@ -381,6 +386,22 @@ export class APINotInitializedError extends VortexSdkInternalError {
   }
 }
 
+export class NetworkApiInitializationError extends VortexSdkInternalError {
+  public readonly network: string;
+  public readonly timeoutMs: number;
+
+  constructor(network: string, timeoutMs: number, originalError?: Error) {
+    const displayName = `${network.charAt(0).toUpperCase()}${network.slice(1)}`;
+    const message = originalError
+      ? `Failed to initialize ${displayName} WebSocket API: ${originalError.message}`
+      : `Timed out initializing ${displayName} WebSocket API after ${timeoutMs}ms`;
+    super(message, originalError);
+    this.name = "NetworkApiInitializationError";
+    this.network = network;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export class EphemeralGenerationError extends VortexSdkInternalError {
   constructor(network: string, originalError?: Error) {
     super(`Failed to generate ephemeral account for network: ${network}`, originalError);
@@ -441,9 +462,17 @@ function extractErrorMessage(value: unknown): string | undefined {
  */
 export function parseAPIError(response: unknown, fallbackStatus?: number): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, errors } = response as Record<string, unknown>;
+    const { message, error, errors, code, type } = response as Record<string, unknown>;
     const normalizedStatus = extractErrorStatus(response as Record<string, unknown>) ?? fallbackStatus ?? 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
+    const nestedError = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined;
+    let errorCode: string | undefined;
+    for (const candidate of [code, nestedError?.code, type, nestedError?.type]) {
+      if (typeof candidate === "string") {
+        errorCode = candidate;
+        break;
+      }
+    }
 
     if (errorMessage) {
       if (errorMessage?.includes("Missing required fields")) {
@@ -485,8 +514,11 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "KYC invalid") {
         return new KycInvalidError();
       }
-      if (errorMessage === "Missing taxId query parameters") {
+      if (errorMessage === "Missing taxId") {
         return new BrlKycStatusError("Tax ID is required", 400);
+      }
+      if (errorMessage === "Missing quoteId or taxId body parameter") {
+        return new BrlKycStatusError(errorMessage, 400);
       }
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();
@@ -497,24 +529,24 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
         return new InvalidPixKeyError();
       }
-      if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
-        return new MissingAlfredpayOnrampParametersError();
+      if (errorMessage === "Parameter destinationAddress is required for this onramp") {
+        return new MissingDomesticOnrampParametersError();
       }
       if (
         errorMessage ===
-          "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists." ||
-        errorMessage.startsWith("No completed Alfredpay KYC profile found") ||
-        errorMessage.startsWith("Alfredpay KYC status is")
+          "This onramp requires a completed KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-customer mapping exists." ||
+        errorMessage.startsWith("No completed KYC profile found") ||
+        errorMessage.startsWith("KYC status is")
       ) {
-        return new AlfredpayOnrampKycRequiredError(errorMessage, normalizedStatus);
+        return new DomesticOnrampKycRequiredError(errorMessage, normalizedStatus);
       }
-      if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
-        return new MissingAlfredpayOfframpParametersError(errorMessage);
+      if (errorMessage === "fiatAccountId is required for this offramp") {
+        return new MissingDomesticOfframpParametersError(errorMessage);
       }
-      // Shared across BRL, Alfredpay and Mykobo offramp routes (missing walletAddress);
+      // Shared across BRL, domestic-corridor and Mykobo offramp routes (missing walletAddress);
       // the message carries no corridor, so it cannot be mapped to a corridor-specific class.
       if (errorMessage === "User address must be provided for offramping.") {
-        return new MissingAlfredpayOfframpParametersError(errorMessage);
+        return new MissingDomesticOfframpParametersError(errorMessage);
       }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();
@@ -534,7 +566,7 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (
         errorMessage.startsWith("Mykobo KYC is not approved for this user") ||
         errorMessage === "Provided email does not match the profile bound to the authenticated user." ||
-        errorMessage === "No profile found for this user; cannot resolve the Mykobo customer."
+        errorMessage === "No email-authenticated profile found for this user; cannot resolve the Mykobo customer."
       ) {
         return new MykoboKycRequiredError(errorMessage, normalizedStatus);
       }
@@ -557,7 +589,9 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       errorMessage ?? "Unknown API error",
       normalizedStatus,
       true,
-      Array.isArray(errors) ? errors : undefined
+      Array.isArray(errors) ? errors : undefined,
+      undefined,
+      errorCode
     );
   }
 
@@ -582,3 +616,20 @@ export async function handleAPIResponse<T>(response: Response, endpoint: string)
     throw new NetworkError(`Failed to parse response from ${endpoint}`, error as Error);
   }
 }
+
+/*
+ * Deprecated provider-named error aliases. The error classes are named after the
+ * corridor family they belong to so they stay stable if the payment partner changes.
+ * These aliases keep previous imports working and are removed in the next major release.
+ */
+
+/** @deprecated Renamed to {@link DomesticOnrampError}. */
+export const AlfredpayOnrampError = DomesticOnrampError;
+/** @deprecated Renamed to {@link DomesticOnrampKycRequiredError}. */
+export const AlfredpayOnrampKycRequiredError = DomesticOnrampKycRequiredError;
+/** @deprecated Renamed to {@link DomesticOfframpError}. */
+export const AlfredpayOfframpError = DomesticOfframpError;
+/** @deprecated Renamed to {@link MissingDomesticOnrampParametersError}. */
+export const MissingAlfredpayOnrampParametersError = MissingDomesticOnrampParametersError;
+/** @deprecated Renamed to {@link MissingDomesticOfframpParametersError}. */
+export const MissingAlfredpayOfframpParametersError = MissingDomesticOfframpParametersError;

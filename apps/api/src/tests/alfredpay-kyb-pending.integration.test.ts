@@ -1,12 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredPayStatus,
   AlfredpayApiService,
-  AlfredpayCustomerType,
+  DomesticCustomerType,
   AlfredpayKycStatus
 } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
+import EmailNotification, { NotificationProvider, NotificationType } from "../models/emailNotification.model";
 import KycCase from "../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
@@ -23,6 +24,7 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 let api: TestApp;
 let fakeAuth: FakeSupabaseAuth;
 const realGetInstance = AlfredpayApiService.getInstance;
+const realNotificationFindOrCreate = EmailNotification.findOrCreate;
 
 beforeAll(async () => {
   await setupTestDatabase();
@@ -41,28 +43,41 @@ beforeEach(async () => {
 
 afterEach(() => {
   AlfredpayApiService.getInstance = realGetInstance;
+  EmailNotification.findOrCreate = realNotificationFindOrCreate;
 });
 
 function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 }
 
+// Carries the compliance questionnaire because `validateKybSubmission` rejects a submission without
+// it — the same 110002 contract Alfredpay enforces at finalize.
 const KYB_FORM = {
+  accountPurpose: "Treasury management",
   address: "Calle 1 # 2-3",
+  businessActivities: "Cross-border payments software",
   businessName: "Prueba SAS",
   city: "Bogota",
   country: "CO",
+  expectedMonthlyTransactions: 120,
+  expectedMonthlyVolumeUsd: 50000,
+  isRegulatedBusiness: false,
+  operatesInSanctionedCountries: false,
   relatedPersons: [
     {
       dateOfBirth: "1990-01-01",
       email: "rep@example.com",
       firstName: "Ana",
       lastName: "Rep",
-      nationalities: ["CO"]
+      nationalities: ["CO"],
+      pep: false
     }
   ],
+  sourceOfFunds: "Sale of goods/services",
   state: "DC",
   taxId: "900123456",
+  transmitsCustomerFunds: false,
+  walletAddresses: "N/A",
   website: "https://prueba.example.com",
   zipCode: "110111"
 };
@@ -72,9 +87,9 @@ async function createBusinessCustomer(email: string) {
   const token = testUserToken(user.id, email);
   await createAlfredpayCustomer(user.id, {
     alfredPayId: "ap-kyb-pending",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     status: AlfredPayStatus.Consulted,
-    type: AlfredpayCustomerType.BUSINESS
+    type: DomesticCustomerType.BUSINESS
   });
   return { token, user };
 }
@@ -428,6 +443,59 @@ describe("Alfredpay KYB PENDING submission", () => {
     expect(customer?.statusExternal).toBe("PENDING");
   });
 
+  it("queues a terminal KYB outcome before getKycStatus stops polling the customer", async () => {
+    const { token, user } = await createBusinessCustomer("kyb-completed-status@example.com");
+
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED, updatedAt: "2026-08-06T10:00:00Z" })),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-completed" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/getKycStatus?country=CO&type=BUSINESS", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(200);
+
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    expect(customer?.status).toBe(VerificationStatus.Approved);
+
+    const notification = await EmailNotification.findOne({
+      where: {
+        provider: NotificationProvider.Alfredpay,
+        resourceId: "kyb-sub-completed",
+        type: NotificationType.VerificationApproved
+      }
+    });
+    expect(notification).not.toBeNull();
+    expect(notification?.userId).toBe(user.id);
+    expect(notification?.payload).toEqual({ reason: null, subject: "business", updatedAt: "2026-08-06T10:00:00Z" });
+  });
+
+  it("does not persist a terminal status when its notification cannot be enqueued", async () => {
+    const { token } = await createBusinessCustomer("kyb-enqueue-failure@example.com");
+    EmailNotification.findOrCreate = (async () => {
+      throw new Error("queue unavailable");
+    }) as unknown as typeof EmailNotification.findOrCreate;
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED, updatedAt: "2026-08-06T10:00:00Z" })),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-retry" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/getKycStatus?country=CO&type=BUSINESS", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(500);
+
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    expect(customer?.status).toBe(VerificationStatus.Started);
+  });
+
   it("normalizes a lowercase provider status: re-submit updates the pending submission in place", async () => {
     const { token } = await createBusinessCustomer("kyb-lowercase-resubmit@example.com");
 
@@ -480,5 +548,65 @@ describe("Alfredpay KYB PENDING submission", () => {
     const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
     const kycCase = await KycCase.findOne({ where: { providerCustomerId: customer?.id } });
     expect(kycCase?.providerCaseId).toBe("kyb-sub-new");
+  });
+
+  // Alfredpay only reports a missing questionnaire at sendKybSubmission — after every document has
+  // been uploaded. These keep that contract enforced at the point of entry.
+  it("rejects a submission missing the compliance questionnaire before reaching Alfredpay", async () => {
+    const { token } = await createBusinessCustomer("kyb-missing-questionnaire@example.com");
+
+    const submitKybInformation = mock(async () => ({ submissionId: "should-not-be-created" }));
+    AlfredpayApiService.getInstance = mock(() => ({ submitKybInformation }) as unknown as AlfredpayApiService);
+
+    const { accountPurpose, ...withoutAccountPurpose } = KYB_FORM;
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(withoutAccountPurpose),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(submitKybInformation).not.toHaveBeenCalled();
+  });
+
+  it("rejects the conditional screening answer when funds are transmitted", async () => {
+    const { token } = await createBusinessCustomer("kyb-conditional-questionnaire@example.com");
+
+    const submitKybInformation = mock(async () => ({ submissionId: "should-not-be-created" }));
+    AlfredpayApiService.getInstance = mock(() => ({ submitKybInformation }) as unknown as AlfredpayApiService);
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify({ ...KYB_FORM, transmitsCustomerFunds: true }),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(submitKybInformation).not.toHaveBeenCalled();
+  });
+
+  // A customer that retried carries several businesses. Without submissionId the caller cannot tell
+  // which related persons belong to the submission it is filing, and uploads land on a stale person.
+  it("findKybCustomerAndBusiness keeps the submission id alongside each business's related persons", async () => {
+    const { token } = await createBusinessCustomer("kyb-related-persons@example.com");
+
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => [
+            { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+            { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+          ])
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/findKybCustomerAndBusiness?country=CO", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+      { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+    ]);
   });
 });

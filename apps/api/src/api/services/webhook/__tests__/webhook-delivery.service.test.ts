@@ -18,9 +18,12 @@ const originalDeactivateWebhook = webhookService.deactivateWebhook;
 const findWebhooksForEventMock = mock(async (): Promise<unknown[]> => []);
 const deactivateWebhookMock = mock(async (): Promise<boolean> => true);
 
+// IP-literal URLs keep the tests hermetic: the pre-delivery SSRF guard validates
+// IP literals without a DNS lookup. 93.184.216.34 (example.com, a real public
+// address) passes the guard; fetch is always stubbed, so nothing leaves the box.
 const fakeWebhook = (overrides: Record<string, unknown> = {}) => ({
   id: "webhook-1",
-  url: "https://example.com/hook",
+  url: "https://93.184.216.34/hook",
   ...overrides
 });
 
@@ -76,8 +79,8 @@ describe("WebhookDeliveryService", () => {
   describe("triggerTransactionCreated", () => {
     it("delivers the signed payload to every matching webhook", async () => {
       findWebhooksForEventMock.mockResolvedValue([
-        fakeWebhook({ id: "webhook-1", url: "https://example.com/hook1" }),
-        fakeWebhook({ id: "webhook-2", url: "https://example.com/hook2" })
+        fakeWebhook({ id: "webhook-1", url: "https://93.184.216.34/hook1" }),
+        fakeWebhook({ id: "webhook-2", url: "https://93.184.216.34/hook2" })
       ]);
       stubFetch(async () => new Response(null, { status: 200 }));
 
@@ -85,11 +88,12 @@ describe("WebhookDeliveryService", () => {
 
       expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.TRANSACTION_CREATED, "quote-123", "session-456");
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchCall(0).url).toBe("https://example.com/hook1");
-      expect(fetchCall(1).url).toBe("https://example.com/hook2");
+      expect(fetchCall(0).url).toBe("https://93.184.216.34/hook1");
+      expect(fetchCall(1).url).toBe("https://93.184.216.34/hook2");
 
       const payload = JSON.parse(fetchCall(0).body);
       expect(payload).toEqual({
+        eventId: expect.any(String),
         eventType: WebhookEventType.TRANSACTION_CREATED,
         payload: {
           quoteId: "quote-123",
@@ -148,6 +152,32 @@ describe("WebhookDeliveryService", () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(deactivateWebhookMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps the eventId stable across delivery retries", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      let attempts = 0;
+      stubFetch(async () => {
+        attempts++;
+        return new Response(null, { status: attempts < 3 ? 502 : 200 });
+      });
+
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
+
+      const first = JSON.parse(fetchCall(0).body);
+      const last = JSON.parse(fetchCall(2).body);
+      expect(first.eventId).toEqual(expect.any(String));
+      expect(last.eventId).toBe(first.eventId);
+    });
+
+    it("never fetches a webhook whose URL points at a private address, and deactivates it", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook({ url: "https://10.0.0.5/hook" })]);
+      stubFetch(async () => new Response(null, { status: 200 }));
+
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(deactivateWebhookMock).toHaveBeenCalledWith("webhook-1");
     });
 
     it("treats network errors like failures and deactivates after maxRetries without throwing", async () => {
@@ -214,6 +244,9 @@ describe("WebhookDeliveryService", () => {
 
       const { body, headers, init } = fetchCall(0);
       expect(init.method).toBe("POST");
+      // Redirects must be rejected so a public host cannot bounce the delivery
+      // to a private address.
+      expect(init.redirect).toBe("error");
       expect(headers["Content-Type"]).toBe("application/json");
       expect(headers["User-Agent"]).toBe("Vortex-Webhooks/1.0");
 
@@ -221,12 +254,15 @@ describe("WebhookDeliveryService", () => {
       expect(headers["X-Vortex-Timestamp"]).toMatch(/^\d+$/);
       expect(Math.abs(Number(headers["X-Vortex-Timestamp"]) - Date.now() / 1000)).toBeLessThan(60);
 
-      // Raw base64 RSA-PSS signature over the exact body — no "sha256=" prefix
-      // (that belonged to the removed HMAC scheme)
+      // Raw base64 RSA-PSS signature over `${timestamp}.${body}` — binding the
+      // timestamp so a captured body+signature cannot be replayed with a fresh
+      // timestamp. No "sha256=" prefix (that belonged to the removed HMAC scheme).
       const signature = headers["X-Vortex-Signature"];
       expect(signature.startsWith("sha256=")).toBe(false);
-      expect(cryptoService.verifySignature(body, signature)).toBe(true);
-      expect(cryptoService.verifySignature(`${body} `, signature)).toBe(false);
+      expect(cryptoService.verifySignature(`${headers["X-Vortex-Timestamp"]}.${body}`, signature)).toBe(true);
+      // Neither the body alone nor a shifted timestamp verifies
+      expect(cryptoService.verifySignature(body, signature)).toBe(false);
+      expect(cryptoService.verifySignature(`${Number(headers["X-Vortex-Timestamp"]) + 1}.${body}`, signature)).toBe(false);
     });
   });
 });

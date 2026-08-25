@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
   AveniaTicketStatus,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
@@ -12,6 +14,7 @@ import {
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -144,13 +147,6 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     return (await response.json()) as { id: string; outputAmount: string };
   }
 
-  // The EVM→BRL route still requires a Substrate entry in signingAccounts
-  // (validateOfframpQuote legacy default) even though this path never uses it to
-  // sign — all signing here is EVM. A static well-known SS58 address keeps the test
-  // off the @polkadot WASM keyring, whose CJS/ESM dual-load intermittently leaves an
-  // uninitialized bridge under Bun and crashed this suite in CI.
-  const SUBSTRATE_PLACEHOLDER_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-
   async function registerViaApi(
     quoteId: string,
     userId: string,
@@ -166,10 +162,7 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
           walletAddress: userWallet.address
         },
         quoteId,
-        signingAccounts: [
-          { address: ephemeral.address, type: "EVM" },
-          { address: SUBSTRATE_PLACEHOLDER_ADDRESS, type: "Substrate" }
-        ]
+        signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
       }),
       headers: {
         Authorization: `Bearer ${testUserToken(userId)}`,
@@ -188,15 +181,15 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
   }
 
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     return ephemeral.signTransaction({
       chainId: 8453,
-      data: txData.data,
-      gas: 600_000n,
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });
@@ -229,8 +222,9 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const swapInputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.inputAmountForSwapRaw ?? "0");
-    const swapOutputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.outputAmountRaw ?? "0");
+    const blocks = getFlowMetadata(persistedQuote?.metadata).blocks;
+    const swapInputRaw = BigInt((blocks.nablaSwap as { inputAmountForSwapRaw: string }).inputAmountForSwapRaw);
+    const swapOutputRaw = BigInt((blocks.aveniaOfframpPayout as { transferAmountRaw: string }).transferAmountRaw);
     expect(swapInputRaw).toBeGreaterThan(0n);
     expect(swapOutputRaw).toBeGreaterThan(0n);
 
@@ -390,6 +384,64 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
     },
     60000
+  );
+
+  it(
+    "pre-existing allowance: the ramp completes when only the swap hash is reported (no approve hash)",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The user's wallet already held a sufficient allowance for the squid
+      // router, so no approve tx was submitted — only the swap hash arrives.
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+    },
+    30000
+  );
+
+  it(
+    "security: a reported approve hash whose calldata differs from the blueprint still fails the ramp",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The approve hash is optional, but when one IS reported it must still
+      // match the blueprint — relaxing the presence check must not disable
+      // content verification.
+      const approveTxData = setup.approveBlueprint.txData as unknown as { to: `0x${string}`; value?: string };
+      const tamperedHash = world.evm.broadcastUserTransaction(Networks.Polygon, setup.userWallet.address, {
+        data: "0xdeadbeef",
+        to: approveTxData.to,
+        value: BigInt(approveTxData.value ?? "0")
+      });
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterApproveHash: tamperedHash, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("calldata does not match"))).toBe(true);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
+    },
+    30000
   );
 
   it(

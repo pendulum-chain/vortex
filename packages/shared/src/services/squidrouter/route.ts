@@ -2,6 +2,7 @@ import PQueue from "p-queue";
 import logger from "../../logger";
 import { squidRouterConfigBase } from "./config";
 import { generateRouteCacheKey, getCachedRoute, setCachedRoute, stripRouteForCache } from "./route-cache";
+import { squidrouterRouteResponseSchema } from "./schemas";
 
 const SQUIDROUTER_BASE_URL = "https://v2.api.squidrouter.com/v2";
 
@@ -45,7 +46,7 @@ export interface SquidRouterPayResponse {
 
 export interface SquidrouterRouteEstimate {
   toToken: { decimals: number };
-  aggregateSlippage: number;
+  aggregateSlippage?: number;
   toAmount: string;
   toAmountMin: string;
   toAmountUSD: string;
@@ -228,9 +229,9 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
   const { integratorId } = squidRouterConfigBase;
   const url = `${SQUIDROUTER_BASE_URL}/route`;
 
-  let fetchResult: Awaited<ReturnType<typeof squidFetch<{ route: SquidrouterRoute }>>>;
+  let fetchResult: Awaited<ReturnType<typeof squidFetch<unknown>>>;
   try {
-    fetchResult = await squidFetch<{ route: SquidrouterRoute }>(url, {
+    fetchResult = await squidFetch<unknown>(url, {
       body: JSON.stringify(params),
       headers: {
         "Content-Type": "application/json",
@@ -252,13 +253,9 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
     throw error;
   }
 
-  const { data, headers } = fetchResult;
+  const { data: rawData, headers } = fetchResult;
   const requestId = headers.get("x-request-id");
-
-  if (!data || !data.route) {
-    logger.current.error(`Invalid API response structure. Request ID: ${requestId}`);
-    throw new Error("Invalid response from Squid Router API");
-  }
+  const data = squidrouterRouteResponseSchema.parse(rawData);
 
   // FIXME remove this check once squidRouter works as expected again.
   // Check if slippage of received route is reasonable.
@@ -279,7 +276,8 @@ export async function getStatus(
   transactionId: string | undefined,
   fromChainId?: string,
   toChainId?: string,
-  quoteId?: string
+  quoteId?: string,
+  signal?: AbortSignal
 ): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
@@ -298,7 +296,8 @@ export async function getStatus(
 
   try {
     const { data } = await squidFetch<SquidRouterPayResponse>(url.toString(), {
-      headers: { "x-integrator-id": integratorId }
+      headers: { "x-integrator-id": integratorId },
+      signal
     });
     return data;
   } catch (error) {

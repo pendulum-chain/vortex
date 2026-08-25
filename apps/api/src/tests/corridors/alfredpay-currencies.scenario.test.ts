@@ -2,24 +2,27 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredpayOfframpStatus,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
   multiplyByPowerOfTen,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { BaseError, ContractFunctionExecutionError, decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction } from "viem";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -28,15 +31,26 @@ import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
-const USDT_ON_ARBITRUM = evmTokenConfig[Networks.Arbitrum][EvmToken.USDT]?.erc20AddressSourceChain as `0x${string}`;
-if (!USDT_ON_ARBITRUM) {
+const USDT_ON_ARBITRUM_CONFIG = evmTokenConfig[Networks.Arbitrum][EvmToken.USDT];
+if (!USDT_ON_ARBITRUM_CONFIG?.erc20AddressSourceChain) {
   throw new Error("USDT token config missing for Arbitrum");
 }
+const USDT_ON_ARBITRUM = USDT_ON_ARBITRUM_CONFIG.erc20AddressSourceChain as `0x${string}`;
+const USDT_ON_BSC_CONFIG = evmTokenConfig[Networks.BSC][EvmToken.USDT];
+if (!USDT_ON_BSC_CONFIG?.erc20AddressSourceChain) {
+  throw new Error("USDT token config missing for BSC");
+}
+const USDT_ON_BSC = USDT_ON_BSC_CONFIG.erc20AddressSourceChain as `0x${string}`;
 
 const CHAIN_IDS: Partial<Record<Networks, number>> = {
   [Networks.Arbitrum]: 42161,
+  [Networks.BSC]: 56,
   [Networks.Polygon]: 137
 };
+
+class ForeignContractFunctionExecutionError extends Error {
+  override readonly name = "ContractFunctionExecutionError";
+}
 
 const ONRAMP_PHASES: RampPhase[] = [
   "initial",
@@ -46,6 +60,7 @@ const ONRAMP_PHASES: RampPhase[] = [
   "squidRouterSwap",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -60,6 +75,7 @@ const CROSS_CHAIN_ONRAMP_PHASES: RampPhase[] = [
   "squidRouterPay",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -69,6 +85,7 @@ const OFFRAMP_PHASES: RampPhase[] = [
   "fundEphemeral",
   "finalSettlementSubsidy",
   "alfredpayOfframpTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -77,7 +94,7 @@ interface CurrencyCase {
   /** Alfredpay-side currency code expected on created orders. */
   alfredpayCurrency: string;
   /** KYC country the registration guard requires a completed profile for. */
-  country: AlfredPayCountry;
+  country: DomesticCountry;
   /** Quote destination string (payment rail). */
   rail: string;
   /** Fiat amount for the BUY quote (within the per-currency limits). */
@@ -94,7 +111,7 @@ interface CurrencyCase {
 const CURRENCY_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "USD",
-    country: AlfredPayCountry.US,
+    country: DomesticCountry.US,
     fiat: FiatToken.USD,
     offrampInputAmount: "5",
     offrampRate: 1,
@@ -104,7 +121,7 @@ const CURRENCY_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "COP",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     fiat: FiatToken.COP,
     offrampInputAmount: "100",
     offrampRate: 4000,
@@ -114,7 +131,7 @@ const CURRENCY_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "ARS",
-    country: AlfredPayCountry.AR,
+    country: DomesticCountry.AR,
     fiat: FiatToken.ARS,
     offrampInputAmount: "100",
     offrampRate: 1000,
@@ -131,7 +148,7 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
   ...CURRENCY_CASES,
   {
     alfredpayCurrency: "MXN",
-    country: AlfredPayCountry.MX,
+    country: DomesticCountry.MX,
     fiat: FiatToken.MXN,
     offrampInputAmount: "100",
     offrampRate: 20,
@@ -139,6 +156,35 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
     onrampRate: 0.05,
     rail: "spei"
   }
+];
+
+interface CrossChainOfframpSource {
+  chainId: string;
+  label: "Arbitrum" | "BSC";
+  network: typeof Networks.Arbitrum | typeof Networks.BSC;
+  token: `0x${string}`;
+  tokenDecimals: number;
+}
+
+const ARBITRUM_OFFRAMP_SOURCE = {
+  chainId: "42161",
+  label: "Arbitrum",
+  network: Networks.Arbitrum,
+  token: USDT_ON_ARBITRUM,
+  tokenDecimals: USDT_ON_ARBITRUM_CONFIG.decimals
+} satisfies CrossChainOfframpSource;
+
+const BSC_OFFRAMP_SOURCE = {
+  chainId: "56",
+  label: "BSC",
+  network: Networks.BSC,
+  token: USDT_ON_BSC,
+  tokenDecimals: USDT_ON_BSC_CONFIG.decimals
+} satisfies CrossChainOfframpSource;
+
+const CROSS_CHAIN_OFFRAMP_TEST_CASES = [
+  ...CROSS_CHAIN_OFFRAMP_CASES.map(currency => ({ currency, source: ARBITRUM_OFFRAMP_SOURCE })),
+  { currency: CURRENCY_CASES[0], source: BSC_OFFRAMP_SOURCE }
 ];
 
 /**
@@ -152,7 +198,8 @@ const CROSS_CHAIN_OFFRAMP_CASES: CurrencyCase[] = [
  * to Arbitrum via squid (mirroring the MXN cross-chain corridor) and SELL
  * takes the no-permit cross-chain fallback (user-broadcast squid approve+swap
  * on Arbitrum, verified by hash before the Polygon deposit transfer) — the
- * latter including MXN, whose own files only cover the direct Polygon path.
+ * latter including MXN, whose own files only cover the direct Polygon path —
+ * plus a focused BSC case for its 18-to-6-decimal permit-probe regression.
  */
 describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
   let world: FakeWorld;
@@ -180,11 +227,12 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     world.alfredpay.onCreateOnramp = undefined;
     world.alfredpay.onrampStatus = AlfredpayOnrampStatus.TRADE_COMPLETED;
     world.alfredpay.onrampStatusMetadata = null;
-    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.CREATED;
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
-    // The direct corridors never bridge; the cross-chain setups switch the
-    // fake route to USDT's 6 decimals, so reset to the fake's default here.
-    world.squidRouter.toTokenDecimals = 18;
+    // Both direct and cross-chain Alfredpay SELL simulations price a
+    // Squid-delivered Polygon USDT settlement leg.
+    world.squidRouter.computeToAmount = params => params.fromAmount;
+    world.squidRouter.toTokenDecimals = 6;
     world.squidRouter.bridgeStatus = "success";
   });
 
@@ -208,6 +256,9 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
         recipient,
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
+      if (recipient.toLowerCase() === world.alfredpay.offrampDepositAddress.toLowerCase()) {
+        world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+      }
     };
   }
 
@@ -259,20 +310,19 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
 
   /** Signs a blueprint exactly as issued; the nonce may be overridden for backups. */
   async function signBlueprint(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx, nonce?: number): Promise<`0x${string}`> {
-    const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
+    const txData = blueprint.txData as EvmTransactionData;
     const chainId = CHAIN_IDS[blueprint.network];
     if (!chainId) {
       throw new Error(`No chain id mapped for ${blueprint.network}`);
     }
     return ephemeral.signTransaction({
       chainId,
-      data: txData.data,
-      gas: 600_000n,
-      // validatePresignedTxs enforces the blueprint's fee minimums (3 gwei floor on Polygon).
-      maxFeePerGas: 5_000_000_000n,
-      maxPriorityFeePerGas: 5_000_000_000n,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
       nonce: nonce ?? blueprint.nonce,
-      to: txData.to,
+      to: txData.to as `0x${string}`,
       type: "eip1559",
       value: BigInt(txData.value ?? "0")
     });
@@ -304,15 +354,11 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
   }
 
-  /** Scripts the EIP-2612 nonces() probe to revert so registration takes the no-permit path. */
+  /** Scripts a separately constructed Viem-shaped error so registration takes the no-permit path across package boundaries. */
   function failNoncesProbe(): void {
     world.evm.onReadContract = (_network, params) => {
       if (params.functionName === "nonces") {
-        throw new ContractFunctionExecutionError(new BaseError("nonces() reverted"), {
-          abi: erc20Abi,
-          contractAddress: params.address,
-          functionName: "nonces"
-        });
+        throw new ForeignContractFunctionExecutionError("nonces() reverted");
       }
       return undefined;
     };
@@ -353,17 +399,25 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+    const registered = await RampState.findByPk(ramp.id);
+    const transferBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!transferBlueprint) throw new Error("destinationTransfer blueprint missing");
+    const transferTxData = transferBlueprint.txData as EvmTransactionData;
 
     const signTransfer = (nonce: number) =>
       ephemeral.signTransaction({
         chainId: 137,
         data: encodeFunctionData({ abi: erc20Abi, args: [destination, amountRaw], functionName: "transfer" }),
-        gas: 100_000n,
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(transferTxData.gas),
+        maxFeePerGas: BigInt(transferTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(transferTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: ALFREDPAY_ERC20_TOKEN,
         type: "eip1559"
@@ -433,7 +487,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -443,17 +500,18 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     expect(userTransferBlueprint).toBeDefined();
     expect(offrampTransferBlueprint).toBeDefined();
     const userTxData = userTransferBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
-    const offrampTxData = offrampTransferBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+    const offrampTxData = offrampTransferBlueprint?.txData as EvmTransactionData;
 
     const signOfframpTransfer = (nonce: number) =>
       ephemeral.signTransaction({
         chainId: 137,
-        data: offrampTxData.data,
-        gas: 100_000n,
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        data: offrampTxData.data as `0x${string}`,
+        gas: BigInt(offrampTxData.gas),
+        maxFeePerGas: BigInt(offrampTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(offrampTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
-        to: offrampTxData.to,
+        to: offrampTxData.to as `0x${string}`,
         type: "eip1559"
       });
     const backups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
@@ -529,8 +587,16 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayMint?: { outputAmountRaw?: string };
+            squidRouterSwap?: { outputAmountRaw?: string };
+          };
+        }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
+    const bridgedAmountRaw = BigInt(metadata?.blocks.squidRouterSwap?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);
 
@@ -588,15 +654,20 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
   /**
    * Cross-chain SELL setup via the HTTP API on the no-permit fallback (the
    * Alfredpay analog of the BRL cross-chain offramp's squid-hash flow): the
-   * user broadcasts the squid approve + swap from their own wallet on
-   * Arbitrum, the hashes are reported through /v1/ramp/update together with
+   * user broadcasts the squid approve + swap from their own wallet on the source chain,
+   * the hashes are reported through /v1/ramp/update together with
    * the presigned Polygon deposit transfer, and squidRouterPermitExecute
    * verifies them against the blueprints before any ephemeral funds move.
    */
-  async function setUpCrossChainOfframpRamp(currency: CurrencyCase): Promise<CrossChainOfframpSetup> {
+  async function setUpCrossChainOfframpRamp(
+    currency: CurrencyCase,
+    source: CrossChainOfframpSource
+  ): Promise<CrossChainOfframpSetup> {
     world.alfredpay.offrampRate = currency.offrampRate;
-    // The user's squid leg swaps 6-decimal Arbitrum USDT into 6-decimal
-    // Polygon USDT; the fake route must report matching decimals.
+    // The fake route is a decimal 1:1 swap, so convert source raw units into
+    // 6-decimal Polygon USDT raw units instead of re-labelling them.
+    world.squidRouter.computeToAmount = params =>
+      (BigInt(params.fromAmount) / 10n ** BigInt(source.tokenDecimals - ALFREDPAY_ERC20_DECIMALS)).toString();
     world.squidRouter.toTokenDecimals = 6;
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
@@ -606,10 +677,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id, { country: currency.country });
     const quote = await createQuoteViaApi({
-      from: Networks.Arbitrum,
+      from: source.network,
       inputAmount: currency.offrampInputAmount,
       inputCurrency: EvmToken.USDT,
-      network: Networks.Arbitrum,
+      network: source.network,
       outputCurrency: currency.fiat,
       rampType: RampDirection.SELL,
       to: currency.rail
@@ -620,7 +691,22 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayOfframp?: {
+              bridgeInputAmountRaw?: string;
+              bridgeOutputAmountRaw?: string;
+              inputAmountRaw?: string;
+            };
+          };
+        }
+      | undefined;
+    const bridgeInputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw ?? "0");
+    const bridgeOutputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw ?? "0");
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
+    expect(bridgeInputAmountRaw).toBe(parseUnits(currency.offrampInputAmount, source.tokenDecimals));
+    expect(bridgeOutputAmountRaw).toBe(parseUnits(currency.offrampInputAmount, ALFREDPAY_ERC20_DECIMALS));
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -631,8 +717,8 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const approveBlueprint = blueprintOf(allUnsignedTxs, "squidRouterNoPermitApprove");
     const swapBlueprint = blueprintOf(allUnsignedTxs, "squidRouterNoPermitSwap");
     const offrampTransferBlueprint = blueprintOf(allUnsignedTxs, "alfredpayOfframpTransfer");
-    expect(approveBlueprint.network).toBe(Networks.Arbitrum);
-    expect(swapBlueprint.network).toBe(Networks.Arbitrum);
+    expect(approveBlueprint.network).toBe(source.network);
+    expect(swapBlueprint.network).toBe(source.network);
     expect(approveBlueprint.signer.toLowerCase()).toBe(userWallet.address.toLowerCase());
     expect(swapBlueprint.signer.toLowerCase()).toBe(userWallet.address.toLowerCase());
 
@@ -786,7 +872,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     it(
-      `transient failure (${currency.fiat}): an RPC outage on the destination transfer is recoverable and the onramp still completes`,
+      `ambiguous destination broadcast (${currency.fiat}): pauses for reconciliation without paying the recipient`,
       async () => {
         const setup = await setUpOnrampRamp(currency);
         // The first broadcast of this corridor is the destination transfer.
@@ -796,17 +882,19 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
         await phaseProcessor.processRamp(setup.rampId);
 
         const final = await RampState.findByPk(setup.rampId);
-        expect(final?.currentPhase).toBe("complete");
-        expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(ONRAMP_PHASES);
+        expect(final?.currentPhase).toBe("destinationTransfer");
+        expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
         expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-        // The scripted outage was recorded as a recoverable destinationTransfer
-        // error, and after the retry the destination was still paid in full.
         const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-        expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+        expect(outageLogs.length).toBe(1);
         expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
         expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(setup.amountRaw);
+        expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+        expect(
+          await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })
+        ).toMatchObject({ status: "unknown" });
+        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(0n);
       },
       30000
     );
@@ -829,23 +917,26 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     );
   }
 
-  for (const currency of CROSS_CHAIN_OFFRAMP_CASES) {
+  for (const { currency, source } of CROSS_CHAIN_OFFRAMP_TEST_CASES) {
     it(
-      `${currency.fiat} cross-chain offramp (USDT on Arbitrum → squid → Polygon → ${currency.rail}) verifies the user's squid txs and completes`,
+      `${currency.fiat} cross-chain offramp (USDT on ${source.label} → squid → Polygon → ${currency.rail}) verifies the user's squid txs and completes`,
       async () => {
         const offrampOrdersBefore = world.alfredpay.offrampOrders.length;
-        const setup = await setUpCrossChainOfframpRamp(currency);
+        const setup = await setUpCrossChainOfframpRamp(currency, source);
 
-        // Registration requested an Arbitrum USDT → Polygon USDT route from
+        // Registration requested a source-chain USDT → Polygon USDT route from
         // the user's wallet, delivering to the ephemeral.
         const registrationRoute = world.squidRouter.requestedRoutes.find(
           route =>
-            route.fromToken.toLowerCase() === USDT_ON_ARBITRUM.toLowerCase() &&
+            route.fromToken.toLowerCase() === source.token.toLowerCase() &&
             route.toToken.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase() &&
             route.toAddress?.toLowerCase() === setup.ephemeralAddress.toLowerCase()
         );
-        expect(registrationRoute, "registration should request an Arbitrum→Polygon USDT route to the ephemeral").toBeDefined();
-        expect(registrationRoute?.fromChain).toBe("42161");
+        expect(
+          registrationRoute,
+          `registration should request a ${source.label}→Polygon USDT route to the ephemeral`
+        ).toBeDefined();
+        expect(registrationRoute?.fromChain).toBe(source.chainId);
         expect(registrationRoute?.toChain).toBe("137");
         expect(registrationRoute?.fromAddress.toLowerCase()).toBe(setup.userWalletAddress.toLowerCase());
 

@@ -2,18 +2,23 @@ import {
   CORRIDOR_CAPABILITIES,
   type CorridorCapability,
   type CorridorCountry,
-  type CorridorCustomerType
+  type CorridorCustomerType,
+  FiatToken,
+  RampDirection
 } from "@vortexfi/shared";
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
+import { config, RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS } from "../../config/vars";
 import CustomerEntity from "../../models/customerEntity.model";
+import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
-import RecipientInvitation, { type RecipientInviteeType } from "../../models/recipientInvitation.model";
+import RecipientInvitation, { type RecipientInviteeType, type SeededDiscount } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
+import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 import { emitNotification } from "../services/notifications/notification.service";
 import {
@@ -22,6 +27,7 @@ import {
   hashInviteToken,
   inviteExpiryDate
 } from "../services/recipients/recipient-invite.service";
+import { materializeSeededDiscounts } from "../services/recipients/seeded-discount.service";
 import {
   getTransferEligibility,
   isProviderApproved,
@@ -29,6 +35,54 @@ import {
 } from "../services/recipients/transfer-eligibility.service";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function recipientCorridor(
+  invitation: RecipientInvitation | null,
+  relationship?: SenderRecipient
+): CorridorCountry | undefined {
+  if (invitation?.country) return invitation.country.toUpperCase() as CorridorCountry;
+  if (!relationship?.rail) return undefined;
+  return (Object.entries(CORRIDOR_CAPABILITIES) as [CorridorCountry, CorridorCapability][]).find(
+    ([, capability]) => capability.rail === relationship.rail
+  )?.[0];
+}
+
+export async function resolveInvitationAuthorizationTarget(req: Request, res: Response) {
+  const senderCustomerEntityId = req.managedProfileContext?.customerEntityId;
+  const invitationId = String(req.params.id);
+  if (!senderCustomerEntityId || !UUID_PATTERN.test(invitationId)) {
+    sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
+    return;
+  }
+  const invitation = await RecipientInvitation.findOne({
+    where: { id: invitationId, senderCustomerEntityId }
+  });
+  if (!invitation) {
+    sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
+    return;
+  }
+  res.locals.recipientInvitation = invitation;
+  return recipientCorridor(invitation);
+}
+
+export async function resolveRecipientAuthorizationTarget(req: Request, res: Response) {
+  const senderCustomerEntityId = req.managedProfileContext?.customerEntityId;
+  const relationshipId = String(req.params.id);
+  if (!senderCustomerEntityId || !UUID_PATTERN.test(relationshipId)) {
+    sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
+    return;
+  }
+  const relationship = await SenderRecipient.findOne({
+    include: [{ as: "invitation", model: RecipientInvitation }],
+    where: { id: relationshipId, senderCustomerEntityId }
+  });
+  if (!relationship) {
+    sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
+    return;
+  }
+  res.locals.senderRecipient = relationship;
+  return recipientCorridor(relationship.get("invitation") as RecipientInvitation | null, relationship);
+}
 
 function sendError(res: Response, status: number, code: string, message: string): void {
   res.status(status).json({ error: { code, message, status } });
@@ -42,6 +96,15 @@ function requireUserId(req: Request, res: Response): string | null {
   return req.userId;
 }
 
+function requireEffectiveUserId(req: Request, res: Response): string | null {
+  const userId = getEffectiveUserId(req);
+  if (!userId) {
+    sendError(res, httpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Authentication required");
+    return null;
+  }
+  return userId;
+}
+
 interface CreateInviteBody {
   country?: string;
   rail?: string;
@@ -49,30 +112,53 @@ interface CreateInviteBody {
   alias?: string;
   inviteeEmail?: string;
   inviteeType?: string;
+  discounts?: { buyBps?: number; sellBps?: number };
 }
 
-export async function createInvite(req: Request, res: Response): Promise<void> {
-  const userId = requireUserId(req, res);
-  if (!userId) return;
+interface ValidatedCreateInvite {
+  input: CreateInviteBody & { country: string; payoutCurrency: string; rail: string };
+  seededDiscounts: SeededDiscount[];
+}
 
-  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
+function isValidBps(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS &&
+    value <= config.recipients.inviteMaxDiscountBps
+  );
+}
 
-  if (!country || country.length > 4 || !rail || rail.length > 8 || !payoutCurrency || payoutCurrency.length > 8) {
+function validateCreateInviteBody(req: Request, res: Response): ValidatedCreateInvite | null {
+  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType, discounts } = (req.body ?? {}) as CreateInviteBody;
+
+  if (
+    typeof country !== "string" ||
+    !country ||
+    country.length > 4 ||
+    typeof rail !== "string" ||
+    !rail ||
+    rail.length > 8 ||
+    typeof payoutCurrency !== "string" ||
+    !payoutCurrency ||
+    payoutCurrency.length > 8
+  ) {
     sendError(
       res,
       httpStatus.BAD_REQUEST,
       "INVALID_INVITE_CORRIDOR",
       "country (ISO code), rail and payoutCurrency are required"
     );
-    return;
+    return null;
   }
   if (inviteeType !== undefined && inviteeType !== "individual" && inviteeType !== "business") {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITEE_TYPE", "inviteeType must be 'individual' or 'business'");
-    return;
+    return null;
   }
   if (alias !== undefined && (typeof alias !== "string" || alias.length > 100)) {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_ALIAS", "alias must be a string of at most 100 characters");
-    return;
+    return null;
   }
   // The dashboard filters by the shared capability matrix; enforce the same rules here so a raw
   // API call cannot create an invite for an unknown corridor or a combination the corridor's
@@ -80,7 +166,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
   const corridor: CorridorCapability | undefined = CORRIDOR_CAPABILITIES[country.toUpperCase() as CorridorCountry];
   if (!corridor || corridor.rail !== rail.toLowerCase()) {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITE_CORRIDOR", "Unknown corridor");
-    return;
+    return null;
   }
   const effectiveInviteeType = (inviteeType ?? "individual") as CorridorCustomerType;
   if (!corridor.customerTypes.includes(effectiveInviteeType)) {
@@ -90,10 +176,69 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       "UNSUPPORTED_INVITEE_TYPE",
       `The ${country.toUpperCase()} corridor cannot onboard ${effectiveInviteeType} recipients`
     );
-    return;
+    return null;
+  }
+  if (
+    discounts !== undefined &&
+    (typeof discounts !== "object" ||
+      discounts === null ||
+      (discounts.buyBps !== undefined && !isValidBps(discounts.buyBps)) ||
+      (discounts.sellBps !== undefined && !isValidBps(discounts.sellBps)))
+  ) {
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "INVALID_DISCOUNTS",
+      `discounts.buyBps and discounts.sellBps must be integers between 0 and ${config.recipients.inviteMaxDiscountBps}`
+    );
+    return null;
+  }
+  // 0 bps means "no discount" — the corridor rail uppercased is exactly its FiatToken value.
+  const seededFiat = corridor.rail.toUpperCase() as FiatToken;
+  const seededDiscounts: SeededDiscount[] = [
+    ...(discounts?.buyBps ? [{ bps: discounts.buyBps, fiatCurrency: seededFiat, rampType: RampDirection.BUY }] : []),
+    ...(discounts?.sellBps ? [{ bps: discounts.sellBps, fiatCurrency: seededFiat, rampType: RampDirection.SELL }] : [])
+  ];
+  if (seededDiscounts.length > 0 && !Object.values(FiatToken).includes(seededFiat)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_DISCOUNTS", "This corridor does not support discounts");
+    return null;
   }
 
+  return {
+    input: { alias, country, discounts, inviteeEmail, inviteeType, payoutCurrency, rail },
+    seededDiscounts
+  };
+}
+
+export function validateCreateInvite(req: Request, res: Response, next: NextFunction): void {
+  const validated = validateCreateInviteBody(req, res);
+  if (!validated) return;
+  res.locals.createInvite = validated;
+  next();
+}
+
+export async function createInvite(req: Request, res: Response): Promise<void> {
+  const userId = requireEffectiveUserId(req, res);
+  if (!userId) return;
+
+  const validated = (res.locals.createInvite as ValidatedCreateInvite | undefined) ?? validateCreateInviteBody(req, res);
+  if (!validated) return;
+  const { input, seededDiscounts } = validated;
+  const { alias, country, inviteeEmail, inviteeType, payoutCurrency, rail } = input;
+
   try {
+    // Attaching discounts is a privileged capability — enforce the role server-side so a
+    // raw API call cannot seed pricing the UI would never have offered.
+    if (seededDiscounts.length > 0) {
+      const role = await ProfileRole.findOne({
+        where: { role: "discount_manager", userId: getAuthenticatedProfileId(req) }
+      });
+      if (!role) {
+        sendError(res, httpStatus.FORBIDDEN, "DISCOUNT_ROLE_REQUIRED", "Only discount managers can attach invite discounts");
+        return;
+      }
+    }
+
     // Invites unlock once any of the sender's corridors is approved (the dashboard rule) —
     // enforce it here too. Approvals are persisted on provider_customers by every provider.
     const senderEntityIds = (await CustomerEntity.findAll({ attributes: ["id"], where: { profileId: userId } })).map(
@@ -127,6 +272,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       inviteeType: (inviteeType ?? "individual") as RecipientInviteeType,
       payoutCurrency: payoutCurrency.toLowerCase(),
       rail: rail.toLowerCase(),
+      seededDiscounts: seededDiscounts.length > 0 ? seededDiscounts : null,
       senderCustomerEntityId: senderEntity.id,
       // The raw token is kept while the invite is pending so the sender can re-copy the
       // link; redemption looks up by hash only, and acceptance clears the raw token.
@@ -144,12 +290,67 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       inviteeType: invitation.inviteeType,
       payoutCurrency: invitation.payoutCurrency,
       rail: invitation.rail,
+      seededDiscounts: invitation.seededDiscounts,
       status: invitation.status,
       token
     });
   } catch (error) {
     logger.error("Error creating recipient invite:", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create invite");
+  }
+}
+
+/**
+ * Read-only invite preview for the dashboard's confirm-before-accept screen: same gate
+ * checks as acceptance (existence, expiry, email binding, self-accept) but consumes
+ * nothing and writes nothing, so a declined confirmation leaves the invite redeemable.
+ */
+export async function previewInvite(req: Request<{ token: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const invitation = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(req.params.token) } });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "Invite not found");
+      return;
+    }
+    const isReEntry = invitation.status === "accepted" && invitation.acceptedByProfileId === userId;
+    if (invitation.status === "accepted" && !isReEntry) {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (invitation.status === "revoked") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
+      return;
+    }
+    if (invitation.inviteeEmailCanonical && canonicalizeEmail(req.userEmail ?? "") !== invitation.inviteeEmailCanonical) {
+      sendError(res, httpStatus.FORBIDDEN, "INVITE_EMAIL_MISMATCH", "This invite is bound to a different email address");
+      return;
+    }
+    const senderEntity = await CustomerEntity.findByPk(invitation.senderCustomerEntityId);
+    if (!senderEntity) {
+      sendError(res, httpStatus.GONE, "INVITE_SENDER_GONE", "The sender of this invite no longer exists");
+      return;
+    }
+    if (senderEntity.profileId === userId) {
+      sendError(res, httpStatus.CONFLICT, "CANNOT_ACCEPT_OWN_INVITE", "You cannot accept your own invite");
+      return;
+    }
+
+    res.status(httpStatus.OK).json({
+      country: invitation.country,
+      inviteeType: invitation.inviteeType,
+      payoutCurrency: invitation.payoutCurrency,
+      rail: invitation.rail
+    });
+  } catch (error) {
+    logger.error("Error previewing recipient invite:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to preview invite");
   }
 }
 
@@ -234,30 +435,42 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       // pending invite into a re-entry between the unlocked pre-check and this transaction.
       const reEntry = lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId === userId;
 
+      // The sender's block applies to the pair, not one rail: a new invite on a different
+      // rail must not slip past it and create a fresh active relationship.
+      const blockedSibling = await SenderRecipient.findOne({
+        transaction,
+        where: {
+          recipientCustomerEntityId: recipientEntity.id,
+          relationshipStatus: "blocked",
+          senderCustomerEntityId: invitation.senderCustomerEntityId
+        }
+      });
+      if (blockedSibling) {
+        return "blocked" as const;
+      }
+
+      // One relationship per (sender, recipient, rail): an invite on a new rail adds a row
+      // instead of repointing the pair's single row and dropping its previous corridor.
       const [row, created] = await SenderRecipient.findOrCreate({
         defaults: {
           invitationId: invitation.id,
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           relationshipStatus: "active",
           senderCustomerEntityId: invitation.senderCustomerEntityId
         },
         transaction,
         where: {
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           senderCustomerEntityId: invitation.senderCustomerEntityId
         }
       });
 
-      if (!created) {
-        if (row.relationshipStatus === "blocked") {
-          // The sender blocked this recipient; a new invite acceptance must not undo that.
-          return "blocked" as const;
-        }
+      if (!created && !reEntry) {
         // Re-entry reads the relationship, it does not revive it: the sender may have archived
         // this recipient, and reopening the link must not silently undo that.
-        if (!reEntry) {
-          await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
-        }
+        await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
       }
 
       if (!reEntry) {
@@ -267,6 +480,19 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
           { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted", token: null },
           { transaction }
         );
+
+        // A discount-carrying invite materializes its pricing for the accepting profile
+        // atomically with the acceptance. A profile with an active partner assignment keeps
+        // it — the invite then only connects the recipient.
+        if (lockedInvitation.seededDiscounts?.length) {
+          const outcome = await materializeSeededDiscounts(
+            userId,
+            lockedInvitation.id,
+            lockedInvitation.seededDiscounts,
+            transaction
+          );
+          logger.info(`Seeded discounts for invite ${lockedInvitation.id}, profile ${userId}: ${outcome}`);
+        }
       }
       return { reEntry, row };
     });
@@ -318,7 +544,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
 }
 
 export async function listRecipients(req: Request, res: Response): Promise<void> {
-  const userId = requireUserId(req, res);
+  const userId = requireEffectiveUserId(req, res);
   if (!userId) return;
 
   try {
@@ -335,8 +561,21 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       where: { relationshipStatus: { [Op.ne]: "archived" }, senderCustomerEntityId: senderEntity.id }
     });
 
+    const managedPolicy = res.locals.managedProfilePolicy as
+      | { allowedCorridors: readonly CorridorCountry[]; customerType: CorridorCustomerType }
+      | undefined;
+    const visibleCorridors = managedPolicy?.allowedCorridors.filter(corridor =>
+      CORRIDOR_CAPABILITIES[corridor].customerTypes.includes(managedPolicy.customerType)
+    );
+    const visibleRelationships = managedPolicy
+      ? relationships.filter(row => {
+          const corridor = recipientCorridor(row.get("invitation") as RecipientInvitation | null, row);
+          return corridor !== undefined && visibleCorridors?.includes(corridor);
+        })
+      : relationships;
+
     const recipients = await Promise.all(
-      relationships.map(async row => {
+      visibleRelationships.map(async row => {
         const invitation = row.get("invitation") as RecipientInvitation | null;
         const recipient = row.get("recipient") as CustomerEntity | null;
         const payoutReferences = (row.get("payoutReferences") as RecipientPayoutReference[] | undefined) ?? [];
@@ -398,6 +637,7 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       {
         where: {
           expiresAt: { [Op.lt]: now },
+          ...(visibleCorridors ? { country: visibleCorridors } : {}),
           senderCustomerEntityId: senderEntity.id,
           status: "pending"
         }
@@ -415,8 +655,15 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       }
     });
 
+    const visibleInvitations = managedPolicy
+      ? pendingInvitations.filter(invitation => {
+          const corridor = recipientCorridor(invitation);
+          return corridor !== undefined && visibleCorridors?.includes(corridor);
+        })
+      : pendingInvitations;
+
     res.status(httpStatus.OK).json({
-      pendingInvitations: pendingInvitations.map(invitation => ({
+      pendingInvitations: visibleInvitations.map(invitation => ({
         alias: invitation.alias,
         country: invitation.country,
         createdAt: invitation.createdAt,
@@ -427,6 +674,8 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         isExpired: invitation.status === "expired" || Boolean(invitation.expiresAt && invitation.expiresAt < now),
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail,
+        // Discount-carrying invites deep-link to the dashboard, so re-copy must know.
+        seededDiscounts: invitation.seededDiscounts,
         // Raw token for sender re-copy; null for invites created before it was retained.
         token: invitation.token
       })),
@@ -446,7 +695,7 @@ interface UpdateRecipientBody {
 const PATCHABLE_STATUSES: SenderRecipientStatus[] = ["active", "blocked", "archived"];
 
 export async function updateRecipient(req: Request<{ id: string }>, res: Response): Promise<void> {
-  const userId = requireUserId(req, res);
+  const userId = requireEffectiveUserId(req, res);
   if (!userId) return;
 
   const { nickname, status } = (req.body ?? {}) as UpdateRecipientBody;
@@ -462,9 +711,9 @@ export async function updateRecipient(req: Request<{ id: string }>, res: Respons
 
   try {
     const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
-    const relationship = await SenderRecipient.findOne({
-      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
-    });
+    const relationship =
+      (res.locals.senderRecipient as SenderRecipient | undefined) ??
+      (await SenderRecipient.findOne({ where: { id: req.params.id, senderCustomerEntityId: senderEntity.id } }));
     if (!relationship) {
       sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
       return;
@@ -498,7 +747,7 @@ interface ArchiveInvitationBody {
 // Sender-side list hide only — the invitation keeps its status and the token stays
 // redeemable, so an archived invite never blocks the recipient's onboarding.
 export async function archiveInvitation(req: Request<{ id: string }>, res: Response): Promise<void> {
-  const userId = requireUserId(req, res);
+  const userId = requireEffectiveUserId(req, res);
   if (!userId) return;
 
   const { archived } = (req.body ?? {}) as ArchiveInvitationBody;
@@ -514,9 +763,9 @@ export async function archiveInvitation(req: Request<{ id: string }>, res: Respo
 
   try {
     const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
-    const invitation = await RecipientInvitation.findOne({
-      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
-    });
+    const invitation =
+      (res.locals.recipientInvitation as RecipientInvitation | undefined) ??
+      (await RecipientInvitation.findOne({ where: { id: req.params.id, senderCustomerEntityId: senderEntity.id } }));
     if (!invitation) {
       sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
       return;
@@ -532,14 +781,14 @@ export async function archiveInvitation(req: Request<{ id: string }>, res: Respo
 }
 
 export async function getRecipientEligibility(req: Request<{ id: string }>, res: Response): Promise<void> {
-  const userId = requireUserId(req, res);
+  const userId = requireEffectiveUserId(req, res);
   if (!userId) return;
 
   try {
     const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
-    const relationship = await SenderRecipient.findOne({
-      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
-    });
+    const relationship =
+      (res.locals.senderRecipient as SenderRecipient | undefined) ??
+      (await SenderRecipient.findOne({ where: { id: req.params.id, senderCustomerEntityId: senderEntity.id } }));
     if (!relationship) {
       sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
       return;

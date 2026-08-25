@@ -1,8 +1,8 @@
 import {
-  AlfredPayCountry,
   AlfredPayType,
   AveniaAccountType,
   type DestinationType,
+  DomesticCountry,
   EPaymentMethod,
   EvmToken,
   FiatToken,
@@ -11,13 +11,13 @@ import {
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/apiKeyAuth.helpers";
+import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../api/middlewares/apiKeyAuth.helpers";
 import { hashTaxReference } from "../api/services/avenia/avenia-customer.service";
 import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
-import ApiKey from "../models/apiKey.model";
+import ApiCredential from "../models/apiCredential.model";
 import Partner, { type PartnerAttributes } from "../models/partner.model";
 import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
@@ -26,16 +26,20 @@ import RampState, { type RampStateAttributes } from "../models/rampState.model";
 import User from "../models/user.model";
 
 let sequence = 0;
+const TEST_VORTEX_EVM_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000fee5";
+
 function nextSeq(): number {
   return ++sequence;
 }
 
-export async function createTestUser(overrides: Partial<{ id: string; email: string }> = {}): Promise<User> {
+export async function createTestUser(
+  overrides: Partial<{ id: string; email: string }> = {}
+): Promise<User & { email: string }> {
   const seq = nextSeq();
   return User.create({
     email: overrides.email ?? `test-user-${seq}@example.com`,
     id: overrides.id ?? crypto.randomUUID()
-  });
+  }) as Promise<User & { email: string }>;
 }
 
 type TestPartnerOverrides = Partial<
@@ -63,6 +67,7 @@ export async function createTestPartner(overrides: TestPartnerOverrides = {}): P
   });
 
   await PartnerPricingConfig.create({
+    fiatCurrency: overrides.fiatCurrency ?? null,
     isActive: overrides.isActive ?? true,
     markupCurrency: overrides.markupCurrency ?? FiatToken.EURC,
     markupType: overrides.markupType ?? "none",
@@ -88,8 +93,9 @@ export async function createTestPartner(overrides: TestPartnerOverrides = {}): P
  */
 export async function createTestApiKey(
   options: { partnerName?: string; userId?: string } = {}
-): Promise<{ record: ApiKey; plaintextKey: string }> {
+): Promise<{ record: ApiCredential; plaintextKey: string; publicKey: string }> {
   const plaintextKey = generateApiKey("secret", "test");
+  const publicKey = generateApiKey("public", "test");
 
   // Auth resolves partners by FK; translate the name (unique) to the id here so tests can
   // keep passing partnerName.
@@ -99,20 +105,18 @@ export async function createTestApiKey(
     partnerId = partner?.id ?? null;
   }
 
-  const record = await ApiKey.create({
-    expiresAt: null,
-    isActive: true,
-    keyHash: await hashApiKey(plaintextKey),
-    keyPrefix: getKeyPrefix(plaintextKey),
-    keyType: "secret",
-    keyValue: null,
-    lastUsedAt: null,
+  const profileId = options.userId ?? (await createTestUser()).id;
+  const record = await ApiCredential.create({
+    environment: "test",
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
     name: "test key",
     partnerId,
-    partnerName: options.partnerName ?? null,
-    userId: options.userId ?? null
+    profileId,
+    publicKeyValue: publicKey,
+    secretKeyDigest: digestApiKey(plaintextKey),
+    secretKeyPrefix: getSecretKeyLookupPrefix(plaintextKey)
   });
-  return { plaintextKey, record };
+  return { plaintextKey, publicKey, record };
 }
 
 /** Minimal complete fee structure so status/fee readers work; override per test. */
@@ -125,7 +129,7 @@ export function defaultQuoteFees(currency: FiatToken = FiatToken.EURC): NonNulla
 
 /**
  * A pending EUR→USDC-on-Base onramp quote by default; override anything.
- * Metadata carries a minimal fee structure — pass a realistic `metadata`
+ * Metadata carries a minimal catalog structure — pass realistic `metadata`
  * override for tests that exercise ramp registration.
  */
 export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> = {}): Promise<QuoteTicket> {
@@ -137,7 +141,14 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
     from: EPaymentMethod.SEPA as DestinationType,
     inputAmount: "100",
     inputCurrency: FiatToken.EURC,
-    metadata: { fees: defaultQuoteFees(), ...(overrides.metadata ?? {}) } as QuoteTicketMetadata,
+    metadata: (overrides.metadata ?? {
+      blocks: {},
+      globals: {
+        fees: defaultQuoteFees(),
+        partner: null,
+        request: {}
+      }
+    }) as QuoteTicketMetadata,
     network: Networks.Base,
     outputAmount: "105",
     outputCurrency: EvmToken.USDC,
@@ -155,11 +166,17 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
 /**
  * Baseline configuration the quote pipeline expects in every environment:
  * the "vortex" partner rows carrying the default platform fee (zero here;
- * tests that assert fee math override via createTestPartner).
+ * tests that assert fee math override via createTestPartner). The payout
+ * address is required whenever a corridor prices a positive network fee.
  */
 export async function seedVortexPartners(): Promise<void> {
   for (const rampType of [RampDirection.BUY, RampDirection.SELL]) {
-    await createTestPartner({ displayName: "Vortex", name: "vortex", rampType });
+    await createTestPartner({
+      displayName: "Vortex",
+      name: "vortex",
+      payoutAddressEvm: TEST_VORTEX_EVM_PAYOUT_ADDRESS,
+      rampType
+    });
   }
 }
 
@@ -179,12 +196,12 @@ export async function updatePartnerPricing(
 /** An Alfredpay-KYC'd customer linked to a user, as required by MXN/COP/USD/ARS ramp registration. */
 export async function createTestAlfredpayCustomer(
   userId: string,
-  overrides: Partial<{ alfredPayId: string; country: AlfredPayCountry }> = {}
+  overrides: Partial<{ alfredPayId: string; country: DomesticCountry }> = {}
 ): Promise<ProviderCustomer> {
   const seq = nextSeq();
   const entity = await getOrCreateCustomerEntityForProfile(userId);
   return ProviderCustomer.create({
-    country: overrides.country ?? AlfredPayCountry.MX,
+    country: overrides.country ?? DomesticCountry.MX,
     customerEntityId: entity.id,
     customerType: "individual",
     provider: "alfredpay",
@@ -193,8 +210,7 @@ export async function createTestAlfredpayCustomer(
   });
 }
 
-/** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
-/** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
+/** An approved Avenia provider account linked to a user for BRL ramp registration. */
 export async function createTestTaxId(
   userId: string,
   overrides: Partial<{ companyName: string; customerType: "individual" | "business"; taxId: string; subAccountId: string }> = {}

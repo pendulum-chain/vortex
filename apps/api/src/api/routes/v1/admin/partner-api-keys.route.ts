@@ -8,36 +8,36 @@ const router: Router = Router({ mergeParams: true });
 router.use(adminAuth);
 
 /**
- * POST /v1/admin/partners/:partnerName/api-keys
- * Create a new API key for a partner (by name)
- *
- * This will create a key that works for ALL partner records with the same name
- * (e.g., both BUY and SELL configurations)
+ * POST /v1/admin/partners/:partnerName/api-credentials
+ * Create one partner-managed API credential (public + secret value) for an
+ * existing profile subject. The partner is addressed by its unique name and
+ * bound to the credential by its immutable ID.
  *
  * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  *
  * Request body:
  * {
- *   "name": "Production API Key",  // optional
+ *   "userId": "profile-uuid",            // required subject profile
+ *   "name": "Production API Key",        // optional
  *   "expiresAt": "2025-12-31T23:59:59Z"  // optional
  * }
  */
 router.post("/", createApiKey);
 
 /**
- * GET /v1/admin/partners/:partnerName/api-keys
- * List all API keys for a partner (by name)
+ * GET /v1/admin/partners/:partnerName/api-credentials
+ * List the partner-managed credentials issued for one profile subject (`?userId=`)
  *
  * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  */
 router.get("/", listApiKeys);
 
 /**
- * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
- * Revoke (soft delete) an API key
+ * DELETE /v1/admin/partners/:partnerName/api-credentials/:credentialId
+ * Revoke one credential by immutable ID, disabling both values atomically
  *
  * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  */
-router.delete("/:keyId", revokeApiKey);
+router.delete("/:credentialId", revokeApiKey);
 
 export default router;

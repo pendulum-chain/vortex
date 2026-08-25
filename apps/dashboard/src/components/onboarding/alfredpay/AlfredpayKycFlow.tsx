@@ -1,4 +1,4 @@
-import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, MxnKycFiles } from "@vortexfi/kyc";
+import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, KybQuestionnaireData, MxnKycFiles } from "@vortexfi/kyc";
 import { useMachine } from "@xstate/react";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -10,6 +10,7 @@ import { CORRIDOR_COUNTRY } from "@/services/api/mappers";
 import { DocumentUploadScreen } from "./DocumentUploadScreen";
 import { KybDocumentUploadScreen } from "./KybDocumentUploadScreen";
 import { KybFormScreen } from "./KybFormScreen";
+import { KybQuestionnaireScreen } from "./KybQuestionnaireScreen";
 import { type AlfredpayKycCountry, KycFormScreen } from "./KycFormScreen";
 
 interface AlfredpayKycFlowProps {
@@ -55,7 +56,7 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail, busi
   });
 
   const value = String(state.value);
-  const { error, country } = state.context;
+  const { error, country, kybFormData, kybQuestionnaireData } = state.context;
 
   const reported = useRef<OnboardingStatus | null>(null);
   useEffect(() => {
@@ -111,6 +112,7 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail, busi
     return (
       <KybFormScreen
         country={country}
+        defaults={kybFormData}
         onCancel={onClose}
         onSubmit={(data: KybFormData) => send({ data, type: "SUBMIT_KYB_FORM" })}
         userEmail={userEmail}
@@ -129,10 +131,21 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail, busi
     );
   }
 
+  if (value === "FillingKybQuestionnaire") {
+    return (
+      <KybQuestionnaireScreen
+        defaults={kybQuestionnaireData}
+        onBack={() => send({ type: "GO_BACK" })}
+        onSubmit={(data: KybQuestionnaireData) => send({ data, type: "SUBMIT_KYB_QUESTIONNAIRE" })}
+      />
+    );
+  }
+
   if (value === "UploadingKybBusinessDocs") {
     return (
       <KybDocumentUploadScreen
         error={error?.message}
+        isRegulatedBusiness={kybQuestionnaireData?.isRegulatedBusiness}
         onBack={() => send({ type: "GO_BACK" })}
         onSubmit={(files: KybBusinessFiles) => send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" })}
       />

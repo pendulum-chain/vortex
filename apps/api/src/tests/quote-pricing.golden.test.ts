@@ -6,9 +6,10 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 /**
  * Golden tests for the quote pricing math. Every external input is pinned:
- * FakePrices rates (BRL 5/USD, USDC 1/USD), FakeBrla pay-in/pay-out rate 1,
- * and a scripted Nabla quoter at 0.18 USDC per BRLA. Under those inputs the
- * fee/output values below are pure functions of the pricing engines.
+ * FakePrices rates (BRL 5/USD, ETH 2,500/USD, USDC 1/USD), FakeEvm fees
+ * (1 gwei), FakeBrla pay-in/pay-out rate 1, and a scripted Nabla quoter at
+ * 0.18 USDC per BRLA. Under those inputs the fee/output values below are pure
+ * functions of the pricing engines.
  *
  * A diff here means the pricing math changed. If that is intentional, update
  * the goldens consciously and call out the fee impact in the PR description —
@@ -24,12 +25,12 @@ describe("quote pricing goldens (fixed input matrix)", () => {
     await resetTestDatabase();
     app = await startTestApp();
 
-    // Deterministic Nabla swap quote: 18-decimal BRLA in → 6-decimal USDC out
-    // at a flat 0.18 USDC per BRLA.
+    // Deterministic Nabla quotes: 0.18 USDC per BRLA on BUY and the pinned
+    // oracle rate of 5 BRLA per USDC on SELL.
     world.evm.onReadContract = (_network, params) => {
       if (params.functionName === "quoteSwapExactTokensForTokens") {
         const amountIn = params.args?.[0] as bigint;
-        return (amountIn * 18n) / 100n / 10n ** 12n;
+        return amountIn >= 10n ** 18n ? (amountIn * 18n) / 100n / 10n ** 12n : amountIn * 5n * 10n ** 12n;
       }
       return undefined;
     };
@@ -134,17 +135,14 @@ describe("quote pricing goldens (fixed input matrix)", () => {
       expected: {
         anchorFeeFiat: "0.1",
         anchorFeeUsd: "0.02",
-        discountCurrency: "BRL",
-        discountFiat: "10.09",
-        discountUsd: "2.018000",
         feeCurrency: "BRL",
         from: "pix",
         inputAmount: "100.00",
         inputCurrency: "BRL",
         network: "base",
-        networkFeeFiat: "0",
-        networkFeeUsd: "0",
-        outputAmount: "20.00",
+        networkFeeFiat: "2.115",
+        networkFeeUsd: "0.423",
+        outputAmount: "17.559",
         outputCurrency: "USDC",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
@@ -153,12 +151,12 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         processingFeeUsd: "0.02",
         rampType: "BUY",
         to: "base",
-        totalFeeFiat: "0.10",
-        totalFeeUsd: "0.020000",
+        totalFeeFiat: "2.22",
+        totalFeeUsd: "0.443000",
         vortexFeeFiat: "0",
         vortexFeeUsd: "0"
       },
-      name: "BUY 100 BRL → USDC on Base (Nabla swap at 0.18, subsidy applied)",
+      name: "BUY 100 BRL → USDC on Base (Nabla swap at 0.18, zero-discount partner)",
       request: {
         from: "pix",
         inputAmount: "100",
@@ -180,7 +178,10 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        outputAmount: "500.00",
+        // 100 BRLA is worth ~100 BRL (1:1 peg), not 500: the discount engine now values the
+        // BRLA input in USD (~20 USD at 5 BRL/USD) before applying the inverted oracle rate,
+        // instead of treating 100 BRLA as 100 USD → 500 BRL.
+        outputAmount: "100.00",
         outputCurrency: "BRL",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",

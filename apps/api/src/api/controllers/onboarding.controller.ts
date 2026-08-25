@@ -1,14 +1,32 @@
-import { BrlaApiService, KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
+import {
+  BrlaApiService,
+  getOnboardingRequirements as findOnboardingRequirements,
+  KycAttemptResult,
+  KycAttemptStatus,
+  ONBOARDING_REQUIREMENTS,
+  OnboardingRequirementsCountry
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
+import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { refreshAlfredpayCustomerStatus } from "../services/alfredpay/alfredpay-customer.service";
-import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.service";
+import {
+  assertAveniaImportedTaxIdentity,
+  hydrateAveniaCompanyName,
+  updateAveniaKycOutcomeForCustomer,
+  updateAveniaKycProgressForCustomer
+} from "../services/avenia/avenia-customer.service";
+import {
+  mapAveniaKycAttemptStatus,
+  reconcileAveniaIndividualKycStatusMethod
+} from "../services/avenia/avenia-kyc-import.service";
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
 
@@ -17,6 +35,48 @@ import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../servic
 // concurrent polls. In-memory on purpose: per instance, the cap just multiplies by instance count.
 const PROVIDER_REFRESH_TTL_MS = 60_000;
 const lastProviderRefreshAt = new Map<string, number>();
+
+/** GET /v1/onboarding/requirements - public metadata for an existing provider-specific flow. */
+export function getOnboardingRequirements(req: Request, res: Response): void {
+  const country = typeof req.query.country === "string" ? req.query.country.toUpperCase() : "";
+  const customerType = typeof req.query.customerType === "string" ? req.query.customerType.toLowerCase() : "";
+
+  if (!country || (customerType !== "individual" && customerType !== "business")) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: {
+        code: "INVALID_ONBOARDING_REQUIREMENTS_QUERY",
+        message: "country and customerType (individual or business) are required",
+        status: httpStatus.BAD_REQUEST
+      }
+    });
+    return;
+  }
+
+  if (!(country in ONBOARDING_REQUIREMENTS)) {
+    res.status(httpStatus.NOT_FOUND).json({
+      error: {
+        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
+        status: httpStatus.NOT_FOUND
+      }
+    });
+    return;
+  }
+
+  const requirements = findOnboardingRequirements(country as OnboardingRequirementsCountry, customerType);
+  if (!requirements) {
+    res.status(httpStatus.NOT_FOUND).json({
+      error: {
+        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
+        status: httpStatus.NOT_FOUND
+      }
+    });
+    return;
+  }
+
+  res.status(httpStatus.OK).json(requirements);
+}
 
 function shouldRefreshProviderStatus(customerId: string): boolean {
   const now = Date.now();
@@ -38,7 +98,7 @@ function shouldRefreshProviderStatus(customerId: string): boolean {
  * (plan D5), read directly from `provider_customers` + `kyc_cases`.
  */
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
-  const userId = req.userId;
+  const userId = getEffectiveUserId(req);
   if (!userId) {
     res.status(httpStatus.UNAUTHORIZED).json({
       error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication required", status: httpStatus.UNAUTHORIZED }
@@ -47,9 +107,10 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
   }
 
   try {
-    const [profile, entities] = await Promise.all([
+    const [profile, entities, profileRoles] = await Promise.all([
       User.findByPk(userId, { attributes: ["activeCustomerEntityId"] }),
-      CustomerEntity.findAll({ where: { profileId: userId } })
+      CustomerEntity.findAll({ where: { profileId: userId } }),
+      ProfileRole.findAll({ attributes: ["role"], where: { userId } })
     ]);
     const activeEntityId = entities.some(entity => entity.id === profile?.activeCustomerEntityId)
       ? (profile?.activeCustomerEntityId ?? null)
@@ -117,43 +178,70 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             customer.customerType === "business" &&
             customer.status !== VerificationStatus.Approved &&
             customer.status !== VerificationStatus.Rejected &&
+            !!customer.providerSubaccountId &&
             !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId &&
             shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
           const kycCase = kycCasesByProviderCustomer.get(customer.id);
-          if (!kycCase?.providerCaseId) return;
+          if (!kycCase?.providerCaseId || !customer.providerSubaccountId) return;
           try {
-            const { attempt } = await BrlaApiService.getInstance().getKybAttemptStatus(kycCase.providerCaseId);
+            const { attempt } = await BrlaApiService.getInstance().getKybAttemptStatus(
+              kycCase.providerCaseId,
+              customer.providerSubaccountId
+            );
+            if (attempt.id !== kycCase.providerCaseId) {
+              // Integrity event, not a transient provider failure — mirror the KYB worker's
+              // mismatch guard: log which attempt came back and leave local state untouched.
+              logger.error(
+                `Avenia returned attempt ${attempt.id} when asked for ${kycCase.providerCaseId}; skipping business status refresh`
+              );
+              return;
+            }
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
             const rejected =
               attempt.status === KycAttemptStatus.EXPIRED ||
               (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
             // A PENDING attempt is one the user never finished (hosted steps not completed) — keep it
             // pending so the dashboard offers Continue; in_review only once Avenia is PROCESSING.
-            const status = approved
-              ? VerificationStatus.Approved
-              : rejected
-                ? VerificationStatus.Rejected
-                : attempt.status === KycAttemptStatus.PENDING
-                  ? VerificationStatus.Pending
-                  : VerificationStatus.InReview;
-            const lifecycle = {
-              ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
-              ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
-            };
-            await Promise.all([
-              customer.update({ status, statusExternal: attempt.status }),
-              kycCase.update({ status, statusExternal: attempt.status, ...lifecycle })
-            ]);
-          } catch {
+            const refreshed =
+              approved || rejected
+                ? await updateAveniaKycOutcomeForCustomer(
+                    customer,
+                    approved ? VerificationStatus.Approved : VerificationStatus.Rejected,
+                    attempt.status,
+                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+                    // When this poll wins the race to the terminal outcome, the authenticated
+                    // route 409s and the KYB worker skips the settled case — so the failure
+                    // reason and the outcome email must be persisted here or never.
+                    { attempt, profileId: userId, subject: "business" }
+                  )
+                : await updateAveniaKycProgressForCustomer(
+                    customer,
+                    { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+                    attempt.status === KycAttemptStatus.PENDING ? VerificationStatus.Pending : VerificationStatus.InReview,
+                    attempt.status
+                  );
+            customer.set("status", refreshed.status);
+            customer.set("statusExternal", refreshed.statusExternal);
+          } catch (error) {
+            const providerStatus =
+              error && typeof error === "object" && "status" in error && typeof error.status === "number"
+                ? error.status
+                : undefined;
+            logger.warn("Avenia business KYB status refresh failed", {
+              errorName: error instanceof Error ? error.name : "UnknownError",
+              providerCaseId: kycCase.providerCaseId,
+              providerCustomerId: customer.id,
+              providerStatus
+            });
             // Status aggregation remains available while Avenia is temporarily unavailable.
           }
         })
     );
 
-    // Avenia individual KYC: refresh from the latest attempt so an approval/rejection that lands
-    // after the wizard closed is reflected here — nothing else polls Avenia for individuals.
+    // Avenia individual KYC: bound cases poll their exact attempt. Legacy standard cases
+    // without a provider case id retain the list fallback until their next submission.
     await Promise.all(
       providerCustomers
         .filter(
@@ -166,31 +254,63 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
-          const kycCase = kycCasesByProviderCustomer.get(customer.id);
           try {
-            const { attempts } = await BrlaApiService.getInstance().getKycAttempts(customer.providerSubaccountId as string);
-            const attempt = attempts[0];
+            const brlaApiService = BrlaApiService.getInstance();
+            const reconciled = await reconcileAveniaIndividualKycStatusMethod(customer.id, brlaApiService);
+            const kycCase = reconciled.kycCase;
+            if (kycCase.verificationMethod === "sumsub_share_token" && !kycCase.providerCaseId) return;
+            if (
+              !kycCase.providerCaseId &&
+              (kycCase.verificationSubmission?.status === "submitted" || kycCase.verificationSubmission?.status === "ambiguous")
+            )
+              return;
+            const attempt = kycCase?.providerCaseId
+              ? (
+                  await brlaApiService.getVerificationAttemptStatus(
+                    kycCase.providerCaseId,
+                    customer.providerSubaccountId as string
+                  )
+                ).attempt
+              : (await brlaApiService.getKycAttempts(customer.providerSubaccountId as string)).attempts[0];
             if (!attempt) return;
+            if (kycCase?.providerCaseId && attempt.id !== kycCase.providerCaseId) return;
+            if (attempt.status === KycAttemptStatus.COMPLETED && !attempt.result) {
+              throw new Error("The provider returned an invalid KYC attempt state");
+            }
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
-            const rejected = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED;
-            // A PENDING or EXPIRED attempt is one the user never finished (livecheck not completed) —
-            // not a rejection: keep it pending so the dashboard offers Continue, mirroring
-            // fetchSubaccountKycStatus. Only an Avenia decision is terminal.
-            const status = approved
-              ? VerificationStatus.Approved
-              : rejected
-                ? VerificationStatus.Rejected
-                : attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED
+            const rejected =
+              (kycCase?.verificationMethod === "sumsub_share_token" &&
+                mapAveniaKycAttemptStatus(attempt) === VerificationStatus.Rejected) ||
+              (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+            if (approved || rejected) {
+              if (approved && kycCase.verificationMethod === "sumsub_share_token") {
+                assertAveniaImportedTaxIdentity(
+                  customer,
+                  await brlaApiService.subaccountInfo(customer.providerSubaccountId as string)
+                );
+              }
+              const refreshed = await updateAveniaKycOutcomeForCustomer(
+                customer,
+                approved ? VerificationStatus.Approved : VerificationStatus.Rejected,
+                attempt.status,
+                { id: kycCase.id, providerCaseId: kycCase.providerCaseId }
+              );
+              customer.set("status", refreshed.status);
+              customer.set("statusExternal", refreshed.statusExternal);
+            } else {
+              const progressStatus =
+                attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED
                   ? VerificationStatus.Pending
                   : VerificationStatus.InReview;
-            const lifecycle = {
-              ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
-              ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
-            };
-            await Promise.all([
-              customer.update({ status, statusExternal: attempt.status }),
-              kycCase?.update({ status, statusExternal: attempt.status, ...lifecycle })
-            ]);
+              const refreshed = await updateAveniaKycProgressForCustomer(
+                customer,
+                { id: kycCase.id, providerCaseId: kycCase.providerCaseId },
+                progressStatus,
+                attempt.status
+              );
+              customer.set("status", refreshed.status);
+              customer.set("statusExternal", refreshed.statusExternal);
+            }
           } catch {
             // Status aggregation remains available while Avenia is temporarily unavailable.
           }
@@ -261,6 +381,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
           type: entity.type
         };
       }),
+      // Capability roles for role-gated dashboard UI (e.g. discount_manager invite fields).
+      roles: profileRoles.map(profileRole => profileRole.role),
       selectionRequired: !activeEntityId
     });
   } catch (error) {

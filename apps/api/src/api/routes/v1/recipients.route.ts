@@ -5,49 +5,95 @@ import {
   createInvite,
   getRecipientEligibility,
   listRecipients,
-  updateRecipient
+  previewInvite,
+  resolveInvitationAuthorizationTarget,
+  resolveRecipientAuthorizationTarget,
+  updateRecipient,
+  validateCreateInvite
 } from "../../controllers/recipients.controller";
+import { authorizeManagedProfile, rejectManagedProfileSelection } from "../../middlewares/managedProfileAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
-
-router.use(requireAuth);
 
 /**
  * POST /v1/recipients/invite
  * Create a recipient invite for the authenticated sender; returns the raw link token once.
  */
-router.post("/invite", createInvite as unknown as (req: Request, res: Response) => void);
+router.post(
+  "/invite",
+  requireAuth,
+  validateCreateInvite,
+  authorizeManagedProfile({ corridor: req => req.body.country.toUpperCase() }),
+  createInvite as unknown as (req: Request, res: Response) => void
+);
+
+/**
+ * GET /v1/recipients/invite/:token
+ * Read-only preview (corridor + invitee type) for the confirm-before-accept screen;
+ * runs the acceptance gate checks but consumes nothing.
+ */
+router.get(
+  "/invite/:token",
+  rejectManagedProfileSelection,
+  requireAuth,
+  previewInvite as unknown as (req: Request<{ token: string }>, res: Response) => void
+);
 
 /**
  * POST /v1/recipients/invite/:token/accept
  * Recipient (authenticated) redeems the link token; creates the sender↔recipient relationship.
  */
-router.post("/invite/:token/accept", acceptInvite as unknown as (req: Request<{ token: string }>, res: Response) => void);
+router.post(
+  "/invite/:token/accept",
+  rejectManagedProfileSelection,
+  requireAuth,
+  acceptInvite as unknown as (req: Request<{ token: string }>, res: Response) => void
+);
 
 /**
  * GET /v1/recipients
  * List the sender's recipients (relationship + onboarding status) and pending invitations.
  */
-router.get("/", listRecipients as unknown as (req: Request, res: Response) => void);
+router.get(
+  "/",
+  requireAuth,
+  authorizeManagedProfile({ enforceCustomerTypePolicy: true }),
+  listRecipients as unknown as (req: Request, res: Response) => void
+);
 
 /**
  * PATCH /v1/recipients/invitations/:id
  * Archive/unarchive a pending invitation — a sender-side list hide, not a revocation:
  * the token stays redeemable.
  */
-router.patch("/invitations/:id", archiveInvitation as unknown as (req: Request<{ id: string }>, res: Response) => void);
+router.patch(
+  "/invitations/:id",
+  requireAuth,
+  authorizeManagedProfile({ corridor: resolveInvitationAuthorizationTarget }),
+  archiveInvitation as unknown as (req: Request<{ id: string }>, res: Response) => void
+);
 
 /**
  * PATCH /v1/recipients/:id
  * Update nickname or relationship status (active | blocked | archived).
  */
-router.patch("/:id", updateRecipient as unknown as (req: Request<{ id: string }>, res: Response) => void);
+router.patch(
+  "/:id",
+  requireAuth,
+  authorizeManagedProfile({ corridor: resolveRecipientAuthorizationTarget }),
+  updateRecipient as unknown as (req: Request<{ id: string }>, res: Response) => void
+);
 
 /**
  * GET /v1/recipients/:id/eligibility
  * Transfer gate: { canCreateTransfer, blockingReasonCode? }.
  */
-router.get("/:id/eligibility", getRecipientEligibility as unknown as (req: Request<{ id: string }>, res: Response) => void);
+router.get(
+  "/:id/eligibility",
+  requireAuth,
+  authorizeManagedProfile({ corridor: resolveRecipientAuthorizationTarget }),
+  getRecipientEligibility as unknown as (req: Request<{ id: string }>, res: Response) => void
+);
 
 export default router;

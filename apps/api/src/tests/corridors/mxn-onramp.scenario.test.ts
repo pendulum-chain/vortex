@@ -3,19 +3,27 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOnrampStatus,
+  type EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
+import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import FinancialOperation from "../../models/financialOperation.model";
+import type Partner from "../../models/partner.model";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser } from "../../test-utils/factories";
+import { createTestAlfredpayCustomer, createTestPartner, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -30,6 +38,7 @@ const HAPPY_PATH_PHASES: RampPhase[] = [
   "squidRouterSwap",
   "finalSettlementSubsidy",
   "destinationTransfer",
+  "distributeFees",
   "complete"
 ];
 
@@ -44,6 +53,7 @@ interface CorridorSetup {
   /** Raw (6-decimal) USDT amount Alfredpay mints on the ephemeral. */
   mintAmountRaw: bigint;
   signedTransfer: `0x${string}`;
+  signedFeeTransfers: `0x${string}`[];
   ephemeral: PrivateKeyAccount;
   destination: `0x${string}`;
 }
@@ -77,14 +87,20 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     await resetTestDatabase();
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
+    world.evm.revertedReceiptHashes.clear();
     world.alfredpay.onrampRate = ALFREDPAY_RATE;
     world.alfredpay.onCreateOnramp = undefined;
     world.alfredpay.onrampStatus = AlfredpayOnrampStatus.TRADE_COMPLETED;
     world.alfredpay.onrampStatusMetadata = null;
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
-    const response = await app.request("/v1/quotes", {
+  async function requestQuote(options: { authUserId?: string } = {}): Promise<Response> {
+    // An authenticated quote picks up the user's profile-assigned pricing partner.
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.authUserId) {
+      headers.Authorization = `Bearer ${testUserToken(options.authUserId)}`;
+    }
+    return app.request("/v1/quotes", {
       body: JSON.stringify({
         from: "spei",
         inputAmount: "2000",
@@ -94,9 +110,13 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
         rampType: RampDirection.BUY,
         to: Networks.Polygon
       }),
-      headers: { "Content-Type": "application/json" },
+      headers,
       method: "POST"
     });
+  }
+
+  async function createQuoteViaApi(options: { authUserId?: string } = {}): Promise<{ id: string; outputAmount: string }> {
+    const response = await requestQuote(options);
     expect(response.status).toBe(201);
     return (await response.json()) as { id: string; outputAmount: string };
   }
@@ -150,20 +170,39 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
    * the presigned destinationTransfer. Pass a recipient to sign a transfer that
    * pays someone other than the registered destination.
    */
-  async function setUpRegisteredRamp(options: { recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(
+    options: { recipient?: `0x${string}`; pricingPartner?: Partner } = {}
+  ): Promise<CorridorSetup & { userId: string }> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id);
-    const quote = await createQuoteViaApi();
+    if (options.pricingPartner) {
+      // Profile-assigned pricing: the quote stays user-owned (partner_id NULL) but is
+      // priced by — and pays markup to — the assigned partner via pricing_partner_id.
+      await ProfilePartnerAssignment.create({
+        isActive: true,
+        partnerId: options.pricingPartner.id,
+        partnerName: options.pricingPartner.name,
+        userId: user.id
+      });
+    }
+    const quote = await createQuoteViaApi(options.pricingPartner ? { authUserId: user.id } : {});
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
 
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+    const registered = await RampState.findByPk(ramp.id);
+    const transferBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!transferBlueprint) throw new Error("destinationTransfer blueprint missing");
+    const transferTxData = transferBlueprint.txData as EvmTransactionData;
     async function signTransfer(recipient: `0x${string}`, nonce: number): Promise<`0x${string}`> {
       return ephemeral.signTransaction({
         chainId: 137,
@@ -172,10 +211,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
           args: [recipient, amountRaw],
           functionName: "transfer"
         }),
-        gas: 100_000n,
-        // validatePresignedTxs enforces a 3 gwei floor on Polygon fees.
-        maxFeePerGas: 5_000_000_000n,
-        maxPriorityFeePerGas: 5_000_000_000n,
+        gas: BigInt(transferTxData.gas),
+        maxFeePerGas: BigInt(transferTxData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+        maxPriorityFeePerGas:
+          BigInt(transferTxData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
         nonce,
         to: ALFREDPAY_ERC20_TOKEN,
         type: "eip1559"
@@ -208,6 +247,40 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     }
     expect(rampState.state.alfredpayTransactionId).toBeTruthy();
 
+    // Fee-charging quotes carry one distributeFees transfer per fee recipient; sign
+    // whatever the route prepared (none for zero-fee quotes) exactly as blueprinted.
+    const feeBlueprints = (rampState.unsignedTxs ?? []).filter(tx => tx.phase === "distributeFees");
+    const signedFeeTransfers: `0x${string}`[] = [];
+    for (const blueprint of feeBlueprints) {
+      const blueprintData = blueprint.txData as EvmTransactionData;
+      const signFee = (nonce: number) =>
+        ephemeral.signTransaction({
+          chainId: 137,
+          data: blueprintData.data as `0x${string}`,
+          gas: BigInt(blueprintData.gas),
+          maxFeePerGas: BigInt(blueprintData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          maxPriorityFeePerGas:
+            BigInt(blueprintData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+          nonce,
+          to: blueprintData.to as `0x${string}`,
+          type: "eip1559"
+        });
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: blueprint.nonce + i, txData: await signFee(blueprint.nonce + i) };
+      }
+      const signedPrimary = await signFee(blueprint.nonce);
+      signedFeeTransfers.push(signedPrimary);
+      await updateRampViaApi(ramp.id, user.id, {
+        meta: { additionalTxs: feeBackups },
+        network: Networks.Polygon,
+        nonce: blueprint.nonce,
+        phase: "distributeFees",
+        signer: ephemeral.address,
+        txData: signedPrimary
+      });
+    }
+
     let signedTransfer = rampState.presignedTxs?.[0]?.txData as `0x${string}`;
     if (options.recipient) {
       // The wrong-recipient variant is swapped in at the DB layer: it models a
@@ -228,7 +301,17 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       });
     }
 
-    return { amountRaw, destination, ephemeral, mintAmountRaw, quoteId: quote.id, rampId: ramp.id, signedTransfer };
+    return {
+      amountRaw,
+      destination,
+      ephemeral,
+      mintAmountRaw,
+      quoteId: quote.id,
+      rampId: ramp.id,
+      signedFeeTransfers,
+      signedTransfer,
+      userId: user.id
+    };
   }
 
   /**
@@ -238,21 +321,33 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
    * - submitted raw ERC-20 transfers are applied to the in-memory ledger.
    */
   function scriptHappyWorld(setup: CorridorSetup): void {
+    const fundingAccount = getEvmFundingAccount(Networks.Polygon);
     world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
+    world.evm.setNativeBalance(Networks.Polygon, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(
+      Networks.Polygon,
+      ALFREDPAY_ERC20_TOKEN,
+      fundingAccount.address,
+      parseUnits("1000000", ALFREDPAY_ERC20_DECIMALS)
+    );
     world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, setup.mintAmountRaw);
     world.evm.onTransaction = tx => {
-      if (!tx.serialized) {
-        return;
-      }
-      const parsed = parseTransaction(tx.serialized as `0x${string}`);
+      // Presigned transfers arrive serialized; funding-account transfers (subsidy
+      // top-ups) arrive as data transactions. Both credit the in-memory ledger.
+      const parsed = tx.serialized ? parseTransaction(tx.serialized as `0x${string}`) : { data: tx.data, to: tx.to };
       if (!parsed.to || !parsed.data) {
         return;
       }
-      const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: parsed.data });
-      if (functionName !== "transfer") {
+      let decoded: { functionName: string; args: readonly unknown[] };
+      try {
+        decoded = decodeFunctionData({ abi: erc20Abi, data: parsed.data as `0x${string}` });
+      } catch {
         return;
       }
-      const [recipient, amount] = args as [`0x${string}`, bigint];
+      if (decoded.functionName !== "transfer") {
+        return;
+      }
+      const [recipient, amount] = decoded.args as [`0x${string}`, bigint];
       world.evm.setErc20Balance(
         tx.network,
         parsed.to,
@@ -292,7 +387,219 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
   );
 
   it(
-    "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",
+    "fee + target discount: subsidy preserves the promised net rate while the full fee is collected",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      // 17 MXN flat fee = exactly 1 USD at the fake 17 MXN/USD rate: legible numbers throughout.
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        maxSubsidy: 0.1,
+        payoutAddressEvm: vortexPayout,
+        targetDiscount: 0.01
+      });
+
+      const setup = await setUpRegisteredRamp();
+
+      // Quote: 2000 MXN mints 100 USDT. A 1% target promises the user 101 USDT
+      // after fees, so Vortex contributes 2 USDT plus the dynamic destination
+      // network fee: 1 for the rate improvement and the rest to offset fees.
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      const metadata = getFlowMetadata(quote?.metadata);
+      const networkFeeUsd = new Big(metadata.globals.fees.usd.network);
+      expect(Number(quote?.outputAmount)).toBe(101);
+      expect(networkFeeUsd.gt(0)).toBe(true);
+      expect(Number(metadata.globals.fees?.usd?.vortex)).toBe(1);
+      const preSwap = metadata.blocks.subsidizePreSwap as { subsidyAmountInOutputTokenDecimal: string; feeReserveRaw: string };
+      expect(new Big(preSwap.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(networkFeeUsd.plus(2).toFixed(6));
+      expect(preSwap.feeReserveRaw).toBe(parseUnits(networkFeeUsd.plus(1).toFixed(6), 6).toString());
+
+      // Registration prepared ONE Polygon distributeFees transfer (vortex only)
+      // paying the 1 USDT fee plus the network fee; setUpRegisteredRamp presigned it.
+      expect(setup.signedFeeTransfers).toHaveLength(1);
+
+      scriptHappyWorld(setup);
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+
+      // Destination received the promised net 101 USDT; Vortex receives its
+      // full 1 USDT fee plus the priced destination network fee.
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("101", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+    },
+    30000
+  );
+
+  it(
+    "fee collection: a partial split distribution halts for reconciliation without double-paying",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      const partnerPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, { payoutAddressEvm: vortexPayout });
+      // 17 MXN flat each = exactly 1 USD: the quote carries a vortex fee AND a partner
+      // markup, so registration prepares two sequential fee transfers.
+      const partner = await createTestPartner({
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        name: "split-fee-partner",
+        payoutAddressEvm: partnerPayout,
+        rampType: RampDirection.BUY,
+        vortexFeeType: "absolute",
+        vortexFeeValue: 17
+      });
+
+      // Presigns run through the REAL /v1/ramp/update merge: a nonce-less merge key
+      // used to collapse the two distributeFees transfers into one.
+      const setup = await setUpRegisteredRamp({ pricingPartner: partner });
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      const networkFeeUsd = new Big(getFlowMetadata(quote?.metadata).globals.fees.usd.network);
+      expect(networkFeeUsd.gt(0)).toBe(true);
+      expect(new Big(quote?.outputAmount ?? 0).toFixed(6)).toBe(new Big(98).minus(networkFeeUsd).toFixed(6));
+      expect(setup.signedFeeTransfers).toHaveLength(2);
+      const merged = await RampState.findByPk(setup.rampId);
+      expect(merged?.presignedTxs?.filter(tx => tx.phase === "distributeFees")).toHaveLength(2);
+
+      scriptHappyWorld(setup);
+      // Fail the SECOND fee broadcast: after the first fee transfer lands, the next
+      // send throws. Its financial operation becomes ambiguous, so the phase must
+      // halt for reconciliation instead of guessing.
+      const creditLedger = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        creditLedger?.(tx);
+        if (tx.serialized === setup.signedFeeTransfers[0]) {
+          world.evm.failNextSends = 1;
+        }
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const afterFirstRun = await RampState.findByPk(setup.rampId);
+      expect(afterFirstRun?.currentPhase).toBe("distributeFees");
+      expect(afterFirstRun?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      // The first transfer was paid exactly once; the second never credited anyone.
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, partnerPayout)).toBe(0n);
+      const operations = await FinancialOperation.findAll({
+        where: { phase: "distributeFees", scopeId: setup.rampId, scopeType: "ramp" }
+      });
+      expect(operations.map(op => [op.attemptClass, op.status]).sort()).toEqual([
+        ["evm-fee-distribution", "confirmed"],
+        [`evm-fee-distribution:${(merged?.presignedTxs ?? []).filter(tx => tx.phase === "distributeFees")[1]?.nonce}`, "unknown"]
+      ]);
+
+      // Reprocessing replays the confirmed transfer WITHOUT a second broadcast and
+      // halts on the ambiguous one again — no recipient is ever double-paid.
+      await phaseProcessor.processRamp(setup.rampId);
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
+      );
+    },
+    30000
+  );
+
+  it(
+    "fee collection: a mined-but-reverted fee transfer halts for manual reconciliation",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
+
+      const setup = await setUpRegisteredRamp();
+      expect(setup.signedFeeTransfers).toHaveLength(1);
+
+      scriptHappyWorld(setup);
+      // The fee transfer broadcasts fine but MINES AS REVERTED: its receipt reports
+      // failure, no funds move, and the consumed nonce means the presign can never
+      // execute again — the ramp must halt for manual recovery, not retry.
+      const creditLedger = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        if (tx.serialized === setup.signedFeeTransfers[0]) {
+          world.evm.revertedReceiptHashes.add(tx.hash);
+          return;
+        }
+        creditLedger?.(tx);
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("distributeFees");
+      expect(final?.errorLogs.some(log => log.error.includes("REVERTED"))).toBe(true);
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(0n);
+
+      // Reprocessing replays the broadcast-confirmed operation, detects the revert
+      // again, and halts again — the presign is never rebroadcast.
+      await phaseProcessor.processRamp(setup.rampId);
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect((await RampState.findByPk(setup.rampId))?.currentPhase).toBe("distributeFees");
+    },
+    30000
+  );
+
+  it("quote guard: a positive computed markup without a partner EVM payout address is rejected", async () => {
+    const user = await createTestUser();
+    await createTestAlfredpayCustomer(user.id);
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      name: "no-payout-partner",
+      rampType: RampDirection.BUY
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: partner.id,
+      partnerName: partner.name,
+      userId: user.id
+    });
+
+    const response = await requestQuote({ authUserId: user.id });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { message?: string };
+    expect(body.message).toContain("Partner is missing EVM payout address");
+  });
+
+  it("quote guard: a configured markup that rounds to zero raw units needs no payout address", async () => {
+    const user = await createTestUser();
+    await createTestAlfredpayCustomer(user.id);
+    // Positive configuration, but the computed component rounds to zero raw USDT.
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 0.000001,
+      name: "rounded-zero-markup-partner",
+      rampType: RampDirection.BUY
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: partner.id,
+      partnerName: partner.name,
+      userId: user.id
+    });
+
+    const response = await requestQuote({ authUserId: user.id });
+    expect(response.status).toBe(201);
+  });
+
+  it(
+    "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -302,16 +609,19 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-
-      expect(submissionsOf(setup.signedTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(0n);
     },
     30000
   );
@@ -329,7 +639,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(final?.currentPhase).toBe("failed");
       expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(final?.errorLogs.some(log => log.error.includes("recipient mismatch"))).toBe(true);
+      expect(final?.errorLogs.some(log => log.error.includes("does not match expected data"))).toBe(true);
 
       // The mismatching transfer must never reach the chain, and nobody gets paid.
       expect(submissionsOf(setup.signedTransfer)).toBe(0);

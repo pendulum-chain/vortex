@@ -1,56 +1,62 @@
+# SDK Architecture
 
-## Overview
+`@vortexfi/sdk` is a stateless integration layer over the Vortex API. It owns ephemeral
+account generation, presigning of platform-owned transactions, classification of
+user-wallet transactions, and typed API error handling. It does not own long-lived ramp
+state or a user's wallet.
 
-The Vortex SDK abstracts Vortex's API and ephemeral key handling into a self-contained package. It provides a clean interface for creating quotes, registering ramps, and managing the signing process for cross-chain transactions.
+## Main components
 
-## Core Components
+- `VortexSdk.ts` is the public orchestrator.
+- `services/ApiService.ts` owns HTTP requests, per-request access-token resolution,
+  API-key precedence, and error mapping.
+- `services/NetworkManager.ts` owns the RPC connections needed for ephemeral signing and
+  initializes only the networks required for ephemeral signing. Quote and registration
+  HTTP calls do not wait for chain WebSockets.
+- `handlers/BrlHandler.ts`, `AlfredpayHandler.ts`, and `MykoboHandler.ts` adapt
+  corridor-specific registration and update data to the common lifecycle.
+- `eip712.ts` classifies and attaches signatures for user-owned typed-data operations.
+- `storage.ts` optionally persists ephemeral recovery material for the caller.
 
-### VortexSdk (Main Orchestrator)
+## Lifecycle
 
-The `VortexSdk` class is the main entry point that users interact with. It bundles together:
+```text
+createQuote
+  -> registerRamp
+  -> submitUserTransactions or updateRamp (SELL flows when required)
+  -> startRamp
+  -> getRampStatus
+```
 
-- **ApiService**: Handles all backend API interactions
-- **NetworkManager**: Manages RPC connections for transaction signing
-- **RampHandlers**: Business logic for different ramp types (e.g., BrlaHandler)
+Quotes are eligible for anonymous rate discovery. Registration requires either a user-linked
+secret key or a Supabase access-token provider because provider identity is resolved server-side
+for that user. Secret keys take precedence when both authentication mechanisms are configured.
+The SDK does not mint keys or complete KYC/KYB.
 
-Key responsibilities:
-- Automatic initialization of network connections
-- Ephemeral key generation for multiple networks
-- Transaction signing coordination
-- API request orchestration
+`registerRamp` returns user-owned transactions separately from ephemeral-owned
+transactions. The SDK signs only the ephemeral-owned set. For user-owned entries, the
+integrator supplies wallet callbacks to `submitUserTransactions`, or handles each entry
+through `getUserTransactionType`, `getTypedDataToSign`, and
+`getTransactionToBroadcast`.
 
-### Ramp Handler Pattern
+## State and custody
 
-Any class that implements `RampHandler` abstracts the business logic required to start a ramp. The current implementation includes:
+- The SDK never receives a connected wallet object or its private key.
+- Ephemeral accounts are generated per registration and are required for recovery until
+  the ramp's recovery window ends.
+- Ramp IDs and business correlation state belong to the integrating application.
+- `storeEphemeralKeys` defaults to enabled and writes a JSON file in Node.js or plain
+  `localStorage` in browsers. Browser persistence is intentionally prototype-grade;
+  applications with their own secure storage may disable it and persist the material themselves.
 
-- **BrlaHandler**: Handles Brazilian Real (BRLA) onramp operations
+## Package boundary
 
-#### Ramp Flow
-
-From the user's perspective, ramp operations follow a consistent pattern:
-
-1. **Register**: Mandatory call to register a ramp with the backend
-2. **Update**: Optional intermediate steps (if transaction hashes are needed)
-3. **Start**: Mandatory call to initiate the actual ramp process
-
-The `update` call to create pre-signed transactions happens automatically in the background and does not require user interaction. This logic must be implemented by the `Handler` for the specific flow.
-
-### Service Layer
-
-#### ApiService
-- Provides abstraction for all backend interactions
-- Handles error parsing and transformation
-- Manages HTTP requests and responses
-
-#### NetworkManager
-- Handles configuration and connection with RPC nodes
-- Required for signing pre-signed transactions
-- Manages WebSocket connections to blockchain networks
-
-## Stateless Design
-
-- No ramp state is stored in memory
-- Users are responsible for persisting ramp IDs and managing state
-- Each operation is independent and can be called without prior context
-- Ephemeral keys are generated on-demand and passed explicitly to signing operations
-- Ephemeral keys are essentially "discarded" after the ramp is registered
+The SDK publishes conditional ESM artifacts: Node.js resolves `dist/index.js` and browser
+bundlers resolve `dist/browser/index.js`, with shared declarations in `dist/index.d.ts`.
+Relative imports and re-exports in `src` use `.js` extensions because TypeScript resolves them
+to the `.ts` source files but preserves the runtime paths in emitted declarations; the SDK
+ESLint configuration enforces this for NodeNext compatibility. The package test pipeline runs
+lint and unit tests, builds both artifacts, checks the declarations from a NodeNext consumer,
+and smoke-loads both package conditions. The public API and examples belong in
+[`README.md`](README.md);
+partner-facing integration guides belong in [`docs/api/`](../../docs/api/README.md).

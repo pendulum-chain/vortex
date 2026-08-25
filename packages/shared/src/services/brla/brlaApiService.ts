@@ -1,23 +1,52 @@
 import * as forge from "node-forge";
-import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
+import {
+  AveniaDocumentUploadResponse,
+  BRLA_API_KEY,
+  BRLA_BASE_URL,
+  BRLA_PRIVATE_KEY,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
+  LivenessDocumentResponse
+} from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
-import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
+import { Endpoint, EndpointMethod, EndpointRequestBody, EndpointResponse, Endpoints } from "./mappings";
+import {
+  aveniaDocumentResponseSchema,
+  aveniaDocumentsSchema,
+  aveniaDocumentUploadResponseSchema,
+  aveniaImportKycTokenResponseSchema,
+  aveniaKybAttemptStatusSchema,
+  aveniaKybLevel1ResponseSchema,
+  aveniaKycAttemptsSchema,
+  aveniaLevel1ResponseSchema,
+  aveniaLivenessDocumentResponseSchema,
+  aveniaUboResponseSchema
+} from "./schemas";
 import {
   AccountLimitsResponse,
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
-  AveniaDocumentType,
-  AveniaKybAttemptStatusResponse,
+  AveniaDocumentResponse,
+  AveniaImportKycTokenResponse,
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
+  AveniaPublicKeyResponse,
   AveniaQuoteResponse,
   AveniaSwapTicket,
+  AveniaVerificationAttemptResponse,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   BlockchainSendMethod,
+  BrDocumentType,
+  BrKybAttemptStatusResponse,
+  BrKybLevel1Payload,
   BrlaCurrency,
+  BrUboPayload,
+  BrUboResponse,
   GetKycAttemptResponse,
   KybLevel1Response,
   KycLevel1Payload,
@@ -39,6 +68,16 @@ interface CachedQuote {
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+const PAGINATION_MAX_PAGES = 100;
+export const AVENIA_PUBLIC_KEY_TIMEOUT_MS = 10_000;
+// Bound on every signed API request. A hung connection would otherwise stall callers
+// indefinitely — cron workers with waitForCompletion never run their next cycle.
+export const BRLA_REQUEST_TIMEOUT_MS = 30_000;
+const SENSITIVE_PROVIDER_RESPONSE = "Sensitive provider response omitted";
+
+export interface BrlaRequestOptions {
+  sensitiveBody?: boolean;
+}
 
 /**
  * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
@@ -109,19 +148,25 @@ export class BrlaApiService {
     return BrlaApiService.instance;
   }
 
-  public async sendRequest<M extends Methods, E extends Endpoints>(
+  public async sendRequest<E extends Endpoints, M extends EndpointMethod<E>>(
     endpoint: E,
     method: M,
     queryParams?: string,
-    payload?: EndpointMapping[E][M]["body"],
-    pathParam?: string
-  ): Promise<EndpointMapping[E][M]["response"]> {
+    payload?: EndpointRequestBody<E, M>,
+    pathParam?: string,
+    requestOptions: BrlaRequestOptions = {}
+  ): Promise<EndpointResponse<E, M>> {
     const timestamp = Date.now().toString();
     const body = payload ? JSON.stringify(payload) : "";
     let requestUri = endpoint as string;
 
+    // Endpoints that carry a {placeholder} interpolate it; the rest append the segment.
+    // Appending to a templated path would sign and request a literal "{attemptId}".
     if (pathParam) {
-      requestUri += `/${pathParam}`;
+      const encodedPathParam = encodeURIComponent(pathParam);
+      requestUri = requestUri.includes("{")
+        ? requestUri.replace(/\{[^}]+\}/, encodedPathParam)
+        : `${requestUri}/${encodedPathParam}`;
     }
     if (queryParams) {
       requestUri += `?${queryParams}`;
@@ -147,14 +192,19 @@ export class BrlaApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(BRLA_REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
       options.body = body;
     }
     const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
-    logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    if (requestOptions.sensitiveBody) {
+      logger.current.debug(`Sending request to ${endpoint} with method ${method}; sensitive request details omitted`);
+    } else {
+      logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
+    }
 
     let response: Response;
     try {
@@ -165,7 +215,11 @@ export class BrlaApiService {
       throw new BrlaApiError({
         endpoint: endpoint as string,
         method: method as string,
-        responseBody: error instanceof Error ? error.message : String(error),
+        responseBody: requestOptions.sensitiveBody
+          ? SENSITIVE_PROVIDER_RESPONSE
+          : error instanceof Error
+            ? error.message
+            : String(error),
         status: 0
       });
     }
@@ -181,14 +235,14 @@ export class BrlaApiService {
       throw new BrlaApiError({
         endpoint: endpoint as string,
         method: method as string,
-        responseBody: await response.text(),
+        responseBody: requestOptions.sensitiveBody ? SENSITIVE_PROVIDER_RESPONSE : await response.text(),
         status: response.status
       });
     }
     try {
-      return await response.json();
+      return (await response.json()) as EndpointResponse<E, M>;
     } catch {
-      return undefined;
+      return undefined as EndpointResponse<E, M>;
     }
   }
 
@@ -211,21 +265,66 @@ export class BrlaApiService {
   }
 
   public async getDocumentUploadUrls(
-    documentType: AveniaDocumentType,
+    documentType: BrDocumentType.SELFIE_FROM_LIVENESS,
     isDoubleSided: boolean,
     subAccountId: string
-  ): Promise<DocumentUploadResponse> {
+  ): Promise<LivenessDocumentResponse>;
+  public async getDocumentUploadUrls(
+    documentType: Exclude<BrDocumentType, BrDocumentType.SELFIE_FROM_LIVENESS>,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<DocumentUploadResponse>;
+  public async getDocumentUploadUrls(
+    documentType: BrDocumentType,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<AveniaDocumentUploadResponse>;
+  public async getDocumentUploadUrls(
+    documentType: BrDocumentType,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<AveniaDocumentUploadResponse> {
     const payload: DocumentUploadRequest = {
       documentType,
       isDoubleSided
     };
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+    const response = await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+    return documentType === BrDocumentType.SELFIE_FROM_LIVENESS
+      ? aveniaLivenessDocumentResponseSchema.parse(response)
+      : aveniaDocumentUploadResponseSchema.parse(response);
   }
 
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
+    const documents: AveniaDocumentGetResponse["documents"] = [];
+    const seenCursors = new Set<string>();
+    let pageCount = 0;
+    let cursor: string | undefined;
+    do {
+      if (pageCount >= PAGINATION_MAX_PAGES) throw new Error("Avenia pagination exceeded the maximum page limit");
+      const query = `subAccountId=${encodeURIComponent(subAccountId)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const page = aveniaDocumentsSchema.parse(await this.sendRequest(Endpoint.Documents, "GET", query, undefined));
+      pageCount++;
+      documents.push(...page.documents);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) throw new Error("Avenia document pagination repeated a cursor");
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    return { documents };
+  }
+
+  public async getUploadedDocument(documentId: string, subAccountId: string): Promise<AveniaDocumentResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
+    return aveniaDocumentResponseSchema.parse(
+      await this.sendRequest(Endpoint.GetDocument, "GET", query, undefined, documentId)
+    );
+  }
+
+  public async createUbo(payload: BrUboPayload, subAccountId: string): Promise<BrUboResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return aveniaUboResponseSchema.parse(
+      await this.sendRequest(Endpoint.Ubos, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
   }
 
   public async createPayInQuote(
@@ -371,12 +470,42 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
+    return aveniaLevel1ResponseSchema.parse(
+      await this.sendRequest(Endpoint.Level1Api, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
+  }
+
+  public async submitKybLevel1(payload: BrKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return aveniaLevel1ResponseSchema.parse(
+      await this.sendRequest(Endpoint.Level1Api, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
+  }
+
+  public async importKycToken(importToken: string, subAccountId: string): Promise<AveniaImportKycTokenResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const payload = { importToken };
+    return aveniaImportKycTokenResponseSchema.parse(
+      await this.sendRequest(Endpoint.ImportKycToken, "POST", query, payload, undefined, { sensitiveBody: true })
+    );
   }
 
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
-    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined);
+    const attempts: GetKycAttemptResponse["attempts"] = [];
+    const seenCursors = new Set<string>();
+    let pageCount = 0;
+    let cursor: string | undefined;
+    do {
+      if (pageCount >= PAGINATION_MAX_PAGES) throw new Error("Avenia pagination exceeded the maximum page limit");
+      const query = `subAccountId=${encodeURIComponent(subAccountId)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const page = aveniaKycAttemptsSchema.parse(await this.sendRequest(Endpoint.GetKycAttempt, "GET", query, undefined));
+      pageCount++;
+      attempts.push(...page.attempts);
+      cursor = page.cursor;
+      if (cursor && seenCursors.has(cursor)) throw new Error("Avenia KYC attempt pagination repeated a cursor");
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    return { attempts };
   }
 
   /**
@@ -388,16 +517,61 @@ export class BrlaApiService {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     // Avenia requires the field to be present but ignores its value for the Web SDK flow.
     const payload = { redirectUrl: "" };
-    return await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload);
+    return aveniaKybLevel1ResponseSchema.parse(await this.sendRequest(Endpoint.KybLevel1WebSdk, "POST", query, payload));
+  }
+
+  /** Gets an individual or company verification attempt by its exact provider ID. */
+  public async getVerificationAttemptStatus(
+    attemptId: string,
+    subAccountId: string
+  ): Promise<AveniaVerificationAttemptResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return aveniaKybAttemptStatusSchema.parse(
+      await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
+    );
+  }
+
+  public async getKybAttemptStatus(attemptId: string, subAccountId: string): Promise<BrKybAttemptStatusResponse> {
+    return this.getVerificationAttemptStatus(attemptId, subAccountId);
+  }
+
+  public async listWebhooks(): Promise<AveniaWebhooksListResponse> {
+    return await this.sendRequest(Endpoint.Webhooks, "GET");
+  }
+
+  public async createWebhook(webhookUrl: string, subscriptions: string[]): Promise<AveniaWebhookRegistration> {
+    return await this.sendRequest(Endpoint.Webhooks, "POST", undefined, { subscriptions, webhookUrl });
+  }
+
+  public async updateWebhook(webhookId: string, webhookUrl: string, subscriptions: string[]): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "PATCH", undefined, { subscriptions, webhookId, webhookUrl });
+  }
+
+  public async deleteWebhook(webhookId: string): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "DELETE", undefined, undefined, webhookId);
   }
 
   /**
-   * Gets the status of a KYB attempt
-   * @param attemptId The KYB attempt ID
-   * @returns The KYB attempt status
+   * Avenia's webhook-signing public key. Unauthenticated, and Avenia's guide warns it
+   * rotates, so it is fetched rather than pinned in config.
    */
-  public async getKybAttemptStatus(attemptId: string): Promise<AveniaKybAttemptStatusResponse> {
-    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
+  // eslint-disable-next-line class-methods-use-this
+  public async getAveniaPublicKey(): Promise<string> {
+    const response = await fetch(`${BRLA_BASE_URL}/v2/public-key`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(AVENIA_PUBLIC_KEY_TIMEOUT_MS)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Avenia public key: status '${response.status}'`);
+    }
+
+    const { publicKey } = (await response.json()) as AveniaPublicKeyResponse;
+    if (!publicKey) {
+      throw new Error("Avenia public key response contained no key");
+    }
+
+    return publicKey;
   }
 
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {

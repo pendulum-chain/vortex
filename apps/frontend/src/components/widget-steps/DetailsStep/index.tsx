@@ -40,8 +40,8 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
   const rampActor = useRampActor();
-  const { walletLockedFromState, isSep24Redo } = useSelector(rampActor, state => ({
-    isSep24Redo: state.context.isSep24Redo,
+  const { walletLockedFromState, isQuoteRedo } = useSelector(rampActor, state => ({
+    isQuoteRedo: state.context.isQuoteRedo,
     walletLockedFromState: state.context.walletLocked
   }));
 
@@ -107,7 +107,7 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               isWalletAddressDisabled={!!walletLockedFromState}
               signingState={signingState}
             />
-            {isSep24Redo && (
+            {isQuoteRedo && (
               <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
                 <div className="flex items-center space-x-3">
                   <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />

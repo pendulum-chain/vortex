@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
+  DomesticCountry,
   AlfredpayOnrampStatus,
   EPaymentMethod,
   EvmToken,
@@ -29,7 +29,7 @@ interface CurrencyCase {
   /** Alfredpay-side currency code expected on created orders. */
   alfredpayCurrency: string;
   /** KYC country the registration guard requires a completed profile for. */
-  country: AlfredPayCountry;
+  country: DomesticCountry;
   /** Quote source string (payment rail). */
   rail: EPaymentMethod;
   /** Fiat amount for the BUY quote (within the per-currency limits). */
@@ -48,7 +48,7 @@ interface CurrencyCase {
 const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "MXN",
-    country: AlfredPayCountry.MX,
+    country: DomesticCountry.MX,
     expectedInstructions: { clabe: "646180157000000004", paymentType: "SPEI" },
     fiat: FiatToken.MXN,
     inputAmount: "2000",
@@ -57,7 +57,7 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "USD",
-    country: AlfredPayCountry.US,
+    country: DomesticCountry.US,
     expectedInstructions: {
       bankAccountNumber: "000123456789",
       bankName: "Test Bank USA",
@@ -71,7 +71,7 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "COP",
-    country: AlfredPayCountry.CO,
+    country: DomesticCountry.CO,
     expectedInstructions: {
       bankAccountNumber: "01234567890",
       bankName: "Bancolombia de Prueba",
@@ -85,7 +85,7 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   },
   {
     alfredpayCurrency: "ARS",
-    country: AlfredPayCountry.AR,
+    country: DomesticCountry.AR,
     expectedInstructions: {
       accountHolderName: "Vortex Test Account",
       bankAccountNumber: "2850590940090418135201",
@@ -165,7 +165,7 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
   });
 
   /** A user with a completed Alfredpay KYC profile and an SDK authenticated via their secret key. */
-  async function createUserSdk(country: AlfredPayCountry): Promise<{ sdk: VortexSdk; userId: string }> {
+  async function createUserSdk(country: DomesticCountry): Promise<{ sdk: VortexSdk; userId: string }> {
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id, { country });
     const { plaintextKey } = await createTestApiKey({ userId: user.id });
@@ -278,6 +278,7 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         for (const fee of feeFields) {
           expect(Number.isFinite(Number(fee))).toBe(true);
         }
+        expect(Number(quote.networkFeeUsd)).toBeGreaterThan(0);
         expect(quote.feeCurrency).toBeTruthy();
 
         // registerRamp runs the SDK's full internal Alfredpay BUY flow: ephemeral
@@ -303,9 +304,9 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(rampProcess.achPaymentData?.reference).toBeTruthy();
 
         // The ephemeral surface of the direct Alfredpay BUY route: the
-        // destination transfer plus the Polygon dust cleanup.
+        // destination and network-fee transfers plus Polygon dust cleanup.
         const unsigned = rampProcess.unsignedTxs ?? [];
-        expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
+        expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "distributeFees", "polygonCleanup"]);
         expect(unsigned.every(tx => tx.network === Networks.Polygon)).toBe(true);
         const destinationTransferTx = unsigned.find(tx => tx.phase === "destinationTransfer");
         if (!destinationTransferTx) {
@@ -320,7 +321,7 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(stored?.userId).toBe(userId);
         expect(stored?.state.alfredpayTransactionId).toBeTruthy();
         const presigned = stored?.presignedTxs ?? [];
-        expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
+        expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "distributeFees", "polygonCleanup"]);
         const presignedTransfer = presigned.find(tx => tx.phase === "destinationTransfer");
         if (!presignedTransfer) {
           throw new Error("No presigned destinationTransfer");
@@ -347,7 +348,10 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(order.depositAddress.toLowerCase()).toBe(ephemeralAddress.toLowerCase());
 
         const persistedQuote = await QuoteTicket.findByPk(quote.id);
-        const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+        const metadata = persistedQuote?.metadata as unknown as
+          | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+          | undefined;
+        const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
         expect(mintAmountRaw).toBeGreaterThan(0n);
 
         scriptHappyWorld(ephemeralAddress, mintAmountRaw);

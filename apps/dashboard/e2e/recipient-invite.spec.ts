@@ -52,6 +52,58 @@ test("one approved corridor unlocks inviting to every live corridor, minus unsup
   expect(backend.unmatchedRequests).toEqual([]);
 });
 
+// Discount fields are role-gated, and a discount-carrying invite links to the dashboard itself
+// (the discount applies to the invitee's own ramps), not to the widget recipient flow.
+test("a discount manager's discounted invite links to the dashboard, not the widget", async ({ page }) => {
+  const backend = await mockBackend(page, { roles: ["discount_manager"] });
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Alias").fill("Maria · MXN");
+  await dialog.getByLabel("Buy discount (bps)").fill("10");
+  await dialog.getByRole("button", { name: "Create invite link" }).click();
+
+  await expect(dialog.getByText("Invite link ready")).toBeVisible();
+  const link = await dialog.getByTestId("invite-link-preview").innerText();
+  expect(link).toContain("/invite/e2e-");
+  expect(link).not.toContain("/widget");
+  expect(backend.inviteRequests[0]).toMatchObject({ discounts: { buyBps: 10, sellBps: 0 } });
+  expect(backend.unmatchedRequests).toEqual([]);
+});
+
+test("without the role, the discount fields stay hidden", async ({ page }) => {
+  await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Alias")).toBeVisible();
+  await expect(dialog.getByLabel("Buy discount (bps)")).toHaveCount(0);
+});
+
+// The invite backend keys corridors by CorridorCountry, where "EU" is the euro zone — reusing
+// the quote-flow ISO proxy ("DE") made every Europe invite 400 with INVALID_INVITE_CORRIDOR.
+test("a Europe invite posts the EU corridor key, not the quote-flow ISO country proxy", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Europe/ }).click();
+  await dialog.getByLabel("Alias").fill("Anna · EURC");
+  await dialog.getByRole("button", { name: "Create invite link" }).click();
+
+  await expect(dialog.getByText("Invite link ready")).toBeVisible();
+  expect(backend.inviteRequests).toHaveLength(1);
+  expect(backend.inviteRequests[0]).toMatchObject({ country: "EU", payoutCurrency: "eur", rail: "eur" });
+  expect(backend.unmatchedRequests).toEqual([]);
+});
+
 // US individual KYC runs through Alfredpay's hosted redirect in the widget; the deep link must
 // pin the corridor (kybLocked=US) and carry the invite token.
 test("a US individual invite deep link pins the widget to the US corridor", async ({ page }) => {

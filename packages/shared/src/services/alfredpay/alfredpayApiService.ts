@@ -2,18 +2,15 @@ import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
+import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
 import {
-  AlfredpayCustomerType,
   AlfredpayFee,
   AlfredpayFiatAccountFields,
-  AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
   AlfredpayKybCustomerAndBusiness,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
-  AlfredpayOfframpQuote,
-  AlfredpayOnrampQuote,
   AlfredpayTradeLimitError,
   CreateAlfredpayCustomerResponse,
   CreateAlfredpayFiatAccountRequest,
@@ -24,6 +21,10 @@ import {
   CreateAlfredpayOnrampQuoteRequest,
   CreateAlfredpayOnrampRequest,
   CreateAlfredpayOnrampResponse,
+  DomesticCustomerType,
+  DomesticFiatAccountType,
+  DomesticOfframpQuote,
+  DomesticOnrampQuote,
   FindAlfredpayCustomerResponse,
   GetAlfredpayOnrampTransactionResponse,
   GetAllConfigsResponse,
@@ -55,6 +56,44 @@ export class AlfredpayApiError extends ProviderHttpError {
 // A hung provider call must not stall callers — the dashboard's onboarding status poll awaits
 // these requests inline.
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Alfredpay's relate-person upload rejects any non-ASCII byte in the multipart filename with a
+ * bare 5xx `{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}`. Verified against the sandbox:
+ * `ñandú.png` and `acentuación.png` fail while `with space.png`, `parens(1).png` and
+ * `IMG_1234.png` pass, on the very customer and related person a production upload failed for.
+ *
+ * The filename we send is throwaway — Alfredpay stores every upload under a generated
+ * `{uuid}.{ext}` — but it reaches users, who name documents in their own language
+ * ("Identificación oficial.png"). So transliterate accents, replace anything else outside
+ * `[A-Za-z0-9._-]`, and keep the extension. Applied to all three uploads: only relate-person is
+ * known to reject these, and the company-document endpoint next door accepts them, but a name
+ * that is discarded on arrival is not worth a per-endpoint carve-out.
+ */
+export function toAsciiFileName(name: string): string {
+  const withoutAccents = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ascii = withoutAccents.replace(/[^A-Za-z0-9._-]/g, "_");
+  // A name that was entirely non-ASCII collapses to underscores; give the provider something.
+  return /[A-Za-z0-9]/.test(ascii) ? ascii : `upload${ascii}`;
+}
+
+/**
+ * Rebuild the upload under an ASCII name, copying the bytes out first.
+ *
+ * The copy is load-bearing, and neither shorter spelling works under Bun: `new File([file], name)`
+ * and `new Blob([file])` alias a single Blob part rather than copying it, so the result stays the
+ * original File and keeps its name, and `formData.append(field, file, name)` then ignores its
+ * filename argument because the value is a File. Every one of those silently sends the original
+ * name — alfredpayApiService.test.ts asserts the name that actually reaches the wire, so it fails
+ * if this is "simplified" back into any of them.
+ *
+ * The uploads are typed Blob, which carries no name; only the File the controllers build from the
+ * multipart request does.
+ */
+async function asAsciiNamedUpload(file: Blob): Promise<File> {
+  const name = file instanceof File ? toAsciiFileName(file.name) : "upload";
+  return new File([await file.arrayBuffer()], name, { type: file.type });
+}
 
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
@@ -171,7 +210,7 @@ export class AlfredpayApiService {
 
   public async createCustomer(
     email: string,
-    type: AlfredpayCustomerType,
+    type: DomesticCustomerType,
     country: string
   ): Promise<CreateAlfredpayCustomerResponse> {
     const payload = {
@@ -243,19 +282,21 @@ export class AlfredpayApiService {
     return { message: "ok" };
   }
 
-  public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> {
+  public async createOnrampQuote(request: CreateAlfredpayOnrampQuoteRequest): Promise<DomesticOnrampQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
-    return (await this.executeRequest(path, "POST", request)) as AlfredpayOnrampQuote;
+    return (await this.executeRequest(path, "POST", request)) as DomesticOnrampQuote;
   }
 
-  public async createOfframpQuote(request: CreateAlfredpayOfframpQuoteRequest): Promise<AlfredpayOfframpQuote> {
+  public async createOfframpQuote(request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
-    return (await this.executeRequest(path, "POST", request)) as AlfredpayOfframpQuote;
+    const response = await this.executeRequest(path, "POST", request);
+    // The loose schema preserves provider fields outside Vortex's consumed subset.
+    return alfredpayQuoteResponseSchema.parse(response) as unknown as DomesticOfframpQuote;
   }
 
-  public async getQuote(quoteId: string): Promise<AlfredpayOnrampQuote | AlfredpayOfframpQuote> {
+  public async getQuote(quoteId: string): Promise<DomesticOnrampQuote | DomesticOfframpQuote> {
     const path = `/api/v1/third-party-service/penny/quotes/${quoteId}`;
-    return (await this.executeRequest(path, "GET")) as AlfredpayOnrampQuote | AlfredpayOfframpQuote;
+    return (await this.executeRequest(path, "GET")) as DomesticOnrampQuote | DomesticOfframpQuote;
   }
 
   public async createOnramp(request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> {
@@ -270,17 +311,19 @@ export class AlfredpayApiService {
 
   public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
     const path = "/api/v1/third-party-service/penny/offramp";
-    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "POST", request);
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async getOfframpTransaction(transactionId: string): Promise<CreateAlfredpayOfframpResponse> {
     const path = `/api/v1/third-party-service/penny/offramp/${transactionId}`;
-    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "GET");
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async createFiatAccount(
     customerId: string,
-    type: AlfredpayFiatAccountType,
+    type: DomesticFiatAccountType,
     fiatAccountFields: AlfredpayFiatAccountFields,
     isExternal: boolean
   ): Promise<CreateAlfredpayFiatAccountResponse> {
@@ -323,7 +366,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("fileBody", file);
+    formData.append("fileBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
@@ -385,7 +428,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("rawBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
@@ -416,7 +459,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("rawBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;

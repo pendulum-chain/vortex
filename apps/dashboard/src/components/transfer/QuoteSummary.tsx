@@ -1,29 +1,15 @@
-import type { QuoteResponse } from "@vortexfi/shared";
+import { isFiatToken, type QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ChevronDown, Info, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { Progress } from "@/components/ui/progress";
+import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CRYPTO_DISPLAY_DECIMALS, FIAT_DISPLAY_DECIMALS, formatAmount, formatCurrencyAmount } from "@/lib/amount";
 import { cn } from "@/lib/cn";
 import { springSnappy } from "@/lib/motion";
 
-const QUOTE_TTL_SECONDS = 60;
-
-function useSecondsLeft(expiresAt: Date | string | undefined): number {
-  const [now, setNow] = useState(() => Date.now());
-  // External sync: tick once a second to drive the quote-expiry countdown.
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  if (!expiresAt) {
-    return 0;
-  }
-  return Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000));
-}
-
-function formatRate(rate: number): string {
-  return rate >= 1 ? rate.toFixed(2) : rate.toFixed(4);
+function formatRate(rate: number, currency: string): string {
+  const decimals = isFiatToken(currency) ? FIAT_DISPLAY_DECIMALS : CRYPTO_DISPLAY_DECIMALS;
+  return formatAmount(rate.toFixed(decimals), decimals);
 }
 
 interface QuoteSummaryProps {
@@ -33,35 +19,45 @@ interface QuoteSummaryProps {
 
 export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
   const [open, setOpen] = useState(false);
-  const secondsLeft = useSecondsLeft(quote.expiresAt);
 
   const input = Number(quote.inputAmount);
   const output = Number(quote.outputAmount);
   const discount = Number(quote.discountFiat ?? "0");
   const effectiveTotalFee = Number(quote.totalFeeFiat) - discount;
-  const interbankRate = input > 0 ? (output + effectiveTotalFee) / input : 0;
   const netRate = input > 0 ? output / input : 0;
   const fiat = quote.feeCurrency;
+  const isOnramp = quote.rampType === RampDirection.BUY;
+  const grossRate = isOnramp
+    ? input - effectiveTotalFee > 0
+      ? output / (input - effectiveTotalFee)
+      : 0
+    : input > 0
+      ? (output + effectiveTotalFee) / input
+      : 0;
+  const inputCurrency = String(quote.inputCurrency);
+  const outputCurrency = String(quote.outputCurrency);
 
   const feeItems: { label: string; tooltip: string; value: string }[] = [
     {
       label: "Processing fee",
-      tooltip: "Provider and Vortex fees for settling to the recipient's bank.",
-      value: `${quote.processingFeeFiat} ${fiat}`
+      tooltip: isOnramp
+        ? "Provider and Vortex fees for converting your fiat payment on-chain."
+        : "Provider and Vortex fees for settling to the recipient's bank.",
+      value: `${formatCurrencyAmount(quote.processingFeeFiat, String(fiat))} ${fiat}`
     }
   ];
   if (discount > 0) {
     feeItems.push({
       label: "Discount",
       tooltip: "A partner discount applied to this transfer.",
-      value: `- ${quote.discountFiat} ${quote.discountCurrency ?? fiat}`
+      value: `- ${formatCurrencyAmount(quote.discountFiat ?? "0", String(quote.discountCurrency ?? fiat))} ${quote.discountCurrency ?? fiat}`
     });
   }
   if (Number(quote.networkFeeFiat) > 0) {
     feeItems.push({
       label: "Network fee",
       tooltip: "Blockchain gas to move the stablecoin on-chain.",
-      value: `${quote.networkFeeFiat} ${fiat}`
+      value: `${formatCurrencyAmount(quote.networkFeeFiat, String(fiat))} ${fiat}`
     });
   }
 
@@ -72,20 +68,13 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
         <div className="flex items-center gap-2">
           <RefreshCw className={cn("size-3.5 text-muted-foreground", isFetching && "animate-spin")} />
           <span className="font-medium text-sm tabular-nums">
-            1 USDC = {formatRate(interbankRate)} {fiat}
+            1 {inputCurrency} = {formatRate(grossRate, outputCurrency)} {outputCurrency}
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Progress className="h-1 flex-1" value={(secondsLeft / QUOTE_TTL_SECONDS) * 100} />
-        <span className="w-16 text-right text-muted-foreground text-xs tabular-nums">
-          {isFetching ? "refreshing…" : `${secondsLeft}s`}
-        </span>
-      </div>
-
       <button
-        className="-mx-1 flex items-center justify-between rounded px-1 py-1 text-sm hover:bg-muted/50"
+        className="-mx-1 -my-1.5 flex min-h-10 items-center justify-between rounded px-1 text-sm transition-[background-color] hover:bg-muted/50"
         onClick={() => setOpen(value => !value)}
         type="button"
       >
@@ -119,7 +108,7 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
             <div className="flex items-center justify-between border-t pt-2">
               <span className="font-semibold">Total fee</span>
               <span className="font-semibold tabular-nums">
-                {effectiveTotalFee.toFixed(2)} {fiat}
+                {formatCurrencyAmount(String(effectiveTotalFee), String(fiat))} {fiat}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -133,7 +122,7 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
                 </Tooltip>
               </span>
               <span className="font-medium tabular-nums">
-                1 USDC = {formatRate(netRate)} {fiat}
+                1 {inputCurrency} = {formatRate(netRate, outputCurrency)} {outputCurrency}
               </span>
             </div>
           </motion.div>

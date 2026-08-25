@@ -4,7 +4,7 @@ import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
 import RampState from "../../../../models/rampState.model";
-import { getEvmFundingAccount } from "../evm-funding";
+import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../blocks/core/evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const POLYGON_BUY_CLEANUP_PHASES: CleanupPhase[] = ["polygonCleanup"];
@@ -89,14 +89,15 @@ export class PolygonPostProcessHandler extends BasePostProcessHandler {
       const fundingAccount = getEvmFundingAccount(polygonNetwork);
       const walletClient = evmClientManager.getWalletClient(polygonNetwork, fundingAccount);
 
-      const transferFromHash = await walletClient.writeContract({
-        abi: erc20Abi,
-        address: tokenAddress,
-        args: [ephemeralAddress, fundingAccount.address, balance],
-        functionName: "transferFrom"
+      const [transferFromHash, transferReceipt] = await runSerializedEvmFundingOperation(polygonNetwork, async () => {
+        const hash = await walletClient.writeContract({
+          abi: erc20Abi,
+          address: tokenAddress,
+          args: [ephemeralAddress, fundingAccount.address, balance],
+          functionName: "transferFrom"
+        });
+        return [hash, await publicClient.waitForTransactionReceipt({ hash })] as const;
       });
-
-      const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferFromHash });
       if (!transferReceipt || transferReceipt.status !== "success") {
         return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`)];
       }

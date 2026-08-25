@@ -8,6 +8,7 @@
  */
 if (!process.env.RUN_LIVE_TESTS) {
   process.env.NODE_ENV = "test";
+  process.env.EVM_DYNAMIC_DESTINATION_FUNDING_ENABLED ??= "true";
   process.env.DEPLOYMENT_ENV = "test";
   process.env.FLOW_VARIANT = process.env.FLOW_VARIANT || "mykobo";
 
@@ -46,7 +47,6 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
   process.env.EVM_FUNDING_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
   process.env.PENDULUM_FUNDING_SEED = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
-  process.env.FUNDING_SECRET = "";
 
   // Keep rate limiting out of the way of HTTP-level tests.
   process.env.RATE_LIMIT_MAX_REQUESTS = "100000";

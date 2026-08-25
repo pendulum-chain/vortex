@@ -10,6 +10,14 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+export type FiatExchangeRateSource = "binance" | "coingecko" | "fastforex" | "identity";
+
+export interface FiatExchangeRateSnapshot {
+  observedAt: Date;
+  rate: number;
+  source: FiatExchangeRateSource;
+}
+
 const FIAT_SANITY_SPREAD_LIMITS: Record<string, number> = {
   ARS: 0.25,
   BRL: 0.02,
@@ -21,9 +29,16 @@ const FIAT_SANITY_SPREAD_LIMITS: Record<string, number> = {
 // Binance spot symbols quoted against USDT (treated as USD) and priced in fiat.
 // Only currencies with a liquid Binance USDT market are listed; any fiat not
 // present here skips Binance and falls straight through to fastforex.
-const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
-  BRL: "USDTBRL"
+// Exported so the live Binance contract test covers exactly this mapping.
+export const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
+  BRL: "USDTBRL",
+  COP: "USDTCOP"
 };
+
+// CoinGecko removed COP from both its public and Pro supported quote currencies.
+// Keep this explicit so successful Binance/FastForex COP lookups do not pay for a
+// known-failing sanity request, and the terminal fallback fails with a useful error.
+const COINGECKO_UNSUPPORTED_FIAT_CURRENCIES: ReadonlySet<string> = new Set(["COP"]);
 
 /**
  * PriceFeedService
@@ -54,7 +69,7 @@ export class PriceFeedService {
   // Cache storage
   private cryptoPriceCache: Map<string, CacheEntry<number>> = new Map();
 
-  private fiatExchangeRateCache: Map<string, CacheEntry<number>> = new Map();
+  private fiatExchangeRateCache: Map<string, CacheEntry<FiatExchangeRateSnapshot>> = new Map();
 
   /**
    * Private constructor to enforce singleton pattern
@@ -76,7 +91,7 @@ export class PriceFeedService {
     }
 
     if (!this.fastforexApiKey) {
-      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko.");
+      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko where supported.");
     }
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
@@ -198,6 +213,10 @@ export class PriceFeedService {
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
   public async getUsdToFiatExchangeRate(toCurrency: RampCurrency): Promise<number> {
+    return (await this.getUsdToFiatExchangeRateSnapshot(toCurrency)).rate;
+  }
+
+  public async getUsdToFiatExchangeRateSnapshot(toCurrency: RampCurrency): Promise<FiatExchangeRateSnapshot> {
     const fromCurrency = "USD";
     const targetCurrency = toCurrency.toUpperCase() as RampCurrency;
 
@@ -206,15 +225,16 @@ export class PriceFeedService {
     }
 
     if (targetCurrency === "USD") {
-      return 1;
+      return { observedAt: new Date(), rate: 1, source: "identity" };
     }
 
     const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
+    const hasCoinGeckoFallback = !COINGECKO_UNSUPPORTED_FIAT_CURRENCIES.has(targetCurrency);
 
     if (cachedEntry && cachedEntry.expiresAt > now) {
-      logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value}`);
+      logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value.rate}`);
       return cachedEntry.value;
     }
 
@@ -224,8 +244,9 @@ export class PriceFeedService {
       try {
         const rate = await this.getBinanceUsdtToFiatRate(targetCurrency);
         await this.assertRateWithinSanityBand("Binance", targetCurrency, rate);
-        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-        return rate;
+        const snapshot = { observedAt: new Date(now), rate, source: "binance" } as const;
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+        return snapshot;
       } catch (binanceError) {
         logger.warn(
           `Binance failed for ${fromCurrency}-${targetCurrency}, falling back to fastforex: ${binanceError instanceof Error ? binanceError.message : binanceError}`
@@ -239,23 +260,37 @@ export class PriceFeedService {
       try {
         const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
         await this.assertRateWithinSanityBand("fastforex", targetCurrency, rate);
-        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-        return rate;
+        const snapshot = { observedAt: new Date(now), rate, source: "fastforex" } as const;
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+        return snapshot;
       } catch (ffError) {
         logger.warn(
-          `fastforex failed for ${fromCurrency}-${targetCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
+          `fastforex failed for ${fromCurrency}-${targetCurrency}, ${
+            hasCoinGeckoFallback ? "falling back to CoinGecko" : "no CoinGecko fallback is available"
+          }: ${ffError instanceof Error ? ffError.message : ffError}`
         );
       }
     } else {
-      logger.debug(`Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, fetching from CoinGecko fallback.`);
+      logger.debug(
+        `Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, ${
+          hasCoinGeckoFallback ? "fetching from CoinGecko fallback" : "no CoinGecko fallback is available"
+        }.`
+      );
+    }
+
+    if (!hasCoinGeckoFallback) {
+      throw new Error(
+        `CoinGecko does not support ${targetCurrency}; no fallback remains for ${fromCurrency}-${targetCurrency}`
+      );
     }
 
     logger.debug(`Fetching ${fromCurrency}-${targetCurrency} rate from CoinGecko as fallback.`);
     try {
       const rate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
       this.assertValidFiatRate("CoinGecko", fromCurrency, targetCurrency, rate);
-      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-      return rate;
+      const snapshot = { observedAt: new Date(now), rate, source: "coingecko" } as const;
+      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: snapshot });
+      return snapshot;
     } catch (cgError) {
       if (cgError instanceof Error) {
         logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${targetCurrency}: ${cgError.message}`);
@@ -482,6 +517,11 @@ export class PriceFeedService {
 
   private async assertRateWithinSanityBand(provider: string, targetCurrency: RampCurrency, rate: number): Promise<void> {
     this.assertValidFiatRate(provider, "USD", targetCurrency, rate);
+
+    if (COINGECKO_UNSUPPORTED_FIAT_CURRENCIES.has(targetCurrency)) {
+      logger.debug(`Skipping CoinGecko sanity check for USD-${targetCurrency}: quote currency is unsupported`);
+      return;
+    }
 
     let referenceRate: number;
     try {

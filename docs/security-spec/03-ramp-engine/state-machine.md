@@ -12,7 +12,7 @@ The phase processor is the core orchestration engine for ramp operations. It exe
 6. Retries recoverable errors up to 8 times with configurable delay (default 30 seconds)
 7. Transitions to `failed` on unrecoverable errors
 
-There are 28+ phase handlers covering the full ramp lifecycle across all integration paths.
+Handlers are derived from the block-flow catalog and registered before recovery workers start. The registry rejects conflicting executor classes for the same phase during assembly; only catalog-mapped corridors can create new ramps.
 
 ### Locking Mechanism
 
@@ -20,7 +20,7 @@ The processor uses a dual-lock approach:
 - **In-memory lock**: `lockedRamps` Set — prevents the same Node.js process from double-processing
 - **Database lock**: `processingLock` JSON field on `RampState` — persists lock state across restarts and (in theory) across multiple API instances
 
-Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's considered stale and can be force-released.
+Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's considered stale and can be force-released. The processor refreshes `lockedAt` before every phase attempt, including retries and recursive advancement, so active work does not expire merely because the complete ramp chain runs longer than 15 minutes.
 
 ## Security Invariants
 
@@ -29,12 +29,13 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 3. **Terminal states (`complete`, `failed`) MUST halt processing** — Once a ramp reaches a terminal state, the processor MUST stop recursion and clean up retry counters.
 4. **Lock acquisition MUST be atomic** — **KNOWN ISSUE**: The current implementation reads `state.processingLock.locked` from a potentially stale DB read, then sets it in a separate UPDATE. Between the read and write, another process could also acquire the lock. There is no `SELECT FOR UPDATE`, advisory lock, or atomic compare-and-swap.
 5. **Lock expiry MUST prevent indefinite stalls** — If a process crashes while holding a lock, the 15-minute expiry ensures another process can eventually take over. The `isLockExpired()` check validates the timestamp. **FIXED (2026-07-05)**: the takeover previously never succeeded — after force-releasing the expired DB lock, `acquireLock` re-read the stale in-memory `state.processingLock.locked` and gave up. `processRamp` now reloads the state after the release. Regression-tested in `apps/api/src/tests/corridors/brl-onramp.scenario.test.ts` ("lock takeover"), alongside a companion test that a *fresh* foreign lock is neither processed past nor clobbered.
-6. **Retries MUST be bounded** — Maximum 8 retries (`MAX_RETRIES`). After exhaustion, the processor stops retrying (but does not automatically transition to `failed` — this is a gap).
-7. **Phase execution MUST be time-bounded** — The 10-minute timeout (`MAX_EXECUTION_TIME_MS`, env-overridable via `PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS` for tests) prevents handlers from hanging indefinitely. Timeouts are treated as recoverable errors. **FIXED (2026-07-08)**: the timeout previously only abandoned the execution (`Promise.race`) without stopping it — abandoned polling loops kept running forever, accumulated across retries and recovery-worker passes until the CPU pegged (production incidents Jun 26–Jul 8), and could later perform real side effects (e.g. Avenia ticket creation) concurrently with the live retry. The processor now aborts each timed-out execution via an `AbortSignal` passed to `handler.execute`, and the shared polling helpers (`waitUntilTrue*`, `checkEvmBalance*`) stop when it fires. Regression-tested in `apps/api/src/api/services/phases/phase-processor.cancellation.integration.test.ts`.
+6. **Retries MUST be bounded** — The default maximum is 8 retries (`MAX_RETRIES`); individual handlers may define a larger bounded budget (the subsidy handlers use 200 so operators have time to replenish funding). After exhaustion, the processor stops retrying but does not automatically transition to `failed`.
+7. **Phase execution MUST be time-bounded and cancellation MUST reach every active wait** — The 10-minute timeout (`MAX_EXECUTION_TIME_MS`, env-overridable via `PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS` for tests) prevents handlers from hanging indefinitely. Timeouts are treated as recoverable errors. The processor aborts each timed-out execution via an `AbortSignal` passed to `handler.execute`. Every block executor propagates that signal through polling helpers, sleeps, provider/RPC waits, and durable financial-operation claims. Before any new external side effect, the executor re-checks the signal. Shared EVM treasury operations wait for their funding-account FIFO slot before refreshing live inputs or claiming an operation, so cancellation while queued leaves the journal unclaimed and cannot later broadcast. If cancellation races an already-claimed EVM funding operation, the abandoned phase detaches immediately while the underlying send/receipt promise retains the FIFO slot and persists its eventual confirmed or ambiguous outcome. Other transports that lack native cancellation may finish an already-started request in the background; when their eventual outcome is not observed, the financial operation is recorded as `unknown` and cannot be retried without reconciliation. Regression coverage includes `phase-processor.cancellation.integration.test.ts`, shared polling-helper tests, and financial-operation abort tests.
 8. **The retry counter MUST be reset on successful phase advancement** — When the phase changes, `retriesMap.delete(state.id)` clears the counter, giving the next phase a fresh retry budget.
 9. **Error logs MUST be appended, never overwritten** — Each error is pushed to the `errorLogs` array with timestamp, phase, recoverability flag, and stack trace.
 10. **Phase handlers MUST NOT directly mutate the database** — Only the processor should call `state.update()` for phase transitions. Handlers return a pending state object.
-11. **A user MUST have at most one nonterminal ramp** — Registration locks the authenticated user's `profiles` row and checks `ramp_states` inside the same transaction. A second ramp is rejected with `409` until the existing ramp reaches `complete`, `failed`, or `timedOut`. An `initial` ramp older than the 15-minute start window is changed to `timedOut` before this check so an abandoned registration cannot block the user indefinitely.
+11. **`squidRouterPay` polling MUST finish before the processor timeout** — Both the bridge-status loop and destination-balance check use a timeout equal to 80% of `PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS`. If neither detects settlement in time, `Promise.any()` receives two rejected checks and the handler raises a recoverable phase error before the processor's outer timeout.
+12. **Reconciliation-required financial errors MUST pause immediately** — An unknown/submitted financial outcome or a concurrent claim is translated to `ReconciliationRequiredPhaseError`. A request-hash mismatch joins that path only for phases that opt in via `reconcileRequestMismatch` (the EVM subsidy executors); elsewhere it surfaces as a 409 conflict handled by that phase's own error policy. The processor clears the in-memory retry counter and returns without scheduling another automatic attempt; an ordinary recoverable error may continue within the handler's bounded retry budget.
 
 ## Threat Vectors & Mitigations
 
@@ -42,8 +43,8 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 |---|---|---|
 | **Race condition on locking** | Two API instances process the same ramp simultaneously due to non-atomic lock acquisition | **KNOWN VULNERABILITY**: No database-level atomic lock. Mitigation: in-memory lock helps for single-instance deployments; multi-instance requires `SELECT FOR UPDATE` or advisory locks |
 | **Stale state execution** | Handler reads stale data from DB cache, executes with wrong balances/amounts | Phase processor calls `findByPk` before each ramp processing; handlers should re-read state from DB as needed |
-| **Infinite retry loop** | A recoverable error keeps retrying forever | Bounded at 8 retries; after exhaustion, processing stops |
-| **Phase handler timeout** | A handler hangs (e.g., waiting for an RPC response that never comes), blocking the ramp | 10-minute timeout per phase; timeout throws `RecoverablePhaseError` which triggers retry, and the abandoned execution is aborted via `AbortSignal` so it cannot keep polling or perform late side effects |
+| **Infinite retry loop** | A recoverable error keeps retrying forever | Bounded by the handler's retry budget (8 by default, 200 for subsidy phases); after exhaustion, processing stops. Reconciliation-required errors pause immediately rather than consuming that budget. |
+| **Phase handler timeout** | A handler hangs (e.g., waiting for an RPC response that never comes), blocking the ramp | 10-minute timeout per phase; timeout throws `RecoverablePhaseError`, propagates an `AbortSignal` through all active block waits, and forbids a new side effect after cancellation. An already-started ambiguous operation is durably marked for reconciliation. |
 | **Lock starvation** | Process acquires lock, crashes, lock persists for 15 minutes | Lock expiry mechanism detects stale locks; force-releases and reacquires |
 | **Retry counter memory leak** | `retriesMap` (in-memory `Map`) grows unbounded for many ramps | Counter is deleted on terminal state, successful phase change, or max retries reached. Long-running ramps with many retries could accumulate entries, but each entry is just an integer. |
 | **Phase skip attack** | Attacker manipulates DB to skip phases (e.g., jump from `initial` to `complete`) | Phase transitions are controlled by handler return values, not external input. However, if an attacker has DB access, they could modify `currentPhase` directly — no DB-level constraints prevent invalid transitions. |
@@ -51,17 +52,21 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 
 ## Audit Checklist
 
-- [EXISTING FINDING] **F-003**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. No `SELECT FOR UPDATE` or advisory lock. Multi-instance deployment would be vulnerable.
-- [EXISTING FINDING] **F-004**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). Retry counter resets across processing cycles, creating an infinite soft loop.
+- [ ] **F-003**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. No `SELECT FOR UPDATE` or advisory lock. Multi-instance deployment would be vulnerable.
+- [ ] **F-004**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). Retry counter resets across processing cycles, creating an infinite soft loop.
 - [x] `state.update()` in the processor uses `{ fields: ["currentPhase", "phaseHistory"] }` — enforced and not bypassed
 - [x] Terminal states `complete` and `failed` both trigger `retriesMap.delete()` and halt recursion
 - [x] `MAX_EXECUTION_TIME_MS` (10 minutes) is enforced via `Promise.race` with a timeout promise, and the losing execution is aborted via `AbortSignal` (not merely abandoned)
-- [x] `MAX_RETRIES` (8) is the hard limit — no code path bypasses this (caveat: resets across cycles per F-004)
+- [x] Every catalog-registered block executor accepts the processor signal; polling helpers, explicit sleeps, provider/RPC waits, transaction receipt waits, and financial-operation claims propagate or race it. New side effects check cancellation first.
+- [x] Retry budgets are bounded — `MAX_RETRIES` (8) by default, with handler overrides via `getMaxRetries()` (subsidy phases use 200) (caveat: resets across cycles per F-004)
 - [x] `RecoverablePhaseError.minimumWaitSeconds` is respected when provided; fallback is 30 seconds
 - [x] `phaseHistory` is append-only — phase transitions add to the array, never truncate it
 - [x] Error logs include: error message, stack trace, phase name, recoverability flag, and ISO timestamp
 - [x] No phase handler directly calls `RampState.update()` for `currentPhase` — only the processor does this
 - [x] The `lockedRamps` Set is cleaned up in the `finally` block (`this.lockedRamps.delete(state.id)`)
 - [x] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
+- [x] The database lock timestamp is refreshed before every phase attempt, so a 10-minute attempt plus retry cannot age a live lock past the 15-minute expiry
+- [x] `squidRouterPay` bounds both bridge-status and destination-balance polling at 80% of the processor timeout
+- [ ] Lock refresh/release are not owner-fenced; a surviving stale processor can still overwrite a replacement owner's lock timestamp (F-003 follow-up)
 - [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no production file creates `new PhaseProcessor()` (tests instantiate the class directly)
-- [EXISTING FINDING] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.
+- [ ] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.

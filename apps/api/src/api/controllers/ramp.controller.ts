@@ -84,11 +84,9 @@ export function mapProviderFailure(error: unknown): { error: unknown; logContext
 /**
  * Render the provider log context as a message suffix.
  *
- * The app logger (`config/logger.ts`) formats only `{ timestamp, level, message, label }` and
- * drops any metadata object passed as the second argument. Provider context therefore has to
- * live in the message string itself to reach the logs — passing it as metadata (as we did
- * before) silently discarded it. Server-side only; the body is already truncated. Returns an
- * empty string for non-provider failures so their log line is unchanged.
+ * Keeping this short context in the message makes provider failures easy to scan and search.
+ * Server-side only; the body is already sanitized and truncated. Returns an empty string for
+ * non-provider failures so their log line is unchanged.
  */
 export function formatProviderContext(logContext: Record<string, unknown>): string {
   if (!logContext.provider) {
@@ -326,6 +324,18 @@ export const getErrorLogs = async (
  * Get ramp history for a wallet address
  * @public
  */
+function parseHistoryPagination(query: { limit?: string; offset?: string }): { limit: number; offset?: number } {
+  const limit = query.limit === undefined ? 20 : Number(query.limit);
+  const offset = query.offset === undefined ? undefined : Number(query.offset);
+  if (!Number.isInteger(limit) || limit <= 0 || (offset !== undefined && (!Number.isInteger(offset) || offset < 0))) {
+    throw new APIError({
+      message: "History limit must be a positive integer and offset must be a non-negative integer",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+  return { limit: Math.min(limit, 100), offset };
+}
+
 export const getRampHistory = async (
   req: Request<GetRampHistoryRequest, unknown, unknown, { limit?: string; offset?: string }>,
   res: Response<GetRampHistoryResponse>,
@@ -333,13 +343,7 @@ export const getRampHistory = async (
 ): Promise<void> => {
   try {
     const { walletAddress } = req.params;
-    let limit = req.query.limit ? parseInt(req.query.limit) : 20;
-    const offset = req.query.offset ? parseInt(req.query.offset) : undefined;
-
-    // Cap the limit to a maximum of 100
-    if (limit > 100) {
-      limit = 100;
-    }
+    const { limit, offset } = parseHistoryPagination(req.query);
 
     if (!walletAddress) {
       throw new APIError({
@@ -349,11 +353,7 @@ export const getRampHistory = async (
     }
 
     const effectiveUserId = getEffectiveUserId(req);
-    const owner = req.authenticatedPartner
-      ? { partnerId: req.authenticatedPartner.id }
-      : effectiveUserId
-        ? { userId: effectiveUserId }
-        : null;
+    const owner = effectiveUserId ? { userId: effectiveUserId } : null;
     if (!owner) {
       throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
     }
@@ -362,6 +362,28 @@ export const getRampHistory = async (
     res.status(httpStatus.OK).json(history);
   } catch (error) {
     logger.error("Error getting transaction history:", error);
+    next(error);
+  }
+};
+
+/** Get every ramp owned by the authenticated user, across wallet addresses. */
+export const getAuthenticatedUserRampHistory = async (
+  req: Request<Record<string, never>, unknown, unknown, { limit?: string; offset?: string }>,
+  res: Response<GetRampHistoryResponse>,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { limit, offset } = parseHistoryPagination(req.query);
+
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
+      throw new APIError({ message: "A user-scoped credential is required", status: httpStatus.FORBIDDEN });
+    }
+
+    const history = await rampService.getRampHistory(undefined, { userId: effectiveUserId }, limit, offset);
+    res.status(httpStatus.OK).json(history);
+  } catch (error) {
+    logger.error("Error getting authenticated user transaction history:", error);
     next(error);
   }
 };
@@ -379,7 +401,7 @@ interface RampObservationContext {
 }
 
 interface ObservedRampRequest {
-  authenticatedPartner?: { id: string; name: string };
+  authenticatedPartner?: { name: string };
   body?: unknown;
   method?: string;
   params?: unknown;
@@ -387,6 +409,8 @@ interface ObservedRampRequest {
   query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
+  credential?: Request["credential"];
+  impersonation?: Request["impersonation"];
   userId?: string;
 }
 
@@ -400,12 +424,13 @@ function observeRampSuccess(
     ...context,
     durationMs: getRequestDurationMs(req),
     httpStatus: status,
+    metadata: buildRampRequestMetadata(req, operation),
     operation,
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "success",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 
@@ -424,15 +449,15 @@ function observeRampFailure(
     httpStatus: status,
     metadata: buildRampRequestMetadata(req, operation),
     operation,
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 
-function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
+export function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
   if (operation === "ramp_register") {
     return buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "signingAccounts", "additionalData"] });
   }

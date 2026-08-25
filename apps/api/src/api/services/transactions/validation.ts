@@ -11,6 +11,7 @@ import {
   isSignedTypedDataArray,
   Networks,
   NUMBER_OF_PRESIGNED_TXS,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -34,28 +35,47 @@ interface VerifiedEvmTransaction {
   chainId: number;
 }
 
-function assertSignedEvmMinimum(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
+export class PresignedEvmTransactionRebindError extends APIError {
+  constructor(message: string) {
+    super({ message, status: httpStatus.BAD_REQUEST });
+  }
+}
+
+function assertSignedEvmFeeWithinBounds(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
   if (expectedMinimumRaw === undefined) {
     return;
   }
 
   const expectedMinimum = BigInt(expectedMinimumRaw);
-  // When the server-issued minimum is 0, a missing field is equivalent to "≥ 0" (e.g., legacy txs that
-  // use gasPrice instead of maxPriorityFeePerGas, or chains that accept zero priority fee). Reject only
-  // if a concrete value is present and is strictly below the minimum.
-  if (expectedMinimum === 0n) {
-    if (actual !== undefined && actual < expectedMinimum) {
-      throw new APIError({
-        message: `Signed EVM transaction ${fieldName} ${actual.toString()} is below expected minimum ${expectedMinimum.toString()}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+  // viem decodes a zero-valued EIP-1559 fee scalar as undefined because zero is
+  // RLP-encoded as an empty byte string. It is equivalent to zero only when the
+  // server-issued minimum is also zero.
+  const normalizedActual = actual ?? (expectedMinimum === 0n ? 0n : undefined);
+  if (normalizedActual === undefined || normalizedActual < expectedMinimum) {
+    throw new APIError({
+      message: `Signed EVM transaction ${fieldName} ${normalizedActual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const expectedMaximum = expectedMinimum * PRESIGNED_EVM_FEE_MULTIPLIER;
+  if (normalizedActual > expectedMaximum) {
+    throw new APIError({
+      message: `Signed EVM transaction ${fieldName} ${normalizedActual.toString()} exceeds expected maximum ${expectedMaximum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+function assertSignedEvmGasLimit(actual: bigint | undefined, expectedRaw: string | undefined) {
+  if (expectedRaw === undefined) {
     return;
   }
 
-  if (actual === undefined || actual < expectedMinimum) {
+  const expected = BigInt(expectedRaw);
+  if (actual !== expected) {
     throw new APIError({
-      message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      message: `Signed EVM transaction gas limit ${actual?.toString() ?? "missing"} does not match expected ${expected.toString()}`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -139,9 +159,9 @@ async function verifySignedEvmTransaction(
       });
     }
 
-    assertSignedEvmMinimum("gas limit", parsed.gas, unsignedTxData.gas);
-    assertSignedEvmMinimum("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
-    assertSignedEvmMinimum(
+    assertSignedEvmGasLimit(parsed.gas, unsignedTxData.gas);
+    assertSignedEvmFeeWithinBounds("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
+    assertSignedEvmFeeWithinBounds(
       "maxPriorityFeePerGas",
       parsed.maxPriorityFeePerGas ?? parsed.gasPrice,
       unsignedTxData.maxPriorityFeePerGas
@@ -187,9 +207,13 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
 function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Networks): EphemeralAccountType {
   // Phases that dispatch polymorphically between substrate and EVM based on the network of the presigned tx.
   switch (phase) {
+    case "distributeFees":
+      // distributeFees runs on Base (BRL/EUR corridors) or Polygon (Alfredpay corridors).
+      return network === Networks.Base || network === Networks.Polygon
+        ? EphemeralAccountType.EVM
+        : EphemeralAccountType.Substrate;
     case "nablaApprove":
     case "nablaSwap":
-    case "distributeFees":
     case "subsidizePreSwap":
     case "subsidizePostSwap":
       return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
@@ -231,6 +255,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "baseCleanupAxlUsdc":
     case "alfredOnrampMintFallback":
     case "alfredpayOfframpTransferFallback":
+    case "ethereumCleanupUsdc":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({
@@ -350,12 +375,22 @@ export async function validatePresignedTxs(
     // them — only the resulting on-chain tx hash via /v1/ramp/update additionalData. The receipt
     // is then verified against the unsigned blueprint by user-tx-verifier at phase execution time.
     // Accepting a presignedTx here would create a fake authority surface that bypasses that check.
-    const isUserWalletPhase =
+    // The signer is the source of truth: an unsigned entry whose signer is an ephemeral address
+    // is broadcast by the ephemeral (and requires a presignedTx); an entry signed by the user is
+    // broadcast by the user (and must NOT have a presignedTx).
+    const ephemeralSigners = new Set(
+      Object.values(ephemerals)
+        .filter((v): v is string => Boolean(v))
+        .map(s => s.toLowerCase())
+    );
+    const isSquidBridgePhase = tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove";
+    const isAlwaysUserWalletPhase =
+      tx.phase === "assethubToPendulum" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
       tx.phase === "squidRouterNoPermitSwap" ||
-      (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"));
-    if (isUserWalletPhase) {
+      (isSquidBridgePhase && direction === RampDirection.SELL && !ephemeralSigners.has(tx.signer.toLowerCase()));
+    if (isAlwaysUserWalletPhase) {
       throw new APIError({
         message: `Phase ${tx.phase} is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.`,
         status: httpStatus.BAD_REQUEST
@@ -457,6 +492,28 @@ async function validateEvmTransaction(
 
   const evmUnsigned = unsignedTxData && isEvmTransactionData(unsignedTxData) ? unsignedTxData : undefined;
   await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, evmUnsigned);
+}
+
+export async function validatePresignedEvmTransactionAgainstUnsigned(tx: PresignedTx, unsignedTx: PresignedTx): Promise<void> {
+  try {
+    if (
+      tx.phase !== unsignedTx.phase ||
+      tx.network !== unsignedTx.network ||
+      tx.nonce !== unsignedTx.nonce ||
+      tx.signer.toLowerCase() !== unsignedTx.signer.toLowerCase()
+    ) {
+      throw new Error("Presigned EVM transaction identity does not match its server-issued unsigned transaction");
+    }
+    if (!isEvmTransactionData(unsignedTx.txData)) {
+      throw new Error("Server-issued unsigned EVM transaction has invalid transaction data");
+    }
+    await validateEvmTransaction(tx, unsignedTx.signer, unsignedTx.txData);
+  } catch (error) {
+    if (error instanceof PresignedEvmTransactionRebindError) throw error;
+    throw new PresignedEvmTransactionRebindError(
+      error instanceof Error ? error.message : "Presigned EVM transaction does not match its server-issued transaction"
+    );
+  }
 }
 
 function validateSignedTypedData(

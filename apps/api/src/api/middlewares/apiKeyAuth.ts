@@ -8,8 +8,13 @@ import {
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientErrorType } from "../observability/types";
-import { AuthenticatedPartner, getKeyType, isValidSecretKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
-import { setApiKeyUserId } from "./effectiveUser";
+import {
+  AuthenticatedPartner,
+  getKeyType,
+  isValidSecretKeyFormat,
+  validateApiKey,
+  validatePublicApiKey
+} from "./apiKeyAuth.helpers";
 
 // Extend Express Request type to include authenticatedPartner
 declare global {
@@ -61,7 +66,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
           error: {
             code: "INVALID_SECRET_KEY",
             message:
-              "X-API-Key header must contain a secret key (sk_live_* or sk_test_*). Use public keys (pk_*) in request body for tracking.",
+              "X-API-Key header must contain a secret key (sk_live_* or sk_test_*). Use X-Public-Key for public credentials.",
             status: 401
           }
         });
@@ -94,53 +99,50 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
       const partner = result.partner;
 
+      let publicCredentialId = req.credential?.strength === "public" ? req.credential.credentialId : undefined;
+      if (!publicCredentialId && req.headers["x-public-key"]) {
+        const publicResult = await validatePublicApiKey(req.headers["x-public-key"] as string);
+        if (!publicResult) {
+          recordAuthFailure(req, 401, "auth_invalid_public_key", getSafeApiKeyPrefix(req.headers["x-public-key"] as string));
+          return res.status(401).json({
+            error: { code: "INVALID_PUBLIC_KEY", message: "The provided public API key is invalid or expired", status: 401 }
+          });
+        }
+        publicCredentialId = publicResult.credential.credentialId;
+      }
+      if (publicCredentialId && publicCredentialId !== result.credential.credentialId) {
+        return res.status(403).json({
+          error: { code: "CREDENTIAL_MISMATCH", message: "Public and secret credentials do not match", status: 403 }
+        });
+      }
+
+      req.credential = result.credential;
+      req.authenticatedCredentialProfileId = result.credential.profileId;
+
       // Attach authenticated partner to request (null for user-scoped keys, leaving the field unset).
       if (partner) {
         req.authenticatedPartner = partner;
       }
-      setApiKeyUserId(req, result.apiKeyUserId);
-
       // If validatePartnerMatch enabled, check payload partnerId
       if (options.validatePartnerMatch && req.body?.partnerId) {
-        const partnerIdOrName = req.body.partnerId;
-
-        // Detect if partnerId is a UUID or a name
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
-
-        let requestedPartnerName: string;
-
-        if (isUUID) {
-          // Look up the partner by UUID
-          const requestedPartner = await Partner.findByPk(partnerIdOrName);
-
-          if (!requestedPartner) {
-            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
-            return res.status(404).json({
-              error: {
-                code: "PARTNER_NOT_FOUND",
-                message: "The requested partner was not found",
-                status: 404
-              }
-            });
-          }
-
-          requestedPartnerName = requestedPartner.name;
-        } else {
-          // Treat as partner name
-          requestedPartnerName = partnerIdOrName;
+        const requestedPartner = await resolvePartner(req.body.partnerId);
+        if (!requestedPartner) {
+          recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
+          return res.status(404).json({
+            error: {
+              code: "PARTNER_NOT_FOUND",
+              message: "The requested partner was not found",
+              status: 404
+            }
+          });
         }
 
-        // Compare partner names since one API key works for all partners with same name
-        if (!partner || requestedPartnerName !== partner.name) {
+        if (requestedPartner.id !== req.credential.partnerId) {
           recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
-              details: {
-                authenticatedPartnerName: partner?.name ?? null,
-                requestedPartnerName: requestedPartnerName
-              },
-              message: "The authenticated partner name does not match the requested partner's name",
+              message: "The authenticated partner does not match the requested partner",
               status: 403
             }
           });
@@ -158,7 +160,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 /**
  * Middleware to enforce partner authentication when partnerId is in payload
  * This ensures that if a partnerId is specified, the request must be authenticated
- * and the authenticated partner name must match the requested partner's name.
+ * and resolve to the credential's canonical partner ID.
  *
  * Supports both UUID (partner ID) and string (partner name) formats.
  */
@@ -166,8 +168,7 @@ export function enforcePartnerAuth() {
   return async (req: Request, res: Response, next: NextFunction) => {
     // If partnerId is in the payload
     if (req.body?.partnerId) {
-      // Partner must be authenticated
-      if (!req.authenticatedPartner) {
+      if (!req.credential?.partnerId) {
         recordAuthFailure(req, 403, "auth_missing_api_key");
         return res.status(403).json({
           error: {
@@ -178,45 +179,24 @@ export function enforcePartnerAuth() {
         });
       }
 
-      const partnerIdOrName = req.body.partnerId;
-
-      // Detect if partnerId is a UUID or a name
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
-
-      let requestedPartnerName: string;
-
-      if (isUUID) {
-        // Look up the partner by UUID
-        const requestedPartner = await Partner.findByPk(partnerIdOrName);
-
-        if (!requestedPartner) {
-          recordAuthFailure(req, 404, "auth_partner_not_found", null, req.authenticatedPartner);
-          return res.status(404).json({
-            error: {
-              code: "PARTNER_NOT_FOUND",
-              message: "The requested partner was not found",
-              status: 404
-            }
-          });
-        }
-
-        requestedPartnerName = requestedPartner.name;
-      } else {
-        // Treat as partner name
-        requestedPartnerName = partnerIdOrName;
+      const requestedPartner = await resolvePartner(req.body.partnerId);
+      if (!requestedPartner) {
+        recordAuthFailure(req, 404, "auth_partner_not_found", null);
+        return res.status(404).json({
+          error: {
+            code: "PARTNER_NOT_FOUND",
+            message: "The requested partner was not found",
+            status: 404
+          }
+        });
       }
 
-      // Compare partner names (not IDs) since one API key works for all partners with same name
-      if (requestedPartnerName !== req.authenticatedPartner.name) {
+      if (requestedPartner.id !== req.credential.partnerId) {
         recordAuthFailure(req, 403, "auth_partner_mismatch", null, req.authenticatedPartner);
         return res.status(403).json({
           error: {
             code: "PARTNER_MISMATCH",
-            details: {
-              authenticatedPartnerName: req.authenticatedPartner.name,
-              requestedPartnerName: requestedPartnerName
-            },
-            message: "The authenticated partner name does not match the requested partner's name",
+            message: "The authenticated partner does not match the requested partner",
             status: 403
           }
         });
@@ -225,6 +205,11 @@ export function enforcePartnerAuth() {
 
     next();
   };
+}
+
+async function resolvePartner(partnerIdOrName: string): Promise<Partner | null> {
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
+  return isUUID ? Partner.findByPk(partnerIdOrName) : Partner.findOne({ where: { name: partnerIdOrName } });
 }
 
 function recordAuthFailure(
@@ -248,10 +233,10 @@ function recordAuthFailure(
     httpStatus,
     metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
     operation: "auth_api_key",
-    partnerId: partner?.id || req.authenticatedPartner?.id || null,
+    partnerId: partner?.id || req.credential?.partnerId || null,
     partnerName: partner?.name || req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || req.apiKeyUserId || null
+    userId: req.userId || req.credential?.profileId || null
   });
 }

@@ -1,0 +1,302 @@
+import { afterAll, describe, expect, it, mock } from "bun:test";
+import Big from "big.js";
+import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import { config } from "../../../../../config/vars";
+import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
+
+const partnerPricingReal = { ...partnerPricingNamespace };
+const brlaApiServiceGetInstanceReal = BrlaApiService.getInstance;
+
+mock.module("../core/nabla", () => ({
+  calculateNablaSwapOutput: async () => {
+    throw new Error("calculateNablaSwapOutput should not be called in EVM-only smoke test");
+  },
+  calculateNablaSwapOutputEvm: async () => ({
+    effectiveExchangeRate: "0.18",
+    nablaOutputAmountDecimal: new Big(18),
+    nablaOutputAmountRaw: "18000000"
+  })
+}));
+
+mock.module("../core/squidrouter", () => ({
+  calculateEvmBridgeAndNetworkFee: async () => ({
+    finalEffectiveExchangeRate: "0.99",
+    finalGrossOutputAmountDecimal: new Big(17.5),
+    networkFeeUSD: "0.1",
+    outputTokenDecimals: 6
+  }),
+  getEvmBridgeQuote: async ({ amountDecimal }: { amountDecimal: string }) => ({
+    networkFeeUSD: "0.1",
+    outputAmountDecimal: new Big(amountDecimal)
+  }),
+  getBridgeTargetTokenDetails: () => ({
+    erc20AddressSourceChain: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+  })
+}));
+
+mock.module("../../../priceFeed.service", () => ({
+  priceFeedService: {
+    convertCurrency: async (amount: string) => amount,
+    getFiatToUsdExchangeRate: async () => new Big(0.18)
+  }
+}));
+
+mock.module("../../../partners/partner-pricing.service", () => ({
+  findPartnerWithPricing: async () => null
+}));
+
+afterAll(() => {
+  BrlaApiService.getInstance = brlaApiServiceGetInstanceReal;
+  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
+});
+
+const BRL_ONRAMP_BASE_CROSS_CHAIN: RampPhase[] = [
+  "initial",
+  "brlaOnrampMint",
+  "fundEphemeral",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "distributeFees",
+  "subsidizePostSwap",
+  "squidRouterSwap",
+  "squidRouterPay",
+  "finalSettlementSubsidy",
+  "destinationTransfer",
+  "complete"
+];
+import { FlowBuilder } from "../core/flow";
+import { evmRequestIO, fiatRequestIO } from "../core/io";
+import { assemblePhaseFlow } from "../core/phase-flow";
+import { getBlockMetadata } from "../core/metadata";
+import type { PhaseCtx } from "../core/types";
+import { AveniaMint } from "../phases/avenia-mint";
+import { AveniaMintContext } from "../phases/avenia-mint/simulation";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
+import { DistributeFees } from "../phases/distribute-fees";
+import { DistributeFeesContext } from "../phases/distribute-fees/simulation";
+import { FinalSettlementSubsidyContext } from "../phases/final-settlement-subsidy/simulation";
+import { FundEphemeral } from "../phases/fund-ephemeral";
+import { NablaSwap } from "../phases/nabla-swap";
+import { NablaSwapContext } from "../phases/nabla-swap/simulation";
+import { SquidRouterSwap } from "../phases/squid-router-swap";
+import { SquidRouterSwapContext } from "../phases/squid-router-swap/simulation";
+import { SubsidizePostContext } from "../phases/subsidize-post/simulation";
+import { SubsidizePreContext } from "../phases/subsidize-pre/simulation";
+import {
+  brlOnrampBaseCrossChainFlow,
+  brlOnrampBaseCrossChainPhaseFlow,
+  makeBrlOnrampBaseCrossChainFlow
+} from "../flows/brl-onramp-base-cross-chain";
+
+const CORE_PHASES: RampPhase[] = [
+  "brlaOnrampMint",
+  "fundEphemeral",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "distributeFees",
+  "subsidizePostSwap",
+  "squidRouterSwap",
+  "squidRouterPay",
+  "finalSettlementSubsidy",
+  "destinationTransfer"
+];
+
+describe("BRL cross-chain onramp flow structure", () => {
+  it("derives the core phases from the assembled blocks", () => {
+    expect(brlOnrampBaseCrossChainFlow.phases).toEqual(CORE_PHASES);
+  });
+
+  it("assembles the expected phase flow", () => {
+    expect(brlOnrampBaseCrossChainPhaseFlow).toEqual(BRL_ONRAMP_BASE_CROSS_CHAIN);
+    expect(assemblePhaseFlow(brlOnrampBaseCrossChainFlow)).toEqual(BRL_ONRAMP_BASE_CROSS_CHAIN);
+  });
+
+  it("derives the same phaseFlow for every destination in the flow family", () => {
+    expect(assemblePhaseFlow(makeBrlOnrampBaseCrossChainFlow(Networks.Polygon, EvmToken.USDT))).toEqual(
+      BRL_ONRAMP_BASE_CROSS_CHAIN
+    );
+    expect(assemblePhaseFlow(makeBrlOnrampBaseCrossChainFlow(Networks.Ethereum, EvmToken.USDC))).toEqual(
+      BRL_ONRAMP_BASE_CROSS_CHAIN
+    );
+  });
+});
+
+describe("BRL cross-chain onramp flow executors", () => {
+  it("provides exactly one executor per phase, in flow order", () => {
+    expect(brlOnrampBaseCrossChainFlow.executors.map(executor => executor.getPhaseName())).toEqual(CORE_PHASES);
+  });
+
+  it("provides executors for every destination in the flow family", () => {
+    const flow = makeBrlOnrampBaseCrossChainFlow(Networks.Polygon, EvmToken.USDT);
+    expect(flow.executors.map(executor => executor.getPhaseName())).toEqual(CORE_PHASES);
+  });
+});
+
+describe("BRL cross-chain onramp flow compile-time adjacency", () => {
+  it.skip("rejects brand mismatches at compile time", () => {
+    // @ts-expect-error entry adjacency: an EVM resolver cannot feed a fiat phase
+    const _wrongEntry = FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), AveniaMint);
+    void _wrongEntry;
+
+    // AveniaMint outputs BRLA on Base; a EURC-input swap cannot follow.
+    const _wrongToken = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), AveniaMint).pipe(
+      // @ts-expect-error adjacency: NablaSwap input brand (EURC) != AveniaMint output brand (BRLA)
+      NablaSwap(Networks.Base, EvmToken.EURC, EvmToken.USDC)
+    );
+    void _wrongToken;
+
+    // The bridge lands on Arbitrum; a Base-only phase cannot follow.
+    const bridged = FlowBuilder.start(
+      evmRequestIO(EvmToken.USDC, Networks.Base),
+      SquidRouterSwap(Networks.Base, Networks.Arbitrum, EvmToken.USDC, EvmToken.USDC)
+    );
+    // @ts-expect-error adjacency: DistributeFees chain brand (base) != bridge output chain (arbitrum)
+    const _wrongChain = bridged.pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>());
+    void _wrongChain;
+
+  });
+
+  it("rejects duplicate metadata keys when the flow is built", () => {
+    expect(() =>
+      FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), FundEphemeral(EvmToken.USDC, Networks.Base))
+        .pipe(FundEphemeral(EvmToken.USDC, Networks.Base))
+        .build("DuplicateKey")
+    ).toThrow("duplicate metadata key fundEphemeral");
+  });
+});
+
+function buildCtx(includeDynamicFunding = true): PhaseCtx {
+  const notes: string[] = [];
+  return {
+    addNote: (note: string) => {
+      notes.push(note);
+    },
+    fees: {
+      displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" },
+      usd: { anchor: "0.1", network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" }
+    },
+    ...(includeDynamicFunding
+      ? {
+          evmDestinationGas: {
+            executionFeeUsd: "0.01",
+            fundingGasLimit: "21000",
+            isNativeTransfer: false,
+            maximumFeePerGas: "1",
+            network: Networks.Arbitrum,
+            programVersion: 2 as const,
+            transferGasLimit: "100000"
+          }
+        }
+      : {}),
+    notes,
+    now: new Date(),
+    partner: null,
+    request: {
+      from: EPaymentMethod.PIX,
+      inputAmount: "100",
+      inputCurrency: FiatToken.BRL,
+      network: Networks.Base,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.BUY,
+      to: Networks.Arbitrum
+    }
+  };
+}
+
+async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow, includeDynamicFunding = true) {
+  BrlaApiService.getInstance = mock(() => ({
+    createPayInQuote: mock(async (request: { inputCurrency: string }) => ({
+      appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
+      outputAmount: request.inputCurrency === "BRL" ? "99" : "98.5",
+      quoteToken: "mock-quote-token"
+    }))
+  })) as unknown as typeof BrlaApiService.getInstance;
+
+  return flow.simulate(buildCtx(includeDynamicFunding));
+}
+
+describe("BRL cross-chain onramp flow simulation", () => {
+  it("runs the flow end-to-end and lands on the destination token", async () => {
+    const { output } = await runFlow(brlOnrampBaseCrossChainFlow);
+    expect(output.amount.gt(0)).toBe(true);
+    expect(output.token).toBe(EvmToken.USDC);
+    expect(output.chain).toBe(Networks.Arbitrum);
+  });
+
+  it("keeps producing legacy-compatible metadata until the rollout flag is enabled", async () => {
+    const originalEnabled = config.evmDestinationGas.dynamicFundingEnabled;
+    config.evmDestinationGas.dynamicFundingEnabled = false;
+    try {
+      const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow, false);
+      expect(metadata.globals.evmDestinationGas).toBeUndefined();
+    } finally {
+      config.evmDestinationGas.dynamicFundingEnabled = originalEnabled;
+    }
+  });
+});
+
+describe("BRL cross-chain onramp flow metadata ownership", () => {
+  it("accumulates one context per block beneath explicit globals", async () => {
+    const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow);
+    const { blocks, globals } = metadata;
+
+    expect(globals.fees.usd).toMatchObject({ anchor: "1.5", network: "0.11", total: "1.710000", vortex: "0.1" });
+    expect(Object.keys(blocks)).toEqual([
+      "aveniaMint",
+      "fundEphemeral",
+      "subsidizePreSwap",
+      "nablaSwap",
+      "distributeFees",
+      "subsidizePostSwap",
+      "squidRouterSwap",
+      "finalSettlementSubsidy",
+      "destinationTransfer"
+    ]);
+
+    const aveniaMint = getBlockMetadata(metadata, AveniaMintContext).mint;
+    expect(aveniaMint).toBeDefined();
+    expect(aveniaMint.currency).toBe(FiatToken.BRL);
+    // 100 BRL in, 99 BRLA quoted -> 1 BRL mint fee, 0.2 provider gas fee deducted from delivery
+    expect(Big(aveniaMint.fee).toFixed()).toBe("1");
+    expect(Big(aveniaMint.inputAmountDecimal).toFixed()).toBe("100");
+    expect(Big(aveniaMint.outputAmountDecimal).toFixed()).toBe("98.8");
+
+    const aveniaTransfer = getBlockMetadata(metadata, AveniaMintContext).transfer;
+    expect(aveniaTransfer).toBeDefined();
+    expect(Big(aveniaTransfer.inputAmountDecimal).toFixed()).toBe("98.8");
+    // transfer quote outputs 98.5, minus the 0.2 gas-fee buffer ((0.2 + 0.2) * 0.5)
+    expect(Big(aveniaTransfer.outputAmountDecimal).toFixed()).toBe("98.3");
+
+    const nabla = getBlockMetadata(metadata, NablaSwapContext);
+    expect(nabla).toBeDefined();
+    expect(nabla.inputCurrency).toBe(EvmToken.BRLA);
+    expect(nabla.outputCurrency).toBe(EvmToken.USDC);
+    expect(nabla.outputAmountRaw).toBe("18000000");
+    expect(nabla.effectiveExchangeRate).toBe("0.18");
+
+    const evmToEvm = getBlockMetadata(metadata, SquidRouterSwapContext);
+    expect(evmToEvm).toBeDefined();
+    expect(evmToEvm.fromNetwork).toBe(Networks.Base);
+    expect(evmToEvm.toNetwork).toBe(Networks.Arbitrum);
+    expect(evmToEvm.inputAmountRaw).toBeDefined();
+    expect(evmToEvm.outputAmountRaw).toBe("17500000");
+    expect(evmToEvm.networkFeeUSD).toBe("0.1");
+
+    const distributeFees = getBlockMetadata(metadata, DistributeFeesContext);
+    expect(distributeFees.networkFeeUsd).toBe("0.11");
+    expect(distributeFees.totalFeesUsd).toBe("0.21");
+
+    const subsidy = getBlockMetadata(metadata, FinalSettlementSubsidyContext);
+    expect(subsidy).toBeDefined();
+    expect(subsidy.applied).toBe(false);
+    expect(Big(subsidy.actualOutputAmountDecimal).gt(0)).toBe(true);
+    expect(subsidy.partnerId).toBeNull();
+    expect(getBlockMetadata(metadata, SubsidizePreContext).inputCurrency).toBe(EvmToken.BRLA);
+    const subsidizePost = getBlockMetadata(metadata, SubsidizePostContext);
+    expect(subsidizePost.outputCurrency).toBe(EvmToken.USDC);
+    expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe("17.79");
+    expect(getBlockMetadata(metadata, DestinationTransferContext).amountRaw).toBe("17500000");
+  });
+});

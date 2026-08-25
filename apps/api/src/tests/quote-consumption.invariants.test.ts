@@ -1,5 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import {
+  type EvmTransactionData,
+  EvmToken,
+  FiatToken,
+  Networks,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
+  RampDirection,
+  type PresignedTx,
+  type UnsignedTx
+} from "@vortexfi/shared";
+import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
@@ -59,13 +69,65 @@ describe("quote consumption invariants (BRL onramp)", () => {
     return (await response.json()) as { id: string; outputAmount: string; fee: unknown };
   }
 
-  async function registerViaApi(quoteId: string, userId: string): Promise<Response> {
+  async function registerViaApi(quoteId: string, userId: string, ephemeralAddress = EPHEMERAL): Promise<Response> {
     return app.request("/v1/ramp/register", {
       body: JSON.stringify({
         additionalData: { destinationAddress: DESTINATION, taxId: TAX_ID },
         quoteId,
-        signingAccounts: [{ address: EPHEMERAL, type: "EVM" }]
+        signingAccounts: [{ address: ephemeralAddress, type: "EVM" }]
       }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(userId)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+  }
+
+  async function signBlueprint(account: PrivateKeyAccount, blueprint: UnsignedTx, nonce: number): Promise<`0x${string}`> {
+    const txData = blueprint.txData as EvmTransactionData;
+    return account.signTransaction({
+      chainId: 8453,
+      data: txData.data as `0x${string}`,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: BigInt(txData.maxFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas ?? "0") * PRESIGNED_EVM_FEE_MULTIPLIER,
+      nonce,
+      to: txData.to as `0x${string}`,
+      type: "eip1559",
+      value: BigInt(txData.value ?? "0")
+    });
+  }
+
+  async function presignDestinationTransfer(account: PrivateKeyAccount, rampId: string): Promise<PresignedTx> {
+    const ramp = await RampState.findByPk(rampId);
+    const blueprint = ramp?.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    if (!blueprint) throw new Error("destinationTransfer blueprint missing");
+    const additionalTxs: Record<string, UnsignedTx> = {};
+    for (let i = 1; i <= 4; i++) {
+      additionalTxs[`backup${i}`] = {
+        meta: {},
+        network: blueprint.network,
+        nonce: blueprint.nonce + i,
+        phase: blueprint.phase,
+        signer: blueprint.signer,
+        txData: await signBlueprint(account, blueprint, blueprint.nonce + i)
+      };
+    }
+
+    return {
+      meta: { additionalTxs },
+      network: blueprint.network,
+      nonce: blueprint.nonce,
+      phase: blueprint.phase,
+      signer: account.address,
+      txData: await signBlueprint(account, blueprint, blueprint.nonce)
+    };
+  }
+
+  async function updateViaApi(rampId: string, userId: string, presignedTxs: PresignedTx[]): Promise<Response> {
+    return app.request("/v1/ramp/update", {
+      body: JSON.stringify({ presignedTxs, rampId }),
       headers: {
         Authorization: `Bearer ${testUserToken(userId)}`,
         "Content-Type": "application/json"
@@ -81,8 +143,11 @@ describe("quote consumption invariants (BRL onramp)", () => {
 
     const persisted = await QuoteTicket.findByPk(quote.id);
     expect(persisted?.status).toBe("pending");
-    expect(persisted?.metadata.fees?.usd).toBeDefined();
-    expect(persisted?.metadata.fees?.displayFiat).toBeDefined();
+    const metadata = persisted?.metadata as unknown as
+      | { globals: { fees: { displayFiat?: unknown; usd?: unknown } } }
+      | undefined;
+    expect(metadata?.globals.fees.usd).toBeDefined();
+    expect(metadata?.globals.fees.displayFiat).toBeDefined();
   });
 
   it("registers a ramp and consumes the quote exactly once", async () => {
@@ -119,64 +184,133 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(ramps.length).toBe(1);
   });
 
-  it("allows only one active ramp per user across different quotes", async () => {
+  it("allows parallel registrations for the same user across different quotes", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const secondQuote = await createQuoteViaApi();
+    const firstEphemeral = privateKeyToAccount(generatePrivateKey());
+    const secondEphemeral = privateKeyToAccount(generatePrivateKey());
+
+    const [first, second] = await Promise.all([
+      registerViaApi(firstQuote.id, user.id, firstEphemeral.address),
+      registerViaApi(secondQuote.id, user.id, secondEphemeral.address)
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([201, 201]);
+    expect(await RampState.count({ where: { userId: user.id } })).toBe(2);
+  });
+
+  it("allows only one concurrent active ramp to use an ephemeral account", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const firstQuote = await createQuoteViaApi();
     const secondQuote = await createQuoteViaApi();
 
     const [first, second] = await Promise.all([
-      registerViaApi(firstQuote.id, user.id),
-      registerViaApi(secondQuote.id, user.id)
+      registerViaApi(firstQuote.id, user.id, EPHEMERAL),
+      registerViaApi(secondQuote.id, user.id, EPHEMERAL)
     ]);
 
-    const statuses = [first.status, second.status].sort();
-    expect(statuses).toEqual([201, 409]);
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
     expect(await RampState.count({ where: { userId: user.id } })).toBe(1);
   });
 
-  it("releases an unstarted ramp after the start window expires", async () => {
+  it("allows an ephemeral account used only by a terminal ramp", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const firstQuote = await createQuoteViaApi();
-    const firstResponse = await registerViaApi(firstQuote.id, user.id);
+    const firstResponse = await registerViaApi(firstQuote.id, user.id, EPHEMERAL);
     expect(firstResponse.status).toBe(201);
     const firstRamp = (await firstResponse.json()) as { id: string };
-
-    await RampState.update(
-      { createdAt: new Date(Date.now() - 16 * 60 * 1000) },
-      { where: { id: firstRamp.id } }
-    );
+    await RampState.update({ currentPhase: "timedOut" }, { where: { id: firstRamp.id } });
 
     const secondQuote = await createQuoteViaApi();
-    const secondResponse = await registerViaApi(secondQuote.id, user.id);
+    const secondResponse = await registerViaApi(secondQuote.id, user.id, EPHEMERAL);
 
     expect(secondResponse.status).toBe(201);
-    expect((await RampState.findByPk(firstRamp.id))?.currentPhase).toBe("timedOut");
   });
 
-  // Pins the sweep's deliberate narrowness: only ramps still in `initial` are reaped.
-  // A ramp that advanced past `initial` may hold user funds, so it keeps blocking new
-  // registrations even after the start window — releasing it requires it to reach a
-  // terminal phase (complete/failed/timedOut) through the state machine.
-  it("keeps blocking new registrations while a ramp is wedged past the initial phase", async () => {
+  it("allows valid presigned updates on parallel ramps", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const firstQuote = await createQuoteViaApi();
-    const firstResponse = await registerViaApi(firstQuote.id, user.id);
-    expect(firstResponse.status).toBe(201);
-    const firstRamp = (await firstResponse.json()) as { id: string };
-
-    await RampState.update(
-      { createdAt: new Date(Date.now() - 16 * 60 * 1000), currentPhase: "nablaSwap" },
-      { where: { id: firstRamp.id } }
-    );
-
     const secondQuote = await createQuoteViaApi();
-    const secondResponse = await registerViaApi(secondQuote.id, user.id);
+    const firstEphemeral = privateKeyToAccount(generatePrivateKey());
+    const secondEphemeral = privateKeyToAccount(generatePrivateKey());
+    const firstRegistration = await registerViaApi(firstQuote.id, user.id, firstEphemeral.address);
+    const secondRegistration = await registerViaApi(secondQuote.id, user.id, secondEphemeral.address);
+    expect(firstRegistration.status).toBe(201);
+    expect(secondRegistration.status).toBe(201);
+    const firstRamp = (await firstRegistration.json()) as { id: string };
+    const secondRamp = (await secondRegistration.json()) as { id: string };
 
-    expect(secondResponse.status).toBe(409);
-    expect((await RampState.findByPk(firstRamp.id))?.currentPhase).toBe("nablaSwap");
+    const [firstUpdate, secondUpdate] = await Promise.all([
+      updateViaApi(firstRamp.id, user.id, [await presignDestinationTransfer(firstEphemeral, firstRamp.id)]),
+      updateViaApi(secondRamp.id, user.id, [await presignDestinationTransfer(secondEphemeral, secondRamp.id)])
+    ]);
+
+    expect([firstUpdate.status, secondUpdate.status].sort()).toEqual([200, 200]);
+    const persisted = await RampState.findAll({ where: { userId: user.id } });
+    expect(persisted.filter(ramp => Boolean(ramp.presignedTxs?.length))).toHaveLength(2);
+  });
+
+  it("rejects starting an expired ramp without cancelling it", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+    const registerResponse = await registerViaApi(quote.id, user.id);
+    expect(registerResponse.status).toBe(201);
+    const ramp = (await registerResponse.json()) as { id: string };
+
+    await RampState.update({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }, { where: { id: ramp.id } });
+
+    const startResponse = await app.request("/v1/ramp/start", {
+      body: JSON.stringify({ rampId: ramp.id }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    expect(startResponse.status).toBe(400);
+    expect(await startResponse.text()).toContain("Maximum time window to start process exceeded");
+    expect((await RampState.findByPk(ramp.id))?.currentPhase).toBe("initial");
+
+    const historyResponse = await app.request("/v1/ramp/history", {
+      headers: { Authorization: `Bearer ${testUserToken(user.id)}` },
+      method: "GET"
+    });
+    expect(historyResponse.status).toBe(200);
+    const history = (await historyResponse.json()) as {
+      transactions: Array<{ currentPhase: string; expiresAt: string; id: string }>;
+    };
+    const historyRamp = history.transactions.find(transaction => transaction.id === ramp.id);
+    expect(historyRamp?.currentPhase).toBe("initial");
+    expect(new Date(historyRamp?.expiresAt ?? 0).getTime()).toBeLessThan(Date.now());
+  });
+
+  it("rejects updating an expired ramp before persisting signatures or starting its flow", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const registerResponse = await registerViaApi(quote.id, user.id, ephemeral.address);
+    expect(registerResponse.status).toBe(201);
+    const ramp = (await registerResponse.json()) as { id: string };
+    const presignedTx = await presignDestinationTransfer(ephemeral, ramp.id);
+
+    await RampState.update({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }, { where: { id: ramp.id } });
+
+    const updateResponse = await updateViaApi(ramp.id, user.id, [presignedTx]);
+
+    expect(updateResponse.status).toBe(400);
+    expect(await updateResponse.text()).toContain("Maximum time window to start process exceeded");
+    const persistedRamp = await RampState.findByPk(ramp.id);
+    expect(persistedRamp?.currentPhase).toBe("initial");
+    expect(persistedRamp?.presignedTxs).toBeNull();
   });
 
   // Pins the atomic-UPDATE backstop directly: even if the registration flow's

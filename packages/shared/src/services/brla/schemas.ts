@@ -2,7 +2,10 @@ import { z } from "zod";
 import {
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
+  AveniaDocument,
+  AveniaDocumentGetResponse,
   AveniaFeeType,
+  AveniaImportKycTokenResponse,
   AveniaOperationFee,
   AveniaPayinTicket,
   AveniaPayoutTicket,
@@ -10,7 +13,21 @@ import {
   AveniaSubaccountAccountInfo,
   AveniaSubaccountWallet,
   AveniaTicketStatus,
+  AveniaVerificationAttemptResponse,
+  AveniaWebhook,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
+  BrDocumentType,
+  BrUboResponse,
+  DocumentUploadResponse,
+  GetKycAttemptResponse,
+  KybLevel1Response,
+  KycAttempt,
+  KycAttemptResult,
+  KycAttemptStatus,
+  KycLevel1Response,
   Limit,
+  LivenessDocumentResponse,
   PixInputTicketOutput,
   PixKeyData,
   PixOutputTicketOutput,
@@ -18,7 +35,7 @@ import {
 } from "./types";
 
 /**
- * External API contract schemas for Avenia/BRLA (see docs/features/contract-tests.md).
+ * External API contract schemas for Avenia/BRLA (see docs/operations-testing.md).
  *
  * These model the raw wire JSON of the fields Vortex actually consumes — not the full
  * partner response. Unknown extra fields always pass (loose objects); a removed or
@@ -39,7 +56,7 @@ type ConsumedQuote = Pick<AveniaQuoteResponse, "quoteToken" | "inputAmount" | "o
   appliedFees: ConsumedFee[];
 };
 type ConsumedLimit = Pick<Limit, "currency" | "maxFiatIn" | "maxFiatOut"> & {
-  usedLimit: Pick<UsedLimitDetails, "usedFiatIn" | "usedFiatOut">;
+  usedLimit: Pick<UsedLimitDetails, "month" | "usedFiatIn" | "usedFiatOut" | "year">;
 };
 type ConsumedAccountInfo = Pick<AveniaAccountInfoResponse, "brCode"> & {
   accountInfo: Pick<AveniaSubaccountAccountInfo, "identityStatus">;
@@ -103,8 +120,10 @@ export const aveniaAccountLimitsSchema = z.looseObject({
         maxFiatIn: z.string().regex(DECIMAL_STRING),
         maxFiatOut: z.string().regex(DECIMAL_STRING),
         usedLimit: z.looseObject({
+          month: z.number().int().min(1).max(12),
           usedFiatIn: z.string().regex(DECIMAL_STRING),
-          usedFiatOut: z.string().regex(DECIMAL_STRING)
+          usedFiatOut: z.string().regex(DECIMAL_STRING),
+          year: z.number().int()
         })
       })
     )
@@ -134,3 +153,124 @@ export const aveniaAccountInfoSchema = z.looseObject({
     })
   )
 }) satisfies z.ZodType<ConsumedAccountInfo>;
+
+/** A document after Avenia has processed the bytes uploaded to its pre-signed URL. */
+export const aveniaDocumentResponseSchema = z.looseObject({
+  document: z.looseObject({
+    createdAt: z.string().min(1).optional(),
+    documentType: z.enum(BrDocumentType),
+    id: z.string().min(1),
+    ready: z.boolean(),
+    updatedAt: z.string().min(1).optional(),
+    uploadErrorBack: z.string().optional(),
+    uploadErrorFront: z.string().optional(),
+    uploadStatusBack: z.string().optional(),
+    uploadStatusFront: z.string().min(1),
+    uploadURLBack: z.string().optional(),
+    uploadURLFront: z.string().optional()
+  })
+}) satisfies z.ZodType<{ document: AveniaDocument }>;
+
+const aveniaCursorSchema = z
+  .string()
+  .nullish()
+  .transform(value => value || undefined);
+
+/** Paginated document history used by readiness and method reconciliation. */
+export const aveniaDocumentsSchema = z.looseObject({
+  cursor: aveniaCursorSchema,
+  documents: z.array(aveniaDocumentResponseSchema.shape.document)
+}) satisfies z.ZodType<AveniaDocumentGetResponse>;
+
+/** The pre-signed upload target returned for a file-backed Avenia document. */
+export const aveniaDocumentUploadResponseSchema = z.looseObject({
+  id: z.string().min(1),
+  uploadURLBack: z.string().optional(),
+  uploadURLFront: z.string().min(1)
+}) satisfies z.ZodType<DocumentUploadResponse>;
+
+/** The provider-hosted capture target returned for SELFIE-FROM-LIVENESS. */
+export const aveniaLivenessDocumentResponseSchema = z.looseObject({
+  id: z.string().min(1),
+  livenessUrl: z.string().min(1),
+  validateLivenessToken: z.string().min(1)
+}) satisfies z.ZodType<LivenessDocumentResponse>;
+
+/** The identifier returned by UBO creation. */
+export const aveniaUboResponseSchema = z.looseObject({
+  id: z.string().min(1)
+}) satisfies z.ZodType<BrUboResponse>;
+
+/** The attempt identifier returned by API-based KYC and KYB Level 1 submissions. */
+export const aveniaLevel1ResponseSchema = z.looseObject({
+  id: z.string().min(1)
+}) satisfies z.ZodType<KycLevel1Response>;
+
+/** The attempt identifier and acknowledgement returned after importing a Sumsub share token. */
+export const aveniaImportKycTokenResponseSchema = z.object({
+  id: z.string().min(1),
+  message: z.string().min(1)
+}) satisfies z.ZodType<AveniaImportKycTokenResponse>;
+
+/** The hosted company KYB attempt and continuation URLs. */
+export const aveniaKybLevel1ResponseSchema = z.looseObject({
+  attemptId: z.string().min(1),
+  authorizedRepresentativeUrl: z.string().min(1),
+  basicCompanyDataUrl: z.string().min(1)
+}) satisfies z.ZodType<KybLevel1Response>;
+
+const aveniaAttemptSchema = z.looseObject({
+  createdAt: z.string().datetime({ offset: true }),
+  id: z.string().min(1),
+  levelName: z.string().min(1),
+  // Production also sends result: "" (not null) on unsettled attempts — observed
+  // 2026-08-24 on company subaccounts, where it failed the parse of the whole page.
+  result: z
+    .union([z.enum(KycAttemptResult), z.literal("")])
+    .nullish()
+    .transform(value => value || undefined),
+  resultMessage: z
+    .string()
+    .nullish()
+    .transform(value => value ?? undefined),
+  retryable: z
+    .boolean()
+    .nullish()
+    .transform(value => value ?? undefined),
+  status: z.enum(KycAttemptStatus),
+  submissionData: z
+    .record(z.string(), z.unknown())
+    .nullish()
+    .transform(value => value ?? undefined),
+  updatedAt: z.string().datetime({ offset: true })
+}) satisfies z.ZodType<KycAttempt>;
+
+/** Paginated attempt history used to reconcile an ambiguous submission. */
+export const aveniaKycAttemptsSchema = z.looseObject({
+  attempts: z.array(aveniaAttemptSchema),
+  cursor: aveniaCursorSchema
+}) satisfies z.ZodType<GetKycAttemptResponse>;
+
+/** An individual or company verification attempt returned by GET /v2/kyc/attempts/{attemptId}. */
+export const aveniaVerificationAttemptSchema = z.looseObject({
+  attempt: aveniaAttemptSchema
+}) satisfies z.ZodType<AveniaVerificationAttemptResponse>;
+
+export const aveniaKybAttemptStatusSchema = aveniaVerificationAttemptSchema;
+
+/** The body returned after POST /v2/notifications/webhooks. */
+export const aveniaWebhookRegistrationSchema = z.looseObject({
+  webhookId: z.string().min(1)
+}) satisfies z.ZodType<AveniaWebhookRegistration>;
+
+/** An entry in the GET /v2/notifications/webhooks response. */
+export const aveniaWebhookSchema = z.looseObject({
+  id: z.string().min(1),
+  subscriptions: z.array(z.string().min(1)),
+  url: z.string().url()
+}) satisfies z.ZodType<AveniaWebhook>;
+
+/** The body returned by GET /v2/notifications/webhooks. */
+export const aveniaWebhooksListSchema = z.looseObject({
+  webhooks: z.array(aveniaWebhookSchema)
+}) satisfies z.ZodType<AveniaWebhooksListResponse>;

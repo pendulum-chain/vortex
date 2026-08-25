@@ -10,11 +10,19 @@ import { config } from "./config/vars";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
-import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
+import { installDemoProviders } from "./api/services/demo/demo-alfredpay.provider";
+import {
+  assertPersistedBlockFlowVersionsSupported,
+  registerBlockFlowHandlers
+} from "./api/services/phases/blocks/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
+import AlfredpayStatusWorker from "./api/workers/alfredpay-status.worker";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
+import KybStatusWorker from "./api/workers/kyb-status.worker";
 import MoneriumB2bWorker from "./api/workers/monerium-b2b.worker";
+import NotificationDispatchWorker from "./api/workers/notification-dispatch.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
@@ -50,6 +58,9 @@ const initializeApp = async () => {
     // Initialize RSA keys for webhook signing
     cryptoService.initializeKeys();
 
+    // Sandbox demo deployments only; a no-op everywhere else.
+    installDemoProviders();
+
     // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
     await initializeEvmTokens();
 
@@ -59,8 +70,14 @@ const initializeApp = async () => {
     // Run database migrations
     await runMigrations();
 
+    await assertApiCredentialSchemaReady();
+
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
+
+    // Recovery must not run before the flow-derived executor registry exists.
+    registerBlockFlowHandlers();
+    await assertPersistedBlockFlowVersionsSupported();
 
     // Start background workers
     new CleanupWorker().start();
@@ -68,12 +85,19 @@ const initializeApp = async () => {
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
     new MoneriumB2bWorker().start();
+    new NotificationDispatchWorker().start();
+    // Both flow-variant backends share this database and these provider accounts. Give
+    // the replacement backend sole ownership of external status polling so the legacy
+    // grace-period backend does not make every Avenia/Alfredpay request a second time.
+    if (config.flowVariant === "mykobo") {
+      new KybStatusWorker().start();
+      new AlfredpayStatusWorker().start();
+    } else {
+      logger.info("Provider status workers are owned by the mykobo backend");
+    }
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
-
-    // Register phase handlers
-    registerPhaseHandlers();
 
     // Probe the Binance price feed so a geo-block (HTTP 451) or outage surfaces
     // loudly in the logs instead of silently degrading to the fiat fallback.

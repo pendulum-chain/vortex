@@ -4,7 +4,7 @@ import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { createWalletClient, fallback, http, WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
+import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import {
   decodeSubmittableExtrinsic,
   EphemeralAccount,
@@ -17,6 +17,53 @@ import {
   UnsignedTx
 } from "../index";
 import logger from "../logger";
+
+// Networks whose transactions are signed directly with the EVM ephemeral, regardless of phase.
+const EVM_EPHEMERAL_SIGNING_NETWORKS: Networks[] = [
+  Networks.Polygon,
+  Networks.PolygonAmoy,
+  Networks.Base,
+  Networks.BaseSepolia,
+  Networks.Arbitrum,
+  Networks.Avalanche,
+  Networks.BSC,
+  Networks.Ethereum
+];
+
+const DESTINATION_NETWORK_PHASES = [
+  "destinationTransfer",
+  "backupSquidRouterApprove",
+  "backupSquidRouterSwap",
+  "backupApprove"
+];
+
+// Applied once, when the client signs a prepared EVM transaction. Backend
+// transaction builders must leave fee estimates unscaled so safety margins do
+// not compound across preparation and signing.
+export const PRESIGNED_EVM_FEE_MULTIPLIER = 3n;
+
+/**
+ * Groups transactions by the signing flow that handles them. The destination group must
+ * exclude every network the EVM group selects, or the same transaction would be signed
+ * (and returned) twice.
+ */
+export function groupUnsignedTxsForSigning(unsignedTxs: UnsignedTx[]): {
+  destinationNetworkTxs: UnsignedTx[];
+  evmTxs: UnsignedTx[];
+  hydrationTxs: UnsignedTx[];
+  moonbeamTxs: UnsignedTx[];
+  pendulumTxs: UnsignedTx[];
+} {
+  return {
+    destinationNetworkTxs: unsignedTxs.filter(
+      tx => DESTINATION_NETWORK_PHASES.includes(tx.phase) && !EVM_EPHEMERAL_SIGNING_NETWORKS.includes(tx.network)
+    ),
+    evmTxs: unsignedTxs.filter(tx => EVM_EPHEMERAL_SIGNING_NETWORKS.includes(tx.network)),
+    hydrationTxs: unsignedTxs.filter(tx => tx.network === Networks.Hydration),
+    moonbeamTxs: unsignedTxs.filter(tx => tx.network === Networks.Moonbeam),
+    pendulumTxs: unsignedTxs.filter(tx => tx.network === Networks.Pendulum)
+  };
+}
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
@@ -77,7 +124,7 @@ async function signMultipleSubstrateTransactions(
  * @param apiKey - Optional Alchemy API key
  * @returns WalletClient for the specified network
  */
-function createEvmClient(
+export function createEvmClient(
   network: string, // Accept string to match UnsignedTx.network type usually being string/enum
   evmEphemeral: EphemeralAccount,
   apiKey?: string
@@ -95,7 +142,7 @@ function createEvmClient(
       break;
     case Networks.PolygonAmoy:
       chain = polygonAmoy;
-      rpcUrls = ["https://polygon-amoy.api.onfinality.io/public"];
+      rpcUrls = apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Moonbeam:
       chain = moonbeam;
@@ -112,6 +159,10 @@ function createEvmClient(
     case Networks.Base:
       chain = base;
       rpcUrls = apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
+      break;
+    case Networks.BaseSepolia:
+      chain = baseSepolia;
+      rpcUrls = apiKey ? [`https://base-sepolia.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.BSC:
       chain = bsc;
@@ -156,10 +207,10 @@ async function signMultipleEvmTransactions(
       throw new Error("Wallet client account is undefined");
     }
     const maxPriorityFeePerGas = tx.txData.maxPriorityFeePerGas
-      ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n
+      ? BigInt(tx.txData.maxPriorityFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER
       : BigInt(187500000000);
     const maxFeePerGas = (() => {
-      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000);
+      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER : BigInt(187500000000);
       return fee > maxPriorityFeePerGas ? fee : maxPriorityFeePerGas;
     })();
 
@@ -206,25 +257,9 @@ export async function signUnsignedTransactions(
   const signedTxs: PresignedTx[] = [];
 
   // Group transactions
-  const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
-  const evmTxs = unsignedTxs.filter(
-    tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy || tx.network === Networks.Base
-  );
-  const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
-  const destinationNetworkTxs = unsignedTxs.filter(
-    tx =>
-      (tx.phase === "destinationTransfer" ||
-        tx.phase === "backupSquidRouterApprove" ||
-        tx.phase === "backupSquidRouterSwap" ||
-        tx.phase === "backupApprove") &&
-      tx.network !== Networks.Polygon &&
-      tx.network !== Networks.PolygonAmoy &&
-      tx.network !== Networks.Base
-  );
+  const { destinationNetworkTxs, evmTxs, hydrationTxs, moonbeamTxs, pendulumTxs } = groupUnsignedTxsForSigning(unsignedTxs);
 
   try {
-    const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");
-
     for (const tx of hydrationTxs) {
       if (!ephemerals.substrateEphemeral) {
         throw new Error("Missing Substrate ephemeral account");
@@ -323,10 +358,6 @@ export async function signUnsignedTransactions(
       if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
-
-      // Check if already signed to avoid duplication
-      const alreadySigned = signedTxs.some(st => st === tx || (st.txData === tx.txData && st.nonce === tx.nonce));
-      if (alreadySigned) continue;
 
       const client = createEvmClient(tx.network, ephemerals.evmEphemeral, alchemyApiKey);
       const multiSignedTxs = await signMultipleEvmTransactions(tx, client, tx.nonce);

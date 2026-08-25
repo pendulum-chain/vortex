@@ -1,13 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E journeys are non-PR-blocking (see docs/testing-strategy.md): they run nightly in CI
+// E2E journeys are non-PR-blocking (see docs/operations-testing.md): they run nightly in CI
 // and locally via `bun test:e2e`. The backend is mocked per-test with page.route, so no
 // API server, database, or chain access is needed — only the Vite dev server.
 export default defineConfig({
   forbidOnly: !!process.env.CI,
   fullyParallel: true,
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
+  // "html" writes playwright-report/, which the e2e workflow uploads as an artifact on
+  // failure — without it a red nightly run leaves nothing to debug from.
+  reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : [["list"]],
   retries: process.env.CI ? 2 : 0,
   testDir: "./e2e",
   timeout: 60_000,

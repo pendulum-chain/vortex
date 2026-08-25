@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestApiKey, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
+import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, TEST_OTP_CODE, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
@@ -123,10 +123,12 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
   });
 
   describe("webhooks", () => {
-    async function apiKeyHeaders(): Promise<Record<string, string>> {
+    // Webhooks are owner-scoped: a user-scoped key can only target quotes owned by
+    // that user, so the caller needs the user id to create ownable quotes.
+    async function apiKeyPrincipal(): Promise<{ headers: Record<string, string>; userId: string }> {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
-      return { "x-api-key": plaintextKey };
+      return { headers: { "x-api-key": plaintextKey }, userId: user.id };
     }
 
     it("registration requires an API key", async () => {
@@ -138,9 +140,9 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(response.status).toBe(401);
     });
 
-    it("registers a webhook for a quote and deletes it exactly once", async () => {
-      const headers = await apiKeyHeaders();
-      const quote = await createTestQuote();
+    it("registers a webhook for an owned quote and deletes it exactly once", async () => {
+      const { headers, userId } = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId });
 
       const created = await requestJson("/v1/webhook", {
         body: { quoteId: quote.id, url: "https://partner.example/hook" },
@@ -161,9 +163,50 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(again.status).toBe(404);
     });
 
+    it("scopes registration and deletion to the owning principal", async () => {
+      const owner = await apiKeyPrincipal();
+      const stranger = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId: owner.userId });
+
+      // A foreign quote is indistinguishable from a nonexistent one.
+      const foreignRegistration = await requestJson("/v1/webhook", {
+        body: { quoteId: quote.id, url: "https://partner.example/hook" },
+        headers: stranger.headers,
+        method: "POST"
+      });
+      expect(foreignRegistration.status).toBe(404);
+
+      // An anonymous quote has no owner, so nobody can subscribe to it.
+      const anonymousQuote = await createTestQuote();
+      const anonymousRegistration = await requestJson("/v1/webhook", {
+        body: { quoteId: anonymousQuote.id, url: "https://partner.example/hook" },
+        headers: owner.headers,
+        method: "POST"
+      });
+      expect(anonymousRegistration.status).toBe(404);
+
+      // Deleting someone else's webhook returns the same 404 as a nonexistent one.
+      const created = await requestJson("/v1/webhook", {
+        body: { quoteId: quote.id, url: "https://partner.example/hook" },
+        headers: owner.headers,
+        method: "POST"
+      });
+      expect(created.status).toBe(201);
+      const foreignDeletion = await requestJson(`/v1/webhook/${created.body.id}`, {
+        headers: stranger.headers,
+        method: "DELETE"
+      });
+      expect(foreignDeletion.status).toBe(404);
+      const ownDeletion = await requestJson(`/v1/webhook/${created.body.id}`, {
+        headers: owner.headers,
+        method: "DELETE"
+      });
+      expect(ownDeletion.status).toBe(200);
+    });
+
     it("rejects non-HTTPS URLs, unknown quotes, and registrations without a quote or session", async () => {
-      const headers = await apiKeyHeaders();
-      const quote = await createTestQuote();
+      const { headers, userId } = await apiKeyPrincipal();
+      const quote = await createTestQuote({ userId });
 
       const insecure = await requestJson("/v1/webhook", {
         body: { quoteId: quote.id, url: "http://partner.example/hook" },
@@ -191,18 +234,17 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
   describe("ramp history", () => {
     const WALLET = "0x2222222222222222222222222222222222222222";
 
-    it("serves only the caller's own non-initial ramps for the wallet", async () => {
+    it("serves only the caller's own ramps for the wallet, including resumable initial ramps", async () => {
       const owner = await createTestUser();
       const stranger = await createTestUser();
       const quote = await createTestQuote();
-      await createTestRampState({
+      const completeRamp = await createTestRampState({
         currentPhase: "complete",
         quoteId: quote.id,
         state: { destinationAddress: WALLET } as StateMetadata,
         userId: owner.id
       });
-      // An initial-phase ramp must not appear in history.
-      await createTestRampState({
+      const initialRamp = await createTestRampState({
         currentPhase: "initial",
         quoteId: (await createTestQuote()).id,
         state: { destinationAddress: WALLET } as StateMetadata,
@@ -213,9 +255,12 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
         headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
       });
       expect(ownHistory.status).toBe(200);
-      expect(ownHistory.body.totalCount).toBe(1);
-      const transactions = ownHistory.body.transactions as Array<{ id: string; status: string }>;
-      expect(transactions).toHaveLength(1);
+      expect(ownHistory.body.totalCount).toBe(2);
+      const transactions = ownHistory.body.transactions as Array<{ currentPhase: string; id: string; status: string }>;
+      expect(new Set(transactions.map(transaction => transaction.id))).toEqual(
+        new Set([completeRamp.id, initialRamp.id])
+      );
+      expect(new Set(transactions.map(transaction => transaction.currentPhase))).toEqual(new Set(["complete", "initial"]));
 
       // Another user sees nothing for the same wallet (F-068 class).
       const foreignHistory = await requestJson(`/v1/ramp/history/${WALLET}`, {
@@ -228,6 +273,72 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
     it("requires authentication", async () => {
       const response = await requestJson(`/v1/ramp/history/${WALLET}`);
       expect(response.status).toBe(401);
+    });
+
+    it("serves all ramps owned by the authenticated user without a wallet filter", async () => {
+      const owner = await createTestUser();
+      const stranger = await createTestUser();
+      const firstWallet = "0x3333333333333333333333333333333333333333";
+      const secondWallet = "0x4444444444444444444444444444444444444444";
+
+      const first = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: owner.id
+      });
+      const second = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: secondWallet } as StateMetadata,
+        userId: owner.id
+      });
+      await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: stranger.id
+      });
+
+      const history = await requestJson("/v1/ramp/history", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(history.status).toBe(200);
+      expect(history.body.totalCount).toBe(2);
+      const transactions = history.body.transactions as Array<{ id: string; walletAddress: string }>;
+      expect(new Set(transactions.map(transaction => transaction.id))).toEqual(new Set([first.id, second.id]));
+      expect(new Set(transactions.map(transaction => transaction.walletAddress))).toEqual(
+        new Set([firstWallet, secondWallet])
+      );
+    });
+
+    it("accepts a user-scoped API key and rejects anonymous all-user history", async () => {
+      const owner = await createTestUser();
+      const { plaintextKey } = await createTestApiKey({ userId: owner.id });
+
+      const authenticated = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(authenticated.status).toBe(200);
+      expect(authenticated.body).toEqual({ totalCount: 0, transactions: [] });
+
+      const anonymous = await requestJson("/v1/ramp/history");
+      expect(anonymous.status).toBe(401);
+    });
+
+    it("scopes a partner-managed credential to its profile history", async () => {
+      const partner = await createTestPartner();
+      const { plaintextKey } = await createTestApiKey({ partnerName: partner.name });
+
+      const response = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ totalCount: 0, transactions: [] });
+    });
+
+    it("validates history pagination", async () => {
+      const owner = await createTestUser();
+      const response = await requestJson("/v1/ramp/history?limit=10x&offset=-1", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(response.status).toBe(400);
     });
   });
 
@@ -258,6 +369,23 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(buyMethods.status).toBe(200);
       const buyIds = (buyMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id);
       expect(buyIds.sort()).toEqual(["ach", "pix", "spei"]);
+
+      const requirements = await requestJson("/v1/onboarding/requirements?country=BR&customerType=business");
+      expect(requirements.status).toBe(200);
+      expect(requirements.body).toMatchObject({
+        country: "BR",
+        customerType: "business",
+        flow: "br-business-level-1-api-kyb",
+        family: "br"
+      });
+      expect(requirements.body).not.toHaveProperty("fields");
+      expect((requirements.body.steps as Array<{ operationId?: string }>).map(step => step.operationId).filter(Boolean)).toContain(
+        "submitBrKybLevel1Api"
+      );
+      expect((requirements.body.steps as Array<{ method?: string }>).some(step => step.method === "GET")).toBe(false);
+
+      const unsupportedRequirements = await requestJson("/v1/onboarding/requirements?country=AR&customerType=business");
+      expect(unsupportedRequirements.status).toBe(404);
 
       const mxnMethods = await requestJson("/v1/supported-payment-methods?fiat=MXN");
       expect(mxnMethods.status).toBe(200);
