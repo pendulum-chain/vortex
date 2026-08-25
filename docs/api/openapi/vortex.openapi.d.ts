@@ -175,7 +175,7 @@ export interface paths {
         put?: never;
         /**
          * Get KYC document upload URLs
-         * @description Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
+         * @description Returns a presigned upload URL for the user's ID document and a provider-hosted URL for selfie liveness capture. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
@@ -257,7 +257,7 @@ export interface paths {
         put?: never;
         /**
          * Create KYB document
-         * @description Creates a document and returns presigned upload targets. Upload bytes directly to the returned URLs.
+         * @description Creates a document target. Ordinary documents return presigned upload URLs; `SELFIE-FROM-LIVENESS` returns a provider-hosted liveness URL instead.
          */
         post: operations["createBrKybDocument"];
         delete?: never;
@@ -851,7 +851,7 @@ export interface paths {
         };
         /**
          * List managed profiles
-         * @description Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
+         * @description Lists children owned by the authenticated active manager, newest first, together with the manager's current corridor and customer-type policy. Policy is manager-scoped and applies to all children; it is not a per-child grant. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
          *
          *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
          */
@@ -2082,7 +2082,6 @@ export interface components {
         BrGetSelfieLivenessUrlResponse: {
             id: string;
             livenessUrl: string;
-            uploadURLFront: string;
             validateLivenessToken: string;
         };
         BrImportKycTokenErrorResponse: {
@@ -2116,7 +2115,7 @@ export interface components {
         };
         BrKYCDataUploadResponse: {
             idUpload: components["schemas"]["DocumentUploadEntry"];
-            selfieUpload: components["schemas"]["DocumentUploadEntry"];
+            selfieUpload: components["schemas"]["LivenessDocumentEntry"];
         };
         BrKybAttemptStatusResponse: {
             failureReason?: string;
@@ -2141,16 +2140,7 @@ export interface components {
                 uploadStatusFront: string;
             };
         };
-        BrKybDocumentUploadResponse: {
-            id: string;
-            /** Format: uri */
-            livenessUrl?: string;
-            /** Format: uri */
-            uploadURLBack?: string;
-            /** Format: uri */
-            uploadURLFront: string;
-            validateLivenessToken?: string;
-        };
+        BrKybDocumentUploadResponse: components["schemas"]["DocumentUploadEntry"] | components["schemas"]["LivenessDocumentEntry"];
         BrKybHostedResponse: {
             attemptId: string;
             /** Format: uri */
@@ -2323,10 +2313,8 @@ export interface components {
         DestinationType: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "pendulum" | "stellar" | "pix" | "sepa" | "cbu" | "ach" | "spei";
         DocumentUploadEntry: {
             id: string;
-            livenessUrl?: string;
             uploadURLBack?: string;
             uploadURLFront: string;
-            validateLivenessToken?: string;
         };
         DomesticAddFiatAccountRequest: {
             accountBankCode?: string;
@@ -2705,7 +2693,14 @@ export interface components {
         };
         ListManagedProfilesResponse: {
             managedProfiles: components["schemas"]["ManagedProfile"][];
+            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             pagination: components["schemas"]["ManagedProfilePagination"];
+        };
+        LivenessDocumentEntry: {
+            id: string;
+            /** Format: uri */
+            livenessUrl: string;
+            validateLivenessToken: string;
         };
         MalformedJsonErrorResponse: {
             /** @constant */
@@ -2748,6 +2743,13 @@ export interface components {
                 status: number;
             };
         };
+        /** @description The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child. */
+        ManagedProfileManagerPolicy: {
+            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
+            allowedCustomerTypes: ("individual" | "business")[] | null;
+            /** Format: uuid */
+            profileId: string;
+        };
         ManagedProfilePagination: {
             limit: number;
             offset: number;
@@ -2758,7 +2760,7 @@ export interface components {
         };
         ManagedSelectorErrorResponse: {
             error: {
-                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, or `MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, `MANAGED_PROFILE_ACCESS_DENIED`, or `IMPERSONATION_NOT_ALLOWED`. */
                 code: string;
                 message: string;
                 status: number;
@@ -5890,7 +5892,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of owned managed profiles and offset pagination metadata. */
+            /** @description The authenticated manager's current policy, a page of owned managed profiles, and offset pagination metadata. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7106,7 +7108,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Quote ownership or managed-profile authorization failed. */
+            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7255,7 +7257,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7417,7 +7419,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;

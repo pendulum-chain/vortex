@@ -28,6 +28,8 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 16. Local `authorization_started` and Monerium `created` and `incomplete` profiles MUST map to `started`; only provider `pending` is displayed as in review.
 17. Missing app-specific Monerium authorization MUST surface as `MONERIUM_REAUTHENTICATION_REQUIRED` on the affected onboarding account without failing aggregate status loading.
 18. Starting reauthorization for an account that already has a bound Monerium profile MUST preserve its canonical verification status. The account status changes to `started` only before the first profile is bound.
+19. Admin impersonation MUST NOT start or complete Monerium OAuth. `GET /status` remains available so an operator can inspect the target's persisted verification state.
+20. Managed-profile selection is unsupported on these legacy routes. `X-Managed-Profile-Id` is ignored and every operation remains scoped to the Supabase-authenticated manager. Managed clients MUST NOT send the selector; the dashboard omits it and disables Monerium actions in child mode.
 
 ## Threat Vectors & Mitigations
 
@@ -63,3 +65,5 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 - [x] Production configuration requires the client ID and exact callback URI.
 - [x] Persisted terminal statuses remain available after restart; pending profiles require reauthorization when credentials are lost.
 - [x] Pending Monerium profiles refresh through dashboard onboarding polling without making aggregation depend on provider availability.
+- [x] OAuth start and completion reject admin impersonation while status remains readable.
+- [x] Dashboard Monerium requests omit managed selection and child mode disables Monerium actions; the legacy API remains manager-scoped if a direct client supplies the ignored selector.

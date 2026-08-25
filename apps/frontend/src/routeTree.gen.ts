@@ -11,13 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LocaleChar125RouteImport } from './routes/{-$locale}'
 import { Route as Char123LocaleChar125IndexRouteImport } from './routes/{-$locale}/index'
-import { Route as Char123LocaleChar125WidgetRouteImport } from './routes/{-$locale}/widget'
-import { Route as Char123LocaleChar125TermsAndConditionsFullRouteImport } from './routes/{-$locale}/terms-and-conditions-full'
-import { Route as Char123LocaleChar125TermsAndConditionsRouteImport } from './routes/{-$locale}/terms-and-conditions'
-import { Route as Char123LocaleChar125PrivacyPolicyRouteImport } from './routes/{-$locale}/privacy-policy'
-import { Route as Char123LocaleChar125PaymentsRouteImport } from './routes/{-$locale}/payments'
-import { Route as Char123LocaleChar125ContactRouteImport } from './routes/{-$locale}/contact'
 import { Route as Char123LocaleChar125BusinessRouteImport } from './routes/{-$locale}/business'
+import { Route as Char123LocaleChar125ContactRouteImport } from './routes/{-$locale}/contact'
+import { Route as Char123LocaleChar125PaymentsRouteImport } from './routes/{-$locale}/payments'
+import { Route as Char123LocaleChar125PrivacyPolicyRouteImport } from './routes/{-$locale}/privacy-policy'
+import { Route as Char123LocaleChar125TermsAndConditionsRouteImport } from './routes/{-$locale}/terms-and-conditions'
+import { Route as Char123LocaleChar125TermsAndConditionsFullRouteImport } from './routes/{-$locale}/terms-and-conditions-full'
+import { Route as Char123LocaleChar125WidgetRouteImport } from './routes/{-$locale}/widget'
 
 const Char123LocaleChar125Route = Char123LocaleChar125RouteImport.update({
   id: '/{-$locale}',
@@ -30,34 +30,10 @@ const Char123LocaleChar125IndexRoute =
     path: '/',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
-const Char123LocaleChar125WidgetRoute =
-  Char123LocaleChar125WidgetRouteImport.update({
-    id: '/widget',
-    path: '/widget',
-    getParentRoute: () => Char123LocaleChar125Route,
-  } as any)
-const Char123LocaleChar125TermsAndConditionsFullRoute =
-  Char123LocaleChar125TermsAndConditionsFullRouteImport.update({
-    id: '/terms-and-conditions-full',
-    path: '/terms-and-conditions-full',
-    getParentRoute: () => Char123LocaleChar125Route,
-  } as any)
-const Char123LocaleChar125TermsAndConditionsRoute =
-  Char123LocaleChar125TermsAndConditionsRouteImport.update({
-    id: '/terms-and-conditions',
-    path: '/terms-and-conditions',
-    getParentRoute: () => Char123LocaleChar125Route,
-  } as any)
-const Char123LocaleChar125PrivacyPolicyRoute =
-  Char123LocaleChar125PrivacyPolicyRouteImport.update({
-    id: '/privacy-policy',
-    path: '/privacy-policy',
-    getParentRoute: () => Char123LocaleChar125Route,
-  } as any)
-const Char123LocaleChar125PaymentsRoute =
-  Char123LocaleChar125PaymentsRouteImport.update({
-    id: '/payments',
-    path: '/payments',
+const Char123LocaleChar125BusinessRoute =
+  Char123LocaleChar125BusinessRouteImport.update({
+    id: '/business',
+    path: '/business',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
 const Char123LocaleChar125ContactRoute =
@@ -66,10 +42,34 @@ const Char123LocaleChar125ContactRoute =
     path: '/contact',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
-const Char123LocaleChar125BusinessRoute =
-  Char123LocaleChar125BusinessRouteImport.update({
-    id: '/business',
-    path: '/business',
+const Char123LocaleChar125PaymentsRoute =
+  Char123LocaleChar125PaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
+const Char123LocaleChar125PrivacyPolicyRoute =
+  Char123LocaleChar125PrivacyPolicyRouteImport.update({
+    id: '/privacy-policy',
+    path: '/privacy-policy',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
+const Char123LocaleChar125TermsAndConditionsRoute =
+  Char123LocaleChar125TermsAndConditionsRouteImport.update({
+    id: '/terms-and-conditions',
+    path: '/terms-and-conditions',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
+const Char123LocaleChar125TermsAndConditionsFullRoute =
+  Char123LocaleChar125TermsAndConditionsFullRouteImport.update({
+    id: '/terms-and-conditions-full',
+    path: '/terms-and-conditions-full',
+    getParentRoute: () => Char123LocaleChar125Route,
+  } as any)
+const Char123LocaleChar125WidgetRoute =
+  Char123LocaleChar125WidgetRouteImport.update({
+    id: '/widget',
+    path: '/widget',
     getParentRoute: () => Char123LocaleChar125Route,
   } as any)
 
@@ -161,39 +161,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LocaleChar125IndexRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
-    '/{-$locale}/widget': {
-      id: '/{-$locale}/widget'
-      path: '/widget'
-      fullPath: '/{-$locale}/widget'
-      preLoaderRoute: typeof Char123LocaleChar125WidgetRouteImport
-      parentRoute: typeof Char123LocaleChar125Route
-    }
-    '/{-$locale}/terms-and-conditions-full': {
-      id: '/{-$locale}/terms-and-conditions-full'
-      path: '/terms-and-conditions-full'
-      fullPath: '/{-$locale}/terms-and-conditions-full'
-      preLoaderRoute: typeof Char123LocaleChar125TermsAndConditionsFullRouteImport
-      parentRoute: typeof Char123LocaleChar125Route
-    }
-    '/{-$locale}/terms-and-conditions': {
-      id: '/{-$locale}/terms-and-conditions'
-      path: '/terms-and-conditions'
-      fullPath: '/{-$locale}/terms-and-conditions'
-      preLoaderRoute: typeof Char123LocaleChar125TermsAndConditionsRouteImport
-      parentRoute: typeof Char123LocaleChar125Route
-    }
-    '/{-$locale}/privacy-policy': {
-      id: '/{-$locale}/privacy-policy'
-      path: '/privacy-policy'
-      fullPath: '/{-$locale}/privacy-policy'
-      preLoaderRoute: typeof Char123LocaleChar125PrivacyPolicyRouteImport
-      parentRoute: typeof Char123LocaleChar125Route
-    }
-    '/{-$locale}/payments': {
-      id: '/{-$locale}/payments'
-      path: '/payments'
-      fullPath: '/{-$locale}/payments'
-      preLoaderRoute: typeof Char123LocaleChar125PaymentsRouteImport
+    '/{-$locale}/business': {
+      id: '/{-$locale}/business'
+      path: '/business'
+      fullPath: '/{-$locale}/business'
+      preLoaderRoute: typeof Char123LocaleChar125BusinessRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
     '/{-$locale}/contact': {
@@ -203,11 +175,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LocaleChar125ContactRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
-    '/{-$locale}/business': {
-      id: '/{-$locale}/business'
-      path: '/business'
-      fullPath: '/{-$locale}/business'
-      preLoaderRoute: typeof Char123LocaleChar125BusinessRouteImport
+    '/{-$locale}/payments': {
+      id: '/{-$locale}/payments'
+      path: '/payments'
+      fullPath: '/{-$locale}/payments'
+      preLoaderRoute: typeof Char123LocaleChar125PaymentsRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
+    '/{-$locale}/privacy-policy': {
+      id: '/{-$locale}/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/{-$locale}/privacy-policy'
+      preLoaderRoute: typeof Char123LocaleChar125PrivacyPolicyRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
+    '/{-$locale}/terms-and-conditions': {
+      id: '/{-$locale}/terms-and-conditions'
+      path: '/terms-and-conditions'
+      fullPath: '/{-$locale}/terms-and-conditions'
+      preLoaderRoute: typeof Char123LocaleChar125TermsAndConditionsRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
+    '/{-$locale}/terms-and-conditions-full': {
+      id: '/{-$locale}/terms-and-conditions-full'
+      path: '/terms-and-conditions-full'
+      fullPath: '/{-$locale}/terms-and-conditions-full'
+      preLoaderRoute: typeof Char123LocaleChar125TermsAndConditionsFullRouteImport
+      parentRoute: typeof Char123LocaleChar125Route
+    }
+    '/{-$locale}/widget': {
+      id: '/{-$locale}/widget'
+      path: '/widget'
+      fullPath: '/{-$locale}/widget'
+      preLoaderRoute: typeof Char123LocaleChar125WidgetRouteImport
       parentRoute: typeof Char123LocaleChar125Route
     }
   }
@@ -247,3 +247,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

@@ -206,6 +206,37 @@ afterEach(() => {
 });
 
 describe("lazy chain WebSocket initialization", () => {
+  test("registration requires a secret key or access token provider", async () => {
+    const sdk = new VortexSdk({ apiBaseUrl: "https://backend.test", storeEphemeralKeys: false });
+
+    await expect(sdk.registerRamp(quote, { destinationAddress: "0xuser" })).rejects.toThrow(
+      "Ramp registration requires a secretKey (sk_*) or accessTokenProvider"
+    );
+  });
+
+  test("registration accepts an access token provider", async () => {
+    const calls = mockBackend();
+    const sdk = new VortexSdk({
+      accessTokenProvider: async () => "access-token",
+      apiBaseUrl: "https://backend.test",
+      storeEphemeralKeys: false,
+    });
+
+    const createdQuote = await sdk.createQuote({
+      from: EPaymentMethod.PIX,
+      inputAmount: "100",
+      inputCurrency: FiatToken.BRL,
+      network: Networks.Base,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.BUY,
+      to: Networks.Base,
+    });
+    const result = await sdk.registerRamp(createdQuote, { destinationAddress: "0xuser" });
+
+    expect(result.rampProcess.id).toBe("ramp_1");
+    expect(calls).toContain("POST /v1/ramp/register");
+  });
+
   test("BRL quote and registration reach the backend when no signing transactions are returned", async () => {
     const calls = mockBackend();
     const sdk = createSdk();

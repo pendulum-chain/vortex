@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import { getEvmTokensLoadedSnapshot, isNetworkEVM, Networks, subscribeEvmTokensLoaded } from "@vortexfi/shared";
-import { useEffect, useSyncExternalStore } from "react";
+import { isNetworkEVM, Networks } from "@vortexfi/shared";
+import { useEffect } from "react";
 import { useNetwork } from "../contexts/network";
 import { useFiatToken, useInputAmount, useOnChainToken } from "../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../stores/rampDirectionStore";
+import { useEvmTokensLoaded } from "./useEvmTokensLoaded";
 
 export const useSyncFormToUrl = () => {
   const inputAmount = useInputAmount();
@@ -12,7 +13,7 @@ export const useSyncFormToUrl = () => {
   const rampDirection = useRampDirection();
   const { selectedNetwork } = useNetwork();
   const navigate = useNavigate();
-  const evmTokensLoaded = useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot);
+  const evmTokensLoaded = useEvmTokensLoaded();
 
   useEffect(() => {
     navigate({

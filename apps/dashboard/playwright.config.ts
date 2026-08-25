@@ -7,7 +7,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   fullyParallel: true,
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
+  // "html" writes playwright-report/, which the e2e workflow uploads as an artifact on
+  // failure — without it a red nightly run leaves nothing to debug from.
+  reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : [["list"]],
   retries: process.env.CI ? 2 : 0,
   testDir: "./e2e",
   timeout: 60_000,

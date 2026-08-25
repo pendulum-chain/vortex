@@ -1,7 +1,7 @@
 import { useSelector } from "@xstate/react";
 import { useCallback, useEffect, useRef } from "react";
 import type { ActorRefFrom } from "xstate";
-import { supabase } from "../config/supabase";
+import { getSupabaseClient } from "../config/supabase";
 import type { rampMachine } from "../machines/ramp.machine";
 import { AuthService } from "../services/auth";
 
@@ -20,8 +20,8 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
     const urlTokens = AuthService.handleUrlTokens();
     if (urlTokens) {
       // Use the URL tokens to set session with Supabase, then get full user details
-      supabase.auth
-        .setSession({
+      getSupabaseClient()
+        .auth.setSession({
           access_token: urlTokens.accessToken,
           refresh_token: urlTokens.refreshToken
         })

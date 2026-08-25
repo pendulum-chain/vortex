@@ -4,7 +4,7 @@ A stateless SDK that abstracts Vortex's API and ephemeral key handling for cross
 
 ## Environment Support
 
-This SDK is currently working only on **Node.js** environment.
+The package publishes conditional ESM builds for Node.js and modern browsers.
 
 ## Installation
 
@@ -12,7 +12,9 @@ This SDK is currently working only on **Node.js** environment.
 npm install @vortexfi/sdk
 ```
 
-## Quick Start
+## Node.js Quick Start
+
+This server-side example uses a secret credential. Browser code must use the Bearer-token example under [Browser authentication](#browser-authentication) instead; the browser build rejects `secretKey` configuration.
 
 ```typescript
 import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
@@ -20,6 +22,7 @@ import type { VortexSdkConfig } from "@vortexfi/sdk";
 
 const config: VortexSdkConfig = {
   apiBaseUrl: "http://localhost:3000",
+  secretKey: process.env.VORTEX_SECRET_KEY
 };
 
 const sdk = new VortexSdk(config);
@@ -83,11 +86,27 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
-Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires the configured `secretKey` to resolve to an onboarded user. This can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The SDK does not accept Supabase Bearer tokens. The same user must have completed Alfredpay KYC for the country, so registration resolves to that user's Alfredpay customer automatically.
+Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires either a `secretKey` or an `accessTokenProvider` to resolve to an onboarded user. A secret can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The same user must have completed Alfredpay KYC for the country, so registration resolves to that user's Alfredpay customer automatically.
 
 Use `sdk.getRampInfo()` to read the credential-bound, sanitized KYC and buy/sell availability by country. It accepts either configured key and returns no identifiers, limits, or personal data.
 
-> The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation) with the SDK.
+> The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key server-side or renewable Supabase session in a browser.
+
+### Browser authentication
+
+Do not expose an `sk_*` key in browser code. Supply an async provider that reads the current Supabase session instead:
+
+```typescript
+const sdk = new VortexSdk({
+  apiBaseUrl: "https://api.vortexfinance.co",
+  accessTokenProvider: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token;
+  }
+});
+```
+
+The provider is awaited before every API request, so tokens refreshed after SDK construction are used automatically. If both `secretKey` and `accessTokenProvider` are configured, the secret key takes precedence and the provider is not called. A configured `publicKey` continues to be sent for attribution with either authentication mechanism.
 
 ### Alfredpay (USD / MXN / COP / ARS) offramp
 
@@ -141,8 +160,10 @@ permit. This setting is an integration sequencing option, not an account authori
 backend balance-check bypass.
 
 ## Core Features
-- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
+- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or plain browser `localStorage`. Browser storage is intentionally prototype-grade and should be used only on a tightly controlled origin; disabling it also disables the SDK's recovery backup.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
+
+With the default `storeEphemeralKeys: true`, registration fails closed if the backup cannot be written. The API may already have created the ramp, but the SDK rejects `registerRamp()` before signing ephemeral-owned transactions or submitting the ramp update; it does not silently continue without recovery material. Keep the backup until the ramp is complete and its recovery window has passed.
 
 ## API Reference
 
@@ -224,6 +245,7 @@ interface VortexSdkConfig {
   apiBaseUrl: string;
   publicKey?: string;
   secretKey?: string;
+  accessTokenProvider?: () => Promise<string | null | undefined>;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
@@ -241,14 +263,15 @@ Only the base Vortex API is required. Chain WebSocket APIs are initialized lazil
 integration funds its source wallet after registration and can guarantee funding before
 submitting user transactions and starting the ramp.
 
-### API keys
+### Authentication
 
 Each API credential has a public and secret key. Either key can be configured independently:
 
 - `publicKey` (`pk_live_*` / `pk_test_*`): sent as `X-Public-Key` and retained in quote bodies for compatibility, enabling attribution and approved low-sensitivity reads such as `getRampInfo()`.
 - `secretKey` (`sk_live_*` / `sk_test_*`): sent as the `X-API-Key` header on every request. SDK ramp registration requires it to resolve to a Vortex user, either directly or through a delegated partner key.
+- `accessTokenProvider`: awaited before every request and, when it returns a token, sent as `Authorization: Bearer <token>`. Use it for renewable Supabase browser sessions. It is ignored when `secretKey` is configured.
 
-The public key is optional for quotes. The secret key is required by SDK `registerRamp`; it must be kept server-side and is returned only once when created. When both keys are configured, they must belong to the same credential or requests fail with `VortexSdkError.code === "CREDENTIAL_MISMATCH"`. User-scoped credentials can be created through the OTP-authenticated `/v1/api-credentials` endpoint and revoked atomically by credential ID. Raw API clients may alternatively register with the user's Supabase Bearer session.
+The public key is optional for quotes. SDK `registerRamp` requires either the secret key or access token provider. Secret keys must be kept server-side and are returned only once when created. When both API keys are configured, they must belong to the same credential or requests fail with `VortexSdkError.code === "CREDENTIAL_MISMATCH"`. User-scoped credentials can be created through the OTP-authenticated `/v1/api-credentials` endpoint and revoked atomically by credential ID.
 
 ```typescript
 const sdk = new VortexSdk({

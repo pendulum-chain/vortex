@@ -1,9 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ApiCredentialsTable } from "@/components/api-keys/ApiCredentialsTable";
 import { CreateApiCredentialDialog } from "@/components/api-keys/CreateApiCredentialDialog";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
+import { AuthService } from "@/services/auth";
 
 export const Route = createFileRoute("/_app/api-keys")({
+  beforeLoad: () => {
+    if (AuthService.getManagedProfileSelection()) throw redirect({ to: "/overview" });
+  },
   component: ApiKeysPage
 });
 

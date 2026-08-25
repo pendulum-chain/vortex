@@ -121,6 +121,46 @@ describe("runFinancialOperation", () => {
     expect(perform).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps operation inputs immutable while another caller is in preflight", async () => {
+    let releasePreflight: () => void = () => undefined;
+    let signalPreflightStarted: () => void = () => undefined;
+    const preflightStarted = new Promise<void>(resolve => {
+      signalPreflightStarted = resolve;
+    });
+    const preflightReleased = new Promise<void>(resolve => {
+      releasePreflight = resolve;
+    });
+    const firstPerform = mock(async () => ({ id: "external-1" }));
+    const competingPerform = mock(async () => ({ id: "external-2" }));
+
+    const first = runFinancialOperation({
+      ...baseOperation,
+      beforePerform: async () => {
+        signalPreflightStarted();
+        await preflightReleased;
+      },
+      perform: firstPerform
+    });
+    await preflightStarted;
+
+    try {
+      await expect(
+        runFinancialOperation({
+          ...baseOperation,
+          perform: competingPerform,
+          request: { amount: "11", recipient: "recipient-1" }
+        })
+      ).rejects.toThrow("different inputs");
+    } finally {
+      releasePreflight();
+    }
+
+    await expect(first).resolves.toEqual({ id: "external-1" });
+    expect(firstPerform).toHaveBeenCalledTimes(1);
+    expect(competingPerform).not.toHaveBeenCalled();
+    await expect(runFinancialOperation({ ...baseOperation, perform: firstPerform })).resolves.toEqual({ id: "external-1" });
+  });
+
   it("halts retries after an ambiguous provider failure", async () => {
     const perform = mock(async () => {
       throw new Error("connection reset after submission");

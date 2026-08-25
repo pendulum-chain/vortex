@@ -94,6 +94,10 @@ describe("alfredpayQuoteResponseSchema", () => {
     const missingFeeType = validQuoteBody();
     delete (missingFeeType.fees[0] as Record<string, unknown>).type;
     expect(() => alfredpayQuoteResponseSchema.parse(missingFeeType)).toThrow();
+
+    const missingCurrency = validQuoteBody();
+    delete (missingCurrency as Record<string, unknown>).fromCurrency;
+    expect(() => alfredpayQuoteResponseSchema.parse(missingCurrency)).toThrow();
   });
 
   test("rejects a non-decimal toAmount", () => {
@@ -138,10 +142,15 @@ describe("alfredpayOnrampTransactionSchema", () => {
 describe("alfredpayOfframpTransactionSchema", () => {
   test("rejects a non-EVM depositAddress", () => {
     const body = {
+      chain: "MATIC",
+      customerId: "cust-1",
       depositAddress: "not-an-address",
       expiration: "2026-07-07T12:00:00.000Z",
       fromAmount: "25",
+      fromCurrency: "USDT",
+      fiatAccountId: "fa-1",
       status: "ON_CHAIN_DEPOSIT_RECEIVED",
+      toAmount: "425",
       toCurrency: "MXN",
       transactionId: "tx-2"
     };
@@ -152,14 +161,40 @@ describe("alfredpayOfframpTransactionSchema", () => {
 
   test("accepts the pre-deposit CREATED status of a fresh offramp", () => {
     const body = {
+      chain: "MATIC",
+      customerId: "cust-1",
       depositAddress: "0x5afe00000000000000000000000000000000d0e5",
       expiration: "2026-07-07T12:00:00.000Z",
       fromAmount: "30",
+      fromCurrency: "USDT",
+      fiatAccountId: "fa-1",
       status: "CREATED",
+      toAmount: "510",
       toCurrency: "MXN",
       transactionId: "tx-3"
     };
     expect(() => alfredpayOfframpTransactionSchema.parse(body)).not.toThrow();
+  });
+
+  test("rejects missing terms consumed by execution reconciliation", () => {
+    const body = {
+      chain: "MATIC",
+      customerId: "cust-1",
+      depositAddress: "0x5afe00000000000000000000000000000000d0e5",
+      expiration: "2026-07-07T12:00:00.000Z",
+      fromAmount: "30",
+      fromCurrency: "USDT",
+      fiatAccountId: "fa-1",
+      status: "CREATED",
+      toAmount: "510",
+      toCurrency: "MXN",
+      transactionId: "tx-3"
+    };
+    for (const field of ["chain", "customerId", "fiatAccountId", "fromCurrency", "toAmount"] as const) {
+      const missing = { ...body } as Record<string, unknown>;
+      delete missing[field];
+      expect(() => alfredpayOfframpTransactionSchema.parse(missing)).toThrow();
+    }
   });
 });
 

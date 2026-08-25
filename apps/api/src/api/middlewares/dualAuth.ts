@@ -6,8 +6,9 @@ import {
   observeApiClientEvent
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
-import { AccessTokenVerificationError, SupabaseAuthService } from "../services/auth";
+import { AccessTokenVerificationError } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validatePublicApiKey, validateSecretApiKey } from "./apiKeyAuth.helpers";
+import { resolveBearerPrincipal } from "./bearerPrincipal";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
@@ -105,9 +106,9 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
 
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.slice(7);
-        let result: Awaited<ReturnType<typeof SupabaseAuthService.verifyToken>>;
+        let result: Awaited<ReturnType<typeof resolveBearerPrincipal>>;
         try {
-          result = await SupabaseAuthService.verifyToken(token);
+          result = await resolveBearerPrincipal(token);
         } catch (error) {
           if (!(error instanceof AccessTokenVerificationError)) {
             logger.error("Unexpected Supabase access-token verifier failure", error);
@@ -144,8 +145,9 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        req.userId = result.user_id;
-        req.userEmail = result.email;
+        req.userId = result.userId;
+        req.userEmail = result.userEmail;
+        req.impersonation = result.impersonation;
         return next();
       }
 

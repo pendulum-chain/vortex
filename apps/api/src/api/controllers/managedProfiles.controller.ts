@@ -4,6 +4,7 @@ import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { CUSTOMER_ENTITY_TYPES } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
+import ManagedProfileManager from "../../models/managedProfileManager.model";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
 import {
   ApiCredentialServiceError,
@@ -121,8 +122,17 @@ export async function readManagedProfiles(req: Request, res: Response): Promise<
       offset,
       status: status as ManagedProfileStatus | "all"
     });
+    const manager = await ManagedProfileManager.findByPk(managerProfileId(req));
+    if (!manager?.isActive) {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Managed profile access is denied");
+    }
     res.status(httpStatus.OK).json({
       managedProfiles: result.managedProfiles,
+      manager: {
+        allowedCorridors: manager.allowedCorridors,
+        allowedCustomerTypes: manager.allowedCustomerTypes,
+        profileId: manager.profileId
+      },
       pagination: { limit: result.limit, offset: result.offset, total: result.total }
     });
   } catch (error) {

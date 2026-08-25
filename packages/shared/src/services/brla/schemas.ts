@@ -27,6 +27,7 @@ import {
   KycAttemptStatus,
   KycLevel1Response,
   Limit,
+  LivenessDocumentResponse,
   PixInputTicketOutput,
   PixKeyData,
   PixOutputTicketOutput,
@@ -181,14 +182,19 @@ export const aveniaDocumentsSchema = z.looseObject({
   documents: z.array(aveniaDocumentResponseSchema.shape.document)
 }) satisfies z.ZodType<AveniaDocumentGetResponse>;
 
-/** The upload target returned when an Avenia document record is created. */
+/** The pre-signed upload target returned for a file-backed Avenia document. */
 export const aveniaDocumentUploadResponseSchema = z.looseObject({
   id: z.string().min(1),
-  livenessUrl: z.string().min(1).optional(),
   uploadURLBack: z.string().optional(),
-  uploadURLFront: z.string().min(1),
-  validateLivenessToken: z.string().min(1).optional()
+  uploadURLFront: z.string().min(1)
 }) satisfies z.ZodType<DocumentUploadResponse>;
+
+/** The provider-hosted capture target returned for SELFIE-FROM-LIVENESS. */
+export const aveniaLivenessDocumentResponseSchema = z.looseObject({
+  id: z.string().min(1),
+  livenessUrl: z.string().min(1),
+  validateLivenessToken: z.string().min(1)
+}) satisfies z.ZodType<LivenessDocumentResponse>;
 
 /** The identifier returned by UBO creation. */
 export const aveniaUboResponseSchema = z.looseObject({
@@ -217,17 +223,25 @@ const aveniaAttemptSchema = z.looseObject({
   createdAt: z.string().datetime({ offset: true }),
   id: z.string().min(1),
   levelName: z.string().min(1),
+  // Production also sends result: "" (not null) on unsettled attempts — observed
+  // 2026-08-24 on company subaccounts, where it failed the parse of the whole page.
   result: z
-    .enum(KycAttemptResult)
+    .union([z.enum(KycAttemptResult), z.literal("")])
     .nullish()
-    .transform(value => value ?? undefined),
+    .transform(value => value || undefined),
   resultMessage: z
     .string()
     .nullish()
     .transform(value => value ?? undefined),
-  retryable: z.boolean().optional(),
+  retryable: z
+    .boolean()
+    .nullish()
+    .transform(value => value ?? undefined),
   status: z.enum(KycAttemptStatus),
-  submissionData: z.record(z.string(), z.unknown()).optional(),
+  submissionData: z
+    .record(z.string(), z.unknown())
+    .nullish()
+    .transform(value => value ?? undefined),
   updatedAt: z.string().datetime({ offset: true })
 }) satisfies z.ZodType<KycAttempt>;
 

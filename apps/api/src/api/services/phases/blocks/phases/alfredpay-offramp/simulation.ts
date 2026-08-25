@@ -8,6 +8,7 @@ import {
   type AlfredpayFeeType,
   type AlfredpayFiatCurrency,
   AlfredpayPaymentMethodType,
+  AlfredpayTradeLimitError,
   type EvmNetworks,
   type EvmToken,
   type FiatToken,
@@ -18,18 +19,15 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../../config/logger";
+import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
 import { type FiatExchangeRateSource, priceFeedService } from "../../../../priceFeed.service";
 import { resolveAlfredpayQuoteCustomerId } from "../../../../quote/alfredpay-customer";
-import {
-  calculateExpectedOutput,
-  calculateSubsidyAmount,
-  getUsdDenominatedInputAmount,
-  resolveDiscountPartner
-} from "../../core/discount";
-import { calculateFees } from "../../core/fees";
+import { getAdjustedDifference, getUsdDenominatedInputAmount, resolveDiscountPartner } from "../../core/discount";
+import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
+import { overrideFees } from "../../core/fees";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
-import { calculatePreNablaDeductibleFees } from "../../core/quote-fees";
 import { getEvmBridgeQuote } from "../../core/squidrouter";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 
@@ -84,6 +82,19 @@ export interface AlfredpayOfframpMetadata {
 
 export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp", 2);
 
+export const ALFREDPAY_MIN_EXECUTION_LIFETIME_MS = 2 * 60 * 1000;
+export const ALFREDPAY_MIN_QUOTE_LIFETIME_MS = 10 * 1000;
+
+export function hasSafeAlfredpayQuoteLifetime(expiration: string): boolean {
+  const expiresAt = Date.parse(expiration);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now() + ALFREDPAY_MIN_QUOTE_LIFETIME_MS;
+}
+
+export function hasSafeAlfredpayExecutionLifetime(expiration: string, nowMs = Date.now()): boolean {
+  const expiresAt = Date.parse(expiration);
+  return Number.isFinite(expiresAt) && expiresAt > nowMs + ALFREDPAY_MIN_EXECUTION_LIFETIME_MS;
+}
+
 function directAlfredpaySettlementQuote(amountDecimal: string) {
   const outputAmountDecimal = new Big(amountDecimal);
   const amountRaw = multiplyByPowerOfTen(outputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, Big.roundDown);
@@ -115,38 +126,19 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
             outputCurrency: ALFREDPAY_EVM_TOKEN,
             toNetwork: Networks.Polygon
           });
-    const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
-      ctx.request.inputAmount,
-      ctx.request.inputCurrency,
-      ctx.request.outputCurrency,
-      ctx.request.rampType,
-      ctx.request.from,
-      ctx.request.to,
-      ctx.partner?.id || undefined
-    );
-    const deductibleUsd = new Big(
-      await priceFeedService.convertCurrency(
-        preNablaDeductibleFeeAmount.toString(),
-        feeCurrency,
-        ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency
-      )
-    );
-    const oneUnitInFiat = new Big(
-      await priceFeedService.convertCurrency(
-        "1",
-        ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency,
-        ctx.request.outputCurrency as RampCurrency
-      )
-    );
-    const fiatToUsd = new Big(1).div(oneUnitInFiat);
+    if (!ctx.fees?.usd) {
+      throw new Error("AlfredpayOfframp: Missing fee snapshot");
+    }
     const referenceRateSnapshot = await priceFeedService.getUsdToFiatExchangeRateSnapshot(
       ctx.request.outputCurrency as RampCurrency
     );
     const referenceRate = new Big(referenceRateSnapshot.rate);
+    if (referenceRate.lte(0)) {
+      throw new Error(`AlfredpayOfframp: Invalid reference rate ${referenceRate.toString()}`);
+    }
     const partner = await resolveDiscountPartner(ctx as never, RampDirection.SELL);
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
-    const actualFiat = bridge.outputAmountDecimal.mul(oneUnitInFiat);
     const inputAmountUsd = await getUsdDenominatedInputAmount(
       Object.assign({}, ctx, { evmToEvm: { outputAmountDecimal: bridge.outputAmountDecimal } }) as never
     );
@@ -155,32 +147,159 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
         `AlfredpayOfframp: valued input ${ctx.request.inputAmount} ${ctx.request.inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
       );
     }
-    const { expectedOutput, adjustedDifference, adjustedTargetDiscount } = calculateExpectedOutput(
-      inputAmountUsd.toString(),
-      fiatToUsd,
-      targetDiscount,
-      true,
-      partner
-    );
-    // The advertised target rate is the user's final, net-of-platform-fees rate: the
-    // subsidy is sized against the FEE-NET actual output (mirroring the onramp's
-    // AlfredpaySubsidizePre), so it may economically offset the charged fee — bounded
-    // by maxSubsidy — while the fee itself remains reserved and collected by
-    // distributeFees. Sequelize returns DECIMAL pricing fields as strings at runtime.
-    const actualNetFiat = actualFiat.minus(deductibleUsd.mul(oneUnitInFiat));
-    const subsidyFiat =
-      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutput, actualNetFiat, maxSubsidy) : new Big(0);
-    const providerInput = actualNetFiat.plus(subsidyFiat).div(oneUnitInFiat).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
+    const adjustedDifference = getAdjustedDifference(partner);
+    const adjustedTargetDiscount = new Big(targetDiscount).plus(adjustedDifference);
+    const subsidyEnabled = new Big(targetDiscount).gt(0);
+    const expectedOutput = inputAmountUsd.mul(referenceRate).mul(new Big(1).plus(adjustedTargetDiscount));
+    if (expectedOutput.lte(0)) {
+      throw new Error(`AlfredpayOfframp: Invalid target output ${expectedOutput.toString()}`);
+    }
+    const feeReserveRaw = new Big(getEvmFeeTotalRawFromUsd(ctx.fees.usd, ALFREDPAY_ERC20_DECIMALS));
+    const bridgeOutputRaw = new Big(bridge.outputAmountRaw);
+    const baselineProviderInputRaw = bridgeOutputRaw.minus(feeReserveRaw);
+    if (baselineProviderInputRaw.lte(0)) {
+      throw new Error("AlfredpayOfframp: Platform fees consume the full bridged amount");
+    }
+
     const customerId = await resolveAlfredpayQuoteCustomerId(ctx.request.outputCurrency, ctx.request.userId);
-    const providerQuote = await AlfredpayApiService.getInstance().createOfframpQuote({
-      chain: AlfredpayChain.MATIC,
-      fromAmount: providerInput.toString(),
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      metadata: { businessId: "vortex", customerId },
-      paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      toCurrency: ctx.request.outputCurrency as unknown as AlfredpayFiatCurrency
-    });
+    const toCurrency = ctx.request.outputCurrency as unknown as AlfredpayFiatCurrency;
+    const alfredpay = AlfredpayApiService.getInstance();
+    const createProviderQuote = (amount: { fromAmount: string } | { toAmount: string }) =>
+      alfredpay.createOfframpQuote({
+        ...amount,
+        chain: AlfredpayChain.MATIC,
+        fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+        metadata: { businessId: "vortex", customerId },
+        paymentMethodType: AlfredpayPaymentMethodType.BANK,
+        toCurrency
+      });
+    const providerInputRaw = (amount: string): Big => {
+      const raw = multiplyByPowerOfTen(amount, ALFREDPAY_ERC20_DECIMALS);
+      if (!raw.eq(raw.round(0, Big.roundDown))) {
+        throw new Error(`AlfredpayOfframp: Provider input ${amount} exceeds USDT precision`);
+      }
+      return raw;
+    };
+    const rawUnit = new Big(10).pow(ALFREDPAY_ERC20_DECIMALS);
+    const rawToDecimal = (raw: Big): string => raw.div(rawUnit).toString();
+    const atLeastZero = (value: Big): Big => (value.gt(0) ? value : new Big(0));
+    const clampRaw = (value: Big, low: Big, high: Big): Big => (value.lt(low) ? low : value.gt(high) ? high : value);
+    const subsidyForInputRaw = (inputRaw: Big): Big => atLeastZero(inputRaw.plus(feeReserveRaw).minus(bridgeOutputRaw));
+    const matchesProviderPair = (quote: Awaited<ReturnType<typeof createProviderQuote>>): boolean =>
+      (quote.chain === undefined || quote.chain === AlfredpayChain.MATIC) &&
+      quote.fromCurrency === ALFREDPAY_ONCHAIN_CURRENCY &&
+      quote.toCurrency === toCurrency;
+    const createFixedInputQuote = async (raw: Big) => {
+      const requestedFromAmount = rawToDecimal(raw);
+      const quote = await createProviderQuote({ fromAmount: requestedFromAmount });
+      if (!matchesProviderPair(quote) || !new Big(quote.fromAmount).eq(requestedFromAmount)) {
+        throw new Error(
+          `AlfredpayOfframp: Fixed-input quote drifted from ${requestedFromAmount} ${ALFREDPAY_ONCHAIN_CURRENCY} to ${quote.fromAmount} ${quote.fromCurrency}/${quote.toCurrency}`
+        );
+      }
+      return quote;
+    };
+
+    const configuredPartnerCapUsd = expectedOutput.mul(maxSubsidy).div(referenceRate);
+    const partnerCapUsd = configuredPartnerCapUsd.gt(0) ? configuredPartnerCapUsd : new Big(0);
+    const partnerCapRaw = multiplyByPowerOfTen(partnerCapUsd, ALFREDPAY_ERC20_DECIMALS).round(0, Big.roundDown);
+    const runtimeCapRaw = multiplyByPowerOfTen(MAX_FINAL_SETTLEMENT_SUBSIDY_USD, ALFREDPAY_ERC20_DECIMALS);
+    const allowedSubsidyRaw = partnerCapRaw.lt(runtimeCapRaw) ? partnerCapRaw : runtimeCapRaw;
+    const requestedTargetOutput = expectedOutput.round(2, Big.roundUp);
+
+    // The deposit Vortex funds is clamped into [baseline, ceiling]: never below the fee-net
+    // baseline, never above the subsidy this quote authorises, and never above what the
+    // provider will trade. That clamp is the whole cap policy.
+    const vortexCeilingRaw = baselineProviderInputRaw.plus(allowedSubsidyRaw);
+    let targetQuote: Awaited<ReturnType<typeof createProviderQuote>> | undefined;
+    let providerMaximumInputRaw: Big | undefined;
+    if (subsidyEnabled) {
+      try {
+        targetQuote = await createProviderQuote({ toAmount: requestedTargetOutput.toFixed(2) });
+      } catch (error) {
+        if (
+          !(error instanceof AlfredpayTradeLimitError) ||
+          error.kind !== "above" ||
+          error.fromCurrency !== ALFREDPAY_ONCHAIN_CURRENCY
+        ) {
+          throw error;
+        }
+        providerMaximumInputRaw = multiplyByPowerOfTen(error.quantity, ALFREDPAY_ERC20_DECIMALS).round(0, Big.roundDown);
+        if (providerMaximumInputRaw.lt(baselineProviderInputRaw)) {
+          throw error;
+        }
+      }
+    }
+    if (targetQuote && (!matchesProviderPair(targetQuote) || new Big(targetQuote.toAmount).lt(requestedTargetOutput))) {
+      throw new Error(
+        `AlfredpayOfframp: Exact-output quote returned ${targetQuote.fromCurrency}/${targetQuote.toCurrency} ${targetQuote.toAmount}, below requested ${requestedTargetOutput.toFixed(2)} ${ctx.request.outputCurrency}`
+      );
+    }
+    const ceilingRaw =
+      providerMaximumInputRaw !== undefined && providerMaximumInputRaw.lt(vortexCeilingRaw)
+        ? providerMaximumInputRaw
+        : vortexCeilingRaw;
+    const targetTerms = targetQuote ? { inputRaw: providerInputRaw(targetQuote.fromAmount), quote: targetQuote } : undefined;
+    const selectedInputRaw = !subsidyEnabled
+      ? baselineProviderInputRaw
+      : targetTerms
+        ? clampRaw(targetTerms.inputRaw, baselineProviderInputRaw, ceilingRaw)
+        : ceilingRaw;
+    const targetWasCapped = subsidyEnabled && (!targetTerms || selectedInputRaw.lt(targetTerms.inputRaw));
+    const providerQuote =
+      targetTerms && selectedInputRaw.eq(targetTerms.inputRaw)
+        ? targetTerms.quote
+        : await createFixedInputQuote(selectedInputRaw);
+    const expirationDate = new Date(providerQuote.expiration);
+    if (!hasSafeAlfredpayQuoteLifetime(providerQuote.expiration)) {
+      throw new Error(
+        `AlfredpayOfframp: Provider quote lifetime is too short for safe registration (${providerQuote.expiration})`
+      );
+    }
+
+    const providerInputAmountRaw = providerInputRaw(providerQuote.fromAmount);
+    const providerInput = providerInputAmountRaw.div(rawUnit);
+    const subsidyAmountRaw = subsidyForInputRaw(providerInputAmountRaw);
+    if (subsidyAmountRaw.gt(allowedSubsidyRaw)) {
+      throw new Error(
+        `AlfredpayOfframp: Provider input requires ${subsidyAmountRaw.toString()} subsidy raw units, above the quoted cap ${allowedSubsidyRaw.toString()}`
+      );
+    }
     const outputAmount = new Big(providerQuote.toAmount);
+    if (subsidyEnabled && !targetWasCapped && outputAmount.lt(requestedTargetOutput)) {
+      throw new Error(
+        `AlfredpayOfframp: Selected provider quote returned ${outputAmount.toString()}, below the uncapped target ${requestedTargetOutput.toFixed(2)}`
+      );
+    }
+    if (targetWasCapped && outputAmount.lt(requestedTargetOutput)) {
+      const capReason = !ceilingRaw.eq(vortexCeilingRaw)
+        ? "provider"
+        : partnerCapRaw.eq(runtimeCapRaw)
+          ? "partner-and-runtime"
+          : partnerCapRaw.lt(runtimeCapRaw)
+            ? "partner"
+            : "runtime";
+      const requiredSubsidyBasisRaw = targetTerms?.inputRaw ?? providerMaximumInputRaw;
+      logger.warn("ALFREDPAY_OFFRAMP_TARGET_DISCOUNT_CAPPED", {
+        adjustedTargetDiscount: adjustedTargetDiscount.toString(),
+        allowedSubsidyUsd: rawToDecimal(allowedSubsidyRaw),
+        appliedSubsidyUsd: rawToDecimal(subsidyAmountRaw),
+        capReason,
+        deliveredOutput: outputAmount.toString(),
+        fiatCurrency: ctx.request.outputCurrency,
+        inputAmountUsd: inputAmountUsd.toString(),
+        partnerId: partner?.id,
+        providerMaximumInput: providerMaximumInputRaw && rawToDecimal(providerMaximumInputRaw),
+        requestedTargetOutput: requestedTargetOutput.toString(),
+        // Without an exact-output quote the provider never priced the target, so its maximum
+        // input only bounds the subsidy the target would have needed from below.
+        requiredSubsidyIsLowerBound: targetTerms === undefined,
+        requiredSubsidyUsd: requiredSubsidyBasisRaw && rawToDecimal(subsidyForInputRaw(requiredSubsidyBasisRaw))
+      });
+      ctx.addNote(
+        `AlfredpayOfframp: target output ${requestedTargetOutput.toString()} capped to ${outputAmount.toString()} ${ctx.request.outputCurrency}`
+      );
+    }
     const providerGrossRate = new Big(providerQuote.rate);
     const providerNetRate = outputAmount.div(providerInput);
     const customerAllInRate = outputAmount.div(inputAmountUsd);
@@ -188,12 +307,11 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       providerQuote.fees,
       ctx.request.outputCurrency as unknown as AlfredpayFiatCurrency
     );
-    const inputAmountRaw = multiplyByPowerOfTen(providerInput, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0);
-    const fees = await calculateFees(ctx, {
+    const inputAmountRaw = providerInputAmountRaw.toFixed(0);
+    const fees = await overrideFees(ctx, {
       anchor: { amount: providerFee.toString(), currency: ctx.request.outputCurrency as RampCurrency },
       network: { amount: "0", currency: ALFREDPAY_EVM_TOKEN as RampCurrency }
     });
-    const expirationDate = new Date(providerQuote.expiration);
     ctx.addNote(
       `AlfredpayOfframp: ${input.amount.toString()} ${fromToken} -> ${outputAmount.toString()} ${ctx.request.outputCurrency}`
     );
@@ -243,8 +361,8 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
           }
         },
         quoteId: providerQuote.quoteId,
-        subsidyAmountDecimal: subsidyFiat.div(oneUnitInFiat),
-        subsidyAmountRaw: multiplyByPowerOfTen(subsidyFiat.div(oneUnitInFiat), ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
+        subsidyAmountDecimal: subsidyAmountRaw.div(rawUnit),
+        subsidyAmountRaw: subsidyAmountRaw.toFixed(0),
         token: ALFREDPAY_EVM_TOKEN,
         toToken: bridge.toToken
       },

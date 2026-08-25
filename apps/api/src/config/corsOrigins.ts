@@ -1,10 +1,9 @@
 // CORS origin helpers for the dashboard. Kept separate from express.ts so the
 // whitelist logic is unit-testable without booting the app.
 
-// Extra fixed origins for non-production dashboard deployments (comma-separated env
-// var, e.g. a staging or preview URL). Resolved once at boot — this stays an explicit
-// whitelist per the security spec; wildcards are dropped, never honored.
-export function parseDashboardOrigins(raw: string | undefined): string[] {
+// Extra fixed origins (comma-separated). Resolved once at boot; wildcards are dropped,
+// never honored, so every browser integration remains an explicit operator decision.
+export function parseFixedOrigins(raw: string | undefined): string[] {
   return (raw ?? "")
     .split(",")
     .map(origin => origin.trim())

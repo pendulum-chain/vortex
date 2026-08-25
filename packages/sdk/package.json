@@ -13,8 +13,11 @@
   },
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/browser/index.js",
+      "node": "./dist/index.js",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -42,18 +45,20 @@
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
-    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --external=\"@polkadot/api\" --external=\"stellar-sdk\"",
+    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --format=esm --external=\"@polkadot/api\" --external=\"stellar-sdk\" --minify-syntax --minify-whitespace && bun ./scripts/build.ts",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts --max-warnings 0",
     "prepublishOnly": "bun run build",
-    "test": "bun run lint && bun test && bun run build && bun run test:package-types && node --input-type=module -e \"await import('./dist/index.js')\"",
+    "test": "bun run lint && bun test && bun run build && bun run test:package-types && bun run test:package-node && bun run test:package-browser",
     "test:coverage": "bun run lint && bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.32 0.15",
+    "test:package-browser": "node --conditions=browser ./test/package-consumer/browser-smoke.mjs",
+    "test:package-node": "node ./test/package-consumer/node-smoke.mjs",
     "test:package-types": "bun x --bun tsc -p test/package-consumer/tsconfig.json",
     "typecheck": "bun x --bun tsc --noEmit"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "version": "0.8.0"
+  "version": "0.9.0-rc.3"
 }

@@ -1,6 +1,16 @@
-import { CreateQuoteRequest, EPaymentMethod, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
-import { VortexSdkConfig } from "../src/types";
-import { VortexSdk } from "../src/VortexSdk";
+import "dotenv/config";
+
+import {
+  CreateQuoteRequest,
+  EPaymentMethod,
+  EvmToken,
+  FiatToken,
+  Networks,
+  QuoteResponse,
+  RampDirection,
+  VortexSdk,
+  VortexSdkConfig
+} from "@vortexfi/sdk";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -82,14 +92,12 @@ async function runEurOnrampExample() {
   }
 }
 
-if (require.main === module) {
-  runEurOnrampExample()
-    .then(() => {
-      console.log("\n✨ Example execution completed");
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("\n💥 Example execution failed:", error);
-      process.exit(1);
-    });
-}
+runEurOnrampExample()
+  .then(() => {
+    console.log("\n✨ Example execution completed");
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error("\n💥 Example execution failed:", error);
+    process.exit(1);
+  });

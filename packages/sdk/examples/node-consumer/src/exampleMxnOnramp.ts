@@ -8,18 +8,28 @@
 // that same user must have completed Alfredpay MXN KYC. Onboard the user through the Vortex app
 // first; the SDK cannot mint keys or run KYC.
 //
-// Config is read from packages/sdk/.env (bun auto-loads it). See .env.example.
+// Config is read from node-consumer/.env. See .env.example.
 // Env: VORTEX_API_URL, VORTEX_PUBLIC_KEY, VORTEX_SECRET_KEY (user-linked),
 //      DESTINATION_ADDRESS, WALLET_ADDRESS.
 //
 // Run:
-//   cd packages/sdk
-//   bun run examples/exampleMxnOnramp.ts
+//   cd packages/sdk/examples/node-consumer
+//   bun run example:mxn-onramp
 
+import "dotenv/config";
+
+import {
+  CreateQuoteRequest,
+  EPaymentMethod,
+  EvmToken,
+  FiatToken,
+  Networks,
+  QuoteResponse,
+  RampDirection,
+  VortexSdk,
+  VortexSdkConfig
+} from "@vortexfi/sdk";
 import * as fs from "fs";
-import { CreateQuoteRequest, EPaymentMethod, EvmToken, FiatToken, Networks, QuoteResponse, RampDirection } from "../src/index";
-import { VortexSdkConfig } from "../src/types";
-import { VortexSdk } from "../src/VortexSdk";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -113,14 +123,12 @@ async function runMxnOnrampExample() {
   }
 }
 
-if (require.main === module) {
-  runMxnOnrampExample()
-    .then(() => {
-      console.log("\n✨ Example execution completed");
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("\n💥 Example execution failed:", error);
-      process.exit(1);
-    });
-}
+runMxnOnrampExample()
+  .then(() => {
+    console.log("\n✨ Example execution completed");
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error("\n💥 Example execution failed:", error);
+    process.exit(1);
+  });

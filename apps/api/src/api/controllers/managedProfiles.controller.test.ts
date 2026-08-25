@@ -62,6 +62,7 @@ describe("managed profile lifecycle routes", () => {
     expect((await fetch(baseUrl, { body, headers, method: "POST" })).status).toBe(200);
     const listed = await fetch(baseUrl, { headers });
     expect(await listed.json()).toMatchObject({
+      manager: { allowedCorridors: ["BR"], allowedCustomerTypes: null },
       managedProfiles: [{ profileId, status: "active" }],
       pagination: { limit: 50, offset: 0, total: 1 }
     });
@@ -78,6 +79,19 @@ describe("managed profile lifecycle routes", () => {
     expect(await all.json()).toMatchObject({ managedProfiles: [{ profileId, status: "deleted" }] });
     expect((await fetch(`${baseUrl}/${profileId}`, { headers })).status).toBe(200);
     expect((await fetch(baseUrl, { body, headers, method: "POST" })).status).toBe(409);
+  });
+
+  it("returns manager capabilities when the active manager has no children", async () => {
+    const { headers, manager } = await createManager();
+
+    const response = await fetch(baseUrl, { headers });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      manager: { allowedCorridors: ["BR"], allowedCustomerTypes: null, profileId: manager.id },
+      managedProfiles: [],
+      pagination: { limit: 50, offset: 0, total: 0 }
+    });
   });
 
   it("returns not found for another manager's child", async () => {

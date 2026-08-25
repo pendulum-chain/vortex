@@ -245,7 +245,6 @@ BrGetSelfieLivenessUrlRequest: {
 BrGetSelfieLivenessUrlResponse: {
   id: string;
   livenessUrl: string;
-  uploadURLFront: string;
   validateLivenessToken: string;
 }
 
@@ -287,9 +286,8 @@ BrKYCDataUpload: {
   };
   selfieUpload: {
     id: string;
-    livenessUrl?: string;
-    uploadURLFront: string;
-    validateLivenessToken?: string;
+    livenessUrl: string;
+    validateLivenessToken: string;
   };
 }
 
@@ -2688,6 +2686,8 @@ APIResponseError: class APIResponseError {
   readonly originalError?: Error;
   readonly status: number;
 }
+
+AccessTokenProvider: () => Promise<null | string | undefined>
 
 AlfredPayCountry: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
 
@@ -5496,6 +5496,7 @@ UserTypedDataSigningContext: {
 
 VortexSdk: class VortexSdk {
   constructor(config: {
+    accessTokenProvider?: () => Promise<null | string | undefined>;
     alchemyApiKey?: string;
     apiBaseUrl: string;
     autoReconnect?: boolean;
@@ -8412,6 +8413,7 @@ VortexSdk: class VortexSdk {
 }
 
 VortexSdkConfig: {
+  accessTokenProvider?: () => Promise<null | string | undefined>;
   alchemyApiKey?: string;
   apiBaseUrl: string;
   autoReconnect?: boolean;

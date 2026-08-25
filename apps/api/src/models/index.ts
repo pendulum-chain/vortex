@@ -1,4 +1,5 @@
 import sequelize from "../config/database";
+import AdminImpersonationSession from "./adminImpersonationSession.model";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
@@ -51,6 +52,11 @@ ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
+
+User.hasMany(AdminImpersonationSession, { as: "impersonationsPerformed", foreignKey: "actorProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "actor", foreignKey: "actorProfileId" });
+User.hasMany(AdminImpersonationSession, { as: "impersonationsReceived", foreignKey: "targetProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "target", foreignKey: "targetProfileId" });
 
 User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
 ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
@@ -107,6 +113,7 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 
 // Initialize models
 const models = {
+  AdminImpersonationSession,
   Anchor,
   ApiClientEvent,
   ApiCredential,

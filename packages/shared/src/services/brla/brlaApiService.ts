@@ -1,5 +1,13 @@
 import * as forge from "node-forge";
-import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
+import {
+  AveniaDocumentUploadResponse,
+  BRLA_API_KEY,
+  BRLA_BASE_URL,
+  BRLA_PRIVATE_KEY,
+  DocumentUploadRequest,
+  DocumentUploadResponse,
+  LivenessDocumentResponse
+} from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
 import { Endpoint, EndpointMethod, EndpointRequestBody, EndpointResponse, Endpoints } from "./mappings";
@@ -12,6 +20,7 @@ import {
   aveniaKybLevel1ResponseSchema,
   aveniaKycAttemptsSchema,
   aveniaLevel1ResponseSchema,
+  aveniaLivenessDocumentResponseSchema,
   aveniaUboResponseSchema
 } from "./schemas";
 import {
@@ -256,16 +265,34 @@ export class BrlaApiService {
   }
 
   public async getDocumentUploadUrls(
+    documentType: BrDocumentType.SELFIE_FROM_LIVENESS,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<LivenessDocumentResponse>;
+  public async getDocumentUploadUrls(
+    documentType: Exclude<BrDocumentType, BrDocumentType.SELFIE_FROM_LIVENESS>,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<DocumentUploadResponse>;
+  public async getDocumentUploadUrls(
     documentType: BrDocumentType,
     isDoubleSided: boolean,
     subAccountId: string
-  ): Promise<DocumentUploadResponse> {
+  ): Promise<AveniaDocumentUploadResponse>;
+  public async getDocumentUploadUrls(
+    documentType: BrDocumentType,
+    isDoubleSided: boolean,
+    subAccountId: string
+  ): Promise<AveniaDocumentUploadResponse> {
     const payload: DocumentUploadRequest = {
       documentType,
       isDoubleSided
     };
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
-    return aveniaDocumentUploadResponseSchema.parse(await this.sendRequest(Endpoint.Documents, "POST", query, payload));
+    const response = await this.sendRequest(Endpoint.Documents, "POST", query, payload);
+    return documentType === BrDocumentType.SELFIE_FROM_LIVENESS
+      ? aveniaLivenessDocumentResponseSchema.parse(response)
+      : aveniaDocumentUploadResponseSchema.parse(response);
   }
 
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
@@ -496,15 +523,15 @@ export class BrlaApiService {
   /** Gets an individual or company verification attempt by its exact provider ID. */
   public async getVerificationAttemptStatus(
     attemptId: string,
-    subAccountId?: string
+    subAccountId: string
   ): Promise<AveniaVerificationAttemptResponse> {
-    const query = subAccountId ? `subAccountId=${encodeURIComponent(subAccountId)}` : undefined;
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return aveniaKybAttemptStatusSchema.parse(
       await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId)
     );
   }
 
-  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<BrKybAttemptStatusResponse> {
+  public async getKybAttemptStatus(attemptId: string, subAccountId: string): Promise<BrKybAttemptStatusResponse> {
     return this.getVerificationAttemptStatus(attemptId, subAccountId);
   }
 

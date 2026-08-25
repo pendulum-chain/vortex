@@ -257,6 +257,8 @@ export interface NetworkConfig {
 
 export type OfframpFundingMode = "prefunded" | "deferred";
 
+export type AccessTokenProvider = () => Promise<string | null | undefined>;
+
 export interface VortexSdkConfig {
   apiBaseUrl: string;
   /**
@@ -268,6 +270,12 @@ export interface VortexSdkConfig {
    * Secret API key (sk_live_* or sk_test_*). Sent as the `X-API-Key` header.
    */
   secretKey?: string;
+  /**
+   * Resolves the current Supabase access token before each request. Intended for
+   * browser integrations where the session can refresh while the SDK is active.
+   * Ignored when `secretKey` is configured.
+   */
+  accessTokenProvider?: AccessTokenProvider;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;

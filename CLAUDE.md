@@ -17,6 +17,7 @@ via XCM (Cross-Consensus Messaging).
 Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using workspaces:
 
 - **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
+- **apps/demo** — minimal browser SDK integration → [`apps/demo/CLAUDE.md`](apps/demo/CLAUDE.md)
 - **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
 - **apps/dashboard** — authenticated React dashboard → [`apps/dashboard/CLAUDE.md`](apps/dashboard/CLAUDE.md)
 - **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)
@@ -36,6 +37,7 @@ bun install            # install all dependencies
 bun bootstrap:worktree # install in a fresh worktree and build shared
 bun dev                # frontend + backend + shared concurrently
 bun dev:frontend       # http://127.0.0.1:5173
+bun dev:demo
 bun dev:backend        # http://localhost:3000
 bun dev:dashboard      # http://localhost:5174
 bun dev:rebalancer
@@ -52,7 +54,7 @@ bun typecheck          # type check
 
 Run `bun bootstrap:worktree` before tests or development in a new worktree. It installs
 the frozen lockfile using a writable, worktree-specific temporary directory and cache,
-then builds `@vortexfi/shared` so workspace imports resolve. Set
+then builds `@vortexfi/shared` and `@vortexfi/sdk` so workspace imports resolve. Set
 `VORTEX_WORKTREE_TMPDIR` only when the default temporary location is unsuitable.
 
 ### Netlify deployment diagnostics
@@ -115,7 +117,7 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 
 - **type** — `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `chore`, `ci`, or
   `revert`.
-- **scope** — the workspace touched: `api`, `frontend`, `dashboard`, `rebalancer`,
+- **scope** — the workspace touched: `api`, `frontend`, `demo`, `dashboard`, `rebalancer`,
   `shared`, `kyc`, or `sdk`. Use `repo` for cross-cutting changes (root config, CI, monorepo
   tooling). One workspace dominates a mixed change? Use that. Truly global? `repo`.
 - **summary** — imperative mood ("add", not "added"/"adds"), lowercase after the colon,
