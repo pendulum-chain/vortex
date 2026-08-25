@@ -162,6 +162,26 @@ export function calculateExpectedOutput(
   return { adjustedDifference: adjustedDifference, adjustedTargetDiscount, expectedOutput: inputAmountBig.mul(discountedRate) };
 }
 
+/**
+ * Whether a target discount is configured at all. Negative values are valid: they target
+ * a rate worse than the reference rate while still subsidizing shortfalls up to it.
+ * Sequelize returns DECIMAL pricing fields as strings at runtime, so compare via Big.
+ */
+export function hasConfiguredTargetDiscount(targetDiscount: number): boolean {
+  return !new Big(targetDiscount ?? 0).eq(0);
+}
+
+// Clamp into [minDynamicDifference, maxDynamicDifference] using the partner's *current*
+// config, so admin range changes apply to the very next quote instead of drifting there
+// one deltaD step at a time. The max cap is applied last: if a misconfigured row has
+// min > max, the cost ceiling wins.
+function clampToDynamicRange(difference: Big, partner: NonNullable<ActivePartner>): Big {
+  const minCap = new Big(partner.minDynamicDifference ?? 0);
+  const maxCap = new Big(partner.maxDynamicDifference ?? 0);
+  const floored = difference.lt(minCap) ? minCap : difference;
+  return floored.gt(maxCap) ? maxCap : floored;
+}
+
 export function getAdjustedDifference(partner?: ActivePartner): Big {
   if (!partner?.id) {
     return new Big(0);
@@ -170,29 +190,33 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   const partnerState = partnerDiscountState.get(partner.stateKey);
   const now = new Date();
 
-  // Use partner's max caps if available, otherwise fall back to targetDiscount
-  const maxCap = partner.maxDynamicDifference ?? 0;
-
   if (!partnerState) {
-    partnerDiscountState.set(partner.stateKey, { difference: new Big(0), lastQuoteTimestamp: now });
-    return new Big(0);
+    const initialDifference = clampToDynamicRange(new Big(0), partner);
+    partnerDiscountState.set(partner.stateKey, { difference: initialDifference, lastQuoteTimestamp: now });
+    return initialDifference;
   }
 
   if (!partnerState.lastQuoteTimestamp) {
-    partnerDiscountState.set(partner.stateKey, { difference: partnerState.difference, lastQuoteTimestamp: now });
-    return partnerState.difference;
+    const clampedDifference = clampToDynamicRange(partnerState.difference, partner);
+    partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: now });
+    return clampedDifference;
   }
 
   const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (!isYounger) {
-    const updatedDifference = partnerState.difference.plus(getDeltaD());
-    const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
+    const clampedDifference = clampToDynamicRange(partnerState.difference.plus(getDeltaD()), partner);
     partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
   } else {
-    // Return existing difference
-    return partnerState.difference;
+    const clampedDifference = clampToDynamicRange(partnerState.difference, partner);
+    if (!clampedDifference.eq(partnerState.difference)) {
+      partnerDiscountState.set(partner.stateKey, {
+        difference: clampedDifference,
+        lastQuoteTimestamp: partnerState.lastQuoteTimestamp
+      });
+    }
+    return clampedDifference;
   }
 }
 export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner): void {
@@ -211,11 +235,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
   const isYounger = isWithinStateTimeout(partnerState.lastQuoteTimestamp, now);
 
   if (isYounger) {
-    // Use partner's min caps if available, otherwise fall back to targetDiscount
-    const minCap = partner.minDynamicDifference ?? 0;
-
-    const updatedDifference = partnerState.difference.minus(getDeltaD());
-    const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
+    const clampedDifference = clampToDynamicRange(partnerState.difference.minus(getDeltaD()), partner);
     partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }

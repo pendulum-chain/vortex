@@ -23,7 +23,12 @@ import logger from "../../../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
 import { type FiatExchangeRateSource, priceFeedService } from "../../../../priceFeed.service";
 import { resolveAlfredpayQuoteCustomerId } from "../../../../quote/alfredpay-customer";
-import { getAdjustedDifference, getUsdDenominatedInputAmount, resolveDiscountPartner } from "../../core/discount";
+import {
+  getAdjustedDifference,
+  getUsdDenominatedInputAmount,
+  hasConfiguredTargetDiscount,
+  resolveDiscountPartner
+} from "../../core/discount";
 import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { overrideFees } from "../../core/fees";
 import { evmIO } from "../../core/io";
@@ -149,7 +154,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     }
     const adjustedDifference = getAdjustedDifference(partner);
     const adjustedTargetDiscount = new Big(targetDiscount).plus(adjustedDifference);
-    const subsidyEnabled = new Big(targetDiscount).gt(0);
+    const subsidyEnabled = hasConfiguredTargetDiscount(targetDiscount);
     const expectedOutput = inputAmountUsd.mul(referenceRate).mul(new Big(1).plus(adjustedTargetDiscount));
     if (expectedOutput.lte(0)) {
       throw new Error(`AlfredpayOfframp: Invalid target output ${expectedOutput.toString()}`);

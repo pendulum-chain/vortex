@@ -958,7 +958,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     expect(metadata.subsidyAmountRaw).toBe("0");
   });
 
-  it("negative target discount remains a rate floor without enabling subsidy", async () => {
+  it("regression: negative target discount subsidizes up to its worse-than-reference rate floor", async () => {
     world.alfredpay.offrampRate = 16.7;
     world.alfredpay.quoteFees = [{ amount: "17", currency: "MXN", type: AlfredpayFeeType.PROCESSING_FEE }];
     await updatePartnerPricing("vortex", RampDirection.SELL, {
@@ -971,9 +971,12 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
     const quote = await createQuoteViaApi("1000");
     const metadata = await getAlfredpayMetadata(quote.id);
-    expect(quote.outputAmount).toBe("16666.30");
-    expect(metadata.inputAmountRaw).toBe(parseUnits("999", 6).toString());
-    expect(metadata.subsidyAmountRaw).toBe("0");
+    // Target: 1000 USD * 17 * (1 - 0.01) = 16830 MXN — worse than the 17000 reference,
+    // but above the unsubsidized 16666.30, so the provider deposit is topped up:
+    // fromAmount = (16830 + 17) / 16.7 = 1008.802396 USDT.
+    expect(quote.outputAmount).toBe("16830.00");
+    expect(metadata.inputAmountRaw).toBe(parseUnits("1008.802396", 6).toString());
+    expect(metadata.subsidyAmountRaw).toBe(parseUnits("9.802396", 6).toString());
     expect(Number(metadata.adjustedTargetDiscount)).toBe(-0.01);
   });
 

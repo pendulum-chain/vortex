@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../../quote/core/types";
-import { calculateExpectedOutput, calculateSubsidyAmount, getUsdDenominatedInputAmount } from "./discount";
+import {
+  type ActivePartner,
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getAdjustedDifference,
+  getUsdDenominatedInputAmount,
+  handleQuoteConsumptionForDiscountState,
+  hasConfiguredTargetDiscount
+} from "./discount";
 
 describe("calculateSubsidyAmount", () => {
   it("returns 0 when actual output meets expected output", () => {
@@ -132,5 +141,72 @@ describe("getUsdDenominatedInputAmount", () => {
 
   it("fails for non-pegged input when no USD route amount is available", async () => {
     await expect(getUsdDenominatedInputAmount(makeCtx("ETH", "0.5"))).rejects.toThrow("Cannot value ETH input in USD");
+  });
+});
+
+describe("hasConfiguredTargetDiscount", () => {
+  it("treats a negative discount as configured (worse-than-reference rate floor)", () => {
+    expect(hasConfiguredTargetDiscount(-0.01)).toBe(true);
+  });
+
+  it("treats a positive discount as configured", () => {
+    expect(hasConfiguredTargetDiscount(0.005)).toBe(true);
+  });
+
+  it("treats zero as not configured, including the DECIMAL string form", () => {
+    expect(hasConfiguredTargetDiscount(0)).toBe(false);
+    expect(hasConfiguredTargetDiscount("0.00" as unknown as number)).toBe(false);
+  });
+});
+
+describe("dynamic range applies immediately on config changes", () => {
+  const deltaD = new Big(config.quote.deltaDBasisPoints).div(10000);
+
+  function makePartner(key: string, minDynamicDifference: number, maxDynamicDifference: number): ActivePartner {
+    return {
+      id: key,
+      maxDynamicDifference,
+      maxSubsidy: 0.5,
+      minDynamicDifference,
+      name: key,
+      stateKey: `${key}:sell:*`,
+      targetDiscount: 0.01
+    };
+  }
+
+  it("starts a fresh partner state at the configured minimum", () => {
+    const partner = makePartner("range-fresh", 0.006, 0.007);
+    expect(getAdjustedDifference(partner).toString()).toBe("0.006");
+  });
+
+  it("jumps an existing difference up to a newly raised minimum on the next read", () => {
+    const before = makePartner("range-raise", 0, 0.003);
+    expect(getAdjustedDifference(before).toString()).toBe("0");
+
+    const after = { ...before, maxDynamicDifference: 0.007, minDynamicDifference: 0.006 } as ActivePartner;
+    expect(getAdjustedDifference(after).toString()).toBe("0.006");
+  });
+
+  it("drops an existing difference down to a newly lowered maximum on the next read", () => {
+    const before = makePartner("range-lower", 0.006, 0.007);
+    expect(getAdjustedDifference(before).toString()).toBe("0.006");
+
+    const after = { ...before, maxDynamicDifference: 0.003, minDynamicDifference: 0 } as ActivePartner;
+    expect(getAdjustedDifference(after).toString()).toBe("0.003");
+  });
+
+  it("clamps into the updated range on quote consumption too", () => {
+    const before = makePartner("range-consume", 0.006, 0.007);
+    expect(getAdjustedDifference(before).toString()).toBe("0.006");
+
+    const after = { ...before, maxDynamicDifference: 0.003, minDynamicDifference: 0 } as ActivePartner;
+    handleQuoteConsumptionForDiscountState(after);
+
+    const expected = ((): Big => {
+      const decremented = new Big(0.006).minus(deltaD);
+      const floored = decremented.lt(0) ? new Big(0) : decremented;
+      return floored.gt(0.003) ? new Big(0.003) : floored;
+    })();
+    expect(getAdjustedDifference(after).toString()).toBe(expected.toString());
   });
 });
