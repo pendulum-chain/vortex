@@ -51,7 +51,7 @@ describe("Avenia block registration", () => {
         "123.456.789-01",
         deps
       )
-    ).rejects.toThrow("Amount exceeds BRL limit.");
+    ).rejects.toMatchObject({ message: "Amount exceeds BRL limit.", type: "provider_limit_exceeded" });
     await expect(
       validateAveniaLimits(
         "20",
@@ -60,7 +60,7 @@ describe("Avenia block registration", () => {
         "123.456.789-01",
         deps
       )
-    ).rejects.toThrow("Amount exceeds global limit.");
+    ).rejects.toMatchObject({ message: "Amount exceeds global limit.", type: "provider_limit_exceeded" });
   });
 
   it("creates the onramp ticket for the trusted subaccount with unchanged metadata", async () => {

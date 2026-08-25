@@ -89,7 +89,11 @@ export async function validateAveniaLimits(
       : Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
 
   if (effectiveAmountBrl.gt(brlRemaining)) {
-    throw new APIError({ message: "Amount exceeds BRL limit.", status: httpStatus.BAD_REQUEST });
+    throw new APIError({
+      message: "Amount exceeds BRL limit.",
+      status: httpStatus.BAD_REQUEST,
+      type: "provider_limit_exceeded"
+    });
   }
 
   const globalLimits = limits.find(limit => limit.currency === "*");
@@ -102,7 +106,11 @@ export async function validateAveniaLimits(
       : Number(globalLimits.maxFiatOut) - Number(globalLimits.usedLimit.usedFiatOut);
 
   if (Number(effectiveAmountUsd) > globalRemaining) {
-    throw new APIError({ message: "Amount exceeds global limit.", status: httpStatus.BAD_REQUEST });
+    throw new APIError({
+      message: "Amount exceeds global limit.",
+      status: httpStatus.BAD_REQUEST,
+      type: "provider_limit_exceeded"
+    });
   }
 }
 
