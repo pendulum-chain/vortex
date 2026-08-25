@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
-import { isForwardTransition, mapOrderStateToDepositStatus, parseOrderEvent } from "./deposit-processor";
+import { isForwardTransition, mapOrderStateToDepositStatus, parseIbanEvent, parseOrderEvent } from "./deposit-processor";
 
 const { Held, Minted, Pending, Returned } = MoneriumFiatDepositStatus;
 
@@ -82,5 +82,32 @@ describe("parseOrderEvent", () => {
     expect(parseOrderEvent({ ...validPayload, data: { ...validPayload.data, amount: 100.5 } })).toBeNull();
     expect(parseOrderEvent(null)).toBeNull();
     expect(parseOrderEvent("junk")).toBeNull();
+  });
+});
+
+describe("parseIbanEvent", () => {
+  const validPayload = {
+    data: {
+      address: "0x1111111111111111111111111111111111111111",
+      chain: "ethereum",
+      iban: "EE08 7224 5745 6244 9516"
+    },
+    timestamp: "2026-07-17T00:00:00Z",
+    type: "iban.updated"
+  };
+
+  it("extracts the IBAN and its linked address", () => {
+    expect(parseIbanEvent(validPayload)).toEqual({
+      address: "0x1111111111111111111111111111111111111111",
+      iban: "EE08 7224 5745 6244 9516"
+    });
+  });
+
+  it("ignores non-iban events and payloads missing the IBAN or address", () => {
+    expect(parseIbanEvent({ ...validPayload, type: "order.updated" })).toBeNull();
+    expect(parseIbanEvent({ ...validPayload, data: { ...validPayload.data, iban: "" } })).toBeNull();
+    expect(parseIbanEvent({ ...validPayload, data: { ...validPayload.data, address: undefined } })).toBeNull();
+    expect(parseIbanEvent(null)).toBeNull();
+    expect(parseIbanEvent("junk")).toBeNull();
   });
 });

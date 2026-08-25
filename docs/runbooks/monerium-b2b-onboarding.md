@@ -1,11 +1,15 @@
 # Runbook: Monerium B2B Onramp — Client Onboarding
 
-Deploy → manifest → verify → link → IBAN → penny test → activate. One pass per client.
-Spec: `docs/prd/monerium-b2b-implementation-plan.md`; API call shapes below are the
-sandbox-validated ones from registry item T4 (2026-07-17).
+Deploy → manifest → verify → map → (automated: link + IBAN) → penny test → activate.
+One pass per client. Spec: `docs/prd/monerium-b2b-implementation-plan.md`; API call
+shapes below are the sandbox-validated ones from registry item T4 (2026-07-17).
 
 Prerequisites: guardian key funded on the target chain; `MONERIUM_B2B_*` env set
-(API creds, attestor key, RPC); partner paperwork complete.
+(API creds, attestor key, RPC); partner paperwork complete; the client company
+onboarded and KYB-approved on Monerium's side (partner KYC reliance) with its
+Monerium profile UUID at hand; the partner configured as a managed-profile manager
+(`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type
+`business`).
 
 ## 1. Paperwork inputs (from the partner agreement)
 
@@ -47,47 +51,45 @@ trust root** (re-review R01): it lets anyone detect silent changes; it does not 
 deployment was honest — that requires the verified source on the block explorer, so verify the
 factory + implementation source there as part of this step.
 
-## 4. Create the Monerium profile + KYB
+## 4. Map the client to a managed profile
+
+One idempotent admin call creates the managed child (business entity under the partner
+manager), imports the Monerium KYB approval into `provider_customers`/`kyc_cases`, and
+records the deployed forwarder as the `MoneriumAccount` row (status `onboarding`):
 
 ```
-POST /profiles          { "kind": "corporate" }
-```
-
-Note: `GET /profiles` (list) 404s on the whitelabel sandbox — use per-profile paths
-(`GET /profiles/{id}`). KYB submission is deliberately unimplemented (`submitKybData` → 501)
-until the whitelabel KYB mechanism is contractually settled — **registry T3**; for sandbox and
-until then, KYB completion happens on Monerium's side.
-
-## 5. Link the forwarder address (attestor flow)
-
-The backend signs the fixed link message with the attestor key
-(`signLinkAttestation` in `apps/api/src/api/services/monerium-b2b/attestor.ts` — bound to
-chainid + forwarder address; the contract validates via constrained EIP-1271, EIP-191 variant
-only). Sandbox-validated call shape (T4):
-
-```
-POST /addresses
+POST /v1/admin/monerium-b2b/accounts        (Authorization: Bearer $ADMIN_SECRET)
 {
-  "address":   "<forwarderAddress>",
-  "chain":     "<chain>",                    // e.g. "ethereum"; sandbox spike used Sepolia
-  "message":   "I hereby declare that I am the address owner.",
-  "profile":   "<profileId>",
-  "signature": "<attestor signature, 65-byte r‖s‖v hex>"
+  "managerProfileId":  "<partner manager profile UUID>",
+  "externalSubjectId": "<partner's immutable client id>",
+  "contactEmail":      "<client ops contact>",
+  "moneriumProfileId": "<Monerium profile UUID>",
+  "forwarderAddress":  "<deployed clone>",
+  "destination":       "<client payout address>",
+  "fallbackAddress":   "<client self-custody recovery>",
+  "feeBps":            0
 }
 ```
 
-Expected: HTTP 201, address `state: linked` — zero client interaction (validated 2026-07-17,
-including the hardened chainid-bound re-validation; sandbox artifacts in registry T4).
+Replaying the identical call is safe (200); divergent input is a 409, never an overwrite.
+KYB submission via the API remains deliberately unimplemented (`submitKybData` → 501,
+registry T3) — approval always happens on Monerium's side before this step.
 
-## 6. IBAN issuance
+## 5. Link + IBAN (automated)
 
-```
-POST /ibans   { "address": "<forwarderAddress>", "chain": "<chain>" }
-```
+The keeper's onboarding step (`monerium-b2b/onboarding.ts`, every cycle) picks up every
+mapped account in `onboarding` status and, exactly-once via the profile-scoped
+`financial_operations` ledger:
 
-**Async: expect HTTP 202** (T4). Poll `GET /ibans` until the entry for the address appears with
-state approved. Record the IBAN on the `MoneriumAccount` row (status stays `onboarding`) —
-the association monitor treats the DB record as the reference state from here on.
+1. links the forwarder with the attestor signature (`POST /addresses`, constrained
+   EIP-1271, EIP-191 variant; sandbox-validated per registry T4 — HTTP 201,
+   `state: linked`, zero client interaction), then
+2. requests IBAN issuance (`POST /ibans`, async — expect 202).
+
+The IBAN lands on the `MoneriumAccount` row via the `iban.updated` webhook (or the next
+cycle's `GET /ibans` read); from then on the association monitor treats the DB record as
+the reference state. Nothing to do manually — verify the row has its IBAN before the
+penny test, and check the logs if it stays empty for more than a few cycles.
 
 ## 7. Penny test
 
@@ -105,7 +107,13 @@ rotate or mis-credit) before real volume flows.
 
 ## 8. Activate
 
-1. Set the `MoneriumAccount` row to `active`.
+1. Activate the account (refused with 409 while the IBAN has not been issued):
+
+   ```
+   PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status    (Authorization: Bearer $ADMIN_SECRET)
+   { "status": "active" }
+   ```
+
 2. Confirm the monitoring pass picks the account up cleanly (no association/config alerts on
    the next cycle).
 3. Hand the client's IBAN over via the partner. Done.

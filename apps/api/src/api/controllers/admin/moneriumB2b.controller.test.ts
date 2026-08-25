@@ -210,6 +210,36 @@ describe("monerium b2b account mapping admin route", () => {
     expect(await unknownManager.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_MANAGER_NOT_FOUND" } });
   });
 
+  it("updates account status with the IBAN activation guard", async () => {
+    const managerProfileId = await createManager();
+    const created = await post(validBody(managerProfileId));
+    const { account } = await created.json();
+
+    function patchStatus(accountId: string, status: unknown) {
+      return fetch(`${baseUrl}/accounts/${accountId}/status`, {
+        body: JSON.stringify({ status }),
+        headers: ADMIN_HEADERS,
+        method: "PATCH"
+      });
+    }
+
+    // No IBAN yet: activation is refused, other transitions work.
+    const premature = await patchStatus(account.accountId, "active");
+    expect(premature.status).toBe(409);
+    expect(await premature.json()).toMatchObject({ error: { code: "MONERIUM_B2B_ACCOUNT_NOT_READY" } });
+
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516" }, { where: { id: account.accountId } });
+    const activated = await patchStatus(account.accountId, "active");
+    expect(activated.status).toBe(200);
+    expect(await activated.json()).toMatchObject({ account: { accountStatus: "active" } });
+
+    const suspended = await patchStatus(account.accountId, "suspended");
+    expect(suspended.status).toBe(200);
+
+    expect((await patchStatus(account.accountId, "nonsense")).status).toBe(400);
+    expect((await patchStatus(crypto.randomUUID(), "active")).status).toBe(404);
+  });
+
   it("refuses managers not allowed to provision business customers", async () => {
     const profile = await createTestUser();
     await ManagedProfileManager.create({

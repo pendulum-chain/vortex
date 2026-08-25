@@ -10,6 +10,7 @@ import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-pr
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
+import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
 
 const DEFAULT_CRON_TIME = "* * * * *"; // every minute
 
@@ -45,6 +46,10 @@ class MoneriumB2bWorker {
     this.running = true;
     try {
       await processMoneriumWebhookInbox();
+
+      // Link + IBAN issuance for mapped accounts still in onboarding; internally
+      // gated on the whitelabel credentials, attestor key, and read RPC.
+      await advanceOnboardingAccounts();
 
       if (!isKeeperChainConfigured()) {
         if (!this.chainConfigWarned) {

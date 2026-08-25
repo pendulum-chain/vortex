@@ -81,6 +81,46 @@ interface ParsedOrderEvent {
   txHash: string | null;
 }
 
+export interface ParsedIbanEvent {
+  address: string;
+  iban: string;
+}
+
+/**
+ * Extracts the fields of an iban.updated delivery ({ type, timestamp, data }): the
+ * asynchronous completion of the onboarding IBAN request. Returns null for anything
+ * that is not an IBAN event with both the IBAN and its linked address.
+ */
+export function parseIbanEvent(payload: unknown): ParsedIbanEvent | null {
+  const envelope = payload as { data?: unknown; type?: unknown } | null;
+  if (!envelope || typeof envelope !== "object") return null;
+  if (typeof envelope.type !== "string" || !envelope.type.startsWith("iban")) return null;
+  const data = (envelope.data ?? {}) as Record<string, unknown>;
+  if (typeof data.iban !== "string" || typeof data.address !== "string" || data.iban.trim().length === 0) return null;
+  return { address: data.address, iban: data.iban.trim() };
+}
+
+async function processIbanEvent(row: MoneriumWebhookEvent, event: ParsedIbanEvent): Promise<void> {
+  await withForwarderLock(event.address, async transaction => {
+    const account = await MoneriumAccount.findOne({
+      transaction,
+      where: sequelize.where(sequelize.fn("lower", sequelize.col("forwarder_address")), event.address.toLowerCase())
+    });
+    if (!account) {
+      logger.warn("monerium-b2b: iban.updated references an unknown forwarder address, skipping");
+    } else if (account.iban === null) {
+      await account.update({ iban: event.iban }, { transaction });
+    } else if (account.iban !== event.iban) {
+      // Never overwrite: an IBAN change on a live account is the association
+      // monitor's alert condition (PATCH /ibans detective control), not routine data.
+      logger.error(
+        `monerium-b2b: iban.updated reports a different IBAN for account ${account.id} — possible IBAN move, not overwriting`
+      );
+    }
+    await row.update({ processedAt: new Date() }, { transaction });
+  });
+}
+
 /**
  * Extracts the issue-order fields this processor acts on from a delivery payload
  * (documented shape: { type, timestamp, data }). Returns null for deliveries that are
@@ -106,6 +146,12 @@ export function parseOrderEvent(payload: unknown): ParsedOrderEvent | null {
 }
 
 async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
+  const ibanEvent = parseIbanEvent(row.payload);
+  if (ibanEvent) {
+    await processIbanEvent(row, ibanEvent);
+    return;
+  }
+
   const event = parseOrderEvent(row.payload);
   if (!event) {
     await row.update({ processedAt: new Date() });

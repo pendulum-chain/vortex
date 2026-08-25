@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 
@@ -75,6 +76,56 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       error: {
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to provision Monerium B2B account",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      }
+    });
+  }
+}
+
+const STATUS_VALUES = Object.values(MoneriumAccountStatus) as string[];
+
+export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: string }>, res: Response): Promise<void> {
+  try {
+    const { status } = req.body ?? {};
+    if (!UUID_PATTERN.test(req.params.accountId) || typeof status !== "string" || !STATUS_VALUES.includes(status)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "MONERIUM_B2B_INVALID_INPUT",
+          message: `accountId must be a UUID and status must be one of ${STATUS_VALUES.join(", ")}`,
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    const account = await MoneriumAccount.findByPk(req.params.accountId);
+    if (!account) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND", message: "Monerium account not found", status: httpStatus.NOT_FOUND }
+      });
+      return;
+    }
+    // Activation requires the issued IBAN: the penny test (runbook §7) cannot have
+    // happened without it, and the association monitor needs the reference state.
+    if (status === MoneriumAccountStatus.Active && account.iban === null) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "MONERIUM_B2B_ACCOUNT_NOT_READY",
+          message: "The account has no issued IBAN yet and cannot be activated",
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
+
+    await account.update({ status: status as MoneriumAccountStatus });
+    res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
+  } catch (error) {
+    logger.error("Error updating Monerium B2B account status:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to update Monerium B2B account status",
         status: httpStatus.INTERNAL_SERVER_ERROR
       }
     });
