@@ -23,3 +23,6 @@ export const MYKOBO_ACCESS_KEY = getEnvVar("MYKOBO_ACCESS_KEY");
 export const MYKOBO_SECRET_KEY = getEnvVar("MYKOBO_SECRET_KEY");
 // Optional. Mykobo defaults the fee scope to `<network>.mykobo.app` when omitted.
 export const MYKOBO_CLIENT_DOMAIN = getEnvVar("MYKOBO_CLIENT_DOMAIN");
+
+export const MONERIUM_API_URL =
+  getEnvVar("MONERIUM_API_URL") || (SANDBOX_ENABLED ? "https://api.monerium.dev" : "https://api.monerium.app");

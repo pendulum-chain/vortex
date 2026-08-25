@@ -22,6 +22,14 @@ export async function runLive<T>(label: string, call: () => Promise<T>): Promise
     return result;
   } catch (error) {
     if (error instanceof ZodError) throw error;
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "providerContractViolation" in error &&
+      error.providerContractViolation === true
+    ) {
+      throw error;
+    }
     console.warn(`[contract:live] ${label} inconclusive: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
