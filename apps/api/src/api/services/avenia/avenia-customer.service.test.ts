@@ -1,17 +1,26 @@
+import { KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import sequelize from "../../../config/database";
+import EmailNotification from "../../../models/emailNotification.model";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
+import { SupabaseAuthService } from "../auth";
 import { updateAveniaKycOutcomeForCustomer, updateAveniaKycProgressForCustomer } from "./avenia-customer.service";
 
 const originalTransaction = sequelize.transaction;
 const originalCustomerFindByPk = ProviderCustomer.findByPk;
 const originalCaseFindAll = KycCase.findAll;
+const originalNotificationFindOne = EmailNotification.findOne;
+const originalNotificationFindOrCreate = EmailNotification.findOrCreate;
+const originalGetUserLocale = SupabaseAuthService.getUserLocale;
 
 afterEach(() => {
   sequelize.transaction = originalTransaction;
   ProviderCustomer.findByPk = originalCustomerFindByPk;
   KycCase.findAll = originalCaseFindAll;
+  EmailNotification.findOne = originalNotificationFindOne;
+  EmailNotification.findOrCreate = originalNotificationFindOrCreate;
+  SupabaseAuthService.getUserLocale = originalGetUserLocale;
 });
 
 function setup(
@@ -53,6 +62,7 @@ function setup(
 
   ProviderCustomer.findByPk = mock(async () => customer) as unknown as typeof ProviderCustomer.findByPk;
   KycCase.findAll = mock(async () => [kycCase]) as unknown as typeof KycCase.findAll;
+  const transaction = { LOCK: { UPDATE: "UPDATE" } } as never;
   sequelize.transaction = mock(async callback => {
     const customerSnapshot = { status: customer.status, statusExternal: customer.statusExternal };
     const caseSnapshot = {
@@ -62,7 +72,7 @@ function setup(
       statusExternal: kycCase.statusExternal
     };
     try {
-      return await callback({ LOCK: { UPDATE: "UPDATE" } } as never);
+      return await callback(transaction);
     } catch (error) {
       Object.assign(customer, customerSnapshot);
       Object.assign(kycCase, caseSnapshot);
@@ -70,7 +80,7 @@ function setup(
     }
   }) as unknown as typeof sequelize.transaction;
 
-  return { customer, kycCase };
+  return { customer, kycCase, transaction };
 }
 
 describe("updateAveniaKycOutcomeForCustomer", () => {
@@ -105,6 +115,41 @@ describe("updateAveniaKycOutcomeForCustomer", () => {
     expect(kycCase.statusExternal).toBe("COMPLETED");
     expect(kycCase.approvedAt).toBeInstanceOf(Date);
     expect(kycCase.rejectedAt).toBeNull();
+  });
+
+  it("queues the outcome notification in the status transaction", async () => {
+    const { customer, transaction } = setup(VerificationStatus.InReview, VerificationStatus.InReview);
+    let duplicateCheckTransaction: unknown;
+    let insertTransaction: unknown;
+    EmailNotification.findOne = mock(async options => {
+      duplicateCheckTransaction = options.transaction;
+      return null;
+    }) as unknown as typeof EmailNotification.findOne;
+    EmailNotification.findOrCreate = mock(async options => {
+      insertTransaction = options.transaction;
+      return [{} as EmailNotification, true];
+    }) as unknown as typeof EmailNotification.findOrCreate;
+    SupabaseAuthService.getUserLocale = mock(async () => "en-US") as typeof SupabaseAuthService.getUserLocale;
+
+    await updateAveniaKycOutcomeForCustomer(
+      customer,
+      VerificationStatus.Approved,
+      KycAttemptStatus.COMPLETED,
+      { id: "case-1", providerCaseId: "attempt-1" },
+      {
+        attempt: {
+          id: "attempt-1",
+          result: KycAttemptResult.APPROVED,
+          status: KycAttemptStatus.COMPLETED,
+          updatedAt: "2026-08-25T12:00:00.000Z"
+        },
+        profileId: "user-1",
+        subject: "individual"
+      }
+    );
+
+    expect(duplicateCheckTransaction).toBe(transaction);
+    expect(insertTransaction).toBe(transaction);
   });
 
   it("does not downgrade either row for a stale rejection after approval", async () => {
