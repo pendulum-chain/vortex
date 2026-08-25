@@ -2,7 +2,24 @@ import { RampDirection } from "../index";
 
 export enum WebhookEventType {
   TRANSACTION_CREATED = "TRANSACTION_CREATED",
-  STATUS_CHANGE = "STATUS_CHANGE"
+  STATUS_CHANGE = "STATUS_CHANGE",
+  DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED",
+  DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED"
+}
+
+/**
+ * The account-scoped event family (business EUR onramp accounts). Subscriptions to
+ * these events are registered without a quoteId/sessionId, cannot be mixed with the
+ * transaction events in one webhook, and are delivered durably (at-least-once with
+ * backoff) to the account's controlling manager.
+ */
+export const ACCOUNT_WEBHOOK_EVENT_TYPES = [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED] as const;
+
+export enum DepositStatus {
+  PENDING = "pending",
+  MINTED = "minted",
+  HELD = "held",
+  RETURNED = "returned"
 }
 
 export enum TransactionStatus {
@@ -61,7 +78,49 @@ export interface StatusChangeWebhookPayload {
   payload: WebhookPayloadBase;
 }
 
-export type WebhookPayload = TransactionCreatedWebhookPayload | StatusChangeWebhookPayload;
+export interface DepositWebhookPayloadBase {
+  /** The onramp account the deposit belongs to. */
+  accountId: string;
+  /** The managed child profile that owns the account. */
+  profileId: string;
+  depositId: string;
+  /** Deposit amount in 18-decimal base units of the deposit currency. */
+  amountRaw: string;
+  currency: string;
+  status: DepositStatus;
+  /** The on-chain mint transaction, when observed. */
+  txHash: string | null;
+}
+
+export interface DepositReceivedWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RECEIVED;
+  timestamp: string;
+  payload: DepositWebhookPayloadBase;
+}
+
+export interface DepositConvertedWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_CONVERTED;
+  timestamp: string;
+  payload: DepositWebhookPayloadBase & {
+    conversion: {
+      executionId: string;
+      /** The swap-and-forward transaction. */
+      txHash: string | null;
+      /** Net USDC forwarded for the whole execution, 6-decimal base units. */
+      usdcNetRaw: string | null;
+    };
+  };
+}
+
+export type WebhookPayload =
+  | TransactionCreatedWebhookPayload
+  | StatusChangeWebhookPayload
+  | DepositReceivedWebhookPayload
+  | DepositConvertedWebhookPayload;
 
 export interface WebhookDeliveryAttempt {
   webhookId: string;
