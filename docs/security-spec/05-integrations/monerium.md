@@ -11,6 +11,19 @@ This client establishes the integration baseline for API-managed EU KYC/KYB, wal
 IBANs, and SEPA/EURe payments. It is not yet connected to a public Vortex route or ramp phase, and
 EUR ramp registration remains disabled until that orchestration and its tests are implemented.
 
+## Externally Imported Profiles
+
+- Externally imported Monerium profiles MUST come from a trusted party and MUST bind the correct
+  Monerium profile UUID to the correct Vortex legal entity. The import mechanism is not yet defined;
+  no caller-controlled profile adoption may be exposed until it is.
+- Every imported profile MUST create a `provider_customers` row and a linked `kyc_cases` row in the
+  `approved` state, regardless of whether Vortex performed the KYC/KYB flow.
+- Profile-scoped persistence MUST remain limited to the Monerium profile identifier and compliance
+  status. Addresses and IBANs remain provider-authoritative; any selected values needed by a ramp
+  belong in quote or ramp state, not a permanent Monerium profile table.
+- A Monerium mint address MUST belong exclusively to one Monerium profile and MUST never be shared
+  across profiles. Incoming deposits are attributed to that profile through its dedicated address.
+
 ## Security Invariants
 
 1. White-label credentials MUST use `MONERIUM_WHITELABEL_CLIENT_ID` and `MONERIUM_WHITELABEL_CLIENT_SECRET`, remain backend-only, and never be accepted from caller input.
