@@ -90,10 +90,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  await queryInterface.dropTable("monerium_webhook_events");
-  await queryInterface.dropTable("monerium_conversion_executions");
-  await queryInterface.dropTable("monerium_fiat_deposits");
-  await queryInterface.dropTable("monerium_accounts");
+  // The options object is required: with the models registered, the postgres
+  // dropTable assigns onto it during ENUM cleanup and throws on undefined.
+  await queryInterface.dropTable("monerium_webhook_events", {});
+  await queryInterface.dropTable("monerium_conversion_executions", {});
+  await queryInterface.dropTable("monerium_fiat_deposits", {});
+  await queryInterface.dropTable("monerium_accounts", {});
   for (const enumName of [
     "enum_monerium_accounts_status",
     "enum_monerium_fiat_deposits_status",
