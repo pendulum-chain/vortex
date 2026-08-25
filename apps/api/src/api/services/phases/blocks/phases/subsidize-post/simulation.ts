@@ -12,6 +12,7 @@ import {
   calculateExpectedOutput,
   calculateSubsidyAmount,
   getUsdDenominatedInputAmount,
+  hasConfiguredTargetDiscount,
   resolveDiscountPartner
 } from "../../core/discount";
 import { defineContext } from "../../core/metadata";
@@ -66,7 +67,7 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   }
   const expectedRaw = multiplyByPowerOfTen(adjustedExpectedOutput, tokenDetails.decimals).toFixed(0, 0);
   const idealSubsidy = input.amount.gte(adjustedExpectedOutput) ? new Big(0) : adjustedExpectedOutput.minus(input.amount);
-  const subsidyUnrounded = new Big(partner?.targetDiscount ?? 0).gt(0)
+  const subsidyUnrounded = hasConfiguredTargetDiscount(partner?.targetDiscount ?? 0)
     ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0)
     : new Big(0);
   // Floor the subsidy to token decimals before adding it, so the output decimal/raw pair stays
@@ -134,7 +135,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
   const expectedRaw = multiplyByPowerOfTen(expectedWithAnchor, tokenDetails.decimals).toFixed(0, 0);
   const actualRaw = input.amountRaw;
   const idealSubsidy = input.amount.gte(expectedWithAnchor) ? new Big(0) : expectedWithAnchor.minus(input.amount);
-  const subsidyUnrounded = new Big(partner?.targetDiscount ?? 0).gt(0)
+  const subsidyUnrounded = hasConfiguredTargetDiscount(partner?.targetDiscount ?? 0)
     ? calculateSubsidyAmount(expectedWithAnchor, input.amount, partner?.maxSubsidy ?? 0)
     : new Big(0);
   const subsidy = new Big(subsidyUnrounded.toFixed(6, 0));

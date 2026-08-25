@@ -2,6 +2,26 @@ import { expect, test } from "@playwright/test";
 import { mockBackend } from "./support/mockBackend";
 import { seedSession } from "./support/session";
 
+test("Base defaults to USDC when requesting a BUY quote", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/quote");
+
+  await page.getByLabel("You pay").fill("100");
+
+  await expect.poll(() => backend.quoteRequests.length, { timeout: 20_000 }).toBeGreaterThan(0);
+  expect(backend.quoteRequests.at(-1)).toMatchObject({
+    inputAmount: "100",
+    inputCurrency: "BRL",
+    network: "base",
+    outputCurrency: "USDC",
+    rampType: "BUY"
+  });
+  await expect(page.getByRole("combobox").filter({ hasText: "USDC" })).toBeVisible();
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 test("EUR is quotable on BUY and an unapproved corridor routes to onboarding", async ({ page }) => {
   const backend = await mockBackend(page);
   await seedSession(page);
@@ -56,8 +76,8 @@ test("SELL carries the token input, network, and corridor into the offramp", asy
   await page.getByRole("tab", { name: "Sell crypto" }).click();
   await page.getByLabel("Fiat currency").click();
   await page.getByRole("option", { name: /MXN/ }).click();
-  await page.getByRole("combobox").filter({ hasText: /^POL$/ }).click();
-  await page.getByRole("option", { exact: true, name: "USDC" }).click();
+  await page.getByLabel("Network").click();
+  await page.getByRole("option", { exact: true, name: "Polygon" }).click();
   await page.getByLabel("You pay").fill("54.054567");
 
   const continueLink = page.getByRole("link", { name: "Continue to transfer" });

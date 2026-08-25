@@ -225,6 +225,7 @@ function getSafeErrorMessage(errorType: ApiClientErrorType): string | null {
     none: null,
     ownership_denied: "Authenticated principal does not own the resource.",
     provider_error: "Provider operation failed.",
+    provider_limit_exceeded: "Provider account limit exceeded.",
     quote_consumed: "Quote is already consumed.",
     quote_expired: "Quote is expired.",
     quote_not_found: "Quote was not found.",

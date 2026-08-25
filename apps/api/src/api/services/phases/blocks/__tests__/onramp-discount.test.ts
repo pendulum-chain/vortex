@@ -172,4 +172,40 @@ describe("onramp discount semantics", () => {
     expect(result.metadata.applied).toBe(true);
     expect(bridgeQuoteRequests).toEqual([]);
   });
+
+  it("regression: a negative target discount still subsidizes up to its worse-than-reference rate floor", async () => {
+    const partnerId = "eur-negative-discount-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.EURC, targetDiscount: -0.01 });
+    const ctx = buildCtx(FiatToken.EURC, partnerId, Networks.Base, EvmToken.USDC);
+
+    const afterFees = await simulateDistributeFees(
+      { amount: new Big("105"), amountRaw: "105000000", chain: Networks.Base, token: EvmToken.USDC },
+      ctx
+    );
+    const result = await simulateSubsidizePost(afterFees.output, ctx);
+
+    expect(result.metadata.partnerId).toBe(partnerId);
+    expect(Big(result.metadata.actualOutputAmountDecimal).toFixed()).toBe("102.5");
+    expect(Big(result.metadata.adjustedTargetDiscount).toFixed()).toBe("-0.01");
+    // 100 EUR * 1.08 * (1 - 0.01) = 106.92 — below the 108 reference, but still above actual.
+    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("106.92");
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.42");
+    expect(result.metadata.applied).toBe(true);
+  });
+
+  it("does not subsidize past a negative rate floor the actual output already beats", async () => {
+    const partnerId = "eur-floor-beaten-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.EURC, targetDiscount: -0.01 });
+    const ctx = buildCtx(FiatToken.EURC, partnerId, Networks.Base, EvmToken.USDC);
+
+    const afterFees = await simulateDistributeFees(
+      { amount: new Big("110"), amountRaw: "110000000", chain: Networks.Base, token: EvmToken.USDC },
+      ctx
+    );
+    const result = await simulateSubsidizePost(afterFees.output, ctx);
+
+    // Actual 107.5 already exceeds the 106.92 floor: no subsidy.
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("0");
+    expect(result.metadata.applied).toBe(false);
+  });
 });

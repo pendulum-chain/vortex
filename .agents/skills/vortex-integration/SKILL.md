@@ -754,6 +754,7 @@ Include this payload (with secrets redacted) in any support ticket.
 | `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
 | `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
 | `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
+| `VortexSdkError` with `code === "provider_limit_exceeded"` | The provider account limit is exhausted | Stop retrying registration; wait for provider capacity to reset or contact Vortex support |
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
 | `InsufficientBalanceError` | Default `"prefunded"` offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote. Register-then-fund integrations may configure `offrampFundingMode: "deferred"`, then fund before submitting user transactions and starting. |
 | `EphemeralNotFreshError` / `EphemeralFreshnessCheckError` | Generated ephemeral account was not fresh, or freshness could not be verified | Safe to retry `registerRamp` — the SDK generates new ephemerals each attempt |
