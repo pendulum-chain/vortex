@@ -186,7 +186,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
   );
 
   test.skipIf(!SUBACCOUNT_ID)(
-    "POST /documents returns file-upload and hosted-liveness targets",
+    "POST /documents returns file-upload and hosted-liveness targets that read back through the consumed GET schemas",
     async () => {
       const document = await runLive("avenia create document upload target", () =>
         api().getDocumentUploadUrls(BrDocumentType.ID, false, SUBACCOUNT_ID as string)
@@ -203,6 +203,30 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         expect(liveness.id).toBeTruthy();
         expect(liveness.livenessUrl).toBeTruthy();
         expect(liveness.validateLivenessToken).toBeTruthy();
+      }
+
+      // A hosted-liveness row carries no uploaded bytes, so the strict single-document
+      // and listing schemas (the KYB document gate and newKyc readiness paths) must be
+      // proven against a real one — drift surfaces as a rethrown ZodError.
+      if (liveness) {
+        const livenessReadback = await runLive("avenia read back hosted liveness document", () =>
+          api().getUploadedDocument(liveness.id, SUBACCOUNT_ID as string)
+        );
+        if (livenessReadback) {
+          expect(livenessReadback.document.id).toBe(liveness.id);
+          expect(livenessReadback.document.documentType).toBe(BrDocumentType.SELFIE_FROM_LIVENESS);
+        }
+      }
+
+      if (document || liveness) {
+        const listing = await runLive("avenia list documents (readiness path)", () =>
+          api().getUploadedDocuments(SUBACCOUNT_ID as string)
+        );
+        if (listing) {
+          const listedIds = listing.documents.map(entry => entry.id);
+          if (document) expect(listedIds).toContain(document.id);
+          if (liveness) expect(listedIds).toContain(liveness.id);
+        }
       }
     },
     60_000

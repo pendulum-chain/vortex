@@ -268,7 +268,7 @@ live; the status endpoint only hermetically — it needs a real recent transacti
 (configs, quotes both directions, the trade-limit 409 error shape live with credentials only;
 order creation/polling, fiat accounts and KYC status live behind pre-provisioned sandbox fixtures,
 see `.env.example`), Avenia/BRLA (quotes live with credentials only; limits/balances/account-info,
-pix-key validation, ordinary and hosted-liveness document target creation, and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
+pix-key validation, ordinary and hosted-liveness document target creation plus read-back through the consumed document GET schemas, and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
 payout tickets hermetically only — creating one live would move funds), and the CoinGecko
 `simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
 patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
