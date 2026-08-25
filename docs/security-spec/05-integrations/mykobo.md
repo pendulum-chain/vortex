@@ -6,7 +6,7 @@ Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on *
 
 EUR ramp registration is currently disabled at `RampService.registerRamp`: any quote whose input or output currency is `FiatToken.EURC` is rejected with `503 SERVICE_UNAVAILABLE` before Mykobo intents or phase transactions are prepared. The flow details below describe the intended Mykobo behavior for when the EUR rail is re-enabled.
 
-Monerium now owns EU dashboard KYC/KYB and recipient onboarding eligibility; Mykobo remains only the dormant settlement implementation described here. The intended Mykobo registration path still checks a Mykobo profile, so the EUR kill switch MUST NOT be lifted until settlement identity is migrated to Monerium or an explicit Monerium-to-Mykobo reliance/linking flow is implemented and specified.
+Monerium owns EU dashboard KYC/KYB and recipient onboarding eligibility, with migration into the white-label application still TBD. Mykobo remains only the dormant settlement implementation described here. The intended Mykobo registration path still checks a Mykobo profile, so the EUR kill switch MUST NOT be lifted until settlement identity is migrated to Monerium or an explicit Monerium-to-Mykobo reliance/linking flow is implemented and specified.
 
 Mykobo replaces two earlier EUR rails:
 

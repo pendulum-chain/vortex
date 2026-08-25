@@ -59,7 +59,7 @@ documents win.
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
-| Monerium | `05-integrations/monerium.md` | Server-to-server white-label profiles, wallets, IBANs, orders, files, and webhooks |
+| Monerium | `05-integrations/monerium.md` | OAuth KYC/KYB import boundary and server-to-server white-label profiles, wallets, IBANs, orders, files, and webhooks |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
@@ -107,7 +107,7 @@ Most module specifications use these sections:
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
 | **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
-| **Monerium** | European e-money provider integrated through the white-label API for KYC/KYB, IBANs, and EUR payments. |
+| **Monerium** | European e-money provider using sibling-app OAuth for KYC/KYB onboarding and the white-label API, with migration between them still TBD. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
 | **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |

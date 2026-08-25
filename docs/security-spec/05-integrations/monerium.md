@@ -4,20 +4,27 @@
 
 `@vortexfi/shared` provides a server-to-server Monerium white-label API client authenticated with
 the `client_credentials` grant. It maps profile status, linked addresses, IBAN provisioning and
-movement, EURe redemption orders, supporting-document uploads, and webhook subscriptions. Users
-interact only with Vortex; all Monerium credentials, tokens, and API calls remain backend-only.
+movement, EURe redemption orders, supporting-document uploads, and webhook subscriptions. All
+white-label credentials, tokens, and API calls remain backend-only.
 
-This client establishes the integration baseline for API-managed EU KYC/KYB, wallet ownership,
-IBANs, and SEPA/EURe payments. It is not yet connected to a public Vortex route or ramp phase, and
-EUR ramp registration remains disabled until that orchestration and its tests are implemented.
+This client establishes the destination-app baseline for profile status, wallet ownership, IBANs,
+and SEPA/EURe payments. KYC/KYB may be completed directly through the white-label API in the future
+or in a sibling Monerium OAuth application that Vortex operates. Migration from that application
+into the white-label application is one possible profile source, but the process is not yet defined.
+The client is not yet connected to a public Vortex route or ramp phase, and EUR ramp registration
+remains disabled until that orchestration and its tests are implemented.
 
-## Externally Imported Profiles
+## OAuth-Onboarded and Imported Profiles
 
-- Externally imported Monerium profiles MUST come from a trusted party and MUST bind the correct
-  Monerium profile UUID to the correct Vortex legal entity. The import mechanism is not yet defined;
-  no caller-controlled profile adoption may be exposed until it is.
-- Every imported profile MUST create a `provider_customers` row and a linked `kyc_cases` row in the
-  `approved` state, regardless of whether Vortex performed the KYC/KYB flow.
+- Vortex operates a sibling authorization-code/PKCE Monerium application for KYC/KYB onboarding.
+  Profiles onboarded there may later be migrated into the white-label application through a process
+  that is still to be defined.
+- Profiles may also be imported from other trusted external sources. Every source MUST associate the
+  correct Monerium profile UUID with the correct Vortex legal entity; no caller-controlled profile
+  adoption may be exposed while the import contract is undefined.
+- The migration/import trigger, identifiers, persistence transitions, and status reconciliation are
+  TBD. This specification does not decide whether the OAuth and white-label paths share or reuse
+  `provider_customers` or `kyc_cases`.
 - Profile-scoped persistence MUST remain limited to the Monerium profile identifier and compliance
   status. Addresses and IBANs remain provider-authoritative; any selected values needed by a ramp
   belong in quote or ramp state, not a permanent Monerium profile table.
@@ -63,4 +70,5 @@ EUR ramp registration remains disabled until that orchestration and its tests ar
 - [x] IBAN and order methods preserve documented `304`/`202` semantics; signed SEPA messages and the EUR 15,000 evidence threshold are validated before submission.
 - [x] Monerium wire schemas have shared unit coverage and an environment-gated API sandbox contract suite; mutating probes are separately opt-in.
 - [x] Contract-test mutations refuse production and non-root sandbox URLs.
-- [ ] Public white-label onboarding and ramp orchestration are not implemented; ownership, persistence, webhook verification, idempotency, and corridor coverage remain required before exposure.
+- [ ] OAuth-to-white-label migration and other import mechanisms are not defined; their trust boundary, persistence model, and status reconciliation remain TBD.
+- [ ] Public white-label ramp orchestration is not implemented; ownership, persistence, webhook verification, idempotency, and corridor coverage remain required before exposure.

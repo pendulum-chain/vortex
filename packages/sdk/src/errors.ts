@@ -229,28 +229,6 @@ export class MissingDomesticOfframpParametersError extends DomesticOfframpError 
   }
 }
 
-// Monerium specific errors (deprecated — replaced by Mykobo)
-export class MoneriumError extends RegisterRampError {
-  constructor(message: string, status = 400) {
-    super(message, status);
-    this.name = "MoneriumError";
-  }
-}
-
-export class MissingMoneriumOnrampParametersError extends MoneriumError {
-  constructor() {
-    super("Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp", 400);
-    this.name = "MissingMoneriumOnrampParametersError";
-  }
-}
-
-export class MissingMoneriumOfframpParametersError extends MoneriumError {
-  constructor() {
-    super("Parameters walletAddress and moneriumAuthToken is required for Monerium onramp", 400);
-    this.name = "MissingMoneriumOfframpParametersError";
-  }
-}
-
 // Mykobo EUR specific errors
 export class MykoboError extends RegisterRampError {
   constructor(message: string, status = 400) {
@@ -539,12 +517,6 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       // the message carries no corridor, so it cannot be mapped to a corridor-specific class.
       if (errorMessage === "User address must be provided for offramping.") {
         return new MissingDomesticOfframpParametersError(errorMessage);
-      }
-      if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
-        return new MissingMoneriumOnrampParametersError();
-      }
-      if (errorMessage === "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp") {
-        return new MissingMoneriumOfframpParametersError();
       }
       if (errorMessage === "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp") {
         return new MissingMykoboOnrampParametersError();

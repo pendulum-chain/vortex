@@ -46,7 +46,7 @@ Routes that accept either a Supabase session or a secret API credential verify t
 
 ## Audit Checklist
 
-- [x] Auth middleware is applied to endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: `/v1/ramp/*`, managed BRLA/Alfredpay operations, limits, ramp info, and onboarding status use credential/session middleware with ownership and managed-relationship guards; email-bound Mykobo and Monerium remain on `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
+- [x] Auth middleware is applied to endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: `/v1/ramp/*`, managed BRLA/Alfredpay operations, limits, ramp info, and onboarding status use credential/session middleware with ownership and managed-relationship guards; email-bound Mykobo and Monerium OAuth KYC/KYB onboarding remain on `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
 - [x] `SupabaseAuthService.verifyToken()` uses authoritative Supabase Auth validation without requiring service-role privilege — **PASS**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**

@@ -3117,8 +3117,6 @@ export interface components {
             additionalData?: {
                 /** @description Destination address, used for onramp. */
                 destinationAddress?: string;
-                /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-                moneriumAuthToken: string;
                 paymentData?: components["schemas"]["PaymentData"];
                 /** @description PIX key for the destination account in an onramp. */
                 pixDestination?: string;
@@ -3127,7 +3125,7 @@ export interface components {
                 /** @description Tax ID of the user. */
                 taxId?: string;
                 /** @description Wallet address initiating the offramp. */
-                walletAddress: string;
+                walletAddress?: string;
             } & {
                 [key: string]: unknown;
             };
@@ -6971,8 +6969,6 @@ export interface operations {
                     additionalData?: {
                         /** @description Destination address, used for onramp. */
                         destinationAddress?: string;
-                        /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-                        moneriumAuthToken: string;
                         paymentData?: components["schemas"]["PaymentData"];
                         /** @description PIX key for the destination account in an onramp. */
                         pixDestination?: string;
@@ -6982,7 +6978,7 @@ export interface operations {
                         /** @description Tax ID of the user. */
                         taxId?: string;
                         /** @description Wallet address initiating the offramp. */
-                        walletAddress: string;
+                        walletAddress?: string;
                     } & {
                         [key: string]: unknown;
                     };

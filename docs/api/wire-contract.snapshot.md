@@ -4161,24 +4161,6 @@ MissingDomesticOnrampParametersError: class MissingDomesticOnrampParametersError
   readonly status: number;
 }
 
-MissingMoneriumOfframpParametersError: class MissingMoneriumOfframpParametersError {
-  constructor();
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
-}
-
-MissingMoneriumOnrampParametersError: class MissingMoneriumOnrampParametersError {
-  constructor();
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
-}
-
 MissingMykoboOfframpParametersError: class MissingMykoboOfframpParametersError {
   constructor();
   readonly code?: string;
@@ -4199,15 +4181,6 @@ MissingMykoboOnrampParametersError: class MissingMykoboOnrampParametersError {
 
 MissingRequiredFieldsError: class MissingRequiredFieldsError {
   constructor(missingFields: Array<string>);
-  readonly code?: string;
-  readonly errors?: Array<unknown>;
-  readonly isPublic: boolean;
-  readonly originalError?: Error;
-  readonly status: number;
-}
-
-MoneriumError: class MoneriumError {
-  constructor(message: string, status?: number);
   readonly code?: string;
   readonly errors?: Array<unknown>;
   readonly isPublic: boolean;

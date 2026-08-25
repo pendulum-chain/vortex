@@ -10,7 +10,7 @@ Squid Router is a cross-chain swap/routing protocol built on Axelar's General Me
 - **Alfredpay on-ramp**: Polygon Alfredpay token → user's destination EVM chain/token, except for Polygon same-token passthrough.
 - **Off-ramp permit acquisition (Alfredpay)**: User source EVM → Polygon via the source-chain `TokenRelayer.execute()` with EIP-2612 permit.
 
-> **Removed:** the previous Monerium-EUR Squid usage (Polygon EURe → Moonbeam) is no longer active; Monerium is deprecated (see `monerium.md`).
+> **Removed:** the previous Monerium-EUR settlement path through Squid (Polygon EURe → Moonbeam) is no longer active. This does not apply to Monerium KYC/KYB onboarding or the new white-label integration (see `monerium.md`).
 
 It handles cross-chain swap execution, Axelar bridge status monitoring, and gas subsidization on the destination chain.
 

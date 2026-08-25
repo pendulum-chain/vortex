@@ -2,10 +2,10 @@
 
 ## Monerium White-Label API
 
-All calls are server-to-server using `client_credentials`; users remain entirely within Vortex. ([Whitelabel: Authentication](https://docs.monerium.com/whitelabel#authentication))
+All white-label calls are server-to-server using `client_credentials`. ([Whitelabel: Authentication](https://docs.monerium.com/whitelabel#authentication))
 
 The initial Vortex transport is `packages/shared/src/services/monerium/moneriumApiService.ts`.
-It establishes the sole Monerium integration baseline but does not by itself re-enable EUR ramp
+It establishes the white-label operational baseline but does not by itself re-enable EUR ramp
 registration or settlement. It caches client-credential tokens in memory, requests API v2, retries
 once after `401`, and applies a 10-second timeout to every call. Credentials use
 `MONERIUM_WHITELABEL_CLIENT_ID` and `MONERIUM_WHITELABEL_CLIENT_SECRET`.
@@ -21,13 +21,19 @@ once after `401`, and applies a 10-second timeout to every call. Credentials use
 | Get user information | `GET /profiles/{profileId}` | Returns profile identity, type, name, and compliance states. It does **not** expose the submitted personal/corporate details such as email or address. | [API: Profile](https://docs.monerium.com/api/#tag/profiles/operation/profile) |
 | Monitor status changes | `profile.updated` webhook | Preferred over polling. `profile.error` is opt-in and reports rejected ingestion fields. | [Whitelabel: Monitor approval](https://docs.monerium.com/whitelabel#5-monitor-approval), [Whitelabel: Event types](https://docs.monerium.com/whitelabel#event-types) |
 
+## Profile Sources
+
+Profiles may eventually be created directly through the white-label API or imported. One expected
+source is a sibling Monerium authorization-code/PKCE application that Vortex operates for KYC/KYB
+onboarding; other trusted external sources are also possible. The migration/import process,
+persistence model, and status reconciliation are not yet defined.
+
 ## KYC/KYB Profile Lifecycle
 
 Monerium does not expose a separate KYC/KYB case or attempt ID. The profile UUID created by
 `POST /profiles` is the durable workflow identity; its `kind` is immutable, and details, form data,
-and verifications are sections of that same profile. Vortex therefore mirrors one `kyc_cases` row
-per Monerium `provider_customers` row and leaves `provider_case_id` unset. Repeated submissions and
-status changes update that row rather than creating a new local case.
+and verifications are sections of that same profile. How the OAuth and white-label paths represent
+that workflow in `provider_customers` and `kyc_cases` remains part of the TBD migration design.
 
 | Profile state | Meaning and next action |
 |---|---|
@@ -39,8 +45,7 @@ status changes update that row rather than creating a new local case.
 
 The current shared client implements profile reads but not `POST /profiles` or the onboarding
 `POST`/`PATCH` operations above. This lifecycle is the required behavior when that orchestration is
-added. Externally imported profiles enter Vortex directly as `approved` and do not execute these
-submission steps locally.
+added. Imported-profile handling remains TBD.
 
 ## Connected Addresses
 
