@@ -90,8 +90,10 @@ Batching happens in both directions, automatically:
 - **Several small deposits merge.** The contract swaps the balance, not a deposit: two
   €5k deposits sitting on the forwarder convert in a single execution, and R04
   attribution splits the USDC back across both deposit rows pro-rata. A deposit that
-  would only partially fit under the cap is never split across executions — it waits
-  intact for the next one.
+  would only partially fit under the cap waits intact for the next execution — unless
+  it is alone larger than the cap itself, in which case it attaches to the execution
+  that begins converting it (it could never fit a later, smaller one), with its share
+  clamped to the swapped amount.
 
 ## Fees
 

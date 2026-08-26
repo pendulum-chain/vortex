@@ -76,14 +76,21 @@ export interface AllocatableDeposit {
 /**
  * Snapshot selection honoring the per-swap cap: deposits are taken oldest-mint-first
  * until the next one would push the cumulative amount past eureInRaw (a cap-cut deposit
- * stays unallocated and joins the next execution). Callers pass only unallocated minted
- * deposits with mint block <= execution block (R04).
+ * stays unallocated and joins the next execution). One exception: an OVERSIZED oldest
+ * deposit — alone larger than the swapped amount — is selected anyway, because eureIn
+ * is capped at perSwapCap and only shrinks as the balance drains, so such a deposit
+ * could never fit a later execution and would permanently block attribution for every
+ * deposit behind it. It is attributed to the execution that begins converting it.
+ * Callers pass only unallocated minted deposits with mint block <= execution block (R04).
  */
 export function selectDepositsForExecution(deposits: AllocatableDeposit[], eureInRaw: bigint): AllocatableDeposit[] {
   const selected: AllocatableDeposit[] = [];
   let cumulative = 0n;
   for (const deposit of deposits) {
     if (cumulative + deposit.amountRaw > eureInRaw) {
+      if (selected.length === 0) {
+        selected.push(deposit);
+      }
       break;
     }
     cumulative += deposit.amountRaw;
@@ -94,8 +101,10 @@ export function selectDepositsForExecution(deposits: AllocatableDeposit[], eureI
 
 /**
  * R04 pro-rata attribution of the execution's net USDC: each deposit gets
- * floor(usdcNetRaw * amountRaw / eureInRaw); the remainder (floor dust, plus any value
- * from inflows not represented in the selection) goes to the largest deposit (ties: the
+ * floor(usdcNetRaw * effectiveAmount / eureInRaw), where effectiveAmount is the
+ * deposit's amount clamped to the EURe this execution actually swapped (only an
+ * oversized sole deposit ever clamps); the remainder (floor dust, plus any value from
+ * inflows not represented in the selection) goes to the largest deposit (ties: the
  * earliest). Sum of shares always equals usdcNetRaw for a non-empty selection.
  */
 export function allocateUsdcProRata(
@@ -108,9 +117,13 @@ export function allocateUsdcProRata(
     return shares;
   }
   let allocated = 0n;
+  let cumulative = 0n;
   let largest = deposits[0];
   for (const deposit of deposits) {
-    const share = (usdcNetRaw * deposit.amountRaw) / eureInRaw;
+    const remaining = eureInRaw > cumulative ? eureInRaw - cumulative : 0n;
+    const effectiveAmount = deposit.amountRaw > remaining ? remaining : deposit.amountRaw;
+    cumulative += effectiveAmount;
+    const share = (usdcNetRaw * effectiveAmount) / eureInRaw;
     shares.set(deposit.id, share);
     allocated += share;
     if (deposit.amountRaw > largest.amountRaw) {

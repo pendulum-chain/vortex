@@ -25,8 +25,20 @@ describe("selectDepositsForExecution", () => {
     expect(selectDepositsForExecution(deposits, 60n * EUR)).toEqual([deposits[0]]);
   });
 
-  it("selects nothing when even the oldest deposit exceeds eureInRaw", () => {
-    expect(selectDepositsForExecution([deposit("a", 100n * EUR)], 60n * EUR)).toEqual([]);
+  it("selects an oversized oldest deposit so it can never wedge attribution", () => {
+    // A deposit larger than perSwapCap can never fit any execution (eureIn only
+    // shrinks as the balance drains); it must attach to the execution that starts
+    // converting it instead of blocking itself and every deposit behind it forever.
+    expect(selectDepositsForExecution([deposit("a", 100n * EUR)], 60n * EUR)).toEqual([deposit("a", 100n * EUR)]);
+  });
+
+  it("does not head-of-line block younger deposits behind an oversized one", () => {
+    const oversized = deposit("big", 120n * EUR);
+    const younger = deposit("small", 5n * EUR);
+    // Execution 1 (eureIn = cap): only the oversized deposit attaches.
+    expect(selectDepositsForExecution([oversized, younger], 100n * EUR)).toEqual([oversized]);
+    // Execution 2 (remaining balance): the younger deposit gets its own allocation.
+    expect(selectDepositsForExecution([younger], 25n * EUR)).toEqual([younger]);
   });
 
   it("handles an exact fit and an empty list", () => {
@@ -86,6 +98,13 @@ describe("allocateUsdcProRata", () => {
   it("returns an empty allocation for an empty selection or non-positive eureIn", () => {
     expect(allocateUsdcProRata([], 100n * EUR, 100n * USDC).size).toBe(0);
     expect(allocateUsdcProRata([deposit("a", 1n * EUR)], 0n, 100n * USDC).size).toBe(0);
+  });
+
+  it("clamps an oversized sole deposit to the swapped amount and conserves the total", () => {
+    // 120 EUR deposit, execution swapped only 100 EUR (perSwapCap): the deposit's
+    // share is the full execution output, never an overshoot of it.
+    const shares = allocateUsdcProRata([deposit("big", 120n * EUR)], 100n * EUR, 108n * USDC);
+    expect(shares.get("big")).toBe(108n * USDC);
   });
 });
 
