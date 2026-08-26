@@ -23,59 +23,212 @@ repeatedly funded. Inside Vortex the client is a **managed child profile** under
 partner manager, which is what carries KYB records, API credentials, the read API, and
 webhook tenancy.
 
+## System map
+
+```mermaid
+flowchart LR
+    subgraph Partner["Partner (manager)"]
+        PAPI[Partner backend]
+    end
+
+    subgraph Monerium
+        IBAN["Client IBAN\n(default destination = forwarder)"]
+        MAPI[Whitelabel API]
+        MWH[Monerium webhooks]
+    end
+
+    subgraph Chain["Ethereum mainnet"]
+        FWD["VortexForwarder clone\n(one per client)"]
+        FACT[Factory + implementation]
+        UNI[Uniswap v3\nEURe-EURC-USDC]
+        LINK[Chainlink EUR/USD]
+        DEST[Client wallet]
+        TREAS[Treasury FEE_RECIPIENT]
+    end
+
+    subgraph Vortex["Vortex API (keeper backend)"]
+        ADM["Admin API\n/v1/admin/monerium-b2b"]
+        INBOX[("monerium_webhook_events\n(durable inbox)")]
+        DP[Deposit processor]
+        MW[Mint watcher]
+        CE[Conversion executor]
+        ONB[Onboarding automation]
+        MONI[4 detection monitors]
+        OUTBOX[("webhook_deliveries\n(durable outbox)")]
+        READ["Read API\n/v1/monerium-b2b/*"]
+    end
+
+    IBAN -- "SEPA in => EURe minted" --> FWD
+    MWH -- "order.*, iban.updated (HMAC)" --> INBOX
+    INBOX --> DP
+    MW -- "EURe Transfer logs" --> FWD
+    CE -- "swapAndForward()" --> FWD
+    FWD --> UNI
+    FWD -- "minOut check" --> LINK
+    FWD -- "USDC - fee" --> DEST
+    FWD -- fee --> TREAS
+    ONB -- "link address + request IBAN" --> MAPI
+    MONI -- "association / config reads" --> MAPI
+    OUTBOX -- "DEPOSIT_RECEIVED / DEPOSIT_CONVERTED" --> PAPI
+    PAPI -- "poll (delegation)" --> READ
+```
+
+Trust boundaries worth holding onto: **Monerium controls where EURe mints** (the IBAN's
+linked default address — which is why the association monitor exists); **the contract
+controls where funds can go** (fixed `destination`, fee to the immutable treasury,
+fallback sweep — the keeper can only ever trigger, never redirect); **Vortex controls
+timing and accounting**, nothing more.
+
 ## Onboarding sequence (per client)
 
-1. **Monerium onboards the corporate** to the whitelabel app under the partner's
-   reliance attestation; the profile arrives `approved`. (Vortex's KYB submission API is
-   a deliberate 501 stub — registry T3.)
-2. **Operator deploys the forwarder clone** via the factory (`cast`, runbook §2) with the
-   client's `destination`, mandatory self-custodied `fallbackAddress`, and `feeBps`;
-   generates and verifies the manifest.
-3. **Admin mapping** — one idempotent call, `POST /v1/admin/monerium-b2b/accounts`:
-   provisions the managed child (business `customer_entities` row under the manager),
-   mirrors the approved KYB into `provider_customers` + `kyc_cases`, verifies the
-   deployed clone on chain (factory registration, destination/fallback/feeBps
-   read-back), and creates the `monerium_accounts` row (status `onboarding`) bound to
-   the child via `vortex_profile_id`.
-4. **Keeper automation** (every cycle, exactly-once via the profile-scoped
-   `financial_operations` ledger): signs the fixed link message with the attestor key and
-   `POST /addresses` links the forwarder to the Monerium profile, then `POST /ibans`
-   requests issuance for that address. The `iban.updated` webhook records the IBAN on
-   the account row.
-5. **Penny test** (manual, runbook §7), then activation via
-   `PATCH /v1/admin/monerium-b2b/accounts/:id/status` (refused until the IBAN exists).
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant Adm as Vortex admin API
+    participant K as Keeper (worker)
+    participant M as Monerium
+    participant C as Ethereum
+
+    Note over M: Monerium onboards the corporate under partner reliance - profile "approved"
+    Op->>C: deployForwarder(destination, fallback, feeBps) via factory
+    Op->>Adm: POST /v1/admin/monerium-b2b/accounts
+    Adm->>C: verify clone (isForwarder + config read-back)
+    Adm->>Adm: managed child + KYB mirror + monerium_accounts row (onboarding)
+    K->>M: POST /addresses (attestor-signed link)  [exactly-once]
+    K->>M: POST /ibans for the forwarder address   [exactly-once]
+    M-->>K: iban.updated webhook -> IBAN recorded
+    Op->>M: penny test (simulated/real small SEPA)
+    Op->>Adm: PATCH .../accounts/:id/status "active" (refused without IBAN)
+```
+
+Steps in prose:
+
+1. **Monerium onboards the corporate** under the partner's reliance attestation; the
+   profile arrives `approved`. (Vortex's KYB submission API is a deliberate 501 stub —
+   registry T3.)
+2. **Operator deploys the forwarder clone** with the client's `destination`, mandatory
+   self-custodied `fallbackAddress`, and initial `feeBps`; manifest generated and
+   verified.
+3. **Admin mapping** — one idempotent call provisions the managed child, mirrors the
+   approved KYB into `provider_customers` + `kyc_cases`, verifies the clone on chain,
+   and creates the account row bound via `vortex_profile_id`.
+4. **Keeper automation** links the forwarder (attestor signature) and requests the IBAN,
+   each exactly-once through the profile-scoped `financial_operations` ledger; the
+   `iban.updated` webhook records the IBAN.
+5. **Penny test**, then activation via the admin status endpoint.
 
 ## Deposit-to-payout sequence
 
-1. **EUR arrives on the IBAN.** Monerium creates an `issue` order and mints EURe to the
-   forwarder — no API call involved; incoming payments are passive.
-2. **Vortex learns about it on three redundant channels** (all converge on the same
-   per-forwarder advisory lock):
-   - **Webhooks** (`order.created`/`order.updated`): HMAC-verified, persisted to the
-     durable `monerium_webhook_events` inbox *before* the 200, then drained into
-     `monerium_fiat_deposits` rows (forward-only status lattice, dedup by order id).
-     This channel carries the order accounting: amount, state, compliance holds.
-   - **The mint watcher**: scans EURe `Transfer` logs to known forwarders over a
-     persisted block cursor (12-block reorg lag) and stamps the deposit's on-chain
-     identity `(chain_id, tx_hash, log_index)`; unmatched inflows become flagged
-     `unattr:` rows, never customer deposits.
-   - **A balance check** in the worker as catch-all trigger: any forwarder holding EURe
-     becomes a conversion candidate even if the other channels lag.
-3. **Conversion.** For each candidate account the keeper (one designated backend, the
-   mykobo flow variant) resolves leftover executions, then creates a
-   `monerium_conversion_executions` row *before* broadcasting, persists the planned
-   nonce, and sends `swapAndForward()`. The **contract** does the swap: it takes
-   `min(balance, perSwapCap)` EURe through the pinned EURe→EURC→USDC pools with a
-   Chainlink EUR/USD minimum-output bound, deducts `fee = usdcReceived * feeBps / 10000`
-   to `FEE_RECIPIENT`, and transfers the rest to the client's `destination`.
-4. **Finalization + attribution.** The `SwapExecuted` event's amounts are authoritative;
-   the execution row is confirmed and open minted deposits are allocated to it
-   oldest-first up to the swapped amount, USDC pro-rata by deposit size (R04).
-5. **Partner visibility.** `DEPOSIT_RECEIVED` fires when a deposit is minted and
-   `DEPOSIT_CONVERTED` once its execution is 32 blocks deep — durably, at-least-once,
-   through the `webhook_deliveries` outbox to the **manager's** webhook subscription.
-   Polling alternative: `GET /v1/monerium-b2b/account` and `/deposits` under managed
-   delegation or the child's own credential.
+```mermaid
+sequenceDiagram
+    participant B as Client's bank
+    participant M as Monerium
+    participant F as Forwarder (chain)
+    participant V as Vortex keeper
+    participant P as Partner
+
+    B->>M: SEPA transfer to the IBAN
+    M->>F: mint EURe (automatic, no API call)
+    M-->>V: order.created / order.updated webhook -> inbox -> deposit row
+    V->>F: (watcher) sees the Transfer log -> stamps chain identity
+    V->>V: DEPOSIT_RECEIVED -> outbox -> partner webhook
+    V->>F: swapAndForward()  [execution row committed first]
+    F->>F: swap min(balance, perSwapCap) via Uniswap, Chainlink minOut
+    F->>P: USDC - fee to client wallet (fee to treasury)
+    V->>V: finalize from SwapExecuted event + R04 attribution
+    Note over V: 32 blocks later
+    V->>P: DEPOSIT_CONVERTED -> outbox -> partner webhook
+```
+
+Vortex learns about a mint on **three redundant channels**, which all converge on the
+same per-forwarder advisory lock: the **webhooks** carry the order accounting (amount,
+order id, compliance holds), the **mint watcher** stamps the on-chain identity that
+attribution needs, and a plain **balance check** in the worker makes any funded
+forwarder a conversion candidate even if both other channels lag. Any one channel alone
+is enough to get funds converted.
+
+## How the mint watcher walks the chain
+
+The watcher is a poll-based log scanner with a **persisted cursor** so no block range is
+ever skipped or double-processed across restarts:
+
+```mermaid
+flowchart TD
+    A[cycle start] --> B["safeHead = latest - 12\n(reorg confirmation lag)"]
+    B --> C{cursor row exists?}
+    C -- no --> D["bootstrap: create cursor at safeHead\n(history is covered by webhook-recorded orders)"]
+    C -- yes --> E["fromBlock = cursor + 1\ntoBlock = min(safeHead, fromBlock + 2000)"]
+    E --> F["getLogs: EURe Transfer -> any known forwarder"]
+    F --> G["per log, under the forwarder lock:\nmatch to an open deposit (by tx hash, else amount)\nor record a flagged unattr: row"]
+    G --> H["advance cursor to toBlock\n(only after processing)"]
+    H --> A
+```
+
+The mechanics that matter:
+
+- The cursor row (`monerium_chain_cursors` — one row per watcher and chain) stores
+  the **last fully processed block**. It advances only *after* every log in the range
+  was handled, so a crash mid-range means the next cycle re-scans the same range — and
+  re-scanning is harmless because each mint's identity `(chain_id, tx_hash, log_index)`
+  is a unique index: already-recorded mints are skipped.
+- The scan stops **12 blocks below the head**: that identity is not reorg-stable
+  (a dropped transaction re-mines with a different block and log index), so only
+  settled blocks are read. The lag costs ~2.5 minutes of latency on the *chain-identity*
+  channel only — the webhook channel and balance check are not delayed by it, so
+  conversion itself is not slowed.
+- Ranges are capped at 2,000 blocks per cycle, so after downtime the watcher catches up
+  in bounded chunks instead of one unbounded `getLogs`.
+- On first run there is no cursor: it bootstraps at the current settled head and scans
+  only forward. Historic mints are already represented by webhook-recorded orders;
+  back-filling their chain fields is a manual operation.
+
+## Lifecycles
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Deposit (monerium_fiat_deposits)" as dep {
+        [*] --> pending
+        pending --> minted
+        pending --> held
+        pending --> returned
+        held --> minted
+        held --> returned
+        minted --> [*]
+        returned --> [*]
+    }
+```
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Execution (monerium_conversion_executions)" as exe {
+        [*] --> pending2 : row committed BEFORE broadcast
+        pending2 --> confirmed : receipt + SwapExecuted
+        pending2 --> failed : revert / never sent / stale
+        confirmed --> [*]
+        failed --> [*] : retried via a NEW row (backoff)
+    }
+```
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Account (monerium_accounts)" as acc {
+        [*] --> onboarding : admin mapping
+        onboarding --> active : penny test + admin PATCH (needs IBAN)
+        active --> suspended
+        suspended --> active
+        active --> closed
+        suspended --> closed
+    }
+```
+
+Deposit statuses are **forward-only** (a delayed or replayed webhook can never regress a
+row), and a hashless pending execution is resolved by nonce classification against the
+chain rather than guesswork. The account additionally carries a `dormant_since` marker
+(guardian-paused after 60 days without a conversion; conversion stops, the protective
+stranding marker still arms).
 
 ## Batching and large deposits
 
@@ -95,6 +248,11 @@ Batching happens in both directions, automatically:
   that begins converting it (it could never fit a later, smaller one), with its share
   clamped to the swapped amount.
 
+In normal operation merging is rare: the keeper runs every minute, so deposits share an
+execution only when they arrive within about a minute of each other or during downtime.
+And batching only ever merges deposits of the **same client** — every client has their
+own forwarder, so cross-client funds never mix.
+
 ## Fees
 
 - **Rate (`feeBps`)**: per-client, set at clone initialization and adjustable by the
@@ -108,13 +266,72 @@ Batching happens in both directions, automatically:
   contract at deployment, shared by every clone of that implementation. Changing the
   treasury address means deploying a new implementation + factory and using it for new
   clones. There is no per-client fee destination and no setter.
-- The database mirrors `fee_bps` on `monerium_accounts` for accounting and drift
-  detection only; the contract value is authoritative, and the config-reconciliation
-  monitor alarms if they ever disagree.
+- The database mirrors `fee_bps` on the account row for accounting and drift detection
+  only; the contract value is authoritative, and the config monitor reconciles
+  guardian fee changes (warn + version bump) while alarming on anything unauthorized.
 
-## Data model
+## Monitoring (detection-only)
 
-New tables (all introduced by this feature; migration numbers in parentheses):
+Four monitors run from the keeper worker (rate-limited to one pass per ~30 minutes),
+read-only — no keys, no transactions:
+
+1. **Association monitor (the S1 detective control).** Per active account it re-reads
+   the Monerium-side state — `GET /addresses?profile=` and the IBAN list — and diffs it
+   against the database record. **Any** divergence is an error-level alert: the
+   forwarder no longer linked, an extra address linked to the profile, the IBAN moved
+   or unrecorded. This is the control for the structural risk that Vortex-held
+   whitelabel credentials can change associations at Monerium: those changes cannot be
+   prevented client-side, only detected fast.
+2. **Executable-depth monitor.** QuoterV2 quotes on the pinned swap path vs Chainlink;
+   price impact past the slippage bound is an alert before clients feel it.
+3. **Stranded-balance monitor.** Forwarders holding EURe with the stranding marker
+   armed too long — a keeper-outage signal (past the trigger delay, the permissionless
+   fallback is live; funds are never at risk, conversion is just late).
+4. **Config reconciliation.** Re-reads per-clone config and bytecode: client-authorized
+   changes (destination/fallback) and guardian-authorized changes (feeBps, timelocked)
+   are reconciled into the DB with a version bump; bytecode or registration drift is a
+   should-be-impossible incident.
+
+## Data model — the Monerium B2B tables
+
+All tables below belong exclusively to this flow (the legacy Monerium OAuth/KYC
+integration owns no tables of its own — it writes only `provider_customers` /
+`kyc_cases`). Migration numbers in parentheses.
+
+```mermaid
+erDiagram
+    profiles ||--o| monerium_accounts : "vortex_profile_id (managed child)"
+    monerium_accounts ||--o{ monerium_fiat_deposits : "account_id"
+    monerium_accounts ||--o{ monerium_conversion_executions : "account_id"
+    monerium_conversion_executions |o--o{ monerium_fiat_deposits : "allocated_execution_id (R04)"
+    webhooks ||--o{ webhook_deliveries : "webhook_id (deposit events)"
+
+    monerium_accounts {
+        uuid vortex_profile_id FK
+        string monerium_profile_id UK
+        string iban
+        string forwarder_address UK
+        string destination
+        string fallback_address
+        int fee_bps
+        enum status
+    }
+    monerium_fiat_deposits {
+        string monerium_order_id UK
+        decimal amount_raw
+        enum status
+        string tx_hash
+        int log_index
+        uuid allocated_execution_id FK
+    }
+    monerium_conversion_executions {
+        decimal eure_in_raw
+        decimal usdc_net_raw
+        string tx_hash
+        int nonce
+        enum status
+    }
+```
 
 | Table | Purpose |
 |---|---|
