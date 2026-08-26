@@ -18,6 +18,10 @@ import { withForwarderLock } from "./deposit-processor";
 /** Upper bound on blocks scanned per cycle, so getLogs stays bounded after downtime. */
 const MAX_BLOCK_RANGE = 2000n;
 
+// Confirmation lag before a block is scanned: deep enough that Ethereum reorgs past it
+// are effectively unheard of, shallow enough to add well under a keeper cycle of delay.
+const REORG_SAFETY_DEPTH = 12n;
+
 /** Order-id prefix marking a deposit row created from a mint log with no matching Monerium order. */
 export const UNATTRIBUTED_ORDER_PREFIX = "unattr:";
 
@@ -41,7 +45,10 @@ export type MatchableDeposit = Pick<MoneriumFiatDeposit, "id" | "status" | "txHa
  * Picks the deposit row a mint log belongs to, among the account's deposits that are
  * still missing their mint fields (logIndex null). Precedence:
  * 1. tx-hash match — the webhook may have already recorded the mint hash (order meta);
- * 2. amount match on a pending order — oldest first (caller passes createdAt order).
+ * 2. amount match on any open order without recorded chain identity — oldest first
+ *    (caller passes createdAt order). A webhook-Minted row whose order carried no
+ *    txHash is still a candidate here: requiring Pending would strand it and record
+ *    its real mint as an unattributed duplicate.
  * Held/returned orders never minted, so they are not candidates. Returns null when
  * nothing matches (unattributed inflow).
  */
@@ -55,14 +62,7 @@ export function matchMintLogToDeposit(log: MintLogFields, candidates: MatchableD
   if (byHash) {
     return byHash;
   }
-  return (
-    open.find(
-      deposit =>
-        deposit.txHash === null &&
-        deposit.status === MoneriumFiatDepositStatus.Pending &&
-        BigInt(deposit.amountRaw) === log.valueRaw
-    ) ?? null
-  );
+  return open.find(deposit => deposit.txHash === null && BigInt(deposit.amountRaw) === log.valueRaw) ?? null;
 }
 
 interface ObservedMint {
@@ -106,6 +106,13 @@ async function recordMint(
 
     if (match) {
       const deposit = candidates.find(row => row.id === match.id) as MoneriumFiatDeposit;
+      if (deposit.txHash !== null && BigInt(deposit.amountRaw) !== mint.valueRaw) {
+        // Hash-matched but the webhook-reported amount disagrees with the on-chain
+        // value: detective alert, never a silent overwrite of accounting data.
+        logger.error(
+          `monerium-b2b: mint ${mint.txHash}#${mint.logIndex} value ${mint.valueRaw.toString()} disagrees with webhook amount ${deposit.amountRaw} on deposit ${deposit.id}`
+        );
+      }
       await deposit.update(
         {
           blockHash: mint.blockHash,
@@ -162,21 +169,25 @@ export async function runMintWatcher(): Promise<string[]> {
   const chainId = await getChainId();
   const { eure } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
   const latest = await client.getBlockNumber();
+  // Only scan settled blocks: the (chain_id, tx_hash, log_index) identity is not
+  // reorg-stable (logIndex and blockNumber change when a dropped tx re-mines), so a
+  // head-chasing scan could double-record one mint across a shallow reorg.
+  const safeHead = latest > REORG_SAFETY_DEPTH ? latest - REORG_SAFETY_DEPTH : 0n;
 
   const cursorName = `eure-mints:${chainId}`;
   const cursor = await MoneriumChainCursor.findByPk(cursorName);
   if (!cursor) {
-    // Bootstrap: start watching from the current head. Historic mints are covered by
-    // webhook-recorded orders; back-filling their chain fields is a manual operation.
-    await MoneriumChainCursor.create({ lastBlock: latest.toString(), name: cursorName });
+    // Bootstrap: start watching from the current settled head. Historic mints are
+    // covered by webhook-recorded orders; back-filling chain fields is manual.
+    await MoneriumChainCursor.create({ lastBlock: safeHead.toString(), name: cursorName });
     return [];
   }
 
   const fromBlock = BigInt(cursor.lastBlock) + 1n;
-  if (fromBlock > latest) {
+  if (fromBlock > safeHead) {
     return [];
   }
-  const toBlock = latest - fromBlock + 1n > MAX_BLOCK_RANGE ? fromBlock + MAX_BLOCK_RANGE - 1n : latest;
+  const toBlock = safeHead - fromBlock + 1n > MAX_BLOCK_RANGE ? fromBlock + MAX_BLOCK_RANGE - 1n : safeHead;
 
   const logs = await client.getLogs({
     address: eure,

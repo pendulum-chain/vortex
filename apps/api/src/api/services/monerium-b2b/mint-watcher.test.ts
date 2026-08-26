@@ -66,11 +66,20 @@ describe("matchMintLogToDeposit", () => {
     expect(matchMintLogToDeposit({ txHash: TX_A, valueRaw: amount }, deposits)).toBeNull();
   });
 
-  it("does not amount-match a minted deposit without a hash (hash is required once minted)", () => {
-    // A webhook-minted order without meta.txHash cannot be safely claimed by amount
-    // alone once it is already minted — only pending orders amount-match.
+  it("amount-matches a webhook-minted deposit whose order carried no tx hash", () => {
+    // Monerium can deliver order state "processed" without meta.txHash before the
+    // watcher reaches the mint block. Requiring Pending here stranded such rows
+    // without chain identity and recorded the real mint as an unattributed duplicate.
     const amount = 100n * 10n ** 18n;
     const deposits = [candidate({ amountRaw: amount.toString(), id: "minted-no-hash", status: Minted })];
+    expect(matchMintLogToDeposit({ txHash: TX_A, valueRaw: amount }, deposits)?.id).toBe("minted-no-hash");
+  });
+
+  it("never amount-matches a deposit that already carries a different tx hash", () => {
+    const amount = 100n * 10n ** 18n;
+    const deposits = [
+      candidate({ amountRaw: amount.toString(), id: "other-tx", status: Minted, txHash: "0xBBBB" })
+    ];
     expect(matchMintLogToDeposit({ txHash: TX_A, valueRaw: amount }, deposits)).toBeNull();
   });
 });
