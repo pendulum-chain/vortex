@@ -46,7 +46,7 @@ contract ForwarderHandler is Test {
                 oracle: address(oracle),
                 attestor: vm.addr(0xA11CE),
                 feeRecipient: feeRecipient,
-                maxOracleAge: 26 hours,
+                maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 100,
                 maxFeeBps: 100,
                 sweepDelay: 60 days,

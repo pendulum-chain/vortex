@@ -124,7 +124,7 @@ contract VortexForwarderTest is Test {
                 oracle: address(oracle),
                 attestor: attestor,
                 feeRecipient: feeRecipient,
-                maxOracleAge: 26 hours,
+                maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 100,
                 maxFeeBps: 100,
                 sweepDelay: SWEEP_DELAY,
@@ -203,7 +203,7 @@ contract VortexForwarderTest is Test {
                 oracle: address(oracle),
                 attestor: attestor,
                 feeRecipient: feeRecipient,
-                maxOracleAge: 26 hours,
+                maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 100,
                 maxFeeBps: 100,
                 sweepDelay: SWEEP_DELAY,
@@ -301,7 +301,7 @@ contract VortexForwarderTest is Test {
         _fund(1_000e18);
         router.setNextOut(1_130e6);
         oracle.set(1.14e8, block.timestamp);
-        skip(27 hours);
+        skip(53 hours); // just past the 52h P8 window
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.StalePrice.selector);
         fwd.swapAndForward();
@@ -419,7 +419,7 @@ contract VortexForwarderTest is Test {
                 oracle: address(oracle),
                 attestor: attestor,
                 feeRecipient: feeRecipient,
-                maxOracleAge: 26 hours,
+                maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 100,
                 maxFeeBps: 100,
                 sweepDelay: SWEEP_DELAY,

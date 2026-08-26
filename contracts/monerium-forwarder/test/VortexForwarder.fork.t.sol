@@ -53,7 +53,7 @@ contract VortexForwarderForkTest is Test {
                 oracle: CHAINLINK_EUR_USD,
                 attestor: attestor,
                 feeRecipient: makeAddr("feeRecipient"),
-                maxOracleAge: 26 hours,
+                maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 100,
                 maxFeeBps: 100,
                 sweepDelay: 60 days,
