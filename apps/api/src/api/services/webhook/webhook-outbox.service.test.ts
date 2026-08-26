@@ -128,6 +128,23 @@ describe("webhook delivery outbox", () => {
     expect(deliverCalls).toHaveLength(0);
   });
 
+  it("never double-delivers under concurrent dispatch (skip-locked claims)", async () => {
+    const webhook = await createDepositWebhook();
+    for (let i = 0; i < 10; i++) {
+      await enqueueWebhookDeliveries([webhook], payloadFor(`deposit-received:dep-${i}`));
+    }
+    deliverResults = Array.from({ length: 20 }, () => ({ error: null, ok: true }));
+
+    // Two dispatchers race for the same due backlog; SKIP LOCKED must partition it.
+    await Promise.all([dispatchDueWebhookDeliveries(), dispatchDueWebhookDeliveries()]);
+    while ((await dispatchDueWebhookDeliveries()) > 0) {
+      // drain any remainder
+    }
+
+    expect(deliverCalls).toHaveLength(10);
+    expect(await WebhookDelivery.count({ where: { status: WebhookDeliveryStatus.Sent } })).toBe(10);
+  });
+
   it("requeues stuck sending rows so a crash cannot strand a delivery", async () => {
     const webhook = await createDepositWebhook();
     await enqueueWebhookDeliveries([webhook], payloadFor("deposit-received:dep-1"));

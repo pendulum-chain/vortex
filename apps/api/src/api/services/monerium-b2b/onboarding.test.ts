@@ -172,6 +172,70 @@ describe("monerium b2b onboarding automation", () => {
     expect(deps.calls.linkAddress).toHaveLength(0);
   });
 
+  it("retries a failed link next cycle without wedging the ledger row", async () => {
+    await createMappedAccount();
+    const deps = fakeDeps();
+    let failNext = true;
+    const workingLinkAddress = deps.linkAddress.bind(deps);
+    deps.linkAddress = async (profileId, address, chain, signature) => {
+      if (failNext) {
+        failNext = false;
+        throw new Error("Monerium request failed");
+      }
+      return workingLinkAddress(profileId, address, chain, signature);
+    };
+
+    // First cycle: the link call fails with no side effect; the row must not be
+    // parked in a state that requires manual reconciliation.
+    await advanceOnboardingAccounts(deps);
+    const afterFailure = await FinancialOperation.findOne({ where: { phase: "linkAddress" } });
+    expect(afterFailure?.status).toBe("failed");
+
+    // Second cycle: clean retry performs the call again and confirms.
+    await advanceOnboardingAccounts(deps);
+    const afterRetry = await FinancialOperation.findOne({ where: { phase: "linkAddress" } });
+    expect(afterRetry?.status).toBe("confirmed");
+    expect(deps.calls.linkAddress).toHaveLength(1);
+  });
+
+  it("reconciles an interrupted link from upstream state instead of re-posting", async () => {
+    await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkAddress = async () => {
+      // The POST landed upstream but the response was lost mid-flight.
+      deps.linkedAddresses.add(FORWARDER);
+      throw new Error("socket hang up");
+    };
+
+    await advanceOnboardingAccounts(deps);
+
+    const operation = await FinancialOperation.findOne({ where: { phase: "linkAddress" } });
+    expect(operation?.status).toBe("confirmed");
+    expect(deps.calls.signLinkAttestation).toHaveLength(1);
+  });
+
+  it("retries a failed iban request next cycle", async () => {
+    await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    let failNext = true;
+    const workingRequestIban = deps.requestIban.bind(deps);
+    deps.requestIban = async (address, chain) => {
+      if (failNext) {
+        failNext = false;
+        throw new Error("Monerium request failed");
+      }
+      return workingRequestIban(address, chain);
+    };
+
+    await advanceOnboardingAccounts(deps);
+    expect((await FinancialOperation.findOne({ where: { phase: "requestIban" } }))?.status).toBe("failed");
+
+    await advanceOnboardingAccounts(deps);
+    expect((await FinancialOperation.findOne({ where: { phase: "requestIban" } }))?.status).toBe("confirmed");
+    expect(deps.calls.requestIban).toHaveLength(1);
+  });
+
   it("does nothing while the whitelabel credentials are not configured", async () => {
     await createMappedAccount();
     config.moneriumB2b.clientId = "";

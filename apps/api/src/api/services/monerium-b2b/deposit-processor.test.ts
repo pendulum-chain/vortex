@@ -1,6 +1,15 @@
-import { describe, expect, it } from "bun:test";
-import { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
-import { isForwardTransition, mapOrderStateToDepositStatus, parseIbanEvent, parseOrderEvent } from "./deposit-processor";
+import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import MoneriumAccount from "../../../models/moneriumAccount.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
+import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
+import {
+  isForwardTransition,
+  mapOrderStateToDepositStatus,
+  parseIbanEvent,
+  parseOrderEvent,
+  processMoneriumWebhookInbox
+} from "./deposit-processor";
 
 const { Held, Minted, Pending, Returned } = MoneriumFiatDepositStatus;
 
@@ -109,5 +118,98 @@ describe("parseIbanEvent", () => {
     expect(parseIbanEvent({ ...validPayload, data: { ...validPayload.data, address: undefined } })).toBeNull();
     expect(parseIbanEvent(null)).toBeNull();
     expect(parseIbanEvent("junk")).toBeNull();
+  });
+});
+
+describe("order-event inbox processing (end to end)", () => {
+  const FORWARDER = "0x1111111111111111111111111111111111111111";
+
+  beforeAll(async () => {
+    await setupTestDatabase();
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+  });
+
+  function orderEvent(state: string, overrides: Record<string, unknown> = {}) {
+    return {
+      data: {
+        address: FORWARDER,
+        amount: "100.5",
+        currency: "eur",
+        id: "order-1",
+        kind: "issue",
+        meta: {},
+        state,
+        ...overrides
+      },
+      timestamp: "2026-08-26T00:00:00Z",
+      type: "order.updated"
+    };
+  }
+
+  async function createAccount(): Promise<MoneriumAccount> {
+    return MoneriumAccount.create({
+      destination: "0x2222222222222222222222222222222222222222",
+      fallbackAddress: "0x3333333333333333333333333333333333333333",
+      feeBps: 0,
+      forwarderAddress: FORWARDER,
+      profileId: crypto.randomUUID()
+    });
+  }
+
+  it("creates the deposit, advances it forward-only, and dedups deliveries", async () => {
+    const account = await createAccount();
+
+    await MoneriumWebhookEvent.create({ eventId: "evt-1", payload: orderEvent("placed") });
+    expect(await processMoneriumWebhookInbox()).toBe(1);
+
+    const created = await MoneriumFiatDeposit.findOne({ where: { moneriumOrderId: "order-1" } });
+    expect(created).toMatchObject({
+      accountId: account.id,
+      amountRaw: (1005n * 10n ** 17n).toString(),
+      status: MoneriumFiatDepositStatus.Pending
+    });
+
+    // processed advances to minted and records the mint hash from meta.
+    await MoneriumWebhookEvent.create({ eventId: "evt-2", payload: orderEvent("processed", { meta: { txHash: "0xmint" } }) });
+    await processMoneriumWebhookInbox();
+    await created?.reload();
+    expect(created?.status).toBe(MoneriumFiatDepositStatus.Minted);
+    expect(created?.txHash).toBe("0xmint");
+
+    // A delayed older state must never regress the row.
+    await MoneriumWebhookEvent.create({ eventId: "evt-3", payload: orderEvent("pending") });
+    await processMoneriumWebhookInbox();
+    await created?.reload();
+    expect(created?.status).toBe(MoneriumFiatDepositStatus.Minted);
+
+    // Replayed deliveries of the same order never create a second row.
+    await MoneriumWebhookEvent.create({ eventId: "evt-4", payload: orderEvent("processed") });
+    await processMoneriumWebhookInbox();
+    expect(await MoneriumFiatDeposit.count()).toBe(1);
+    expect(await MoneriumWebhookEvent.count({ where: { processedAt: null } })).toBe(0);
+  });
+
+  it("acks order events for unknown forwarders without creating deposits", async () => {
+    await MoneriumWebhookEvent.create({ eventId: "evt-5", payload: orderEvent("placed") });
+    expect(await processMoneriumWebhookInbox()).toBe(1);
+    expect(await MoneriumFiatDeposit.count()).toBe(0);
+    expect(await MoneriumWebhookEvent.count({ where: { processedAt: null } })).toBe(0);
+  });
+
+  it("holds and releases a compliance-held order without regressions", async () => {
+    await createAccount();
+    await MoneriumWebhookEvent.create({ eventId: "evt-6", payload: orderEvent("placed") });
+    await MoneriumWebhookEvent.create({ eventId: "evt-7", payload: orderEvent("held") });
+    await processMoneriumWebhookInbox();
+    const deposit = await MoneriumFiatDeposit.findOne({ where: { moneriumOrderId: "order-1" } });
+    expect(deposit?.status).toBe(MoneriumFiatDepositStatus.Held);
+
+    await MoneriumWebhookEvent.create({ eventId: "evt-8", payload: orderEvent("processed") });
+    await processMoneriumWebhookInbox();
+    await deposit?.reload();
+    expect(deposit?.status).toBe(MoneriumFiatDepositStatus.Minted);
   });
 });

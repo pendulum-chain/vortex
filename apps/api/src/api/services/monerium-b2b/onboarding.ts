@@ -3,7 +3,7 @@ import type { Address } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
-import { runFinancialOperation } from "../phases/blocks/core/financial-operation";
+import { FinancialOperationRejectedError, runFinancialOperation } from "../phases/blocks/core/financial-operation";
 import { signLinkAttestation } from "./attestor";
 import { getChainId } from "./chain";
 import { getIbanForAddress, getProfileAddresses, linkAddress, requestIban } from "./whitelabel-client";
@@ -55,7 +55,19 @@ async function ensureLinked(deps: OnboardingDeps, account: MoneriumAccount, chai
     flow: ONBOARDING_FLOW,
     perform: async () => {
       const attestation = await deps.signLinkAttestation(BigInt(chainId), account.forwarderAddress as Address);
-      await deps.linkAddress(account.profileId, account.forwarderAddress, chainName, attestation.signature);
+      try {
+        await deps.linkAddress(account.profileId, account.forwarderAddress, chainName, attestation.signature);
+      } catch (error) {
+        // Linking is synchronous upstream: if the address is not linked after a
+        // failure, the call had no side effect — signal that so the ledger allows a
+        // clean retry next cycle instead of parking the row in `unknown` forever.
+        if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress)) {
+          return { linked: true };
+        }
+        throw new FinancialOperationRejectedError(
+          `link call failed with no side effect: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       return { linked: true };
     },
     phase: "linkAddress",
@@ -83,7 +95,16 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
     attemptClass: "provider-iban-request",
     flow: ONBOARDING_FLOW,
     perform: async () => {
-      await deps.requestIban(account.forwarderAddress, chainName);
+      try {
+        await deps.requestIban(account.forwarderAddress, chainName);
+      } catch (error) {
+        // IBAN issuance is unique per (address, chain), so a repeated request can
+        // never create a second IBAN — a failed call is safe to retry next cycle.
+        // If the request did land, the reconcile read adopts the issued IBAN anyway.
+        throw new FinancialOperationRejectedError(
+          `iban request failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       return { requested: true };
     },
     phase: "requestIban",
