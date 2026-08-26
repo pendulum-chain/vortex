@@ -22,6 +22,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md) | Accepted decision on the seeded sales-demo account in the sandbox environment |
 | [`architecture-email-notifications.md`](architecture-email-notifications.md) | Current transactional/auth email architecture: queue, dispatch, producers |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
+| [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md) | Current end-to-end architecture of the B2B EUR onramp: onboarding, deposit-to-payout, batching, fees, data model |
 | [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
