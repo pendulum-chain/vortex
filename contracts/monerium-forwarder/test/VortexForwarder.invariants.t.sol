@@ -62,6 +62,7 @@ contract ForwarderHandler is Test {
         );
         factory.setKeeper(keeper, true);
         fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, INITIAL_FEE_BPS, bytes32(uint256(1))));
+        ghostExpectedFeeBps = INITIAL_FEE_BPS;
     }
 
     // ------------------------------------------------------------- actions
@@ -114,6 +115,27 @@ contract ForwarderHandler is Test {
         fwd.setGuardianPaused(paused); // handler deployed the factory -> handler is guardian
     }
 
+    /// P11 ghost model: what feeBps is allowed to be right now. Decreases apply
+    /// immediately; increases only after their announced timelock elapses AND
+    /// someone calls applyFeeBps.
+    uint16 public ghostExpectedFeeBps;
+
+    function guardianSetFee(uint16 raw) external {
+        uint16 newFee = raw % 120; // exercise the FeeTooHigh branch too (MAX is 100)
+        try fwd.setFeeBps(newFee) {
+            if (newFee <= ghostExpectedFeeBps) {
+                ghostExpectedFeeBps = newFee; // decrease/cancel: immediate
+            }
+            // increase: pending only — ghost updates when applyFee succeeds
+        } catch {}
+    }
+
+    function applyFee() external {
+        try fwd.applyFeeBps() {
+            ghostExpectedFeeBps = fwd.feeBps(); // apply succeeded past its timelock
+        } catch {}
+    }
+
     function clientPause(bool paused) external {
         vm.prank(fallbackAddr);
         fwd.setClientPaused(paused);
@@ -130,10 +152,11 @@ contract ForwarderHandler is Test {
 
     function randoTriesPrivilegedCalls(uint8 selector) external {
         vm.startPrank(rando);
-        if (selector % 4 == 0) try fwd.setDestination(rando) {} catch {}
-        if (selector % 4 == 1) try fwd.setGuardianPaused(true) {} catch {}
-        if (selector % 4 == 2) try fwd.setFallbackAddress(rando) {} catch {}
-        if (selector % 4 == 3) try fwd.sweep(address(eure), rando) {} catch {}
+        if (selector % 5 == 0) try fwd.setDestination(rando) {} catch {}
+        if (selector % 5 == 1) try fwd.setGuardianPaused(true) {} catch {}
+        if (selector % 5 == 2) try fwd.setFallbackAddress(rando) {} catch {}
+        if (selector % 5 == 3) try fwd.sweep(address(eure), rando) {} catch {}
+        if (selector % 5 == 4) try fwd.setFeeBps(99) {} catch {}
         vm.stopPrank();
     }
 }
@@ -163,9 +186,13 @@ contract VortexForwarderInvariantTest is Test {
         assertEq(handler.usdc().balanceOf(address(handler.fwd())), 0, "forwarder retained USDC");
     }
 
-    /// feeBps is immutable post-init; rando privileged-call attempts must never mutate config.
+    /// Config changes only through their authorized paths: feeBps moves exclusively
+    /// via the guardian's timelocked setter (P11 ghost model tracks every legal
+    /// transition — a rando call or an early apply can never move it), and it never
+    /// exceeds MAX_FEE_BPS; destination/fallback never change without their owner.
     function invariant_configIntegrity() public view {
-        assertEq(handler.fwd().feeBps(), handler.INITIAL_FEE_BPS());
+        assertEq(handler.fwd().feeBps(), handler.ghostExpectedFeeBps(), "feeBps moved outside the guardian timelock path");
+        assertLe(handler.fwd().feeBps(), 100, "feeBps exceeded MAX_FEE_BPS");
         assertEq(handler.fwd().destination(), handler.destination());
         assertEq(handler.fwd().fallbackAddress(), handler.fallbackAddr());
     }

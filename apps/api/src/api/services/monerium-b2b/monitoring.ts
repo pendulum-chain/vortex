@@ -169,20 +169,23 @@ export interface ForwarderConfigRecord {
 export interface ConfigDriftResult {
   /** Immutable-config violations — should be impossible; alarm, never reconcile. */
   errors: string[];
-  /** destination/fallbackAddress drift: owner-authorized by construction (R07) — reconcile the DB. */
-  ownerAuthorizedUpdates: Partial<Pick<ForwarderConfigRecord, "destination" | "fallbackAddress">>;
+  /** Authorized on-chain transitions — reconcile the DB: destination/fallbackAddress
+   *  change only via the client's own key (R07), feeBps only via the guardian's
+   *  timelocked setter (P11); both leave an on-chain event trail. */
+  ownerAuthorizedUpdates: Partial<Pick<ForwarderConfigRecord, "destination" | "fallbackAddress" | "feeBps">>;
 }
 
 /**
  * Classifies drift between the DB config record and on-chain clone state.
  * destination/fallbackAddress are mutable ONLY by the client's fallbackAddress
- * (`onlyFallback`), so any change there is an expected owner-authorized transition
- * (re-review R07); feeBps is immutable post-init, so a change there is an incident.
+ * (`onlyFallback`) and feeBps ONLY by the guardian's timelocked setter (P11), so any
+ * change in those is an expected authorized transition to reconcile; everything else
+ * (bytecode, registration) is immutable and a change there is an incident.
  */
 export function detectConfigDrift(db: ForwarderConfigRecord, onchain: ForwarderConfigRecord): ConfigDriftResult {
   const result: ConfigDriftResult = { errors: [], ownerAuthorizedUpdates: {} };
   if (db.feeBps !== onchain.feeBps) {
-    result.errors.push(`immutable feeBps mismatch: db=${db.feeBps} chain=${onchain.feeBps}`);
+    result.ownerAuthorizedUpdates.feeBps = onchain.feeBps;
   }
   if (db.destination.toLowerCase() !== onchain.destination.toLowerCase()) {
     result.ownerAuthorizedUpdates.destination = onchain.destination;
@@ -412,8 +415,9 @@ export async function runConfigReconciliation(): Promise<void> {
         logger.error(`monerium-b2b: config violation on forwarder ${forwarder} (account ${account.id}): ${error}`);
       }
       if (Object.keys(drift.ownerAuthorizedUpdates).length > 0) {
-        // Owner-authorized transition (R07): only the client's fallbackAddress can
-        // change these on-chain — reconcile, do not alarm.
+        // Authorized transition: destination/fallback change only via the client's
+        // fallbackAddress (R07), feeBps only via the guardian's timelocked setter
+        // (P11) — reconcile, do not alarm.
         await account.update({ ...drift.ownerAuthorizedUpdates, configVersion: account.configVersion + 1 });
         logger.warn(
           `monerium-b2b: reconciled owner-authorized config change on forwarder ${forwarder} (account ${account.id}): ` +

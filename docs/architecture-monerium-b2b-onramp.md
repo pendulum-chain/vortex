@@ -97,13 +97,13 @@ Batching happens in both directions, automatically:
 
 ## Fees
 
-- **Rate (`feeBps`)**: per-client, fixed at clone initialization, capped by the
-  implementation-immutable `MAX_FEE_BPS`. It is **immutable post-init by design** — fee
-  immutability is part of the client guarantee (registry B1). "Dynamically adjusting"
-  a client's fee therefore means deploying a **new clone** for them with the new rate
-  and migrating: link the new clone to their profile and move the IBAN's default
-  destination (`PATCH /ibans`) — a deliberate, monitored migration (the association
-  monitor treats IBAN moves as an alert condition), not a config flip.
+- **Rate (`feeBps`)**: per-client, set at clone initialization and adjustable by the
+  guardian via `setFeeBps`, always capped by the implementation-immutable
+  `MAX_FEE_BPS`. Increases are announced on-chain and apply (permissionlessly) only
+  after the 24 h `FEE_INCREASE_TIMELOCK`, so a client whose SEPA transfer is already
+  in flight cannot be swapped under a silently higher fee; decreases are immediate
+  (registry P11). Swaps always use the currently applied fee — an announced increase
+  never touches a swap inside its window.
 - **Destination (`FEE_RECIPIENT`)**: an immutable baked into the **implementation**
   contract at deployment, shared by every clone of that implementation. Changing the
   treasury address means deploying a new implementation + factory and using it for new

@@ -116,7 +116,12 @@ contract VortexForwarder {
     bool public initialized;
     address public destination; // client's payout address (may be a CEX deposit address)
     address public fallbackAddress; // client's self-custodied recovery address (mandatory)
-    uint16 public feeBps; // immutable post-init (registry B1; pilot = 0)
+    uint16 public feeBps; // guardian-adjustable within MAX_FEE_BPS; increases timelocked (P11)
+
+    /// @dev P11 fee timelock state: a pending increase and when it may be applied.
+    ///      effectiveAt == 0 means no increase is pending. Decreases never pend.
+    uint16 public pendingFeeBps;
+    uint64 public pendingFeeBpsEffectiveAt;
 
     bool public clientPaused; // set by fallbackAddress only
     bool public guardianPaused; // set by guardian only (protective-only; cannot block fallback paths)
@@ -130,6 +135,10 @@ contract VortexForwarder {
     // ----------------------------------------------------------------- events
 
     event Initialized(address destination, address fallbackAddress, uint16 feeBps);
+    event FeeBpsDecreased(uint16 previous, uint16 current);
+    event FeeBpsIncreaseAnnounced(uint16 current, uint16 pending, uint64 effectiveAt);
+    event FeeBpsIncreaseApplied(uint16 previous, uint16 current);
+    event FeeBpsIncreaseCancelled(uint16 pending);
     event Poked(uint64 strandedSince);
     event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded);
     event StrandedEureSwept(address indexed caller, uint256 amount);
@@ -156,6 +165,7 @@ contract VortexForwarder {
     error InsufficientOutput();
     error Overspend();
     error NotStranded();
+    error NoPendingFee();
     error DelayNotElapsed();
     error TransferFailed();
     error Reentrancy();
@@ -399,6 +409,48 @@ contract VortexForwarder {
     function setGuardianPaused(bool paused) external onlyGuardian {
         guardianPaused = paused;
         emit GuardianPausedSet(paused);
+    }
+
+    /// @dev P11: fee increases take effect only this long after their on-chain
+    ///      announcement, so a client whose SEPA transfer is already in flight under
+    ///      the current fee cannot be minted-and-swapped under a silently higher one.
+    ///      Decreases are immediate — they only ever favor the client.
+    uint256 public constant FEE_INCREASE_TIMELOCK = 24 hours;
+
+    /// @notice Guardian fee adjustment (P11), always bounded by the immutable
+    ///         MAX_FEE_BPS. A decrease (or re-stating the current value) applies
+    ///         immediately and cancels any pending increase; an increase is announced
+    ///         and becomes applicable only after FEE_INCREASE_TIMELOCK. Announcing
+    ///         again replaces the pending increase and restarts its clock.
+    function setFeeBps(uint16 newFeeBps) external onlyGuardian {
+        if (newFeeBps > MAX_FEE_BPS) revert FeeTooHigh();
+        if (newFeeBps <= feeBps) {
+            if (pendingFeeBpsEffectiveAt != 0) {
+                emit FeeBpsIncreaseCancelled(pendingFeeBps);
+                pendingFeeBps = 0;
+                pendingFeeBpsEffectiveAt = 0;
+            }
+            if (newFeeBps != feeBps) {
+                emit FeeBpsDecreased(feeBps, newFeeBps);
+                feeBps = newFeeBps;
+            }
+        } else {
+            pendingFeeBps = newFeeBps;
+            pendingFeeBpsEffectiveAt = uint64(block.timestamp + FEE_INCREASE_TIMELOCK);
+            emit FeeBpsIncreaseAnnounced(feeBps, newFeeBps, pendingFeeBpsEffectiveAt);
+        }
+    }
+
+    /// @notice Applies an announced fee increase once its timelock has elapsed.
+    ///         Permissionless: the announcement is the authorization; anyone may
+    ///         finalize it (the keeper does so as part of its cycle if needed).
+    function applyFeeBps() external {
+        if (pendingFeeBpsEffectiveAt == 0) revert NoPendingFee();
+        if (block.timestamp < pendingFeeBpsEffectiveAt) revert DelayNotElapsed();
+        emit FeeBpsIncreaseApplied(feeBps, pendingFeeBps);
+        feeBps = pendingFeeBps;
+        pendingFeeBps = 0;
+        pendingFeeBpsEffectiveAt = 0;
     }
 
     // ---------------------------------------------------------------- helpers

@@ -523,4 +523,86 @@ contract VortexForwarderTest is Test {
         vm.expectRevert(VortexForwarder.FeeTooHigh.selector);
         factory.deployForwarder(destination, fallbackAddr, 101, bytes32(uint256(9)));
     }
+
+    // ------------------------------------------------------- fee timelock (P11)
+
+    function test_setFeeBps_onlyGuardianAndCapped() public {
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarder.NotGuardian.selector);
+        fwd.setFeeBps(10);
+
+        vm.expectRevert(VortexForwarder.FeeTooHigh.selector);
+        fwd.setFeeBps(101); // above MAX_FEE_BPS, even for the guardian
+    }
+
+    function test_setFeeBps_increaseIsTimelocked() public {
+        fwd.setFeeBps(50);
+        // Announced, not applied: swaps in the window still use the old fee.
+        assertEq(fwd.feeBps(), 0);
+        assertEq(fwd.pendingFeeBps(), 50);
+        assertEq(fwd.pendingFeeBpsEffectiveAt(), uint64(block.timestamp + fwd.FEE_INCREASE_TIMELOCK()));
+
+        vm.expectRevert(VortexForwarder.DelayNotElapsed.selector);
+        fwd.applyFeeBps();
+
+        vm.warp(block.timestamp + 24 hours);
+        vm.prank(rando); // apply is permissionless — the announcement is the authorization
+        fwd.applyFeeBps();
+        assertEq(fwd.feeBps(), 50);
+        assertEq(fwd.pendingFeeBps(), 0);
+        assertEq(fwd.pendingFeeBpsEffectiveAt(), 0);
+
+        vm.expectRevert(VortexForwarder.NoPendingFee.selector);
+        fwd.applyFeeBps();
+    }
+
+    function test_setFeeBps_decreaseIsImmediateAndCancelsPending() public {
+        // Raise to 50 through the timelock first.
+        fwd.setFeeBps(50);
+        vm.warp(block.timestamp + 24 hours);
+        fwd.applyFeeBps();
+
+        // Announce a further increase, then decrease before it applies: the decrease
+        // is immediate and the pending increase is cancelled.
+        fwd.setFeeBps(80);
+        fwd.setFeeBps(25);
+        assertEq(fwd.feeBps(), 25);
+        assertEq(fwd.pendingFeeBpsEffectiveAt(), 0);
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(VortexForwarder.NoPendingFee.selector);
+        fwd.applyFeeBps();
+    }
+
+    function test_setFeeBps_reannounceReplacesAndRestartsClock() public {
+        fwd.setFeeBps(50);
+        vm.warp(block.timestamp + 12 hours);
+        fwd.setFeeBps(80); // replaces the pending 50 and restarts the 24h clock
+        assertEq(fwd.pendingFeeBps(), 80);
+
+        vm.warp(block.timestamp + 12 hours + 1); // 24h after FIRST announcement only
+        vm.expectRevert(VortexForwarder.DelayNotElapsed.selector);
+        fwd.applyFeeBps();
+
+        vm.warp(block.timestamp + 12 hours);
+        fwd.applyFeeBps();
+        assertEq(fwd.feeBps(), 80);
+    }
+
+    function test_setFeeBps_restatingCurrentCancelsWithoutChange() public {
+        fwd.setFeeBps(50);
+        fwd.setFeeBps(0); // re-state the current value: cancel-only gesture
+        assertEq(fwd.feeBps(), 0);
+        assertEq(fwd.pendingFeeBpsEffectiveAt(), 0);
+    }
+
+    function test_swapDuringPendingIncrease_usesOldFee() public {
+        fwd.setFeeBps(50); // pending, not applied
+        _fund(1_000e18);
+        router.setNextOut(1_140e6);
+        vm.prank(keeper);
+        fwd.swapAndForward();
+        // Zero fee taken: the announced-but-unapplied increase never touches a swap.
+        assertEq(usdc.balanceOf(feeRecipient), 0);
+        assertEq(usdc.balanceOf(destination), 1_140e6);
+    }
 }

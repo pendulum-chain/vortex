@@ -156,10 +156,10 @@ describe("detectConfigDrift", () => {
     });
   });
 
-  it("classifies a feeBps change as an error, never a reconciliation", () => {
+  it("classifies a feeBps change as a guardian-authorized reconciliation (P11)", () => {
     const drift = detectConfigDrift(base, { ...base, feeBps: 50 });
-    expect(drift.errors).toEqual(["immutable feeBps mismatch: db=0 chain=50"]);
-    expect(drift.ownerAuthorizedUpdates).toEqual({});
+    expect(drift.errors).toEqual([]);
+    expect(drift.ownerAuthorizedUpdates.feeBps).toBe(50);
   });
 });
 
