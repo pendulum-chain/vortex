@@ -80,6 +80,7 @@ All currently Telegram-only. Consolidate into MSA or side letter:
 6. SEPA recall / fraud loss allocation after conversion+forwarding (pre-existing; unresolved).
 7. Per-IBAN suspension capability for incident response (pre-existing; unresolved).
 8. T3 corporate KYB mechanism.
+9. Advance notice of any change to the EIP-1271 ownership/link message (and, once T1 resolves, the recovery message): the forwarder whitelists their exact hashes, so an unannounced change fail-closes new onboarding (2026-08-26).
 
 ## G2 — legal review scope (unchanged, not started)
 
