@@ -256,6 +256,7 @@ export class FlowBuilder<O extends PhaseIO> {
             input: ctx.input,
             ipAddress: ctx.ipAddress,
             metadata: blocks[phase.context.key],
+            priorRegistrationFacts: { ...registrationFacts },
             quote: ctx.quote,
             signingAccounts: ctx.signingAccounts,
             transaction: ctx.transaction

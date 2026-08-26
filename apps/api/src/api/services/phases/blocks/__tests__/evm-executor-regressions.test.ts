@@ -386,6 +386,7 @@ describe("EVM block executor regressions", () => {
         blocks: {
           subsidizePostSwap: {
             actualOutputAmountRaw: "95000000",
+            network: Networks.Polygon,
             outputCurrency: EvmToken.USDC,
             outputDecimals: 6,
             subsidyAmountInOutputTokenRaw: "5000000",
@@ -416,6 +417,7 @@ describe("EVM block executor regressions", () => {
     }
 
     expect(conversions).toEqual(["100", "5"]);
+    expect(runFinancialOperation.mock.calls[0][0]).toMatchObject({ request: { network: Networks.Polygon } });
     expect(sendTransaction).toHaveBeenCalledTimes(1);
   });
 

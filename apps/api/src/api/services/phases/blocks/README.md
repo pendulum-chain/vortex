@@ -35,8 +35,11 @@ the transactions the ephemerals/user must sign all live in one place.
    phase's *own* simulated metadata key (e.g. `NablaSwap` reads
    `quote.metadata.nablaSwapEvm`, `SquidRouterSwap` reads
    `quote.metadata.evmToEvm`) plus corridor-level `PrepareCtx` data, never
-   another phase's output. This is what makes phases removable,
-   reorderable, and swappable.
+   another phase's output. Registration has one ordered exception: a register
+   hook may inspect read-only, namespaced facts already returned by earlier
+   hooks and copy required values into its own facts. It never receives facts
+   from itself or later hooks. This is what makes phases removable,
+   reorderable, and swappable while keeping preparation phase-owned.
 3. **Adjacency mismatches fail at compile time — where the types can carry
    it.** `FlowBuilder.pipe` rejects a token- or chain-brand mismatch as a
    hard type error. `Phase.simulate` is declared as a *property function*
@@ -51,7 +54,11 @@ transaction preparation, phase ordering, and executor registration. The catalog
  currently maps the direct, Base-destination, and cross-chain BRL/Avenia and
  EUR/Mykobo onramps, their Base offramps, plus the AlfredPay flows,
  expressed as flow *families* parameterized by destination chain and token
-where needed.
+ where needed.
+The Monerium issue, owner-to-ephemeral self-transfer, and fixed Polygon Uniswap V3
+EURe-to-USDC blocks are implemented, and a complete Polygon-to-EVM flow factory is
+topology-tested. It remains uncataloged while payment correlation and manual
+stale-permit resolution are unresolved.
 Unmapped corridors are rejected during quote creation until their flows are
 ported. `BrlOnrampAssethubUsdc` and `BrlOfframpAssethubUsdc` are cataloged for
 deterministic persisted-quote preparation and recovery, but an explicit
@@ -103,6 +110,8 @@ apps/api/src/api/services/phases/blocks/
     avenia-{direct-mint,mint,moonbeam-mint}/   # BRL onramp variants
     avenia-{offramp-fee,offramp-payout,pendulum-offramp}/
     mykobo-{mint,offramp-fee,offramp-payout}/  # EUR provider phases
+    monerium-{issue,self-transfer}/            # dormant EUR issue/custody phases
+    uniswap-v3-fixed-swap/                     # dormant pinned Polygon EURe/USDC conversion
     {evm,assethub}-offramp-source/             # source validation and tx plans
     fund-ephemeral/                            # EVM/Substrate funding and source-hash checks
     nabla-swap/                                # EVM Nabla simulation, txs, and executors
@@ -128,6 +137,7 @@ apps/api/src/api/services/phases/blocks/
     eur-onramp-base-same-chain.ts              # Base USDC passthrough and routed Base outputs
     eur-onramp-base-cross-chain.ts             # makeEurOnrampBaseCrossChainFlow(toChain, toToken)
     eur-offramp-base.ts                        # supported EVM source -> EUR on Base
+    monerium-onramp-polygon-cross-chain.ts     # dormant Polygon EURe -> destination EVM factory
   __tests__/
     brl-onramp-base-same-chain.flow.test.ts         # Base variant topology, executors, and simulation
     brl-onramp-base-same-chain.transactions.test.ts # Base variant tx/state/nonce expectations
@@ -293,7 +303,11 @@ route.
 - Registration is optional and phase-owned. `Flow.register` namespaces facts
   and response artifacts by context key, and a phase may refresh only its own
   metadata. Registration receives a read-only quote, authenticated user,
-  normalized input, signing accounts, and optional DB transaction/IP context.
+  normalized input, signing accounts, optional DB transaction/IP context, and
+  an isolated `priorRegistrationFacts` snapshot containing only facts from
+  earlier register hooks. A hook that needs an earlier fact during preparation
+  copies it into its own result; `prepareTxs` still receives only
+  `ownRegistrationFacts`.
 - Preparation account capabilities are keyed by `EphemeralAccountType`.
   EVM phases explicitly require EVM; destination address is optional in core.
 - Phases whose executors sign live (funding-account subsidies, Avenia
@@ -325,6 +339,7 @@ route.
 | Presigned tx | Lane | Owning phase | Rationale |
 |--------------|------|--------------|-----------|
 | `nablaApprove`, `nablaSwap` | main | `NablaSwap` | its executors broadcast them; amounts from `nablaSwapEvm` |
+| `uniswapApprove`, `uniswapSwap` | main | `PolygonEureUsdcUniswapSwap` | exact EURe approval and pinned-pool `exactInputSingle` conversion |
 | `distributeFees` | main | `DistributeFees` | fee amounts from `quote.metadata.fees` |
 | `squidRouterApprove`, `squidRouterSwap` | main | `SquidRouterSwap` | bridge input from `evmToEvm` |
 | `destinationTransfer` | main | `DestinationTransfer` | delivers `quote.outputAmount` to the user |
@@ -380,6 +395,9 @@ same contract under `phases/`.
 | `AlfredpayMint` | `alfredpayMint` | `["alfredpayOnrampMint"]` |
 | `AveniaMint` | `aveniaMint` | `["brlaOnrampMint"]` |
 | `MykoboMint` | `mykoboMint` | `["mykoboOnrampDeposit"]` |
+| `MoneriumIssue(chain, fee)` | `moneriumIssue` | `["moneriumOnrampMint"]` (dormant, fails closed) |
+| `MoneriumSelfTransfer<Chain>()` | `moneriumSelfTransfer` | `["moneriumOnrampSelfTransfer"]` (dormant) |
+| `PolygonEureUsdcUniswapSwap` | `uniswapV3FixedSwap` | `["uniswapApprove", "uniswapSwap"]` (dormant) |
 | `FundEphemeral(token, chain)` | `fundEphemeral` | `["fundEphemeral"]` |
 | `SubsidizePre<Token, Chain>()` | `subsidizePreSwap` | `["subsidizePreSwap"]` |
 | `NablaSwap(chain, in, out)` | `nablaSwap` | `["nablaApprove", "nablaSwap"]` |

@@ -350,6 +350,35 @@ describe("Presigned Transaction validation", () => {
     }
   });
 
+  it("validates post-swap subsidy as an EVM transaction on Polygon", async () => {
+    const expectedEvmSigner = "0x1111111111111111111111111111111111111111";
+    const wrongEvmSigner = "0x2222222222222222222222222222222222222222";
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "subsidizePostSwap",
+      signer: wrongEvmSigner,
+      txData: {
+        data: "0x12345678",
+        gas: "21000",
+        maxFeePerGas: "1000000000",
+        maxPriorityFeePerGas: "1000000000",
+        to: "0x000000000000000000000000000000000000dEaD",
+        value: "0"
+      }
+    };
+
+    await expect(
+      validatePresignedTxs(
+        RampDirection.BUY,
+        [{ meta: {}, network: Networks.Polygon, nonce: 0, phase: "subsidizePostSwap", signer: wrongEvmSigner, txData: "0x" }],
+        { EVM: expectedEvmSigner, Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz" },
+        [unsignedTx]
+      )
+    ).rejects.toThrow(`EVM transaction signer ${wrongEvmSigner} does not match the expected signer ${expectedEvmSigner}`);
+  });
+
   it("should pass validation for valid presigned EVM transactions", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
@@ -1177,6 +1206,51 @@ describe("Presigned Transaction validation", () => {
     const subset = VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP.slice(0, 1);
     await expect(
       validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP)
+    ).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
+  });
+
+  it("requires user-signed typed data before a submission is complete", async () => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
+    const unsignedPermit: PresignedTx = {
+      meta: {},
+      network: Networks.Base,
+      nonce: 0,
+      phase: "moneriumOnrampSelfTransfer",
+      signer: EVM_SIGNER_2,
+      txData: {
+        domain: {
+          chainId: 8453,
+          name: "EURe",
+          verifyingContract: "0xbf6e2966A9C3D99C9E4D069E04f7Bdb9C8aa762C",
+          version: "1"
+        },
+        message: {
+          deadline: "9999999999",
+          nonce: "0",
+          owner: EVM_SIGNER_2,
+          spender: EVM_SIGNER,
+          value: "1"
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        }
+      }
+    };
+
+    await expect(
+      validatePresignedTxs(
+        RampDirection.BUY,
+        VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP,
+        ephemerals,
+        [...VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP, unsignedPermit]
+      )
     ).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
   });
 

@@ -184,6 +184,93 @@ describe("block flow registration", () => {
     expect(started.state.aveniaTicketId).toBe("provider-123");
   });
 
+  it("exposes isolated prior facts in flow order and keeps preparation facts phase-owned", async () => {
+    const FirstContext = defineContext<{ value: string }>()("firstRegistration");
+    const SecondContext = defineContext<{ value: string }>()("secondRegistration");
+    const ThirdContext = defineContext<{ value: string }>()("thirdRegistration");
+    const observedPriorFacts: Readonly<Record<string, unknown>>[] = [];
+    const FirstPhase: Phase<typeof FirstContext, FiatBrlIO, FiatBrlIO, { secret: string }> = {
+      context: FirstContext,
+      name: "FirstRegistration",
+      phases: [],
+      register: async ctx => {
+        observedPriorFacts.push(ctx.priorRegistrationFacts ?? {});
+        return { facts: { secret: "first-secret" } };
+      },
+      simulate: async input => ({ metadata: { value: "first" }, output: input })
+    };
+    const SecondPhase: Phase<typeof SecondContext, FiatBrlIO, FiatBrlIO, { copiedSecret: string }> = {
+      context: SecondContext,
+      name: "SecondRegistration",
+      phases: [],
+      prepareTxs: async ctx => ({ intents: [], state: { ownFacts: ctx.ownRegistrationFacts } }),
+      register: async ctx => {
+        observedPriorFacts.push(ctx.priorRegistrationFacts ?? {});
+        if (false) {
+          // @ts-expect-error prior registration facts are read-only
+          ctx.priorRegistrationFacts!.laterRegistration = {};
+        }
+        const firstFacts = ctx.priorRegistrationFacts?.firstRegistration as { secret: string };
+        return { facts: { copiedSecret: firstFacts.secret } };
+      },
+      simulate: async input => ({ metadata: { value: "second" }, output: input })
+    };
+    const ThirdPhase: Phase<typeof ThirdContext, FiatBrlIO, FiatBrlIO, { complete: true }> = {
+      context: ThirdContext,
+      name: "ThirdRegistration",
+      phases: [],
+      register: async ctx => {
+        observedPriorFacts.push(ctx.priorRegistrationFacts ?? {});
+        return { facts: { complete: true } };
+      },
+      simulate: async input => ({ metadata: { value: "third" }, output: input })
+    };
+    const flow = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), FirstPhase)
+      .pipe(SecondPhase)
+      .pipe(ThirdPhase)
+      .build("OrderedRegistration");
+    const metadata = {
+      blocks: {
+        firstRegistration: { value: "first" },
+        secondRegistration: { value: "second" },
+        thirdRegistration: { value: "third" }
+      },
+      globals: { fees: {} as never, partner: null, request: phaseCtx(FiatToken.BRL, Networks.Base).request }
+    };
+
+    const registered = await flow.register({
+      authenticatedUser: { id: "user" },
+      input: {},
+      metadata,
+      quote: {} as never,
+      signingAccounts: []
+    });
+
+    expect(observedPriorFacts).toEqual([
+      {},
+      { firstRegistration: { secret: "first-secret" } },
+      {
+        firstRegistration: { secret: "first-secret" },
+        secondRegistration: { copiedSecret: "first-secret" }
+      }
+    ]);
+    expect(registered.registrationFacts).toEqual({
+      firstRegistration: { secret: "first-secret" },
+      secondRegistration: { copiedSecret: "first-secret" },
+      thirdRegistration: { complete: true }
+    });
+
+    const prepared = await flow.prepareTxs({
+      accounts: {},
+      metadata: registered.metadata,
+      quote: {} as never,
+      registrationFacts: registered.registrationFacts
+    });
+    expect(prepared.stateMeta.blockState).toEqual({
+      secondRegistration: { ownFacts: { copiedSecret: "first-secret" } }
+    });
+  });
+
   it("rejects persisted identity and phase topology mismatches before lifecycle hooks", async () => {
     const flow = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), RegisteredPhase).build("Versioned");
     const simulated = await flow.simulate(phaseCtx(FiatToken.BRL, Networks.Base));

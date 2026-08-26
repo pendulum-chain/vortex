@@ -120,6 +120,9 @@ describe("Monerium address and IBAN schemas", () => {
       true
     );
     expect(
+      moneriumAddressSchema.safeParse({ address: ADDRESS, chains: ["scrollsepolia"], profile: PROFILE_ID }).success
+    ).toBe(false);
+    expect(
       moneriumIbanSchema.safeParse({
         address: ADDRESS,
         bic: "CBHFLU2LXXX",

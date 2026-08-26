@@ -337,6 +337,43 @@ describe("runFinancialOperation", () => {
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
   });
 
+  it("persists a definitive rejection discovered during reconciliation", async () => {
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: async () => {
+          throw new Error("connection lost after submission");
+        }
+      })
+    ).rejects.toThrow("connection lost after submission");
+
+    const reconcile = mock(async () => {
+      throw new FinancialOperationRejectedError("transaction reverted");
+    });
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: mock(async () => ({ id: "must-not-run" })),
+        reconcile
+      })
+    ).rejects.toThrow("transaction reverted");
+
+    expect(await FinancialOperation.findOne()).toMatchObject({
+      errorMessage: "transaction reverted",
+      status: "failed"
+    });
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform: async () => ({ id: "retried" }),
+        reconcile,
+        retryFailed: true
+      })
+    ).resolves.toEqual({ id: "retried" });
+    expect(reconcile).toHaveBeenCalledTimes(1);
+  });
+
   it("does not let a stale failed-operation reset overwrite another worker's submitted claim", async () => {
     await expect(
       runFinancialOperation({

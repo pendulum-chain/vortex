@@ -49,6 +49,10 @@ interface FlowDefinition {
   matches(request: FlowRequest): boolean;
 }
 
+function isDormantMoneriumEure(currency: unknown): boolean {
+  return currency === "EURE";
+}
+
 const flowDefinitions: FlowDefinition[] = [
   {
     create() {
@@ -99,6 +103,7 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         isNetworkEVM(network) &&
         isEvmToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency) &&
         evmTokenConfig[network][request.inputCurrency] !== undefined
       );
     }
@@ -120,6 +125,7 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         isNetworkEVM(network) &&
         isEvmToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency) &&
         evmTokenConfig[network][request.inputCurrency] !== undefined
       );
     }
@@ -141,6 +147,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
+        !isDormantMoneriumEure(request.inputCurrency) &&
         evmTokenConfig[network][request.inputCurrency as EvmToken] !== undefined
       );
     }
@@ -187,6 +194,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.inputCurrency === FiatToken.EURC &&
         request.outputCurrency !== EvmToken.EURC &&
         request.outputCurrency !== EvmToken.USDC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         evmTokenConfig[Networks.Base][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
@@ -207,6 +215,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.rampType === RampDirection.BUY &&
         request.from === EPaymentMethod.SEPA &&
         request.inputCurrency === FiatToken.EURC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
         isNetworkEVM(network)
@@ -255,6 +264,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.from === mapFiatToDestination(FiatToken.BRL) &&
         request.outputCurrency !== EvmToken.BRLA &&
         request.outputCurrency !== EvmToken.USDC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         evmTokenConfig[Networks.Base][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
@@ -289,6 +299,7 @@ const flowDefinitions: FlowDefinition[] = [
       return (
         request.rampType === RampDirection.BUY &&
         isDomesticToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Polygon &&
         isNetworkEVM(network)
@@ -309,6 +320,7 @@ const flowDefinitions: FlowDefinition[] = [
       return (
         request.rampType === RampDirection.BUY &&
         request.inputCurrency === FiatToken.BRL &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
         isNetworkEVM(network)

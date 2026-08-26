@@ -47,12 +47,12 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   );
   let adjustedExpectedOutput = expectedOutput;
   const toNetwork = getNetworkFromDestination(ctx.request.to);
-  if (toNetwork && !(toNetwork === Networks.Base && ctx.request.outputCurrency === EvmToken.USDC)) {
+  if (toNetwork && !(toNetwork === input.chain && ctx.request.outputCurrency === input.token)) {
     try {
       const bridge = await getEvmBridgeQuote({
         amountDecimal: expectedOutput.toString(),
-        fromNetwork: Networks.Base,
-        inputCurrency: EvmToken.USDC,
+        fromNetwork: input.chain as Networks,
+        inputCurrency: input.token as OnChainToken,
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
         toNetwork
       });
@@ -96,7 +96,7 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
     `SubsidizePost: applied=${subsidy.applied}, subsidy=${Big(subsidy.subsidyAmountInOutputTokenDecimal).toFixed()}, newAmount=${newAmount.toFixed()}`
   );
   return {
-    metadata: { ...subsidy, outputCurrency: input.token, outputDecimals: tokenDetails.decimals },
+    metadata: { ...subsidy, network: input.chain, outputCurrency: input.token, outputDecimals: tokenDetails.decimals },
     output: { ...input, amount: newAmount, amountRaw: newAmountRaw }
   };
 }
@@ -151,6 +151,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
     expectedOutputAmountRaw: expectedRaw,
     idealSubsidyAmountInOutputTokenDecimal: new Big(idealSubsidy.toFixed(6, 0)),
     idealSubsidyAmountInOutputTokenRaw: multiplyByPowerOfTen(idealSubsidy, tokenDetails.decimals).toFixed(0, 0),
+    network: input.chain,
     outputCurrency: input.token,
     outputDecimals: tokenDetails.decimals,
     partnerId: partner?.id ?? null,

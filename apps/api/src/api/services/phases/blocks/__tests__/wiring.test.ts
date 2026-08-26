@@ -145,6 +145,51 @@ describe("block flow production wiring", () => {
     ).toThrow(APIError);
   });
 
+  it("keeps EURE out of generic catalog routes while Monerium is dormant", () => {
+    const dormantEure = "EURE";
+    const requests = [
+      {
+        ...mappedRequest,
+        from: EPaymentMethod.SEPA,
+        inputCurrency: FiatToken.EURC,
+        network: Networks.Base,
+        outputCurrency: dormantEure,
+        to: Networks.Base
+      },
+      { ...mappedRequest, network: Networks.Base, outputCurrency: dormantEure, to: Networks.Base },
+      { ...mappedRequest, from: EPaymentMethod.SEPA, inputCurrency: FiatToken.EURC, outputCurrency: dormantEure },
+      { ...mappedRequest, outputCurrency: dormantEure },
+      {
+        ...mappedRequest,
+        from: Networks.Base,
+        inputCurrency: dormantEure,
+        outputCurrency: FiatToken.EURC,
+        rampType: RampDirection.SELL,
+        to: EPaymentMethod.SEPA
+      },
+      {
+        ...mappedRequest,
+        from: Networks.Base,
+        inputCurrency: dormantEure,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: EPaymentMethod.PIX
+      },
+      {
+        ...mappedRequest,
+        from: Networks.Base,
+        inputCurrency: dormantEure,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: EPaymentMethod.SPEI
+      }
+    ];
+
+    for (const request of requests) {
+      expect(() => resolveBlockFlow(request as never)).toThrow(APIError);
+    }
+  });
+
   it("derives one non-conflicting executor per phase from the catalog", () => {
     const handlers = getBlockFlowHandlers();
     const phases = handlers.map(handler => handler.getPhaseName());

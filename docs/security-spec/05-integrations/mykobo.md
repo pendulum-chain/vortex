@@ -68,7 +68,7 @@ The Mykobo KYC widget on the frontend (`MykoboKycFlow`) drives the user through 
 
 ### Why no `mykoboMint` phase
 
-Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex does **not** call any Mykobo API to trigger minting. Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is observed entirely on-chain via the Base EURC balance of the ephemeral. The handler is therefore a pure balance-poller; there is no Vortex-controlled minting step that can fail mid-flight.
+Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is observed entirely on-chain via the Base EURC balance of the ephemeral. The handler is therefore a pure balance-poller; there is no Vortex-controlled minting step that can fail mid-flight. The separate dormant Monerium issue executor also does not currently trigger minting: it fails closed until deterministic incoming-payment correlation exists.
 
 ## Security Invariants
 

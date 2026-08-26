@@ -80,7 +80,7 @@ function readMykoboFeeFallback(): MykoboFeeFallback {
 function readNonNegativeDecimalEnv(name: string): string {
   const rawValue = process.env[name]?.trim();
   if (!rawValue) {
-    throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
+    throw new Error(`${name} is required`);
   }
   const value = Number(rawValue);
   if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
@@ -216,6 +216,7 @@ interface Config {
   monerium: {
     apiUrl: string;
     clientId: string;
+    issueFeeEur: string | undefined;
     redirectUri: string;
   };
   subscanApiKey: string | undefined;
@@ -317,6 +318,7 @@ export const config: Config = {
       process.env.MONERIUM_API_URL ||
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
+    issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
   },
   mykobo: {
@@ -425,6 +427,7 @@ if (config.env === "production") {
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!config.monerium.issueFeeEur) missing.push("MONERIUM_ISSUE_FEE_EUR");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
 
   if (missing.length > 0) {

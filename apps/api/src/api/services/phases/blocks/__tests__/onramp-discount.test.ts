@@ -172,4 +172,26 @@ describe("onramp discount semantics", () => {
     expect(result.metadata.applied).toBe(true);
     expect(bridgeQuoteRequests).toEqual([]);
   });
+
+  it("prices and persists a Polygon USDC subsidy from Polygon", async () => {
+    const partnerId = "polygon-eur-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.EURC, targetDiscount: 0.01 });
+    const ctx = buildCtx(FiatToken.EURC, partnerId, Networks.Arbitrum, EvmToken.USDC);
+
+    const result = await simulateSubsidizePost(
+      { amount: new Big("104.5"), amountRaw: "104500000", chain: Networks.Polygon, token: EvmToken.USDC },
+      ctx
+    );
+
+    expect(result.metadata.network).toBe(Networks.Polygon);
+    expect(bridgeQuoteRequests).toEqual([
+      {
+        amountDecimal: "109.08",
+        fromNetwork: Networks.Polygon,
+        inputCurrency: EvmToken.USDC,
+        outputCurrency: EvmToken.USDC,
+        toNetwork: Networks.Arbitrum
+      }
+    ]);
+  });
 });

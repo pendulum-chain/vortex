@@ -95,6 +95,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     initial: t("pages.progress.initial"),
+    moneriumOnrampMint: t("pages.progress.mykoboOnrampDeposit"),
+    moneriumOnrampSelfTransfer: getTransferringMessage(),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     mykoboOnrampDeposit: t("pages.progress.mykoboOnrampDeposit"),
@@ -130,7 +132,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterSwap: getSquidRouterSwapMessage(),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
-    timedOut: ""
+    timedOut: "",
+    uniswapApprove: getSwappingMessage(),
+    uniswapSwap: getSwappingMessage()
   };
 
   return messages[currentPhase];

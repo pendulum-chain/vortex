@@ -162,18 +162,7 @@ export async function runFinancialOperation<Result>({
     if (operation.status === "confirmed" && operation.response !== null) {
       return operation.response as Result;
     }
-    if (reconcile) {
-      const reconciled = await reconcile(operation);
-      if (reconciled !== null) {
-        const stored = serializable(reconciled);
-        await operation.update({
-          externalId: externalId?.(reconciled) ?? operation.externalId,
-          response: stored,
-          status: "confirmed"
-        });
-        return reconciled;
-      }
-    }
+    let resetFailedOperation = false;
     if (operation.status === "failed") {
       if (!retryFailed) {
         throw new APIError({
@@ -197,13 +186,37 @@ export async function runFinancialOperation<Result>({
         if (reloadedOperation.status !== "not_started") {
           throw new FinancialOperationReconciliationRequiredError(reloadedOperation, `has ${reloadedOperation.status} outcome`);
         }
-      } else {
-        operation.errorMessage = null;
-        operation.requestHash = requestHash;
-        operation.response = null;
-        operation.status = "not_started";
       }
-    } else if (operation.status === "not_started") {
+      operation.errorMessage = null;
+      operation.requestHash = requestHash;
+      operation.response = null;
+      operation.status = "not_started";
+      resetFailedOperation = true;
+    }
+    if (reconcile && !resetFailedOperation) {
+      let reconciled: Result | null;
+      try {
+        reconciled = await reconcile(operation);
+      } catch (error) {
+        if (error instanceof FinancialOperationRejectedError) {
+          await operation.update({
+            errorMessage: error.message.slice(0, 500),
+            status: "failed"
+          });
+        }
+        throw error;
+      }
+      if (reconciled !== null) {
+        const stored = serializable(reconciled);
+        await operation.update({
+          externalId: externalId?.(reconciled) ?? operation.externalId,
+          response: stored,
+          status: "confirmed"
+        });
+        return reconciled;
+      }
+    }
+    if (operation.status === "not_started") {
       // The creator could have crashed before claiming the operation. Claiming is an
       // atomic state change made before the provider call, so only this state is safe
       // to resume automatically.
