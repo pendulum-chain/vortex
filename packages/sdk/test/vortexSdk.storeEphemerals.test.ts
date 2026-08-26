@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test";
-import { existsSync } from "fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { randomUUID } from "crypto";
+import { existsSync, rmSync } from "fs";
 import { EphemeralAccountType } from "@vortexfi/shared";
 import type { StoredEphemeralKey, VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
-const RAMP_ID = "ramp_store_test";
+const RAMP_ID = `ramp_store_test_${randomUUID()}`;
 const BUILT_IN_FILE = `ephemerals_${RAMP_ID}.json`;
 
 const ephemerals = {
@@ -15,6 +16,10 @@ const ephemerals = {
 function makeSdk(config: Partial<VortexSdkConfig> = {}): VortexSdk {
   return new VortexSdk({ apiBaseUrl: "http://127.0.0.1:1", ...config });
 }
+
+afterAll(() => {
+  rmSync(BUILT_IN_FILE, { force: true });
+});
 
 describe("VortexSdk.storeEphemerals", () => {
   test("passes structured items to the callback instead of the built-in storage", async () => {
@@ -61,7 +66,7 @@ describe("VortexSdk.storeEphemerals", () => {
     expect(calls[0]).toHaveLength(2);
   });
 
-  test("propagates a callback rejection so registration fails closed", async () => {
+  test("propagates a callback rejection", async () => {
     const sdk = makeSdk({
       storeEphemeralKeysCallback: async () => {
         throw new Error("vault unavailable");

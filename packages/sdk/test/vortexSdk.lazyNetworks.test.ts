@@ -262,6 +262,51 @@ describe("lazy chain WebSocket initialization", () => {
     expect(calls).toContain("POST /v1/ramp/update");
   });
 
+  test("registration awaits custom ephemeral storage and fails before signing or update", async () => {
+    const calls = mockBackend(Networks.Pendulum);
+    let rejectStorage!: (reason?: unknown) => void;
+    let storageStarted!: () => void;
+    const storageStart = new Promise<void>(resolve => {
+      storageStarted = resolve;
+    });
+    const storageResult = new Promise<void>((_, reject) => {
+      rejectStorage = reject;
+    });
+    const sdk = new VortexSdk({
+      apiBaseUrl: "https://backend.test",
+      networkInitializationTimeoutMs: 40,
+      pendulumWsUrl: DEAD_WEBSOCKET_URL,
+      secretKey: "sk_test_user",
+      storeEphemeralKeysCallback: async () => {
+        storageStarted();
+        await storageResult;
+      },
+    });
+
+    const registration = sdk.registerRamp(quote, { destinationAddress: "0xuser" });
+    let registrationSettled = false;
+    void registration.then(
+      () => {
+        registrationSettled = true;
+      },
+      () => {
+        registrationSettled = true;
+      }
+    );
+
+    await withDeadline(storageStart);
+    await new Promise(resolve => setTimeout(resolve, 80));
+
+    expect(registrationSettled).toBe(false);
+    expect(calls).toContain("POST /v1/ramp/register");
+    expect(calls).not.toContain("POST /v1/ramp/update");
+
+    rejectStorage(new Error("vault unavailable"));
+
+    await expect(withDeadline(registration)).rejects.toThrow("vault unavailable");
+    expect(calls).not.toContain("POST /v1/ramp/update");
+  });
+
   test("BRL offramp registration also bypasses unavailable chain WebSockets", async () => {
     const calls = mockBackend(undefined, offrampQuote);
     const sdk = createSdk();
