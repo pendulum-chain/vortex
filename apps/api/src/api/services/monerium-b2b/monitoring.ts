@@ -4,7 +4,7 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import { erc20Abi, factoryAbi, forwarderAbi, getChainId, getForwarderImmutables, getPublicClient } from "./chain";
-import { getProfileAddresses, listIbans } from "./whitelabel-client";
+import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 
 /**
  * Monitoring pass for the Monerium B2B onramp (implementation plan D3 / phase 3), run
@@ -461,7 +461,7 @@ export async function runMonitoringPass(now: number = Date.now()): Promise<void>
     await guarded("stranded-balance monitor", () => runStrandedBalanceMonitor(now));
     await guarded("config reconciliation", runConfigReconciliation);
   }
-  if (config.moneriumB2b.clientId && config.moneriumB2b.clientSecret) {
+  if (isWhitelabelConfigured()) {
     await guarded("association monitor", runAssociationMonitor);
   }
 }

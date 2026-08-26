@@ -4,11 +4,13 @@
 
 All calls are server-to-server using `client_credentials`; users remain entirely within Vortex. ([Whitelabel: Authentication](https://docs.monerium.com/whitelabel#authentication))
 
-The initial Vortex transport is `packages/shared/src/services/monerium/moneriumApiService.ts`.
-It establishes the sole Monerium integration baseline but does not by itself re-enable EUR ramp
-registration or settlement. It caches client-credential tokens in memory, requests API v2, retries
-once after `401`, and applies a 10-second timeout to every call. Credentials use
-`MONERIUM_WHITELABEL_CLIENT_ID` and `MONERIUM_WHITELABEL_CLIENT_SECRET`.
+The Vortex transport is `packages/shared/src/services/monerium/moneriumApiService.ts` — the single
+Monerium transport in the repo; the Monerium B2B onramp consumes it through the narrow adapter
+`apps/api/src/api/services/monerium-b2b/monerium-api.ts`. It establishes the sole Monerium
+integration baseline but does not by itself re-enable EUR ramp registration or settlement. It
+caches client-credential tokens in memory, requests API v2, retries once after `401`, and applies
+a 10-second timeout to every call. Credentials use `MONERIUM_WHITELABEL_CLIENT_ID` and
+`MONERIUM_WHITELABEL_CLIENT_SECRET`.
 
 | Operation | Endpoint / sequence | Commentary | Source |
 |---|---|---|---|

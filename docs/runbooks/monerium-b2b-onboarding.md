@@ -5,7 +5,8 @@ One pass per client. Spec: `docs/prd/monerium-b2b-implementation-plan.md`; API c
 shapes below are the sandbox-validated ones from registry item T4 (2026-07-17).
 
 Prerequisites: guardian key funded on the target chain; `MONERIUM_B2B_*` env set
-(API creds, attestor key, RPC); partner paperwork complete; the client company
+(attestor key, RPC, webhook secret) plus the whitelabel API credentials
+`MONERIUM_WHITELABEL_CLIENT_ID/SECRET`; partner paperwork complete; the client company
 onboarded and KYB-approved on Monerium's side (partner KYC reliance) with its
 Monerium profile UUID at hand; the partner configured as a managed-profile manager
 (`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type

@@ -92,9 +92,8 @@ describe("monerium b2b onboarding automation", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     config.moneriumB2b.attestorPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    config.moneriumB2b.clientId = "test-client-id";
-    config.moneriumB2b.clientSecret = "test-client-secret";
     config.moneriumB2b.rpcUrl = "http://rpc.invalid";
+    // MONERIUM_WHITELABEL_CLIENT_ID/SECRET come from test-utils/preload.ts.
   });
 
   afterAll(() => {
@@ -238,11 +237,16 @@ describe("monerium b2b onboarding automation", () => {
 
   it("does nothing while the whitelabel credentials are not configured", async () => {
     await createMappedAccount();
-    config.moneriumB2b.clientId = "";
+    const savedClientId = process.env.MONERIUM_WHITELABEL_CLIENT_ID;
+    process.env.MONERIUM_WHITELABEL_CLIENT_ID = "";
     const deps = fakeDeps();
 
-    expect(await advanceOnboardingAccounts(deps)).toBe(0);
-    expect(deps.calls.getProfileAddresses).toBe(0);
+    try {
+      expect(await advanceOnboardingAccounts(deps)).toBe(0);
+      expect(deps.calls.getProfileAddresses).toBe(0);
+    } finally {
+      process.env.MONERIUM_WHITELABEL_CLIENT_ID = savedClientId;
+    }
   });
 });
 

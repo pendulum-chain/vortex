@@ -1,3 +1,4 @@
+import type { MoneriumChain } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import type { Address } from "viem";
 import logger from "../../../config/logger";
@@ -6,13 +7,13 @@ import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/monerium
 import { FinancialOperationRejectedError, runFinancialOperation } from "../phases/blocks/core/financial-operation";
 import { signLinkAttestation } from "./attestor";
 import { getChainId } from "./chain";
-import { getIbanForAddress, getProfileAddresses, linkAddress, requestIban } from "./whitelabel-client";
+import { getIbanForAddress, getProfileAddresses, isWhitelabelConfigured, linkAddress, requestIban } from "./monerium-api";
 
 const ONBOARDING_FLOW = { id: "monerium-b2b-onboarding", version: 1 } as const;
 
 // Monerium's chain identifiers for the chains the forwarder deploys to
 // (docs.monerium.com chain values; the attestation binds the numeric chain id).
-const MONERIUM_CHAIN_NAMES: Record<number, string> = {
+const MONERIUM_CHAIN_NAMES: Record<number, MoneriumChain> = {
   1: "ethereum",
   11155111: "sepolia"
 };
@@ -21,8 +22,8 @@ export interface OnboardingDeps {
   getChainId(): Promise<number>;
   getIbanForAddress(address: string): Promise<{ iban: string } | null>;
   getProfileAddresses(profileId: string): Promise<string[]>;
-  linkAddress(profileId: string, address: string, chain: string, signature: string): Promise<unknown>;
-  requestIban(address: string, chain: string): Promise<unknown>;
+  linkAddress(profileId: string, address: string, chain: MoneriumChain, signature: string): Promise<unknown>;
+  requestIban(address: string, chain: MoneriumChain): Promise<unknown>;
   signLinkAttestation(chainId: bigint, forwarderAddress: Address): Promise<{ signature: string }>;
 }
 
@@ -36,8 +37,8 @@ const defaultDeps: OnboardingDeps = {
 };
 
 export function isOnboardingConfigured(): boolean {
-  const { attestorPrivateKey, clientId, clientSecret, rpcUrl } = config.moneriumB2b;
-  return Boolean(attestorPrivateKey && clientId && clientSecret && rpcUrl);
+  const { attestorPrivateKey, rpcUrl } = config.moneriumB2b;
+  return Boolean(attestorPrivateKey && rpcUrl && isWhitelabelConfigured());
 }
 
 let configWarned = false;
@@ -48,7 +49,12 @@ async function isForwarderLinked(deps: OnboardingDeps, moneriumProfileId: string
   return addresses.some(address => address.toLowerCase() === forwarderKey);
 }
 
-async function ensureLinked(deps: OnboardingDeps, account: MoneriumAccount, chainId: number, chainName: string): Promise<void> {
+async function ensureLinked(
+  deps: OnboardingDeps,
+  account: MoneriumAccount,
+  chainId: number,
+  chainName: MoneriumChain
+): Promise<void> {
   if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress)) return;
   await runFinancialOperation({
     attemptClass: "provider-address-link",
@@ -84,7 +90,7 @@ async function ensureLinked(deps: OnboardingDeps, account: MoneriumAccount, chai
   });
 }
 
-async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainName: string): Promise<void> {
+async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainName: MoneriumChain): Promise<void> {
   if (account.iban) return;
   const issued = await deps.getIbanForAddress(account.forwarderAddress);
   if (issued) {
@@ -131,7 +137,7 @@ export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDe
     if (!configWarned) {
       configWarned = true;
       logger.warn(
-        "monerium-b2b: onboarding automation disabled — requires MONERIUM_B2B_CLIENT_ID/SECRET, MONERIUM_B2B_ATTESTOR_PRIVATE_KEY, and MONERIUM_B2B_RPC_URL"
+        "monerium-b2b: onboarding automation disabled — requires MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_B2B_ATTESTOR_PRIVATE_KEY, and MONERIUM_B2B_RPC_URL"
       );
     }
     return 0;

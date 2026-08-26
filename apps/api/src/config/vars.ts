@@ -223,10 +223,7 @@ interface Config {
   // B2B whitelabel onramp integration (docs/prd/monerium-b2b-implementation-plan.md §3).
   // Separate credential set from the legacy consumer OAuth integration above.
   moneriumB2b: {
-    apiUrl: string;
     attestorPrivateKey: string | undefined;
-    clientId: string;
-    clientSecret: string;
     guardianPrivateKey: string | undefined;
     keeperPrivateKey: string | undefined;
     privateRpcUrl: string | undefined;
@@ -336,12 +333,10 @@ export const config: Config = {
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
   },
   moneriumB2b: {
-    // Sandbox by default: the B2B build is developed against api.monerium.dev until the
-    // MSA is signed (locked scope decision 2026-07-17).
-    apiUrl: process.env.MONERIUM_B2B_API_URL || "https://api.monerium.dev",
+    // Whitelabel API credentials and base URL live with the shared client
+    // (MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_API_URL — @vortexfi/shared);
+    // this block keeps only the chain/keeper-specific settings.
     attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
-    clientId: process.env.MONERIUM_B2B_CLIENT_ID || "",
-    clientSecret: process.env.MONERIUM_B2B_CLIENT_SECRET || "",
     // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
     // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
     guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,

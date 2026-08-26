@@ -1,3 +1,4 @@
+import { MONERIUM_ADDRESS_OWNERSHIP_MESSAGE } from "@vortexfi/shared";
 import { Address, encodePacked, Hex, keccak256, serializeSignature, stringToBytes } from "viem";
 import { privateKeyToAccount, sign } from "viem/accounts";
 import { config } from "../../../config/vars";
@@ -17,7 +18,9 @@ import { config } from "../../../config/vars";
  * move funds (security-spec/05-integrations/monerium-b2b.md).
  */
 
-export const LINK_MESSAGE = "I hereby declare that I am the address owner.";
+// The shared white-label client sends this exact message with POST /addresses; the
+// signature below must cover the same bytes, so both come from the one shared constant.
+export const LINK_MESSAGE = MONERIUM_ADDRESS_OWNERSHIP_MESSAGE;
 
 export interface LinkAttestation {
   boundHash: Hex;
