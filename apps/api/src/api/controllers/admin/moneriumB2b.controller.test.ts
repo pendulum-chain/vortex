@@ -252,6 +252,11 @@ describe("monerium b2b account mapping admin route", () => {
     const suspended = await patchStatus(account.accountId, "suspended");
     expect(suspended.status).toBe(200);
 
+    // Re-activation after a suspension keeps the IBAN guard satisfied.
+    const reactivated = await patchStatus(account.accountId, "active");
+    expect(reactivated.status).toBe(200);
+    expect(await reactivated.json()).toMatchObject({ account: { accountStatus: "active" } });
+
     expect((await patchStatus(account.accountId, "nonsense")).status).toBe(400);
     expect((await patchStatus(crypto.randomUUID(), "active")).status).toBe(404);
   });

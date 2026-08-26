@@ -75,20 +75,25 @@ async function emitReceivedEvents(): Promise<void> {
   });
 
   for (const deposit of deposits) {
-    const account = await MoneriumAccount.findByPk(deposit.accountId);
-    if (!account) continue;
-    const managerProfileId = await resolveManagerProfileId(account);
-    const payload: WebhookPayload = {
-      eventId: `deposit-received:${deposit.id}`,
-      eventType: WebhookEventType.DEPOSIT_RECEIVED,
-      payload: depositPayloadBase(deposit, account),
-      timestamp: new Date().toISOString()
-    };
-    await enqueueForManager(WebhookEventType.DEPOSIT_RECEIVED, managerProfileId, payload);
-    // Marked emitted even with zero subscribers: webhooks are forward-looking, a
-    // later registration must not receive the whole history. A crash between the
-    // enqueue and this marker is absorbed by the outbox (webhook_id, event_id) dedup.
-    await deposit.update({ receivedEventAt: new Date() });
+    try {
+      const account = await MoneriumAccount.findByPk(deposit.accountId);
+      if (!account) continue;
+      const managerProfileId = await resolveManagerProfileId(account);
+      const payload: WebhookPayload = {
+        eventId: `deposit-received:${deposit.id}`,
+        eventType: WebhookEventType.DEPOSIT_RECEIVED,
+        payload: depositPayloadBase(deposit, account),
+        timestamp: new Date().toISOString()
+      };
+      await enqueueForManager(WebhookEventType.DEPOSIT_RECEIVED, managerProfileId, payload);
+      // Marked emitted even with zero subscribers: webhooks are forward-looking, a
+      // later registration must not receive the whole history. A crash between the
+      // enqueue and this marker is absorbed by the outbox (webhook_id, event_id) dedup.
+      await deposit.update({ receivedEventAt: new Date() });
+    } catch (error) {
+      // Per-deposit isolation: one failing deposit must not block its siblings.
+      logger.error(`monerium-b2b: DEPOSIT_RECEIVED emission failed for deposit ${deposit.id}:`, error);
+    }
   }
 }
 
@@ -108,32 +113,40 @@ async function emitConvertedEvents(deps: ManagerEventDeps): Promise<void> {
   if (head === null) return; // no read RPC: emit once the chain is configured
 
   for (const deposit of deposits) {
-    const execution = await MoneriumConversionExecution.findByPk(deposit.allocatedExecutionId as string);
-    if (!execution || execution.status !== MoneriumConversionExecutionStatus.Confirmed) continue;
-    // Confirmation-depth gate (plan §3, registry P9): only notify once the execution
-    // block is NOTIFY_CONFIRMATION_DEPTH below the head, so a shallow reorg cannot
-    // produce a delivered-then-vanished conversion event.
-    if (execution.blockNumber === null || head < BigInt(execution.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)) continue;
-
-    const account = await MoneriumAccount.findByPk(deposit.accountId);
-    if (!account) continue;
-    const managerProfileId = await resolveManagerProfileId(account);
-    const payload: WebhookPayload = {
-      eventId: `deposit-converted:${deposit.id}`,
-      eventType: WebhookEventType.DEPOSIT_CONVERTED,
-      payload: {
-        ...depositPayloadBase(deposit, account),
-        conversion: {
-          executionId: execution.id,
-          txHash: execution.txHash,
-          usdcNetRaw: execution.usdcNetRaw
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-    await enqueueForManager(WebhookEventType.DEPOSIT_CONVERTED, managerProfileId, payload);
-    await deposit.update({ convertedEventAt: new Date() });
+    try {
+      await emitConvertedEventForDeposit(deposit, head);
+    } catch (error) {
+      logger.error(`monerium-b2b: DEPOSIT_CONVERTED emission failed for deposit ${deposit.id}:`, error);
+    }
   }
+}
+
+async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: bigint): Promise<void> {
+  const execution = await MoneriumConversionExecution.findByPk(deposit.allocatedExecutionId as string);
+  if (!execution || execution.status !== MoneriumConversionExecutionStatus.Confirmed) return;
+  // Confirmation-depth gate (plan §3, registry P9): only notify once the execution
+  // block is NOTIFY_CONFIRMATION_DEPTH below the head, so a shallow reorg cannot
+  // produce a delivered-then-vanished conversion event.
+  if (execution.blockNumber === null || head < BigInt(execution.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)) return;
+
+  const account = await MoneriumAccount.findByPk(deposit.accountId);
+  if (!account) return;
+  const managerProfileId = await resolveManagerProfileId(account);
+  const payload: WebhookPayload = {
+    eventId: `deposit-converted:${deposit.id}`,
+    eventType: WebhookEventType.DEPOSIT_CONVERTED,
+    payload: {
+      ...depositPayloadBase(deposit, account),
+      conversion: {
+        executionId: execution.id,
+        txHash: execution.txHash,
+        usdcNetRaw: execution.usdcNetRaw
+      }
+    },
+    timestamp: new Date().toISOString()
+  };
+  await enqueueForManager(WebhookEventType.DEPOSIT_CONVERTED, managerProfileId, payload);
+  await deposit.update({ convertedEventAt: new Date() });
 }
 
 /**

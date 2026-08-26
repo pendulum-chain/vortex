@@ -299,27 +299,33 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
   ]);
 
   for (const account of accounts) {
-    const forwarder = account.forwarderAddress as Address;
-    const { eure } = await getForwarderImmutables(forwarder);
-    const [balance, strandedSince] = await Promise.all([
-      client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
-      client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "strandedSince" })
-    ]);
-    if (balance < minSwapFloor) {
-      continue;
-    }
-    const severity = classifyStranding(strandedSince, triggerDelay, now);
-    if (severity === "ok") {
-      continue;
-    }
-    const hours = Math.floor((now - Number(strandedSince) * 1000) / 3_600_000);
-    const message =
-      `monerium-b2b: stranded EURe on forwarder ${forwarder} (account ${account.id}): balance=${balance}, ` +
-      `marker armed ${hours}h ago${severity === "error" ? " — past TRIGGER_DELAY, permissionless trigger is live" : ""}`;
-    if (severity === "error") {
-      logger.error(message);
-    } else {
-      logger.warn(message);
+    try {
+      const forwarder = account.forwarderAddress as Address;
+      const { eure } = await getForwarderImmutables(forwarder);
+      const [balance, strandedSince] = await Promise.all([
+        client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
+        client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "strandedSince" })
+      ]);
+      if (balance < minSwapFloor) {
+        continue;
+      }
+      const severity = classifyStranding(strandedSince, triggerDelay, now);
+      if (severity === "ok") {
+        continue;
+      }
+      const hours = Math.floor((now - Number(strandedSince) * 1000) / 3_600_000);
+      const message =
+        `monerium-b2b: stranded EURe on forwarder ${forwarder} (account ${account.id}): balance=${balance}, ` +
+        `marker armed ${hours}h ago${severity === "error" ? " — past TRIGGER_DELAY, permissionless trigger is live" : ""}`;
+      if (severity === "error") {
+        logger.error(message);
+      } else {
+        logger.warn(message);
+      }
+    } catch (error) {
+      // Per-account isolation like the sibling monitors: one failing read must not
+      // hide stranding on every other account.
+      logger.warn(`monerium-b2b: stranded-balance check failed for account ${account.id}:`, error);
     }
   }
 }

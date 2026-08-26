@@ -91,7 +91,10 @@ export async function dispatchDueWebhookDeliveries(): Promise<number> {
       await settle(row, result.ok, result.error);
     } catch (error) {
       logger.error(`webhook-outbox: dispatch failed for delivery ${row.id}:`, error);
-      await settle(row, false, error instanceof Error ? error.message : String(error)).catch(() => undefined);
+      await settle(row, false, error instanceof Error ? error.message : String(error)).catch(settleError => {
+        // The stuck-sending reconciler requeues the row; still say why settling failed.
+        logger.error(`webhook-outbox: could not settle delivery ${row.id}:`, settleError);
+      });
     }
   }
   return claimed.length;

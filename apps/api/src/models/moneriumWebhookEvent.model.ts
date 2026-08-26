@@ -3,7 +3,7 @@ import sequelize from "../config/database";
 
 // Durable inbox for Monerium B2B webhook deliveries (plan §3, R06): rows are inserted
 // (dedup on event_id, on conflict do nothing) BEFORE the webhook returns 200 and
-// processed asynchronously afterwards. Table created by migration 051.
+// processed asynchronously afterwards. Table created by migration 069.
 export interface MoneriumWebhookEventAttributes {
   id: string;
   eventId: string;

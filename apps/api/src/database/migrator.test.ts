@@ -7,6 +7,8 @@ import { getExecutedMigrations, getPendingMigrations, revertLastMigration, rever
 // Old-name/new-name pairs of the migrations renumbered to clear the duplicate-055 prefix.
 // Must stay in sync with MIGRATION_RENAMES in migrator.ts.
 const RENAMED = [
+  ["051-monerium-b2b-onramp-tables.js", "069-monerium-b2b-onramp-tables.js"],
+  ["052-monerium-keeper-chain-state.js", "070-monerium-keeper-chain-state.js"],
   ["055-create-api-credentials.js", "057-create-api-credentials.js"],
   ["057-create-partner-managed-profiles.js", "058-create-partner-managed-profiles.js"],
   ["058-add-api-credential-id-to-quote-tickets.js", "059-add-api-credential-id-to-quote-tickets.js"]
