@@ -1,6 +1,10 @@
 import { CronJob } from "cron";
 import logger from "../../config/logger";
-import { dispatchDueWebhookDeliveries, reconcileStuckWebhookDeliveries } from "../services/webhook/webhook-outbox.service";
+import {
+  dispatchDueWebhookDeliveries,
+  pruneSettledWebhookDeliveries,
+  reconcileStuckWebhookDeliveries
+} from "../services/webhook/webhook-outbox.service";
 
 /**
  * Dispatches the durable webhook-delivery outbox (account-scoped event family).
@@ -46,6 +50,7 @@ class WebhookOutboxWorker {
   private async reconcileCycle(): Promise<void> {
     try {
       await reconcileStuckWebhookDeliveries();
+      await pruneSettledWebhookDeliveries();
     } catch (error) {
       logger.error("Error during webhook outbox reconcile cycle:", error);
     }

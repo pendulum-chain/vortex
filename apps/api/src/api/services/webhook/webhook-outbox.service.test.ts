@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { WebhookEventType, type WebhookPayload } from "@vortexfi/shared";
+import sequelize from "../../../config/database";
 import Webhook from "../../../models/webhook.model";
 import WebhookDelivery, { WebhookDeliveryStatus } from "../../../models/webhookDelivery.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
@@ -8,6 +9,7 @@ import webhookDeliveryService from "./webhook-delivery.service";
 import {
   dispatchDueWebhookDeliveries,
   enqueueWebhookDeliveries,
+  pruneSettledWebhookDeliveries,
   reconcileStuckWebhookDeliveries
 } from "./webhook-outbox.service";
 
@@ -156,5 +158,41 @@ describe("webhook delivery outbox", () => {
     expect(await reconcileStuckWebhookDeliveries()).toBe(1);
     const row = await WebhookDelivery.findOne({ where: { webhookId: webhook.id } });
     expect(row?.status).toBe(WebhookDeliveryStatus.Pending);
+  });
+});
+
+describe("settled delivery retention", () => {
+  beforeAll(async () => {
+    await setupTestDatabase();
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+  });
+
+  it("prunes old sent rows and keeps pending and recent ones", async () => {
+    const owner = await createTestUser();
+    const webhook = await Webhook.create({
+      events: [WebhookEventType.DEPOSIT_RECEIVED],
+      isActive: true,
+      partnerId: null,
+      quoteId: null,
+      sessionId: null,
+      url: "https://integrator.example.com/hook",
+      userId: owner.id
+    });
+    const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    await WebhookDelivery.bulkCreate([
+      { eventId: "old-sent", eventType: "DEPOSIT_RECEIVED", payload: payloadFor("old-sent"), sentAt: old, status: WebhookDeliveryStatus.Sent, webhookId: webhook.id },
+      { eventId: "fresh-sent", eventType: "DEPOSIT_RECEIVED", payload: payloadFor("fresh-sent"), sentAt: new Date(), status: WebhookDeliveryStatus.Sent, webhookId: webhook.id },
+      { eventId: "old-pending", eventType: "DEPOSIT_RECEIVED", payload: payloadFor("old-pending"), webhookId: webhook.id }
+    ]);
+    await sequelize.query("UPDATE webhook_deliveries SET updated_at = :old WHERE event_id IN ('old-sent', 'old-pending')", {
+      replacements: { old }
+    });
+
+    expect(await pruneSettledWebhookDeliveries()).toBe(1);
+    const remaining = (await WebhookDelivery.findAll()).map(row => row.eventId).sort();
+    expect(remaining).toEqual(["fresh-sent", "old-pending"]);
   });
 });

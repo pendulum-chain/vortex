@@ -1,4 +1,4 @@
-import { Transaction } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { parseUnits } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
@@ -223,4 +223,18 @@ export async function processMoneriumWebhookInbox(): Promise<number> {
     }
   }
   return processed;
+}
+
+/** Processed inbox rows older than this are pruned; dedup only needs the retry horizon. */
+const PROCESSED_INBOX_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Deletes long-processed inbox rows so the durable inbox stays bounded. */
+export async function pruneProcessedWebhookEvents(): Promise<number> {
+  const count = await MoneriumWebhookEvent.destroy({
+    where: { processedAt: { [Op.lt]: new Date(Date.now() - PROCESSED_INBOX_RETENTION_MS) } }
+  });
+  if (count > 0) {
+    logger.info(`monerium-b2b: pruned ${count} processed webhook inbox row(s)`);
+  }
+  return count;
 }

@@ -100,6 +100,23 @@ export async function dispatchDueWebhookDeliveries(): Promise<number> {
   return claimed.length;
 }
 
+/** Settled rows older than this are pruned; the payload's audit value has expired by then. */
+const SETTLED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Deletes sent/abandoned deliveries past the retention window (bounded table growth). */
+export async function pruneSettledWebhookDeliveries(): Promise<number> {
+  const count = await WebhookDelivery.destroy({
+    where: {
+      status: { [Op.in]: [WebhookDeliveryStatus.Sent, WebhookDeliveryStatus.Abandoned] },
+      updatedAt: { [Op.lt]: new Date(Date.now() - SETTLED_RETENTION_MS) }
+    }
+  });
+  if (count > 0) {
+    logger.info(`webhook-outbox: pruned ${count} settled delivery row(s)`);
+  }
+  return count;
+}
+
 /**
  * Requeues rows stuck in `sending` (a crash between claim and settle). The attempts
  * counter was already incremented at claim, so the cap still holds.

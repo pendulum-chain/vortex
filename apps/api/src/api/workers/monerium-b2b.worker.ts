@@ -6,7 +6,7 @@ import MoneriumAccount, { MoneriumAccountStatus } from "../../models/moneriumAcc
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
 import { erc20Abi, getForwarderImmutables, getPublicClient, isKeeperChainConfigured } from "../services/monerium-b2b/chain";
 import { runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
-import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
+import { processMoneriumWebhookInbox, pruneProcessedWebhookEvents } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-events";
 import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
@@ -76,6 +76,9 @@ class MoneriumB2bWorker {
       // Manager-facing deposit events into the durable webhook outbox; the
       // converted event self-gates on the read RPC for its confirmation depth.
       await emitMoneriumDepositEvents();
+
+      // Bounded retention for the durable inbox (dedup only needs the retry horizon).
+      await pruneProcessedWebhookEvents();
 
       // Detection-only monitors (plan D3); internally rate-limited and gated on the
       // read RPC / API credentials, so this is safe to call every cycle.
