@@ -19,6 +19,8 @@ export interface MoneriumConversionExecutionAttributes {
   usdcNetRaw: string | null;
   destination: string;
   txHash: string | null;
+  /** The swap's transaction nonce, persisted BEFORE broadcast (crash-recovery identity). */
+  nonce: number | null;
   blockNumber: number | null;
   status: MoneriumConversionExecutionStatus;
   error: string | null;
@@ -28,7 +30,17 @@ export interface MoneriumConversionExecutionAttributes {
 
 type MoneriumConversionExecutionCreationAttributes = Optional<
   MoneriumConversionExecutionAttributes,
-  "id" | "usdcGrossRaw" | "feeRaw" | "usdcNetRaw" | "txHash" | "blockNumber" | "status" | "error" | "createdAt" | "updatedAt"
+  | "id"
+  | "usdcGrossRaw"
+  | "feeRaw"
+  | "usdcNetRaw"
+  | "txHash"
+  | "nonce"
+  | "blockNumber"
+  | "status"
+  | "error"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 class MoneriumConversionExecution
@@ -43,6 +55,7 @@ class MoneriumConversionExecution
   declare usdcNetRaw: string | null;
   declare destination: string;
   declare txHash: string | null;
+  declare nonce: number | null;
   declare blockNumber: number | null;
   declare status: MoneriumConversionExecutionStatus;
   declare error: string | null;
@@ -90,6 +103,10 @@ MoneriumConversionExecution.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       type: DataTypes.UUID
+    },
+    nonce: {
+      allowNull: true,
+      type: DataTypes.INTEGER
     },
     status: {
       allowNull: false,

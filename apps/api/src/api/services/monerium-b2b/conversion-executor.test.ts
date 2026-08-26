@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { AllocatableDeposit, allocateUsdcProRata, selectDepositsForExecution } from "./conversion-executor";
+import { AllocatableDeposit, allocateUsdcProRata, classifyHashlessPending, selectDepositsForExecution } from "./conversion-executor";
 
 // R04 attribution (docs/prd/monerium-b2b-implementation-plan.md §3): pro-rata by
 // amount_raw against eureInRaw, floor division, remainder to the largest deposit.
@@ -86,5 +86,45 @@ describe("allocateUsdcProRata", () => {
   it("returns an empty allocation for an empty selection or non-positive eureIn", () => {
     expect(allocateUsdcProRata([], 100n * EUR, 100n * USDC).size).toBe(0);
     expect(allocateUsdcProRata([deposit("a", 1n * EUR)], 0n, 100n * USDC).size).toBe(0);
+  });
+});
+
+describe("classifyHashlessPending", () => {
+  it("fails a row whose send phase was never reached (no persisted nonce)", () => {
+    expect(
+      classifyHashlessPending({ latestNonceCount: 0, nonce: null, pendingNonceCount: 0, unclaimedSwapTxHashes: [] })
+    ).toEqual({ kind: "fail", reason: "crashed before the transaction was sent" });
+  });
+
+  it("adopts the unclaimed SwapExecuted hash when the nonce was consumed", () => {
+    expect(
+      classifyHashlessPending({ latestNonceCount: 8, nonce: 7, pendingNonceCount: 8, unclaimedSwapTxHashes: ["0xlost"] })
+    ).toEqual({ kind: "adopt", txHash: "0xlost" });
+  });
+
+  it("fails a consumed nonce with no SwapExecuted (reverted or replaced)", () => {
+    const result = classifyHashlessPending({
+      latestNonceCount: 8,
+      nonce: 7,
+      pendingNonceCount: 8,
+      unclaimedSwapTxHashes: []
+    });
+    expect(result.kind).toBe("fail");
+  });
+
+  it("waits while the broadcast may still be in the mempool", () => {
+    expect(
+      classifyHashlessPending({ latestNonceCount: 7, nonce: 7, pendingNonceCount: 8, unclaimedSwapTxHashes: [] })
+    ).toEqual({ kind: "in-flight" });
+  });
+
+  it("fails when the nonce was persisted but the broadcast never reached the mempool", () => {
+    const result = classifyHashlessPending({
+      latestNonceCount: 7,
+      nonce: 7,
+      pendingNonceCount: 7,
+      unclaimedSwapTxHashes: []
+    });
+    expect(result).toEqual({ kind: "fail", reason: "broadcast never reached the mempool" });
   });
 });

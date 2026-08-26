@@ -42,6 +42,12 @@ export const NOTIFY_CONFIRMATION_DEPTH = 32;
 
 export const eureTransferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
+// SwapExecuted as a standalone event item for getLogs-based crash recovery (must stay
+// in sync with the entry in forwarderAbi below).
+export const swapExecutedEvent = parseAbiItem(
+  "event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded)"
+);
+
 export const erc20Abi = [
   {
     inputs: [{ name: "account", type: "address" }],
