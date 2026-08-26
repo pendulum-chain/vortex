@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { AllocatableDeposit, allocateUsdcProRata, classifyHashlessPending, selectDepositsForExecution } from "./conversion-executor";
 
-// R04 attribution (docs/prd/monerium-b2b-implementation-plan.md §3): pro-rata by
+// R04 attribution (docs/architecture-monerium-b2b-onramp.md §3): pro-rata by
 // amount_raw against eureInRaw, floor division, remainder to the largest deposit.
 // No chain or database involved — pure math.
 

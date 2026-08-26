@@ -1,6 +1,12 @@
+> **Status (2026-08-26):** phase-2 proposal. The B2B variant of this design shipped
+> (see [adr-0005-monerium-b2b-onramp.md](adr-0005-monerium-b2b-onramp.md)); this
+> document describes the CONSUMER flow (Safe + passkey) that remains future work. Its
+> architecture reviews and the B2B companion documents were absorbed into the
+> maintained docs and live in git history.
+
 # PRD: Quoteless EUR → USDC (Ethereum) Onramp via Monerium Whitelabel
 
-**Version:** 2.0 (response to [architecture review](./monerium-eur-usdc-onramp-architecture-review.md); v1 in git history)
+**Version:** 2.0 (response to the architecture review; review and v1 in git history)
 **Status:** Revised draft — awaiting re-review and external gates (§13)
 **Date:** 2026-07-13
 **Owner:** Vortex team

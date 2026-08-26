@@ -5,11 +5,10 @@ per-client EIP-1167 clones whose EIP-1271 `isValidSignature` accepts only the fi
 Monerium link message from the Vortex attestor, with an immutable EURe→EURC→USDC
 conversion policy and client-controlled recovery.
 
-- Spec: [docs/prd/monerium-b2b-implementation-plan.md](../../docs/prd/monerium-b2b-implementation-plan.md) §2
-  and [docs/prd/monerium-eur-usdc-onramp-b2b-variant.md](../../docs/prd/monerium-eur-usdc-onramp-b2b-variant.md)
-- All placeholder parameter values (slippage, delays, caps, fee) are tracked in
-  [docs/prd/monerium-onramp-deferred-decisions.md](../../docs/prd/monerium-onramp-deferred-decisions.md) —
-  do not treat values in code as final.
+- Spec: [docs/architecture-monerium-b2b-onramp.md](../../docs/architecture-monerium-b2b-onramp.md) §2
+- Parameter values (slippage, delays, caps, fee) are decided in
+  [docs/adr-0005-monerium-b2b-onramp.md](../../docs/adr-0005-monerium-b2b-onramp.md) —
+  that table, not values hardcoded in tests or scripts, is authoritative.
 
 ```bash
 git submodule update --init  # once per clone: fetches lib/forge-std

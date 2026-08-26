@@ -14,10 +14,10 @@ import { forwarderAbi, getGuardianWalletClient, getPublicClient } from "./chain"
  *
  * Un-pause is MANUAL for now: guardian ops call setGuardianPaused(false) after the
  * partner re-confirms the client relationship — re-confirmation mechanics are a
- * partner-agreement item (deferred-decisions registry B5).
+ * partner-agreement item (adr-0005 registry B5).
  */
 
-/** Dormancy pause window — registry P5 (docs/prd/monerium-onramp-deferred-decisions.md). */
+/** Dormancy pause window — registry P5 (docs/adr-0005-monerium-b2b-onramp.md). */
 export const DORMANCY_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
 
 export interface DormancyAccountFields {

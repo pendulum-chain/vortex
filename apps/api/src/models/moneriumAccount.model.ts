@@ -8,7 +8,7 @@ export enum MoneriumAccountStatus {
   Closed = "closed"
 }
 
-// Persistent B2B onramp account (docs/prd/monerium-b2b-implementation-plan.md §3):
+// Persistent B2B onramp account (docs/architecture-monerium-b2b-onramp.md §3):
 // one row per client = one Monerium profile + IBAN + deployed forwarder. Long-lived,
 // repeatedly funded — deliberately NOT a RampState. profileId is the MONERIUM profile
 // UUID; vortexProfileId is the owning Vortex managed profile (nullable only for rows

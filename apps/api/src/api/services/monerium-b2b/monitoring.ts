@@ -271,7 +271,7 @@ export async function runExecutableDepthCheck(): Promise<void> {
     // PAUSE THRESHOLD (PRD §7.4): even minimum-size swaps would revert on minOut.
     logger.error(
       "monerium-b2b: PAUSE THRESHOLD — quote impact at minSwapAmount exceeds SLIPPAGE_BPS; engage guardian pause per " +
-        `docs/runbooks/monerium-b2b-incident.md. ${detail}`
+        `docs/operations-monerium-b2b-runbook.md. ${detail}`
     );
   } else if (capImpactBps > slippageBps) {
     logger.warn(`monerium-b2b: executable depth below perSwapCap — cap-sized swaps would revert on minOut. ${detail}`);
@@ -337,7 +337,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
  * Association monitor (S1 detective control): compares the Monerium-side linked
  * addresses + IBAN state per active account against the DB record and alerts on ANY
  * change. Error-level: an unexplained association change is an incident trigger
- * (docs/runbooks/monerium-b2b-incident.md).
+ * (docs/operations-monerium-b2b-runbook.md).
  */
 export async function runAssociationMonitor(): Promise<void> {
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Active]);

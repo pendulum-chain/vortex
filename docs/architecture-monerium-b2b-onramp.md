@@ -3,9 +3,10 @@
 Current end-to-end architecture of the quoteless EUR → USDC onramp for KYB'd corporate
 clients. Normative security detail lives in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md);
-open parameters and their recommended values in
-[`prd/monerium-onramp-deferred-decisions.md`](prd/monerium-onramp-deferred-decisions.md);
-operator procedures in [`runbooks/monerium-b2b-onboarding.md`](runbooks/monerium-b2b-onboarding.md).
+decisions, final parameters, and accepted risks in
+[`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md);
+launch gates in [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md);
+operator procedures in [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md).
 
 ## The shape in one paragraph
 

@@ -1,6 +1,6 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
-// B2B zero-touch onramp persistence (docs/prd/monerium-b2b-implementation-plan.md §3).
+// B2B zero-touch onramp persistence (docs/architecture-monerium-b2b-onramp.md §3).
 // Deliberately separate from ramp_states: a Monerium IBAN account is permanent and
 // repeatedly funded, not a one-shot ramp.
 export async function up(queryInterface: QueryInterface): Promise<void> {

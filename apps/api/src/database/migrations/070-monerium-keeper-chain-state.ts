@@ -1,6 +1,6 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
-// Keeper chain state for the B2B onramp (docs/prd/monerium-b2b-implementation-plan.md §3):
+// Keeper chain state for the B2B onramp (docs/architecture-monerium-b2b-onramp.md §3):
 // - monerium_chain_cursors: persisted getLogs cursors for the poll-based EURe mint
 //   watcher, keyed by watcher name (one row per watcher+chain).
 // - monerium_fiat_deposits.block_number: the mint block, required by the R04 attribution

@@ -16,7 +16,7 @@ import { config } from "../../../config/vars";
 
 /**
  * viem clients + minimal hand-written ABI surface for the B2B keeper
- * (docs/prd/monerium-b2b-implementation-plan.md §3, "Keeper").
+ * (docs/architecture-monerium-b2b-onramp.md §3, "Keeper").
  *
  * Key separation is an invariant (security-spec/05-integrations/monerium-b2b.md):
  * keeper key (swap submission) != guardian key (protective pause) != attestor key
@@ -29,7 +29,7 @@ export const DEFAULT_PRIVATE_RPC_URL = "https://rpc.flashbots.net";
 
 /**
  * Client notification confirmation depth in blocks — registry P9
- * (docs/prd/monerium-onramp-deferred-decisions.md). Not consumed by the keeper itself
+ * (docs/adr-0005-monerium-b2b-onramp.md). Not consumed by the keeper itself
  * (execution finality is handled via receipt + reorg-safe deposit identity); reserved
  * for the notification job (plan §3, "Notifications").
  */

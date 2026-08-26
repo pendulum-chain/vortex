@@ -40,7 +40,7 @@ interface IVortexForwarderFactory {
 
 /// @title VortexForwarder
 /// @notice Per-client forwarding account for the Monerium B2B onramp
-///         (docs/prd/monerium-eur-usdc-onramp-b2b-variant.md, implementation plan §2).
+///         (docs/architecture-monerium-b2b-onramp.md §2).
 ///         Deployed as an EIP-1167 clone by VortexForwarderFactory; the clone address is
 ///         linked to the client's Monerium profile, EURe mints land here, and the only
 ///         ways assets can ever leave are:

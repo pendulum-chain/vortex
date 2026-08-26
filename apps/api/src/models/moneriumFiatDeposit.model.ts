@@ -91,7 +91,7 @@ MoneriumFiatDeposit.init(
       type: DataTypes.STRING(66)
     },
     // Mint block, set by the mint watcher; the R04 attribution rule compares it to the
-    // execution block (docs/prd/monerium-b2b-implementation-plan.md §3).
+    // execution block (docs/architecture-monerium-b2b-onramp.md §3).
     blockNumber: {
       allowNull: true,
       field: "block_number",

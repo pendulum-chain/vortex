@@ -220,7 +220,7 @@ interface Config {
     clientId: string;
     redirectUri: string;
   };
-  // B2B whitelabel onramp integration (docs/prd/monerium-b2b-implementation-plan.md §3).
+  // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
   // Separate credential set from the legacy consumer OAuth integration above.
   moneriumB2b: {
     attestorPrivateKey: string | undefined;
