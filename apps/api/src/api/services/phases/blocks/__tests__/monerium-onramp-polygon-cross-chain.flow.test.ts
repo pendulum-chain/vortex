@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { EvmToken, Networks, type RampPhase } from "@vortexfi/shared";
+import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, type RampPhase } from "@vortexfi/shared";
 import { assemblePhaseFlow } from "../core/phase-flow";
-import { getBlockExecutorFlows } from "../flows/catalog";
+import { getBlockExecutorFlows, resolveBlockFlow } from "../flows/catalog";
 import { makeMoneriumOnrampPolygonCrossChainFlow } from "../flows/monerium-onramp-polygon-cross-chain";
 
 const expectedPhases: RampPhase[] = [
@@ -18,7 +18,7 @@ const expectedPhases: RampPhase[] = [
   "destinationTransfer"
 ];
 
-describe("dormant Polygon Monerium cross-chain flow", () => {
+describe("Polygon Monerium cross-chain flow", () => {
   it("pins Polygon issue, Uniswap conversion, Polygon fees/subsidy, and destination settlement", () => {
     const flow = makeMoneriumOnrampPolygonCrossChainFlow(Networks.Arbitrum, EvmToken.USDC, "1.25");
 
@@ -38,7 +38,21 @@ describe("dormant Polygon Monerium cross-chain flow", () => {
     ]);
   });
 
-  it("keeps the settlement-blocked flow out of the production catalog", () => {
-    expect(getBlockExecutorFlows().map(flow => flow.identity.id)).not.toContain("MoneriumOnrampPolygonCrossChain");
+  it("is the production SEPA EUR onramp and rejects same-chain Polygon settlement", () => {
+    const request = {
+      from: EPaymentMethod.SEPA,
+      inputAmount: "100",
+      inputCurrency: FiatToken.EURC,
+      network: Networks.Arbitrum,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.BUY,
+      to: Networks.Arbitrum
+    };
+
+    expect(resolveBlockFlow(request).name).toBe("MoneriumOnrampPolygonCrossChain");
+    expect(getBlockExecutorFlows().map(flow => flow.identity.id)).toContain("MoneriumOnrampPolygonCrossChain");
+    expect(() => resolveBlockFlow({ ...request, network: Networks.Polygon, to: Networks.Polygon })).toThrow(
+      "No block flow mapped"
+    );
   });
 });

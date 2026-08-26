@@ -41,7 +41,7 @@ export interface MoneriumIssueMetadata {
   network: MoneriumIssueNetwork;
 }
 
-export const MoneriumIssueContext = defineContext<MoneriumIssueMetadata>()("moneriumIssue");
+export const MoneriumIssueContext = defineContext<MoneriumIssueMetadata>()("moneriumIssue", 2);
 
 export async function simulateMoneriumIssue<Network extends MoneriumIssueNetwork>(
   input: PhaseIO<typeof FiatToken.EURC, "fiat">,

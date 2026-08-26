@@ -1,5 +1,7 @@
 import {
+  type EvmAddress,
   EvmClientManager,
+  getEvmTokenBalance,
   type IbanPaymentData,
   type MoneriumAddress,
   MoneriumApiService,
@@ -40,6 +42,7 @@ export interface MoneriumIssueRegistrationFacts {
   moneriumPaymentReference: string;
   moneriumProfileId: string;
   owner: string;
+  ownerEureBalanceBaselineRaw: string;
   token: typeof MONERIUM_EURE;
 }
 
@@ -51,6 +54,7 @@ interface MoneriumIssueRegistrationDependencies {
   createReference: () => string;
   getClient: () => Pick<MoneriumApiService, "getProfile" | "listAddresses" | "listIbans">;
   isContractAddress?: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
+  readOwnerEureBalance: typeof getEvmTokenBalance;
   resolveProfileId: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<string>;
 }
 
@@ -109,6 +113,7 @@ export function createRegisterMoneriumIssue(
   dependencies: MoneriumIssueRegistrationDependencies = {
     createReference: createPaymentReference,
     getClient: () => MoneriumApiService.getInstance(),
+    readOwnerEureBalance: getEvmTokenBalance,
     resolveProfileId: resolveMoneriumProfileIdForUser
   }
 ) {
@@ -156,6 +161,11 @@ export function createRegisterMoneriumIssue(
         status: httpStatus.BAD_REQUEST
       });
     }
+    const ownerEureBalanceBaseline = await dependencies.readOwnerEureBalance({
+      chain: ctx.metadata.network,
+      ownerAddress: address as EvmAddress,
+      tokenAddress: MONERIUM_ISSUE_NETWORKS[ctx.metadata.network].eureAddress as EvmAddress
+    });
     const reference = dependencies.createReference();
     return {
       facts: {
@@ -166,6 +176,7 @@ export function createRegisterMoneriumIssue(
         moneriumPaymentReference: reference,
         moneriumProfileId: profileId,
         owner: address,
+        ownerEureBalanceBaselineRaw: ownerEureBalanceBaseline.toFixed(0),
         token: MONERIUM_EURE
       },
       responseArtifacts: {

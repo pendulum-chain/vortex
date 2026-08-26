@@ -15,7 +15,7 @@ architecture and MUST NOT be used as evidence for current behavior.
 2. `blocks/core/fees.ts` builds `PhaseCtx.fees` in both USD and the display fiat
    currency. A block that obtains a live provider or bridge price may replace only the
    component it owns:
-   - Mykobo and Avenia fee blocks install their live provider fee;
+   - Monerium installs its configured flat issue fee, Avenia installs its live provider fee, and retained Mykobo simulators preserve legacy metadata behavior;
    - routed blocks install the Squid network fee;
    - direct/no-bridge routes preserve a zero network fee.
 3. Quote finalization persists the resulting snapshot in
@@ -34,10 +34,10 @@ block has not successfully supplied its override.
 There is deliberately no global “fees before swap” or “fees after swap” rule. Fees are
 distributed while the ephemeral holds the fee token:
 
-- BRL/EUR off-ramp flows execute `DistributeFees` before the USDC-to-BRLA/EURC Nabla
-  swap.
-- BRL/EUR on-ramp flows execute `DistributeFees` after the BRLA/EURC-to-USDC Nabla
-  swap.
+- BRL off-ramp flows execute `DistributeFees` before the USDC-to-BRLA Nabla swap.
+- BRL onramps execute `DistributeFees` after the BRLA-to-USDC Nabla swap. The active EUR
+  onramp executes it after the pinned Polygon EURe-to-USDC Uniswap swap. Persisted Mykobo
+  flows retain their historical Base ordering.
 - Alfredpay flows (USD/MXN/COP/ARS, USDT on Polygon) execute `DistributeFees` as the
   LAST phase before `complete`, after the user-facing leg (`destinationTransfer` /
   `alfredpayOfframpTransfer`) succeeded: the corridor deducts the components from the
@@ -218,9 +218,10 @@ quotes may already contain snapshots prepared under the old rule.
 - [x] Quote finalization persists `metadata.fees`; registration and status do not
   recompute fee amounts.
 - [x] `fee-distribution.ts` reads `metadata.fees.usd` and excludes `anchor`.
-- [x] BRL/EUR off-ramp flows distribute before Nabla; BRL/EUR on-ramp flows distribute
-  after Nabla; Alfredpay flows distribute last, after the user-facing leg.
-- [x] Direct BRL/EUR same-token routes quote zero bridge network fee.
+- [x] BRL offramps distribute before Nabla; BRL onramps distribute after Nabla; active
+  EUR onramps distribute after Polygon Uniswap. Persisted Mykobo flows retain their
+  historical ordering; Alfredpay flows distribute last, after the user-facing leg.
+- [x] Direct BRL and persisted legacy Mykobo same-token routes quote zero bridge network fee.
 - [x] EVM distribution uses plain sequential ephemeral-signed ERC-20 transfers, one per
   recipient. **CHANGED 2026-08** — the former split path batched transfers through
   Multicall3 `aggregate3`, which executes with the contract as `msg.sender` and could
@@ -247,5 +248,5 @@ quotes may already contain snapshots prepared under the old rule.
   decision changes it.
 - [ ] **OPEN — post-distribution failure recovery:** no automated clawback/refund exists
   after fees have been distributed.
-- [ ] Mykobo fee-tier selection depends on `MYKOBO_CLIENT_DOMAIN`; configuration and
-  live provider fee must agree before the rail executes.
+- [ ] Persisted Mykobo recovery still depends on the historical provider fee metadata;
+  new quotes cannot select that rail.

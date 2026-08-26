@@ -43,13 +43,13 @@ describe("EUR Base offramp flow", () => {
     }
   });
 
-  it("catalogs only supported EVM-to-SEPA variants", () => {
+  it("keeps legacy topology executable but rejects new EUR offramp quotes", () => {
     for (const [from, inputCurrency] of [
       [Networks.Base, EvmToken.USDC],
       [Networks.Base, EvmToken.EURC],
       [Networks.Polygon, EvmToken.USDC]
     ] as const) {
-      expect(
+      expect(() =>
         resolveBlockFlow({
           from,
           inputAmount: "100",
@@ -58,8 +58,8 @@ describe("EUR Base offramp flow", () => {
           outputCurrency: FiatToken.EURC,
           rampType: RampDirection.SELL,
           to: EPaymentMethod.SEPA
-        }).name
-      ).toBe("EurOfframpBase");
+        })
+      ).toThrow("No block flow mapped");
     }
     expect(() =>
       resolveBlockFlow({

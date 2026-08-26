@@ -25,9 +25,9 @@ two people.
  KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
  self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
- remain target-state rather than current behavior. EUR onramps remain unavailable while trusted
- Monerium profile migration and white-label ramp orchestration are unimplemented; the dormant EUR
- settlement flow still resolves Mykobo.
+ remain target-state rather than current behavior. The backend now quotes and registers EUR
+ onramps through Monerium, but the dashboard still lacks the profile-linked owner-wallet signing
+ journey needed to complete them. EUR offramps are unavailable and return a quote error.
 
 
 ## User stories

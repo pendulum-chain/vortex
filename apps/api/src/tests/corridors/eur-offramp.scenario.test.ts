@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
   EphemeralAccountType,
+  EPaymentMethod,
   type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
@@ -21,7 +22,8 @@ import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemera
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
 import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
-import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
+import { resolvePersistedBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
+import { makeEurOfframpBaseFlow } from "../../api/services/phases/blocks/flows/eur-offramp-base";
 import { MykoboOfframpPayoutContext } from "../../api/services/phases/blocks/phases/mykobo-offramp-payout/simulation";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import FinancialOperation from "../../models/financialOperation.model";
@@ -30,10 +32,8 @@ import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
 import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestRampState, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
+import { createTestQuote, createTestRampState, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
-import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
-import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
 function requireBaseToken(token: EvmToken) {
   const details = evmTokenConfig[Networks.Base][token];
@@ -76,38 +76,24 @@ interface CorridorSetup {
 }
 
 /**
- * Corridor scenario tests for the EUR offramp (USDC on Base → SEPA via
- * Mykobo): the quote goes through the real HTTP API; registration is seeded
- * through the SAME code the registration service runs below its EUR
- * kill-switch (`registerRamp` throws 503 for EURC quotes before preparing any
- * transaction, so the HTTP entry point is unavailable — the seeding helper
- * mirrors only the thin glue and calls the real block `Flow.register` and
- * `prepareTxs`, which resolve the KYC-gated Mykobo customer, create the
- * WITHDRAW intent and build all blueprints). The REAL PhaseProcessor then drives initial →
+ * Legacy-recovery scenario tests for the former EUR offramp (USDC on Base →
+ * SEPA via Mykobo). New EUR offramp quotes are rejected, so these tests persist
+ * an identity-bearing Mykobo quote directly and call the real block
+ * `Flow.register` and `prepareTxs`, which resolve the KYC-gated Mykobo customer,
+ * create the WITHDRAW intent and build all blueprints. The REAL PhaseProcessor drives initial →
  * fundEphemeral → distributeFees → subsidizePreSwap → nablaApprove →
  * nablaSwap → subsidizePostSwap → mykoboPayoutOnBase → complete against the
  * fake external world.
- *
- * This is the hermetic-coverage precondition documented next to the
- * kill-switch and in docs/operations-testing.md ("EUR re-enablement
- * precondition"). The kill-switch itself stays on; once lifted, replace the
- * seeding helper with a plain POST /v1/ramp/register like the BRL corridor.
  */
-describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
+describe("legacy Mykobo EUR offramp recovery", () => {
   let world: FakeWorld;
-  let auth: { restore: () => void };
-  let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    auth = installFakeSupabaseAuth();
     await setupTestDatabase();
-    app = await startTestApp();
   });
 
   afterAll(async () => {
-    await app?.close();
-    auth?.restore();
     world?.restore();
   });
 
@@ -140,45 +126,37 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
-    const response = await app.request("/v1/quotes", {
-      body: JSON.stringify({
-        from: Networks.Base,
-        inputAmount: "100",
-        inputCurrency: EvmToken.USDC,
-        network: Networks.Base,
-        outputCurrency: FiatToken.EURC,
-        rampType: RampDirection.SELL,
-        to: "sepa"
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST"
+  async function createLegacyQuote(): Promise<{ id: string; outputAmount: string }> {
+    const request = {
+      from: Networks.Base,
+      inputAmount: "100",
+      inputCurrency: EvmToken.USDC,
+      network: Networks.Base,
+      outputCurrency: FiatToken.EURC,
+      rampType: RampDirection.SELL,
+      to: EPaymentMethod.SEPA
+    };
+    const simulated = await makeEurOfframpBaseFlow(EvmToken.USDC, Networks.Base).simulate({
+      addNote: () => undefined,
+      notes: [],
+      now: new Date(),
+      partner: null,
+      request,
+      targetFeeFiatCurrency: FiatToken.EURC
     });
-    expect(response.status).toBe(201);
-    return (await response.json()) as { id: string; outputAmount: string };
-  }
-
-  /**
-   * Kill-switch check: the REAL /v1/ramp/register endpoint must keep refusing
-   * EUR quotes with 503 until the re-enablement precondition is lifted. The
-   * seeding below deliberately starts where this rejection ends.
-   */
-  async function assertRegisterEndpointStillKillSwitched(quoteId: string, userId: string, wallet: string): Promise<void> {
-    const intentCount = world.mykobo.intents.length;
-    const response = await app.request("/v1/ramp/register", {
-      body: JSON.stringify({
-        additionalData: { destinationAddress: wallet, ipAddress: IP_ADDRESS, walletAddress: wallet },
-        quoteId,
-        signingAccounts: [{ address: wallet, type: "EVM" }]
-      }),
-      headers: {
-        Authorization: `Bearer ${testUserToken(userId)}`,
-        "Content-Type": "application/json"
-      },
-      method: "POST"
+    const quote = await createTestQuote({
+      from: request.from,
+      inputAmount: request.inputAmount,
+      inputCurrency: request.inputCurrency,
+      metadata: simulated.metadata as never,
+      network: request.network,
+      outputAmount: simulated.output.amount.toFixed(2, 0),
+      outputCurrency: request.outputCurrency,
+      paymentMethod: request.to,
+      rampType: request.rampType,
+      to: request.to
     });
-    expect(response.status).toBe(503);
-    expect(world.mykobo.intents.length).toBe(intentCount);
+    return { id: quote.id, outputAmount: quote.outputAmount };
   }
 
   function blueprintOf(unsignedTxs: UnsignedTx[], phase: RampPhase): UnsignedTx {
@@ -203,8 +181,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
   }
 
   /**
-   * Registers the ramp exactly as `RampService.registerRamp` would if the EUR
-   * kill-switch were lifted: signing-account normalization, ephemeral
+   * Registers the persisted legacy ramp with signing-account normalization, ephemeral
    * freshness validation, the REAL offramp transaction preparation (which
    * creates the Mykobo WITHDRAW intent), quote consumption, and a RampState
    * row with the identical shape. Then signs the ephemeral blueprints exactly
@@ -217,8 +194,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
-    const quote = await createQuoteViaApi();
-    await assertRegisterEndpointStillKillSwitched(quote.id, user.id, userWallet.address);
+    const quote = await createLegacyQuote();
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
     if (!persistedQuote) {
@@ -241,7 +217,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     ]);
     await validateEphemeralAccountsFresh(ephemerals, persistedQuote);
 
-    const flow = resolveBlockFlow(metadata.globals.request);
+    const flow = resolvePersistedBlockFlow(metadata);
     const quoteFields = persistedQuote.get({ plain: true });
     const registered = await flow.register({
       authenticatedUser: { id: user.id },
@@ -492,7 +468,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     "registration guard: a Mykobo WITHDRAW intent failure aborts the registration path before any blueprint exists",
     async () => {
       const user = await createTestUser();
-      const quote = await createQuoteViaApi();
+      const quote = await createLegacyQuote();
       const persistedQuote = await QuoteTicket.findByPk(quote.id);
       const ephemeral = privateKeyToAccount(generatePrivateKey());
       const userWallet = privateKeyToAccount(generatePrivateKey());
@@ -502,7 +478,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
         { address: ephemeral.address, type: EphemeralAccountType.EVM }
       ]);
       await expect(
-        resolveBlockFlow(getFlowMetadata((persistedQuote as QuoteTicket).metadata).globals.request).register({
+        resolvePersistedBlockFlow(getFlowMetadata((persistedQuote as QuoteTicket).metadata)).register({
           authenticatedUser: { id: user.id },
           input: { walletAddress: userWallet.address },
           ipAddress: IP_ADDRESS,

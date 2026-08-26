@@ -13,6 +13,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
+import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
 import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
@@ -40,13 +41,16 @@ import {
   eurOnrampBaseSameChainSwapFlow,
   makeEurOnrampBaseSameChainSwapFlow
 } from "./eur-onramp-base-same-chain";
+import { makeMoneriumOnrampPolygonCrossChainFlow } from "./monerium-onramp-polygon-cross-chain";
 
 type FlowRequest = FlowMetadata["globals"]["request"];
 
 interface FlowDefinition {
   create(request: FlowRequest): Flow;
   executorFlow: Flow;
+  legacyCompatible?: false;
   matches(request: FlowRequest): boolean;
+  newQuotes?: false;
 }
 
 function isDormantMoneriumEure(currency: unknown): boolean {
@@ -105,6 +109,39 @@ const flowDefinitions: FlowDefinition[] = [
         isEvmToken(request.inputCurrency) &&
         !isDormantMoneriumEure(request.inputCurrency) &&
         evmTokenConfig[network][request.inputCurrency] !== undefined
+      );
+    },
+    newQuotes: false
+  },
+  {
+    create(request) {
+      const network = getNetworkFromDestination(request.to);
+      const issueFeeEur = config.monerium.issueFeeEur;
+      if (!network || network === Networks.Polygon || !isNetworkEVM(network) || !isEvmToken(request.outputCurrency)) {
+        throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
+      }
+      if (issueFeeEur === undefined) {
+        throw new APIError({
+          isPublic: true,
+          message: "Monerium issue fee is not configured",
+          status: httpStatus.SERVICE_UNAVAILABLE
+        });
+      }
+      return makeMoneriumOnrampPolygonCrossChainFlow(network, request.outputCurrency, issueFeeEur);
+    },
+    executorFlow: makeMoneriumOnrampPolygonCrossChainFlow(Networks.Arbitrum, EvmToken.USDC, config.monerium.issueFeeEur ?? "0"),
+    legacyCompatible: false,
+    matches(request) {
+      const network = getNetworkFromDestination(request.to);
+      return (
+        request.rampType === RampDirection.BUY &&
+        request.from === EPaymentMethod.SEPA &&
+        request.inputCurrency === FiatToken.EURC &&
+        network !== undefined &&
+        network !== Networks.Polygon &&
+        isNetworkEVM(network) &&
+        isEvmToken(request.outputCurrency) &&
+        evmTokenConfig[network][request.outputCurrency] !== undefined
       );
     }
   },
@@ -165,7 +202,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === EvmToken.EURC &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create() {
@@ -180,7 +218,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === EvmToken.USDC &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -198,7 +237,8 @@ const flowDefinitions: FlowDefinition[] = [
         evmTokenConfig[Networks.Base][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -220,7 +260,8 @@ const flowDefinitions: FlowDefinition[] = [
         network !== Networks.Base &&
         isNetworkEVM(network)
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -329,8 +370,8 @@ const flowDefinitions: FlowDefinition[] = [
   }
 ];
 
-export function resolveBlockFlow(request: FlowRequest): Flow {
-  const definitions = flowDefinitions.filter(candidate => candidate.matches(request));
+function resolveFlowDefinition(request: FlowRequest, candidates: FlowDefinition[]): Flow {
+  const definitions = candidates.filter(candidate => candidate.matches(request));
   if (definitions.length === 0) {
     throw new APIError({
       message: `No block flow mapped for ${request.rampType} ${request.from}/${request.inputCurrency} -> ${request.to}/${request.outputCurrency}`,
@@ -348,10 +389,20 @@ export function resolveBlockFlow(request: FlowRequest): Flow {
   return definitions[0].create(request);
 }
 
+export function resolveBlockFlow(request: FlowRequest): Flow {
+  return resolveFlowDefinition(
+    request,
+    flowDefinitions.filter(definition => definition.newQuotes !== false)
+  );
+}
+
 export function resolvePersistedBlockFlow(metadataValue: unknown): Flow {
   const metadata = getFlowMetadata(metadataValue);
   if (!metadata.flow) {
-    const legacyFlow = resolveBlockFlow(metadata.globals.request);
+    const legacyFlow = resolveFlowDefinition(
+      metadata.globals.request,
+      flowDefinitions.filter(definition => definition.legacyCompatible !== false)
+    );
     legacyFlow.assertMetadata(metadata, { allowLegacy: true });
     return legacyFlow;
   }

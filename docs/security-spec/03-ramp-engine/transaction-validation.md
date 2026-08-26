@@ -28,10 +28,10 @@ User-wallet phases:
 - `squidRouterNoPermitApprove` — User wallet approves Squid spender.
 - `squidRouterNoPermitSwap` — User wallet calls Squid swap.
 
-The dormant Monerium blocks do not use this by-hash path. `moneriumOnrampMint` is a disabled server
-executor, while `moneriumOnrampSelfTransfer` requires a user-signed EIP-712 permit and an
-ephemeral-signed exact `transferFrom` in the normal strict presigned-transaction set. The dormant
-`uniswapApprove` and `uniswapSwap` phases are also strict ephemeral-signed EVM transactions. Their
+The active Monerium blocks do not use this by-hash path. `moneriumOnrampMint` is a server-side
+balance-delta wait, while `moneriumOnrampSelfTransfer` requires a user-signed EIP-712 permit and an
+ephemeral-signed exact `transferFrom` in the normal strict presigned-transaction set.
+`uniswapApprove` and `uniswapSwap` are also strict ephemeral-signed EVM transactions. Their
 raw transactions are first bound to the unsigned blueprints, then decoded and checked for the exact
 Polygon chain, token/router targets, exact EURe amount, fee tier, hard minimum, deadline, zero call
 value, and ephemeral recipient before execution.
@@ -57,7 +57,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 8. **Ephemeral addresses submitted at `registerRamp` MUST be proven fresh on every chain their route signs on, before transactions are built** — Address format validation is insufficient. For each ephemeral type the client submits, the server MUST query the chains the quote's route actually signs on (`quoteToSigningNetworks`) and reject the registration if any check finds a non-fresh account. Freshness covers nonce **and** balance: Substrate `nonce === 0 && free === 0`; EVM `nonce === 0 && native balance === 0` (a nonce-0 EVM account can still hold funds). The route-derived set MUST be kept in sync with the route builders — under-listing a chain the ephemeral signs on silently reopens the freshness gap. Fail-closed on RPC errors. Without this, the server builds presigned transactions with assumed-fresh nonces, and execution halts mid-ramp on the first chain where the assumption breaks. See `02-signing-keys/ephemeral-accounts.md` invariant 7.
 9. **Multi-account block preparation MUST preserve signer capabilities and nonce domains** — EVM and Substrate account metadata are supplied as typed capabilities to each phase. Nonces are allocated independently per `(network, signer)`. A transaction that consumes more than one nonce declares a positive `nonceSpan`.
 10. **Client signatures MUST NOT expand platform gas liability beyond the server-issued envelope** — A raw EVM signature must preserve the unsigned gas limit exactly. `maxFeePerGas` and `maxPriorityFeePerGas` must be at least the server estimate but no greater than `PRESIGNED_EVM_FEE_MULTIPLIER` times that estimate (currently 3×, matching the shared production signer). Because viem decodes zero-valued EIP-1559 fee scalars as absent, an absent decoded fee is equivalent to zero only when the corresponding server estimate is zero; it remains invalid for every positive estimate. The same checks apply independently to every backup transaction. Any execution-time treasury calculation derived from a presign must re-bind it to the matching unsigned blueprint as defense in depth.
-11. **Pinned AMM phases MUST validate route semantics in addition to the generic EVM envelope** — The dormant Polygon Uniswap approval MUST authorize only the pinned router for exactly the quoted EURe input. Its swap MUST call only the pinned router's `exactInputSingle` with pinned EURe/USDC tokens and fee tier, exact input, persisted hard minimum and deadline, the ephemeral recipient, zero price limit, and zero native value. Execution MUST repeat this validation before broadcast.
+11. **Pinned AMM phases MUST validate route semantics in addition to the generic EVM envelope** — The Polygon Uniswap approval MUST authorize only the pinned router for exactly the quoted EURe input. Its swap MUST call only the pinned router's `exactInputSingle` with pinned EURe/USDC tokens and fee tier, exact input, persisted hard minimum and deadline, the ephemeral recipient, zero price limit, and zero native value. Execution MUST repeat this validation before broadcast.
 
 ## Threat Vectors & Mitigations
 
@@ -83,8 +83,8 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] `validatePresignedTxs` is called in both `updateRamp` and `startRamp` — dual validation confirmed
 - [x] `validateAllPresignedTransactionsSigned` checks every expected transaction has a corresponding signed entry
 - [x] EVM raw transaction validation checks `from`, `chainId`, `nonce`, `to`, `data`, `value`, exact gas limit, and bounded fee caps against expected signer, chain, and server-issued unsigned payload
-- [x] Onramp-specific validation checks quote amounts and integration-specific fields; dormant Monerium registration derives provider identity and its self-transfer validates the exact permit and `transferFrom` payloads
-- [x] Dormant Polygon `uniswapApprove` and `uniswapSwap` transactions use generic signed-EVM blueprint validation plus exact decoded route validation before persistence and again before broadcast.
+- [x] Onramp-specific validation checks quote amounts and integration-specific fields; Monerium registration derives provider identity and its self-transfer validates the exact permit and `transferFrom` payloads
+- [x] Polygon `uniswapApprove` and `uniswapSwap` transactions use generic signed-EVM blueprint validation plus exact decoded route validation before persistence and again before broadcast.
 - [x] Offramp-specific validation (`validateOfframpQuote`, `validateBRLOfframp`) checks quote consistency
 - [x] `RAMP_START_EXPIRATION_TIME_SECONDS` enforces a time window between registration and start — prevents stale presigned transactions from being executed
 - [x] Default rejection for unrecognized phases — `getTransactionTypeForPhase` throws instead of defaulting to EVM (see F-047)
@@ -96,7 +96,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] Deposit QR code (BRL onramp) gated on `ephemeralPresignChecksPass`. **PASS** — verified in `meta-state-types.ts`.
 - [x] Signed presigned transaction matching accepts the production signer's bounded fee multiplier while still binding EVM raw transactions to the unsigned server-built `to`/`data`/`value`/`nonce`/gas envelope, and typed-data payloads to the unsigned typed-data content with signatures stripped for comparison.
 - [x] **No-permit fallback receipt validation hardened**: `waitForUserHash` verifies receipt `from`, receipt `to`, and transaction `input` against the expected user address and presigned EVM transaction payload before advancing.
-- [x] User-submitted phase types (SELL `squidRouterApprove`/`squidRouterSwap`, `squidRouterNoPermit*`) are **rejected** by `validatePresignedTxs` if presigned and **verified by on-chain hash + receipt + calldata** at runtime via `verifyUserSubmittedTxByHash` in `apps/api/src/api/services/phases/helpers/user-tx-verifier.ts`. Dormant Monerium typed data remains in the strict presigned path instead.
+- [x] User-submitted phase types (SELL `squidRouterApprove`/`squidRouterSwap`, `squidRouterNoPermit*`) are **rejected** by `validatePresignedTxs` if presigned and **verified by on-chain hash + receipt + calldata** at runtime via `verifyUserSubmittedTxByHash` in `apps/api/src/api/services/phases/helpers/user-tx-verifier.ts`. Monerium typed data remains in the strict presigned path instead.
 - [x] **Typed-data full-field binding (F-038 hardening)**: `validateSignedTypedData` deep-compares the signed typed data against the server-issued unsigned typed data (`domain`, `primaryType`, `types`, `message`) before recovering the signature, so the user cannot substitute spender/token/value/deadline/nonce/verifyingContract while still producing a valid signature over a tampered struct.
 - [x] **Unsigned-tx lookup is identity-keyed (F-043 hardening)**: per-tx content validation now resolves the matching unsigned slot on `phase + network + nonce + signer` (same keys `areAllTxsIncluded` uses), so a presigned tx whose phase/network collide with a different unsigned slot is rejected rather than validated against the wrong reference.
 - [x] **Chainless EVM tx rejection**: `verifySignedEvmTransaction` rejects raw txs whose decoded `chainId` is `undefined` (pre-EIP-155 legacy txs), closing a cross-chain replay bypass that existed even when `sandboxEnabled` was false.

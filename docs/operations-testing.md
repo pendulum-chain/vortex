@@ -19,7 +19,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 |---|---|---|---|
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL and Alfredpay corridors plus persisted Mykobo on/offramp recovery scenarios. The active Monerium path currently has block-level registration, settlement, self-transfer, Uniswap, topology, and quote-selection coverage but no full fake-world corridor scenario. | `apps/api/src/tests/corridors/` and block tests | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor. | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking) |
@@ -63,7 +63,7 @@ entry point with its own suite (`apps/dashboard/e2e/`), currently covering MXN S
 dashboard Playwright section below rather than reading it out of this table.
 
 Legend: ✅ directly tested · ◐ covered only via shared code/another corridor (see footnote) ·
-❌ missing · — not applicable · 🚫 kill-switched.
+❌ missing · — not applicable · 🚫 unavailable.
 
 | Corridor (rail) | Dir | Happy path | Transient | Unrecoverable | Security / caps | Cross-chain leg | SDK | E2E journey |
 |---|---|---|---|---|---|---|---|---|
@@ -77,8 +77,8 @@ Legend: ✅ directly tested · ◐ covered only via shared code/another corridor
 | COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
 | ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
 | ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
-| EUR (Mykobo / SEPA) | BUY | ✅³ | ✅³ | ✅³ | ✅ recipient, KYC gate | ◐⁴ | 🚫 | 🚫 |
-| EUR (Mykobo / SEPA) | SELL | ✅³ | ✅³ | ✅³ | ✅ payout-vs-intent match, KYC gate | ◐⁴ | 🚫 | 🚫 |
+| EUR (Monerium / SEPA) | BUY | ❌³ | ✅ block | ✅ block | ✅ owner/baseline/permit/route | ✅ block | ❌ | ❌ |
+| EUR / SEPA | SELL | — | — | — | ✅ quote rejection | — | 🚫 | 🚫 |
 | AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌ | ❌ | ❌ | — | ❌ | ❌ |
 
 ¹ Alfredpay SELL cross-chain is covered on the no-permit fallback path (user-broadcast squid
@@ -87,17 +87,14 @@ untested — it needs relayer-contract execution the fake world doesn't model.
 ² BRL BUY cross-chain (pix → Base mint + Nabla swap → squid → USDC-on-Arbitrum) is happy-path
 only; failure modes of the shared squid handlers are covered by the MXN cross-chain and BRL
 cross-chain offramp scenarios.
-³ EUR registration is still kill-switched at `/v1/ramp/register` (503 — asserted by these
-tests). The scenarios seed the registered state through the same service calls registration
-runs below the switch, then drive the real PhaseProcessor. The re-enablement precondition is
-met; once the switch is lifted, swap the seeding helpers in `corridors/eur-*.scenario.test.ts`
-to plain HTTP registration and add SDK + E2E coverage.
-⁴ The EUR scenarios cover the direct EURC-on-Base paths; BUY to other destinations / SELL from
-non-Base sources use the shared squid legs tested in the other corridors' cross-chain variants.
+³ Active Monerium coverage is split across focused block tests. The retained
+`corridors/eur-*.scenario.test.ts` files now seed identity-bearing Mykobo metadata directly and
+verify only persisted legacy recovery. Add a full Monerium fake-world quote→register→execute
+scenario before claiming end-to-end corridor coverage.
 
 **Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
-SELL variant is untested (no-permit fallback is); EUR SDK and E2E entry points stay closed
-behind the kill-switch (corridor scenarios are in place, so lifting it is unblocked); the
+SELL variant is untested (no-permit fallback is); the active EUR onramp lacks SDK, E2E, and full
+fake-world corridor coverage; EUR offramp is intentionally unavailable; the
 AssetHub corridors are reachable in production but deliberately deferred (see the decision
 note under Infrastructure — revisit if the product keeps them).
 
@@ -229,15 +226,14 @@ Notes:
   permit/TokenRelayer cross-chain SELL variant, which needs relayer-contract execution the mock
   does not model; and the overview/recipients/transactions tables.
 
-### EUR re-enablement precondition
+### EUR coverage
 
-EUR ramps are kill-switched at registration (`ramp.service.ts`). The hermetic EUR corridor
-scenarios this precondition asked for now exist (`corridors/eur-onramp.scenario.test.ts`,
-`corridors/eur-offramp.scenario.test.ts` — both directions, happy path + transient +
-unrecoverable, driving the real PhaseProcessor; they also pin the 503 the kill-switch
-returns). What remains before EUR can be re-enabled: lift the switch, swap the scenarios'
-state-seeding helpers to plain HTTP registration (each file's docstring says how), and add
-SDK contract + E2E journey coverage for the reopened entry points.
+SEPA/EUR BUY is cataloged through Monerium; SELL returns public `400`. Focused tests cover
+profile-derived registration, Polygon EURe baseline persistence, balance-delta execution,
+exact self-transfer, pinned Uniswap conversion, flow topology, quote selection, and SELL
+rejection. The old Mykobo corridor scenarios persist legacy metadata directly to exercise
+recovery without reconnecting Mykobo to quote creation. A complete Monerium fake-world corridor,
+SDK contract, and E2E journey remain open coverage gaps.
 
 ### Live tests
 

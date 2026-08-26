@@ -2,18 +2,18 @@
 
 ## What This Does
 
-Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Pendulum or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
+Mykobo was the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Its block flows and executors remain only to finish or recover identity-bearing persisted quotes and ramps.
 
-EUR ramp registration is currently disabled at `RampService.registerRamp`: any quote whose input or output currency is `FiatToken.EURC` is rejected with `503 SERVICE_UNAVAILABLE` before Mykobo intents or phase transactions are prepared. The flow details below describe the intended Mykobo behavior for when the EUR rail is re-enabled.
+New quote resolution never selects a Mykobo flow. SEPA/EUR BUY quotes use the Polygon Monerium flow, while EUR SELL quote creation returns public `400 Bad Request`. `RampService` still resolves persisted Mykobo flow identities so in-flight work can register, execute, and recover safely.
 
-Monerium owns EU dashboard KYC/KYB and recipient onboarding eligibility, with migration into the white-label application still TBD. Mykobo remains only the dormant settlement implementation described here. The intended Mykobo registration path still checks a Mykobo profile, so the EUR kill switch MUST NOT be lifted until settlement identity is migrated to Monerium or an explicit Monerium-to-Mykobo reliance/linking flow is implemented and specified.
+The behavior below is a legacy compatibility contract, not a source of new quotes. Standalone Mykobo profile routes remain available and are outside block-flow selection.
 
 Mykobo replaces two earlier EUR rails:
 
 - The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed; Stellar/Spacewalk support was fully removed from the platform (migration 028).
 - The legacy **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. The white-label reintegration is a new API-managed baseline and does not restore that settlement path by itself; see `monerium.md`.
 
-**Provider type:** Both (on-ramp and off-ramp)
+**Provider type:** Legacy on-ramp and off-ramp recovery only
 **Fiat currency:** EUR (Euro, SEPA)
 **Chain involved:** Base (EURC is an ERC-20 on Base; USDC on Base is the Nabla swap counter-asset)
 **Block phases:**
@@ -25,11 +25,11 @@ Mykobo replaces two earlier EUR rails:
 
 **`MYKOBO_CLIENT_DOMAIN` operational note:** The client domain is sent as `client_domain` on every Mykobo API call (`MykoboApiService`). It identifies the Vortex deployment to Mykobo and determines the **fee tier** applied to that deployment's intents. When unset, Mykobo falls back to its default tier (observed: ~0.31 EUR fixed deposit fee vs. ~0.06 EUR for the negotiated Vortex tier on `satoshipay.io`). Because the constant is loaded via `getEnvVar` with no default, a missing value silently degrades fees rather than failing fast — operators MUST verify it is set at deploy time.
 
-**Fee lookup and quote-time display fallback:** EUR quote creation looks up the Mykobo fee live via `GET /fees` — onramps through `MykoboMint.simulate` and offramps through `MykoboOfframpFee`. Both use `phases/blocks/core/mykobo-fee.ts`. On offramp, `EvmOfframpSource` first installs the simulated Squid network fee and the Mykobo fee phase replaces only the anchor component, preserving network/Vortex/partner fees. If lookup fails, `MykoboFeeUnavailableError` maps to `QuoteError.AnchorTemporarilyUnavailable` (`503`). The optional env-gated fallback remains display-only; EUR registration is still disabled before provider side effects.
+**Fee lookup:** The retained flow simulators still model Mykobo fees for legacy tests, but no production quote can invoke them. Mykobo fee failures are no longer mapped by `QuoteService` because Mykobo is absent from new quote selection.
 
 ### On-ramp flow (EUR SEPA → Base EURC → Nabla swap → user EVM destination)
 
-1. At ramp registration, `RampService` calls the catalog flow's `Flow.register`. `MykoboMint.register` derives the approved Mykobo customer from the authenticated user and calls Mykobo `POST /transactions/intent` with `transaction_type=DEPOSIT`, `currency=EURC`, the user's derived email + IP, the **Base ephemeral address** as `wallet_address`, and `value` as the EUR amount floored to **2 decimal places**. It returns IBAN payment artifacts and phase-owned transaction facts; `Flow.prepareTxs` supplies only those own facts to `MykoboMint`, which persists them under `state.blockState.mykoboMint`.
+1. For a persisted Mykobo quote, `RampService` calls that exact flow identity's `Flow.register`. `MykoboMint.register` derives the approved Mykobo customer from the authenticated user and calls Mykobo `POST /transactions/intent` with `transaction_type=DEPOSIT`, `currency=EURC`, the user's derived email + IP, the **Base ephemeral address** as `wallet_address`, and `value` as the EUR amount floored to **2 decimal places**. It returns IBAN payment artifacts and phase-owned transaction facts; `Flow.prepareTxs` supplies only those own facts to `MykoboMint`, which persists them under `state.blockState.mykoboMint`.
 2. IBAN instructions are returned to the user **only after** presigned-transaction validation passes (see `transaction-validation.md`).
 3. User makes the SEPA bank transfer to Mykobo's IBAN with the returned reference.
 4. `mykoboOnrampDeposit`: handler polls the Base RPC for EURC arrival at `evmEphemeralAddress`.
@@ -43,7 +43,7 @@ Mykobo replaces two earlier EUR rails:
 
 #### Degenerate EUR→EURC-on-Base route (direct bypass)
 
-When the user on-ramps EUR and asks for **EURC delivered on Base** (SEPA, input EURC, output EURC, destination Base), the generic pipeline would pointlessly swap EURC→USDC on Nabla and then bridge/swap USDC→EURC back to itself — burning two swaps of slippage and fees, and inviting the over-subsidy race documented in `06-cross-chain/fund-routing.md`. The exact catalog predicate resolves `EurOnrampBaseDirect`, which composes `MykoboMint` → `FundEphemeral` → `DestinationTransfer` and derives `initial` → `mykoboOnrampDeposit` → `fundEphemeral` → `destinationTransfer` → `complete`. It emits a **single** presigned `destinationTransfer` of the quoted provider-delivered EURC from the ephemeral to the user: no Nabla, fee distribution, Squid, final settlement, or Base cleanup transactions. `stateMeta.isDirectTransfer = true`, and the destination-transfer nonce is `0` because the ephemeral has signed nothing else on this corridor. EUR registration remains kill-switched before these provider side effects.
+Persisted `EurOnrampBaseDirect` quotes retain the direct `MykoboMint` → `FundEphemeral` → `DestinationTransfer` topology. No new quote selects this bypass.
 
 ### Off-ramp flow (User EVM → Base USDC → Base EURC → SEPA payout)
 
@@ -68,7 +68,7 @@ The Mykobo KYC widget on the frontend (`MykoboKycFlow`) drives the user through 
 
 ### Why no `mykoboMint` phase
 
-Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is observed entirely on-chain via the Base EURC balance of the ephemeral. The handler is therefore a pure balance-poller; there is no Vortex-controlled minting step that can fail mid-flight. The separate dormant Monerium issue executor also does not currently trigger minting: it fails closed until deterministic incoming-payment correlation exists.
+Mykobo's legacy SEPA→EURC settlement is initiated by the user's bank transfer and observed on-chain via the Base EURC balance of the ephemeral. The retained handler is a pure balance-poller. The active Monerium flow uses a separate persisted owner-balance delta on Polygon.
 
 ## Security Invariants
 
@@ -94,10 +94,10 @@ Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is 
 20. **`MYKOBO_CLIENT_DOMAIN` MUST be set in every deployment** — The constant is sent as `client_domain` on every Mykobo API call and selects the negotiated fee tier. Because it is loaded via `getEnvVar` with no default, a missing value silently falls back to Mykobo's default tier (worse fees, observed ~5x higher). Deploy-time checks MUST treat an unset `MYKOBO_CLIENT_DOMAIN` as a hard failure.
 21. **Mykobo intent `value` MUST be floored to 2 decimal places** — Mykobo silently truncates anything beyond 2 dp, which would otherwise cause the on-chain transfer amount and the Mykobo-credited amount to diverge. Both the on-ramp `DEPOSIT` intent and the off-ramp `WITHDRAW` intent MUST send a 2dp-floored `value`, and the off-ramp on-chain transfer MUST be derived from that same floored value (not from the unrounded Nabla output). The sub-cent EURC remainder on the ephemeral MUST be swept by `baseCleanupEurc`.
 22. **The EUR→EURC-on-Base on-ramp MUST take the direct-transfer bypass** — When `inputCurrency === EURC`, `outputCurrency === EURC`, and `network === Base`, `isEurToEurcBaseDirect` MUST short-circuit the route to a single `destinationTransfer` from the ephemeral to the user, with `stateMeta.isDirectTransfer = true`. The Nabla swap, SquidRouter, `finalSettlementSubsidy`, and Base cleanup phases MUST NOT run — routing EURC through USDC and back would burn double-swap slippage/fees against the user and expose the over-subsidy race (`06-cross-chain/fund-routing.md`). The `finalSettlementSubsidy` handler MUST also honor `isDirectTransfer`/`isEurToEurcBaseDirect` defensively and skip to `destinationTransfer` if reached.
-23. **EUR ramp registration MUST derive the Mykobo email from the effective user and require approved Mykobo KYC** — `MykoboMint.register` and `MykoboOfframpPayout.register` resolve `email_address` via `resolveMykoboCustomerForUser(userId, providedEmail?)`, which (a) reads the canonical email from the effective user's profile, (b) accepts `additionalData.email` only as a match-only compatibility check, and (c) refreshes the live provider/KYC mirrors and rejects unless canonically approved. The provided email never selects a customer. Combined with the effective-user requirement, one user cannot register against another user's Mykobo identity. Headless managed profiles have no canonical email and are therefore rejected by this dormant integration. This accepted incompatibility is safe while EUR registration remains disabled; Mykobo identity resolution MUST be redesigned before the rail is re-enabled for managed profiles.
-24. **Disabled EUR registration MUST fail before provider side effects** — While EUR ramps are disabled, `registerRamp` MUST reject any quote with `inputCurrency === FiatToken.EURC` or `outputCurrency === FiatToken.EURC` using `503 SERVICE_UNAVAILABLE` before Mykobo intent creation, presigned transaction preparation, quote consumption, or ramp-state creation.
+23. **Persisted Mykobo ramp registration MUST derive the Mykobo email from the effective user and require approved Mykobo KYC** — `MykoboMint.register` and `MykoboOfframpPayout.register` resolve `email_address` via `resolveMykoboCustomerForUser(userId, providedEmail?)`, which reads the canonical email, accepts `additionalData.email` only as a match-only compatibility check, and rejects unless canonically approved. The provided email never selects a customer. Headless managed profiles remain incompatible with this legacy recovery path.
+24. **Mykobo MUST be excluded from new quote resolution** — New EUR BUY quotes select Monerium and new EUR SELL quotes return public `400`. Exact persisted Mykobo identities and identity-less legacy metadata remain resolvable for recovery.
 25. **`mykoboPayoutOnBase` MUST verify the ephemeral's EURC balance before the first broadcast** — The presigned payout is single-use (its nonce is consumed even on revert), so the handler calls `ensurePresignedTransferFunded` before `sendRawTransaction`: sender/token/amount are decoded from the signed raw tx and the ephemeral balance is polled (3-minute timeout); a shortfall raises a recoverable error instead of burning the nonce. See `03-ramp-engine/ramp-phase-flows.md` invariant 12.
-26. **The Mykobo fee display fallback MUST be display-only and MUST NOT price a ramp execution** — When `MYKOBO_FEE_FALLBACK_ENABLED=true`, a failed `defaultDepositFee` / `defaultWithdrawFee` lookup returns the configured flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE` (validated non-negative at boot) so EUR quotes still render during a `/fees` outage. This value is used only for the quote's anchor-fee display. Ramp execution MUST NOT run on a fallback fee: the EUR registration kill-switch (`registerRamp` rejects EURC quotes with `503`) currently blocks all EUR execution, and when the rail is re-enabled, ramp start MUST re-validate the live Mykobo fee before executing. When the fallback is disabled (default) or a needed value is unset, the lookup failure MUST surface as `MykoboFeeUnavailableError` → `QuoteError.AnchorTemporarilyUnavailable` (`503`), never as an invented fee.
+26. **Mykobo fee fallback MUST NOT re-enable quote selection** — Retained simulator configuration is compatibility/test-only. `QuoteService` MUST NOT call or translate Mykobo fee lookup results for a new quote.
 27. **EUR Base destination variants MUST use token-specific static topology** — Base EURC belongs exclusively to the direct bypass. Base USDC MUST run Nabla EURC→USDC and omit Squid. Base USDT, ETH, AXLUSDC, and BRLA MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` immediately after the Squid swap.
 
 ## Threat Vectors & Mitigations
@@ -156,6 +156,6 @@ Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is 
 - [ ] No Mykobo API call is invoked from a phase handler without an explicit recoverable/unrecoverable mapping
 - [ ] EUR→EURC-on-Base on-ramps (`isEurToEurcBaseDirect`) emit a single `destinationTransfer` with `isDirectTransfer = true` — no Nabla swap, SquidRouter, `finalSettlementSubsidy`, or Base cleanup phases
 - [ ] `finalSettlementSubsidy` honors `isDirectTransfer` / `isEurToEurcBaseDirect` and short-circuits to `destinationTransfer` if ever reached on a direct route
-- [ ] While EUR ramps are disabled, `registerRamp` rejects EURC input/output quotes with `503 SERVICE_UNAVAILABLE` before any Mykobo or ramp-state side effects
-- [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not generic `FailedToCalculateQuote`; the env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED`) is display-only and never prices a ramp execution
-- [x] EUR Base output topology is token-specific. **PASS** — catalog predicates map EURC only to the direct flow, USDC to the no-Squid flow, and USDT/ETH/AXLUSDC/BRLA to the one-phase same-chain Squid flow; flow and transaction tests enforce Base construction and contiguous nonce ordering.
+- [x] New quotes cannot select Mykobo; persisted exact identities and identity-less legacy metadata remain recoverable.
+- [x] New EUR SELL quotes return public `400`; new EUR BUY quotes select Monerium.
+- [x] Legacy EUR Base topologies remain covered by flow, transaction, and recovery tests without being production quote candidates.

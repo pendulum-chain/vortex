@@ -100,10 +100,10 @@ describe("EUR direct Base onramp flow", () => {
     expect(getBlockMetadata(result.metadata, DestinationTransferContext).amountRaw).toBe("99940000");
   });
 
-  it("uses the exact SEPA EUR to Base EURC catalog predicate", () => {
-    expect(resolveBlockFlow(REQUEST).name).toBe("EurOnrampBaseDirect");
+  it("is retained for persisted Mykobo ramps but not selected for new quotes", () => {
+    expect(resolveBlockFlow(REQUEST).name).toBe("MoneriumOnrampPolygonCrossChain");
     expect(() => resolveBlockFlow({ ...REQUEST, from: EPaymentMethod.PIX })).toThrow();
-    expect(resolveBlockFlow({ ...REQUEST, outputCurrency: EvmToken.USDC }).name).not.toBe("EurOnrampBaseDirect");
+    expect(resolveBlockFlow({ ...REQUEST, outputCurrency: EvmToken.USDC }).name).toBe("MoneriumOnrampPolygonCrossChain");
     expect(() => resolveBlockFlow({ ...REQUEST, rampType: RampDirection.SELL })).toThrow();
   });
 });

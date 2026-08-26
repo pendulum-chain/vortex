@@ -1,10 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
-
+import type { Flow } from "../core/types";
 
 const { BlockInitialExecutor } = await import("../core/initial-executor");
-const { getBlockExecutorFlows, resolveBlockFlow } = await import("../flows/catalog");
+const { getBlockExecutorFlows, resolveBlockFlow, resolvePersistedBlockFlow } = await import("../flows/catalog");
 const { getBlockFlowHandlers } = await import("../register-handlers");
 const { PhaseProcessor } = await import("../../phase-processor");
 
@@ -17,6 +17,18 @@ const mappedRequest = {
   rampType: RampDirection.BUY,
   to: Networks.Arbitrum
 };
+
+function persistedMetadata(flow: Flow, request: Record<string, unknown>, includeIdentity = true) {
+  return {
+    blocks: Object.fromEntries(flow.contextKeys.map(key => [key, {}])),
+    ...(includeIdentity ? { flow: flow.identity } : {}),
+    globals: {
+      fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", total: "0", vortex: "0" } },
+      partner: null,
+      request
+    }
+  };
+}
 
 describe("block flow production wiring", () => {
   it("resolves a mapped request to its destination-specific flow", () => {
@@ -34,13 +46,13 @@ describe("block flow production wiring", () => {
     expect(flow.name).toBe("AlfredpayOnrampCrossChain");
   });
 
-  it("resolves non-Base SEPA EUR onramps to the Mykobo cross-chain flow", () => {
+  it("resolves non-Polygon SEPA EUR onramps to the Monerium cross-chain flow", () => {
     const flow = resolveBlockFlow({
       ...mappedRequest,
       from: EPaymentMethod.SEPA,
       inputCurrency: FiatToken.EURC
     });
-    expect(flow.name).toBe("EurOnrampBaseCrossChain");
+    expect(flow.name).toBe("MoneriumOnrampPolygonCrossChain");
     expect(() =>
       resolveBlockFlow({
         ...mappedRequest,
@@ -50,7 +62,7 @@ describe("block flow production wiring", () => {
     ).toThrow(APIError);
   });
 
-  it("resolves every supported EUR Base output to its exact non-overlapping flow", () => {
+  it("resolves every supported EUR Base output through Monerium", () => {
     const eurBaseRequest = {
       ...mappedRequest,
       from: EPaymentMethod.SEPA,
@@ -58,10 +70,15 @@ describe("block flow production wiring", () => {
       network: Networks.Base,
       to: Networks.Base
     };
-    expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency: EvmToken.EURC }).name).toBe("EurOnrampBaseDirect");
-    expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency: EvmToken.USDC }).name).toBe("EurOnrampBaseSameChain");
-    for (const outputCurrency of [EvmToken.USDT, EvmToken.ETH, EvmToken.AXLUSDC, EvmToken.BRLA]) {
-      expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency }).name).toBe("EurOnrampBaseSameChainSwap");
+    for (const outputCurrency of [
+      EvmToken.EURC,
+      EvmToken.USDC,
+      EvmToken.USDT,
+      EvmToken.ETH,
+      EvmToken.AXLUSDC,
+      EvmToken.BRLA
+    ]) {
+      expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency }).name).toBe("MoneriumOnrampPolygonCrossChain");
     }
     expect(() => resolveBlockFlow({ ...eurBaseRequest, from: EPaymentMethod.ACH, outputCurrency: EvmToken.USDC })).toThrow(
       APIError
@@ -145,7 +162,7 @@ describe("block flow production wiring", () => {
     ).toThrow(APIError);
   });
 
-  it("keeps EURE out of generic catalog routes while Monerium is dormant", () => {
+  it("keeps internal EURE out of public catalog routes", () => {
     const dormantEure = "EURE";
     const requests = [
       {
@@ -188,6 +205,27 @@ describe("block flow production wiring", () => {
     for (const request of requests) {
       expect(() => resolveBlockFlow(request as never)).toThrow(APIError);
     }
+  });
+
+  it("keeps Mykobo available only for persisted recovery", () => {
+    const request = {
+      ...mappedRequest,
+      from: EPaymentMethod.SEPA,
+      inputCurrency: FiatToken.EURC,
+      network: Networks.Base,
+      outputCurrency: EvmToken.EURC,
+      to: Networks.Base
+    };
+    const legacyFlow = getBlockExecutorFlows().find(flow => flow.name === "EurOnrampBaseDirect");
+    expect(legacyFlow).toBeDefined();
+
+    expect(resolvePersistedBlockFlow(persistedMetadata(legacyFlow!, request)).name).toBe("EurOnrampBaseDirect");
+    expect(resolvePersistedBlockFlow(persistedMetadata(legacyFlow!, request, false)).name).toBe("EurOnrampBaseDirect");
+
+    const moneriumFlow = resolveBlockFlow(request);
+    expect(resolvePersistedBlockFlow(persistedMetadata(moneriumFlow, request)).name).toBe(
+      "MoneriumOnrampPolygonCrossChain"
+    );
   });
 
   it("derives one non-conflicting executor per phase from the catalog", () => {
