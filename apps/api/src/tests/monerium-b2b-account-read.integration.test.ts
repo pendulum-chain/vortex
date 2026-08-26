@@ -159,4 +159,31 @@ describe("monerium b2b account read surface", () => {
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({ error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND" } });
   });
+
+  // Regression: the controller used to demand quoteId/sessionId before the service's
+  // account-family branch could run, making this documented registration impossible.
+  it("registers a deposit-event webhook over HTTP without a quote or session", async () => {
+    const { managerHeaders } = await setupMappedChild();
+
+    const response = await app.request("/v1/webhook", {
+      body: JSON.stringify({
+        events: ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"],
+        url: "https://manager.example.com/vortex/deposits"
+      }),
+      headers: { "Content-Type": "application/json", ...managerHeaders },
+      method: "POST"
+    });
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { id: string; events: string[]; quoteId: string | null };
+    expect(body.events).toEqual(["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"]);
+    expect(body.quoteId).toBeNull();
+
+    // The transaction-family requirement still holds at the same HTTP surface.
+    const legacyWithoutTarget = await app.request("/v1/webhook", {
+      body: JSON.stringify({ url: "https://manager.example.com/vortex/tx" }),
+      headers: { "Content-Type": "application/json", ...managerHeaders },
+      method: "POST"
+    });
+    expect(legacyWithoutTarget.status).toBe(400);
+  });
 });
