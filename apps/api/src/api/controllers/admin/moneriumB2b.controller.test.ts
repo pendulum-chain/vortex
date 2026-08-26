@@ -9,6 +9,7 @@ import User from "../../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import moneriumB2bRoutes from "../../routes/v1/admin/monerium-b2b.route";
+import { forwarderConfigMismatch } from "../../services/monerium-b2b/account-provisioning";
 
 const BASE_PATH = "/v1/admin/monerium-b2b";
 const ADMIN_HEADERS = { Authorization: "Bearer test-admin-secret", "Content-Type": "application/json" };
@@ -184,7 +185,22 @@ describe("monerium b2b account mapping admin route", () => {
     );
     expect(differentSubject.status).toBe(409);
 
+    // Same everything, different feeBps: divergence, not a silent idempotent replay.
+    const differentFee = await post(validBody(managerProfileId, { feeBps: 25 }));
+    expect(differentFee.status).toBe(409);
+
     expect(await MoneriumAccount.count()).toBe(1);
+  });
+
+  it("compares submitted account data against the deployed clone config", () => {
+    const expected = { destination: DESTINATION.toLowerCase(), fallbackAddress: FALLBACK.toLowerCase(), feeBps: 0 };
+    const matching = { destination: DESTINATION, fallbackAddress: FALLBACK, feeBps: 0, isForwarder: true };
+
+    expect(forwarderConfigMismatch(expected, matching)).toBeNull();
+    expect(forwarderConfigMismatch(expected, { ...matching, isForwarder: false })).toContain("not a clone");
+    expect(forwarderConfigMismatch(expected, { ...matching, destination: FALLBACK })).toContain("destination");
+    expect(forwarderConfigMismatch(expected, { ...matching, fallbackAddress: DESTINATION })).toContain("fallbackAddress");
+    expect(forwarderConfigMismatch(expected, { ...matching, feeBps: 30 })).toContain("feeBps");
   });
 
   it("rejects invalid input and unknown managers", async () => {
