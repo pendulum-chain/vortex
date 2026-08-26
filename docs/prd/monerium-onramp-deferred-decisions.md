@@ -2,7 +2,32 @@
 
 **Purpose:** single place for every parameter and decision we deliberately postponed so implementation can start. Nothing in here blocks coding; each row states the placeholder used in code/spec until decided. Review this file at every phase gate.
 
-**Last updated:** 2026-07-17
+**Last updated:** 2026-08-26
+
+## Decision table — recommended values (2026-08-26)
+
+Consolidated pre-deploy view: every open parameter with a concrete recommendation to
+accept or overrule. Rationale and history stay in the detail sections below.
+
+| # | Item | Placeholder in code | Recommended | Rationale | Status |
+|---|---|---|---|---|---|
+| B1 | GA `feeBps` | 0 (pilot) | **0 pilot / 25 bps GA starting point** | Covers keeper gas + ops without denting OTC economics; immutable per clone, so set per client at deploy. Commercial call. | Open (business) |
+| B2 | Penny-test amount | 5 USDC | **5 USDC** | Cheap, proves contract-originated credit at the destination. | Accept placeholder |
+| B3 | Processing SLA wording | "within 1 business hour" | **"converted and forwarded within 4 hours of mint on business days; weekend/holiday mints execute against the last oracle round within the 52 h window and may see wider spreads"** | Matches keeper cadence + P8 weekend policy; 1 h leaves no incident headroom. | Draft for terms (G2) |
+| B4 | Pilot client list + volume limits | €1k/client/day | **3–5 clients; €100k/client/day, €250k aggregate/day (paper controls)** | €1k/day is unusable for OTC tickets. Note: limits are contractual only — nothing in the backend enforces daily volume; `perSwapCap` bounds per-swap size, monitoring covers the rest. | Open (business) |
+| B5 | Partner liability terms | — | **Tier A defaults from the variant doc**: partner warrants destination correctness, rotation loss borne by the client, dormancy re-activation on written partner confirmation (admin status endpoint) | Already the design the contract assumes. | Draft for partner agreement |
+| B6 | Redemption-limitation disclosure | Draft in variant doc §6 | **Use the §6 draft** | Commitment made to Monerium; wording needs G2 review only. | Draft for terms (G2) |
+| P1 | `SLIPPAGE_BPS` | 100 | **100** | T6 baseline shows ~14 bps impact at 25k incl. fees; 100 bps absorbs weekend EUR/USD drift inside the P8 window. | Accept placeholder |
+| P2 | `MAX_FEE_BPS` | 100 | **100** | 1% ceiling leaves commercial room above the B1 value without weakening the client guarantee. | Accept placeholder |
+| P3 | Dead-man sweep delay | 60 days | **60 days** | Long enough that no operational hiccup triggers it, short enough to be a credible client escape hatch. | Accept placeholder |
+| P4 | Permissionless trigger delay | 24 h | **24 h** | Keeper cycles every minute; >24 h of silence means the fallback SHOULD be live. | Accept placeholder |
+| P5 | Dormancy window | 60 days | **60 days** | Pairs with P3; backend-enforced, adjustable later without redeploy. | Accept placeholder |
+| P6 | `minSwapAmount` (floor / operational) | €25 / €25 | **floor €25 (immutable) / operational €250** | Mainnet swap ≈ 400–600k gas; at €25 the keeper's gas can exceed 1% of volume. €250 keeps gas noise negligible for OTC sizes. Must stay ≥ each client's CEX minimum where applicable. | Set at deploy |
+| P7 | `perSwapCap` (operational / ceiling) | €10k / €50k | **operational €25k / ceiling €50k** | T6: 25k executes within ~14 bps on the pinned path. Re-run T6 at the deploy block before raising the operational value. | Set at deploy |
+| P8 | `MAX_ORACLE_AGE` | 26 h in test configs | **52 h** | Decided 2026-07-17 (observed weekend gaps up to 48 h). Still needs applying to the fork/invariant test configs and the deploy config. | Decided — apply |
+| P9 | Notification confirmation depth | 32 blocks | **32 blocks** | Implemented (DEPOSIT_CONVERTED depth gate). | Done — close |
+| P10 | Router pin + fee tiers | SwapRouter02, 5 bps hops | **SwapRouter02; re-verify both pools/fee tiers at the deploy block** | G0 output; verification action, not a value. | Action at deploy |
+| T1 | `RECOVERY_HASH` / issuer recovery | `bytes32(0)` (disabled) | **Open — see options below** | See the rewritten T1 row: question to Monerium still unsent; a pilot-only permissive validator is under consideration with material tradeoffs. | **OPEN** |
 
 ## Business decisions (Marcel / partner)
 
@@ -34,7 +59,7 @@
 
 | # | Item | Owner | Status |
 |---|---|---|---|
-| T1 | **Monerium recovery-burn mechanism for contract addresses**: exact message/hash their recovery flow validates via EIP-1271, so the forwarder can whitelist it (compile-time constant `RECOVERY_HASH`). If unanswered by deploy time: ship without it — fallback-address recovery covers us; issuer backstop becomes best-effort. **Requirement (review r1)**: enable only if the recovery message is parameterless or payout-neutral — a parameterized message validated by our attestor would grant Vortex disposal discretion | Monerium tech team (compliance punted) | **Asked? No — send follow-up** |
+| T1 | **Monerium recovery-burn mechanism for contract addresses** — OPEN (2026-08-26). The issuer recovery flow validates a signature against the linked address via EIP-1271; the forwarder currently accepts only the link hash, so `RECOVERY_HASH = bytes32(0)` disables issuer recovery entirely. Options on the table: **(a) ship the pilot as-is** (no issuer recovery; the fallback-address sweep remains the client's recovery path; issuer backstop best-effort only); **(b) obtain the exact recovery message/hash from Monerium and whitelist it** — the preferred end state, but the question has still not been sent; **requirement (review r1)**: enable only if the message is parameterless or payout-neutral, since a parameterized message validated by our attestor would grant Vortex disposal discretion; **(c) pilot-only permissive validator (Marcel, 2026-08-26)**: accept that the pilot may need a less MiCA-clean variant where `isValidSignature` validates arbitrary attestor-signed messages so every Monerium-side flow (recovery included) works. **Recorded tradeoffs for (c)**: Monerium redeem orders also validate via EIP-1271, so a permissive validator reintroduces the redeem-to-arbitrary-IBAN path the constrained design exists to block — an attestor-key compromise becomes a fiat theft path, and the non-custody analysis changes because Vortex gains disposal capability (G2 must re-scope custody/MiCA before this ships; attestor key custody would need hardening, e.g. HSM; plan a migration back to the constrained validator for GA). Decision: Marcel + G2, before mainnet deploy | Monerium tech team (question), Marcel + G2 (pilot variant) | **OPEN — question not sent; pilot variant under consideration** |
 | T2 | Chainlink EUR/USD weekend behavior → weekend policy | G0 spike | **Answered 2026-07-17**: rounds observed on Sat/Sun (deviation-triggered), gaps up to 48 h; see P8. Weekend policy: execute normally with `MAX_ORACLE_AGE ≥ 52 h` |
 | T6 | Liquidity baseline (review F12 reproducibility) | G0 spike | **Recorded 2026-07-17, mainnet block 25553101**, QuoterV2 on pinned path EURe→(500)→EURC→(500)→USDC: 1k → 1.14298, 5k → 1.14288, 10k → 1.14278, 25k → 1.14252 USDC/EURe (Chainlink same day 1.14410 — 25k within ~14 bps incl. 2×5 bps fees). Deeper than the 07-10 snapshot; €10k cap comfortable. Re-run at deploy + wire into monitoring (task 6) |
 | T3 | Corporate KYB mechanism under whitelabel: Monerium-run verification vs KYC-reliance (reliance requires licenses we may not hold) | Monerium MSA negotiation | Open — fold into G1 |
@@ -64,7 +89,7 @@ Custody opinion on attestor construction; MiCA exchange/transfer-service scoping
 - Tier C dropped: self-custodied `fallbackAddress` mandatory for every client (2026-07-17; aligns with Monerium condition).
 - Target whitelabel API directly, develop against sandbox; no legacy-OAuth interim build (2026-07-17).
 - Adversarial review runs in parallel with implementation (2026-07-17).
-- Attestor-constrained `isValidSignature` (link hash only, attestor key only, bound to contract address); never a general owner key.
+- Attestor-constrained `isValidSignature` (link hash only, attestor key only, bound to contract address); never a general owner key. **Under reconsideration for the pilot only** via T1 option (c) — any relaxation goes through the T1 decision with G2, not silently.
 - Never send raw EURe to a CEX destination; EURe recovery targets are `fallbackAddress` only.
 - No on-contract redeem validator (F05 stands); redemption path = fallback sweep → client redeems from own address; issuer recovery as break-glass backstop (pending T1).
 - Fee structure: per-client immutable `feeBps` at init, immutable `MAX_FEE_BPS` + treasury (pilot 0).
