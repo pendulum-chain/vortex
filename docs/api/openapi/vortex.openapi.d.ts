@@ -948,6 +948,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/monerium-b2b/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the acting profile's EUR onramp account
+         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["getMoneriumB2bAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/monerium-b2b/deposits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the acting profile's EUR deposits
+         * @description Returns the acting profile's EUR deposits newest first, each with its allocated conversion execution once the swap has run. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bDeposits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/onboarding/active-entity": {
         parameters: {
             query?: never;
@@ -2004,50 +2048,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/monerium-b2b/account": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the acting profile's EUR onramp account
-         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
-         *
-         *     **Auth:** `X-API-Key` or Supabase Bearer.
-         */
-        get: operations["getMoneriumB2bAccount"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/monerium-b2b/deposits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List the acting profile's EUR deposits
-         * @description Returns the acting profile's EUR deposits newest first, each with its allocated conversion execution once the swap has run. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
-         *
-         *     **Auth:** `X-API-Key` or Supabase Bearer.
-         */
-        get: operations["listMoneriumB2bDeposits"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2810,6 +2810,66 @@ export interface components {
                 status: number;
             };
         };
+        MoneriumB2bAccount: {
+            accountId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The client's payout address on Ethereum. */
+            destination: string;
+            /**
+             * Format: date-time
+             * @description Set while the account is dormancy-paused.
+             */
+            dormantSince: string | null;
+            /** @description The client's self-custodied recovery address. */
+            fallbackAddress: string;
+            feeBps: number;
+            /** @description The account's on-chain forwarding contract. */
+            forwarderAddress: string;
+            /** @description The account's dedicated IBAN; null until issuance completes. */
+            iban: string | null;
+            /** @enum {string} */
+            status: "onboarding" | "active" | "suspended" | "closed";
+        };
+        MoneriumB2bAccountResponse: {
+            account: components["schemas"]["MoneriumB2bAccount"];
+        };
+        MoneriumB2bDeposit: {
+            /** @description Deposit amount in 18-decimal base units of the deposit currency. */
+            amountRaw: string;
+            /** @description The allocated conversion execution once the swap has run; null while the deposit awaits conversion. */
+            conversion: {
+                executionId: string;
+                /**
+                 * @description Execution status.
+                 * @enum {string}
+                 */
+                status: "pending" | "confirmed" | "failed";
+                /** @description The swap-and-forward transaction hash. */
+                txHash: string | null;
+                /** @description Net USDC forwarded for the whole execution in 6-decimal base units. When one execution batches several deposits this is the execution total; per-deposit shares are proportional to amountRaw. */
+                usdcNetRaw: string | null;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+            currency: string;
+            depositId: string;
+            /**
+             * @description Deposit status (forward-only).
+             * @enum {string}
+             */
+            status: "pending" | "minted" | "held" | "returned";
+            /** @description The on-chain mint transaction, when observed. */
+            txHash: string | null;
+        };
+        MoneriumB2bDepositsResponse: {
+            deposits: components["schemas"]["MoneriumB2bDeposit"][];
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
+            };
+        };
         /**
          * @description Supported blockchain networks.
          * @enum {string}
@@ -3362,66 +3422,6 @@ export interface components {
         ValidatePixKeyResponse: {
             /** @description Indicates if the PIX key is valid. */
             valid?: boolean;
-        };
-        MoneriumB2bAccount: {
-            accountId: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** @description The client's payout address on Ethereum. */
-            destination: string;
-            /**
-             * Format: date-time
-             * @description Set while the account is dormancy-paused.
-             */
-            dormantSince: string | null;
-            /** @description The client's self-custodied recovery address. */
-            fallbackAddress: string;
-            feeBps: number;
-            /** @description The account's on-chain forwarding contract. */
-            forwarderAddress: string;
-            /** @description The account's dedicated IBAN; null until issuance completes. */
-            iban: string | null;
-            /** @enum {string} */
-            status: "onboarding" | "active" | "suspended" | "closed";
-        };
-        MoneriumB2bAccountResponse: {
-            account: components["schemas"]["MoneriumB2bAccount"];
-        };
-        MoneriumB2bDeposit: {
-            /** @description Deposit amount in 18-decimal base units of the deposit currency. */
-            amountRaw: string;
-            /** @description The allocated conversion execution once the swap has run; null while the deposit awaits conversion. */
-            conversion: {
-                executionId: string;
-                /**
-                 * @description Execution status.
-                 * @enum {string}
-                 */
-                status: "pending" | "confirmed" | "failed";
-                /** @description The swap-and-forward transaction hash. */
-                txHash: string | null;
-                /** @description Net USDC forwarded for the whole execution in 6-decimal base units. When one execution batches several deposits this is the execution total; per-deposit shares are proportional to amountRaw. */
-                usdcNetRaw: string | null;
-            } | null;
-            /** Format: date-time */
-            createdAt: string;
-            currency: string;
-            depositId: string;
-            /**
-             * @description Deposit status (forward-only).
-             * @enum {string}
-             */
-            status: "pending" | "minted" | "held" | "returned";
-            /** @description The on-chain mint transaction, when observed. */
-            txHash: string | null;
-        };
-        MoneriumB2bDepositsResponse: {
-            deposits: components["schemas"]["MoneriumB2bDeposit"][];
-            pagination: {
-                limit: number;
-                offset: number;
-                total: number;
-            };
         };
     };
     responses: {
@@ -6490,6 +6490,99 @@ export interface operations {
             };
         };
     };
+    getMoneriumB2bAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The acting profile's onramp account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bAccountResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No account exists for the acting profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMoneriumB2bDeposits: {
+        parameters: {
+            query?: {
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The acting profile's deposits with conversion status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bDepositsResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No account exists for the acting profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     selectActiveCustomerEntity: {
         parameters: {
             query?: never;
@@ -7545,99 +7638,6 @@ export interface operations {
                      */
                     "application/json": Record<string, never>;
                 };
-            };
-        };
-    };
-    getMoneriumB2bAccount: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The acting profile's onramp account. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MoneriumB2bAccountResponse"];
-                };
-            };
-            /** @description Missing or invalid credentials. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No account exists for the acting profile. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    listMoneriumB2bDeposits: {
-        parameters: {
-            query?: {
-                /** @description Page size (default 20, max 100). */
-                limit?: number;
-                /** @description Rows to skip (default 0). */
-                offset?: number;
-            };
-            header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
-                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The acting profile's deposits with conversion status. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MoneriumB2bDepositsResponse"];
-                };
-            };
-            /** @description Missing or invalid credentials. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No account exists for the acting profile. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
