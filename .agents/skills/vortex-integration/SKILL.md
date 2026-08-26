@@ -1,6 +1,6 @@
 ---
 name: vortex-integration
-description: Use when integrating Vortex or @vortexfi/sdk, including unified API credentials, sanitized ramp info, quotes, onramps/offramps for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU), ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
+description: Use when integrating Vortex or @vortexfi/sdk, including unified API credentials, sanitized ramp info, quotes, BRL (PIX), direct-API EUR (SEPA) onramps, USD (ACH), MXN (SPEI), COP, and ARS (CBU), ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
 ---
 
 # Vortex Integration Skill
@@ -19,13 +19,13 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
   - `pk_live_*` / `pk_test_*` — public value, sent as `X-Public-Key` for attribution and approved low-sensitivity reads. Quote/widget body `apiKey` remains compatibility transport; if both are present they must match.
   - `sk_live_*` / `sk_test_*` — secret value, sent only in `X-API-Key`. **Never expose `sk_*` in a browser or mobile app.** It is returned only when the credential is created.
   - If both values are configured, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. A valid secret may be used without a public value.
-  - **Ramp registration requires an authenticated profile in every corridor.** The secret credential acts only for its bound profile; raw API clients may instead use that profile's Supabase Bearer session. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
+  - **Ramp registration requires an authenticated profile in every corridor.** The secret credential acts only for its bound profile; raw API clients may instead use that profile's Supabase Bearer session. Provider identity (BRL tax ID, Alfredpay customer, or Monerium profile) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
   - Profile-managed credentials use `POST/GET/DELETE /v1/api-credentials` with a Supabase Bearer session. One profile may have at most five active non-expired credentials; revoke by credential ID disables both values atomically with no DELETE body.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Presigned counts**: this is **per ephemeral-signed transaction, not per ramp**. Each transaction an ephemeral key signs must be submitted as 5 presigned variants — 1 primary plus exactly 4 backups with consecutive nonces in `meta.additionalTxs` (`NUMBER_OF_PRESIGNED_TXS = 5`); the API rejects any other backup count. A ramp can contain several ephemeral-signed transactions across its phases. (The SDK builds these for you; only raw-API integrations need to construct them.)
-- **Currently implemented corridors** (all live in the SDK): BRL via PIX, EUR via SEPA (Mykobo), USD via ACH, MXN via SPEI, COP via ACH, ARS via CBU. All support both onramp (BUY) and offramp (SELL). EUR and the bank-transfer corridors deliver to EVM networks only (no AssetHub).
-- **EUR enum value**: EUR quotes use `FiatToken.EURC` (not `EUR`) as the currency value, with `"sepa"` as the rail identifier.
+- **Currently implemented SDK corridors**: BRL via PIX, USD via ACH, MXN via SPEI, COP via ACH, and ARS via CBU; these support BUY and SELL. The backend additionally supports direct-API EUR/SEPA BUY for pre-provisioned approved users. The SDK does not support that owner-permit journey, and EUR SELL is unavailable. These corridors deliver to EVM networks only (no AssetHub).
+- **EUR currency value**: TypeScript uses the member `FiatToken.EURC`, which serializes to the wire value `"EUR"`. Raw JSON clients must send `"EUR"`, with `"sepa"` as the rail identifier.
 - **taxId is deprecated for BRL**: the user's tax ID is derived server-side from the user-linked `sk_*` key. Sending a `taxId` that mismatches the derived one is rejected; stop sending it in new integrations.
 - **Deferred offramp funding**: the SDK checks the source wallet balance at `registerRamp` by default. Server integrations that register before funding a temporary wallet may configure `offrampFundingMode: "deferred"`. This skips only the SDK pre-flight; fund the exact `walletAddress` before signing/submitting user transactions, then update and start before the registration window expires. Backend execution-time balance checks remain authoritative.
 - **No secret in markdown**: never paste API keys into source files, logs, screenshots, or support tickets.
@@ -255,77 +255,50 @@ Same three-step pattern: `POST /v1/ramp/register` → user signs → `POST /v1/r
 ```yaml
 ---
 name: start-ramp-eur-sepa
-description: Initiate a EUR onramp or offramp via SEPA. Onramp shows IBAN transfer instructions; offramp requires user-signed on-chain transactions.
+description: Initiate the direct-API EUR onramp via SEPA for an already provisioned approved user.
 triggers:
   - "EUR onramp"
-  - "EUR offramp"
   - "SEPA"
   - "buy crypto with euro"
-  - "sell crypto for euro"
   - "IBAN payment"
 ---
 ```
 
 ## When to use
-The user has a SEPA bank account and wants to buy or sell crypto for EUR. EUR onboarding is individual KYC only and requires a connected wallet; complete it through the Vortex app or Widget first. EUR delivers to EVM networks only (no AssetHub).
+The user wants to buy crypto with EUR and has already been provisioned as corridor-ready: an approved Vortex EUR provider binding, a live approved provider profile, exactly one existing Polygon EOA/IBAN destination, and access to that EOA for typed-data signing. Both individual and business legal entities may qualify. The active route delivers only to supported non-Polygon EVM destinations.
+
+Do not use this flow for onboarding, wallet linking, IBAN provisioning, or EUR SELL. Those operations are unavailable in the active product integration.
 
 ## Prerequisites
-- Quote with `inputCurrency: FiatToken.EURC` and `from: "sepa"` (buy), or `outputCurrency: FiatToken.EURC` and `to: "sepa"` (sell). Note: the enum value is `EURC`, not `EUR`.
-- `destinationAddress`, `email`, `ipAddress` — required for both directions.
-- `walletAddress` — additionally required for offramp (the user's source wallet).
+- Quote with TypeScript member `inputCurrency: FiatToken.EURC` (raw JSON value `"EUR"`), `from: "sepa"`, and a supported non-Polygon EVM destination.
+- A secret credential or Supabase session for the corridor-ready legal entity.
+- `additionalData.destinationAddress`; do not submit profile, Monerium address, or IBAN identity.
+- A fresh EVM ephemeral key and a wallet-signing channel for the profile-linked Polygon owner.
 
-## SDK recipe (onramp)
-```js
-const quote = await vortex.createQuote({
-  rampType: RampDirection.BUY,
-  from: EPaymentMethod.SEPA,
-  to: Networks.Base,
-  network: Networks.Base,
-  inputAmount: "100",
-  inputCurrency: FiatToken.EURC,
-  outputCurrency: EvmToken.USDC
-});
+## Direct API sequence
 
-const { rampProcess } = await vortex.registerRamp(quote, {
-  destinationAddress: "0xUserWalletAddress",
-  email: "user@example.com",
-  ipAddress: "203.0.113.1"
-});
+The current `@vortexfi/sdk` EUR handler is not compatible with this flow because it drops the
+owner-wallet permit. Use the raw API:
 
-// SEPA transfer instructions are on the ramp after registration:
-console.log(rampProcess.ibanPaymentData.iban);
-console.log(rampProcess.ibanPaymentData.receiverName);
-console.log(rampProcess.ibanPaymentData.reference);
+1. Create the EUR BUY quote.
+2. Call `POST /v1/ramp/register` with the quote ID, fresh EVM signing account, and destination address.
+3. Partition every returned `unsignedTx` by `signer`. Sign ephemeral-owned raw transactions with the
+   ephemeral key. Send the EIP-712 `moneriumOnrampSelfTransfer` permit to the linked owner wallet.
+4. Submit the complete signed set to `POST /v1/ramp/update`. Partial updates are accepted, but
+   `ibanPaymentData` remains hidden until the complete set validates.
+5. Display the returned IBAN, BIC, receiver name, and payment reference verbatim. Have the user
+   initiate the SEPA transfer, then call `POST /v1/ramp/start` before the start deadline.
+6. Poll status or use Vortex webhooks for the ramp lifecycle.
 
-// After the user completed the SEPA transfer:
-await vortex.startRamp(rampProcess.id);
-```
-
-No user-signed on-chain transactions are required for EUR onramps.
-
-## SDK recipe (offramp)
-```js
-const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
-  destinationAddress: "0xUserWalletAddress",
-  email: "user@example.com",
-  ipAddress: "203.0.113.1",
-  walletAddress: "0xUserWalletAddress"
-});
-
-// User signs and broadcasts squidRouterApprove + squidRouterSwap, then:
-await vortex.updateRamp(quote, rampProcess.id, {
-  squidRouterApproveHash: "0xapprove...",
-  squidRouterSwapHash: "0xswap..."
-});
-await vortex.startRamp(rampProcess.id);
-```
-
-`submitUserTransactions` (see `start-offramp-brl`) works here as well.
+The permit expires 24 hours after preparation. If SEPA settlement arrives after expiry or the owner
+consumes its nonce, automatic execution can stop for manual resolution.
 
 ## Common failures
-- `MissingMykoboOnrampParametersError` / `MissingMykoboOfframpParametersError` — `destinationAddress`, `email`, `ipAddress`, or `walletAddress` missing.
-- `MykoboKycRequiredError` — the user has not completed EUR KYC; onboard via the Vortex app or Widget.
-- `503` "EUR ramps are currently disabled" on **register** — EUR is feature-gated server-side. EURC quotes still succeed while the gate is on, so a successful quote does not prove the corridor is enabled; probe registration in sandbox before shipping.
+- `400` approved-profile error: the effective legal entity has no approved local Monerium/EUR binding or the live provider profile is not approved.
+- `409` expected-one-destination error: the profile does not have exactly one matching Polygon EOA/IBAN destination. Vortex does not create, select, or move one in this release.
+- Contract-wallet error: the linked mint destination must be an EOA for the ERC-2612 handoff.
+- Missing payment instructions after register: expected; submit every owner and ephemeral signature through update first.
+- EUR SELL quote error: intentional; no active EUR offramp exists.
 
 ---
 
@@ -685,11 +658,11 @@ try {
 }
 ```
 
-## Current corridor reality (July 2026)
+## Current corridor reality (August 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
-- **EUR via SEPA (Mykobo)**: onramp and offramp fully implemented in the SDK (`FiatToken.EURC`, rail `"sepa"`), but registration is feature-gated server-side and currently returns `503` "EUR ramps are currently disabled" when the gate is on. Quotes succeed regardless — probe registration, not quoting.
+- **EUR via SEPA**: BUY is active through the direct backend API (`FiatToken.EURC`, rail `"sepa"`) for an already-bound approved user with one Polygon EOA/IBAN destination. It requires the linked owner's typed-data permit. The SDK, Widget, and Dashboard do not yet implement that journey. SELL is unavailable.
 - **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; registration requires an authenticated user identity. Route resolver determines availability per-combination.
-- All corridors deliver to EVM networks; AssetHub is only available for BRL routes.
+- Live corridors deliver to EVM networks; AssetHub ramp execution is currently disabled.
 
 ## Common failures
 - Filtering by a fiat that has no payment methods → empty array, not an error.
@@ -737,7 +710,8 @@ Include this payload (with secrets redacted) in any support ticket.
 | `InvalidNetworkError` | Network not in `Networks` enum | Use `discover-supported-corridors` |
 | `MissingRequiredFieldsError` / `MissingBrlParametersError` / `MissingBrlOfframpParametersError` | Body field missing | Fill the missing field; do not retry blindly |
 | `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
-| `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
+| `AlfredpayOnrampKycRequiredError` | Bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
+| Raw EUR registration `400` / `409` | Missing approved binding/profile or not exactly one Polygon EOA/IBAN match | Provision or reconcile the user out of band; do not submit caller-selected provider identity |
 | `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
 | `InsufficientBalanceError` | Default `"prefunded"` offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote. Register-then-fund integrations may configure `offrampFundingMode: "deferred"`, then fund before submitting user transactions and starting. |

@@ -23,7 +23,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor. | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking) |
-| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); SquidRouter, Alfredpay, Avenia/BRLA, CoinGecko | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
+| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against fakes or hermetic contract fixtures (PR-blocking) and against real partner APIs where a live gate exists; SquidRouter, Alfredpay, Avenia/BRLA, Monerium, CoinGecko | `apps/api/src/tests/contracts/` | `bun test` / environment-gated live checks |
 
 ### The invariants the suite protects
 
@@ -95,8 +95,8 @@ scenario before claiming end-to-end corridor coverage.
 **Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
 SELL variant is untested (no-permit fallback is); the active EUR onramp lacks SDK, E2E, and full
 fake-world corridor coverage; EUR offramp is intentionally unavailable; the
-AssetHub corridors are reachable in production but deliberately deferred (see the decision
-note under Infrastructure — revisit if the product keeps them).
+AssetHub corridors are runtime-disabled and deliberately deferred (see the decision note under
+Infrastructure — revisit only if the product restores them).
 
 ## Infrastructure
 

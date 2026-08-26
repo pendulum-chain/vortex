@@ -29,7 +29,7 @@ Pin the `requirementsVersion` you integrated against and re-check discovery when
 | `MX` | `api` | `api` |
 | `US` | `hosted` | `hosted` |
 
-EUR onboarding is not part of discovery; it is completed through the Vortex application or hosted widget (see the EUR section below). Provider state is always authoritative: no discovery step, client notification, or completion event can mark a verification approved.
+EUR onboarding is not part of discovery. The active EUR ramp accepts only users whose approved provider profile, Polygon EOA, and IBAN were provisioned out of band and bound to their Vortex legal entity. Automated onboarding, wallet linking, IBAN provisioning, and external-user import are not part of the current integration. Provider state is always authoritative: no discovery step, client notification, or completion event can mark a verification approved.
 
 ## BRL (PIX)
 
@@ -181,10 +181,14 @@ Authenticated clients can request account limits with `POST /v1/limits`, passing
 
 ## EUR (SEPA)
 
-EUR routes settle over SEPA using the `"sepa"` rail identifier and support both buys and sells. EUR onramps deliver to EVM networks; AssetHub is not available as a destination.
+EUR uses the `"sepa"` rail identifier. New EUR BUY quotes use a Polygon source route and deliver to supported non-Polygon EVM destinations. Polygon and AssetHub are not available as destinations for this flow. New EUR SELL quotes are rejected.
 
-On a buy, register the ramp with `destinationAddress`, `email`, and `ipAddress`. The SEPA transfer instructions are returned in the ramp's `ibanPaymentData` — IBAN, receiver name, and payment reference. Display them to the user, and start the ramp once the user has completed the SEPA transfer. No user-signed on-chain transactions are required for buys.
+EUR BUY is currently supported through the direct API, not the SDK, Widget, or Dashboard. Registration requires only the normal quote ID, a fresh EVM signing account, and `additionalData.destinationAddress`; profile, address, and IBAN identity are derived server-side and caller-supplied identity fields are rejected.
 
-EUR onboarding is individual KYC only and requires a connected wallet, so it is completed through the Vortex application or hosted widget; there is no quote-less KYB deep link for Europe.
+Registration succeeds only for a pre-provisioned individual or business legal entity with an approved local EUR provider binding, a live approved provider profile, and exactly one existing Polygon EOA/IBAN destination. The user must control that linked EOA.
+
+The register response includes unsigned ephemeral transactions and an EIP-712 permit whose signer is the linked owner EOA. Route transactions by `signer`: sign ephemeral-owned entries with the fresh ephemeral key and send the permit to the owner's wallet. Submit the complete signed set to `POST /v1/ramp/update`. Only then does `ibanPaymentData` expose the IBAN, receiver name, BIC, and payment reference. Display those values verbatim, have the user initiate the SEPA transfer, and call `POST /v1/ramp/start` before the ramp's start deadline.
+
+The current integration does not create or import provider profiles, connect wallets, provision or move IBANs, or manage KYC/KYB lifecycle state. Those setup operations must already be complete before registration. The owner permit expires 24 hours after preparation; late settlement can require manual resolution.
 
 ---

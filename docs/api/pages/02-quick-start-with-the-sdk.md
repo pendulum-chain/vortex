@@ -152,11 +152,13 @@ const started = await sdk.startRamp(rampProcess.id);
 console.log(started.achPaymentData);
 ```
 
-No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
+No user-signed on-chain transactions are required for the bank-transfer onramp shown here. The SDK signs its ephemeral transactions during `registerRamp`.
 
 Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires the configured `secretKey` to resolve to an onboarded profile. The same profile must have completed KYC for the corridor's country, so registration resolves to its verified payment profile automatically. A `publicKey`-only registration is rejected. Raw API integrations may alternatively register with the user's Supabase Bearer session.
 
-The SDK cannot mint credentials or run KYC. Onboard the real user through the Vortex app or Widget, or use Vortex's managed-profile workflow, then use a credential bound to that profile. The secret is shown only once at creation; see [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys). This applies to buys and sells in all four corridors.
+The SDK cannot mint credentials or run KYC. Onboard the real user through the Vortex app or Widget, or use Vortex's managed-profile workflow, then use a credential bound to that profile. The secret is shown only once at creation; see [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys). This applies to buys and sells in all four bank-transfer corridors.
+
+EUR/SEPA BUY is currently a direct-API integration rather than an SDK flow because it requires a typed-data permit from the already-linked Monerium owner wallet. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). EUR SELL is unavailable.
 
 ### Offramp (Sell)
 

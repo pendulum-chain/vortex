@@ -168,8 +168,13 @@ Gets the current status of a ramp process.
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
 Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
+The active EUR/SEPA BUY backend flow is not supported by this SDK release. It requires a
+profile-linked owner permit, but the current EUR handler does not return that permit to the caller.
+Use the direct API contract until a provider-aware EUR SDK handler is released. EUR SELL is
+unavailable for new quotes.
+
 ##### `updateRamp<Q extends QuoteResponse>(quote: Q, rampId: string, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess>`
-Submits route-specific transaction hashes after off-chain steps complete. Used for sell flows. Buy flows do not require a separate update call.
+Submits route-specific transaction hashes after off-chain steps complete. Used for supported sell flows. Supported SDK buy flows do not require a separate update call; direct-API EUR BUY does.
 
 ##### `startRamp(rampId: string): Promise<RampProcess>`
 Starts a registered ramp process.

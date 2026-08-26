@@ -98,6 +98,50 @@
         "required": ["address", "type"],
         "type": "object"
       },
+      "AchPaymentData": {
+        "additionalProperties": true,
+        "description": "Provider-neutral bank transfer instructions returned for domestic fiat rails such as ACH, SPEI, and CBU. Display the fields verbatim because the available details vary by corridor.",
+        "properties": {
+          "accountHolderName": {
+            "type": "string"
+          },
+          "bankAccountNumber": {
+            "type": "string"
+          },
+          "bankBeneficiaryAddress": {
+            "type": "string"
+          },
+          "bankBeneficiaryName": {
+            "type": "string"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "bankRoutingNumber": {
+            "type": "string"
+          },
+          "clabe": {
+            "type": "string"
+          },
+          "expirationDate": {
+            "type": "string"
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "paymentDescription": {
+            "type": "string"
+          },
+          "paymentType": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        },
+        "required": ["paymentType"],
+        "type": "object"
+      },
       "ApiCredential": {
         "properties": {
           "createdAt": {
@@ -796,13 +840,20 @@
         "type": "object"
       },
       "CleanupPhase": {
-        "properties": {
-          "string": {
-            "enum": ["moonbeamCleanup", "pendulumCleanup", "stellarCleanup"],
-            "type": "string"
-          }
-        },
-        "type": "object"
+        "enum": [
+          "moonbeamCleanup",
+          "pendulumCleanup",
+          "polygonCleanup",
+          "polygonCleanupAxlUsdc",
+          "hydrationCleanup",
+          "assetHubCleanup",
+          "baseCleanupUsdc",
+          "baseCleanupBrla",
+          "baseCleanupEurc",
+          "baseCleanupAxlUsdc",
+          "ethereumCleanupUsdc"
+        ],
+        "type": "string"
       },
       "CountryCode": {
         "description": "Allowed values: `AR`, `BR`, `EU`",
@@ -1803,6 +1854,35 @@
         },
         "type": "object"
       },
+      "EvmTransactionData": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "description": "Hex-encoded EVM calldata.",
+            "type": "string"
+          },
+          "gas": {
+            "type": "string"
+          },
+          "maxFeePerGas": {
+            "type": "string"
+          },
+          "maxPriorityFeePerGas": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "number"
+          },
+          "to": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": ["to", "data", "value", "gas"],
+        "type": "object"
+      },
       "FiatToken": {
         "enum": ["EUR", "ARS", "BRL", "USD", "MXN", "COP"],
         "type": "string"
@@ -2067,6 +2147,26 @@
           }
         },
         "required": ["network", "inputAmount", "rampType", "externalSessionId"],
+        "type": "object"
+      },
+      "IbanPaymentData": {
+        "additionalProperties": false,
+        "description": "SEPA payment instructions released only after all required ramp signatures validate.",
+        "properties": {
+          "bic": {
+            "type": "string"
+          },
+          "iban": {
+            "type": "string"
+          },
+          "receiverName": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        },
+        "required": ["receiverName", "iban", "bic"],
         "type": "object"
       },
       "KYCDataUploadFileFiles": {
@@ -2873,36 +2973,12 @@
         "type": "string"
       },
       "PresignedTx": {
-        "additionalProperties": true,
-        "description": "Represents a transaction that has been presigned. Based on UnsignedTx structure.",
-        "properties": {
-          "meta": {
-            "additionalProperties": true,
-            "description": "Any additional metadata associated with the transaction. Can be an empty object.",
-            "properties": {},
-            "type": "object"
-          },
-          "nonce": {
-            "description": "Nonce for the transaction, if applicable.",
-            "format": "int64",
-            "type": "number"
-          },
-          "phase": {
-            "description": "The phase this transaction belongs to within the ramp logic.",
-            "enum": ["RampPhase", "CleanupPhase"],
-            "type": "string"
-          },
-          "signer": {
-            "description": "Address of the account that signed/will sign this transaction.",
-            "type": "string"
-          },
-          "txData": {
-            "description": "The presigned transaction payload or relevant data.",
-            "examples": ["AAAAAKg..."],
-            "type": "string"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UnsignedTx"
           }
-        },
-        "type": "object"
+        ],
+        "description": "A transaction envelope from registration with its raw transaction or typed-data signature attached."
       },
       "QuoteResponse": {
         "properties": {
@@ -3060,30 +3136,56 @@
         "enum": [
           "initial",
           "timedOut",
-          "stellarCreateAccount",
-          "squidrouterApprove",
-          "squidrouterSwap",
+          "moneriumOnrampMint",
+          "moneriumOnrampSelfTransfer",
+          "uniswapApprove",
+          "uniswapSwap",
+          "squidRouterPermitExecute",
+          "squidRouterNoPermitTransfer",
+          "squidRouterNoPermitApprove",
+          "squidRouterNoPermitSwap",
+          "squidRouterApprove",
+          "squidRouterSwap",
+          "squidRouterPay",
           "fundEphemeral",
+          "destinationTransfer",
           "nablaApprove",
           "nablaSwap",
+          "hydrationSwap",
+          "hydrationToAssethubXcm",
           "moonbeamToPendulum",
           "moonbeamToPendulumXcm",
-          "pendulumToMoonbeam",
+          "pendulumToMoonbeamXcm",
+          "pendulumToHydrationXcm",
           "assethubToPendulum",
-          "pendulumToAssethub",
-          "spacewalkRedeem",
-          "stellarPayment",
+          "pendulumToAssethubXcm",
           "subsidizePreSwap",
           "subsidizePostSwap",
-          "brlaTeleport",
+          "distributeFees",
+          "alfredpayOnrampMint",
+          "alfredOnrampMintFallback",
+          "alfredpayOfframpTransfer",
+          "alfredpayOfframpTransferFallback",
+          "brlaOnrampMint",
           "onHoldForComplianceCheck",
-          "brlaPayoutOnMoonbeam",
-          "failed"
+          "brlaPayoutOnBase",
+          "mykoboOnrampDeposit",
+          "mykoboPayoutOnBase",
+          "baseTransfer",
+          "finalSettlementSubsidy",
+          "backupSquidRouterApprove",
+          "backupSquidRouterSwap",
+          "backupApprove",
+          "failed",
+          "complete"
         ],
         "type": "string"
       },
       "RampProcess": {
         "properties": {
+          "achPaymentData": {
+            "$ref": "#/components/schemas/AchPaymentData"
+          },
           "anchorFeeFiat": {
             "type": "string"
           },
@@ -3105,12 +3207,20 @@
             "description": "BR Code for PIX payment, if applicable.",
             "type": ["string", "null"]
           },
+          "expiresAt": {
+            "description": "Deadline for calling the start endpoint.",
+            "format": "date-time",
+            "type": "string"
+          },
           "feeCurrency": {
             "$ref": "#/components/schemas/RampCurrency"
           },
           "from": {
             "$ref": "#/components/schemas/DestinationType",
             "description": "The source network or payment method."
+          },
+          "ibanPaymentData": {
+            "$ref": "#/components/schemas/IbanPaymentData"
           },
           "id": {
             "description": "Unique identifier for the ramp process.",
@@ -3210,24 +3320,19 @@
           }
         },
         "required": [
-          "paymentMethod",
+          "createdAt",
+          "currentPhase",
+          "from",
+          "id",
           "inputAmount",
-          "outputAmount",
           "inputCurrency",
+          "outputAmount",
           "outputCurrency",
-          "networkFeeFiat",
-          "networkFeeUSD",
-          "anchorFeeFiat",
-          "anchorFeeUSD",
-          "vortexFeeFiat",
-          "vortexFeeUSD",
-          "partnerFeeFiat",
-          "partnerFeeUSD",
-          "totalFeeFiat",
-          "totalFeeUSD",
-          "processingFeeFiat",
-          "processingFeeUSD",
-          "feeCurrency"
+          "paymentMethod",
+          "quoteId",
+          "to",
+          "type",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -3250,7 +3355,7 @@
         "properties": {
           "additionalData": {
             "additionalProperties": true,
-            "description": "Optional additional data for the ramp process.\n\nFor Brazil onramps, destinationAddress is required.\n\nFor Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.",
+            "description": "Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied.",
             "properties": {
               "destinationAddress": {
                 "description": "Destination address, used for onramp.",
@@ -3284,7 +3389,7 @@
             "type": "string"
           },
           "signingAccounts": {
-            "description": "Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account.\n",
+            "description": "Fresh ephemeral public accounts used to sign route transactions. Supply the account types required by the quote's route. EUR BUY requires an EVM account; its separate profile-linked owner permit is returned in unsignedTxs.\n",
             "items": {
               "properties": {
                 "address": {
@@ -3329,6 +3434,78 @@
           }
         },
         "required": ["activeEntityId", "type"],
+        "type": "object"
+      },
+      "Signature": {
+        "additionalProperties": false,
+        "properties": {
+          "deadline": {
+            "type": "number"
+          },
+          "r": {
+            "pattern": "^0x[0-9a-fA-F]+$",
+            "type": "string"
+          },
+          "s": {
+            "pattern": "^0x[0-9a-fA-F]+$",
+            "type": "string"
+          },
+          "v": {
+            "type": "number"
+          }
+        },
+        "required": ["v", "r", "s", "deadline"],
+        "type": "object"
+      },
+      "SignedTypedData": {
+        "additionalProperties": false,
+        "description": "EIP-712 typed data. Registration omits signature; update attaches the collected signature object or objects.",
+        "properties": {
+          "domain": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "message": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "primaryType": {
+            "type": "string"
+          },
+          "signature": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Signature"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Signature"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "types": {
+            "additionalProperties": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name", "type"],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          }
+        },
+        "required": ["domain", "types", "primaryType", "message"],
         "type": "object"
       },
       "SimpleStatus": {
@@ -3639,25 +3816,63 @@
         "description": "Represents an unsigned transaction that requires user signature. Actual properties will depend on the transaction type and network.",
         "properties": {
           "meta": {
-            "properties": {},
+            "additionalProperties": false,
+            "properties": {
+              "additionalTxs": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PresignedTx"
+                },
+                "description": "Backup signed transactions keyed by client-defined identifiers. Ephemeral-signed primaries require exactly four consecutive-nonce backups.",
+                "type": "object"
+              },
+              "expectedSequenceNumber": {
+                "type": "string"
+              }
+            },
             "type": "object"
+          },
+          "network": {
+            "$ref": "#/components/schemas/Networks"
           },
           "nonce": {
             "type": "number"
           },
           "phase": {
-            "enum": ["RampPhase", "CleanupPhase"],
-            "type": "string"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RampPhase"
+              },
+              {
+                "$ref": "#/components/schemas/CleanupPhase"
+              }
+            ]
           },
           "signer": {
             "type": "string"
           },
           "txData": {
-            "description": "The unsigned transaction payload or relevant data.",
-            "examples": ["AAAAAKu..."],
-            "type": "string"
+            "description": "A chain payload, EVM transaction blueprint, or EIP-712 typed-data envelope.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/EvmTransactionData"
+              },
+              {
+                "$ref": "#/components/schemas/SignedTypedData"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SignedTypedData"
+                },
+                "minItems": 1,
+                "type": "array"
+              }
+            ]
           }
         },
+        "required": ["txData", "phase", "network", "nonce", "signer", "meta"],
         "type": "object"
       },
       "UpdateRampRequest": {
@@ -8853,6 +9068,11 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RampProcess"
+                    }
+                  ],
                   "properties": {
                     "anchorFeeFiat": {
                       "type": "string"
@@ -8979,26 +9199,6 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "inputAmount",
-                    "inputCurrency",
-                    "outputAmount",
-                    "outputCurrency",
-                    "paymentMethod",
-                    "networkFeeFiat",
-                    "networkFeeUSD",
-                    "anchorFeeFiat",
-                    "anchorFeeUSD",
-                    "vortexFeeFiat",
-                    "vortexFeeUSD",
-                    "partnerFeeFiat",
-                    "partnerFeeUSD",
-                    "totalFeeFiat",
-                    "totalFeeUSD",
-                    "processingFeeFiat",
-                    "processingFeeUSD",
-                    "feeCurrency"
-                  ],
                   "type": "object"
                 }
               }
@@ -9296,27 +9496,26 @@
             "application/json": {
               "example": {
                 "additionalData": {
-                  "pixDestination": "711.711.011-11",
-                  "receiverTaxId": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
-                  "taxId": "711.711.011-11"
+                  "destinationAddress": "0x1234567890123456789012345678901234567890"
                 },
                 "quoteId": "8e4bca04-aa22-4f86-9ce5-80aaef58ef83",
                 "signingAccounts": [
                   {
                     "address": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
-                    "network": "moonbeam"
-                  },
-                  {
-                    "address": "6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv",
-                    "network": "pendulum"
+                    "type": "EVM"
                   }
                 ]
               },
               "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RegisterRampRequest"
+                  }
+                ],
                 "properties": {
                   "additionalData": {
                     "additionalProperties": true,
-                    "description": "Optional additional data for the ramp process.\n\nFor Brazil onramps, destinationAddress is required.\n\nFor Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.",
+                    "description": "Optional route data. EUR BUY requires destinationAddress; provider profile, owner address, and IBAN are derived server-side.",
                     "properties": {
                       "destinationAddress": {
                         "description": "Destination address, used for onramp.",
@@ -9353,7 +9552,7 @@
                     "type": "string"
                   },
                   "signingAccounts": {
-                    "description": "Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account.\n",
+                    "description": "Fresh ephemeral public accounts required by the quote's route. EUR BUY requires one EVM account.\n",
                     "items": {
                       "properties": {
                         "address": {
@@ -9383,24 +9582,12 @@
           "201": {
             "content": {
               "application/json": {
-                "example": {
-                  "brCode": "00020126...",
-                  "createdAt": "2024-05-16T10:00:00Z",
-                  "currentPhase": "pending_signature",
-                  "from": "stellar",
-                  "id": "proc_12345",
-                  "quoteId": "41a756dc-04e4-4e4b-b243-9c8f977c24d6",
-                  "to": "pix",
-                  "type": "off",
-                  "unsignedTxs": [
+                "schema": {
+                  "allOf": [
                     {
-                      "data": "AAAA...",
-                      "type": "stellar_payment"
+                      "$ref": "#/components/schemas/RampProcess"
                     }
                   ],
-                  "updatedAt": "2024-05-16T10:00:00Z"
-                },
-                "schema": {
                   "properties": {
                     "anchorFeeFiat": {
                       "type": "string"
@@ -9527,26 +9714,6 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "inputAmount",
-                    "inputCurrency",
-                    "outputAmount",
-                    "outputCurrency",
-                    "paymentMethod",
-                    "networkFeeFiat",
-                    "networkFeeUSD",
-                    "anchorFeeFiat",
-                    "anchorFeeUSD",
-                    "vortexFeeFiat",
-                    "vortexFeeUSD",
-                    "partnerFeeFiat",
-                    "partnerFeeUSD",
-                    "totalFeeFiat",
-                    "totalFeeUSD",
-                    "processingFeeFiat",
-                    "processingFeeUSD",
-                    "feeCurrency"
-                  ],
                   "type": "object"
                 }
               }
@@ -9611,7 +9778,7 @@
     "/v1/ramp/start": {
       "post": {
         "deprecated": false,
-        "description": "Starts a ramp process. \n\nIt is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.",
+        "description": "Starts a ramp process after all required signatures and corridor-specific client steps are complete. For EUR BUY, call this after the user initiates the SEPA transfer; do not wait for provider settlement.",
         "operationId": "startRamp",
         "parameters": [
           {
@@ -9634,19 +9801,12 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "createdAt": "2024-05-16T10:00:00Z",
-                  "currentPhase": "processing",
-                  "depositQrCode": "00020126...",
-                  "from": "stellar",
-                  "id": "proc_12345",
-                  "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-                  "to": "pix",
-                  "type": "sell",
-                  "unsignedTxs": [],
-                  "updatedAt": "2024-05-16T12:30:00Z"
-                },
                 "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RampProcess"
+                    }
+                  ],
                   "properties": {
                     "anchorFeeFiat": {
                       "type": "string"
@@ -9773,26 +9933,6 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "inputAmount",
-                    "inputCurrency",
-                    "outputAmount",
-                    "outputCurrency",
-                    "paymentMethod",
-                    "networkFeeFiat",
-                    "networkFeeUSD",
-                    "anchorFeeFiat",
-                    "anchorFeeUSD",
-                    "vortexFeeFiat",
-                    "vortexFeeUSD",
-                    "partnerFeeFiat",
-                    "partnerFeeUSD",
-                    "totalFeeFiat",
-                    "totalFeeUSD",
-                    "processingFeeFiat",
-                    "processingFeeUSD",
-                    "feeCurrency"
-                  ],
                   "type": "object"
                 }
               }
@@ -9822,7 +9962,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampId, presignedTxs)\n- Invalid additional data format (if provided, must be an object)",
+            "description": "Bad Request - missing or invalid rampId, incomplete signatures, or an expired start deadline.",
             "headers": {}
           },
           "401": {
@@ -9877,7 +10017,7 @@
     "/v1/ramp/update": {
       "post": {
         "deprecated": false,
-        "description": "Submits presigned transactions and supported client-reported transaction hashes to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and `additionalData`, existing properties will be overridden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the initial transaction in which the user sends the funds.  \nIf the originating chain is `AssetHub`, then `assethubToPendulumHash` must be provided. \nIf the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.\n\nFor onramps, no additional data is required after registering the ramp.",
+        "description": "Submits presigned transactions and supported client-reported transaction hashes to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and `additionalData`, existing properties will be overridden by new values.\n\n### Required data for ramps.\nThe signed counterpart of every required initial `unsignedTxs` entry must be provided for all ramps. Ephemeral-signed entries include exactly four signed backups in `meta.additionalTxs`.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the initial transaction in which the user sends the funds.  \nIf the originating chain is `AssetHub`, then `assethubToPendulumHash` must be provided. \nIf the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.\n\nOnramps do not require transaction hashes in `additionalData`, but they still require all returned signatures. EUR payment instructions remain hidden until the linked-owner permit and every ephemeral signature validate.",
         "operationId": "updateRamp",
         "parameters": [
           {
@@ -9887,22 +10027,6 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "example": {
-                "additionalData": {
-                  "squidRouterApproveHash": "0x123...",
-                  "squidRouterSwapHash": "0x456..."
-                },
-                "presignedTxs": [
-                  {
-                    "meta": {},
-                    "nonce": 1,
-                    "phase": "RampPhase",
-                    "signer": "GB2TP24WCY6BPGFX4SOGDHT7IGJRR7HCDQT2VL2MVCZJTJCGKMVGQGQB",
-                    "txData": "AAAAAKu..."
-                  }
-                ],
-                "rampId": "proc_12345"
-              },
               "schema": {
                 "$ref": "#/components/schemas/UpdateRampRequest"
               }
@@ -9913,19 +10037,12 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "createdAt": "2024-05-16T10:00:00Z",
-                  "currentPhase": "processing",
-                  "depositQrCode": "00020126...",
-                  "from": "stellar",
-                  "id": "proc_12345",
-                  "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-                  "to": "pix",
-                  "type": "off",
-                  "unsignedTxs": [],
-                  "updatedAt": "2024-05-16T12:30:00Z"
-                },
                 "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RampProcess"
+                    }
+                  ],
                   "properties": {
                     "anchorFeeFiat": {
                       "type": "string"
@@ -10052,26 +10169,6 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "inputAmount",
-                    "inputCurrency",
-                    "outputAmount",
-                    "outputCurrency",
-                    "paymentMethod",
-                    "networkFeeFiat",
-                    "networkFeeUSD",
-                    "anchorFeeFiat",
-                    "anchorFeeUSD",
-                    "vortexFeeFiat",
-                    "vortexFeeUSD",
-                    "partnerFeeFiat",
-                    "partnerFeeUSD",
-                    "totalFeeFiat",
-                    "totalFeeUSD",
-                    "processingFeeFiat",
-                    "processingFeeUSD",
-                    "feeCurrency"
-                  ],
                   "type": "object"
                 }
               }

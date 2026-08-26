@@ -360,15 +360,15 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       const methods = await requestJson("/v1/supported-payment-methods");
       expect(methods.status).toBe(200);
       const sellMethods = methods.body.paymentMethods as Array<{ id: string; supportedFiats: Array<{ id: string }> }>;
-      expect(sellMethods.map(method => method.id).sort()).toEqual(["ach", "cbu", "pix", "sepa", "spei"]);
-      // Every fiat token is reachable through at least one sell payment method.
+      expect(sellMethods.map(method => method.id).sort()).toEqual(["ach", "cbu", "pix", "spei"]);
+      // EUR SELL is unavailable; every other fiat is reachable through a sell payment method.
       const sellFiats = sellMethods.flatMap(method => method.supportedFiats.map(fiat => fiat.id));
-      expect([...new Set(sellFiats)].sort()).toEqual(["ARS", "BRL", "COP", "EUR", "MXN", "USD"]);
+      expect([...new Set(sellFiats)].sort()).toEqual(["ARS", "BRL", "COP", "MXN", "USD"]);
 
       const buyMethods = await requestJson("/v1/supported-payment-methods?type=buy");
       expect(buyMethods.status).toBe(200);
       const buyIds = (buyMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id);
-      expect(buyIds.sort()).toEqual(["ach", "pix", "spei"]);
+      expect(buyIds.sort()).toEqual(["ach", "cbu", "pix", "sepa", "spei"]);
 
       const requirements = await requestJson("/v1/onboarding/requirements?country=BR&customerType=business");
       expect(requirements.status).toBe(200);

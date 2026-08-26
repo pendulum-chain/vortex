@@ -214,6 +214,8 @@ interface Config {
     clientId: string;
     issueFeeEur: string | undefined;
     redirectUri: string;
+    whiteLabelClientId: string;
+    whiteLabelClientSecret: string;
   };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
@@ -315,7 +317,9 @@ export const config: Config = {
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
     issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
-    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
+    whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
+    whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || ""
   },
   mykobo: {
     feeFallback: readMykoboFeeFallback()
@@ -425,6 +429,8 @@ if (config.env === "production") {
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
   if (!config.monerium.issueFeeEur) missing.push("MONERIUM_ISSUE_FEE_EUR");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
+  if (!config.monerium.whiteLabelClientId) missing.push("MONERIUM_WHITELABEL_CLIENT_ID");
+  if (!config.monerium.whiteLabelClientSecret) missing.push("MONERIUM_WHITELABEL_CLIENT_SECRET");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

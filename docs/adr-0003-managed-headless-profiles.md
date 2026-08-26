@@ -43,7 +43,9 @@ Manager, relationship, corridor, and customer-type policy is re-evaluated for ne
 authorization decisions; a committed policy change does not cancel already-authorized
 requests. Historical and status reads remain available where reconciliation requires
 them. Email-bound Mykobo operations, Monerium OAuth KYC/KYB onboarding, and recipient
-invitations are not delegated. Future Monerium import handling is outside this decision.
+invitations are not delegated. Future Monerium import handling is outside this decision. A
+non-technical child may use the direct-API Monerium onramp only after its provider binding and
+Polygon EOA/IBAN have been provisioned through a separate trusted process.
 
 The accepted Alfredpay cross-manager email-identity exception is tracked as RISK-019 in
 the [security risk register](security-spec/RISK-REGISTER.md). Normative behavior is defined by

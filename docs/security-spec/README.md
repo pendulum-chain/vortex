@@ -59,7 +59,7 @@ documents win.
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Legacy persisted EUR on/off-ramp recovery and standalone profile API |
-| Monerium | `05-integrations/monerium.md` | Active Polygon EUR onramp plus white-label profiles, wallets, IBANs, orders, files, and webhooks |
+| Monerium | `05-integrations/monerium.md` | Active direct-API Polygon EUR onramp plus mapped but deferred white-label lifecycle, wallet, IBAN, offramp, and webhook capabilities |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
@@ -107,7 +107,7 @@ Most module specifications use these sections:
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
 | **Mykobo** | Legacy persisted EUR flow recovery and standalone profile/KYC endpoints; excluded from new quotes. |
-| **Monerium** | Active SEPA/EUR BUY provider using Polygon EURe, sibling-app OAuth onboarding, and the white-label API. |
+| **Monerium** | Active direct-API SEPA/EUR BUY provider using Polygon EURe for already provisioned approved users; onboarding/linking/import and EUR SELL are deferred. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
 | **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |
