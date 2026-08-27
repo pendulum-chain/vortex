@@ -1,5 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { AllocatableDeposit, allocateUsdcProRata, classifyHashlessPending, selectDepositsForExecution } from "./conversion-executor";
+import { FindOptions, Transaction } from "sequelize";
+import sequelize from "../../../config/database";
+import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
+import {
+  AllocatableDeposit,
+  allocateUsdcProRata,
+  classifyHashlessPending,
+  runConversionExecutor,
+  selectDepositsForExecution
+} from "./conversion-executor";
 
 // R04 attribution (docs/architecture-monerium-b2b-onramp.md §3): pro-rata by
 // amount_raw against eureInRaw, floor division, remainder to the largest deposit.
@@ -145,5 +157,64 @@ describe("classifyHashlessPending", () => {
       unclaimedSwapTxHashes: []
     });
     expect(result).toEqual({ kind: "fail", reason: "broadcast never reached the mempool" });
+  });
+});
+
+describe("runConversionExecutor recovery ordering", () => {
+  it("resolves an existing pending execution before a closed account can return", async () => {
+    const originalTransaction = sequelize.transaction;
+    const originalQuery = sequelize.query;
+    const originalFindAccount = MoneriumAccount.findByPk;
+    const originalFindExecution = MoneriumConversionExecution.findOne;
+    const originalFindExecutions = MoneriumConversionExecution.findAll;
+
+    const account = {
+      dormantSince: null,
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      id: "account-1",
+      status: MoneriumAccountStatus.Closed
+    } as MoneriumAccount;
+    const pending = {
+      accountId: account.id,
+      createdAt: new Date(),
+      id: "execution-1",
+      nonce: null,
+      status: MoneriumConversionExecutionStatus.Pending,
+      txHash: null,
+      updatedAt: new Date(),
+      async update(values: Partial<MoneriumConversionExecution>) {
+        Object.assign(this, values, { updatedAt: new Date() });
+      }
+    } as unknown as MoneriumConversionExecution;
+
+    try {
+      sequelize.transaction = (async (...args: unknown[]) => {
+        const callback = args.at(-1) as (transaction: Transaction) => Promise<unknown>;
+        return callback({} as Transaction);
+      }) as typeof sequelize.transaction;
+      sequelize.query = (async () => [[], 0]) as unknown as typeof sequelize.query;
+      MoneriumAccount.findByPk = (async () => account) as typeof MoneriumAccount.findByPk;
+      MoneriumConversionExecution.findOne = (async (options?: FindOptions) => {
+        const status = (options?.where as { status?: MoneriumConversionExecutionStatus } | undefined)?.status;
+        return status === MoneriumConversionExecutionStatus.Pending ? pending : null;
+      }) as typeof MoneriumConversionExecution.findOne;
+      MoneriumConversionExecution.findAll = (async (options?: FindOptions) => {
+        const status = (options?.where as { status?: MoneriumConversionExecutionStatus } | undefined)?.status;
+        return status === MoneriumConversionExecutionStatus.Pending || status === MoneriumConversionExecutionStatus.Failed
+          ? [pending]
+          : [];
+      }) as typeof MoneriumConversionExecution.findAll;
+
+      await runConversionExecutor(account.id);
+
+      expect(pending.status).toBe(MoneriumConversionExecutionStatus.Failed);
+      expect(pending.error).toBe("crashed before the transaction was sent");
+    } finally {
+      sequelize.transaction = originalTransaction;
+      sequelize.query = originalQuery;
+      MoneriumAccount.findByPk = originalFindAccount;
+      MoneriumConversionExecution.findOne = originalFindExecution;
+      MoneriumConversionExecution.findAll = originalFindExecutions;
+    }
   });
 });

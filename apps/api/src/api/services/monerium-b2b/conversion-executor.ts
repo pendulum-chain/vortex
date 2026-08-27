@@ -310,15 +310,16 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
   });
   for (const pending of pendings) {
     if (!pending.txHash) {
-      const client = getPublicClient();
-      const keeperAddress = getKeeperWalletClient().account.address;
-      const [latestNonceCount, pendingNonceCount] =
-        pending.nonce === null
-          ? [0, 0]
-          : await Promise.all([
-              client.getTransactionCount({ address: keeperAddress, blockTag: "latest" }),
-              client.getTransactionCount({ address: keeperAddress, blockTag: "pending" })
-            ]);
+      let latestNonceCount = 0;
+      let pendingNonceCount = 0;
+      if (pending.nonce !== null) {
+        const client = getPublicClient();
+        const keeperAddress = getKeeperWalletClient().account.address;
+        [latestNonceCount, pendingNonceCount] = await Promise.all([
+          client.getTransactionCount({ address: keeperAddress, blockTag: "latest" }),
+          client.getTransactionCount({ address: keeperAddress, blockTag: "pending" })
+        ]);
+      }
       const unclaimedSwapTxHashes =
         pending.nonce !== null && latestNonceCount > pending.nonce ? await findUnclaimedSwapTxHashes(account, transaction) : [];
       const classification = classifyHashlessPending({
@@ -406,6 +407,23 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   if (!account) {
     return;
   }
+
+  // Recover an earlier broadcast before current account state or balance can make this
+  // cycle return. A successful swap commonly drains the balance below the minimum.
+  const existingPending = await MoneriumConversionExecution.findOne({
+    attributes: ["id"],
+    where: { accountId: account.id, status: MoneriumConversionExecutionStatus.Pending }
+  });
+  if (existingPending) {
+    const recovery = await withForwarderLock(account.forwarderAddress, transaction =>
+      prepareExecutionSlot(account, transaction)
+    );
+    if (recovery.kind === "skip") {
+      logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${recovery.reason}`);
+      return;
+    }
+  }
+
   // Suspended/closed/dormant accounts never swap (dormancy is guardian-paused —
   // swapAndForward would revert Paused()), but the stranding marker MUST still arm for
   // them: the un-pausable dead-man sweep is the client's escape hatch for exactly the
