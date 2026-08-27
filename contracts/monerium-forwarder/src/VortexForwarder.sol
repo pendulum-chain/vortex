@@ -399,6 +399,10 @@ contract VortexForwarder {
         if (to == address(0)) revert ZeroAddress();
         uint256 balance = IERC20(token).balanceOf(address(this));
         _transfer(IERC20(token), to, balance);
+        if (token == address(EURE) && strandedSince != 0) {
+            strandedSince = 0;
+            emit Poked(0);
+        }
         emit TokenSwept(token, to, balance);
     }
 

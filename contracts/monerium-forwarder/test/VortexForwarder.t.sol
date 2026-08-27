@@ -482,6 +482,20 @@ contract VortexForwarderTest is Test {
         assertEq(eure.balanceOf(fallbackAddr), 500e18);
     }
 
+    function test_fallbackEureSweep_resetsDeadManTimer() public {
+        _fund(500e18);
+        fwd.poke();
+        skip(SWEEP_DELAY + 1);
+
+        vm.prank(fallbackAddr);
+        fwd.sweep(address(eure), fallbackAddr);
+        assertEq(fwd.strandedSince(), 0);
+
+        _fund(500e18);
+        vm.expectRevert(VortexForwarder.NotStranded.selector);
+        fwd.sweepStrandedEure();
+    }
+
     function test_fallbackAuthority_gated() public {
         vm.prank(rando);
         vm.expectRevert(VortexForwarder.NotFallbackAddress.selector);
