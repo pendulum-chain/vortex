@@ -39,12 +39,12 @@ import {
  *                        the client's own fallbackAddress (`onlyFallback` in the
  *                        contract). Owner-authorized, not an incident (re-review R07);
  *                        regenerate + republish the manifest. exit 0
- *   NOTICE               guardian-tunable operational parameters, a stale forwarder
- *                        list (new deployments since publication), or a skipped
- *                        completeness check. exit 0
+ *   NOTICE               guardian-tunable forwarder/factory parameters, a stale
+ *                        forwarder list (new deployments since publication), or a
+ *                        skipped completeness check. exit 0
  */
 
-type Severity = "FAIL" | "EXPECTED-TRANSITION" | "NOTICE";
+export type Severity = "FAIL" | "EXPECTED-TRANSITION" | "NOTICE";
 
 interface Diff {
   actual: string;
@@ -63,8 +63,9 @@ function flatten(value: unknown, prefix: string, out: Map<string, string>): void
   out.set(prefix, String(value));
 }
 
-function severityFor(path: string): Severity {
+export function severityFor(path: string): Severity {
   if (path.includes(".clientMutable.")) return "EXPECTED-TRANSITION";
+  if (path.includes(".guardianMutable.")) return "NOTICE";
   if (path.includes(".operational.")) return "NOTICE";
   return "FAIL";
 }
@@ -205,7 +206,9 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch(error => {
-  console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch(error => {
+    console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  });
+}

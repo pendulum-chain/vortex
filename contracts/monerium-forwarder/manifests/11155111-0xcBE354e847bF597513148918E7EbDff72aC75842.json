@@ -27,8 +27,10 @@
         "salt": "0x0000000000000000000000000000000000000000000000000000000000000002",
         "txHash": "0x90e67a4f9698c9d009687eaaedd2d8b89eebfa104a2edb4c7923fa7a033f2787"
       },
+      "guardianMutable": {
+        "feeBps": 0
+      },
       "immutables": {
-        "feeBps": 0,
         "isForwarder": true
       },
       "runtimeBytecodeHash": "0x215c88056e67f5925d5660d5eb02a45dca8e69b50db65bacb5ba9ed44d63f364"
@@ -60,6 +62,6 @@
     },
     "runtimeBytecodeHash": "0x0c362c605fc7a795c4cab02fca0751e27817caf84017296d8fa2325dde6f1d11"
   },
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "purpose": "Consistency evidence for a VortexForwarder deployment (Monerium B2B onramp). NOT a trust root (re-review R01): this file is produced by Vortex from the same chain state it attests to, so it proves only that the deployment has not silently changed since publication — not that it was honest. Verify contract behavior independently against the verified source on a block explorer."
 }

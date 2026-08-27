@@ -11,7 +11,7 @@ import { Address, getAddress, Hex, keccak256, PublicClient, parseAbi, parseAbiIt
  * source on a block explorer.
  */
 
-export const MANIFEST_VERSION = 1;
+export const MANIFEST_VERSION = 2;
 
 export const MANIFEST_PURPOSE =
   "Consistency evidence for a VortexForwarder deployment (Monerium B2B onramp). " +
@@ -106,9 +106,12 @@ export interface ForwarderManifestEntry {
     salt: Hex;
     txHash: Hex;
   };
-  /** Set once in the deploy transaction; immutable afterwards. Mismatch = incident. */
-  immutables: {
+  /** Guardian-adjustable under the contract's bounded, timelocked fee policy. */
+  guardianMutable: {
     feeBps: number;
+  };
+  /** Factory registration is fixed for the lifetime of the clone. Mismatch = incident. */
+  immutables: {
     isForwarder: boolean;
   };
   /** keccak256 of the clone's runtime code; must equal the EIP-1167 code for `implementation.address`. */
@@ -407,8 +410,10 @@ export async function readForwarderEntry(
       salt: deploy.salt,
       txHash: deploy.txHash
     },
+    guardianMutable: {
+      feeBps: Number(feeBps)
+    },
     immutables: {
-      feeBps: Number(feeBps),
       isForwarder
     },
     runtimeBytecodeHash: forwarderCodeHash
