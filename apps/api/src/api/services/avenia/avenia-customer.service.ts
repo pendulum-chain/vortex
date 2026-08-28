@@ -207,7 +207,7 @@ export async function updateAveniaKycOutcomeForCustomer(
       // Queue only after the case binding was proven above. Enqueuing is idempotent on the
       // attempt id, and a queue failure rolls back the terminal state so a later poll can
       // retry the notification (parity with GET /v1/brla/kyb/attempt-status).
-      await enqueueVerificationNotification(appliedNotify.attempt, appliedNotify.profileId, appliedNotify.subject);
+      await enqueueVerificationNotification(appliedNotify.attempt, appliedNotify.profileId, appliedNotify.subject, transaction);
     }
     return lockedRecord;
   });

@@ -1,4 +1,5 @@
 import { AveniaVerificationAttempt, KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@vortexfi/shared";
+import type { Transaction } from "sequelize";
 import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import { enqueueNotification } from "../email";
 import { VerificationSubject } from "../email/types";
@@ -64,25 +65,29 @@ function terminalNotificationType(attempt: NotifiableAttempt): NotificationType 
 export async function enqueueVerificationNotification(
   attempt: NotifiableAttempt,
   userId: string,
-  subject: VerificationSubject
+  subject: VerificationSubject,
+  transaction?: Transaction
 ): Promise<boolean> {
   const type = terminalNotificationType(attempt);
   if (!type) {
     return false;
   }
 
-  await enqueueNotification({
-    payload: {
-      reason:
-        type === NotificationType.VerificationRejected ? (attempt.resultMessage?.slice(0, MAX_REASON_LENGTH) ?? null) : null,
-      subject,
-      updatedAt: attempt.updatedAt
+  await enqueueNotification(
+    {
+      payload: {
+        reason:
+          type === NotificationType.VerificationRejected ? (attempt.resultMessage?.slice(0, MAX_REASON_LENGTH) ?? null) : null,
+        subject,
+        updatedAt: attempt.updatedAt
+      },
+      provider: NotificationProvider.Avenia,
+      resourceId: attempt.id,
+      type,
+      userId
     },
-    provider: NotificationProvider.Avenia,
-    resourceId: attempt.id,
-    type,
-    userId
-  });
+    transaction
+  );
 
   return true;
 }
