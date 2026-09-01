@@ -1,6 +1,7 @@
-import { afterAll, afterEach, describe, expect, it, mock, setSystemTime } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock, setSystemTime, spyOn } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import * as priceFeedNamespace from "../../../priceFeed.service";
@@ -191,6 +192,26 @@ describe("onramp discount semantics", () => {
     }
   });
 
+  it("shrinks the routed target when Squid reports better-than-oracle value retention", async () => {
+    const partnerId = "favorable-route-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big(request.amountDecimal),
+      outputAmountUsd: new Big(request.amountDecimal).times("1.02")
+    });
+
+    const result = await simulateSubsidizePost(
+      { amount: new Big("95"), amountRaw: "95000000", chain: Networks.Base, token: EvmToken.USDC },
+      buildCtx(FiatToken.BRL, partnerId, Networks.Arbitrum, EvmToken.USDT)
+    );
+
+    // The oracle target is 102 USD; retention 1.02 shrinks the source-USDC target to 100,
+    // so the subsidy tops up to the cheaper route target, not the raw oracle value.
+    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe("100.000000");
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe("5.000000");
+    expect(result.metadata.applied).toBe(true);
+  });
+
   it("falls back to the oracle target when Squid returns a non-positive USD value", async () => {
     const partnerId = "invalid-route-value-partner";
     pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
@@ -199,13 +220,22 @@ describe("onramp discount semantics", () => {
       outputAmountUsd: new Big(0)
     });
 
-    const result = await simulateSubsidizePost(
-      { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
-      buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
-    );
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
 
-    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
-    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ outputCurrency: "PAXG", toNetwork: Networks.Ethereum })
+      );
+    } finally {
+      warning.mockRestore();
+    }
   });
 
   it("falls back to the oracle target when Squid's USD value cannot be parsed", async () => {
@@ -215,13 +245,22 @@ describe("onramp discount semantics", () => {
       throw new Error("Invalid Squid output USD value");
     };
 
-    const result = await simulateSubsidizePost(
-      { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
-      buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
-    );
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
 
-    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
-    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ error: "Invalid Squid output USD value" })
+      );
+    } finally {
+      warning.mockRestore();
+    }
   });
 
   it("applies the resolved EUR partner discount on the Base USDC 1:1 route", async () => {

@@ -7,6 +7,7 @@ import {
   OnChainToken
 } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../../config/logger";
 import { priceFeedService } from "../../../../priceFeed.service";
 import {
   calculateExpectedOutput,
@@ -65,8 +66,19 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         );
       } else if (expectedOutput.gt(0)) {
         throw new Error(`Squid returned non-positive output USD value: ${bridge.outputAmountUsd.toFixed()}`);
+      } else {
+        ctx.addNote(`SubsidizePost: expected output ${expectedOutput.toFixed()} is not positive, skipping route adjustment`);
       }
     } catch (error) {
+      // The quote proceeds on the oracle target (spec: probe failures must not block the
+      // quote), so this warn is the only operational signal that routed subsidy sizing
+      // has lost Squid's USD valuation.
+      logger.warn("SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK", {
+        error: error instanceof Error ? error.message : String(error),
+        inputCurrency: ctx.request.inputCurrency,
+        outputCurrency: ctx.request.outputCurrency,
+        toNetwork
+      });
       ctx.addNote(`SubsidizePost: Squid conversion unavailable, using 1:1. Error: ${error}`);
     }
   }
