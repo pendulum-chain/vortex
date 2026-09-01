@@ -64,6 +64,20 @@ describe("squidrouterRouteResponseSchema", () => {
     expect(() => squidrouterRouteResponseSchema.parse(body)).toThrow();
   });
 
+  test("accepts Big-parseable toAmountUSD forms but rejects unparsable ones (Big-parsed downstream)", () => {
+    for (const valid of ["0", "9.95", ".5", "1.2e-7", "-0.01"]) {
+      const body = validRouteBody();
+      body.route.estimate.toAmountUSD = valid;
+      expect(() => squidrouterRouteResponseSchema.parse(body)).not.toThrow();
+    }
+
+    for (const garbage of ["", "N/A", "1,234.56", "$9.95"]) {
+      const body = validRouteBody();
+      body.route.estimate.toAmountUSD = garbage;
+      expect(squidrouterRouteResponseSchema.safeParse(body).success).toBe(false);
+    }
+  });
+
   test("accepts a hex gasLimit but rejects a non-integer one (BigInt-parsed downstream)", () => {
     const hex = validRouteBody();
     hex.route.transactionRequest.gasLimit = "0x8e6a0";
