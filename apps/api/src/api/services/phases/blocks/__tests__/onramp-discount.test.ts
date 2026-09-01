@@ -20,7 +20,10 @@ const bridgeQuoteRequests: Array<{
   outputCurrency: EvmToken;
   toNetwork: Networks;
 }> = [];
-let bridgeQuoteFactory = (request: (typeof bridgeQuoteRequests)[number]) => ({
+let bridgeQuoteFactory: (request: (typeof bridgeQuoteRequests)[number]) => {
+  outputAmountDecimal: Big;
+  outputAmountUsd: Big | null;
+} = request => ({
   outputAmountDecimal: new Big(request.amountDecimal).times("0.9"),
   outputAmountUsd: new Big(request.amountDecimal).times("0.9")
 });
@@ -257,6 +260,32 @@ describe("onramp discount semantics", () => {
       expect(warning).toHaveBeenCalledWith(
         "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
         expect.objectContaining({ error: "Invalid Squid output USD value" })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("falls back to the oracle target when Squid's USD value is unparsable at the route layer", async () => {
+    const partnerId = "unparsable-route-value-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big(request.amountDecimal),
+      outputAmountUsd: null
+    });
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
+
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ error: "Squid returned unusable output USD value: unparsable" })
       );
     } finally {
       warning.mockRestore();

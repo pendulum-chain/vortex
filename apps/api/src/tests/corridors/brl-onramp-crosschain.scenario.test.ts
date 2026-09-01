@@ -464,6 +464,25 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     expect(Big(finalSettlement.expectedOutputAmountDecimal).eq(finalSettlement.actualOutputAmountDecimal)).toBe(true);
   });
 
+  it("keeps quoting when Squid reports a malformed USD value", async () => {
+    await updatePartnerPricing("vortex", RampDirection.BUY, { maxSubsidy: 0.003, targetDiscount: -0.0017 });
+    world.squidRouter.toTokenDecimals = 18;
+    world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) * 250_000_000n).toString();
+    // A malformed USD value must not abort quote creation: AveniaMint's fee probe and
+    // the Squid swap leg share the route helper but never consume this field, and the
+    // subsidy probe falls back to the oracle target instead of a route-adjusted one.
+    world.squidRouter.computeToAmountUsd = () => "N/A";
+
+    const quote = await createQuoteViaApi(Networks.Ethereum, EvmToken.ETH);
+    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+    if (!persistedQuote) throw new Error("Malformed-USD quote was not persisted");
+    const subsidy = getBlockMetadata(persistedQuote.metadata, SubsidizePostContext);
+    const oracleExpectedUsd = new Big("99.83");
+
+    expect(Big(subsidy.expectedOutputAmountDecimal).toFixed(2)).toBe(oracleExpectedUsd.toFixed(2));
+    expect(Big(subsidy.subsidyAmountInOutputTokenDecimal).lte(oracleExpectedUsd.times("0.003"))).toBe(true);
+  });
+
   it("returns the typed 503 for normal and all-high best-quote requests", async () => {
     const originalCeiling = config.evmDestinationGas.maxExecutionFeeUsd;
     config.evmDestinationGas.maxExecutionFeeUsd = "0.000001";

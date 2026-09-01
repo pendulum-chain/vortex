@@ -18,10 +18,6 @@ const RAW_UNITS = /^\d+$/;
 // gasLimit is BigInt-parsed downstream (normalizeBigIntString in route-transactions,
 // BigInt() in final-settlement-subsidy); both accept decimal or 0x-hex integer strings.
 const BIGINT_STRING = /^(?:\d+|0x[0-9a-fA-F]+)$/;
-// toAmountUSD is Big-parsed downstream (getSquidrouterRouteData in the API's squidrouter
-// core); mirror Big.js's accepted grammar so an unparsable value fails at the wire
-// boundary instead of inside subsidy valuation.
-const BIG_DECIMAL_STRING = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const HEX_DATA = /^0x[0-9a-fA-F]*$/;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
@@ -30,7 +26,11 @@ const squidrouterRouteEstimateSchema = z
     aggregateSlippage: z.number().optional(),
     toAmount: z.string().regex(RAW_UNITS),
     toAmountMin: z.string().regex(RAW_UNITS),
-    toAmountUSD: z.string().regex(BIG_DECIMAL_STRING),
+    // Deliberately presence-only: quote creation for routes that never consume this
+    // field (mint fee probes, the swap leg) must not fail on it. The API's
+    // getSquidrouterRouteData Big-parses it tolerantly, and the only numeric consumer
+    // (the SubsidizePost probe) degrades to its 1:1 fallback on an unusable value.
+    toAmountUSD: z.string().min(1),
     toToken: z.looseObject({ decimals: z.number().int().positive() })
   })
   .superRefine((estimate, ctx) => {

@@ -58,14 +58,14 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
         toNetwork
       });
-      if (expectedOutput.gt(0) && bridge.outputAmountUsd.gt(0)) {
+      if (expectedOutput.gt(0) && bridge.outputAmountUsd?.gt(0)) {
         const routeValueRetention = bridge.outputAmountUsd.div(expectedOutput);
         adjustedExpectedOutput = expectedOutput.div(routeValueRetention);
         ctx.addNote(
           `SubsidizePost: Squid value retention=${routeValueRetention.toFixed(8)}, expectedUsd=${expectedOutput.toFixed()}, outputUsd=${bridge.outputAmountUsd.toFixed()}`
         );
       } else if (expectedOutput.gt(0)) {
-        throw new Error(`Squid returned non-positive output USD value: ${bridge.outputAmountUsd.toFixed()}`);
+        throw new Error(`Squid returned unusable output USD value: ${bridge.outputAmountUsd?.toFixed() ?? "unparsable"}`);
       } else {
         ctx.addNote(`SubsidizePost: expected output ${expectedOutput.toFixed()} is not positive, skipping route adjustment`);
       }
