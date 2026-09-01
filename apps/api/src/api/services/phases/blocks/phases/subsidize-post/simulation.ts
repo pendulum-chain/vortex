@@ -57,9 +57,14 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
         toNetwork
       });
-      if (expectedOutput.gt(0) && bridge.outputAmountDecimal.gt(0)) {
-        const conversionRate = bridge.outputAmountDecimal.div(expectedOutput);
-        adjustedExpectedOutput = expectedOutput.div(conversionRate);
+      if (expectedOutput.gt(0) && bridge.outputAmountUsd.gt(0)) {
+        const routeValueRetention = bridge.outputAmountUsd.div(expectedOutput);
+        adjustedExpectedOutput = expectedOutput.div(routeValueRetention);
+        ctx.addNote(
+          `SubsidizePost: Squid value retention=${routeValueRetention.toFixed(8)}, expectedUsd=${expectedOutput.toFixed()}, outputUsd=${bridge.outputAmountUsd.toFixed()}`
+        );
+      } else if (expectedOutput.gt(0)) {
+        throw new Error(`Squid returned non-positive output USD value: ${bridge.outputAmountUsd.toFixed()}`);
       }
     } catch (error) {
       ctx.addNote(`SubsidizePost: Squid conversion unavailable, using 1:1. Error: ${error}`);
@@ -68,7 +73,7 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   const expectedRaw = multiplyByPowerOfTen(adjustedExpectedOutput, tokenDetails.decimals).toFixed(0, 0);
   const idealSubsidy = input.amount.gte(adjustedExpectedOutput) ? new Big(0) : adjustedExpectedOutput.minus(input.amount);
   const subsidyUnrounded = hasConfiguredTargetDiscount(partner?.targetDiscount ?? 0)
-    ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0)
+    ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0, expectedOutput)
     : new Big(0);
   // Floor the subsidy to token decimals before adding it, so the output decimal/raw pair stays
   // floor-consistent and quote.outputAmount cannot exceed the funded raw by one unit.

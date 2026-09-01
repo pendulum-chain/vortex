@@ -189,6 +189,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
+  const outputAmountUsd = new Big(routeData.route.estimate.toAmountUSD);
   const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork);
 
   return {
@@ -197,6 +198,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
     networkFeeUSD,
     outputAmountDecimal,
     outputAmountRaw,
+    outputAmountUsd,
     outputTokenDecimals,
     routeData,
     toToken: routeParams.toToken

@@ -17,8 +17,10 @@ import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { config } from "../../config/vars";
 import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { FinalSettlementSubsidyContext } from "../../api/services/phases/blocks/phases/final-settlement-subsidy/simulation";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
+import { SubsidizePostContext } from "../../api/services/phases/blocks/phases/subsidize-post/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -158,6 +160,9 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     world.squidRouter.bridgeStatus = "success";
     // The bridge leg swaps 6-decimal Base USDC into 6-decimal Arbitrum USDC;
     // the fake route must report matching decimals.
+    world.squidRouter.computeToAmount = params => params.fromAmount;
+    world.squidRouter.computeToAmountMin = params => world.squidRouter.computeToAmount(params);
+    world.squidRouter.toAmountUsd = "1";
     world.squidRouter.toTokenDecimals = 6;
     // Deterministic Nabla quoter for BRLA (18 decimals) → USDC (6 decimals) at
     // a flat 5 BRLA per USDC, matching the FakePrices 5 BRL/USD feed.
@@ -171,7 +176,8 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   });
 
   async function createQuoteViaApi(
-    destinationNetwork: EvmNetworks = Networks.Arbitrum
+    destinationNetwork: EvmNetworks = Networks.Arbitrum,
+    outputCurrency: EvmToken = EvmToken.USDC
   ): Promise<{ id: string; networkFeeUsd: string; outputAmount: string }> {
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
@@ -179,7 +185,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
         inputAmount: "500",
         inputCurrency: FiatToken.BRL,
         network: destinationNetwork,
-        outputCurrency: EvmToken.USDC,
+        outputCurrency,
         rampType: RampDirection.BUY,
         to: destinationNetwork
       }),
@@ -431,6 +437,31 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
       expect(getFlowMetadata(persistedQuote?.metadata).globals.evmDestinationGas?.network).toBe(network);
     }
+  });
+
+  it("keeps a non-stable destination quote subsidy bounded by oracle USD", async () => {
+    await updatePartnerPricing("vortex", RampDirection.BUY, { maxSubsidy: 0.003, targetDiscount: -0.0017 });
+    world.squidRouter.toTokenDecimals = 18;
+    world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) * 250_000_000n).toString();
+    // 500 BRL at the fake 0.2 BRL/USD oracle and -0.17% target is $99.83.
+    // Report 99% value retention independently of the tiny ETH token quantity.
+    world.squidRouter.toAmountUsd = "98.8317";
+
+    const quote = await createQuoteViaApi(Networks.Ethereum, EvmToken.ETH);
+    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+    if (!persistedQuote) throw new Error("Non-stable destination quote was not persisted");
+    const subsidy = getBlockMetadata(persistedQuote.metadata, SubsidizePostContext);
+    const oracleExpectedUsd = new Big("99.83");
+    const configuredCap = oracleExpectedUsd.times("0.003");
+
+    expect(new Big(quote.outputAmount).lt(1)).toBe(true);
+    expect(subsidy.outputCurrency).toBe(EvmToken.USDC);
+    expect(Big(subsidy.expectedOutputAmountDecimal).toFixed(6)).toBe(oracleExpectedUsd.div("0.99").toFixed(6));
+    expect(Big(subsidy.subsidyAmountInOutputTokenDecimal).lte(configuredCap)).toBe(true);
+    expect(Big(subsidy.subsidyAmountInOutputTokenDecimal).lt(1)).toBe(true);
+    const finalSettlement = getBlockMetadata(persistedQuote.metadata, FinalSettlementSubsidyContext);
+    expect(finalSettlement.applied).toBe(false);
+    expect(Big(finalSettlement.expectedOutputAmountDecimal).eq(finalSettlement.actualOutputAmountDecimal)).toBe(true);
   });
 
   it("returns the typed 503 for normal and all-high best-quote requests", async () => {

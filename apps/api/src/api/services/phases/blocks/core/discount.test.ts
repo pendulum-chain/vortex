@@ -41,6 +41,11 @@ describe("calculateSubsidyAmount", () => {
     expect(result.toString()).toBe("5");
   });
 
+  it("can anchor the cap to an independently denominated value basis", () => {
+    const result = calculateSubsidyAmount(new Big(1000), new Big(80), 0.05, new Big(100));
+    // The route-adjusted target is 1000, but the pricing allowance remains 5% of $100.
+    expect(result.toString()).toBe("5");
+  });
 });
 
 // The negative-discount / rate-floor logic lives in calculateExpectedOutput, not
