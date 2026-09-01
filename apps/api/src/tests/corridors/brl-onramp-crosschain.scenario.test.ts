@@ -162,7 +162,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     // the fake route must report matching decimals.
     world.squidRouter.computeToAmount = params => params.fromAmount;
     world.squidRouter.computeToAmountMin = params => world.squidRouter.computeToAmount(params);
-    world.squidRouter.toAmountUsd = "1";
+    world.squidRouter.computeToAmountUsd = params => new Big(params.fromAmount).div(1_000_000).toFixed();
     world.squidRouter.toTokenDecimals = 6;
     // Deterministic Nabla quoter for BRLA (18 decimals) → USDC (6 decimals) at
     // a flat 5 BRLA per USDC, matching the FakePrices 5 BRL/USD feed.
@@ -445,7 +445,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) * 250_000_000n).toString();
     // 500 BRL at the fake 0.2 BRL/USD oracle and -0.17% target is $99.83.
     // Report 99% value retention independently of the tiny ETH token quantity.
-    world.squidRouter.toAmountUsd = "98.8317";
+    world.squidRouter.computeToAmountUsd = () => "98.8317";
 
     const quote = await createQuoteViaApi(Networks.Ethereum, EvmToken.ETH);
     const persistedQuote = await QuoteTicket.findByPk(quote.id);

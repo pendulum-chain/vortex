@@ -1,6 +1,7 @@
 import { mock } from "bun:test";
 import type { RouteParams } from "@vortexfi/shared";
 import * as shared from "@vortexfi/shared";
+import Big from "big.js";
 
 // Snapshot before any mock.module call: bun mutates the imported namespace in place,
 // so restore() spreading `shared` afterwards would reinstall the fake, not the real fns.
@@ -23,8 +24,10 @@ export class FakeSquidRouter {
   computeToAmount: (params: RouteParams) => string = params => params.fromAmount;
   /** Guaranteed raw destination amount. Default: the estimated amount. */
   computeToAmountMin: (params: RouteParams) => string = params => this.computeToAmount(params);
-  /** USD value returned with the route estimate. */
-  toAmountUsd = "1";
+  /** USD value returned with the route estimate. Default: values the raw input as
+   * 6-decimal Base USDC at $1 (full value retention), so subsidy valuation sees a
+   * sane route; override for non-USDC inputs or lossy routes. */
+  computeToAmountUsd: (params: RouteParams) => string = params => new Big(params.fromAmount).div(1_000_000).toFixed();
   toTokenDecimals = 18;
   failNextRoute: Error | null = null;
   readonly requestedRoutes: RouteParams[] = [];
@@ -44,7 +47,7 @@ export class FakeSquidRouter {
           estimate: {
             toAmount: this.computeToAmount(params),
             toAmountMin: this.computeToAmountMin(params),
-            toAmountUSD: this.toAmountUsd,
+            toAmountUSD: this.computeToAmountUsd(params),
             toToken: { decimals: this.toTokenDecimals }
           },
           quoteId: "fake-squid-quote",
