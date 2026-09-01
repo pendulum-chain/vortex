@@ -47,7 +47,9 @@ through `getUserTransactionType`, `getTypedDataToSign`, and
 - Ramp IDs and business correlation state belong to the integrating application.
 - `storeEphemeralKeys` defaults to enabled and writes a JSON file in Node.js or plain
   `localStorage` in browsers. Browser persistence is intentionally prototype-grade;
-  applications with their own secure storage may disable it and persist the material themselves.
+  applications with their own secure storage configure `storeEphemeralKeysCallback`, which
+  replaces the built-in storage and hands the recovery material to the caller. Both paths
+  fail closed: registration awaits persistence and rejects on failure.
 
 ## Package boundary
 

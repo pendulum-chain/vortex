@@ -11,11 +11,25 @@ This is a critical integration responsibility:
 - Secrets must never be sent to Vortex endpoints, support channels, logs, or analytics. In a browser SDK integration they necessarily exist in browser-visible memory and, by default, same-origin localStorage.
 - If ephemeral secrets are lost, the partner may be unable to complete recovery for that ramp. Vortex has chain-specific cleanup mechanisms that can recover funds in some cases, but partners should not rely on this for normal operation.
 
-The SDK can store local backups using `storeEphemeralKeys`, which defaults to `true`. In Node.js environments, it writes `ephemerals_{rampId}.json` to the process's current working directory. In browsers, it writes the same plaintext JSON under that key in same-origin localStorage. Neither form is encrypted at rest, and the storage location is not configurable in the current release.
+The SDK's built-in backup is controlled by `storeEphemeralKeys`, which defaults to `true`. In Node.js environments, it writes `ephemerals_{rampId}.json` to the process's current working directory. In browsers, it writes the same plaintext JSON under that key in same-origin localStorage. Neither form is encrypted at rest.
 
-When this backup is enabled, persistence is fail-closed. The SDK waits for the backup write after the API creates the ramp but before it signs ephemeral-owned transactions or submits the ramp update. If the write fails, `registerRamp()` rejects and does not continue to the update or start steps. The backend registration may remain incomplete until it expires, but the SDK does not report a usable ramp while its recovery keys are unprotected. Storage errors are deliberately propagated rather than logged and ignored.
+For encrypted, vault-backed, or otherwise application-managed persistence, configure `storeEphemeralKeysCallback`:
 
-Treat those backups as sensitive key material. Restrict Node filesystem permissions, exclude files from source control, and define a retention policy that matches operational recovery needs. Browser localStorage is prototype-grade: every same-origin script can read it, and the SDK does not prune terminal entries automatically. Setting `storeEphemeralKeys: false` disables the SDK backup; the current SDK does not expose a replacement storage adapter.
+```js
+const sdk = new VortexSdk({
+  apiBaseUrl: "https://api.vortexfinance.co",
+  secretKey: process.env.VORTEX_SECRET_KEY,
+  storeEphemeralKeysCallback: async (keys, rampId) => {
+    await encryptedVault.store(rampId, keys);
+  }
+});
+```
+
+The callback receives an array of `StoredEphemeralKey` objects (`{ address, rampId, secret, type }`) and the ramp ID. When configured, it replaces the built-in file or localStorage backup, and `storeEphemeralKeys` has no effect. The callback owns the storage destination, encryption, access controls, and retention policy; the SDK still does not send the secrets to Vortex.
+
+Persistence is fail-closed for both the built-in backup and the custom callback. The SDK waits for storage after the API creates the ramp but before it signs ephemeral-owned transactions or submits the ramp update. If the write or callback fails, `registerRamp()` rejects and does not continue to the update or start steps. The backend registration may remain incomplete until it expires, but the SDK does not report a usable ramp while its recovery keys are unprotected. Storage errors are deliberately propagated rather than logged and ignored.
+
+Treat all backups as sensitive key material. For built-in Node.js storage, restrict filesystem permissions and exclude files from source control. Browser localStorage is prototype-grade: every same-origin script can read it, and the SDK does not prune terminal entries automatically. For custom storage, keep the callback available and deterministic throughout registration, and retain the keys until the operational recovery window has passed. Setting `storeEphemeralKeys: false` without a callback disables backup entirely; it does not expose the secrets through another SDK mechanism.
 
 Direct API integrations must implement equivalent custody behavior. At minimum, they should create fresh ephemerals per ramp, store encrypted backups, associate backups with the ramp ID, and verify that recovery material exists before allowing the user to continue.
 
