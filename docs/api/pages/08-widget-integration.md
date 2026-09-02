@@ -84,13 +84,17 @@ Content-Type: application/json
 | `fiat` | no | Fiat currency for the fiat leg (e.g. `"BRL"`). Required in practice for fiat-side ramps. |
 | `cryptoLocked` | no | Pre-selects and locks the crypto asset in the widget (e.g. `"USDC"`). |
 | `paymentMethod` | no | Payment rail (e.g. `"pix"`). Required in practice for buy flows. |
-| `apiKey` | no | Legacy body transport for the public credential value. Prefer `X-Public-Key`; if both are present, they must match. |
+| `apiKey` | no | Legacy body transport for the public credential value. Prefer `X-Public-Key`; if both are present, they must match. Including it also embeds the key in the returned widget URL, which enables pricing attribution (see below). |
 | `countryCode` | no | ISO-3166 alpha-2 country code to pre-filter eligible options. |
 | `partnerId` | no | Partner identifier for attribution. |
 | `callbackUrl` | no | URL the widget redirects to after the user successfully creates the transaction. |
 | `walletAddressLocked` | no | Lock the destination wallet address in the widget UI so the user cannot edit it. |
 
 Vortex validates the route on session creation by attempting to create a probe quote with the supplied parameters; invalid combinations return `400`.
+
+### Pricing Attribution At Sign-In
+
+If your credential carries negotiated partner pricing, open the widget with your public key in the URL (pass `apiKey` in the session body so it lands in the generated URL, or append `apiKey=pk_...` when linking to the widget directly). When a user signs in through such a link, Vortex permanently assigns your pricing to their profile, so later transactions keep your rates even without the link. The first assignment wins: a user who already carries a pricing assignment keeps it. Only ever expose the public `pk_*` value here — never the secret key.
 
 Response: `201 Created`
 

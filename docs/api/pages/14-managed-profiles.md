@@ -128,7 +128,7 @@ Register, sign, and start exactly as described in [Ramp Lifecycle](https://api-d
 
 Two things behave differently for managed children:
 
-- **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
+- **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees. When your credential carries partner pricing, each child you create is additionally assigned that pricing at creation time, fixing your rates to the child even if your own assignment later changes.
 - **Webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead.
 
 ## Common Errors

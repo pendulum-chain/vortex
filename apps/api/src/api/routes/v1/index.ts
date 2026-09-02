@@ -28,6 +28,7 @@ import moneriumRoutes from "./monerium.route";
 import mykoboRoutes from "./mykobo.route";
 import notificationsRoutes from "./notifications.route";
 import onboardingRoutes from "./onboarding.route";
+import partnerAttributionRoutes from "./partner-attribution.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
@@ -226,6 +227,13 @@ router.use("/onboarding", onboardingRoutes);
 /** One-record API credential management for authenticated Supabase users. */
 router.use("/api-credentials", apiCredentialsRoutes);
 router.use("/managed-profiles", managedProfilesRoutes);
+
+/**
+ * Partner pricing attribution claim for widget-onboarded users. The partner is
+ * resolved server-side from the presented public API key's credential.
+ * POST /v1/partner-attribution/claim
+ */
+router.use("/partner-attribution", partnerAttributionRoutes);
 
 /**
  * Admin routes for partner-managed API credentials. The partner is addressed by

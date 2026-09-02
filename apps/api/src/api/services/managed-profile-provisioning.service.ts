@@ -6,6 +6,7 @@ import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile, { type ManagedProfileCreationSource } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
+import { assignPartnerAttribution } from "./partners/partner-attribution.service";
 
 export class ManagedProfileProvisioningError extends Error {
   constructor(
@@ -22,6 +23,8 @@ export class ManagedProfileProvisioningError extends Error {
 }
 
 export interface ProvisionManagedProfileInput {
+  /** Partner attribution of the acting API credential; fixes partner pricing to the new profile. */
+  attributingPartnerId?: string | null;
   contactEmail: string;
   creationSource: ManagedProfileCreationSource;
   customerType: CustomerEntityType;
@@ -143,6 +146,12 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
       },
       { transaction }
     );
+
+    // Attribution applies only at creation — an existing relationship returned above keeps
+    // whatever pricing assignment it was (or was not) provisioned with.
+    if (input.attributingPartnerId) {
+      await assignPartnerAttribution(profile.id, input.attributingPartnerId, transaction);
+    }
 
     return {
       contactEmail,
