@@ -240,7 +240,12 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
   }
 }
 
-export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
+export function calculateSubsidyAmount(
+  expectedOutput: Big,
+  actualOutput: Big,
+  maxSubsidy: number,
+  capBasis: Big = expectedOutput
+): Big {
   // If actual output is already >= expected, no subsidy needed
   if (actualOutput.gte(expectedOutput)) {
     return new Big(0);
@@ -251,6 +256,6 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
   }
 
   const shortfall = expectedOutput.minus(actualOutput);
-  const maxAllowedSubsidy = expectedOutput.mul(maxSubsidy);
+  const maxAllowedSubsidy = capBasis.mul(maxSubsidy);
   return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
 }

@@ -52,6 +52,11 @@ mock.module("../core/squidrouter", () => ({
     networkFeeUSD: "0.1",
     outputTokenDecimals: 6
   }),
+  getEvmBridgeQuote: async ({ amountDecimal }: { amountDecimal: string }) => ({
+    networkFeeUSD: "0.1",
+    outputAmountDecimal: new Big(amountDecimal),
+    outputAmountUsd: new Big(amountDecimal)
+  }),
   getBridgeTargetTokenDetails: () => ({
     erc20AddressSourceChain: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
   })

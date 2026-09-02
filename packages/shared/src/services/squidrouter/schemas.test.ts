@@ -64,6 +64,22 @@ describe("squidrouterRouteResponseSchema", () => {
     expect(() => squidrouterRouteResponseSchema.parse(body)).toThrow();
   });
 
+  test("tolerates unparsable, empty, and missing toAmountUSD so non-consuming route callers never fail on it", () => {
+    // Unusable values are tolerated at the wire boundary on purpose: the API's
+    // route helper Big-parses this field tolerantly and only the SubsidizePost
+    // probe consumes it, falling back to its oracle target on an unusable value.
+    for (const tolerated of ["9.95", "N/A", "+1", ""]) {
+      const body = validRouteBody();
+      body.route.estimate.toAmountUSD = tolerated;
+      expect(() => squidrouterRouteResponseSchema.parse(body)).not.toThrow();
+    }
+
+    const missing = validRouteBody();
+    delete (missing.route.estimate as Record<string, unknown>).toAmountUSD;
+    const parsed = squidrouterRouteResponseSchema.parse(missing);
+    expect(parsed.route.estimate.toAmountUSD).toBe("");
+  });
+
   test("accepts a hex gasLimit but rejects a non-integer one (BigInt-parsed downstream)", () => {
     const hex = validRouteBody();
     hex.route.transactionRequest.gasLimit = "0x8e6a0";
