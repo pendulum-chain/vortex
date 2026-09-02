@@ -278,7 +278,11 @@ live; the status endpoint only hermetically — it needs a real recent transacti
 order creation/polling, fiat accounts and KYC status live behind pre-provisioned sandbox fixtures,
 see `.env.example`), Avenia/BRLA (quotes live with credentials only; limits/balances/account-info,
 pix-key validation, ordinary and hosted-liveness document target creation plus read-back through the consumed document GET schemas, and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
-payout tickets hermetically only — creating one live would move funds), and the CoinGecko
+payout tickets hermetically only — creating one live would move funds), Monerium white-label API v2
+(profiles, linked addresses, IBANs, orders, files, and webhook subscriptions hermetically; prepared
+read-only sandbox checks behind white-label credentials and fixture IDs; every persistent or
+value-moving call behind its own `MONERIUM_CONTRACT_RUN_*` gate; excluded from `contracts.yml`
+until credentials and known fixtures are provisioned), and the CoinGecko
 `simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
 patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
 production consumers are deliberately uncovered. Next per the PRD: milestone 5, warn-only

@@ -15,3 +15,4 @@ This directory contains smart-contract projects managed as Bun workspaces.
 ## Current projects
 
 - `relayer/` - Relayer contract project (Hardhat)
+- `monerium-forwarder/` - Attestor-linked forwarder for the Monerium B2B onramp (Foundry)

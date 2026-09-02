@@ -23,6 +23,7 @@
       "!**/gql/**",
       "!**/lottie/**",
       "!**/storybook-static/**",
+      "!contracts/monerium-forwarder/lib/**",
       "!contracts/relayer/artifacts/**",
       "!contracts/relayer/cache/**",
       "!contracts/relayer/ignition/deployments/**",

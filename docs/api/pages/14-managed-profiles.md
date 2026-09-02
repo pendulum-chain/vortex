@@ -10,10 +10,10 @@ This page is the integration walkthrough. The exact authorization contract — e
 
 Manager status is granted by Vortex, not self-service. During partner onboarding, Vortex enables your profile as a managed-profile manager and assigns:
 
-- **Allowed corridors** — the countries (`BR`, `AR`, `CO`, `MX`, `US`) your children may operate in.
+- **Allowed corridors** — the countries (`BR`, `AR`, `CO`, `MX`, `US`, `EU`) your children may operate in.
 - **Optional customer-type narrowing** — restrict children to `individual` or `business`; a null policy allows both wherever the corridor's canonical capability matrix does.
 
-Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). EUR is not available for managed children — its flows are bound to a verified login email.
+Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Quoted EUR ramps are not available for managed children — those flows are bound to a verified login email. The `EU` corridor instead covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding.
 
 ## Create A Managed Child
 
@@ -129,7 +129,7 @@ Register, sign, and start exactly as described in [Ramp Lifecycle](https://api-d
 Two things behave differently for managed children:
 
 - **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
-- **Webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead.
+- **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED` for all their children's accounts — see the Webhooks page.
 
 ## Common Errors
 

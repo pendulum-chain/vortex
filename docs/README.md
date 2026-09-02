@@ -20,13 +20,19 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md) | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution |
 | [`adr-0003-managed-headless-profiles.md`](adr-0003-managed-headless-profiles.md) | Accepted identity, ownership, authorization, and lifecycle decisions for managed headless profiles |
 | [`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md) | Accepted decision on the seeded sales-demo account in the sandbox environment |
+| [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md) | Accepted decisions, final parameter registry, and accepted risks for the Monerium B2B onramp |
 | [`architecture-email-notifications.md`](architecture-email-notifications.md) | Current transactional/auth email architecture: queue, dispatch, producers |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
+| [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md) | Current end-to-end architecture of the B2B EUR onramp: onboarding, deposit-to-payout, batching, fees, data model |
 | [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
+| [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md) | Launch gates, deploy checklist, and terms inputs for the B2B onramp pilot |
+| [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md) | Operator procedures for the B2B onramp: onboarding, incidents, alert triage, dormancy, migration |
+| [`operations-monerium-interface.md`](operations-monerium-interface.md) | Focused white-label Monerium profile, address, IBAN, and payment interface reference |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
+| [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
 | [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 

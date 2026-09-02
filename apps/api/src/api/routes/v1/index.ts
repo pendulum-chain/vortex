@@ -5,6 +5,7 @@ import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middle
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
 import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
+import adminMoneriumB2bRoutes from "./admin/monerium-b2b.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
@@ -25,6 +26,7 @@ import maintenanceRoutes from "./maintenance.route";
 import managedProfilesRoutes from "./managed-profiles.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
+import moneriumB2bRoutes from "./monerium-b2b.route";
 import mykoboRoutes from "./mykobo.route";
 import notificationsRoutes from "./notifications.route";
 import onboardingRoutes from "./onboarding.route";
@@ -183,6 +185,15 @@ router.use("/mykobo", mykoboRoutes);
 router.use("/monerium", moneriumRoutes);
 
 /**
+ * Monerium B2B whitelabel onramp.
+ * POST /v1/monerium-b2b/webhook — HMAC-authenticated durable-inbox webhook receiver.
+ * GET /v1/monerium-b2b/account — the acting profile's onramp account (manager
+ *   delegation or child credential; EU/business policy).
+ * GET /v1/monerium-b2b/deposits — the acting profile's deposits with conversion status.
+ */
+router.use("/monerium-b2b", moneriumB2bRoutes);
+
+/**
  * POST v1/webhook
  * DELETE v1/webhook
  */
@@ -268,6 +279,13 @@ router.use("/admin/profile-roles", profileRolesRoutes);
  */
 router.use("/admin/managed-profile-managers", managedProfileManagersRoutes);
 router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
+
+/**
+ * Admin route mapping Monerium-onboarded corporates to managed profiles and their
+ * deployed forwarder accounts (idempotent).
+ * POST /v1/admin/monerium-b2b/accounts
+ */
+router.use("/admin/monerium-b2b", adminMoneriumB2bRoutes);
 
 /**
  * Admin routes for API client observability dashboards

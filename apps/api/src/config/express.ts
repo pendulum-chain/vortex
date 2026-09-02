@@ -63,6 +63,21 @@ app.use(["/v1/brl/kyc/import-token", "/v1/brla/kyc/import-token"], brlaKycImport
 // not buffer the 20mb the JSON API allows before the signature is even checked.
 app.use("/v1/webhooks/avenia", bodyParser.raw({ limit: "100kb", type: "*/*" }), aveniaWebhookRoutes);
 
+// Same reasoning for the Monerium B2B webhook: the HMAC is computed over the RAW
+// request bytes (captured here for the controller), and this unauthenticated route
+// gets its own small limit instead of buffering the 20mb the JSON API allows before
+// the signature is even checked. Mounted ahead of the global JSON parser, which
+// skips bodies that are already parsed.
+app.use(
+  "/v1/monerium-b2b/webhook",
+  bodyParser.json({
+    limit: "100kb",
+    verify: (req, _res, buf) => {
+      (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
+    }
+  })
+);
+
 // parse body params and attach them to req.body
 app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(bodyParser.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));

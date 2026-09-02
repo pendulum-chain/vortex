@@ -220,6 +220,16 @@ interface Config {
     clientId: string;
     redirectUri: string;
   };
+  // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
+  // Separate credential set from the legacy consumer OAuth integration above.
+  moneriumB2b: {
+    attestorPrivateKey: string | undefined;
+    guardianPrivateKey: string | undefined;
+    keeperPrivateKey: string | undefined;
+    privateRpcUrl: string | undefined;
+    rpcUrl: string | undefined;
+    webhookSecret: string;
+  };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
 
@@ -321,6 +331,21 @@ export const config: Config = {
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+  },
+  moneriumB2b: {
+    // Whitelabel API credentials and base URL live with the shared client
+    // (MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_API_URL — @vortexfi/shared);
+    // this block keeps only the chain/keeper-specific settings.
+    attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
+    // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
+    // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
+    guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
+    keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+    // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
+    // the keeper falls back to the public RPC and logs a warning (see chain.ts).
+    privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
+    webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
   mykobo: {
     feeFallback: readMykoboFeeFallback()

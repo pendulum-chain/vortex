@@ -2196,8 +2196,12 @@
             },
             "type": "array"
           },
-          "manager": { "$ref": "#/components/schemas/ManagedProfileManagerPolicy" },
-          "pagination": { "$ref": "#/components/schemas/ManagedProfilePagination" }
+          "manager": {
+            "$ref": "#/components/schemas/ManagedProfileManagerPolicy"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/ManagedProfilePagination"
+          }
         },
         "required": ["manager", "managedProfiles", "pagination"],
         "type": "object"
@@ -2322,16 +2326,25 @@
         "description": "The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child.",
         "properties": {
           "allowedCorridors": {
-            "items": { "enum": ["AR", "BR", "CO", "EU", "MX", "US"], "type": "string" },
+            "items": {
+              "enum": ["AR", "BR", "CO", "EU", "MX", "US"],
+              "type": "string"
+            },
             "type": "array",
             "uniqueItems": true
           },
           "allowedCustomerTypes": {
-            "items": { "enum": ["individual", "business"], "type": "string" },
+            "items": {
+              "enum": ["individual", "business"],
+              "type": "string"
+            },
             "type": ["array", "null"],
             "uniqueItems": true
           },
-          "profileId": { "format": "uuid", "type": "string" }
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          }
         },
         "required": ["profileId", "allowedCorridors", "allowedCustomerTypes"],
         "type": "object"
@@ -2384,6 +2397,145 @@
           }
         },
         "required": ["error"],
+        "type": "object"
+      },
+      "MoneriumB2bAccount": {
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "destination": {
+            "description": "The client's payout address on Ethereum.",
+            "type": "string"
+          },
+          "dormantSince": {
+            "description": "Set while the account is dormancy-paused.",
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "fallbackAddress": {
+            "description": "The client's self-custodied recovery address.",
+            "type": "string"
+          },
+          "feeBps": {
+            "type": "integer"
+          },
+          "forwarderAddress": {
+            "description": "The account's on-chain forwarding contract.",
+            "type": "string"
+          },
+          "iban": {
+            "description": "The account's dedicated IBAN; null until issuance completes.",
+            "type": ["string", "null"]
+          },
+          "status": {
+            "enum": ["onboarding", "active", "suspended", "closed"],
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "createdAt",
+          "destination",
+          "dormantSince",
+          "fallbackAddress",
+          "feeBps",
+          "forwarderAddress",
+          "iban",
+          "status"
+        ],
+        "type": "object"
+      },
+      "MoneriumB2bAccountResponse": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/MoneriumB2bAccount"
+          }
+        },
+        "required": ["account"],
+        "type": "object"
+      },
+      "MoneriumB2bDeposit": {
+        "properties": {
+          "amountRaw": {
+            "description": "Deposit amount in 18-decimal base units of the deposit currency.",
+            "type": "string"
+          },
+          "conversion": {
+            "description": "The allocated conversion execution once the swap has run; null while the deposit awaits conversion.",
+            "properties": {
+              "executionId": {
+                "type": "string"
+              },
+              "status": {
+                "description": "Execution status.",
+                "enum": ["pending", "confirmed", "failed"],
+                "type": "string"
+              },
+              "txHash": {
+                "description": "The swap-and-forward transaction hash.",
+                "type": ["string", "null"]
+              },
+              "usdcNetRaw": {
+                "description": "Net USDC forwarded for the whole execution in 6-decimal base units. When one execution batches several deposits this is the execution total; per-deposit shares are proportional to amountRaw.",
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["executionId", "status", "txHash", "usdcNetRaw"],
+            "type": ["object", "null"]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "depositId": {
+            "type": "string"
+          },
+          "status": {
+            "description": "Deposit status (forward-only).",
+            "enum": ["pending", "minted", "held", "returned"],
+            "type": "string"
+          },
+          "txHash": {
+            "description": "The on-chain mint transaction, when observed.",
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["amountRaw", "conversion", "createdAt", "currency", "depositId", "status", "txHash"],
+        "type": "object"
+      },
+      "MoneriumB2bDepositsResponse": {
+        "properties": {
+          "deposits": {
+            "items": {
+              "$ref": "#/components/schemas/MoneriumB2bDeposit"
+            },
+            "type": "array"
+          },
+          "pagination": {
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": ["limit", "offset", "total"],
+            "type": "object"
+          }
+        },
+        "required": ["deposits", "pagination"],
         "type": "object"
       },
       "Networks": {
@@ -2539,10 +2691,14 @@
             "type": "string"
           },
           "documents": {
-            "items": { "$ref": "#/components/schemas/OnboardingDocumentRequirement" },
+            "items": {
+              "$ref": "#/components/schemas/OnboardingDocumentRequirement"
+            },
             "type": "array"
           },
-          "flow": { "type": "string" },
+          "flow": {
+            "type": "string"
+          },
           "mode": {
             "enum": ["api", "hosted", "hybrid"],
             "type": "string"
@@ -2555,9 +2711,13 @@
             "enum": ["alfredpay", "avenia"],
             "type": "string"
           },
-          "requirementsVersion": { "type": "string" },
+          "requirementsVersion": {
+            "type": "string"
+          },
           "steps": {
-            "items": { "$ref": "#/components/schemas/OnboardingRequirementStep" },
+            "items": {
+              "$ref": "#/components/schemas/OnboardingRequirementStep"
+            },
             "type": "array"
           }
         },
@@ -8006,6 +8166,110 @@
         "tags": ["Managed Profiles"]
       }
     },
+    "/v1/monerium-b2b/account": {
+      "get": {
+        "deprecated": false,
+        "description": "Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "operationId": "getMoneriumB2bAccount",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bAccountResponse"
+                }
+              }
+            },
+            "description": "The acting profile's onramp account."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "Managed-profile authorization failed (foreign child, corridor or customer-type policy)."
+          },
+          "404": {
+            "description": "No account exists for the acting profile."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get the acting profile's EUR onramp account",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/monerium-b2b/deposits": {
+      "get": {
+        "deprecated": false,
+        "description": "Returns the acting profile's EUR deposits newest first, each with its allocated conversion execution once the swap has run. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "operationId": "listMoneriumB2bDeposits",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ManagedProfileId"
+          },
+          {
+            "description": "Page size (default 20, max 100).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0).",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bDepositsResponse"
+                }
+              }
+            },
+            "description": "The acting profile's deposits with conversion status."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "Managed-profile authorization failed (foreign child, corridor or customer-type policy)."
+          },
+          "404": {
+            "description": "No account exists for the acting profile."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the acting profile's EUR deposits",
+        "tags": ["Account Management"]
+      }
+    },
     "/v1/onboarding/active-entity": {
       "put": {
         "description": "Selects the authenticated profile's immutable active customer-entity type. Managed-child delegation is not supported.",
@@ -10175,7 +10439,7 @@
     },
     "/v1/session/create": {
       "post": {
-        "description": "Creates a hosted Vortex Widget session and returns the URL to open for the user.\n\nThis single endpoint supports two mutually exclusive request shapes:\n\n- **Fixed quote** (`GetWidgetUrlLocked`) — pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.\n\n- **Auto-refresh** (`GetWidgetUrlRefresh`) — pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.\n\nUse the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.",
+        "description": "Creates a hosted Vortex Widget session and returns the URL to open for the user.\n\nThis single endpoint supports two mutually exclusive request shapes:\n\n- **Fixed quote** (`GetWidgetUrlLocked`) \u2014 pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.\n\n- **Auto-refresh** (`GetWidgetUrlRefresh`) \u2014 pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.\n\nUse the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -10331,7 +10595,7 @@
                       "type": "array"
                     },
                     "emoji": {
-                      "description": "e.g. 🇩🇪",
+                      "description": "e.g. \ud83c\udde9\ud83c\uddea",
                       "type": "string"
                     },
                     "name": {
@@ -10585,17 +10849,17 @@
                 "properties": {
                   "events": {
                     "items": {
-                      "description": "(optional): Array of event types to subscribe to. Defaults to all events if not specified. [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"]",
+                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
                       "type": "string"
                     },
                     "type": "array"
                   },
                   "quoteId": {
-                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote. The quote must have been created with your API key.",
+                    "description": "(required* one of two for transaction events: quoteId or sessionId; omit both for deposit events): Subscribe to events for a specific quote. The quote must have been created with your API key.",
                     "type": "string"
                   },
                   "sessionId": {
-                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific session",
+                    "description": "(required* one of two for transaction events: quoteId or sessionId; omit both for deposit events): Subscribe to events for a specific session",
                     "type": "string"
                   },
                   "url": {
@@ -10665,22 +10929,44 @@
             "headers": {}
           },
           "400": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                }
+              }
+            },
             "description": "Managed-profile selection is unsupported on webhook endpoints.",
             "headers": {}
           },
           "401": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
+                }
+              }
+            },
             "description": "Missing or invalid secret API key.",
             "headers": {}
           },
           "403": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                }
+              }
+            },
             "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
             "headers": {}
           }
         },
-        "security": [{ "SecretApiKey": [] }],
+        "security": [
+          {
+            "SecretApiKey": []
+          }
+        ],
         "summary": "Register Webhook",
         "tags": ["Webhooks"]
       }
@@ -10722,22 +11008,44 @@
             "headers": {}
           },
           "400": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                }
+              }
+            },
             "description": "Managed-profile selection is unsupported on webhook endpoints.",
             "headers": {}
           },
           "401": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiCredentialErrorResponse"
+                }
+              }
+            },
             "description": "Missing or invalid secret API key.",
             "headers": {}
           },
           "403": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedSelectorErrorResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedSelectorErrorResponse"
+                }
+              }
+            },
             "description": "Direct managed-child credentials are unsupported, or supplied credentials conflict.",
             "headers": {}
           }
         },
-        "security": [{ "SecretApiKey": [] }],
+        "security": [
+          {
+            "SecretApiKey": []
+          }
+        ],
         "summary": "Delete Webhook",
         "tags": ["Webhooks"]
       }
