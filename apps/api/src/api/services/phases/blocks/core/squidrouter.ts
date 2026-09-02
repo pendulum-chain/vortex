@@ -189,6 +189,15 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
+  // Tolerant on purpose: only the SubsidizePost probe consumes this numerically (and
+  // degrades to its 1:1 fallback), so an unparsable value must not fail the mint fee
+  // probes or the swap leg that share this helper.
+  let outputAmountUsd: Big | null;
+  try {
+    outputAmountUsd = new Big(routeData.route.estimate.toAmountUSD);
+  } catch {
+    outputAmountUsd = null;
+  }
   const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork);
 
   return {
@@ -197,6 +206,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
     networkFeeUSD,
     outputAmountDecimal,
     outputAmountRaw,
+    outputAmountUsd,
     outputTokenDecimals,
     routeData,
     toToken: routeParams.toToken

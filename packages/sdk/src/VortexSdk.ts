@@ -44,6 +44,7 @@ import type {
   EurOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
+  StoredEphemeralKey,
   SubmitUserTransactionsHandlers,
   UpdateRampAdditionalData,
   VortexSdkConfig
@@ -59,6 +60,7 @@ export class VortexSdk {
   private domesticHandler: DomesticHandler;
   private mykoboHandler: MykoboHandler;
   private storeEphemeralKeys: boolean;
+  private storeEphemeralKeysCallback: VortexSdkConfig["storeEphemeralKeysCallback"];
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
 
   constructor(config: VortexSdkConfig) {
@@ -69,6 +71,7 @@ export class VortexSdk {
     this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey, config.accessTokenProvider);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
+    this.storeEphemeralKeysCallback = config.storeEphemeralKeysCallback;
     this.offrampFundingMode = config.offrampFundingMode ?? "prefunded";
     this.publicKey = config.publicKey;
     this.secretKey = config.secretKey;
@@ -334,17 +337,22 @@ export class VortexSdk {
     ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount },
     rampId: string
   ): Promise<void> {
-    if (!this.storeEphemeralKeys) {
+    if (!this.storeEphemeralKeysCallback && !this.storeEphemeralKeys) {
       return;
     }
 
-    const ephemeralItems = [];
+    const ephemeralItems: StoredEphemeralKey[] = [];
     for (const type of Object.keys(ephemerals) as EphemeralAccountType[]) {
       const ephemeral = ephemerals[type];
       if (ephemeral) {
         const { address, secret } = ephemeral;
         ephemeralItems.push({ address, rampId, secret, type });
       }
+    }
+
+    if (this.storeEphemeralKeysCallback) {
+      await this.storeEphemeralKeysCallback(ephemeralItems, rampId);
+      return;
     }
 
     const fileName = `ephemerals_${rampId}.json`;

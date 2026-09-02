@@ -1143,6 +1143,60 @@ describe("GET /v1/onboarding/status", () => {
     expect(rows[0].userId).toBe(user.id);
   });
 
+  it("rolls back the outcome email when the authenticated KYB status transaction fails", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-rollback@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "rollback-subaccount",
+      taxId: "66777888000186"
+    });
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "rollback-attempt",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING,
+      type: "kyb"
+    });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({
+            attempt: {
+              id: "rollback-attempt",
+              result: KycAttemptResult.APPROVED,
+              status: KycAttemptStatus.COMPLETED,
+              updatedAt: "2026-08-25T12:00:00.000Z"
+            }
+          }))
+        }) as unknown as BrlaApiService
+    );
+    const update = ProviderCustomer.prototype.update;
+    ProviderCustomer.prototype.update = mock(async () => {
+      throw new Error("forced provider-customer update failure");
+    }) as unknown as typeof ProviderCustomer.prototype.update;
+
+    try {
+      const response = await api.request("/v1/brla/kyb/attempt-status?attemptId=rollback-attempt", {
+        headers: authHeaders(token)
+      });
+      expect(response.status).toBe(500);
+    } finally {
+      ProviderCustomer.prototype.update = update;
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.InReview);
+    expect(kycCase.status).toBe(VerificationStatus.InReview);
+    expect(await EmailNotification.count({ where: { resourceId: "rollback-attempt" } })).toBe(0);
+  });
+
   it("does not double-send when the webhook, worker, or authenticated route replays a dashboard-settled outcome", async () => {
     const { user, token } = await createAuthedUser("avenia-kyb-settled-race@example.com");
     const business = await createTestTaxId(user.id, {

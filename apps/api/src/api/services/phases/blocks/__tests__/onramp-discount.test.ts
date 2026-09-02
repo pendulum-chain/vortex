@@ -1,6 +1,7 @@
-import { afterAll, afterEach, describe, expect, it, mock, setSystemTime } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock, setSystemTime, spyOn } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import * as priceFeedNamespace from "../../../priceFeed.service";
@@ -11,7 +12,7 @@ const partnerPricingReal = { ...partnerPricingNamespace };
 const priceFeedReal = { ...priceFeedNamespace };
 const squidrouterReal = { ...squidrouterNamespace };
 
-const pricingById = new Map<string, { fiatCurrency: FiatToken; targetDiscount: number }>();
+const pricingById = new Map<string, { fiatCurrency: FiatToken; maxSubsidy?: number; targetDiscount: number }>();
 const bridgeQuoteRequests: Array<{
   amountDecimal: string;
   fromNetwork: Networks;
@@ -19,6 +20,13 @@ const bridgeQuoteRequests: Array<{
   outputCurrency: EvmToken;
   toNetwork: Networks;
 }> = [];
+let bridgeQuoteFactory: (request: (typeof bridgeQuoteRequests)[number]) => {
+  outputAmountDecimal: Big;
+  outputAmountUsd: Big | null;
+} = request => ({
+  outputAmountDecimal: new Big(request.amountDecimal).times("0.9"),
+  outputAmountUsd: new Big(request.amountDecimal).times("0.9")
+});
 
 mock.module("../../../partners/partner-pricing.service", () => ({
   findPartnerWithPricing: async ({ id }: { id?: string }, _rampType: RampDirection, fiatCurrency: FiatToken) => {
@@ -33,7 +41,7 @@ mock.module("../../../partners/partner-pricing.service", () => ({
       markupType: "none",
       markupValue: 0,
       maxDynamicDifference: 0.01,
-      maxSubsidy: 0.5,
+      maxSubsidy: pricing.maxSubsidy ?? 0.5,
       minDynamicDifference: -0.01,
       name: id,
       payoutAddressEvm: null,
@@ -55,13 +63,17 @@ mock.module("../../../priceFeed.service", () => ({
 mock.module("../core/squidrouter", () => ({
   getEvmBridgeQuote: async (request: (typeof bridgeQuoteRequests)[number]) => {
     bridgeQuoteRequests.push(request);
-    return { outputAmountDecimal: new Big(request.amountDecimal).times("0.9") };
+    return bridgeQuoteFactory(request);
   }
 }));
 
 afterEach(() => {
   pricingById.clear();
   bridgeQuoteRequests.length = 0;
+  bridgeQuoteFactory = request => ({
+    outputAmountDecimal: new Big(request.amountDecimal).times("0.9"),
+    outputAmountUsd: new Big(request.amountDecimal).times("0.9")
+  });
   setSystemTime();
 });
 
@@ -152,6 +164,134 @@ describe("onramp discount semantics", () => {
     ]);
   });
 
+  it("keeps routed-onramp subsidy independent of destination-token quantity", async () => {
+    const partnerId = "token-unit-invariance-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.003, targetDiscount: 0.02 });
+    const oracleExpectedUsd = new Big("102");
+    const expectedSourceUsdc = oracleExpectedUsd.div("0.9");
+    const expectedSubsidy = oracleExpectedUsd.times("0.003");
+    const cases = [
+      { outputAmountDecimal: "91.8", outputCurrency: EvmToken.USDC, to: Networks.Arbitrum },
+      { outputAmountDecimal: "0.0204", outputCurrency: "PAXG" as EvmToken, to: Networks.Ethereum },
+      { outputAmountDecimal: "0.02295", outputCurrency: EvmToken.ETH, to: Networks.Ethereum },
+      { outputAmountDecimal: "183.6", outputCurrency: EvmToken.POL, to: Networks.Polygon }
+    ];
+
+    for (const testCase of cases) {
+      bridgeQuoteFactory = () => ({
+        outputAmountDecimal: new Big(testCase.outputAmountDecimal),
+        outputAmountUsd: oracleExpectedUsd.times("0.9")
+      });
+      const ctx = buildCtx(FiatToken.BRL, partnerId, testCase.to, testCase.outputCurrency);
+      const result = await simulateSubsidizePost(
+        { amount: new Big("90"), amountRaw: "90000000", chain: Networks.Base, token: EvmToken.USDC },
+        ctx
+      );
+
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe(expectedSourceUsdc.toFixed(6));
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(expectedSubsidy.toFixed(6));
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).lte(expectedSubsidy)).toBe(true);
+      expect(result.metadata.outputCurrency).toBe(EvmToken.USDC);
+    }
+  });
+
+  it("shrinks the routed target when Squid reports better-than-oracle value retention", async () => {
+    const partnerId = "favorable-route-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big(request.amountDecimal),
+      outputAmountUsd: new Big(request.amountDecimal).times("1.02")
+    });
+
+    const result = await simulateSubsidizePost(
+      { amount: new Big("95"), amountRaw: "95000000", chain: Networks.Base, token: EvmToken.USDC },
+      buildCtx(FiatToken.BRL, partnerId, Networks.Arbitrum, EvmToken.USDT)
+    );
+
+    // The oracle target is 102 USD; retention 1.02 shrinks the source-USDC target to 100,
+    // so the subsidy tops up to the cheaper route target, not the raw oracle value.
+    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe("100.000000");
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe("5.000000");
+    expect(result.metadata.applied).toBe(true);
+  });
+
+  it("falls back to the oracle target when Squid returns a non-positive USD value", async () => {
+    const partnerId = "invalid-route-value-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big(request.amountDecimal).times("1000000"),
+      outputAmountUsd: new Big(0)
+    });
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
+
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ outputCurrency: "PAXG", toNetwork: Networks.Ethereum })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("falls back to the oracle target when Squid's USD value cannot be parsed", async () => {
+    const partnerId = "invalid-route-number-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = () => {
+      throw new Error("Invalid Squid output USD value");
+    };
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
+
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ error: "Invalid Squid output USD value" })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("falls back to the oracle target when Squid's USD value is unparsable at the route layer", async () => {
+    const partnerId = "unparsable-route-value-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, maxSubsidy: 0.5, targetDiscount: 0.02 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big(request.amountDecimal),
+      outputAmountUsd: null
+    });
+
+    const warning = spyOn(logger, "warn");
+    try {
+      const result = await simulateSubsidizePost(
+        { amount: new Big("97.5"), amountRaw: "97500000", chain: Networks.Base, token: EvmToken.USDC },
+        buildCtx(FiatToken.BRL, partnerId, Networks.Ethereum, "PAXG" as EvmToken)
+      );
+
+      expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed()).toBe("102");
+      expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.5");
+      expect(warning).toHaveBeenCalledWith(
+        "SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK",
+        expect.objectContaining({ error: "Squid returned unusable output USD value: unparsable" })
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
   it("applies the resolved EUR partner discount on the Base USDC 1:1 route", async () => {
     const partnerId = "eur-discount-partner";
     pricingById.set(partnerId, { fiatCurrency: FiatToken.EURC, targetDiscount: 0.01 });
@@ -171,6 +311,27 @@ describe("onramp discount semantics", () => {
     expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed()).toBe("4.58");
     expect(result.metadata.applied).toBe(true);
     expect(bridgeQuoteRequests).toEqual([]);
+  });
+
+  it("anchors a routed EUR subsidy cap to oracle USD instead of destination-token units", async () => {
+    const partnerId = "eur-routed-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.EURC, maxSubsidy: 0.003, targetDiscount: -0.0008 });
+    bridgeQuoteFactory = request => ({
+      outputAmountDecimal: new Big("0.024"),
+      outputAmountUsd: new Big(request.amountDecimal).times("0.98")
+    });
+    const ctx = buildCtx(FiatToken.EURC, partnerId, Networks.Ethereum, EvmToken.ETH);
+    const oracleExpectedUsd = new Big("100").times("1.08").times(new Big(1).minus("0.0008"));
+    const result = await simulateSubsidizePost(
+      { amount: new Big("104.5"), amountRaw: "104500000", chain: Networks.Base, token: EvmToken.USDC },
+      ctx
+    );
+
+    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe(oracleExpectedUsd.div("0.98").toFixed(6));
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(
+      oracleExpectedUsd.times("0.003").round(6, Big.roundDown).toFixed(6)
+    );
+    expect(result.metadata.outputCurrency).toBe(EvmToken.USDC);
   });
 
   it("regression: a negative target discount still subsidizes up to its worse-than-reference rate floor", async () => {

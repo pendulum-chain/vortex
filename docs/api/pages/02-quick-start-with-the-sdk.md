@@ -230,7 +230,21 @@ Most updates happen inside the SDK. For BRL buys, `registerRamp` already submits
 
 The SDK creates fresh ephemeral accounts per ramp, signs the transactions Vortex returns, submits ramp updates, and can persist a local backup of ephemeral secrets. This removes the most error-prone parts of a custom integration.
 
-The default backup is **unencrypted**: Node.js writes `ephemerals_{rampId}.json` in the current working directory, while browsers write that key to same-origin localStorage. Treat either as sensitive key material. Browser storage is prototype-grade and readable by every script on the origin. Setting `storeEphemeralKeys: false` disables the SDK backup entirely. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
+The default backup is **unencrypted**: Node.js writes `ephemerals_{rampId}.json` in the current working directory, while browsers write that key to same-origin localStorage. Treat either as sensitive key material. Browser storage is prototype-grade and readable by every script on the origin.
+
+Production integrations can provide `storeEphemeralKeysCallback` to use encrypted or vault-backed storage instead:
+
+```js
+const sdk = new VortexSdk({
+  apiBaseUrl: "https://api.vortexfinance.co",
+  secretKey: process.env.VORTEX_SECRET_KEY,
+  storeEphemeralKeysCallback: async (keys, rampId) => {
+    await encryptedVault.store(rampId, keys);
+  }
+});
+```
+
+The callback receives an array of `{ address, rampId, secret, type }` entries and the ramp ID. It replaces the built-in backup, so `storeEphemeralKeys` has no effect when the callback is configured. The SDK awaits it during `registerRamp()` and stops before signing ephemeral-owned transactions if it rejects. Setting `storeEphemeralKeys: false` without a callback disables backup entirely and does not expose the keys elsewhere. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 
 For quote request races, browser token refresh, wallet-network checks, resumable payment screens, and safe polling, see [Custom UI Integration](https://api-docs.vortexfinance.co/custom-ui-integration).
 

@@ -1,11 +1,21 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import Big from "big.js";
-import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import {
+  BrlaApiService,
+  EPaymentMethod,
+  EvmToken,
+  type EvmNetworks,
+  FiatToken,
+  Networks,
+  RampDirection,
+  RampPhase
+} from "@vortexfi/shared";
 import { config } from "../../../../../config/vars";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 
 const partnerPricingReal = { ...partnerPricingNamespace };
 const brlaApiServiceGetInstanceReal = BrlaApiService.getInstance;
+let activePricing: Awaited<ReturnType<typeof partnerPricingNamespace.findPartnerWithPricing>> = null;
 
 mock.module("../core/nabla", () => ({
   calculateNablaSwapOutput: async () => {
@@ -27,7 +37,8 @@ mock.module("../core/squidrouter", () => ({
   }),
   getEvmBridgeQuote: async ({ amountDecimal }: { amountDecimal: string }) => ({
     networkFeeUSD: "0.1",
-    outputAmountDecimal: new Big(amountDecimal)
+    outputAmountDecimal: new Big(amountDecimal),
+    outputAmountUsd: new Big(amountDecimal)
   }),
   getBridgeTargetTokenDetails: () => ({
     erc20AddressSourceChain: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
@@ -42,8 +53,12 @@ mock.module("../../../priceFeed.service", () => ({
 }));
 
 mock.module("../../../partners/partner-pricing.service", () => ({
-  findPartnerWithPricing: async () => null
+  findPartnerWithPricing: async () => activePricing
 }));
+
+afterEach(() => {
+  activePricing = null;
+});
 
 afterAll(() => {
   BrlaApiService.getInstance = brlaApiServiceGetInstanceReal;
@@ -167,7 +182,11 @@ describe("BRL cross-chain onramp flow compile-time adjacency", () => {
   });
 });
 
-function buildCtx(includeDynamicFunding = true): PhaseCtx {
+function buildCtx(
+  includeDynamicFunding = true,
+  to: EvmNetworks = Networks.Arbitrum,
+  outputCurrency: EvmToken = EvmToken.USDC
+): PhaseCtx {
   const notes: string[] = [];
   return {
     addNote: (note: string) => {
@@ -184,7 +203,7 @@ function buildCtx(includeDynamicFunding = true): PhaseCtx {
             fundingGasLimit: "21000",
             isNativeTransfer: false,
             maximumFeePerGas: "1",
-            network: Networks.Arbitrum,
+            network: to,
             programVersion: 2 as const,
             transferGasLimit: "100000"
           }
@@ -198,9 +217,9 @@ function buildCtx(includeDynamicFunding = true): PhaseCtx {
       inputAmount: "100",
       inputCurrency: FiatToken.BRL,
       network: Networks.Base,
-      outputCurrency: EvmToken.USDC,
+      outputCurrency,
       rampType: RampDirection.BUY,
-      to: Networks.Arbitrum
+      to
     }
   };
 }
@@ -234,6 +253,47 @@ describe("BRL cross-chain onramp flow simulation", () => {
     } finally {
       config.evmDestinationGas.dynamicFundingEnabled = originalEnabled;
     }
+  });
+
+  it("keeps non-stable destination subsidy bounded in source USDC", async () => {
+    activePricing = {
+      displayName: "Vortex",
+      fiatCurrency: FiatToken.BRL,
+      id: "vortex-pricing",
+      logoUrl: null,
+      markupCurrency: EvmToken.USDC,
+      markupType: "none",
+      markupValue: 0,
+      maxDynamicDifference: 0,
+      maxSubsidy: 0.003,
+      minDynamicDifference: 0,
+      name: "vortex",
+      payoutAddressEvm: null,
+      payoutAddressSubstrate: null,
+      rampType: RampDirection.BUY,
+      targetDiscount: -0.0017,
+      vortexFeeType: "none",
+      vortexFeeValue: 0
+    };
+    BrlaApiService.getInstance = mock(() => ({
+      createPayInQuote: mock(async () => ({
+        appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
+        outputAmount: "99",
+        quoteToken: "mock-quote-token"
+      }))
+    })) as unknown as typeof BrlaApiService.getInstance;
+
+    const flow = makeBrlOnrampBaseCrossChainFlow(Networks.Ethereum, EvmToken.ETH);
+    const { metadata } = await flow.simulate(buildCtx(true, Networks.Ethereum, EvmToken.ETH));
+    const subsidizePost = getBlockMetadata(metadata, SubsidizePostContext);
+    const oracleExpectedUsd = new Big("100").times("0.18").times(new Big(1).minus("0.0017"));
+
+    expect(subsidizePost.outputCurrency).toBe(EvmToken.USDC);
+    expect(Big(subsidizePost.expectedOutputAmountDecimal).lt(20)).toBe(true);
+    expect(Big(subsidizePost.subsidyAmountInOutputTokenDecimal).lte(oracleExpectedUsd.times("0.003"))).toBe(true);
+    const finalSettlement = getBlockMetadata(metadata, FinalSettlementSubsidyContext);
+    expect(finalSettlement.applied).toBe(false);
+    expect(Big(finalSettlement.expectedOutputAmountDecimal).eq(finalSettlement.actualOutputAmountDecimal)).toBe(true);
   });
 });
 

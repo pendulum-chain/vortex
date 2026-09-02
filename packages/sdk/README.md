@@ -160,10 +160,22 @@ permit. This setting is an integration sequencing option, not an account authori
 backend balance-check bypass.
 
 ## Core Features
-- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or plain browser `localStorage`. Browser storage is intentionally prototype-grade and should be used only on a tightly controlled origin; disabling it also disables the SDK's recovery backup.
+- **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js or plain browser `localStorage`. Browser storage is intentionally prototype-grade and should be used only on a tightly controlled origin; disabling it also disables the SDK's recovery backup. Integrations that need custom persistence (encryption, a KMS, a backend vault) can configure `storeEphemeralKeysCallback` instead.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
 
 With the default `storeEphemeralKeys: true`, registration fails closed if the backup cannot be written. The API may already have created the ramp, but the SDK rejects `registerRamp()` before signing ephemeral-owned transactions or submitting the ramp update; it does not silently continue without recovery material. Keep the backup until the ramp is complete and its recovery window has passed.
+
+To own the persistence yourself, pass `storeEphemeralKeysCallback`. The SDK then calls it with the recovery material — an array of `StoredEphemeralKey` (`{ address, rampId, secret, type }`) plus the ramp ID — instead of using its built-in storage, and `storeEphemeralKeys` has no effect. The same fail-closed contract applies: the SDK awaits the callback during registration, and a rejection aborts `registerRamp()` before ephemeral-owned transactions are signed.
+
+```typescript
+const sdk = new VortexSdk({
+  apiBaseUrl: "...",
+  secretKey: "sk_live_...",
+  storeEphemeralKeysCallback: async (keys, rampId) => {
+    await myVault.put(`ephemerals_${rampId}`, encrypt(JSON.stringify(keys)));
+  }
+});
+```
 
 ## API Reference
 
@@ -253,6 +265,7 @@ interface VortexSdkConfig {
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
+  storeEphemeralKeysCallback?: (keys: StoredEphemeralKey[], rampId: string) => Promise<void>;
   offrampFundingMode?: "prefunded" | "deferred";
 }
 ```

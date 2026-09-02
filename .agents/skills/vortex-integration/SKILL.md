@@ -504,7 +504,7 @@ const vortex = new VortexSdk({
 });
 ```
 
-For server processes that manage their own ephemeral key storage (e.g. HSM, encrypted DB), set `storeEphemeralKeys: false` and persist via your own mechanism.
+For server processes that manage their own ephemeral key storage (e.g. HSM, encrypted DB), configure `storeEphemeralKeysCallback: async (keys, rampId) => { ... }`. The SDK calls it with the recovery material (`StoredEphemeralKey[]`: `{ address, rampId, secret, type }`) instead of writing the local file, and `storeEphemeralKeys` has no effect. A rejection aborts `registerRamp` before ephemeral-owned transactions are signed (same fail-closed contract as built-in storage). Setting only `storeEphemeralKeys: false` disables the recovery backup entirely — the secrets are not exposed anywhere else.
 
 For browser integrations, never configure `secretKey`. Resolve the current renewable Supabase token on every request:
 
@@ -519,7 +519,7 @@ const vortex = new VortexSdk({
 });
 ```
 
-If both `secretKey` and `accessTokenProvider` are configured, the SDK uses the secret key and does not call the provider. Browser ephemeral recovery currently uses plain `localStorage`; this is intentionally prototype-grade. Set `storeEphemeralKeys: false` when the integrating application owns secure recovery storage.
+If both `secretKey` and `accessTokenProvider` are configured, the SDK uses the secret key and does not call the provider. Browser ephemeral recovery currently uses plain `localStorage`; this is intentionally prototype-grade. Configure `storeEphemeralKeysCallback` when the integrating application owns secure recovery storage (or set `storeEphemeralKeys: false` to disable the backup entirely).
 
 ## REST fallback
 Use:

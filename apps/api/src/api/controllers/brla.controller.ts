@@ -1336,7 +1336,7 @@ export const getKybAttemptStatus = async (
 
       // Queue only after proving this is still the bound attempt. A queue failure rolls
       // back the terminal state so a later poll can retry the notification.
-      await enqueueVerificationNotification(attempt, effectiveUserId, "business");
+      await enqueueVerificationNotification(attempt, effectiveUserId, "business", transaction);
       await lockedRecord.update(
         {
           lastFailureReasons: failureReason ? [failureReason] : [],

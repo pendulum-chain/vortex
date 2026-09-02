@@ -7,6 +7,7 @@ import {
   OnChainToken
 } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../../config/logger";
 import { priceFeedService } from "../../../../priceFeed.service";
 import {
   calculateExpectedOutput,
@@ -57,18 +58,34 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
         toNetwork
       });
-      if (expectedOutput.gt(0) && bridge.outputAmountDecimal.gt(0)) {
-        const conversionRate = bridge.outputAmountDecimal.div(expectedOutput);
-        adjustedExpectedOutput = expectedOutput.div(conversionRate);
+      if (expectedOutput.gt(0) && bridge.outputAmountUsd?.gt(0)) {
+        const routeValueRetention = bridge.outputAmountUsd.div(expectedOutput);
+        adjustedExpectedOutput = expectedOutput.div(routeValueRetention);
+        ctx.addNote(
+          `SubsidizePost: Squid value retention=${routeValueRetention.toFixed(8)}, expectedUsd=${expectedOutput.toFixed()}, outputUsd=${bridge.outputAmountUsd.toFixed()}`
+        );
+      } else if (expectedOutput.gt(0)) {
+        throw new Error(`Squid returned unusable output USD value: ${bridge.outputAmountUsd?.toFixed() ?? "unparsable"}`);
+      } else {
+        ctx.addNote(`SubsidizePost: expected output ${expectedOutput.toFixed()} is not positive, skipping route adjustment`);
       }
     } catch (error) {
+      // The quote proceeds on the oracle target (spec: probe failures must not block the
+      // quote), so this warn is the only operational signal that routed subsidy sizing
+      // has lost Squid's USD valuation.
+      logger.warn("SUBSIDIZE_POST_ROUTE_VALUE_FALLBACK", {
+        error: error instanceof Error ? error.message : String(error),
+        inputCurrency: ctx.request.inputCurrency,
+        outputCurrency: ctx.request.outputCurrency,
+        toNetwork
+      });
       ctx.addNote(`SubsidizePost: Squid conversion unavailable, using 1:1. Error: ${error}`);
     }
   }
   const expectedRaw = multiplyByPowerOfTen(adjustedExpectedOutput, tokenDetails.decimals).toFixed(0, 0);
   const idealSubsidy = input.amount.gte(adjustedExpectedOutput) ? new Big(0) : adjustedExpectedOutput.minus(input.amount);
   const subsidyUnrounded = hasConfiguredTargetDiscount(partner?.targetDiscount ?? 0)
-    ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0)
+    ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0, expectedOutput)
     : new Big(0);
   // Floor the subsidy to token decimals before adding it, so the output decimal/raw pair stays
   // floor-consistent and quote.outputAmount cannot exceed the funded raw by one unit.
