@@ -26,11 +26,12 @@ const squidrouterRouteEstimateSchema = z
     aggregateSlippage: z.number().optional(),
     toAmount: z.string().regex(RAW_UNITS),
     toAmountMin: z.string().regex(RAW_UNITS),
-    // Deliberately presence-only: quote creation for routes that never consume this
-    // field (mint fee probes, the swap leg) must not fail on it. The API's
+    // Deliberately tolerant: quote creation for routes that never consume this field
+    // (mint fee probes, the swap leg) must not fail on it, even when Squid omits it.
+    // Absence normalizes to "" so the shared type stays a plain string; the API's
     // getSquidrouterRouteData Big-parses it tolerantly, and the only numeric consumer
     // (the SubsidizePost probe) degrades to its 1:1 fallback on an unusable value.
-    toAmountUSD: z.string().min(1),
+    toAmountUSD: z.string().default(""),
     toToken: z.looseObject({ decimals: z.number().int().positive() })
   })
   .superRefine((estimate, ctx) => {
