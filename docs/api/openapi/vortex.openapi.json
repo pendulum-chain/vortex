@@ -10378,14 +10378,14 @@
     "/v1/supported-cryptocurrencies": {
       "get": {
         "deprecated": false,
-        "description": "Retrieve all supported cryptocurrencies, filtered by network.",
+        "description": "Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; use `rampTypes` to see whether a token can be bought, sold, or both.",
         "parameters": [
           {
-            "description": "Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`",
-            "example": "",
+            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `bsc`, `ethereum`, `moonbeam`, `polygon`",
+            "example": "ethereum",
             "in": "query",
             "name": "network",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -10416,9 +10416,16 @@
                           },
                           "assetSymbol": {
                             "type": "string"
+                          },
+                          "rampTypes": {
+                            "description": "Ramp directions the quote engine accepts for this token. Routed EVM tokens are `BUY`-only; an empty list means the token is listed but not currently rampable.",
+                            "items": {
+                              "$ref": "#/components/schemas/RampDirection"
+                            },
+                            "type": "array"
                           }
                         },
-                        "required": ["assetDecimals", "assetNetwork", "assetSymbol"],
+                        "required": ["assetDecimals", "assetNetwork", "assetSymbol", "rampTypes"],
                         "type": "object"
                       },
                       "type": "array"
@@ -10430,6 +10437,23 @@
               }
             },
             "description": "",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or unsupported `network`.",
             "headers": {}
           }
         },

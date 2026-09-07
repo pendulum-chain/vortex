@@ -1663,16 +1663,16 @@ export interface paths {
         };
         /**
          * Supported Cryptocurrencies
-         * @description Retrieve all supported cryptocurrencies, filtered by network.
+         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; use `rampTypes` to see whether a token can be bought, sold, or both.
          */
         get: {
             parameters: {
-                query?: {
+                query: {
                     /**
-                     * @description Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`
-                     * @example
+                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `bsc`, `ethereum`, `moonbeam`, `polygon`
+                     * @example ethereum
                      */
-                    network?: string;
+                    network: string;
                 };
                 header?: never;
                 path?: never;
@@ -1694,7 +1694,20 @@ export interface paths {
                                 assetForeignAssetId?: string | null;
                                 assetNetwork: components["schemas"]["Networks"];
                                 assetSymbol: string;
+                                /** @description Ramp directions the quote engine accepts for this token. Routed EVM tokens are `BUY`-only; an empty list means the token is listed but not currently rampable. */
+                                rampTypes: components["schemas"]["RampDirection"][];
                             }[];
+                        };
+                    };
+                };
+                /** @description Missing or unsupported `network`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
                         };
                     };
                 };
