@@ -97,6 +97,7 @@ test("a manager selects and stops acting for a managed profile", async ({ page }
   ).toBeVisible();
   await expect(page.getByRole("dialog").getByText(/remain valid after a human member is removed or downgraded/)).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Revoke credential" }).click();
+  await expect(page.getByRole("row").filter({ hasText: "Child backend" }).getByText("Revoked", { exact: true })).toBeVisible();
   expect(
     backend.apiRequests.some(
       request => request.path === `/v1/managed-profiles/${E2E_MANAGED_PROFILE_ID}/api-credentials` && request.method === "GET"
