@@ -34,6 +34,8 @@ Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fia
 
 If a BRL PIX payment is confirmed by the payment partner but the client cannot call start (for example because the managed profile was deleted or its corridor policy changed after registration), Vortex automatically starts the already-signed persisted ramp. This recovery is tied to the exact provider ticket issued at registration; it does not authorize new ramps or bypass payment verification.
 
+For a selected managed child, `POST /v1/ramp/register`, `/update`, and `/start` require an active `manager` membership and that member's own secret API credential. Supabase bearer-only calls are denied before body parsing, including existing/in-flight ramps: an otherwise authorized manager receives `403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL`. There is no drain exception; background recovery is not permission for a bearer to mutate a ramp. Direct child secrets remain supported without a selector. Both `manager` and `read_only` memberships can create child-scoped quotes and read supported ramp status/history/errors. The immutable owner's current policy governs every member. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 ## 5. Track Status
 
 Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling.

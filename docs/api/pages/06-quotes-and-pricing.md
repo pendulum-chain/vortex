@@ -114,4 +114,6 @@ Pass the credential's public value through `X-Public-Key` to apply partner prici
 
 Managed profiles default to the controlling manager profile's pricing assignment. Assigning pricing directly to a managed child overrides the manager's pricing just as a profile assignment does for any regular profile. The same precedence applies whether the manager delegates with `X-Managed-Profile-Id` or the child authenticates with its own credential: child assignment, manager assignment, then default Vortex pricing.
 
+Here, controlling manager means the child's immutable owner, not the acting member. Non-owner members do not substitute their own pricing. Quote creation and best-quote discovery are `read` capabilities for both `manager` and `read_only` memberships; they do not authorize ramp register/update/start, which require a manager member's secret (or a direct child secret without selection).
+
 ---

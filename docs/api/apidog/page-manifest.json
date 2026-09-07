@@ -46,6 +46,13 @@
       "/v1/managed-profiles/{profileId}",
       "/v1/managed-profiles/{profileId}/api-credentials",
       "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}",
+      "/v1/managed-profiles/{profileId}/members",
+      "/v1/managed-profiles/{profileId}/members/{memberProfileId}",
+      "/v1/managed-profiles/{profileId}/member-invitations",
+      "/v1/managed-profiles/{profileId}/member-invitations/{invitationId}",
+      "/v1/managed-profiles/{profileId}/member-events",
+      "/v1/managed-profile-member-invitations/{invitationId}",
+      "/v1/managed-profile-member-invitations/{invitationId}/accept",
       "/v1/onboarding/active-entity",
       "/v1/onboarding/requirements",
       "/v1/onboarding/status",
@@ -74,6 +81,7 @@
       "Vortex Widget",
       "Ramp",
       "Account Management",
+      "Managed Profiles",
       "Authentication",
       "Webhooks",
       "Public Key",
@@ -138,7 +146,7 @@
           "OTP sign-in",
           "crypto ramp authentication"
         ],
-        "metaDescription": "How Vortex authenticates clients with pk_*/sk_* keys or Supabase sessions, including managed-child delegation and secure BRL KYC token import.",
+        "metaDescription": "Authenticate with Vortex API keys or Supabase sessions: managed-child membership roles, bearer-only invitations, and secret-only provider and ramp mutations.",
         "metaTitle": "Authentication And API Keys — Vortex API"
       },
       "slug": "authentication-and-partner-keys",
@@ -322,9 +330,11 @@
           "sub-accounts",
           "delegated ramps",
           "B2B crypto payouts",
-          "KYC on behalf"
+          "KYC on behalf",
+          "membership invitations",
+          "read-only access"
         ],
-        "metaDescription": "Create and operate headless Vortex profiles for your own customers: provisioning, delegated KYC/KYB onboarding, child credentials, and ramping on their behalf.",
+        "metaDescription": "Create headless Vortex customer profiles, invite manager or read-only members, accept access with verified email, and operate child credentials and ramps safely.",
         "metaTitle": "Managed Profiles — Onboard And Ramp For Your Customers"
       },
       "slug": "managed-profiles",
