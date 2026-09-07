@@ -5,6 +5,8 @@ import type { CustomerEntityType } from "../../models/customerEntity.model";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile, { type ManagedProfileCreationSource } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
+import ManagedProfileMembershipEvent from "../../models/managedProfileMembershipEvent.model";
 import User from "../../models/user.model";
 
 export class ManagedProfileProvisioningError extends Error {
@@ -140,6 +142,25 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
         externalSubjectId,
         managerProfileId: input.managerProfileId,
         profileId: profile.id
+      },
+      { transaction }
+    );
+    await ManagedProfileMembership.create(
+      {
+        createdByProfileId: input.managerProfileId,
+        managedProfileId: profile.id,
+        memberProfileId: input.managerProfileId,
+        role: "manager"
+      },
+      { transaction }
+    );
+    await ManagedProfileMembershipEvent.create(
+      {
+        action: "member_added",
+        actorProfileId: input.managerProfileId,
+        managedProfileId: profile.id,
+        memberProfileId: input.managerProfileId,
+        role: "manager"
       },
       { transaction }
     );

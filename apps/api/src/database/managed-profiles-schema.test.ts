@@ -3,6 +3,7 @@ import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
+import ManagedProfileMembership from "../models/managedProfileMembership.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestUser } from "../test-utils/factories";
@@ -31,6 +32,10 @@ async function createManagedProfile(
         managerProfileId,
         profileId: profile.id
       },
+      { transaction }
+    );
+    await ManagedProfileMembership.create(
+      { managedProfileId: profile.id, memberProfileId: managerProfileId, role: "manager" },
       { transaction }
     );
     return profile;

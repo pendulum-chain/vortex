@@ -2,6 +2,8 @@ import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
+import ManagedProfileMembershipEvent from "../../models/managedProfileMembershipEvent.model";
 import User from "../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser } from "../../test-utils/factories";
@@ -31,7 +33,7 @@ describe("managed profile provisioning", () => {
   beforeAll(setupTestDatabase);
   beforeEach(resetTestDatabase);
 
-  it("atomically creates the headless profile, customer entity, and relationship", async () => {
+  it("atomically creates the headless profile, customer entity, relationship, and owner membership", async () => {
     const manager = await createManager();
 
     const result = await provisionManagedProfile({
@@ -63,6 +65,18 @@ describe("managed profile provisioning", () => {
       profileId: result.profileId,
       status: "active"
     });
+    expect(await ManagedProfileMembership.findOne({ where: { managedProfileId: result.profileId } })).toMatchObject({
+      createdByProfileId: manager.id,
+      memberProfileId: manager.id,
+      revokedAt: null,
+      role: "manager"
+    });
+    expect(await ManagedProfileMembershipEvent.findOne({ where: { managedProfileId: result.profileId } })).toMatchObject({
+      action: "member_added",
+      actorProfileId: manager.id,
+      memberProfileId: manager.id,
+      role: "manager"
+    });
   });
 
   it("returns the existing profile for an idempotent retry", async () => {
@@ -82,6 +96,8 @@ describe("managed profile provisioning", () => {
     expect(await User.count({ where: { kind: "managed" } })).toBe(1);
     expect(await CustomerEntity.count({ where: { profileId: created.profileId } })).toBe(1);
     expect(await ManagedProfile.count()).toBe(1);
+    expect(await ManagedProfileMembership.count()).toBe(1);
+    expect(await ManagedProfileMembershipEvent.count()).toBe(1);
   });
 
   it("serializes concurrent retries for the same external subject", async () => {
