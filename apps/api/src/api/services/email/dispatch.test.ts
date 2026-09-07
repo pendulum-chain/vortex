@@ -1,6 +1,7 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { Op } from "sequelize";
 import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import EmailNotification, {
   NotificationProvider,
@@ -60,7 +61,8 @@ interface FakeRow {
   type: NotificationType;
   provider: NotificationProvider;
   resourceId: string;
-  userId: string;
+  userId: string | null;
+  recipientEmail: string | null;
   lastError: string | null;
   nextAttemptAt: Date;
   updatedAt: Date;
@@ -79,6 +81,7 @@ function row(overrides: Partial<FakeRow> = {}): FakeRow {
     lastError: null,
     nextAttemptAt: HOUR_AGO,
     provider: NotificationProvider.Vortex,
+    recipientEmail: null,
     resourceId: "ramp-1",
     status: NotificationStatus.Pending,
     type: NotificationType.RampCompleted,
@@ -193,6 +196,106 @@ describe("dispatchPendingNotifications", () => {
     await dispatchPendingNotifications();
 
     expect(sends[0].idempotencyKey).toBe("notification-abc");
+  });
+});
+
+describe("direct invitation recipients", () => {
+  const invitation = (overrides: Partial<FakeRow> = {}) =>
+    row({
+      recipientEmail: RECIPIENT,
+      resourceId: "private-invitation-uuid",
+      type: NotificationType.ManagedProfileMembershipInvitation,
+      userId: null,
+      ...overrides
+    });
+
+  it("sends to the direct recipient without profile or preference lookups", async () => {
+    preferences = { emailEnabled: false, prefs: {} };
+    const userLookup = spyOn(User, "findByPk");
+    const preferenceLookup = spyOn(NotificationPreference, "findOne");
+    try {
+      const pending = invitation();
+      await dispatchPendingNotifications();
+      expect(pending.status).toBe(NotificationStatus.Sent);
+      expect(sends[0].to).toBe(RECIPIENT);
+      expect(sends[0].idempotencyKey).toBe(pending.id);
+      expect(userLookup).not.toHaveBeenCalled();
+      expect(preferenceLookup).not.toHaveBeenCalled();
+    } finally {
+      userLookup.mockRestore();
+      preferenceLookup.mockRestore();
+    }
+  });
+
+  it.each([{ allowlist: [] }, { allowlist: ["someone-else@example.com"] }])(
+    "still applies the non-production allowlist: %j",
+    async ({ allowlist }) => {
+      config.integrations.resend.recipientAllowlist = [...allowlist];
+      const pending = invitation();
+      await dispatchPendingNotifications();
+      expect(pending.status).toBe(NotificationStatus.Skipped);
+      expect(sends).toHaveLength(0);
+    }
+  );
+
+  it.each([
+    { type: NotificationType.RampCompleted },
+    { userId: "user-1" },
+    { provider: NotificationProvider.Avenia },
+    { recipientEmail: null }
+  ])("fails closed on an invalid recipient source: %j", async overrides => {
+    const pending = invitation(overrides);
+    await dispatchPendingNotifications();
+    expect(pending.status).toBe(NotificationStatus.Failed);
+    expect(sends).toHaveLength(0);
+  });
+
+  it("leaves invitations queued when Resend is not configured", async () => {
+    config.integrations.resend.apiKey = undefined;
+    const pending = invitation();
+    await dispatchPendingNotifications();
+    expect(pending.status).toBe(NotificationStatus.Pending);
+    expect(pending.attempts).toBe(0);
+  });
+
+  it("retries using the same idempotency key without storing sensitive provider errors", async () => {
+    sendFailure = new Error(`${RECIPIENT} https://dashboard.example.com/member-invitations/private-invitation-uuid`);
+    const pending = invitation();
+    await dispatchPendingNotifications();
+    expect(pending.status).toBe(NotificationStatus.Failed);
+    expect(pending.lastError).toBe("Invitation email delivery failed");
+    expect(pending.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+    pending.nextAttemptAt = HOUR_AGO;
+    sendFailure = null;
+    await dispatchPendingNotifications();
+    expect(pending.status).toBe(NotificationStatus.Sent);
+    expect(sends[0].idempotencyKey).toBe(pending.id);
+  });
+
+  it.each([false, true])("alerts on exhaustion without invitation identity (stale claim: %s)", async stale => {
+    sendFailure = new Error(`${RECIPIENT} private-invitation-uuid secret-token https://dashboard.example.com`);
+    const logs: unknown[] = [];
+    const errorLog = spyOn(logger, "error").mockImplementation((...args: unknown[]) => {
+      logs.push(args);
+      return logger;
+    });
+    try {
+      const pending = invitation({
+        attempts: stale ? 6 : 5,
+        status: stale ? NotificationStatus.Sending : NotificationStatus.Pending
+      });
+      await dispatchPendingNotifications();
+      expect(pending.status).toBe(NotificationStatus.Abandoned);
+      expect(slackAlerts).toHaveLength(1);
+      expect(slackAlerts[0]).toContain("after 6 attempts");
+      const telemetry = JSON.stringify({ logs, slackAlerts });
+      for (const sensitive of [RECIPIENT, pending.resourceId, "secret-token", "https://dashboard.example.com"]) {
+        expect(telemetry).not.toContain(sensitive);
+        expect(pending.lastError).not.toContain(sensitive);
+      }
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 });
 

@@ -2,13 +2,20 @@ import { literal, Op, type Transaction } from "sequelize";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
-import EmailNotification, { NotificationKey, NotificationStatus } from "../../../models/emailNotification.model";
+import EmailNotification, {
+  NotificationKey,
+  NotificationProvider,
+  NotificationStatus,
+  NotificationType
+} from "../../../models/emailNotification.model";
 import NotificationPreference from "../../../models/notificationPreference.model";
 import User from "../../../models/user.model";
 import { SupabaseAuthService } from "../auth";
 import { SlackNotifier } from "../slack.service";
 import { EmailNotConfiguredError, sendEmail } from "./resend.transport";
 import { renderNotification } from "./templates";
+
+export { enqueueManagedProfileInvitation } from "./managed-profile-membership-invitation";
 
 const BACKOFF_MINUTES = [1, 5, 15, 60, 180];
 // One initial send plus one retry per backoff step. Deriving it keeps the last step
@@ -24,6 +31,7 @@ interface EnqueueParams extends NotificationKey {
 }
 
 function describeKey({ provider, type, resourceId }: NotificationKey): string {
+  if (type === NotificationType.ManagedProfileMembershipInvitation) return "managed-profile invitation notification";
   return `${provider}/${type} notification for resource ${resourceId}`;
 }
 
@@ -32,9 +40,13 @@ function describeKey({ provider, type, resourceId }: NotificationKey): string {
  * enqueuing the same event twice is a no-op, so callers can fire without guarding.
  */
 export async function enqueueNotification(
-  { userId, payload, ...key }: EnqueueParams,
+  { userId, payload, provider, type, resourceId }: EnqueueParams,
   transaction?: Transaction
 ): Promise<void> {
+  if (type === NotificationType.ManagedProfileMembershipInvitation) {
+    throw new Error("Invitation email requires its dedicated producer");
+  }
+  const key = { provider, resourceId, type };
   // Duplicates are the common case (webhook replays, re-polled attempts), so check the
   // key before resolving the locale — that resolution is a Supabase admin API call.
   if (await EmailNotification.findOne({ transaction, where: { ...key } })) {
@@ -59,7 +71,15 @@ export async function enqueueNotification(
  * that re-enqueue anything without a row (reconciliation) stop re-surfacing the resource;
  * it is never due for dispatch. Idempotent on the key, like enqueueNotification.
  */
-export async function recordSkippedNotification(key: NotificationKey, userId: string, reason: string): Promise<void> {
+export async function recordSkippedNotification(
+  { provider, type, resourceId }: NotificationKey,
+  userId: string,
+  reason: string
+): Promise<void> {
+  if (type === NotificationType.ManagedProfileMembershipInvitation) {
+    throw new Error("Invitation email requires its dedicated producer");
+  }
+  const key = { provider, resourceId, type };
   const [, created] = await EmailNotification.findOrCreate({
     defaults: { ...key, lastError: reason, locale: "en-US", status: NotificationStatus.Skipped, userId },
     where: { ...key }
@@ -87,7 +107,9 @@ async function alertAbandoned(notification: EmailNotification, reason: string | 
       text: `Abandoned ${describeKey(notification)} after ${notification.attempts} attempts: ${reason}`
     });
   } catch (error) {
-    logger.error(`Failed to send Slack alert for abandoned notification ${notification.id}: ${error}`);
+    const message =
+      notification.type === NotificationType.ManagedProfileMembershipInvitation ? "Alert delivery failed" : String(error);
+    logger.error(`Failed to send Slack alert for abandoned notification ${notification.id}: ${message}`);
   }
 }
 
@@ -143,6 +165,7 @@ async function claimDueNotifications(): Promise<EmailNotification[]> {
  * the queue is still honoured.
  */
 async function emailIsAllowed(notification: EmailNotification): Promise<boolean> {
+  if (!notification.userId) throw new Error("Profile notification requires a user ID");
   const preferences = await NotificationPreference.findOne({ where: { profileId: notification.userId } });
 
   if (!preferences) {
@@ -153,18 +176,30 @@ async function emailIsAllowed(notification: EmailNotification): Promise<boolean>
 }
 
 async function deliver(notification: EmailNotification): Promise<void> {
-  if (!(await emailIsAllowed(notification))) {
-    logger.info(`Skipping notification ${notification.id}: the recipient has disabled email for this notification`);
-    await notification.update({
-      lastError: "Recipient has disabled email notifications",
-      status: NotificationStatus.Skipped
-    });
-    return;
+  const invitation = notification.type === NotificationType.ManagedProfileMembershipInvitation;
+  const directRecipient = notification.recipientEmail != null;
+  if (
+    (directRecipient &&
+      (notification.userId != null || !invitation || notification.provider !== NotificationProvider.Vortex)) ||
+    (!directRecipient && (notification.userId == null || invitation))
+  ) {
+    throw new Error("Invalid notification recipient source");
   }
 
-  const user = await User.findByPk(notification.userId);
+  let recipientEmail = notification.recipientEmail;
+  if (notification.userId != null) {
+    if (!(await emailIsAllowed(notification))) {
+      logger.info(`Skipping notification ${notification.id}: the recipient has disabled email for this notification`);
+      await notification.update({
+        lastError: "Recipient has disabled email notifications",
+        status: NotificationStatus.Skipped
+      });
+      return;
+    }
+    recipientEmail = (await User.findByPk(notification.userId))?.email ?? null;
+  }
 
-  if (!user?.email) {
+  if (!recipientEmail) {
     await notification.update({
       lastError: "No email address on the recipient profile",
       status: NotificationStatus.Skipped
@@ -175,7 +210,7 @@ async function deliver(notification: EmailNotification): Promise<void> {
   const { deploymentEnv } = config;
   const { recipientAllowlist } = config.integrations.resend;
 
-  if (deploymentEnv !== "production" && !recipientAllowlist.includes(user.email.toLowerCase())) {
+  if (deploymentEnv !== "production" && !recipientAllowlist.includes(recipientEmail.toLowerCase())) {
     logger.info(`Skipping notification ${notification.id}: ${deploymentEnv} allowlist does not include the recipient`);
     await notification.update({
       lastError: `Recipient not in EMAIL_RECIPIENT_ALLOWLIST (${deploymentEnv})`,
@@ -188,7 +223,7 @@ async function deliver(notification: EmailNotification): Promise<void> {
   // The row id is the idempotency key: a crash after Resend accepts but before `sent` is
   // persisted leaves the row to be reclaimed, and the retry must collapse into the original
   // send rather than mail the user twice.
-  const messageId = await sendEmail({ ...rendered, idempotencyKey: notification.id, to: user.email });
+  const messageId = await sendEmail({ ...rendered, idempotencyKey: notification.id, to: recipientEmail });
 
   await notification.update({
     lastError: null,
@@ -199,7 +234,12 @@ async function deliver(notification: EmailNotification): Promise<void> {
 }
 
 async function handleDeliveryFailure(notification: EmailNotification, error: unknown): Promise<void> {
-  const message = error instanceof Error ? error.message : String(error);
+  const message =
+    notification.type === NotificationType.ManagedProfileMembershipInvitation || notification.recipientEmail != null
+      ? "Invitation email delivery failed"
+      : error instanceof Error
+        ? error.message
+        : String(error);
   const retryAt = nextRetryAt(notification.attempts);
 
   await notification.update({

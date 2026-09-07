@@ -10,11 +10,13 @@ export enum NotificationProvider {
   Vortex = "vortex"
 }
 
-// The stored type values live in @vortexfi/shared: they are the wire contract with the
-// dashboard's notification-preference toggles, which write prefs keyed by these strings.
-// Re-exported under the model's historical name for the API's existing imports.
-export { EmailNotificationType as NotificationType };
-type NotificationType = EmailNotificationType;
+// Profile notification types are shared with the dashboard's preference toggles.
+// Invitations are server-only account-access mail, not a preference-controlled type.
+export const NotificationType = {
+  ...EmailNotificationType,
+  ManagedProfileMembershipInvitation: "managed_profile_membership_invitation"
+} as const;
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
 
 export enum NotificationStatus {
   Abandoned = "abandoned",
@@ -39,7 +41,8 @@ export interface EmailNotificationAttributes {
   id: string;
   provider: NotificationProvider;
   type: NotificationType;
-  userId: string;
+  userId: string | null;
+  recipientEmail: string | null;
   resourceId: string;
   locale: string;
   payload: Record<string, unknown>;
@@ -65,6 +68,7 @@ export type EmailNotificationCreationAttributes = Optional<
   | "sentAt"
   | "providerMessageId"
   | "lastError"
+  | "recipientEmail"
 >;
 
 class EmailNotification
@@ -77,7 +81,9 @@ class EmailNotification
 
   declare type: NotificationType;
 
-  declare userId: string;
+  declare userId: string | null;
+
+  declare recipientEmail: string | null;
 
   declare resourceId: string;
 
@@ -149,6 +155,11 @@ EmailNotification.init(
       field: "provider_message_id",
       type: DataTypes.STRING(255)
     },
+    recipientEmail: {
+      allowNull: true,
+      field: "recipient_email",
+      type: DataTypes.STRING(254)
+    },
     resourceId: {
       allowNull: false,
       field: "resource_id",
@@ -175,7 +186,7 @@ EmailNotification.init(
       type: DataTypes.DATE
     },
     userId: {
-      allowNull: false,
+      allowNull: true,
       field: "user_id",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",

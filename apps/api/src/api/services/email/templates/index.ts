@@ -7,6 +7,7 @@ import {
   VerificationKind,
   VerificationPayload
 } from "../types";
+import { renderManagedProfileInvitation } from "./managed-profile-membership-invitation";
 import { renderRampCompleted } from "./ramp-completed";
 import { renderVerificationStatus } from "./verification-status";
 
@@ -18,6 +19,11 @@ const VERIFICATION_KINDS: Partial<Record<NotificationType, VerificationKind>> = 
 
 export function renderNotification(notification: EmailNotification): RenderedEmail {
   const locale: EmailLocale = toEmailLocale(notification.locale);
+
+  if (notification.type === NotificationType.ManagedProfileMembershipInvitation) {
+    if (typeof notification.payload.invitationUrl !== "string") throw new Error("Invalid invitation email payload");
+    return renderManagedProfileInvitation(notification.payload.invitationUrl);
+  }
 
   if (notification.type === NotificationType.RampCompleted) {
     return renderRampCompleted(locale, notification.payload as unknown as RampCompletedPayload);

@@ -4,6 +4,7 @@ import EmailNotification, { NotificationStatus } from "../models/emailNotificati
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestRampState, createTestUser } from "../test-utils/factories";
 import { down, up } from "./migrations/062-create-email-notifications-table";
+import { up as extendRecipients } from "./migrations/070-email-notification-direct-recipients";
 
 describe("062-create-email-notifications-table backfill", () => {
   beforeAll(async () => {
@@ -22,6 +23,7 @@ describe("062-create-email-notifications-table backfill", () => {
     const queryInterface = sequelize.getQueryInterface();
     await down(queryInterface);
     await up(queryInterface);
+    await extendRecipients(queryInterface);
 
     const rows = await EmailNotification.findAll();
     expect(rows).toHaveLength(1);

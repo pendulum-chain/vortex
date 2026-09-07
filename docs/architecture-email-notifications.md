@@ -121,6 +121,15 @@ before that address has a Vortex profile. `DASHBOARD_PUBLIC_URL` supplies the tr
 origin; request headers and body fields never choose it. Replaying the same pending invite
 uses the invitation ID dedupe key and does not send twice.
 
+The email module exports
+`enqueueManagedProfileInvitation({ invitationId, recipientEmail }, transaction): Promise<void>`
+from `services/email` and `services/email/notification.service`. The transaction is mandatory:
+await this call inside invitation creation and propagate failure so the invitation, event, and
+outbox commit or roll back together. The helper normalizes the email without looking up a
+profile, snapshots only `invitationUrl` in the payload, and uses English generic copy with no
+role, child ID, or inviter identity. The link is `/member-invitations/:invitationId`; its seven-day
+lifetime is enforced by invitation acceptance, not restarted by email retries or delayed delivery.
+
 **Ramp completion** — `enqueueRampCompletedEmail()` in
 `apps/api/src/api/services/email/ramp-completion.ts`, called from the terminal `complete`
 branch of `apps/api/src/api/services/phases/phase-processor.ts`.
@@ -309,20 +318,28 @@ skipped in the loop, so they never spend provider calls.
 The table _is_ the design. It is simultaneously the queue, the retry ledger, the audit
 trail, and the idempotency key.
 
-Migration `062-create-email-notifications-table.ts`, extended by migration 069 for
+Migration `062-create-email-notifications-table.ts`, extended by migration 070 for
 membership invitations; model `apps/api/src/models/emailNotification.model.ts`.
+
+Migration 069 owns membership storage only. Migration
+`070-email-notification-direct-recipients.ts` makes `user_id` nullable and adds `recipient_email`.
+Its check constraint requires exactly one recipient source and reserves direct email for
+`vortex/managed_profile_membership_invitation`; that type cannot address a profile instead.
+Direct addresses must be normalized, nonempty email addresses. The profile foreign key and
+existing unique key remain intact. Rollback refuses to discard direct-recipient rows: operators
+must resolve their retention before restoring the old non-null profile schema.
 
 | Column                              | Purpose                                                                                                                                  |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `provider` / `type` / `resource_id` | unique together — the idempotency key. All three `NOT NULL` because Postgres treats NULLs as distinct and would let duplicates through   |
 | `user_id` / `recipient_email`       | Exactly one is set. Existing types resolve a profile recipient; only managed-profile invitations may store a normalized direct recipient |
-| `locale`                            | resolved at enqueue from Supabase `user_metadata.locale`                                                                                 |
+| `locale`                            | Profile mail resolves Supabase `user_metadata.locale`; direct invitations use `en-US` without identity lookup                            |
 | `payload`                           | JSONB snapshot of the facts at enqueue time                                                                                              |
 | `status`                            | see the lifecycle below                                                                                                                  |
 | `attempts`                          | incremented **at claim time**, not after success                                                                                         |
 | `next_attempt_at`                   | backoff schedule; also the dispatch ordering key                                                                                         |
 | `sent_at`, `provider_message_id`    | proof of delivery                                                                                                                        |
-| `last_error`                        | truncated to 2000 chars, never contains the API key                                                                                      |
+| `last_error`                        | Profile failures truncated to 2000 chars; invitation failures use fixed text, never recipient/URL/provider error payload                  |
 
 Indexes: unique `uniq_email_notifications_provider_type_resource`, plus
 `idx_email_notifications_dispatch` and `idx_email_notifications_user_id`.
@@ -483,8 +500,33 @@ exception.
 | `EMAIL_FROM_ADDRESS`        | Defaults to `Vortex Finance <support@vortexfinance.co>`                                                                                   |
 | `EMAIL_REPLY_TO_ADDRESS`    | Optional                                                                                                                                  |
 | `EMAIL_RECIPIENT_ALLOWLIST` | Comma-separated. Enforced whenever `DEPLOYMENT_ENV !== "production"`. **Empty = nothing is ever sent outside production**                 |
-| `DASHBOARD_PUBLIC_URL`      | Trusted absolute dashboard origin used to build membership invitation links                                                               |
+| `DASHBOARD_PUBLIC_URL`      | Required whenever `NODE_ENV=production` (also the runtime default when unset), including staging/sandbox deployments using that runtime. HTTPS origin only; HTTP loopback permitted only for effective `DEPLOYMENT_ENV=development|test`. No credentials, non-root path, query or fragment. No default; when absent in other runtimes, invitation enqueue fails and rolls back the invitation/event/outbox transaction |
 | `AVENIA_WEBHOOK_URL`        | Public https URL of this backend's `/v1/webhooks/avenia`. Read only by `bun register:avenia-webhook`; the receiver itself needs no config |
+
+### Dashboard Origin Deployment
+
+Set `DASHBOARD_PUBLIC_URL` in the **API runtime environment before deploying** the membership
+invitation feature. It is a trusted, non-secret link origin, not a dashboard build variable or
+CORS allowlist. Use the dashboard for the same deployment, not the API or widget URL. Example
+configuration (replace the documentation domain with the intended deployed dashboard):
+
+```dotenv
+DASHBOARD_PUBLIC_URL=https://dashboard.example.com
+```
+
+For local development with effective `DEPLOYMENT_ENV=development` or `test`,
+`DASHBOARD_PUBLIC_URL=http://localhost:5174` is permitted; `127.0.0.1` and `[::1]` are also accepted
+loopback hosts. Do not use HTTP for staging/sandbox deployment environments. A root trailing slash
+is accepted and normalized away; do not append `/member-invitations`, credentials, a query or a
+fragment. The producer appends `/member-invitations/:invitationId` itself.
+
+Missing production-runtime configuration prevents startup, even if outbound mail is disabled.
+Invalid configured URLs fail configuration loading in every runtime. Absence in a non-production
+runtime allows startup but does not allow invitation creation to commit without its email.
+`DASHBOARD_ORIGINS`/`DASHBOARD_PREVIEW_SITE` configure CORS separately and never supply this origin.
+After rollout, verify an invitation to an authorized test recipient opens the correct dashboard
+and preserves the explicit verified-email acceptance step. Outside `DEPLOYMENT_ENV=production`,
+configure `EMAIL_RECIPIENT_ALLOWLIST` as well; an empty allowlist intentionally suppresses delivery.
 
 Domain requirements on `vortexfinance.co`: Resend DKIM CNAMEs, exactly **one** SPF record
 (Resend merged into any existing sender — two records fail SPF outright), and a published
