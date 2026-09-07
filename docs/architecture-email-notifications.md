@@ -30,7 +30,7 @@ flowchart LR
   consumer, no polling, no notification — `TaxId.kycAttempt` was declared on the model but
   never written, and nothing in the codebase listened to Avenia at all.
 - Main's in-app notification centre (migration 043, `notifications` table) existed with a
-  comment marking where email dispatch *would* hook in. Nothing was wired.
+  comment marking where email dispatch _would_ hook in. Nothing was wired.
 
 **After** — two independent classes of mail, both through Resend, sharing only the
 sending domain.
@@ -53,16 +53,16 @@ flowchart LR
   end
 ```
 
-| | Before | After |
-|---|---|---|
-| Auth mail transport | Supabase default / Inbucket | Resend SMTP relay, `vortexfinance.co` |
-| Transactional mail | none | Resend HTTPS API from `apps/api` |
-| Durability | n/a | every email is a DB row before any send |
-| Retries | n/a | 6 attempts, backoff 1/5/15/60/180 min |
-| Dedupe | n/a | unique `(provider, type, resource_id)` |
-| KYC/KYB outcome visibility | user re-checks manually | Avenia webhook, emailed on settle; hourly poll as fallback |
-| Inbound Avenia events | not consumed | RSA-PSS verified receiver, raw-body mounted |
-| Non-prod safety | n/a | recipient allowlist gate |
+|                            | Before                      | After                                                      |
+| -------------------------- | --------------------------- | ---------------------------------------------------------- |
+| Auth mail transport        | Supabase default / Inbucket | Resend SMTP relay, `vortexfinance.co`                      |
+| Transactional mail         | none                        | Resend HTTPS API from `apps/api`                           |
+| Durability                 | n/a                         | every email is a DB row before any send                    |
+| Retries                    | n/a                         | 6 attempts, backoff 1/5/15/60/180 min                      |
+| Dedupe                     | n/a                         | unique `(provider, type, resource_id)`                     |
+| KYC/KYB outcome visibility | user re-checks manually     | Avenia webhook, emailed on settle; hourly poll as fallback |
+| Inbound Avenia events      | not consumed                | RSA-PSS verified receiver, raw-body mounted                |
+| Non-prod safety            | n/a                         | recipient allowlist gate                                   |
 
 ---
 
@@ -80,7 +80,7 @@ flowchart TB
   end
 ```
 
-- **Auth mail** is configured *outside the repo*. `supabase/config.toml` only governs the
+- **Auth mail** is configured _outside the repo_. `supabase/config.toml` only governs the
   local stack; staging and production must be set in the Supabase Dashboard
   (Project Settings → Authentication → SMTP). Nothing in CI pushes that file.
 - **Transactional mail** is the rest of this document.
@@ -92,7 +92,7 @@ deliberately, in exchange for a recognisable sender.
 
 ## 3. Producers — what enqueues, and when
 
-Four producers, all fire-and-forget into the same table. None of them ever sends.
+Five producers enqueue into the same durable table. None of them ever sends directly.
 
 ```mermaid
 flowchart LR
@@ -101,22 +101,31 @@ flowchart LR
     P2["POST /v1/webhooks/avenia<br/>KYC + KYB events"]
     P3["KybStatusWorker.poll()<br/>hourly reconciliation"]
     P4["refreshAlfredpayCustomerStatus()<br/>dashboard refresh + hourly sweep"]
+    P5["ManagedProfileMembershipService<br/>invitation transaction"]
   end
   P1 -->|"provider: vortex<br/>type: ramp_completed<br/>resourceId: rampState.id"| Q[(email_notifications)]
   P2 -->|"provider: avenia<br/>type: verification_*<br/>resourceId: attempt.id"| Q
   P3 -.->|"same key — deduped"| Q
   P4 -->|"provider: alfredpay<br/>type: verification_*<br/>resourceId: submissionId"| Q
+  P5 -->|"provider: vortex<br/>type: managed_profile_membership_invitation<br/>resourceId: invitation id"| Q
 ```
 
 P2 and P3 deliberately overlap. They enqueue through the same
 `enqueueVerificationNotification()` on the same `(provider, type, attempt.id)` key, so the
 poll racing or repeating a webhook is a no-op rather than a second email.
 
+**Managed-profile membership invitation** — invitation creation inserts the invitation,
+its `invited` event, and one `managed_profile_membership_invitation` outbox row in the same
+transaction. This is the only producer allowed to address a normalized email directly
+before that address has a Vortex profile. `DASHBOARD_PUBLIC_URL` supplies the trusted link
+origin; request headers and body fields never choose it. Replaying the same pending invite
+uses the invitation ID dedupe key and does not send twice.
+
 **Ramp completion** — `enqueueRampCompletedEmail()` in
 `apps/api/src/api/services/email/ramp-completion.ts`, called from the terminal `complete`
 branch of `apps/api/src/api/services/phases/phase-processor.ts`.
 
-The hook belongs on the phase processor because that is the *only* place a ramp actually
+The hook belongs on the phase processor because that is the _only_ place a ramp actually
 reaches `complete` — it is the "single source of authority for phase transitions" and writes
 `currentPhase` straight onto the model. `RampService.logPhaseTransition()` (and the
 `notifyStatusChangeIfNeeded()` it wraps) has no call sites, so anything hung off it never
@@ -129,17 +138,17 @@ profile (`req.userId ?? req.credential.profileId`), so relying on the null check
 would email the partner once per end-customer ramp. When the ramp's quote carries an
 `apiCredentialId`, the producer records a `skipped` tombstone row instead — no mail, and
 the reconcile sweep stops re-surfacing the ramp. A partner-driven ramp has no Vortex-side
-recipient: the address on `additionalData.email` belongs to the *partner's* customer, not
+recipient: the address on `additionalData.email` belongs to the _partner's_ customer, not
 to us.
 
 The payload carries both legs of the trade, already resolved to the user's perspective. On a
 buy the user pays fiat and receives the token; on a sell it is reversed, so which side of the
 quote each leg reads from swaps with `rampState.type`:
 
-| Payload field | `BUY` (onramp) | `SELL` (offramp) |
-| --- | --- | --- |
-| `fiatAmount` / `fiatCurrency` | `quote.inputAmount` / `inputCurrency` | `quote.outputAmount` / `outputCurrency` |
-| `tokenAmount` / `tokenSymbol` | `quote.outputAmount` / `outputCurrency` | `quote.inputAmount` / `inputCurrency` |
+| Payload field                 | `BUY` (onramp)                          | `SELL` (offramp)                        |
+| ----------------------------- | --------------------------------------- | --------------------------------------- |
+| `fiatAmount` / `fiatCurrency` | `quote.inputAmount` / `inputCurrency`   | `quote.outputAmount` / `outputCurrency` |
+| `tokenAmount` / `tokenSymbol` | `quote.outputAmount` / `outputCurrency` | `quote.inputAmount` / `inputCurrency`   |
 
 Plus `network`, `rampId`, `rampType` and `completedAt`. The timestamp comes from the recorded
 `complete` entry in `phaseHistory`, so delayed reconciliation does not claim the ramp completed
@@ -186,7 +195,7 @@ Avenia sent the bytes; it says nothing about their shape, and `JSON.parse` will 
 return `null`, an array, or an attempt with no `status`. Since the payload is persisted and
 later rendered into someone's inbox, the envelope and the attempt are both checked before
 the first property read, and anything that fails gets a deterministic `400`. An unrecognised
-*value* — a status Avenia adds later — is not malformed: it is acknowledged `200` and maps
+_value_ — a status Avenia adds later — is not malformed: it is acknowledged `200` and maps
 to no email, because a `400` would make Avenia retry it forever.
 
 Avenia's guides document two envelope shapes. The receiver accepts both the management
@@ -196,7 +205,7 @@ shape (`{ subAccountId, subscription, data }`) and the event-specific shape
 **Verification, reconciliation path** — `apps/api/src/api/workers/kyb-status.worker.ts`
 
 Runs hourly. It exists because **Avenia documents no KYB subscription**: their subscription
-list is `TICKET`, `KYC`, `LIMIT-UPDATE`, `*`. Company attempts are *expected* to arrive
+list is `TICKET`, `KYC`, `LIMIT-UPDATE`, `*`. Company attempts are _expected_ to arrive
 under the wildcard because Avenia fetches both kinds from the same `/v2/kyc/attempts`
 resource — but that is an inference, not a documented guarantee, and if it is wrong the
 failure is silent (no KYB emails, no error). The poll is what makes being wrong survivable.
@@ -205,7 +214,7 @@ It selects `kyc_cases` rows that are `provider = 'avenia'` + `type = 'kyb'` + un
 have a `providerCaseId` + belong to an entity with a `profileId` + were last written within
 60 days, then calls `getKybAttemptStatus(providerCaseId)` for each one. It polls **one known
 attempt id**, not a list: `GET /v2/kyc/attempts` has no documented ordering, so picking from
-it would guess at which attempt a notification describes — and that attempt id *is* the
+it would guess at which attempt a notification describes — and that attempt id _is_ the
 dedupe key. The window is on `updatedAt`, not `createdAt`: the case row is rebound to a
 fresh attempt on re-initiation, so its creation date says nothing about the attempt in
 flight.
@@ -250,13 +259,13 @@ Its background/onboarding callers share `refreshAlfredpayCustomerStatus()`. The 
 Alfredpay status endpoints perform the same terminal enqueue through
 `enqueueAlfredpayVerificationNotification()` before they write their legacy-shaped view:
 
-| Caller | When | Covers |
-| --- | --- | --- |
-| `onboarding.controller.ts` | dashboard status aggregation, TTL-throttled per account | the user who comes back to look |
-| `alfredpay.controller.ts` | `/alfredpayStatus` and `/getKycStatus` | legacy clients that poll either status endpoint |
-| `AlfredpayStatusWorker` | hourly, `15 * * * *` | the user who never returns |
+| Caller                     | When                                                    | Covers                                          |
+| -------------------------- | ------------------------------------------------------- | ----------------------------------------------- |
+| `onboarding.controller.ts` | dashboard status aggregation, TTL-throttled per account | the user who comes back to look                 |
+| `alfredpay.controller.ts`  | `/alfredpayStatus` and `/getKycStatus`                  | legacy clients that poll either status endpoint |
+| `AlfredpayStatusWorker`    | hourly, `15 * * * *`                                    | the user who never returns                      |
 
-These paths select on or eventually exclude a *terminal stored status*, so an account drops out of every
+These paths select on or eventually exclude a _terminal stored status_, so an account drops out of every
 future poll the moment its outcome is written. Whichever caller observes the transition is
 therefore the only one that may see it. Every observer consequently uses the same idempotent
 enqueue helper before persisting the terminal outcome.
@@ -297,28 +306,28 @@ skipped in the loop, so they never spend provider calls.
 
 ## 4. The queue — `email_notifications`
 
-The table *is* the design. It is simultaneously the queue, the retry ledger, the audit
+The table _is_ the design. It is simultaneously the queue, the retry ledger, the audit
 trail, and the idempotency key.
 
-Migration `062-create-email-notifications-table.ts`, model
-`apps/api/src/models/emailNotification.model.ts`.
+Migration `062-create-email-notifications-table.ts`, extended by migration 069 for
+membership invitations; model `apps/api/src/models/emailNotification.model.ts`.
 
-| Column | Purpose |
-|---|---|
-| `provider` / `type` / `resource_id` | unique together — the idempotency key. All three `NOT NULL` because Postgres treats NULLs as distinct and would let duplicates through |
-| `user_id` | FK → `profiles`, CASCADE. The *only* source of a recipient |
-| `locale` | resolved at enqueue from Supabase `user_metadata.locale` |
-| `payload` | JSONB snapshot of the facts at enqueue time |
-| `status` | see the lifecycle below |
-| `attempts` | incremented **at claim time**, not after success |
-| `next_attempt_at` | backoff schedule; also the dispatch ordering key |
-| `sent_at`, `provider_message_id` | proof of delivery |
-| `last_error` | truncated to 2000 chars, never contains the API key |
+| Column                              | Purpose                                                                                                                                  |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider` / `type` / `resource_id` | unique together — the idempotency key. All three `NOT NULL` because Postgres treats NULLs as distinct and would let duplicates through   |
+| `user_id` / `recipient_email`       | Exactly one is set. Existing types resolve a profile recipient; only managed-profile invitations may store a normalized direct recipient |
+| `locale`                            | resolved at enqueue from Supabase `user_metadata.locale`                                                                                 |
+| `payload`                           | JSONB snapshot of the facts at enqueue time                                                                                              |
+| `status`                            | see the lifecycle below                                                                                                                  |
+| `attempts`                          | incremented **at claim time**, not after success                                                                                         |
+| `next_attempt_at`                   | backoff schedule; also the dispatch ordering key                                                                                         |
+| `sent_at`, `provider_message_id`    | proof of delivery                                                                                                                        |
+| `last_error`                        | truncated to 2000 chars, never contains the API key                                                                                      |
 
 Indexes: unique `uniq_email_notifications_provider_type_resource`, plus
 `idx_email_notifications_dispatch` and `idx_email_notifications_user_id`.
 
-> **Name collision:** this is `email_notifications`, *not* `notifications`. Migration 043 on
+> **Name collision:** this is `email_notifications`, _not_ `notifications`. Migration 043 on
 > `main` already owns `notifications` for the in-app notification centre. See §7.
 
 ### Status lifecycle
@@ -361,11 +370,13 @@ sequenceDiagram
   W->>DB: UPDATE → sending, attempts = attempts + 1
   W->>DB: COMMIT
   loop each claimed row
-    W->>DB: notification_preferences WHERE profile_id = user_id
-    alt opted out
+    alt profile-addressed notification
+      W->>DB: notification_preferences WHERE profile_id = user_id
+    end
+    alt profile recipient opted out
       W->>DB: status = skipped (no request made)
     else
-      W->>P: profiles.email WHERE id = user_id
+      W->>P: profiles.email WHERE id = user_id, or use the allowlisted invitation row's recipient_email
       alt no email
         W->>DB: status = skipped
       else non-prod and not allowlisted
@@ -389,14 +400,16 @@ Four properties worth naming, because each one is load-bearing:
 1. **`FOR UPDATE SKIP LOCKED`.** Both flow-variant backends run against one database. Without
    the claim, both dispatch the same row and the user gets the email twice. This is the single
    most important line in the feature.
-2. **Recipient resolved at send time**, never snapshotted and never caller-supplied. It comes
-   from `profiles.email` via `user_id`. No request payload can influence where mail goes.
+2. **Recipient source is constrained by type.** Existing notifications resolve
+   `profiles.email` at send time through `user_id`. Only
+   `managed_profile_membership_invitation` may use the normalized `recipient_email`
+   snapshotted by its dedicated producer; generic enqueue callers cannot supply it.
 3. **`attempts` increments at claim, not after success.** A process that dies mid-send still
    burns an attempt. That alone does not stop the loop, though: a crashed send records no
    failure, so the cap in `handleDeliveryFailure` never runs for it. The stale-claim sweep
    therefore abandons rows at the cap rather than releasing them, and the claim query skips
    them — those two are what actually terminate a crash loop.
-4. **The row id is Resend's `Idempotency-Key`.** The unique index stops two *rows* for one
+4. **The row id is Resend's `Idempotency-Key`.** The unique index stops two _rows_ for one
    event; it says nothing about the window between Resend accepting a send and `sent` being
    persisted. A crash in there returns the row to the queue with the mail already gone, and
    the key is what makes the retry a replay rather than a second email.
@@ -410,8 +423,10 @@ flowchart LR
   N["row.type + row.locale + row.payload"] --> RN["renderNotification()"]
   RN -->|"ramp_completed"| T1["ramp-completed.ts"]
   RN -->|"verification_approved<br/>verification_rejected<br/>verification_expired"| T2["verification-status.ts"]
+  RN -->|"managed_profile_membership_invitation"| T3["managed-profile-membership-invitation.ts"]
   T1 --> L["layout.ts"]
   T2 --> L
+  T3 --> L
   L --> O["{ subject, html, text }"]
 ```
 
@@ -430,15 +445,15 @@ flowchart LR
 
 `main` has a separate, older feature also called notifications:
 
-| | In-app notifications (`main`) | Email notifications (this branch) |
-|---|---|---|
-| Table | `notifications` (migration 043) | `email_notifications` (migration 062) |
-| Model | `models/notification.model.ts` | `models/emailNotification.model.ts` |
-| Service | `api/services/notifications/` | `api/services/email/` |
-| Preferences | `notification_preferences.email_enabled` | same row, read at delivery |
-| Surface | API routes, read by the client | no route; write-only, worker-read |
+|             | In-app notifications (`main`)            | Email notifications (this branch)     |
+| ----------- | ---------------------------------------- | ------------------------------------- |
+| Table       | `notifications` (migration 043)          | `email_notifications` (migration 062) |
+| Model       | `models/notification.model.ts`           | `models/emailNotification.model.ts`   |
+| Service     | `api/services/notifications/`            | `api/services/email/`                 |
+| Preferences | `notification_preferences.email_enabled` | same row, read at delivery            |
+| Surface     | API routes, read by the client           | no route; write-only, worker-read     |
 
-The two tables stay separate, but they share one opt-out. `notification_preferences` is
+The two tables stay separate, but profile-addressed mail shares one opt-out. `notification_preferences` is
 already the user-facing switch (`GET`/`PUT /v1/notifications/preferences`), so the dispatcher
 reads it rather than introducing a second one:
 
@@ -447,31 +462,35 @@ reads it rather than introducing a second one:
   `ramp_completed`, `verification_approved`, `verification_rejected`, `verification_expired`.
   Any other value, including an absent key, means enabled.
 
-Both fields can only ever *suppress* mail, which is what makes the missing-row case safe: a
+Both fields can only ever _suppress_ mail, which is what makes the missing-row case safe: a
 profile that has never touched its preferences has no row, and is treated exactly as the
 default row `getOrCreateNotificationPreferences` would write. The dispatcher reads rather
 than creates, so a send never writes a preferences row as a side effect.
 
 The check runs at delivery, not at enqueue — an opt-out registered while a row is still in
 the queue is honoured, and an opted-out row is recorded `skipped` with no request to Resend.
+Managed-profile invitations are security/account-access mail addressed before a profile may
+exist, so they bypass profile preferences. Their dedicated type and producer are the only
+exception.
 
 ---
 
 ## 8. Configuration
 
-| Variable | Effect |
-|---|---|
-| `RESEND_API_KEY` | Missing → the worker warns and leaves rows `pending`. Never marks them sent/failed/abandoned, so the backlog flushes when the key arrives |
-| `EMAIL_FROM_ADDRESS` | Defaults to `Vortex Finance <support@vortexfinance.co>` |
-| `EMAIL_REPLY_TO_ADDRESS` | Optional |
-| `EMAIL_RECIPIENT_ALLOWLIST` | Comma-separated. Enforced whenever `DEPLOYMENT_ENV !== "production"`. **Empty = nothing is ever sent outside production** |
-| `AVENIA_WEBHOOK_URL` | Public https URL of this backend's `/v1/webhooks/avenia`. Read only by `bun register:avenia-webhook`; the receiver itself needs no config |
+| Variable                    | Effect                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`            | Missing → the worker warns and leaves rows `pending`. Never marks them sent/failed/abandoned, so the backlog flushes when the key arrives |
+| `EMAIL_FROM_ADDRESS`        | Defaults to `Vortex Finance <support@vortexfinance.co>`                                                                                   |
+| `EMAIL_REPLY_TO_ADDRESS`    | Optional                                                                                                                                  |
+| `EMAIL_RECIPIENT_ALLOWLIST` | Comma-separated. Enforced whenever `DEPLOYMENT_ENV !== "production"`. **Empty = nothing is ever sent outside production**                 |
+| `DASHBOARD_PUBLIC_URL`      | Trusted absolute dashboard origin used to build membership invitation links                                                               |
+| `AVENIA_WEBHOOK_URL`        | Public https URL of this backend's `/v1/webhooks/avenia`. Read only by `bun register:avenia-webhook`; the receiver itself needs no config |
 
 Domain requirements on `vortexfinance.co`: Resend DKIM CNAMEs, exactly **one** SPF record
 (Resend merged into any existing sender — two records fail SPF outright), and a published
 DMARC policy.
 
-Auth-mail SMTP is *not* configured by this repo outside local dev. Set it in the Supabase
+Auth-mail SMTP is _not_ configured by this repo outside local dev. Set it in the Supabase
 Dashboard per hosted project.
 
 ---
@@ -493,12 +512,14 @@ apps/api/src/
 │   │   ├── notification.service.ts     enqueue, claim, deliver, retry, stale-release
 │   │   ├── dispatch.test.ts            preference gate, idempotency key, crash-loop cap
 │   │   ├── ramp-completion.ts          ramp-completion producer (payload from quote)
+│   │   ├── managed-profile-membership-invitation.ts  constrained direct-recipient producer
 │   │   ├── resend.transport.ts         the only HTTP call to Resend
 │   │   ├── types.ts                    locales + payload shapes
 │   │   └── templates/
 │   │       ├── index.ts                type → template dispatch
 │   │       ├── layout.ts               shared HTML shell
 │   │       ├── ramp-completed.ts
+│   │       ├── managed-profile-membership-invitation.ts
 │   │       └── verification-status.ts  approved / rejected / expired
 │   ├── workers/
 │   │   ├── notification-dispatch.worker.ts   cron 1m — the only sender

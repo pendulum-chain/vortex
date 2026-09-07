@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038-063 and the API models
-on 2026-08-10.
+Status: current architecture. Last reconciled with migrations 038-069 and the API models
+on 2026-09-07.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -32,6 +32,8 @@ erDiagram
     profiles ||--o| managed_profile_managers : enables
     managed_profile_managers ||--o{ managed_profiles : controls
     profiles ||--o| managed_profiles : identifies
+    managed_profiles ||--o{ managed_profile_memberships : authorizes
+    profiles ||--o{ managed_profile_memberships : participates
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -114,15 +116,38 @@ external-subject and contact-email pairs, and revokes all child credentials. Del
 is active on quote, ramp, limits, ramp-info, onboarding-status, Avenia, and Alfredpay
 routes, plus sender-side recipient list, invitation creation/archive, relationship mutation,
 and eligibility. Invite preview and acceptance remain bearer-invitee operations and reject a
-managed-child selector. The managed-profile list response includes the active manager's profile ID
-and current corridor/customer-type policy even when no children match the list query.
+managed-child selector.
+
+Migration 069 adds active, revocable `manager` and `read_only` memberships between
+authenticated profiles and managed children, email-bound invitations, and append-only
+membership events. Every retained child is backfilled with an active owner-manager
+membership; new provisioning creates the owner membership and its `member_added` event in
+the same transaction as the profile, entity, and relationship. Database constraints keep
+ownership immutable, protect the active owner's manager membership, require authenticated
+member profiles, and permit only one active grant for each child/member pair.
+
+The immutable controlling manager remains the child owner and supplies corridor/customer-type
+policy, pricing fallback, external identity namespace, and lifecycle authority. Memberships grant
+other authenticated actors access without transferring ownership. Lifecycle reads return the actor
+profile ID plus each child's actor-specific role, owner flag, and controlling-owner policy. An
+active configured owner can still receive an empty list before provisioning a child. Manager
+members may perform supported delegated mutations and manage child credentials; read-only members
+may use supported reads only. Browser bearer sessions cannot perform child provider/KYC/KYB or ramp
+mutations; these require an eligible secret API credential. Child-owned credentials remain shared
+company principals independent of the human who created or possesses them.
+
+Membership invitations are scoped to one child and expire after seven days. The exact current
+verified Supabase email must explicitly accept; OTP authentication alone never grants membership.
+Invitation, membership, and event rows are not directly available through PostgREST. The child Team
+surface exposes only server-authorized roster, pending invitation, and access-history projections.
 
 Migration 063 rollback locks both managed tables and refuses to proceed while either a
 child relationship or manager configuration exists, so manager policy cannot be silently
 discarded by a down/up cycle.
 
 The durable rationale and intentionally excluded capabilities are recorded in
-[`ADR 0003`](adr-0003-managed-headless-profiles.md).
+[`ADR 0003`](adr-0003-managed-headless-profiles.md) and its partial supersession,
+[`ADR 0005`](adr-0005-managed-profile-memberships.md).
 
 ### Recipients
 
@@ -150,9 +175,13 @@ Current product behavior and acknowledged gaps are in
    identity is preserved separately on `req.impersonation` for audit; it does not
    participate in ownership resolution.
 2. On delegated routes, `X-Managed-Profile-Id` selects a child profile. The authorization
-   middleware verifies the active manager, direct active relationship, managed child,
-   active child customer entity, configured corridor, optional customer-type narrowing,
-   and canonical corridor/type capability for mutations.
+   middleware verifies the actor's active membership, the active immutable owner policy,
+   direct relationship, managed child, active child customer entity, configured corridor,
+   optional customer-type narrowing, and canonical corridor/type capability for mutations.
+   `read_only` can use only read-classified routes; `manager` can use management routes.
+   Delegated provider/KYC/KYB actions use `credential_manage`, and ramp register/update/start
+   use `ramp`; both additionally require the member's secret credential. Selected-child
+   bearer ramp requests are rejected before buffering their body.
 3. `getEffectiveUserId()` uses the verified child subject when delegation is present;
    otherwise it uses the bearer principal or validated secret-key profile. For an
    impersonation token, `req.userId` already reflects step 1's target substitution.
@@ -168,7 +197,8 @@ step 2 onward bypasses route authorization. Its session lifecycle, controls, and
 this document only reflects where the seam sits in principal resolution.
 
 The derived request context retains `actorProfileId`, `subjectProfileId`,
-`controllingManagerProfileId`, `customerEntityId`, and the manager-child relationship ID.
+`controllingManagerProfileId`, `customerEntityId`, the manager-child relationship ID,
+and, for delegated members, the exact membership ID and role.
 It never overwrites `req.userId`, and a public API key cannot authenticate a manager.
 Alfredpay customer creation uses the child's immutable provider contact email, never the
 manager's login email. Email-bound Mykobo and Monerium routes remain unsupported. These legacy
@@ -200,6 +230,8 @@ quote cannot be claimed by another user.
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
 - Managed-profile schema: `apps/api/src/database/migrations/063-create-managed-profiles.ts`
+- Managed-profile membership schema: `apps/api/src/database/migrations/069-create-managed-profile-memberships.ts`
+- Managed membership lifecycle: `apps/api/src/api/services/managed-profile-membership.service.ts`
 - Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 

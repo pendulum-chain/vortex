@@ -36,48 +36,49 @@ documents win.
 
 ## Module Index
 
-| Module | Path | Scope |
-|---|---|---|
-| Current Risk Register | `RISK-REGISTER.md` | Authoritative accepted, deferred, and rollout-dependent exceptions |
-| System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
-| Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
-| API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
-| Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
-| Admin Impersonation | `01-auth/admin-impersonation.md` | `vortex_admin` acting as a customer profile via `/v1/admin-console/*`: session lifecycle, principal substitution, revocation, audit trail |
-| Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
-| Server-Side Signing | `02-signing-keys/server-side-signing.md` | Funding keys, executor keys, webhook signing |
-| State Machine | `03-ramp-engine/state-machine.md` | Phase transitions, locking, idempotency, recovery |
-| Quote Lifecycle | `03-ramp-engine/quote-lifecycle.md` | Creation, expiry, binding to ramp |
-| Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee pipeline: quote-time snapshot, deduction, distribution, rounding |
-| Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
-| Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
-| Recipient Transfers | `03-ramp-engine/recipient-transfers.md` | Invite token hashing/retention/expiry, token-bound redemption, invitation/relationship archiving, sender↔recipient authorization, transfer eligibility gate |
-| Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
-| Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
-| Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
-| Block-Flow Architecture | `03-ramp-engine/block-flow-architecture.md` | Persisted flow identity, version dispatch, topology, schemas, and executor wiring |
-| Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
-| Integration Template | `05-integrations/_template.md` | Template for new provider specs |
-| BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
-| Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
-| Monerium | `05-integrations/monerium.md` | Server-side OAuth KYC/KYB and verification status mirroring |
-| Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
-| Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
-| FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
-| Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
-| Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
-| XCM Transfers | `06-cross-chain/xcm-transfers.md` | Dormant Pendulum↔Moonbeam↔AssetHub compatibility and re-enable constraints |
-| Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
-| Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
-| Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
-| API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
-| Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
-| Notifications | `07-operations/notifications.md` | In-app feed authorization, PII redaction rules, email dispatch status |
+| Module                      | Path                                        | Scope                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current Risk Register       | `RISK-REGISTER.md`                          | Authoritative accepted, deferred, and rollout-dependent exceptions                                                                                                                 |
+| System Overview             | `00-system-overview/architecture.md`        | Trust boundaries, component map, data flows                                                                                                                                        |
+| Supabase OTP Auth           | `01-auth/supabase-otp.md`                   | Email OTP, session lifecycle, token handling                                                                                                                                       |
+| API Credential Auth         | `01-auth/api-keys.md`                       | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle                                                                                                      |
+| Managed-Profile Memberships | `01-auth/managed-profile-memberships.md`    | Child-scoped roles, invitations, immutable ownership, and delegated capabilities                                                                                                   |
+| Admin Auth                  | `01-auth/admin-auth.md`                     | Admin bearer token, endpoint protection                                                                                                                                            |
+| Admin Impersonation         | `01-auth/admin-impersonation.md`            | `vortex_admin` acting as a customer profile via `/v1/admin-console/*`: session lifecycle, principal substitution, revocation, audit trail                                          |
+| Ephemeral Accounts          | `02-signing-keys/ephemeral-accounts.md`     | Client-side key generation, multi-chain, storage                                                                                                                                   |
+| Server-Side Signing         | `02-signing-keys/server-side-signing.md`    | Funding keys, executor keys, webhook signing                                                                                                                                       |
+| State Machine               | `03-ramp-engine/state-machine.md`           | Phase transitions, locking, idempotency, recovery                                                                                                                                  |
+| Quote Lifecycle             | `03-ramp-engine/quote-lifecycle.md`         | Creation, expiry, binding to ramp                                                                                                                                                  |
+| Fee Integrity               | `03-ramp-engine/fee-integrity.md`           | Fee pipeline: quote-time snapshot, deduction, distribution, rounding                                                                                                               |
+| Discount Mechanism          | `03-ramp-engine/discount-mechanism.md`      | Partner discounts, subsidies, dynamic adjustment                                                                                                                                   |
+| Profile Partner Pricing     | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs                                                                                                                  |
+| Recipient Transfers         | `03-ramp-engine/recipient-transfers.md`     | Invite token hashing/retention/expiry, token-bound redemption, invitation/relationship archiving, sender↔recipient authorization, transfer eligibility gate                       |
+| Transaction Validation      | `03-ramp-engine/transaction-validation.md`  | Presigned tx verification, content validation, signing model                                                                                                                       |
+| Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md`      | Funding, cleanup, stuck fund prevention                                                                                                                                            |
+| Ramp Phase Flows            | `03-ramp-engine/ramp-phase-flows.md`        | Per-corridor token flow, phase handler map, subsidy bounds                                                                                                                         |
+| Block-Flow Architecture     | `03-ramp-engine/block-flow-architecture.md` | Persisted flow identity, version dispatch, topology, schemas, and executor wiring                                                                                                  |
+| Token Relayer               | `04-smart-contracts/token-relayer.md`       | EIP-712, permit, known findings                                                                                                                                                    |
+| Integration Template        | `05-integrations/_template.md`              | Template for new provider specs                                                                                                                                                    |
+| BRLA                        | `05-integrations/brla.md`                   | BRLA anchor for BRL on/off-ramp                                                                                                                                                    |
+| Mykobo                      | `05-integrations/mykobo.md`                 | Mykobo EUR on/off-ramp on Base (currently registration-gated)                                                                                                                      |
+| Monerium                    | `05-integrations/monerium.md`               | Server-side OAuth KYC/KYB and verification status mirroring                                                                                                                        |
+| Alfredpay                   | `05-integrations/alfredpay.md`              | Alfredpay on/off-ramp                                                                                                                                                              |
+| Binance                     | `05-integrations/binance.md`                | Binance USDT spot price used as the primary USD<>BRL rate source                                                                                                                   |
+| FastForex                   | `05-integrations/fastforex.md`              | Fiat forex price provider used by quote/conversion math                                                                                                                            |
+| Resend                      | `05-integrations/resend.md`                 | Outbound email — auth mail relay and transactional notifications                                                                                                                   |
+| Squid Router                | `05-integrations/squid-router.md`           | Cross-chain EVM routing                                                                                                                                                            |
+| XCM Transfers               | `06-cross-chain/xcm-transfers.md`           | Dormant Pendulum↔Moonbeam↔AssetHub compatibility and re-enable constraints                                                                                                       |
+| Fund Routing                | `06-cross-chain/fund-routing.md`            | Subsidization, fee distribution, amount integrity                                                                                                                                  |
+| Rebalancer                  | `07-operations/rebalancer.md`               | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
+| Secret Management           | `07-operations/secret-management.md`        | Env vars, rotation, blast radius                                                                                                                                                   |
+| API Surface                 | `07-operations/api-surface.md`              | Rate limiting, CORS, input validation, error handling                                                                                                                              |
+| Client Observability        | `07-operations/client-observability.md`     | Request IDs, sanitized API client events, operational monitoring                                                                                                                   |
+| Notifications               | `07-operations/notifications.md`            | In-app feed authorization, PII redaction rules, email dispatch status                                                                                                              |
 
 ## Retained Evidence
 
-| Document | Why it remains |
-|---|---|
+| Document                         | Why it remains                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `REVIEW-POST-1232-2026-07-30.md` | Latest full spec-first review of the block-flow architecture and the evidence that drove its remediation |
 
 ## Checklist Semantics
@@ -99,26 +100,30 @@ Most module specifications use these sections:
 
 ## Glossary
 
-| Term | Definition |
-|---|---|
-| **Ramp** | A conversion between fiat and crypto (on-ramp = fiat→crypto, off-ramp = crypto→fiat) |
-| **Ephemeral account** | A temporary blockchain account created per ramp, used for signing transactions, then discarded |
-| **Phase** | A discrete step in the ramp state machine (e.g., `nablaSwap`, `distributeFees`) |
-| **Nabla** | DEX on Pendulum used for token swaps |
-| **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
-| **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
-| **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
-| **Monerium** | European e-money provider used for OAuth-based KYC/KYB verification and EUR profile status. |
-| **Alfredpay** | Fiat payment provider supporting multiple currencies |
-| **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
-| **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |
-| **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
-| **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
-| **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |
-| **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
-| **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
-| **PIX** | Brazilian instant payment system |
-| **SEPA** | Single Euro Payments Area — European bank transfer system |
-| **Coverage ratio** | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing |
-| **Request ID** | Non-secret correlation identifier generated or propagated by the API for log/event debugging |
-| **Client event** | Sanitized operational record of a partner-facing API request outcome |
+| Term                           | Definition                                                                                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ramp**                       | A conversion between fiat and crypto (on-ramp = fiat→crypto, off-ramp = crypto→fiat)                                                                            |
+| **Ephemeral account**          | A temporary blockchain account created per ramp, used for signing transactions, then discarded                                                                  |
+| **Phase**                      | A discrete step in the ramp state machine (e.g., `nablaSwap`, `distributeFees`)                                                                                 |
+| **Nabla**                      | DEX on Pendulum used for token swaps                                                                                                                            |
+| **XCM**                        | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains                                                                       |
+| **BRLA**                       | Brazilian Real stablecoin anchor (BRL on/off-ramp)                                                                                                              |
+| **Mykobo**                     | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated)                                                               |
+| **Monerium**                   | European e-money provider used for OAuth-based KYC/KYB verification and EUR profile status.                                                                     |
+| **Alfredpay**                  | Fiat payment provider supporting multiple currencies                                                                                                            |
+| **Binance**                    | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`)            |
+| **FastForex**                  | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |
+| **Squid Router**               | Cross-chain swap/routing protocol for EVM chains                                                                                                                |
+| **Axelar**                     | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging                                                                                      |
+| **Avenia**                     | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts                                                                             |
+| **Subsidization**              | When the platform tops up an ephemeral account to ensure the user receives the quoted amount                                                                    |
+| **pk\_/sk\_**                  | Public key / Secret key prefixes for the dual API key system                                                                                                    |
+| **PIX**                        | Brazilian instant payment system                                                                                                                                |
+| **SEPA**                       | Single Euro Payments Area — European bank transfer system                                                                                                       |
+| **Coverage ratio**             | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing                                           |
+| **Request ID**                 | Non-secret correlation identifier generated or propagated by the API for log/event debugging                                                                    |
+| **Client event**               | Sanitized operational record of a partner-facing API request outcome                                                                                            |
+| **Managed-profile owner**      | Immutable authenticated profile in `managed_profiles.manager_profile_id`; supplies child policy, pricing fallback, namespace, and lifecycle authority           |
+| **Managed-profile membership** | Revocable authorization edge from one authenticated member profile to one managed child                                                                         |
+| **Membership role**            | Child-scoped `manager` or `read_only` permission; separate from global `profile_roles`                                                                          |
+| **Membership invitation**      | Seven-day email-bound offer that grants no access until explicitly accepted by the exact verified Supabase email                                                |

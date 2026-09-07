@@ -8,8 +8,9 @@ transfers (offramps) that pay out to that recipient. Backed by the migration-`04
 (`recipient_invitations`, `sender_recipients`, `recipient_payout_references`), all anchored to
 `customer_entities`; migration-`050` added the sender-local `alias`, the retained raw `token`,
 and `archived_at` to `recipient_invitations` (dropping the unused `amount`). Routes live under
-`/v1/recipients` (`recipients.controller.ts`) behind Supabase bearer authentication. Sender-side
-routes additionally accept an authorized managed-child selector; preview and acceptance do not:
+`/v1/recipients` (`recipients.controller.ts`). Sender-side routes accept Supabase bearer
+authentication or a profile secret credential and may additionally use an authorized
+managed-child selector; preview and acceptance remain bearer-only and do not:
 
 | Endpoint                                   | Purpose                                                                                                                         |
 | :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
@@ -83,7 +84,7 @@ out against another tenant's relationship.
 6. **All sender-side routes are entity-scoped.** Create/list/PATCH (relationship and invitation
    archive)/eligibility resolve the sender profile through `getEffectiveUserId` and filter on
    `sender_customer_entity_id`; for managed delegation this is the authorization-verified child,
-   while the authenticated manager remains the actor. Foreign ids
+   while the authenticated member remains the actor. Foreign ids
    return a uniform `404`. Entity resolution is deterministic: a partial unique index on
    `customer_entities (profile_id, type)` (migration 049) makes the acceptance-path
    `findOrCreate` race-safe, and `getOrCreateCustomerEntityForProfile` resolves type-less
@@ -107,8 +108,8 @@ out against another tenant's relationship.
    AR company KYB), and senders with no approved onboarding anywhere
    (`403 NO_APPROVED_CORRIDOR`; approvals are read from `provider_customers.status`, which every
    provider persists). For delegated managed senders, malformed input retains the same `400`
-   errors before authorization, then the requested country must be in the manager's current
-   `allowedCorridors` and valid for the child's immutable type. The dashboard's corridor filter is
+   errors before authorization, then the actor must hold `manager`, the requested country must be
+   in the immutable owner's current `allowedCorridors`, and the child type must be permitted. The dashboard's corridor filter is
    a UX mirror of these rules, not the enforcement point.
 10. **Sender self accounts are not recipient payout references.** For Alfredpay self offramps, the
     dashboard lists and creates provider-side fiat accounts owned by the authenticated sender and
@@ -165,11 +166,12 @@ out against another tenant's relationship.
     instead of silently ignoring them. No eligibility response authorizes money movement.
     Enabling recipient payout requires a separately reviewed registration schema, ownership and
     eligibility enforcement, and provider-side payout-instrument resolution.
-13. **Managed delegation is sender-only.** `POST /invite`, sender list, invitation archive,
-    relationship update/archive, and eligibility accept an authorized `X-Managed-Profile-Id` and
-    operate on the child's sender entity. Every delegated decision revalidates the active direct
-    relationship and the manager's current customer-type narrowing. Creation authorizes the
-    requested corridor; listing omits records outside the manager's current corridor policy;
+13. **Managed delegation is sender-only and membership-scoped.** `POST /invite`, sender list,
+    invitation archive, relationship update/archive, and eligibility accept an authorized
+    `X-Managed-Profile-Id` and operate on the child's sender entity. Every delegated decision
+    revalidates the active membership and owner relationship. `read_only` may list and check
+    eligibility but cannot create or mutate recipient state. `manager` creation authorizes the
+    requested corridor; listing omits records outside the immutable owner's current policy;
     invitation archive, relationship update/archive, and eligibility first resolve an owner-scoped
     target and authorize its stored invitation country (or the relationship rail for retained
     legacy rows) before acting. A foreign target remains `404`, including when its corridor is

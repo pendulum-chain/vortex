@@ -1,7 +1,9 @@
 # ADR 0003: Managed Headless Profiles
 
-Status: accepted. Implemented by migration 063 and the managed-profile API and
-authorization services.
+Status: partially superseded by
+[`ADR 0005`](adr-0005-managed-profile-memberships.md). Migration 063's headless child,
+immutable owner, policy, pricing, namespace, and lifecycle decisions remain accepted;
+ADR 0005 replaces the exactly-one-manager authorization decision.
 
 ## Context
 
@@ -14,7 +16,7 @@ than introduce a parallel tenant or impersonation model.
 
 - A headless customer is a normal `profiles` row with immutable `kind = managed`, a null
   login email, no Supabase identity, exactly one active customer entity, and exactly one
-  retained manager relationship.
+  retained owner relationship.
 - The child owns its customer entity, provider records, credentials, quotes, and ramps.
   The manager is the authenticated actor for delegated requests and never becomes the
   resource owner.
@@ -33,9 +35,10 @@ than introduce a parallel tenant or impersonation model.
 - Deletion is logical and idempotent. It revokes child credentials and blocks new child
   activity while retaining provider, compliance, quote, ramp, callback, and attribution
   records needed for in-flight processing and reconciliation.
-- Nested management, manager transfer, generic impersonation, operation-specific
-  permission matrices, and durable differentiation between delegated-manager and direct
-  child-credential requests are outside the accepted design.
+- Nested management, owner transfer, generic impersonation, and durable differentiation
+  between delegated-member and direct child-credential requests remain outside the
+  accepted design. ADR 0005 introduces the child-scoped permission matrix that this ADR
+  originally excluded.
 
 ## Consequences
 

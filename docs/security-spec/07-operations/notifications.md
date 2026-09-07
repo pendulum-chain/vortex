@@ -6,13 +6,13 @@ In-app notification feed + per-profile preferences for the dashboard (plan §8).
 `notifications` and `notification_preferences` (migration `043`), routes under
 `/v1/notifications` (`notifications.controller.ts`), all behind `requireAuth`:
 
-| Endpoint | Purpose |
-| :-- | :-- |
+| Endpoint                               | Purpose                                                    |
+| :------------------------------------- | :--------------------------------------------------------- |
 | `GET /v1/notifications?limit=&before=` | Newest-first feed + `unreadCount` (limit clamped to 1–100) |
-| `POST /v1/notifications/:id/read` | Mark one read (owner-scoped) |
-| `POST /v1/notifications/read-all` | Mark all unread read |
-| `GET /v1/notifications/preferences` | Read prefs (row created with defaults on first read) |
-| `PUT /v1/notifications/preferences` | Update `emailEnabled` / `prefs` (typed validation) |
+| `POST /v1/notifications/:id/read`      | Mark one read (owner-scoped)                               |
+| `POST /v1/notifications/read-all`      | Mark all unread read                                       |
+| `GET /v1/notifications/preferences`    | Read prefs (row created with defaults on first read)       |
+| `PUT /v1/notifications/preferences`    | Update `emailEnabled` / `prefs` (typed validation)         |
 
 Writes go through `emitNotification(profileId, event)` (`notification.service.ts`). Notification
 content is rendered verbatim to users and may later be emailed, so it is a PII-leak surface.
@@ -53,9 +53,11 @@ content is rendered verbatim to users and may later be emailed, so it is a PII-l
 - [ ] **Email dispatch is implemented and gates on these preferences at delivery time**
       (see [`05-integrations/resend.md`](../05-integrations/resend.md) for the transport,
       queue, and its own invariants). Before every send the dispatch worker re-reads
-      `notification_preferences`: `email_enabled` is the master switch, and
+      `notification_preferences` for profile-addressed mail: `email_enabled` is the master switch, and
       `prefs[<stored type>] === false` mutes one type — the stored type strings are the
       shared `EmailNotificationType` enum consumed by both the worker and the dashboard's
       Settings toggles. A muted row is recorded `skipped`, never sent. Sending remains
-      server-side triggered only; the `email_notifications` queue is unrelated to the
+      server-side triggered only. Managed-profile membership invitations are the narrow exception:
+      they may address a normalized email before a profile exists and bypass profile preferences,
+      but exact verified-email acceptance is still required. The `email_notifications` queue is unrelated to the
       in-app `notifications` table this spec covers, and no client can write either.

@@ -7,28 +7,29 @@ home for each kind of information, not a record of every implementation session.
 
 Only two topics are large enough to earn their own directories:
 
-| Location | Purpose | Authority |
-|---|---|---|
-| [`security-spec/`](security-spec/README.md) | Security invariants, trust boundaries, current risks, and audit evidence | Normative for security-sensitive behavior |
-| [`api/`](api/README.md) | Partner-facing OpenAPI, generated types, publication scripts, and integration guides | Public API contract and publication source |
+| Location                                    | Purpose                                                                              | Authority                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------ |
+| [`security-spec/`](security-spec/README.md) | Security invariants, trust boundaries, current risks, and audit evidence             | Normative for security-sensitive behavior  |
+| [`api/`](api/README.md)                     | Partner-facing OpenAPI, generated types, publication scripts, and integration guides | Public API contract and publication source |
 
 The smaller set of general project documents stays directly in `docs/`:
 
-| Document | Purpose |
-|---|---|
-| [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
-| [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md) | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution |
-| [`adr-0003-managed-headless-profiles.md`](adr-0003-managed-headless-profiles.md) | Accepted identity, ownership, authorization, and lifecycle decisions for managed headless profiles |
-| [`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md) | Accepted decision on the seeded sales-demo account in the sandbox environment |
-| [`architecture-email-notifications.md`](architecture-email-notifications.md) | Current transactional/auth email architecture: queue, dispatch, producers |
-| [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
-| [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
-| [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
-| [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
-| [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
-| [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
-| [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
+| Document                                                                               | Purpose                                                                                                                    |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale                                                                              |
+| [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md)         | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution                                          |
+| [`adr-0003-managed-headless-profiles.md`](adr-0003-managed-headless-profiles.md)       | Accepted identity, ownership, authorization, and lifecycle decisions for managed headless profiles                         |
+| [`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md)         | Accepted decision on the seeded sales-demo account in the sandbox environment                                              |
+| [`adr-0005-managed-profile-memberships.md`](adr-0005-managed-profile-memberships.md)   | Accepted child-scoped membership, invitation, capability, and immutable-owner decisions                                    |
+| [`architecture-email-notifications.md`](architecture-email-notifications.md)           | Current transactional/auth email architecture: queue, dispatch, producers                                                  |
+| [`architecture-identity-model.md`](architecture-identity-model.md)                     | Current cross-module identity and ownership architecture                                                                   |
+| [`operations-demo-environment.md`](operations-demo-environment.md)                     | Setup and runbook for the sandbox sales-demo account                                                                       |
+| [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)           | Deployment gates and recovery runbook for irreversible migrations 060-061                                                  |
+| [`operations-testing.md`](operations-testing.md)                                       | Maintained test strategy and suite boundaries                                                                              |
+| [`product-dashboard.md`](product-dashboard.md)                                         | Current dashboard product scope and acknowledged gaps                                                                      |
+| [`proposal-mcp-server.md`](proposal-mcp-server.md)                                     | Active, non-authoritative discussion draft                                                                                 |
+| [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md)                     | Proposal for API-driven verification using preserved provider-specific workflows                                           |
+| [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md)         | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
 repository wayfinding, and `CLAUDE.md` files contain instructions for coding agents.
