@@ -30,6 +30,8 @@ export function toAdminImpersonationTarget(account: AdminAccountIdentity): Admin
     managedProfile: {
       customerType: managed.customerType,
       externalSubjectId: managed.externalSubjectId,
+      isOwner: true,
+      membershipRole: "manager",
       targetEmail: managed.contactEmail ?? managed.externalSubjectId,
       targetProfileId: account.id
     }

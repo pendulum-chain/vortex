@@ -17,7 +17,9 @@ export interface ImpersonationSession {
 }
 
 export interface ManagedProfileSelection {
+  isOwner: boolean;
   managerProfileId: string;
+  membershipRole: "manager" | "read_only";
   targetProfileId: string;
   targetEmail: string;
   externalSubjectId: string;
@@ -253,7 +255,12 @@ export class AuthService {
   }
 
   static getManagedProfileSelectionSnapshot(): string | null {
-    return localStorage.getItem(this.MANAGED_PROFILE_STORAGE_KEY);
+    const snapshot = localStorage.getItem(this.MANAGED_PROFILE_STORAGE_KEY);
+    if (snapshot !== null && this.parseManagedProfileSelectionSnapshot(snapshot) === null) {
+      localStorage.removeItem(this.MANAGED_PROFILE_STORAGE_KEY);
+      return null;
+    }
+    return snapshot;
   }
 
   static parseManagedProfileSelectionSnapshot(snapshot: string | null): ManagedProfileSelection | null {
@@ -262,6 +269,8 @@ export class AuthService {
       const parsed = JSON.parse(snapshot) as Partial<ManagedProfileSelection>;
       if (
         typeof parsed.managerProfileId !== "string" ||
+        (parsed.membershipRole !== "manager" && parsed.membershipRole !== "read_only") ||
+        typeof parsed.isOwner !== "boolean" ||
         typeof parsed.targetProfileId !== "string" ||
         typeof parsed.targetEmail !== "string" ||
         typeof parsed.externalSubjectId !== "string" ||

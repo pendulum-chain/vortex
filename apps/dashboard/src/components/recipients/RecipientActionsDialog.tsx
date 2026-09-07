@@ -16,9 +16,11 @@ import { InviteLinkCopy } from "./RecipientDialog";
  * link stays valid and the recipient can still complete KYC.
  */
 export function RecipientActionsDialog({
+  canMutate = true,
   recipient,
   onOpenChange
 }: {
+  canMutate?: boolean;
   recipient: Recipient | null;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -26,10 +28,12 @@ export function RecipientActionsDialog({
   const queryClient = useQueryClient();
 
   const remove = useMutation({
-    mutationFn: (target: Recipient): Promise<unknown> =>
-      target.kind === "invitation"
+    mutationFn: (target: Recipient): Promise<unknown> => {
+      if (!canMutate) return Promise.reject(new Error("This membership has read-only access"));
+      return target.kind === "invitation"
         ? RecipientsService.archiveInvitation(target.id)
-        : RecipientsService.archiveRecipient(target.id),
+        : RecipientsService.archiveRecipient(target.id);
+    },
     onError: error => {
       toast.error("Could not remove the recipient", { description: error instanceof Error ? error.message : undefined });
     },
@@ -84,15 +88,17 @@ export function RecipientActionsDialog({
           <Button onClick={() => handleOpenChange(false)} type="button" variant="ghost">
             Close
           </Button>
-          <Button
-            disabled={remove.isPending}
-            onClick={() => (confirmingRemove ? remove.mutate(recipient) : setConfirmingRemove(true))}
-            type="button"
-            variant="destructive"
-          >
-            <Trash2 />
-            {remove.isPending ? "Removing…" : confirmingRemove ? "Remove — are you sure?" : "Remove from list"}
-          </Button>
+          {canMutate && (
+            <Button
+              disabled={remove.isPending}
+              onClick={() => (confirmingRemove ? remove.mutate(recipient) : setConfirmingRemove(true))}
+              type="button"
+              variant="destructive"
+            >
+              <Trash2 />
+              {remove.isPending ? "Removing…" : confirmingRemove ? "Remove — are you sure?" : "Remove from list"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

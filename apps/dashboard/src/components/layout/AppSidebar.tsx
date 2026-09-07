@@ -12,6 +12,7 @@ import {
   Users,
   UsersRound
 } from "lucide-react";
+import { canAccessManagedProfiles } from "@/components/managed-profiles/managed-profile-ui";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +25,7 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
-import { isManagedProfilesAccessDenied, useManagedProfiles } from "@/hooks/useManagedProfiles";
+import { useManagedProfiles } from "@/hooks/useManagedProfiles";
 import { useImpersonationSession } from "@/stores/impersonation.store";
 import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 import { VortexLogo } from "./VortexLogo";
@@ -42,7 +43,7 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEM = { icon: UserCog, label: "Admin", to: "/admin" } as const;
 const MANAGED_PROFILES_NAV_ITEM = { icon: UsersRound, label: "Managed profiles", to: "/managed-profiles" } as const;
-const CHILD_NAV_ITEMS = NAV_ITEMS.filter(item => item.to !== "/api-keys" && item.to !== "/settings");
+const CHILD_NAV_ITEMS = NAV_ITEMS.filter(item => item.to !== "/transfer" && item.to !== "/settings");
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: state => state.location.pathname });
@@ -53,13 +54,12 @@ export function AppSidebar() {
   const isAdmin = onboardingStatus?.roles.includes("vortex_admin") ?? false;
   // An operator acting as a customer must see exactly the customer's navigation.
   const isActingForChild = !!managedProfile;
-  const isManager = !!managedProfiles.data?.manager;
-  const managerCheckFailed = managedProfiles.isError && !isManagedProfilesAccessDenied(managedProfiles.error);
+  const hasManagedProfileAccess = canAccessManagedProfiles(managedProfiles.data?.actor);
   const navItems = isActingForChild
     ? CHILD_NAV_ITEMS
     : [
         ...NAV_ITEMS,
-        ...(isManager ? [MANAGED_PROFILES_NAV_ITEM] : []),
+        ...(hasManagedProfileAccess ? [MANAGED_PROFILES_NAV_ITEM] : []),
         ...(isAdmin && !isImpersonating ? [ADMIN_NAV_ITEM] : [])
       ];
 
@@ -84,7 +84,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {managerCheckFailed && !isActingForChild && (
+              {managedProfiles.isError && !isActingForChild && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     disabled={managedProfiles.isFetching}

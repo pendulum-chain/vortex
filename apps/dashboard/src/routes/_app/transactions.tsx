@@ -11,6 +11,7 @@ import { useRecipients } from "@/hooks/useRecipients";
 import { useTransactions } from "@/hooks/useTransactions";
 import { popIn } from "@/lib/motion";
 import { transferActor } from "@/machines/transferActor";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/_app/transactions")({
   component: TransactionsPage
@@ -18,9 +19,11 @@ export const Route = createFileRoute("/_app/transactions")({
 
 function TransactionsPage() {
   const account = useActiveAccount();
+  const managedProfile = useManagedProfileSelection();
   const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
   const resumableRamp = useSelector(transferActor, snapshot =>
+    !managedProfile &&
     snapshot.matches("AwaitingPayment") &&
     snapshot.context.meta?.ownerProfileId === snapshot.context.activeOwnerProfileId &&
     snapshot.context.meta.accountId === account?.id
@@ -83,7 +86,7 @@ function TransactionsPage() {
                     : "Start a pay-in or approve a pay-out account to create your first transaction."}
                 </p>
               </div>
-              {hasApprovedRecipient ? (
+              {managedProfile ? null : hasApprovedRecipient ? (
                 <Button asChild>
                   <Link to="/transfer">
                     Start a transfer

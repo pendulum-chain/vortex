@@ -48,6 +48,7 @@ function OverviewPage() {
   const approved = corridors.filter(corridor => account.onboardings[corridor.id]?.status === "approved").length;
   const openCorridor = activeCorridor ?? search.onboarding ?? null;
   const verificationReadOnly = impersonation !== null || managedProfile !== null;
+  const canMutatePayoutAccounts = managedProfile === null || managedProfile.membershipRole === "manager";
 
   function addCorridor() {
     if (!selectedToAdd) {
@@ -106,6 +107,7 @@ function OverviewPage() {
             >
               <CorridorCard
                 account={account}
+                canMutatePayoutAccounts={canMutatePayoutAccounts}
                 corridor={corridor}
                 onStart={() => setActiveCorridor(corridor.id)}
                 verificationReadOnly={verificationReadOnly}

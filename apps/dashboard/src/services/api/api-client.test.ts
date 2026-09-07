@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { after, beforeEach, describe, it } from "node:test";
 import { AuthService } from "@/services/auth";
-import { apiClient, isApiError, setManagedProfileAccessDeniedHandler } from "./api-client";
+import { apiClient, isApiError } from "./api-client";
 
 const originalFetch = globalThis.fetch;
 const originalGetAcceptedImpersonationSessionSnapshot = AuthService.getAcceptedImpersonationSessionSnapshot;
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const values = new Map<string, string>();
+const MANAGER_MEMBERSHIP = { isOwner: true, membershipRole: "manager" as const };
 
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
@@ -28,13 +29,11 @@ beforeEach(() => {
   values.clear();
   AuthService.initializeAcceptedIdentitySnapshots();
   AuthService.getAcceptedImpersonationSessionSnapshot = originalGetAcceptedImpersonationSessionSnapshot;
-  setManagedProfileAccessDeniedHandler(undefined);
 });
 
 after(() => {
   globalThis.fetch = originalFetch;
   AuthService.getAcceptedImpersonationSessionSnapshot = originalGetAcceptedImpersonationSessionSnapshot;
-  setManagedProfileAccessDeniedHandler(undefined);
   if (originalLocalStorage) {
     Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
   } else {
@@ -78,6 +77,7 @@ describe("apiFetch while impersonating", () => {
 
   it("does not let caller headers override trusted identity headers", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "customer-1",
@@ -195,6 +195,7 @@ describe("apiFetch without impersonation", () => {
 
   it("adds a valid managed profile only when the request explicitly opts in", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "user-1",
@@ -216,6 +217,7 @@ describe("apiFetch without impersonation", () => {
 
   it("preserves the captured managed profile header on a 401 refresh retry", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "user-1",
@@ -226,6 +228,7 @@ describe("apiFetch without impersonation", () => {
     globalThis.fetch = (async (input, init) => {
       if (String(input).includes("/auth/refresh")) {
         AuthService.storeManagedProfileSelection({
+          ...MANAGER_MEMBERSHIP,
           customerType: "business",
           externalSubjectId: "merchant-43",
           managerProfileId: "user-1",
@@ -251,6 +254,7 @@ describe("apiFetch without impersonation", () => {
 
   it("uses the tab-accepted selection instead of an unaccepted storage change", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "user-1",
@@ -260,6 +264,7 @@ describe("apiFetch without impersonation", () => {
     values.set(
       AuthService.MANAGED_PROFILE_STORAGE_KEY,
       JSON.stringify({
+        ...MANAGER_MEMBERSHIP,
         customerType: "business",
         externalSubjectId: "merchant-43",
         managerProfileId: "user-1",
@@ -278,8 +283,9 @@ describe("apiFetch without impersonation", () => {
     assert.equal(managedProfileId, "child-1");
   });
 
-  it("clears only the stale selection on managed access denial and never retries without the header", async () => {
+  it("keeps child mode when a delegated feature request is denied", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "user-1",
@@ -299,34 +305,26 @@ describe("apiFetch without impersonation", () => {
     await assert.rejects(() => apiClient.get("/delegated", { managedProfile: true }), error => isApiError(error) && error.status === 403);
 
     assert.equal(calls, 1);
-    assert.equal(AuthService.getManagedProfileSelection(), null);
+    assert.equal(AuthService.getManagedProfileSelection()?.targetProfileId, "child-1");
   });
 
-  it("runs access-denied handling while the stale child selection is still active", async () => {
+  it("does not clear child mode from membership errors outside bootstrap", async () => {
     AuthService.storeManagedProfileSelection({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       managerProfileId: "user-1",
       targetEmail: "child@example.com",
       targetProfileId: "child-1"
     });
-    const selectionSnapshot = AuthService.getAcceptedManagedProfileSelectionSnapshot();
-    let handled = false;
-    setManagedProfileAccessDeniedHandler(snapshot => {
-      assert.equal(snapshot, selectionSnapshot);
-      assert.equal(AuthService.getManagedProfileSelection()?.targetProfileId, "child-1");
-      handled = AuthService.clearManagedProfileSelection(snapshot);
-      return handled;
-    });
     globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "denied" } }), {
+      new Response(JSON.stringify({ error: { code: "MANAGED_PROFILE_MEMBERSHIP_INVALID", message: "denied" } }), {
         headers: { "Content-Type": "application/json" },
         status: 403
       })) as typeof fetch;
 
     await assert.rejects(() => apiClient.get("/delegated", { managedProfile: true }), error => isApiError(error));
 
-    assert.equal(handled, true);
-    assert.equal(AuthService.getManagedProfileSelection(), null);
+    assert.equal(AuthService.getManagedProfileSelection()?.targetProfileId, "child-1");
   });
 });

@@ -14,11 +14,17 @@ Object.defineProperty(globalThis, "localStorage", {
 let accountStateClears = 0;
 let identityChangeAllowed = true;
 let activatedOwner: string | null = null;
+const MANAGER_MEMBERSHIP = { isOwner: true, membershipRole: "manager" as const };
 
 const { AuthService } = await import("@/services/auth");
 const { enterImpersonation } = await import("./impersonation.store");
-const { applyStoredManagedProfileForTests, clearManagedProfile, clearManagedProfileSelection, selectManagedProfile } =
-  await import("./managed-profile.store");
+const {
+  applyStoredManagedProfileForTests,
+  clearManagedProfile,
+  clearManagedProfileSelection,
+  refreshManagedProfileSelection,
+  selectManagedProfile
+} = await import("./managed-profile.store");
 function configureIdentityEffects(): void {
   AuthService.configureIdentityTransitionEffects({
     activateTransferOwner: (ownerProfileId: string) => {
@@ -56,6 +62,7 @@ describe("managed profile transitions", () => {
   it("atomically binds selection to the current bearer and activates its transfer owner", () => {
     assert.equal(
       selectManagedProfile({
+        ...MANAGER_MEMBERSHIP,
         customerType: "business",
         externalSubjectId: "merchant-42",
         targetEmail: "child@example.com",
@@ -82,6 +89,7 @@ describe("managed profile transitions", () => {
     );
     assert.equal(
       selectManagedProfile({
+        ...MANAGER_MEMBERSHIP,
         customerType: "individual",
         externalSubjectId: "customer-42",
         targetEmail: "child@example.com",
@@ -99,6 +107,7 @@ describe("managed profile transitions", () => {
 
     assert.equal(
       selectManagedProfile({
+        ...MANAGER_MEMBERSHIP,
         customerType: "business",
         externalSubjectId: "merchant-42",
         targetEmail: "child@example.com",
@@ -112,6 +121,7 @@ describe("managed profile transitions", () => {
 
   it("adopts a cross-tab selection once and switches the transfer owner", () => {
     const selection = {
+      ...MANAGER_MEMBERSHIP,
       customerType: "individual",
       externalSubjectId: "person-42",
       managerProfileId: "manager-1",
@@ -129,6 +139,7 @@ describe("managed profile transitions", () => {
 
   it("restores the accepted selection when a cross-tab change is blocked", () => {
     selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-1",
       targetEmail: "first@example.com",
@@ -137,6 +148,7 @@ describe("managed profile transitions", () => {
     accountStateClears = 0;
     identityChangeAllowed = false;
     const rejected = {
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-2",
       managerProfileId: "manager-1",
@@ -158,6 +170,7 @@ describe("managed profile transitions", () => {
 
   it("returns to the bearer identity when child mode stops", () => {
     selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       targetEmail: "child@example.com",
@@ -174,6 +187,7 @@ describe("managed profile transitions", () => {
 
   it("compare-and-clears the expected denied selection", () => {
     selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       targetEmail: "child@example.com",
@@ -191,6 +205,7 @@ describe("managed profile transitions", () => {
 
   it("keeps the accepted child identity when clearing a denied selection is blocked", () => {
     selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
       customerType: "business",
       externalSubjectId: "merchant-42",
       targetEmail: "child@example.com",
@@ -205,6 +220,70 @@ describe("managed profile transitions", () => {
 
     assert.equal(AuthService.getManagedProfileSelection()?.targetProfileId, "child-1");
     assert.equal(AuthService.getEffectiveProfileId(), "child-1");
+    assert.equal(accountStateClears, 0);
+    assert.equal(activatedOwner, null);
+  });
+
+  it("refreshes metadata for the same child without resetting account identity", () => {
+    selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
+      customerType: "business",
+      externalSubjectId: "merchant-42",
+      targetEmail: "old@example.com",
+      targetProfileId: "child-1"
+    });
+    const snapshot = AuthService.getAcceptedManagedProfileSelectionSnapshot();
+    accountStateClears = 0;
+    activatedOwner = null;
+
+    assert.equal(
+      refreshManagedProfileSelection(
+        {
+          customerType: "business",
+          externalSubjectId: "merchant-42",
+          isOwner: false,
+          membershipRole: "read_only",
+          targetEmail: "new@example.com",
+          targetProfileId: "child-1"
+        },
+        snapshot ?? ""
+      ),
+      true
+    );
+
+    assert.equal(AuthService.getManagedProfileSelection()?.targetEmail, "new@example.com");
+    assert.equal(AuthService.getManagedProfileSelection()?.membershipRole, "read_only");
+    assert.equal(accountStateClears, 0);
+    assert.equal(activatedOwner, null);
+  });
+
+  it("accepts a same-child role downgrade while identity switching is blocked", () => {
+    selectManagedProfile({
+      ...MANAGER_MEMBERSHIP,
+      customerType: "business",
+      externalSubjectId: "merchant-42",
+      targetEmail: "child@example.com",
+      targetProfileId: "child-1"
+    });
+    accountStateClears = 0;
+    activatedOwner = null;
+    identityChangeAllowed = false;
+    localStorage.setItem(
+      AuthService.MANAGED_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        customerType: "business",
+        externalSubjectId: "merchant-42",
+        isOwner: false,
+        managerProfileId: "manager-1",
+        membershipRole: "read_only",
+        targetEmail: "child@example.com",
+        targetProfileId: "child-1"
+      })
+    );
+
+    applyStoredManagedProfileForTests();
+
+    assert.equal(AuthService.getManagedProfileSelection()?.membershipRole, "read_only");
     assert.equal(accountStateClears, 0);
     assert.equal(activatedOwner, null);
   });

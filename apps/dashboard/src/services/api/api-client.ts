@@ -5,14 +5,6 @@ function refreshTokenOnce(): Promise<AuthTokens | null> {
   return AuthService.refreshAccessToken().catch(() => null);
 }
 
-let managedProfileAccessDeniedHandler: ((selectionSnapshot: string) => boolean | Promise<boolean>) | undefined;
-
-export function setManagedProfileAccessDeniedHandler(
-  handler: ((selectionSnapshot: string) => boolean | Promise<boolean>) | undefined
-): void {
-  managedProfileAccessDeniedHandler = handler;
-}
-
 export class ApiError extends Error {
   status: number;
   data: {
@@ -131,11 +123,6 @@ async function apiFetch<T>(
       errorData.message ??
       response.statusText;
     const code = errorData.code ?? (typeof errorData.error === "object" ? errorData.error.code : undefined);
-    if (managedProfileId && response.status === 403 && code === "MANAGED_PROFILE_ACCESS_DENIED" && selectionSnapshot) {
-      if (!(await managedProfileAccessDeniedHandler?.(selectionSnapshot))) {
-        AuthService.clearManagedProfileSelection(selectionSnapshot);
-      }
-    }
     throw new ApiError(
       response.status,
       {

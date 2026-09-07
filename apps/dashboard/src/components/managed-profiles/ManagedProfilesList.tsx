@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CORRIDORS } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
 import type { ManagedProfile } from "@/services/api/managed-profiles.service";
 import { ActForManagedProfileDialog } from "./ActForManagedProfileDialog";
 
@@ -25,10 +24,10 @@ function Actions({ onAct, profile }: { onAct: (profile: ManagedProfile) => void;
   );
 }
 
-function CorridorBadges({ corridors }: { corridors: CorridorId[] }) {
+function CorridorBadges({ profile }: { profile: ManagedProfile }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {corridors.map(id => (
+      {profile.policy.allowedCorridors.map(id => (
         <Badge key={id} variant="outline">
           {CORRIDORS[id].flag} {CORRIDORS[id].name}
         </Badge>
@@ -37,7 +36,18 @@ function CorridorBadges({ corridors }: { corridors: CorridorId[] }) {
   );
 }
 
-export function ManagedProfilesList({ profiles, corridors }: { profiles: ManagedProfile[]; corridors: CorridorId[] }) {
+function MembershipBadges({ profile }: { profile: ManagedProfile }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      <Badge variant={profile.membership.role === "manager" ? "default" : "secondary"}>
+        {profile.membership.role === "manager" ? "Manager" : "Read only"}
+      </Badge>
+      {profile.membership.isOwner && <Badge variant="outline">Owner</Badge>}
+    </div>
+  );
+}
+
+export function ManagedProfilesList({ profiles }: { profiles: ManagedProfile[] }) {
   const [target, setTarget] = useState<ManagedProfile | null>(null);
 
   if (profiles.length === 0) {
@@ -61,6 +71,7 @@ export function ManagedProfilesList({ profiles, corridors }: { profiles: Managed
               <TableHead>Contact</TableHead>
               <TableHead>External subject ID</TableHead>
               <TableHead>Customer type</TableHead>
+              <TableHead>Membership</TableHead>
               <TableHead>Authorized corridors</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -72,7 +83,10 @@ export function ManagedProfilesList({ profiles, corridors }: { profiles: Managed
                 <TableCell className="max-w-64 truncate font-mono text-xs">{profile.externalSubjectId}</TableCell>
                 <TableCell className="capitalize">{profile.customerType}</TableCell>
                 <TableCell>
-                  <CorridorBadges corridors={corridors} />
+                  <MembershipBadges profile={profile} />
+                </TableCell>
+                <TableCell>
+                  <CorridorBadges profile={profile} />
                 </TableCell>
                 <TableCell className="text-right">
                   <Actions onAct={setTarget} profile={profile} />
@@ -97,7 +111,8 @@ export function ManagedProfilesList({ profiles, corridors }: { profiles: Managed
                 <Badge className="w-fit capitalize" variant="secondary">
                   {profile.customerType}
                 </Badge>
-                <CorridorBadges corridors={corridors} />
+                <MembershipBadges profile={profile} />
+                <CorridorBadges profile={profile} />
               </div>
             </CardContent>
           </Card>

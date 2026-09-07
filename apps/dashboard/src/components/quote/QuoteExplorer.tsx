@@ -32,6 +32,7 @@ import {
 } from "@/lib/amount";
 import { springSnappy } from "@/lib/motion";
 import { useQuote } from "@/services/api/hooks";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 import { QuoteSummary } from "../transfer/QuoteSummary";
 import { TokenCombobox } from "../transfer/TokenCombobox";
 import { AmountInput, AmountPanel } from "./AmountPanel";
@@ -306,6 +307,8 @@ interface QuoteCtaProps {
  * corridor routes to its onboarding rather than to a transfer form that would reject it.
  */
 function QuoteCta({ amount, corridorId, isApproved, isBuy, network, token }: QuoteCtaProps) {
+  const managedProfile = useManagedProfileSelection();
+
   if (!isApproved) {
     return (
       <Button asChild size="lg">
@@ -324,6 +327,14 @@ function QuoteCta({ amount, corridorId, isApproved, isBuy, network, token }: Quo
     return (
       <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
         Buying crypto with {CORRIDORS[corridorId].currency} isn’t available in transfers yet.
+      </p>
+    );
+  }
+
+  if (managedProfile) {
+    return (
+      <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
+        New transfers are unavailable while acting for a managed profile.
       </p>
     );
   }

@@ -1,5 +1,8 @@
 import type { ApiCredentialRecord } from "@/services/api/api-credentials.service";
 
+export const CHILD_CREDENTIAL_WARNING =
+  "Child API credentials authenticate as a shared company principal for supported provider, fiat-account, quote, and ramp operations. They remain valid after a human member is removed or downgraded. Review and revoke shared credentials when offboarding.";
+
 export type ApiCredentialStatus = "active" | "expired" | "revoked";
 
 export interface ApiCredential extends ApiCredentialRecord {

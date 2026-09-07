@@ -18,6 +18,7 @@ import { StatusBadge } from "./StatusBadge";
 
 interface CorridorCardProps {
   account: SenderAccount;
+  canMutatePayoutAccounts?: boolean;
   corridor: Corridor;
   onStart: () => void;
   verificationReadOnly?: boolean;
@@ -39,7 +40,13 @@ const BAR_TONE: Record<OnboardingStatus, string> = {
   started: "bg-primary"
 };
 
-export function CorridorCard({ account, corridor, onStart, verificationReadOnly = false }: CorridorCardProps) {
+export function CorridorCard({
+  account,
+  canMutatePayoutAccounts = true,
+  corridor,
+  onStart,
+  verificationReadOnly = false
+}: CorridorCardProps) {
   const kind = onboardingKindFor(corridor, account.type);
   const available = isOnboardingAvailable(corridor, kind);
   const onboarding = account.onboardings[corridor.id];
@@ -108,6 +115,7 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
         {managesPayoutAccounts ? (
           <PayoutAccountsSection
             accounts={fiatAccounts.data}
+            canMutate={canMutatePayoutAccounts}
             corridorId={corridor.id as AlfredpayCorridorId}
             error={fiatAccounts.error}
             isLoading={fiatAccounts.isLoading}

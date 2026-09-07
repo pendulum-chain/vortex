@@ -34,7 +34,9 @@ beforeEach(() => {
   AuthService.storeManagedProfileSelection({
     customerType: "business",
     externalSubjectId: "business-1",
+    isOwner: true,
     managerProfileId: "manager-1",
+    membershipRole: "manager",
     targetEmail: "child@example.com",
     targetProfileId: "child-1"
   });

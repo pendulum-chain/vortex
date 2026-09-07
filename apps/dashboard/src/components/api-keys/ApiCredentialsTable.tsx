@@ -1,5 +1,5 @@
 import { Copy, KeyRound, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { type ApiCredential, keyPreview, toApiCredentials } from "@/domain/api-credentials";
+import { type ApiCredential, CHILD_CREDENTIAL_WARNING, keyPreview, toApiCredentials } from "@/domain/api-credentials";
 import { useApiCredentials, useRevokeApiCredential } from "@/hooks/useApiCredentials";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 function formatDate(value: string | null): string {
   if (!value) return "Never";
@@ -19,10 +20,14 @@ function formatEnvironment(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export function ApiCredentialsTable() {
+export function ApiCredentialsTable({ canMutate = true }: { canMutate?: boolean }) {
   const [selected, setSelected] = useState<ApiCredential | null>(null);
   const apiCredentials = useApiCredentials();
   const credentials = toApiCredentials(apiCredentials.data?.credentials ?? []);
+
+  useEffect(() => {
+    if (!canMutate) setSelected(null);
+  }, [canMutate]);
 
   return (
     <>
@@ -114,7 +119,7 @@ export function ApiCredentialsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      {credential.status !== "revoked" && (
+                      {canMutate && credential.status !== "revoked" && (
                         <Button
                           aria-label={`Revoke ${credential.name}`}
                           onClick={() => setSelected(credential)}
@@ -146,6 +151,7 @@ function RevokeCredentialDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const revoke = useRevokeApiCredential();
+  const managedProfile = useManagedProfileSelection();
 
   if (!credential) return null;
 
@@ -175,6 +181,7 @@ function RevokeCredentialDialog({
             Requests using this credential will fail immediately. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
+        {managedProfile && <p className="text-sm">{CHILD_CREDENTIAL_WARNING}</p>}
         <p className="text-muted-foreground text-sm">
           For rotation, deploy a replacement credential and verify it works before revoking this one.
         </p>

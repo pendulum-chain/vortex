@@ -29,6 +29,8 @@ describe("admin account identity", () => {
       managedProfile: {
         customerType: "business",
         externalSubjectId: "customer-42",
+        isOwner: true,
+        membershipRole: "manager",
         targetEmail: "child@example.com",
         targetProfileId: "child-profile-id"
       }

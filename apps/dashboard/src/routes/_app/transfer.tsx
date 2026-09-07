@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Globe2, Lock } from "lucide-react";
 import { motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
@@ -11,6 +11,7 @@ import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
+import { AuthService } from "@/services/auth";
 
 type TransferMode = "offramp" | "onramp" | "cross-border";
 
@@ -24,6 +25,9 @@ interface TransferSearch {
 }
 
 export const Route = createFileRoute("/_app/transfer")({
+  beforeLoad: () => {
+    if (AuthService.getManagedProfileSelection()) throw redirect({ to: "/overview" });
+  },
   component: TransferPage,
   validateSearch: (search: Record<string, unknown>): TransferSearch => ({
     // Onramp prefill, carried over from the quote page. The search parser JSON-parses

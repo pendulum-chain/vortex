@@ -23,6 +23,7 @@ export type FiatAccountDialogView = "form" | "list";
 
 interface FiatAccountDialogProps {
   accounts: DomesticFiatAccount[];
+  canMutate?: boolean;
   corridorId: AlfredpayCorridorId;
   onOpenChange: (open: boolean) => void;
   onViewChange: (view: FiatAccountDialogView) => void;
@@ -30,7 +31,15 @@ interface FiatAccountDialogProps {
   view: FiatAccountDialogView;
 }
 
-export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewChange, open, view }: FiatAccountDialogProps) {
+export function FiatAccountDialog({
+  accounts,
+  canMutate = true,
+  corridorId,
+  onOpenChange,
+  onViewChange,
+  open,
+  view
+}: FiatAccountDialogProps) {
   const config = FIAT_ACCOUNT_CONFIG[corridorId];
   const addFiatAccount = useAddFiatAccount(corridorId);
   const deleteFiatAccount = useDeleteFiatAccount(corridorId);
@@ -51,6 +60,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
   }
 
   async function handleDelete(fiatAccountId: string) {
+    if (!canMutate) return;
     if (confirmingDeleteId !== fiatAccountId) {
       setConfirmingDeleteId(fiatAccountId);
       return;
@@ -66,6 +76,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
   }
 
   async function onSubmit(values: Record<string, string>) {
+    if (!canMutate) return;
     try {
       await addFiatAccount.mutateAsync(toAddFiatAccountRequest(corridorId, values));
       form.reset(fiatAccountDefaultValues(corridorId));
@@ -110,30 +121,34 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
                     </p>
                     <p className="text-muted-foreground text-xs">{config.methodLabel}</p>
                   </div>
-                  <Button
-                    aria-label={
-                      confirmingDeleteId === account.fiatAccountId
-                        ? `Confirm removal of account ending in ${account.accountNumber.slice(-4)}`
-                        : `Remove account ending in ${account.accountNumber.slice(-4)}`
-                    }
-                    disabled={deleteFiatAccount.isPending}
-                    onClick={() => handleDelete(account.fiatAccountId)}
-                    size={confirmingDeleteId === account.fiatAccountId ? "sm" : "icon"}
-                    type="button"
-                    variant="destructive"
-                  >
-                    <Trash2 />
-                    {confirmingDeleteId === account.fiatAccountId && (deleteFiatAccount.isPending ? "Removing…" : "Remove?")}
-                  </Button>
+                  {canMutate && (
+                    <Button
+                      aria-label={
+                        confirmingDeleteId === account.fiatAccountId
+                          ? `Confirm removal of account ending in ${account.accountNumber.slice(-4)}`
+                          : `Remove account ending in ${account.accountNumber.slice(-4)}`
+                      }
+                      disabled={deleteFiatAccount.isPending}
+                      onClick={() => handleDelete(account.fiatAccountId)}
+                      size={confirmingDeleteId === account.fiatAccountId ? "sm" : "icon"}
+                      type="button"
+                      variant="destructive"
+                    >
+                      <Trash2 />
+                      {confirmingDeleteId === account.fiatAccountId && (deleteFiatAccount.isPending ? "Removing…" : "Remove?")}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
-            <DialogFooter>
-              <Button onClick={() => onViewChange("form")} type="button">
-                <Plus />
-                Add another account
-              </Button>
-            </DialogFooter>
+            {canMutate && (
+              <DialogFooter>
+                <Button onClick={() => onViewChange("form")} type="button">
+                  <Plus />
+                  Add another account
+                </Button>
+              </DialogFooter>
+            )}
           </>
         ) : (
           <>

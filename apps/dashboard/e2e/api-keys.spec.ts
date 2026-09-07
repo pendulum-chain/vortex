@@ -48,3 +48,25 @@ test("API keys are available without an active sender entity", async ({ page }) 
   await expect(page.getByRole("heading", { name: "API keys" })).toBeVisible();
   await expect(page.getByText("No API credentials yet")).toBeVisible();
 });
+
+test("API keys remain listable but cannot be changed during impersonation", async ({ page }) => {
+  await mockBackend(page);
+  await seedSession(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "vortex_dashboard_impersonation_session",
+      JSON.stringify({
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        sessionId: "impersonation-api-keys",
+        targetEmail: "target@example.test",
+        targetProfileId: "target-profile",
+        token: "vtx_imp_api_keys"
+      })
+    );
+  });
+  await page.goto("/api-keys");
+
+  await expect(page.getByText("Credentials are read-only during impersonation.")).toBeVisible();
+  await expect(page.getByText("No API credentials yet")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create credential" })).toHaveCount(0);
+});
