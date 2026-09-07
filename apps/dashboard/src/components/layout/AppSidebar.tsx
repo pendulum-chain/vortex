@@ -43,7 +43,10 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEM = { icon: UserCog, label: "Admin", to: "/admin" } as const;
 const MANAGED_PROFILES_NAV_ITEM = { icon: UsersRound, label: "Managed profiles", to: "/managed-profiles" } as const;
-const CHILD_NAV_ITEMS = NAV_ITEMS.filter(item => item.to !== "/transfer" && item.to !== "/settings");
+const CHILD_NAV_ITEMS = [
+  ...NAV_ITEMS.filter(item => item.to !== "/transfer" && item.to !== "/settings"),
+  { icon: UsersRound, label: "Team", to: "/team" } as const
+];
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: state => state.location.pathname });

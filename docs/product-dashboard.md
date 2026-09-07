@@ -162,14 +162,24 @@ must continue to verify the active membership and role, controlling owner, direc
 relationship, child entity, corridor, and customer-type policy on every delegated authorization
 decision.
 
-- As an active managed-profile member, I see **Managed profiles** in the sidebar. Ordinary users do
-  not see the item. Access detection uses the authenticated lifecycle API rather than a client-side
-  role claim.
+- I see **Managed profiles** when the lifecycle response's actor has
+  `canProvisionManagedProfiles || hasMemberships`, including an enabled owner before its first child.
+  Both flags false hides the item. List/detail return `actor: { profileId,
+  canProvisionManagedProfiles, hasMemberships }`; a default empty list is `200`, not an access-denial
+  signal. `hasMemberships` counts unpaginated eligible active children independently of page/status,
+  excluding deleted children, inactive owners and invalid entity layouts. Neither page length nor
+  a successful response is authority.
 - As a member, I can keep using the dashboard as my own account when no child is selected.
 - As a member, I open **Managed profiles** and see only children assigned to me. Each row identifies
   the child, shows its immutable customer type, my `Manager` or `Read only` role and `Owner` badge
   where applicable, and the controlling owner's authorized corridors. Corridors remain owner
   policy, not per-membership grants.
+- Retained API views (`status=deleted` and `status=all`) require my own active owner configuration
+  and contain only my owned children; even `all` excludes active invited children owned by others.
+  A retained deleted-child detail is owner-only with active configuration and valid membership/entity
+  layout, without a selector. Invited members receive masked `404`; retained records are never
+  selectable child-mode subjects. A non-owner active member's child deletion is
+  `403 MANAGED_PROFILE_OWNER_REQUIRED`.
 - As a member, I use a row's three-dot menu to open a confirmation dialog and choose **Act for
   this profile**. The product must not call this action “Log in as” or “Impersonate”.
 - Confirming stores the selection, clears account-scoped query and notification state, disconnects
@@ -185,11 +195,15 @@ decision.
   state remains keyed by its effective subject and is neither displayed nor submitted while a
   child is selected. The backend independently rejects selected-child bearer register, update, and
   start requests, so hidden navigation is not the authorization boundary.
-- The dashboard bootstraps a persisted selection from a dedicated child lifecycle read and
-  revalidates it whenever the window regains focus. It refreshes role and owner metadata in place.
-  If the membership is revoked, the relationship is deleted, the controlling owner is disabled, or
-  the response identity does not match the selection, it clears child mode and returns to the
-  member's selection page rather than silently retrying against the member's own resources.
+- The dashboard bootstraps a persisted selection using `GET /v1/managed-profiles/:profileId` with
+  an exactly matching `X-Managed-Profile-Id`, and revalidates when the window regains focus. It
+  refreshes role and owner metadata in place. Only stored membership history permits the API to
+  return `MANAGED_PROFILE_MEMBERSHIP_INVALID` after revocation, child deletion, owner deactivation
+  or invalid entity layout; deletion invalidates even the owner's bootstrap. Never-member callers
+  get identical masked `404`s for existing and unknown children. The dashboard clears child mode
+  for membership-invalid, not generic `404`, role/policy denial or transient failures. It also
+  rejects a successful response with mismatched actor/child identity or non-active status rather
+  than silently retrying against the member's own resources.
 
 **Child-mode navigation.** Onboarding status, Recipients, Get a quote, Transactions, child API keys,
 Team, and Limits remain available where their API routes support managed-child authorization. New
@@ -201,6 +215,12 @@ remain member-scoped or unavailable and must not be shown as child operations. T
 `X-Managed-Profile-Id` only when a service explicitly opts into a supported delegated route; it
 must never attach the header indiscriminately, because an endpoint that ignores it would otherwise
 operate on the manager while the UI claims to show the child.
+
+The provider-mutation bearer denial retains its shipped spelling
+`MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`; ramp denial is
+`MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL` with no in-flight drain exception. Child API-key
+and domestic fiat-account mutations are `manage` capability and remain available to manager
+members through a real bearer session, subject to the existing impersonation restrictions.
 
 The legacy Monerium and Mykobo routes are the known instance of that ignored-header behavior: they
 always use the authenticated manager identity. Dashboard services do not opt them into managed
