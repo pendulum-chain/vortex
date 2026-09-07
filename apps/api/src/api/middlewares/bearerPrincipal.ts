@@ -11,7 +11,7 @@ export type { ImpersonationContext };
  * controllers) then scopes to the target with no further changes.
  */
 export type BearerPrincipal =
-  | { valid: true; userId: string; userEmail?: string; impersonation?: ImpersonationContext }
+  | { valid: true; userId: string; userEmail?: string; emailConfirmedAt?: string; impersonation?: ImpersonationContext }
   | { valid: false };
 
 /**
@@ -36,7 +36,7 @@ export async function resolveBearerPrincipal(token: string): Promise<BearerPrinc
   if (!result.valid || !result.user_id) {
     return { valid: false };
   }
-  return { userEmail: result.email, userId: result.user_id, valid: true };
+  return { emailConfirmedAt: result.email_confirmed_at, userEmail: result.email, userId: result.user_id, valid: true };
 }
 
 /**
