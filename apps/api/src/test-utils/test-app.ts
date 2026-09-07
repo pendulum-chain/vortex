@@ -33,6 +33,12 @@ export async function startTestApp(): Promise<TestApp> {
     baseUrl,
     close: () =>
       new Promise<void>((resolve, reject) => {
+        // Bun fetch keep-alives can otherwise prevent the close callback from settling.
+        server.closeAllConnections();
+        if (!server.listening) {
+          resolve();
+          return;
+        }
         server.close(error => (error ? reject(error) : resolve()));
       }),
     request: (path, init) => fetch(`${baseUrl}${path}`, init)

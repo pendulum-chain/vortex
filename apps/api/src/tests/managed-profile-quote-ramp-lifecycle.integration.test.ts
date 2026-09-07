@@ -4,16 +4,19 @@ import { privateKeyToAccount } from "viem/accounts";
 import ApiCredential from "../models/apiCredential.model";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
+import ManagedProfileMembership from "../models/managedProfileMembership.model";
 import ProfilePartnerAssignment from "../models/profilePartnerAssignment.model";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestPartner, createTestTaxId, createTestUser } from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
+import { installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 describe("managed-profile quote and registered-ramp lifecycle", () => {
   let app: TestApp;
+  let auth: { restore: () => void };
   let world: FakeWorld;
 
   const DESTINATION = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
@@ -25,12 +28,14 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
 
   beforeAll(async () => {
     world = installFakeWorld();
+    auth = installFakeSupabaseAuth();
     await setupTestDatabase();
     app = await startTestApp();
   });
 
   afterAll(async () => {
     await app?.close();
+    auth?.restore();
     world?.restore();
   });
 
@@ -78,6 +83,12 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
 
     const childId = await createChild("managed-lifecycle-child");
     const siblingId = await createChild("managed-lifecycle-sibling");
+    const member = await createTestUser({ email: "managed-lifecycle-member@example.com" });
+    await ManagedProfileMembership.bulkCreate([
+      { createdByProfileId: manager.id, managedProfileId: childId, memberProfileId: member.id, role: "manager" },
+      { createdByProfileId: manager.id, managedProfileId: siblingId, memberProfileId: member.id, role: "manager" }
+    ]);
+    const memberCredential = await createTestApiKey({ userId: member.id });
     const pricingPartner = await createTestPartner({
       fiatCurrency: FiatToken.BRL,
       markupCurrency: FiatToken.BRL,
@@ -122,7 +133,11 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     const childCredential = await createCredential(childId, "child primary");
     const childSecondCredential = await createCredential(childId, "child secondary");
     const siblingCredential = await createCredential(siblingId, "sibling primary");
-    const delegatedHeaders = { ...managerHeaders, "X-Managed-Profile-Id": childId };
+    const delegatedHeaders = {
+      "Content-Type": "application/json",
+      "X-API-Key": memberCredential.plaintextKey,
+      "X-Managed-Profile-Id": childId
+    };
 
     const delegatedOnboarding = await jsonRequest("/v1/onboarding/status", {
       headers: delegatedHeaders,
@@ -173,7 +188,7 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     expect(delegatedQuote?.userId).toBe(childId);
     expect(delegatedQuote?.partnerId).toBeNull();
     expect(delegatedQuote?.pricingPartnerId).toBe(pricingPartner.id);
-    expect(delegatedQuote?.apiCredentialId).toBe(managerCredential.record.id);
+    expect(delegatedQuote?.apiCredentialId).toBe(memberCredential.record.id);
     expect(Number(delegatedQuote?.outputAmount)).toBe(99.9);
     expect(Number(delegatedQuoteResponse.partnerFeeFiat)).toBe(5);
     expect(Number(delegatedQuoteResponse.partnerFeeUsd)).toBe(1);
@@ -205,6 +220,21 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     expect(delegatedSiblingQuote?.apiCredentialId).toBe(managerCredential.record.id);
     expect(Number(delegatedSiblingQuoteResponse.partnerFeeFiat)).toBe(2);
 
+    const bearerHeaders = {
+      Authorization: `Bearer ${testUserToken(member.id, member.email)}`,
+      "Content-Type": "application/json",
+      "X-Managed-Profile-Id": childId
+    };
+    for (const path of ["register", "update", "start"]) {
+      const denied = await jsonRequest(`/v1/ramp/${path}`, {
+        body: JSON.stringify({ quoteId: delegatedQuoteId, rampId: crypto.randomUUID(), signingAccounts: [] }),
+        headers: bearerHeaders,
+        method: "POST"
+      });
+      expect(denied.status).toBe(403);
+      expect((denied.body.error as { code: string }).code).toBe("MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL");
+    }
+
     const pendingQuoteResponse = await createQuote({
       "Content-Type": "application/json",
       "X-API-Key": childCredential.secretKey
@@ -223,7 +253,7 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
 
     const delegatedRegistration = await registerQuote(
       delegatedQuoteId,
-      managerCredential.plaintextKey,
+      memberCredential.plaintextKey,
       EPHEMERALS[0],
       childId
     );
@@ -266,16 +296,19 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     expect((await QuoteTicket.findByPk(delegatedQuoteId))?.status).toBe("consumed");
     expect((await QuoteTicket.findByPk(directQuoteId))?.status).toBe("consumed");
 
-    const siblingStatus = await app.request(`/v1/ramp/${siblingRampId}`, {
-      headers: { "X-API-Key": childCredential.secretKey }
+    const siblingStatus = await jsonRequest(`/v1/ramp/${siblingRampId}`, {
+      headers: { "X-API-Key": childCredential.secretKey },
+      method: "GET"
     });
     expect(siblingStatus.status).toBe(403);
-    const childStatusViaSibling = await app.request(`/v1/ramp/${delegatedRampId}`, {
-      headers: { "X-API-Key": siblingCredential.secretKey }
+    const childStatusViaSibling = await jsonRequest(`/v1/ramp/${delegatedRampId}`, {
+      headers: { "X-API-Key": siblingCredential.secretKey },
+      method: "GET"
     });
     expect(childStatusViaSibling.status).toBe(403);
-    const managerStatus = await app.request(`/v1/ramp/${delegatedRampId}`, {
-      headers: { "X-API-Key": managerCredential.plaintextKey }
+    const managerStatus = await jsonRequest(`/v1/ramp/${delegatedRampId}`, {
+      headers: { "X-API-Key": managerCredential.plaintextKey },
+      method: "GET"
     });
     expect(managerStatus.status).toBe(403);
 
@@ -318,17 +351,17 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
       method: "POST"
     });
     expect(updateAfterNarrowing.status).toBe(403);
-    expect((updateAfterNarrowing.body.error as { code: string }).code).toBe("MANAGED_PROFILE_ACCESS_DENIED");
+    expect((updateAfterNarrowing.body.error as { code: string }).code).toBe("MANAGED_PROFILE_POLICY_DENIED");
     const startAfterNarrowing = await jsonRequest("/v1/ramp/start", {
       body: JSON.stringify({ rampId: delegatedRampId }),
       headers: { "Content-Type": "application/json", "X-API-Key": childCredential.secretKey },
       method: "POST"
     });
     expect(startAfterNarrowing.status).toBe(403);
-    expect((startAfterNarrowing.body.error as { code: string }).code).toBe("MANAGED_PROFILE_ACCESS_DENIED");
+    expect((startAfterNarrowing.body.error as { code: string }).code).toBe("MANAGED_PROFILE_POLICY_DENIED");
     expect((await RampState.findByPk(delegatedRampId))?.currentPhase).toBe("initial");
 
-    const deletion = await app.request(`/v1/managed-profiles/${childId}`, {
+    const deletion = await jsonRequest(`/v1/managed-profiles/${childId}`, {
       headers: managerHeaders,
       method: "DELETE"
     });
@@ -353,7 +386,7 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     expect((await ApiCredential.findByPk(managerCredential.record.id))?.revokedAt).toBeNull();
     expect(retainedDelegatedQuote?.status).toBe("consumed");
     expect(retainedDelegatedQuote?.userId).toBe(childId);
-    expect(retainedDelegatedQuote?.apiCredentialId).toBe(managerCredential.record.id);
+    expect(retainedDelegatedQuote?.apiCredentialId).toBe(memberCredential.record.id);
     expect(retainedDirectQuote?.status).toBe("consumed");
     expect(retainedDirectQuote?.userId).toBe(childId);
     expect(retainedDirectQuote?.apiCredentialId).toBe(childCredential.id);
@@ -373,7 +406,7 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     });
     expect(deletedDelegationHistory.status).toBe(403);
     expect((deletedDelegationHistory.body.error as { code: string }).code).toBe("MANAGED_PROFILE_ACCESS_DENIED");
-    const revokedChildHistory = await app.request("/v1/ramp/history", {
+    const revokedChildHistory = await jsonRequest("/v1/ramp/history", {
       headers: { "X-API-Key": childCredential.secretKey },
       method: "GET"
     });

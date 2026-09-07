@@ -1,4 +1,4 @@
-import { Op, Transaction } from "sequelize";
+import { type Includeable, literal, Op, Transaction } from "sequelize";
 import sequelize from "../../config/database";
 import ApiCredential from "../../models/apiCredential.model";
 import CustomerEntity, { type CustomerEntityType } from "../../models/customerEntity.model";
@@ -7,6 +7,7 @@ import ManagedProfile, {
   type ManagedProfileStatus
 } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership, { type ManagedProfileMembershipRole } from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
 import { provisionManagedProfile } from "./managed-profile-provisioning.service";
 
@@ -16,6 +17,8 @@ export class ManagedProfileLifecycleError extends Error {
       | "MANAGED_PROFILE_ACCESS_DENIED"
       | "MANAGED_PROFILE_CONFLICT"
       | "MANAGED_PROFILE_INVALID_INPUT"
+      | "MANAGED_PROFILE_MEMBERSHIP_INVALID"
+      | "MANAGED_PROFILE_OWNER_REQUIRED"
       | "MANAGED_PROFILE_NOT_FOUND",
     message: string
   ) {
@@ -37,23 +40,28 @@ export interface ManagedProfileLifecycleResult {
 }
 
 export interface ManagedProfileListResult {
+  actor: ManagedProfileActor;
   limit: number;
-  managedProfiles: ManagedProfileLifecycleResult[];
+  managedProfiles: ManagedProfileAccessResult[];
   offset: number;
   total: number;
 }
 
-async function requireActiveManager(managerProfileId: string, transaction?: Transaction, lock = false): Promise<void> {
-  const manager = await ManagedProfileManager.findByPk(managerProfileId, {
-    ...(lock ? { lock: Transaction.LOCK.UPDATE } : {}),
-    transaction
-  });
-  if (!manager?.isActive) {
-    throw new ManagedProfileLifecycleError(
-      "MANAGED_PROFILE_ACCESS_DENIED",
-      "The authenticated profile is not an active managed-profile manager"
-    );
-  }
+export interface ManagedProfileActor {
+  canProvisionManagedProfiles: boolean;
+  hasMemberships: boolean;
+  profileId: string;
+}
+
+export interface ManagedProfileAccessResult extends ManagedProfileLifecycleResult {
+  membership: {
+    isOwner: boolean;
+    role: ManagedProfileMembershipRole;
+  };
+  policy: {
+    allowedCorridors: ManagedProfileManager["allowedCorridors"];
+    allowedCustomerTypes: ManagedProfileManager["allowedCustomerTypes"];
+  };
 }
 
 async function toResult(relationship: ManagedProfile, transaction?: Transaction): Promise<ManagedProfileLifecycleResult> {
@@ -89,6 +97,25 @@ function toResultWithCustomerType(
   };
 }
 
+function toAccessResult(
+  relationship: ManagedProfile,
+  customerType: CustomerEntityType,
+  membership: ManagedProfileMembership,
+  manager: ManagedProfileManager
+): ManagedProfileAccessResult {
+  return {
+    ...toResultWithCustomerType(relationship, customerType),
+    membership: {
+      isOwner: relationship.managerProfileId === membership.memberProfileId,
+      role: membership.role
+    },
+    policy: {
+      allowedCorridors: manager.allowedCorridors,
+      allowedCustomerTypes: manager.allowedCustomerTypes
+    }
+  };
+}
+
 export async function createManagedProfile(input: {
   contactEmail: string;
   creationSource: ManagedProfileCreationSource;
@@ -104,16 +131,71 @@ export async function createManagedProfile(input: {
   return { created: provisioned.created, managedProfile: await toResult(relationship) };
 }
 
+function eligibleMembershipIncludes(actorProfileId: string): Includeable[] {
+  return [
+    {
+      as: "memberships",
+      model: ManagedProfileMembership,
+      required: true,
+      where: { memberProfileId: actorProfileId, revokedAt: null, role: ["manager", "read_only"] }
+    },
+    { as: "manager", model: ManagedProfileManager, required: true, where: { isActive: true } },
+    {
+      as: "profile",
+      include: [
+        {
+          as: "activeCustomerEntity",
+          model: CustomerEntity,
+          required: true,
+          where: { profileId: { [Op.col]: "ManagedProfile.profile_id" }, status: "active" }
+        }
+      ],
+      model: User,
+      required: true,
+      where: {
+        kind: "managed",
+        [Op.and]: literal(
+          '(SELECT COUNT(*) FROM "customer_entities" AS "entities" WHERE "entities"."profile_id" = "ManagedProfile"."profile_id") = 1'
+        )
+      }
+    }
+  ];
+}
+
+export async function getManagedProfileActor(actorProfileId: string): Promise<ManagedProfileActor> {
+  const [actorManager, activeMembershipCount] = await Promise.all([
+    ManagedProfileManager.findByPk(actorProfileId),
+    ManagedProfile.count({
+      distinct: true,
+      include: eligibleMembershipIncludes(actorProfileId),
+      where: { status: "active" }
+    })
+  ]);
+  return {
+    canProvisionManagedProfiles: actorManager?.isActive === true,
+    hasMemberships: activeMembershipCount > 0,
+    profileId: actorProfileId
+  };
+}
+
 export async function listManagedProfiles(
-  managerProfileId: string,
+  actorProfileId: string,
   options: { limit: number; offset: number; status: ManagedProfileStatus | "all" }
 ): Promise<ManagedProfileListResult> {
-  await requireActiveManager(managerProfileId);
+  const actor = await getManagedProfileActor(actorProfileId);
+  if (options.status !== "active" && !actor.canProvisionManagedProfiles) {
+    throw new ManagedProfileLifecycleError(
+      "MANAGED_PROFILE_OWNER_REQUIRED",
+      "Retained managed profiles require an active owner configuration"
+    );
+  }
   const where = {
-    managerProfileId,
+    ...(options.status === "active" ? {} : { managerProfileId: actorProfileId }),
     ...(options.status === "all" ? {} : { status: options.status })
   };
   const { count, rows } = await ManagedProfile.findAndCountAll({
+    distinct: true,
+    include: eligibleMembershipIncludes(actorProfileId),
     limit: options.limit,
     offset: options.offset,
     order: [["createdAt", "DESC"]],
@@ -132,6 +214,7 @@ export async function listManagedProfiles(
   }
 
   return {
+    actor,
     limit: options.limit,
     managedProfiles: rows.map(relationship => {
       const profileEntities = entitiesByProfileId.get(relationship.profileId) ?? [];
@@ -141,27 +224,77 @@ export async function listManagedProfiles(
           "The managed profile does not have exactly one customer entity"
         );
       }
-      return toResultWithCustomerType(relationship, profileEntities[0].type);
+      const memberships = relationship.get("memberships") as ManagedProfileMembership[] | undefined;
+      const manager = relationship.get("manager") as ManagedProfileManager | undefined;
+      const membership = memberships?.[0];
+      if (!membership || !manager) {
+        throw new ManagedProfileLifecycleError("MANAGED_PROFILE_CONFLICT", "Managed profile access data is incomplete");
+      }
+      return toAccessResult(relationship, profileEntities[0].type, membership, manager);
     }),
     offset: options.offset,
     total: count
   };
 }
 
-export async function getManagedProfile(managerProfileId: string, profileId: string): Promise<ManagedProfileLifecycleResult> {
-  await requireActiveManager(managerProfileId);
-  const relationship = await ManagedProfile.findOne({ where: { managerProfileId, profileId } });
-  if (!relationship) {
-    throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+export async function getManagedProfile(
+  actorProfileId: string,
+  profileId: string,
+  { bootstrap = false }: { bootstrap?: boolean } = {}
+): Promise<ManagedProfileAccessResult> {
+  const [membership, relationship, subject, entities] = await Promise.all([
+    ManagedProfileMembership.findOne({
+      where: { managedProfileId: profileId, memberProfileId: actorProfileId, revokedAt: null }
+    }),
+    ManagedProfile.findOne({ where: { profileId } }),
+    User.findByPk(profileId, { attributes: ["kind", "activeCustomerEntityId"] }),
+    CustomerEntity.findAll({ where: { profileId } })
+  ]);
+  const manager = relationship && (await ManagedProfileManager.findByPk(relationship.managerProfileId));
+  if (
+    !membership ||
+    !["manager", "read_only"].includes(membership.role) ||
+    !relationship ||
+    !manager?.isActive ||
+    subject?.kind !== "managed" ||
+    entities.length !== 1 ||
+    entities[0].id !== subject.activeCustomerEntityId ||
+    entities[0].status !== "active" ||
+    (relationship.status === "deleted" && (bootstrap || relationship.managerProfileId !== actorProfileId))
+  ) {
+    // A selector expresses bootstrap intent, not prior access. Only stored history can invalidate selection.
+    if (
+      bootstrap &&
+      (membership ||
+        (await ManagedProfileMembership.count({
+          where: { managedProfileId: profileId, memberProfileId: actorProfileId }
+        })) > 0)
+    ) {
+      throw new ManagedProfileLifecycleError(
+        "MANAGED_PROFILE_MEMBERSHIP_INVALID",
+        "The managed-profile membership is no longer eligible"
+      );
+    }
+    if (!membership || !relationship || relationship.status === "deleted") {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+    }
+    throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Managed profile access is denied");
   }
-  return toResult(relationship);
+  return toAccessResult(relationship, entities[0].type, membership, manager);
 }
 
 export async function deleteManagedProfile(managerProfileId: string, profileId: string): Promise<void> {
   await sequelize.transaction(async transaction => {
+    const locator = await ManagedProfile.findOne({ transaction, where: { profileId } });
+    if (!locator) {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+    }
     // Provisioning serializes on the manager row, so taking it here too keeps a concurrent
     // re-provision from observing this child mid-deletion. Manager first in both paths.
-    await requireActiveManager(managerProfileId, transaction, true);
+    const owner = await ManagedProfileManager.findByPk(locator.managerProfileId, {
+      lock: Transaction.LOCK.UPDATE,
+      transaction
+    });
     const profile = await User.findByPk(profileId, {
       attributes: ["id"],
       lock: Transaction.LOCK.UPDATE,
@@ -173,10 +306,27 @@ export async function deleteManagedProfile(managerProfileId: string, profileId: 
     const relationship = await ManagedProfile.findOne({
       lock: Transaction.LOCK.UPDATE,
       transaction,
-      where: { managerProfileId, profileId }
+      where: { managerProfileId: locator.managerProfileId, profileId }
     });
     if (!relationship) {
       throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+    }
+    if (relationship.managerProfileId !== managerProfileId) {
+      const membership = await ManagedProfileMembership.findOne({
+        lock: Transaction.LOCK.UPDATE,
+        transaction,
+        where: { managedProfileId: profileId, memberProfileId: managerProfileId, revokedAt: null }
+      });
+      if (membership && ["manager", "read_only"].includes(membership.role)) {
+        throw new ManagedProfileLifecycleError(
+          "MANAGED_PROFILE_OWNER_REQUIRED",
+          "Only the immutable owner may delete a managed profile"
+        );
+      }
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_NOT_FOUND", "Managed profile was not found");
+    }
+    if (!owner?.isActive) {
+      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Managed profile access is denied");
     }
     if (relationship.status === "deleted") return;
 

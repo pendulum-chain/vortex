@@ -4,16 +4,30 @@ import httpStatus from "http-status";
 import CustomerEntity, { type CustomerEntityType } from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership, { type ManagedProfileMembershipRole } from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
+import { getManagedProfile, ManagedProfileLifecycleError } from "../services/managed-profile-lifecycle.service";
 import { getAuthenticatedProfileId } from "./effectiveUser";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export enum ManagedProfileCapability {
+  CredentialManage = "credential_manage",
+  Manage = "manage",
+  Ramp = "ramp",
+  Read = "read"
+}
+
+export type { ManagedProfileMembershipRole } from "../../models/managedProfileMembership.model";
+
 export interface ManagedProfileContext {
   actorProfileId: string;
+  capability: ManagedProfileCapability;
   controllingManagerProfileId: string;
   customerEntityId: string;
   managedProfileId: string;
+  membershipId?: string;
+  membershipRole?: ManagedProfileMembershipRole;
   subjectProfileId: string;
 }
 
@@ -38,17 +52,43 @@ type CustomerTypeResolver =
   | ((req: Request) => CustomerEntityType | undefined | Promise<CustomerEntityType | undefined>);
 
 interface ManagedProfileAuthOptions {
+  allowDeleted?: boolean;
+  capability: ManagedProfileCapability;
   corridor?: CorridorResolver;
   customerType?: CustomerTypeResolver;
   enforceCustomerTypePolicy?: boolean;
+  membershipBootstrap?: boolean;
+  subjectProfileId?: (req: Request) => string | undefined;
 }
 
-export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {}) {
+const CAPABILITIES_BY_ROLE: Record<ManagedProfileMembershipRole, readonly ManagedProfileCapability[]> = {
+  manager: [
+    ManagedProfileCapability.Read,
+    ManagedProfileCapability.Manage,
+    ManagedProfileCapability.CredentialManage,
+    ManagedProfileCapability.Ramp
+  ],
+  read_only: [ManagedProfileCapability.Read]
+};
+
+export function authorizeManagedProfile(options: ManagedProfileAuthOptions) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const subjectProfileId = req.get("X-Managed-Profile-Id");
+    const selectedProfileId = req.get("X-Managed-Profile-Id");
+    const subjectProfileId = options.subjectProfileId?.(req) ?? selectedProfileId;
     const directManagedCredential = req.credential?.managedProfile;
     const directCredentialProfileId = req.credential?.profileId;
-    if (directManagedCredential && subjectProfileId !== undefined) {
+    if (
+      (subjectProfileId !== undefined || directManagedCredential) &&
+      !Object.values(ManagedProfileCapability).includes(options.capability)
+    ) {
+      sendAccessDenied(res);
+      return;
+    }
+    if (options.subjectProfileId && selectedProfileId !== undefined && selectedProfileId !== subjectProfileId) {
+      sendAccessDenied(res);
+      return;
+    }
+    if (directManagedCredential && selectedProfileId !== undefined) {
       sendAccessDenied(res);
       return;
     }
@@ -61,6 +101,7 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
       try {
         const customerType = await attachManagedProfileContext(req, res, {
           actorProfileId: directCredentialProfileId,
+          capability: options.capability,
           controllingManagerProfileId: directManagedCredential.controllingManagerProfileId,
           managedProfileId: directManagedCredential.relationshipId,
           subjectProfileId: directCredentialProfileId
@@ -72,7 +113,7 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
           options.corridor !== undefined &&
           (corridors.length === 0 || corridors.some(corridor => !directManagedCredential.allowedCorridors.includes(corridor)))
         ) {
-          sendAccessDenied(res);
+          sendPolicyDenied(res);
           return;
         }
         if (
@@ -122,23 +163,69 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
     }
 
     try {
-      const [manager, relationship, subject] = await Promise.all([
-        ManagedProfileManager.findByPk(actorProfileId),
+      if (options.allowDeleted) {
+        if (options.capability !== ManagedProfileCapability.Read) {
+          sendAccessDenied(res);
+          return;
+        }
+        res.locals.managedProfile = await getManagedProfile(actorProfileId, subjectProfileId, {
+          bootstrap: options.membershipBootstrap === true && selectedProfileId !== undefined
+        });
+        next();
+        return;
+      }
+      const [membership, relationship, subject] = await Promise.all([
+        ManagedProfileMembership.findOne({
+          where: { managedProfileId: subjectProfileId, memberProfileId: actorProfileId, revokedAt: null }
+        }),
         ManagedProfile.findOne({
-          where: { managerProfileId: actorProfileId, profileId: subjectProfileId, status: "active" }
+          where: { profileId: subjectProfileId, status: "active" }
         }),
         User.findByPk(subjectProfileId, { attributes: ["activeCustomerEntityId", "kind"] })
       ]);
 
-      if (!manager?.isActive || !relationship || subject?.kind !== "managed" || !subject.activeCustomerEntityId) {
+      if (!relationship || subject?.kind !== "managed" || !subject.activeCustomerEntityId) {
+        if (options.subjectProfileId) sendManagedProfileNotFound(res);
+        else sendAccessDenied(res);
+        return;
+      }
+      if (!membership || !isMembershipRole(membership.role)) {
+        if (options.subjectProfileId) sendManagedProfileNotFound(res);
+        else sendAccessDenied(res);
+        return;
+      }
+
+      const manager = await ManagedProfileManager.findByPk(relationship.managerProfileId);
+      if (!manager?.isActive) {
         sendAccessDenied(res);
+        return;
+      }
+      if (!CAPABILITIES_BY_ROLE[membership.role].includes(options.capability)) {
+        sendManagerRequired(res);
+        return;
+      }
+      if (options.capability === ManagedProfileCapability.Ramp && !isSecretCredentialActor(req, actorProfileId)) {
+        sendRampCredentialRequired(res);
+        return;
+      }
+      if (options.capability === ManagedProfileCapability.CredentialManage && !isSecretCredentialActor(req, actorProfileId)) {
+        res.status(httpStatus.FORBIDDEN).json({
+          error: {
+            code: "MANAGED_PROFILE_REQUIRES_API_CREDENTIAL",
+            message: "Managed-profile provider mutations require a secret API credential",
+            status: httpStatus.FORBIDDEN
+          }
+        });
         return;
       }
 
       const customerType = await attachManagedProfileContext(req, res, {
         actorProfileId,
-        controllingManagerProfileId: actorProfileId,
+        capability: options.capability,
+        controllingManagerProfileId: relationship.managerProfileId,
         managedProfileId: relationship.id,
+        membershipId: membership.id,
+        membershipRole: membership.role,
         subjectProfileId
       });
       if (!customerType) return;
@@ -148,16 +235,33 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         options.corridor !== undefined &&
         (corridors.length === 0 || corridors.some(corridor => !manager.allowedCorridors.includes(corridor)))
       ) {
-        sendAccessDenied(res);
+        sendPolicyDenied(res);
         return;
       }
       if (!(await authorizeCustomerType(req, res, options, corridors, customerType, manager.allowedCustomerTypes))) return;
       res.locals.managedProfilePolicy = { allowedCorridors: manager.allowedCorridors, customerType };
       next();
     } catch (error) {
+      if (error instanceof ManagedProfileLifecycleError) {
+        const status = error.code === "MANAGED_PROFILE_NOT_FOUND" ? httpStatus.NOT_FOUND : httpStatus.FORBIDDEN;
+        res.status(status).json({ error: { code: error.code, message: error.message, status } });
+        return;
+      }
       next(error);
     }
   };
+}
+
+function isMembershipRole(role: string): role is ManagedProfileMembershipRole {
+  return role === "manager" || role === "read_only";
+}
+
+function isSecretCredentialActor(req: Request, actorProfileId: string): boolean {
+  return (
+    req.authenticatedCredentialProfileId === actorProfileId &&
+    req.credential?.profileId === actorProfileId &&
+    req.credential.strength === "secret"
+  );
 }
 
 async function resolveCorridors(
@@ -220,7 +324,7 @@ async function authorizeCustomerType(
       !allowedCustomerTypes.includes(customerType)) ||
     corridors.some(corridor => !isCorridorSupportedForCustomerType(corridor, customerType))
   ) {
-    sendAccessDenied(res);
+    sendPolicyDenied(res);
     return false;
   }
   return true;
@@ -255,6 +359,46 @@ function sendAccessDenied(res: Response): void {
     error: {
       code: "MANAGED_PROFILE_ACCESS_DENIED",
       message: "The authenticated profile cannot perform this operation for the requested managed profile",
+      status: httpStatus.FORBIDDEN
+    }
+  });
+}
+
+function sendManagedProfileNotFound(res: Response): void {
+  res.status(httpStatus.NOT_FOUND).json({
+    error: {
+      code: "MANAGED_PROFILE_NOT_FOUND",
+      message: "Managed profile was not found",
+      status: httpStatus.NOT_FOUND
+    }
+  });
+}
+
+function sendManagerRequired(res: Response): void {
+  res.status(httpStatus.FORBIDDEN).json({
+    error: {
+      code: "MANAGED_PROFILE_MANAGER_REQUIRED",
+      message: "An active manager membership is required for this operation",
+      status: httpStatus.FORBIDDEN
+    }
+  });
+}
+
+function sendRampCredentialRequired(res: Response): void {
+  res.status(httpStatus.FORBIDDEN).json({
+    error: {
+      code: "MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL",
+      message: "Managed-profile ramps require a secret API credential",
+      status: httpStatus.FORBIDDEN
+    }
+  });
+}
+
+function sendPolicyDenied(res: Response): void {
+  res.status(httpStatus.FORBIDDEN).json({
+    error: {
+      code: "MANAGED_PROFILE_POLICY_DENIED",
+      message: "The managed-profile owner policy does not allow this operation",
       status: httpStatus.FORBIDDEN
     }
   });

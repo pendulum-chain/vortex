@@ -1,12 +1,33 @@
-import { RequestHandler, Router } from "express";
+import { NextFunction, Request, RequestHandler, Response, Router } from "express";
 import * as rampController from "../../controllers/ramp.controller";
 import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
-import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import { authorizeManagedProfile, ManagedProfileCapability } from "../../middlewares/managedProfileAuth";
 import { getManagedProfileQuoteCorridor, getManagedProfileRampCorridor } from "../../middlewares/managedProfileCorridor";
 
 const router = Router();
+export const managedProfileRampBearerRoutes = Router();
+
+function selectedManagedProfileBearerOnly(req: Request, _res: Response, next: NextFunction): void {
+  if (
+    req.get("X-Managed-Profile-Id") !== undefined &&
+    req.get("Authorization")?.startsWith("Bearer ") &&
+    !req.get("X-API-Key")
+  ) {
+    next();
+    return;
+  }
+  next("route");
+}
+
+managedProfileRampBearerRoutes.post(
+  ["/register", "/update", "/start"],
+  selectedManagedProfileBearerOnly,
+  requirePartnerOrUserAuth(),
+  rejectImpersonation,
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Ramp })
+);
 
 /**
  * @api {post} v1/ramp/register Register ramping process
@@ -39,7 +60,7 @@ router.post(
   rejectDuringActiveMaintenance("ramp_register"),
   requirePartnerOrUserAuth(),
   rejectImpersonation,
-  authorizeManagedProfile({ corridor: getManagedProfileQuoteCorridor }),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Ramp, corridor: getManagedProfileQuoteCorridor }),
   rampController.registerRamp as unknown as RequestHandler
 );
 
@@ -73,7 +94,7 @@ router.post(
   rejectDuringActiveMaintenance("ramp_update"),
   optionalPartnerOrUserAuth(),
   rejectImpersonation,
-  authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Ramp, corridor: getManagedProfileRampCorridor }),
   rampController.updateRamp as unknown as RequestHandler
 );
 
@@ -106,7 +127,7 @@ router.post(
   rejectDuringActiveMaintenance("ramp_start"),
   optionalPartnerOrUserAuth(),
   rejectImpersonation,
-  authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Ramp, corridor: getManagedProfileRampCorridor }),
   rampController.startRamp as unknown as RequestHandler
 );
 
@@ -134,14 +155,14 @@ router.post(
 router.get(
   "/history",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   rampController.getAuthenticatedUserRampHistory as unknown as RequestHandler
 );
 
 router.get(
   "/:id",
   optionalPartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   rampController.getRampStatus as unknown as RequestHandler
 );
 
@@ -162,7 +183,7 @@ router.get(
 router.get(
   "/:id/errors",
   optionalPartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   rampController.getErrorLogs as unknown as RequestHandler
 );
 
@@ -183,7 +204,7 @@ router.get(
 router.get(
   "/history/:walletAddress",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   rampController.getRampHistory as unknown as RequestHandler
 );
 

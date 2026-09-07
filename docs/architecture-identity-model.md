@@ -128,13 +128,31 @@ member profiles, and permit only one active grant for each child/member pair.
 
 The immutable controlling manager remains the child owner and supplies corridor/customer-type
 policy, pricing fallback, external identity namespace, and lifecycle authority. Memberships grant
-other authenticated actors access without transferring ownership. Lifecycle reads return the actor
-profile ID plus each child's actor-specific role, owner flag, and controlling-owner policy. An
-active configured owner can still receive an empty list before provisioning a child. Manager
-members may perform supported delegated mutations and manage child credentials; read-only members
-may use supported reads only. Browser bearer sessions cannot perform child provider/KYC/KYB or ramp
-mutations; these require an eligible secret API credential. Child-owned credentials remain shared
-company principals independent of the human who created or possesses them.
+other authenticated actors access without transferring ownership. List/detail return
+`actor: { profileId, canProvisionManagedProfiles, hasMemberships }` plus each child's actor-specific
+role, owner flag and controlling-owner policy. Provisioning capability reflects the actor's own
+active manager configuration. Membership presence is the unpaginated eligible active-child count
+across owners, independent of page/status/detail target; deleted children, inactive owners and
+invalid entity layouts do not count. Eligibility requires an unrevoked allowed-role membership and
+a managed child selecting its sole active owned entity. The default active list returns `200` with
+an empty list even when both actor flags are false. Both `status=deleted` and `status=all` require
+the actor's own active owner configuration and return only its owned children, excluding even active
+invited children owned by others. Retained results still require valid membership/entity layout.
+
+Detail bootstrap is an exactly matching `X-Managed-Profile-Id` on the child `GET`. Only stored
+membership history permits `MANAGED_PROFILE_MEMBERSHIP_INVALID` after membership, owner, child or
+entity eligibility is lost; even the owner cannot bootstrap a deleted child. Never-member callers
+receive identical masked `404`s for existing and unknown children. Ordinary retained detail reads
+require the active immutable owner, valid membership/entity layout and no selector; invited members
+and ineligible retained reads receive masked `404`. Bearer and member-secret callers use the same
+checks. A non-owner active member's deletion attempt returns `MANAGED_PROFILE_OWNER_REQUIRED`.
+
+Manager members may perform supported delegated mutations and manage child credentials; read-only
+members may use supported reads only. Browser bearers cannot perform `credential_manage` provider/
+KYC/KYB mutations (`MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`, the shipped spelling) or ramp mutations
+(`MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL`, no drain exception). Child credential and domestic
+fiat-account mutations are `manage`, allowing manager-member bearers. Child-owned credentials remain
+shared company principals independent of the human who created or possesses them.
 
 Membership invitations are scoped to one child and expire after seven days. The exact current
 verified Supabase email must explicitly accept; OTP authentication alone never grants membership.
@@ -214,7 +232,7 @@ attributable to their controlling manager without a duplicate operation-level
 actor/subject record. Distinguishing direct child-credential requests from delegated
 manager requests in durable operation records is not required by the current model.
 Generic profile and admin partner credential creation reject managed subjects; only the
-controlling manager's child-credential route may issue one. A committed manager,
+child-scoped credential route, authorized by an active `manager` membership, may issue one. A committed manager,
 relationship, corridor, or customer-type policy change blocks subsequent authorization decisions but
 does not cancel a request that was already authorized and remains in flight.
 

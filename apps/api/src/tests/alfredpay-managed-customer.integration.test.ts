@@ -5,6 +5,7 @@ import sequelize from "../config/database";
 import CustomerEntity from "../models/customerEntity.model";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
+import ManagedProfileMembership from "../models/managedProfileMembership.model";
 import ProviderCustomer from "../models/providerCustomer.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
@@ -83,7 +84,7 @@ describe("managed Alfredpay customer creation", () => {
     const createCustomer = mock(async () => ({ customerId: "alfred-child", createdAt: new Date().toISOString() }));
     provider(createCustomer);
 
-    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+    const bearerResponse = await fetch(`${baseUrl}/createIndividualCustomer`, {
       body: JSON.stringify({ country: "MX" }),
       headers: {
         Authorization: "Bearer manager-token",
@@ -93,6 +94,19 @@ describe("managed Alfredpay customer creation", () => {
       method: "POST"
     });
 
+    expect(bearerResponse.status).toBe(403);
+    expect(await bearerResponse.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_REQUIRES_API_CREDENTIAL" } });
+    expect(createCustomer).not.toHaveBeenCalled();
+    const credential = await createTestApiKey({ userId: manager.id });
+    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "X-API-Key": credential.plaintextKey,
+        "Content-Type": "application/json",
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
     expect(response.status).toBe(200);
     expect(createCustomer).toHaveBeenCalledWith("child@example.com", DomesticCustomerType.INDIVIDUAL, "MX");
     expect(JSON.stringify(createCustomer.mock.calls)).not.toContain("manager@example.com");
@@ -212,8 +226,8 @@ describe("managed Alfredpay customer creation", () => {
     const manager = await createManager(["MX"], ["business"]);
     const child = await createChild(manager.id, "business", "direct-business@example.com");
     const credential = await createManagedProfileCredential({
+      actorProfileId: manager.id,
       environment: "test",
-      managerProfileId: manager.id,
       profileId: child.profileId
     });
     await ManagedProfileManager.update(
@@ -283,6 +297,10 @@ describe("managed Alfredpay customer creation", () => {
           managerProfileId: manager.id,
           profileId: childId
         },
+        { transaction }
+      );
+      await ManagedProfileMembership.create(
+        { managedProfileId: childId, memberProfileId: manager.id, role: "manager" },
         { transaction }
       );
     });

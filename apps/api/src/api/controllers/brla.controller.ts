@@ -260,10 +260,12 @@ export const importKycToken = async (
 
     const result = await importBrKycToken({
       actorProfileId,
+      controllingManagerProfileId: req.managedProfileContext?.controllingManagerProfileId,
       expectedCustomerEntityId: req.managedProfileContext?.customerEntityId,
       idempotencyKey,
       importToken: req.body.importToken,
       managedProfileId: req.managedProfileContext?.managedProfileId,
+      membershipId: req.managedProfileContext?.membershipId,
       subjectProfileId
     });
     res.status(httpStatus.ACCEPTED).json(result);
@@ -912,6 +914,7 @@ export const newKyc = async (
       controllingManagerProfileId: req.managedProfileContext?.controllingManagerProfileId,
       expectedCustomerEntityId: req.managedProfileContext?.customerEntityId,
       managedProfileId: req.managedProfileContext?.managedProfileId,
+      membershipId: req.managedProfileContext?.membershipId,
       payload: req.body,
       providerCustomer: record,
       subjectProfileId

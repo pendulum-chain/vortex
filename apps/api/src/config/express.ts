@@ -13,6 +13,7 @@ import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
 import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
 import brlaKycImportRoutes from "../api/routes/v1/brla-kyc-import.route";
+import { managedProfileRampBearerRoutes } from "../api/routes/v1/ramp.route";
 
 import { corsOptions } from "./corsConfig";
 import { config } from "./vars";
@@ -56,6 +57,10 @@ app.use(helmet());
 
 // Authenticate and authorize this sensitive token-bearing request before buffering JSON.
 app.use(["/v1/brl/kyc/import-token", "/v1/brla/kyc/import-token"], brlaKycImportRoutes);
+
+// Selected-child ramps require a secret credential. Reject bearer attempts before
+// buffering a body whose quote/ramp data cannot make the request authorized.
+app.use("/v1/ramp", managedProfileRampBearerRoutes);
 
 // Mounted ahead of the JSON parser: Avenia signs the raw request body, and a payload
 // that has been parsed and re-serialised does not reproduce those bytes exactly.

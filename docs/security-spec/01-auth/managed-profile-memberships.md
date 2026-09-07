@@ -41,6 +41,30 @@ Invitee routes are bearer-authenticated and do not accept managed selection:
 | `GET /v1/managed-profile-member-invitations/:invitationId`         | Preview status only after exact verified-email authentication |
 | `POST /v1/managed-profile-member-invitations/:invitationId/accept` | Explicitly accept and create/reactivate membership            |
 
+### Lifecycle Reads
+
+List and detail responses include `actor: { profileId, canProvisionManagedProfiles,
+hasMemberships }` plus child-specific membership and immutable-owner policy. Provisioning
+capability reflects the actor's own active manager configuration. `hasMemberships` derives
+from the unpaginated eligible **active-child** count across owners, independently of the
+requested page, status filter or detail target. Eligibility requires an unrevoked allowed-role
+membership, active owner configuration, active child relationship, managed subject, and exactly
+one active owned customer entity selected by the child. Deleted children, inactive owners and
+invalid entity layouts do not count.
+
+The default `GET /v1/managed-profiles` returns `200` with an empty list even when both actor
+flags are false. Both `status=deleted` and `status=all` require the actor's own active manager
+configuration (`403 MANAGED_PROFILE_OWNER_REQUIRED` otherwise) and are owner-scoped only;
+even active invited children owned by others are excluded from `all`. Retained results still
+require valid membership and entity layout and never contribute to `hasMemberships`.
+
+`GET /v1/managed-profiles/:profileId` with an exactly matching `X-Managed-Profile-Id` is explicit
+bootstrap. Stored membership history, not the selector itself, proves prior access. A retained
+deleted child can be read only by its immutable owner with active configuration and valid
+membership/entity layout **without a selector**. Invited members and ineligible ordinary
+retained reads receive masked `404 MANAGED_PROFILE_NOT_FOUND`. These rules apply equally to
+bearer and member-secret callers; direct child credentials cannot use lifecycle routes.
+
 ## Security Invariants
 
 1. **Authorization MUST be live and child-scoped** — every delegated request resolves the
@@ -60,13 +84,18 @@ Invitee routes are bearer-authenticated and do not accept managed selection:
    credential.
 6. **Lifecycle MUST remain owner-only** — membership does not authorize child provisioning,
    sibling creation, child deletion, owner-policy changes, pricing administration, or global
-   profile-role changes.
+   profile-role changes. A non-owner with an active `manager` or `read_only` membership receives
+   `403 MANAGED_PROFILE_OWNER_REQUIRED` on child deletion; non-owner outsiders receive masked
+   `404`. Retained filters and direct retained reads MUST obey the owner-only rules above.
 7. **Owner policy MUST govern every member** — corridor and customer-type authorization,
    pricing fallback, provider-contact namespace, and direct-child credential policy resolve
    from the immutable owner, never the acting member's personal manager configuration.
 8. **Selected-child provider and ramp mutations MUST require a secret** — a Supabase bearer
    may use allowed read/manage operations but cannot use `credential_manage` or register,
-   update, or start a child ramp. Ramp denial occurs before the global body parser and uses
+   update, or start a child ramp. Provider denial retains the shipped code
+   `MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`; child credential and domestic fiat-account
+   management are `manage`, not secret-only `credential_manage`. Ramp denial occurs before
+   the global body parser and uses
    `MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL`. There is no drain exception.
 9. **Child credentials MUST remain independent company principals** — possession grants the
    credential's currently supported direct-child provider, fiat-account, quote, and ramp
@@ -99,10 +128,18 @@ Invitee routes are bearer-authenticated and do not accept managed selection:
 17. **Direct database access MUST be denied to clients** — membership, invitation, event,
     and related sequence objects have RLS enabled with no client policy and explicit
     `anon`/`authenticated` privilege revocation.
-18. **Errors MUST not expand discovery** — generic probing receives
-    `MANAGED_PROFILE_ACCESS_DENIED`. `MANAGED_PROFILE_MEMBERSHIP_INVALID` is reserved for an
-    authenticated actor's previously selected child bootstrap and is the only error that may
-    clear dashboard selection. Role and policy denial leave valid selection intact.
+18. **Errors MUST not expand discovery** — detail bootstrap MUST require an exactly matching
+    selector and stored membership history (active or revoked) before returning
+    `403 MANAGED_PROFILE_MEMBERSHIP_INVALID` for ineligibility. Revocation, child deletion,
+    owner deactivation and invalid entity layout invalidate evidenced bootstrap; a deleted
+    child invalidates even its owner's bootstrap. Never-member callers receive the same masked
+    `404 MANAGED_PROFILE_NOT_FOUND` for existing and unknown children, with or without a matching
+    selector. A mismatched selector receives `403 MANAGED_PROFILE_ACCESS_DENIED`. Ordinary
+    detail reads never return membership-invalid: missing membership is masked `404`; active
+    members of active children with disabled owners or invalid layouts receive access denial.
+    Other delegated and membership-administration probes retain their route-specific access
+    denial. Only membership-invalid may clear dashboard selection in response to an API error;
+    `404`, role/policy denial and transient failures leave it intact.
 19. **Invitations MUST use the durable email queue** — creation writes one direct-recipient
     outbox row in the invitation transaction. Only the managed-profile invitation type may
     set `recipient_email`; existing retry, idempotency, non-production allowlist, escaping,
@@ -143,5 +180,11 @@ Invitee routes are bearer-authenticated and do not accept managed selection:
 - [ ] Every state change writes one immutable event with the correct actor and subject.
 - [ ] Direct-recipient email is accepted only for the membership-invitation type.
 - [ ] Dashboard clears selection only after bootstrap returns membership-invalid.
+- [ ] Actor flags remain independent of pagination/status; empty default lists return `200`,
+      and deleted/inactive-owner/invalid-entity records do not count toward `hasMemberships`.
+- [ ] Both retained list filters are owner-scoped; bearer and member-secret retained reads
+      require the active immutable owner without a selector.
+- [ ] Bootstrap requires matching selector plus membership history; deleted owner bootstrap
+      invalidates, and never-member existing/unknown probes are indistinguishable `404`s.
 - [ ] Desktop and mobile tests cover role badges, read-only controls, Team, API keys, and
       blocked transfer entry points.
