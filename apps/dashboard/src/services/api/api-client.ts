@@ -145,7 +145,7 @@ export const apiClient = {
   get: <T>(url: string, config?: RequestConfig) =>
     apiFetch<T>("GET", url, { managedProfile: config?.managedProfile, params: config?.params, signal: config?.signal }),
   patch: <T>(url: string, data?: unknown, config?: RequestConfig) =>
-    apiFetch<T>("PATCH", url, { data, managedProfile: config?.managedProfile }),
+    apiFetch<T>("PATCH", url, { data, managedProfile: config?.managedProfile, params: config?.params }),
   post: <T>(url: string, data?: unknown, config?: RequestConfig) =>
     apiFetch<T>("POST", url, {
       data,

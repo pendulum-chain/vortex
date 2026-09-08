@@ -74,7 +74,20 @@ test("Monerium callback does not complete OAuth while impersonating", async ({ p
 });
 
 test("Monerium callback does not complete OAuth while acting for a managed child", async ({ page }) => {
-  const backend = await mockBackend(page, { moneriumKyc: true });
+  const backend = await mockBackend(page, {
+    managedProfiles: [
+      {
+        contactEmail: "managed-child@example.test",
+        customerType: "individual",
+        externalSubjectId: "managed-child-e2e",
+        membership: { isOwner: false, role: "manager" },
+        policy: { allowedCorridors: ["EU"], allowedCustomerTypes: null },
+        profileId: E2E_MANAGED_PROFILE_ID,
+        status: "active"
+      }
+    ],
+    moneriumKyc: true
+  });
   await seedSession(page);
   await page.addInitScript(
     ({ managerProfileId, targetProfileId }) => {
@@ -83,7 +96,9 @@ test("Monerium callback does not complete OAuth while acting for a managed child
         JSON.stringify({
           customerType: "individual",
           externalSubjectId: "managed-child-e2e",
+          isOwner: false,
           managerProfileId,
+          membershipRole: "manager",
           targetEmail: "managed-child@example.test",
           targetProfileId
         })
@@ -95,7 +110,9 @@ test("Monerium callback does not complete OAuth while acting for a managed child
   await page.goto("/monerium/callback?code=e2e-code&state=e2e-state");
 
   await expect(page).toHaveURL(/\/overview$/);
+  await expect(page.getByText("Acting for managed-child@example.test")).toBeVisible();
   expect(backend.apiRequests.filter(request => request.path === "/v1/monerium/oauth/complete")).toEqual([]);
+  expect(backend.unmatchedRequests).toEqual([]);
 });
 
 test("in-review Monerium onboarding requiring reauthentication is disabled instead of actionable", async ({ page }) => {

@@ -57,7 +57,9 @@ export function ManagedProfilesList({ profiles }: { profiles: ManagedProfile[] }
           <UsersRound className="size-5" />
         </span>
         <p className="font-medium">No managed profiles</p>
-        <p className="text-muted-foreground text-sm">Active profiles will appear here when they are assigned to you.</p>
+        <p className="text-muted-foreground text-sm">
+          Your organization's active profiles will appear here when they are created.
+        </p>
       </div>
     );
   }

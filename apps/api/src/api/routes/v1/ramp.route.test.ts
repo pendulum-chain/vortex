@@ -2,7 +2,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import express from "express";
 import { connect } from "node:net";
 import { config } from "../../../config/vars";
-import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfileRole from "../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { installFakeSupabaseAuth, testUserToken } from "../../../test-utils/fake-world/fake-auth";
@@ -10,6 +9,7 @@ import { createTestUser } from "../../../test-utils/factories";
 import { handler as errorHandler } from "../../middlewares/error";
 import { createSession } from "../../services/impersonation.service";
 import { createManagedProfile } from "../../services/managed-profile-lifecycle.service";
+import { configureManagedProfileManager } from "../../services/managed-profile-manager.service";
 import quoteRoutes from "./quote.route";
 import rampRoutes, { managedProfileRampBearerRoutes } from "./ramp.route";
 
@@ -74,7 +74,7 @@ describe("ramp routes under impersonation", () => {
 
   it("rejects selected-child ramp registration, update, and start for a normal Supabase bearer", async () => {
     const manager = await createTestUser();
-    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive: true, profileId: manager.id });
     const { managedProfile } = await createManagedProfile({
       contactEmail: "bearer-ramp-child@example.com",
       creationSource: "manager",
@@ -98,7 +98,7 @@ describe("ramp routes under impersonation", () => {
 
   it("rejects selected-child Supabase ramp requests without draining the body", async () => {
     const manager = await createTestUser();
-    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive: true, profileId: manager.id });
     const { managedProfile } = await createManagedProfile({
       contactEmail: "undrained-bearer-ramp-child@example.com",
       creationSource: "manager",

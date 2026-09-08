@@ -46,13 +46,14 @@
       "/v1/managed-profiles/{profileId}",
       "/v1/managed-profiles/{profileId}/api-credentials",
       "/v1/managed-profiles/{profileId}/api-credentials/{credentialId}",
-      "/v1/managed-profiles/{profileId}/members",
-      "/v1/managed-profiles/{profileId}/members/{memberProfileId}",
-      "/v1/managed-profiles/{profileId}/member-invitations",
-      "/v1/managed-profiles/{profileId}/member-invitations/{invitationId}",
-      "/v1/managed-profiles/{profileId}/member-events",
-      "/v1/managed-profile-member-invitations/{invitationId}",
-      "/v1/managed-profile-member-invitations/{invitationId}/accept",
+      "/v1/organization",
+      "/v1/organization/members",
+      "/v1/organization/members/{memberProfileId}",
+      "/v1/organization/member-invitations",
+      "/v1/organization/member-invitations/{invitationId}",
+      "/v1/organization/member-events",
+      "/v1/organization-member-invitations/{invitationId}",
+      "/v1/organization-member-invitations/{invitationId}/accept",
       "/v1/onboarding/active-entity",
       "/v1/onboarding/requirements",
       "/v1/onboarding/status",
@@ -87,6 +88,7 @@
       "Public Key",
       "Reference Data"
     ],
+    "scope": "Approved public contract includes seven managed-child lifecycle operations and ten human-bearer-only organization/team/invitee operations, grouped under Managed Profiles. All seven scoped Team operations require UUID query expectedOwnerProfileId as a displayed-org precondition, not authority; discovery and invitee locator routes are exempt. Missing/malformed input is 400 MANAGED_PROFILE_INVALID_INPUT; changed context is 409 ORGANIZATION_CONTEXT_CHANGED. Org-wide Team intentionally replaces the unshipped per-child membership API without aliases. One owning account/config defines one org; personal resources are not shared. No multi-organization management, organization kinds, owner transfer or organization switcher is supported.",
     "source": "docs/api/openapi/vortex.openapi.json"
   },
   "markdownSync": {
@@ -146,7 +148,7 @@
           "OTP sign-in",
           "crypto ramp authentication"
         ],
-        "metaDescription": "Authenticate with Vortex API keys or Supabase sessions: managed-child membership roles, bearer-only invitations, and secret-only provider and ramp mutations.",
+        "metaDescription": "Authenticate with Vortex keys or Supabase sessions: organization-wide team roles, human-only invitations, and secret-only managed provider and ramp mutations.",
         "metaTitle": "Authentication And API Keys — Vortex API"
       },
       "slug": "authentication-and-partner-keys",
@@ -334,7 +336,7 @@
           "membership invitations",
           "read-only access"
         ],
-        "metaDescription": "Create headless Vortex customer profiles, invite manager or read-only members, accept access with verified email, and operate child credentials and ramps safely.",
+        "metaDescription": "Create headless Vortex customer profiles, invite org-wide managers or read-only members, accept with verified email, and operate child credentials and ramps safely.",
         "metaTitle": "Managed Profiles — Onboard And Ramp For Your Customers"
       },
       "slug": "managed-profiles",

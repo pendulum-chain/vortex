@@ -3,7 +3,9 @@
 Status: partially superseded by
 [`ADR 0005`](adr-0005-managed-profile-memberships.md). Migration 063's headless child,
 immutable owner, policy, pricing, namespace, and lifecycle decisions remain accepted;
-ADR 0005 replaces the exactly-one-manager authorization decision.
+ADR 0005 replaces the exactly-one-manager authorization decision;
+[`ADR 0006`](adr-0006-organization-wide-teams.md) supersedes its child-scoped membership
+decisions with organization-wide teams under the one-account-one-org approximation.
 
 ## Context
 
@@ -37,8 +39,8 @@ than introduce a parallel tenant or impersonation model.
   records needed for in-flight processing and reconciliation.
 - Nested management, owner transfer, generic impersonation, and durable differentiation
   between delegated-member and direct child-credential requests remain outside the
-  accepted design. ADR 0005 introduces the child-scoped permission matrix that this ADR
-  originally excluded.
+  accepted design. ADR 0005 introduces the capability matrix that this ADR originally
+  excluded; ADR 0006 changes membership scope, not those capability restrictions.
 
 ## Consequences
 

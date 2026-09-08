@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
+import { configureManagedProfileManager } from "../api/services/managed-profile-manager.service";
 import { findPartnerWithPricing } from "../api/services/partners/partner-pricing.service";
 import { config } from "../config/vars";
 import CustomerEntity from "../models/customerEntity.model";
@@ -69,7 +70,7 @@ async function createApprovedSender(email: string): Promise<{ user: User; token:
 
 async function createManagedSender(suffix = "") {
   const manager = await createAuthedUser(`manager${suffix}@example.com`);
-  await ManagedProfileManager.create({ allowedCorridors: ["MX"], isActive: true, profileId: manager.user.id });
+  await configureManagedProfileManager({ allowedCorridors: ["MX"], allowedCustomerTypes: null, isActive: true, profileId: manager.user.id });
   const child = await provisionManagedProfile({
     contactEmail: `managed-sender${suffix}@example.com`,
     creationSource: "manager",

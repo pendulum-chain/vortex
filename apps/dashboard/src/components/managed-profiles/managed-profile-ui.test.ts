@@ -56,6 +56,8 @@ describe("managed profile UI", () => {
     assert.equal(isChildModePathForbidden("/admin/account-id"), true);
     assert.equal(isChildModePathForbidden("/managed-profiles"), true);
     assert.equal(isChildModePathForbidden("/transfer"), true);
+    assert.equal(isChildModePathForbidden("/team"), true);
+    assert.equal(isChildModePathForbidden("/team/members"), true);
     assert.equal(isChildModePathForbidden("/api-keys"), false);
     assert.equal(isChildModePathForbidden("/administration-guide"), false);
     assert.equal(isChildModePathForbidden("/transactions"), false);

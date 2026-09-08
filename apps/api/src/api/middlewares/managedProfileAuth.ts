@@ -174,10 +174,7 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions) {
         next();
         return;
       }
-      const [membership, relationship, subject] = await Promise.all([
-        ManagedProfileMembership.findOne({
-          where: { managedProfileId: subjectProfileId, memberProfileId: actorProfileId, revokedAt: null }
-        }),
+      const [relationship, subject] = await Promise.all([
         ManagedProfile.findOne({
           where: { profileId: subjectProfileId, status: "active" }
         }),
@@ -189,6 +186,9 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions) {
         else sendAccessDenied(res);
         return;
       }
+      const membership = await ManagedProfileMembership.findOne({
+        where: { memberProfileId: actorProfileId, ownerProfileId: relationship.managerProfileId, revokedAt: null }
+      });
       if (!membership || !isMembershipRole(membership.role)) {
         if (options.subjectProfileId) sendManagedProfileNotFound(res);
         else sendAccessDenied(res);

@@ -217,6 +217,50 @@ bootstrap-only authorization reconciliation, transfer identity guards, and owner
 recovery. API integration coverage exercises membership capabilities, delegated recipient
 operations, per-child owner policy, and policy revalidation.
 
+The [organization-wide Team contract](adr-0006-organization-wide-teams.md) adds these required
+regression gates to the membership, migration, route, and dashboard suites. These are acceptance
+criteria, not a claim that a local or deployed suite has already passed:
+
+- Migration 069 is rewritten directly for disposable unshipped data: `owner_profile_id` references
+  manager config, one active membership is globally unique on `member_profile_id`, and each config
+  has one protected owner self-membership, including disabled owners and empty orgs. New config
+  creation emits one membership event; child provisioning emits no grants or membership events.
+  Config-created `createdByProfileId` and event `actorProfileId` are null/system attribution,
+  with the owner as member subject, rather than an invented human actor for `ADMIN_SECRET`.
+- Existing and newly provisioned siblings inherit the org role without grants. Foreign children
+  and human personal resources remain inaccessible. Read-only cannot write using a personal secret.
+- Owner/manager/read-only and concurrent second-org accepts enforce single affiliation;
+  `ORGANIZATION_MEMBERSHIP_CONFLICT` is `409`. Disabled owners cannot join another org, and
+  accepting an invitation races safely with enabling a separate owning manager configuration.
+- Deactivation retains memberships while denying org/team/child operations. Removal/downgrade
+  changes all child delegated access without revoking child-owned shared credentials. Pending
+  offers survive inviter removal/downgrade; verified email, explicit acceptance, seven-day expiry,
+  transactional audit/outbox, replay, owner protection, and RLS tests remain required.
+- All ten organization/team/invitee operations reject any child selector, API/public-key headers
+  (including with a bearer), and impersonation. Old per-child team/invitee routes have no aliases.
+  Pin exact organization discovery, preview/acceptance, member/event projections, and pagination.
+- Keep the existing runtime regressions for owner-matching membership/child-lifetime overlap:
+  `membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or
+  `membership.revokedAt > child.createdAt`) on one row. Children created after revocation or
+  wholly in a membership gap stay masked `404`; historic org membership alone is insufficient.
+- Team route/client regressions bind all seven operations to required UUID query
+  `expectedOwnerProfileId`: missing/malformed `400 MANAGED_PROFILE_INVALID_INPUT`, different
+  expected/current owner `409 ORGANIZATION_CONTEXT_CHANGED`, and discovery/invitee exemptions.
+  A stale invitation dialog for A must never create an invite in B after cross-tab affiliation change.
+  `bun test ./docs/api/scripts/check-openapi.test.ts` separately pins the documented parameter,
+  exemptions, typed conflict, bootstrap prose, and owner-policy description without duplicating
+  runtime authorization tests or mutating the shared worktree.
+- Main nonacting Team works on desktop/mobile before any children exist; both owners and invited
+  members get live org discovery and `hasMemberships: true` for empty orgs. `canProvisionManagedProfiles`
+  stays owner-only. Child-mode Team is absent, role changes refresh every child's gates, shared-key
+  warnings are visible, and invitations lead to the org rather than selecting a child.
+- Run `bun docs:api:types`, then `bun docs:api:check` for OpenAPI/schema/auth inventory and generated
+  freshness; `bun wire-contract:check` should show no shared/SDK snapshot change. This deliberately
+  breaks the unshipped per-child API, so do not add compatibility paths or run the Apidog export.
+
+Recreate a disposable local test database if it applied the old 069; do not test the rewritten
+migration against that stale schema or add a production forward-compatibility migration for it.
+
 Notes:
 
 - Specs other than the login one skip the OTP walk by seeding the session directly into

@@ -1,8 +1,6 @@
-import { Op, Transaction } from "sequelize";
+import { Op, Transaction, UniqueConstraintError } from "sequelize";
 import { z } from "zod";
 import sequelize from "../../config/database";
-import CustomerEntity from "../../models/customerEntity.model";
-import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import Membership, { type ManagedProfileMembershipRole } from "../../models/managedProfileMembership.model";
 import MembershipEvent from "../../models/managedProfileMembershipEvent.model";
@@ -41,45 +39,40 @@ export function normalizeMembershipEmail(email: unknown): string {
   return result.data;
 }
 
-// Match provisioning/deletion: owner configuration, owner profile, child profile/aggregate,
-// then invitation/membership rows. The initial relationship lookup is only a lock locator.
-async function lockChild(profileId: string, transaction: Transaction): Promise<ManagedProfile> {
-  const locator = await ManagedProfile.findOne({ transaction, where: { profileId } });
-  if (!locator) throw accessDenied();
-  const options = { lock: Transaction.LOCK.UPDATE, transaction };
-  const owner = await ManagedProfileManager.findByPk(locator.managerProfileId, options);
-  // Human profiles are read-only here. SHARE protects kind changes while allowing
-  // reciprocal owners/invitees and the KEY SHARE locks taken by audit/profile FKs.
-  const ownerProfile = await User.findByPk(locator.managerProfileId, { lock: Transaction.LOCK.SHARE, transaction });
-  const child = await User.findByPk(profileId, options);
-  const relationship = await ManagedProfile.findOne({ ...options, where: { profileId } });
-  if (
-    !owner?.isActive ||
-    ownerProfile?.kind !== "authenticated" ||
-    child?.kind !== "managed" ||
-    !child.activeCustomerEntityId ||
-    relationship?.status !== "active" ||
-    relationship.managerProfileId !== locator.managerProfileId
-  )
-    throw accessDenied();
-  const entities = await CustomerEntity.findAll({ ...options, where: { profileId } });
-  if (entities.length !== 1 || entities[0].id !== child.activeCustomerEntityId || entities[0].status !== "active") {
-    throw accessDenied();
-  }
-  const ownerMembership = await Membership.findOne({
-    ...options,
-    where: { managedProfileId: profileId, memberProfileId: ownerProfile.id, revokedAt: null }
-  });
-  if (ownerMembership?.role !== "manager") throw accessDenied();
-  return relationship;
+export interface ManagedProfileOrganization {
+  ownerProfileId: string;
+  ownerEmail: string | null;
+  membership: { role: ManagedProfileMembershipRole; isOwner: boolean };
 }
 
-async function requireMember(actorProfileId: string, profileId: string, manage: boolean, transaction: Transaction) {
+function organizationMembershipConflict(): ManagedProfileMembershipError {
+  return new ManagedProfileMembershipError(
+    "ORGANIZATION_MEMBERSHIP_CONFLICT",
+    409,
+    "A profile may belong to only one organization"
+  );
+}
+
+// Match child operations: configuration before human profiles, then membership rows.
+async function lockOrganization(ownerProfileId: string, transaction: Transaction): Promise<User> {
+  const options = { lock: Transaction.LOCK.UPDATE, transaction };
+  const owner = await ManagedProfileManager.findByPk(ownerProfileId, options);
+  const ownerProfile = await User.findByPk(ownerProfileId, { lock: Transaction.LOCK.SHARE, transaction });
+  if (!owner?.isActive || ownerProfile?.kind !== "authenticated") throw accessDenied();
+  const ownerMembership = await Membership.findOne({
+    ...options,
+    where: { memberProfileId: ownerProfileId, ownerProfileId, revokedAt: null }
+  });
+  if (ownerMembership?.role !== "manager") throw accessDenied();
+  return ownerProfile;
+}
+
+async function requireMember(actorProfileId: string, ownerProfileId: string, manage: boolean, transaction: Transaction) {
   const actor = await User.findByPk(actorProfileId, { lock: Transaction.LOCK.SHARE, transaction });
   const member = await Membership.findOne({
     lock: Transaction.LOCK.UPDATE,
     transaction,
-    where: { managedProfileId: profileId, memberProfileId: actorProfileId, revokedAt: null }
+    where: { memberProfileId: actorProfileId, ownerProfileId, revokedAt: null }
   });
   if (actor?.kind !== "authenticated" || !member || !["manager", "read_only"].includes(member.role)) throw accessDenied();
   if (manage && member.role !== "manager") {
@@ -88,6 +81,26 @@ async function requireMember(actorProfileId: string, profileId: string, manage: 
       403,
       "An active manager membership is required"
     );
+  }
+  return member;
+}
+
+export async function getManagedProfileOrganization(actorProfileId: string): Promise<ManagedProfileOrganization | null> {
+  try {
+    return await sequelize.transaction(async transaction => {
+      const locator = await Membership.findOne({ transaction, where: { memberProfileId: actorProfileId, revokedAt: null } });
+      if (!locator) return null;
+      const owner = await lockOrganization(locator.ownerProfileId, transaction);
+      const member = await requireMember(actorProfileId, owner.id, false, transaction);
+      return {
+        membership: { isOwner: actorProfileId === owner.id, role: member.role },
+        ownerEmail: owner.email,
+        ownerProfileId: owner.id
+      };
+    });
+  } catch (error) {
+    if (error instanceof ManagedProfileMembershipError && error.code === "MANAGED_PROFILE_ACCESS_DENIED") return null;
+    throw error;
   }
 }
 
@@ -111,7 +124,7 @@ function invitationResult(invitation: Invitation) {
     expiresAt: invitation.expiresAt,
     id: invitation.id,
     invitedByProfileId: invitation.invitedByProfileId,
-    managedProfileId: invitation.managedProfileId,
+    ownerProfileId: invitation.ownerProfileId,
     role: invitation.role,
     status: invitationStatus(invitation)
   };
@@ -135,7 +148,7 @@ async function expireInvitation(invitation: Invitation, transaction: Transaction
     {
       action: "invitation_expired",
       invitationId: invitation.id,
-      managedProfileId: invitation.managedProfileId,
+      ownerProfileId: invitation.ownerProfileId,
       role: invitation.role
     },
     { transaction }
@@ -150,10 +163,10 @@ function terminalInvitation(invitation: Invitation) {
   );
 }
 
-export async function listManagedProfileMembers(actorProfileId: string, profileId: string, limit: number, offset: number) {
+export async function listManagedProfileMembers(actorProfileId: string, ownerProfileId: string, limit: number, offset: number) {
   return sequelize.transaction(async transaction => {
-    const child = await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, false, transaction);
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, false, transaction);
     const { rows, count } = await Membership.findAndCountAll({
       limit,
       offset,
@@ -162,7 +175,7 @@ export async function listManagedProfileMembers(actorProfileId: string, profileI
         ["id", "ASC"]
       ],
       transaction,
-      where: { managedProfileId: profileId, revokedAt: null }
+      where: { ownerProfileId, revokedAt: null }
     });
     const profiles = await User.findAll({
       attributes: ["id", "email"],
@@ -172,7 +185,7 @@ export async function listManagedProfileMembers(actorProfileId: string, profileI
     const emails = new Map(profiles.map(profile => [profile.id, profile.email]));
     return {
       members: rows.map(row => ({
-        ...memberResult(row, child.managerProfileId),
+        ...memberResult(row, ownerProfileId),
         email: emails.get(row.memberProfileId) ?? null
       })),
       pagination: { limit, offset, total: count }
@@ -182,15 +195,15 @@ export async function listManagedProfileMembers(actorProfileId: string, profileI
 
 export async function changeManagedProfileMember(
   actorProfileId: string,
-  profileId: string,
+  ownerProfileId: string,
   memberProfileId: string,
   role: unknown
 ) {
   const nextRole = requireMembershipRole(role);
   return sequelize.transaction(async transaction => {
-    const child = await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, true, transaction);
-    if (memberProfileId === child.managerProfileId) {
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, true, transaction);
+    if (memberProfileId === ownerProfileId) {
       throw new ManagedProfileMembershipError(
         "MANAGED_PROFILE_OWNER_MEMBERSHIP_REQUIRED",
         409,
@@ -200,26 +213,26 @@ export async function changeManagedProfileMember(
     const member = await Membership.findOne({
       lock: Transaction.LOCK.UPDATE,
       transaction,
-      where: { managedProfileId: profileId, memberProfileId, revokedAt: null }
+      where: { memberProfileId, ownerProfileId, revokedAt: null }
     });
     if (!member) throw new ManagedProfileMembershipError("MEMBER_NOT_FOUND", 404, "Member was not found");
     if (member.role !== nextRole) {
       const previousRole = member.role;
       await member.update({ role: nextRole }, { transaction });
       await MembershipEvent.create(
-        { action: "role_changed", actorProfileId, managedProfileId: profileId, memberProfileId, previousRole, role: nextRole },
+        { action: "role_changed", actorProfileId, memberProfileId, ownerProfileId, previousRole, role: nextRole },
         { transaction }
       );
     }
-    return { member: memberResult(member, child.managerProfileId) };
+    return { member: memberResult(member, ownerProfileId) };
   });
 }
 
-export async function removeManagedProfileMember(actorProfileId: string, profileId: string, memberProfileId: string) {
+export async function removeManagedProfileMember(actorProfileId: string, ownerProfileId: string, memberProfileId: string) {
   await sequelize.transaction(async transaction => {
-    const child = await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, true, transaction);
-    if (memberProfileId === child.managerProfileId) {
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, true, transaction);
+    if (memberProfileId === ownerProfileId) {
       throw new ManagedProfileMembershipError(
         "MANAGED_PROFILE_OWNER_MEMBERSHIP_REQUIRED",
         409,
@@ -229,14 +242,14 @@ export async function removeManagedProfileMember(actorProfileId: string, profile
     const member = await Membership.findOne({
       lock: Transaction.LOCK.UPDATE,
       transaction,
-      where: { managedProfileId: profileId, memberProfileId, revokedAt: null }
+      where: { memberProfileId, ownerProfileId, revokedAt: null }
     });
     if (!member) {
       const removed = await Membership.findOne({
         transaction,
         where: {
-          managedProfileId: profileId,
           memberProfileId,
+          ownerProfileId,
           revokedAt: { [Op.ne]: null },
           revokedByProfileId: actorProfileId
         }
@@ -246,7 +259,7 @@ export async function removeManagedProfileMember(actorProfileId: string, profile
     }
     await member.update({ revokedAt: new Date(), revokedByProfileId: actorProfileId }, { transaction });
     await MembershipEvent.create(
-      { action: "member_removed", actorProfileId, managedProfileId: profileId, memberProfileId, role: member.role },
+      { action: "member_removed", actorProfileId, memberProfileId, ownerProfileId, role: member.role },
       { transaction }
     );
   });
@@ -254,19 +267,19 @@ export async function removeManagedProfileMember(actorProfileId: string, profile
 
 export async function createManagedProfileInvitation(
   actorProfileId: string,
-  profileId: string,
+  ownerProfileId: string,
   input: { email: unknown; role: unknown }
 ) {
   const email = normalizeMembershipEmail(input.email);
   const role = requireMembershipRole(input.role);
   const result = await sequelize.transaction(async transaction => {
-    await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, true, transaction);
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, true, transaction);
     const pending = await Invitation.findOne({
       lock: Transaction.LOCK.UPDATE,
       logging: false,
       transaction,
-      where: { acceptedAt: null, cancelledAt: null, email, expiredAt: null, managedProfileId: profileId }
+      where: { acceptedAt: null, cancelledAt: null, email, expiredAt: null, ownerProfileId }
     });
     if (pending) {
       await expireInvitation(pending, transaction);
@@ -280,7 +293,7 @@ export async function createManagedProfileInvitation(
         return { created: false, invitation: invitationResult(pending) };
       }
     }
-    // Only disclose membership already visible in this child's roster, never profile existence.
+    // Only disclose membership already visible in this organization's roster, never profile existence.
     const existingProfile = await User.findOne({
       logging: false,
       transaction,
@@ -293,7 +306,7 @@ export async function createManagedProfileInvitation(
       existingProfile &&
       (await Membership.findOne({
         transaction,
-        where: { managedProfileId: profileId, memberProfileId: existingProfile.id, revokedAt: null }
+        where: { memberProfileId: existingProfile.id, ownerProfileId, revokedAt: null }
       }))
     ) {
       // Local email is only a hint: it may belong to someone else since the member
@@ -314,13 +327,13 @@ export async function createManagedProfileInvitation(
         email,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         invitedByProfileId: actorProfileId,
-        managedProfileId: profileId,
+        ownerProfileId,
         role
       },
       { logging: false, transaction }
     );
     await MembershipEvent.create(
-      { action: "invited", actorProfileId, invitationId: invitation.id, managedProfileId: profileId, role },
+      { action: "invited", actorProfileId, invitationId: invitation.id, ownerProfileId, role },
       { transaction }
     );
     await enqueueManagedProfileInvitation({ invitationId: invitation.id, recipientEmail: email }, transaction);
@@ -330,10 +343,15 @@ export async function createManagedProfileInvitation(
   return result;
 }
 
-export async function listManagedProfileInvitations(actorProfileId: string, profileId: string, limit: number, offset: number) {
+export async function listManagedProfileInvitations(
+  actorProfileId: string,
+  ownerProfileId: string,
+  limit: number,
+  offset: number
+) {
   return sequelize.transaction(async transaction => {
-    await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, false, transaction);
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, false, transaction);
     const elapsed = await Invitation.findAll({
       lock: Transaction.LOCK.UPDATE,
       logging: false,
@@ -343,7 +361,7 @@ export async function listManagedProfileInvitations(actorProfileId: string, prof
         cancelledAt: null,
         expiredAt: null,
         expiresAt: { [Op.lte]: new Date() },
-        managedProfileId: profileId
+        ownerProfileId
       }
     });
     for (const invitation of elapsed) await expireInvitation(invitation, transaction);
@@ -356,28 +374,28 @@ export async function listManagedProfileInvitations(actorProfileId: string, prof
         ["id", "DESC"]
       ],
       transaction,
-      where: { managedProfileId: profileId }
+      where: { ownerProfileId }
     });
     return { invitations: rows.map(invitationResult), pagination: { limit, offset, total: count } };
   });
 }
 
-export async function cancelManagedProfileInvitation(actorProfileId: string, profileId: string, invitationId: string) {
+export async function cancelManagedProfileInvitation(actorProfileId: string, ownerProfileId: string, invitationId: string) {
   const result = await sequelize.transaction(async transaction => {
-    await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, true, transaction);
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, true, transaction);
     const invitation = await Invitation.findOne({
       lock: Transaction.LOCK.UPDATE,
       logging: false,
       transaction,
-      where: { id: invitationId, managedProfileId: profileId }
+      where: { id: invitationId, ownerProfileId }
     });
     if (!invitation) throw new ManagedProfileMembershipError("INVITATION_NOT_FOUND", 404, "Invitation was not found");
     await expireInvitation(invitation, transaction);
     if (invitationStatus(invitation) !== "pending") return terminalInvitation(invitation);
     await invitation.update({ cancelledAt: new Date(), cancelledByProfileId: actorProfileId }, { logging: false, transaction });
     await MembershipEvent.create(
-      { action: "invitation_cancelled", actorProfileId, invitationId, managedProfileId: profileId, role: invitation.role },
+      { action: "invitation_cancelled", actorProfileId, invitationId, ownerProfileId, role: invitation.role },
       { transaction }
     );
   });
@@ -402,82 +420,109 @@ export async function readOrAcceptManagedProfileInvitation(
   } catch {
     throw accessDenied();
   }
-  const result = await sequelize.transaction(async transaction => {
-    const locator = await Invitation.findByPk(invitationId, { logging: false, transaction });
-    if (!locator || locator.email !== email) throw accessDenied();
-    const child = await lockChild(locator.managedProfileId, transaction);
-    const invitation = await Invitation.findByPk(invitationId, { lock: Transaction.LOCK.UPDATE, logging: false, transaction });
-    const actor = await User.findByPk(principal.profileId, { lock: Transaction.LOCK.SHARE, transaction });
-    if (!invitation || invitation.email !== email || actor?.kind !== "authenticated") throw accessDenied();
-    await expireInvitation(invitation, transaction);
-    if (!accept) {
-      const inviter = await User.findByPk(invitation.invitedByProfileId, { attributes: ["id", "email"], transaction });
-      return {
-        invitation: invitationResult(invitation),
-        inviter: { email: inviter?.email ?? null, profileId: invitation.invitedByProfileId },
-        managedProfile: { externalSubjectId: child.externalSubjectId, profileId: child.profileId }
-      };
-    }
-    const membership = await Membership.findOne({
-      lock: Transaction.LOCK.UPDATE,
-      transaction,
-      where: { managedProfileId: child.profileId, memberProfileId: actor.id, revokedAt: null }
+  const result = await sequelize
+    .transaction(async transaction => {
+      const locator = await Invitation.findByPk(invitationId, { logging: false, transaction });
+      if (!locator || locator.email !== email) throw accessDenied();
+      // Lock existing configurations in stable order before human rows. The invitee's
+      // NO KEY UPDATE lock also serializes creation of a previously absent configuration,
+      // without blocking the KEY SHARE locks taken by audit foreign keys.
+      for (const id of [...new Set([locator.ownerProfileId, principal.profileId])].sort()) {
+        await ManagedProfileManager.findByPk(id, { lock: Transaction.LOCK.UPDATE, transaction });
+      }
+      const owner = await lockOrganization(locator.ownerProfileId, transaction);
+      const actor = await User.findByPk(principal.profileId, { lock: Transaction.LOCK.NO_KEY_UPDATE, transaction });
+      const invitation = await Invitation.findByPk(invitationId, {
+        lock: Transaction.LOCK.UPDATE,
+        logging: false,
+        transaction
+      });
+      if (!invitation || invitation.email !== email || actor?.kind !== "authenticated") throw accessDenied();
+      await expireInvitation(invitation, transaction);
+      if (!accept) {
+        const inviter = await User.findByPk(invitation.invitedByProfileId, { attributes: ["id", "email"], transaction });
+        return {
+          invitation: invitationResult(invitation),
+          inviter: { email: inviter?.email ?? null, profileId: invitation.invitedByProfileId },
+          organization: { ownerEmail: owner.email, ownerProfileId: owner.id }
+        };
+      }
+      const membership = await Membership.findOne({
+        lock: Transaction.LOCK.UPDATE,
+        transaction,
+        where: { memberProfileId: actor.id, revokedAt: null }
+      });
+      if (
+        invitation.acceptedAt &&
+        invitation.acceptedByProfileId === actor.id &&
+        membership?.ownerProfileId === owner.id &&
+        membership.role === invitation.role
+      ) {
+        return { member: memberResult(membership, owner.id), ownerProfileId: owner.id };
+      }
+      // Return conflicts from the callback so observed expiry and its event commit before rejection.
+      if (invitationStatus(invitation) !== "pending") return terminalInvitation(invitation);
+      if (
+        (membership && membership.ownerProfileId !== owner.id) ||
+        (actor.id !== owner.id && (await ManagedProfileManager.findByPk(actor.id, { transaction })))
+      )
+        return organizationMembershipConflict();
+      if (membership)
+        return new ManagedProfileMembershipError("MEMBERSHIP_ALREADY_EXISTS", 409, "An active membership already exists");
+      const role = requireMembershipRole(invitation.role);
+      const member = await Membership.create(
+        { createdByProfileId: invitation.invitedByProfileId, memberProfileId: actor.id, ownerProfileId: owner.id, role },
+        { transaction }
+      );
+      await invitation.update({ acceptedAt: new Date(), acceptedByProfileId: actor.id }, { logging: false, transaction });
+      await MembershipEvent.bulkCreate(
+        [
+          {
+            action: "member_added",
+            actorProfileId: actor.id,
+            invitationId,
+            memberProfileId: actor.id,
+            ownerProfileId: owner.id,
+            role
+          },
+          {
+            action: "invitation_accepted",
+            actorProfileId: actor.id,
+            invitationId,
+            memberProfileId: actor.id,
+            ownerProfileId: owner.id,
+            role
+          }
+        ],
+        { transaction }
+      );
+      return { member: memberResult(member, owner.id), ownerProfileId: owner.id };
+    })
+    .catch(error => {
+      if (
+        error instanceof UniqueConstraintError &&
+        "constraint" in error.original &&
+        error.original.constraint === "uq_managed_profile_memberships_active"
+      ) {
+        throw organizationMembershipConflict();
+      }
+      throw error;
     });
-    if (invitation.acceptedAt && invitation.acceptedByProfileId === actor.id && membership?.role === invitation.role) {
-      return { managedProfileId: child.profileId, member: memberResult(membership, child.managerProfileId) };
-    }
-    // Return conflicts from the callback so observed expiry and its event commit before rejection.
-    if (invitationStatus(invitation) !== "pending") return terminalInvitation(invitation);
-    if (membership)
-      return new ManagedProfileMembershipError("MEMBERSHIP_ALREADY_EXISTS", 409, "An active membership already exists");
-    const role = requireMembershipRole(invitation.role);
-    const member = await Membership.create(
-      { createdByProfileId: invitation.invitedByProfileId, managedProfileId: child.profileId, memberProfileId: actor.id, role },
-      { transaction }
-    );
-    await invitation.update({ acceptedAt: new Date(), acceptedByProfileId: actor.id }, { logging: false, transaction });
-    await MembershipEvent.bulkCreate(
-      [
-        {
-          action: "member_added",
-          actorProfileId: actor.id,
-          invitationId,
-          managedProfileId: child.profileId,
-          memberProfileId: actor.id,
-          role
-        },
-        {
-          action: "invitation_accepted",
-          actorProfileId: actor.id,
-          invitationId,
-          managedProfileId: child.profileId,
-          memberProfileId: actor.id,
-          role
-        }
-      ],
-      { transaction }
-    );
-    return { managedProfileId: child.profileId, member: memberResult(member, child.managerProfileId) };
-  });
   if (result instanceof ManagedProfileMembershipError) throw result;
   return result;
 }
 
 export async function listManagedProfileMemberEvents(
   actorProfileId: string,
-  profileId: string,
+  ownerProfileId: string,
   limit: number,
   cursor?: string
 ) {
   return sequelize.transaction(async transaction => {
-    await lockChild(profileId, transaction);
-    await requireMember(actorProfileId, profileId, false, transaction);
-    if (cursor && !(await MembershipEvent.findOne({ transaction, where: { id: cursor, managedProfileId: profileId } }))) {
-      throw new ManagedProfileMembershipError(
-        "INVALID_PAGINATION",
-        400,
-        "Cursor must identify an event in this managed profile"
-      );
+    await lockOrganization(ownerProfileId, transaction);
+    await requireMember(actorProfileId, ownerProfileId, false, transaction);
+    if (cursor && !(await MembershipEvent.findOne({ transaction, where: { id: cursor, ownerProfileId } }))) {
+      throw new ManagedProfileMembershipError("INVALID_PAGINATION", 400, "Cursor must identify an event in this organization");
     }
     const events = await MembershipEvent.findAll({
       limit: limit + 1,
@@ -487,7 +532,7 @@ export async function listManagedProfileMemberEvents(
       ],
       transaction,
       where: {
-        managedProfileId: profileId,
+        ownerProfileId,
         ...(cursor
           ? {
               // Compare in PostgreSQL, preserving timestamp precision and a stable UUID tie-breaker.

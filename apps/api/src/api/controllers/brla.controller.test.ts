@@ -427,7 +427,7 @@ describe("importKycToken", () => {
     })) as unknown as typeof ManagedProfile.findByPk;
     ManagedProfileMembership.findByPk = mock(async () => ({
       id: "membership-1",
-      managedProfileId: "child-1",
+      ownerProfileId: "manager-1",
       memberProfileId: "manager-1",
       revokedAt: null,
       role: "manager"

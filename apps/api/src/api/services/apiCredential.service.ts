@@ -186,7 +186,7 @@ async function lockManagedCredentialAuthority(
   const actor = await User.findByPk(actorProfileId, { transaction });
   const membership = await ManagedProfileMembership.findOne({
     ...options,
-    where: { managedProfileId: profileId, memberProfileId: actorProfileId, revokedAt: null }
+    where: { memberProfileId: actorProfileId, ownerProfileId: relationship.managerProfileId, revokedAt: null }
   });
   if (
     entities.length !== 1 ||

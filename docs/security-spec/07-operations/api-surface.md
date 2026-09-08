@@ -47,29 +47,38 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 **Route structure:** 44 `*.route.ts` files under `api/routes/` (35 directly under `v1/`, seven under `v1/admin/`, and two under `v1/admin-console/`), plus `v1/index.ts`, each mounting controllers with appropriate auth middleware. `api/routes/api-surface-inventory.test.ts` derives the total from the tree and pins the multipart inventory below.
 
-**Managed membership inventory:** `v1/managed-profile-memberships.route.ts` supplies both the
-child-path and invitee routers mounted by `v1/index.ts`. Its nine operations are:
+**Organization membership inventory:** `v1/managed-profile-memberships.route.ts` retains its
+internal filename and supplies organization and invitee routers mounted by `v1/index.ts`.
+Its ten operations are:
 
 | Operation | Authority |
 |---|---|
-| `GET /v1/managed-profiles/:profileId/members` | Either active membership role |
-| `PATCH /v1/managed-profiles/:profileId/members/:memberProfileId` | Active manager member; non-owner target |
-| `DELETE /v1/managed-profiles/:profileId/members/:memberProfileId` | Active manager member; non-owner target |
-| `GET /v1/managed-profiles/:profileId/member-invitations` | Either active membership role |
-| `POST /v1/managed-profiles/:profileId/member-invitations` | Active manager member |
-| `DELETE /v1/managed-profiles/:profileId/member-invitations/:invitationId` | Active manager member |
-| `GET /v1/managed-profiles/:profileId/member-events` | Either active membership role |
-| `GET /v1/managed-profile-member-invitations/:invitationId` | Exact current verified-email invitee |
-| `POST /v1/managed-profile-member-invitations/:invitationId/accept` | Exact current verified-email invitee; explicit acceptance |
+| `GET /v1/organization` | Human actor; live org projection or null |
+| `GET /v1/organization/members` | Either active org membership role |
+| `PATCH /v1/organization/members/:memberProfileId` | Active manager member; non-owner target |
+| `DELETE /v1/organization/members/:memberProfileId` | Active manager member; non-owner target |
+| `GET /v1/organization/member-invitations` | Either active org membership role |
+| `POST /v1/organization/member-invitations` | Active manager member |
+| `DELETE /v1/organization/member-invitations/:invitationId` | Active manager member |
+| `GET /v1/organization/member-events` | Either active org membership role |
+| `GET /v1/organization-member-invitations/:invitationId` | Exact current verified-email invitee |
+| `POST /v1/organization-member-invitations/:invitationId/accept` | Exact current verified-email invitee; explicit acceptance |
 
-All nine require Supabase bearer authentication and reject API-key headers (even alongside a
-bearer) and impersonation. Child-path selectors must match the path case-insensitively; invitee
-routes reject any selector. The routers share a 120-request/minute limit per authenticated actor,
+All ten require human Supabase bearer authentication and reject API/public-key headers (even
+alongside a bearer), impersonation, and any child selector. Active owner configuration is required
+for org operations; discovery returns null without a live membership, including disabled owners.
+Team works with zero children; old per-child team/invitee paths have no aliases.
+All seven scoped Team operations require UUID query `expectedOwnerProfileId`, including item
+PATCH/DELETE. Missing/malformed input returns `400 MANAGED_PROFILE_INVALID_INPUT`; a different
+expected/server-derived current org returns `409 ORGANIZATION_CONTEXT_CHANGED` with structured
+`{ error: { code, message, status } }`. This binds displayed-org intent, not authority or multi-org
+selection; live service authorization still applies. Discovery and invitee routes are exempt.
+The routers share a 120-request/minute limit per authenticated actor,
 in addition to the global IP limit. They run after the global body parser. Controller/service
 errors use `{ error: { code, message, status } }`; session errors remain flat `{ error: string }`
-and rate-limit responses are text. The membership route tests exercise all nine operations;
+and rate-limit responses are text. Membership route tests must exercise all ten operations;
 `docs:api:check` pins their exact public method/path, auth and response inventory. Full rules live
-in [Managed-Profile Memberships](../01-auth/managed-profile-memberships.md).
+in [Organization Memberships](../01-auth/managed-profile-memberships.md).
 
 **Multipart uploads:** Four operations use in-memory Multer buffering. Alfredpay's `POST /v1/alfredpay/submitKycFile`, `submitKybFile`, and `submitKybRelatedPersonFile` (also mounted under the country aliases `/v1/mx`, `/v1/co`, and `/v1/ar`) allow one file up to 5MB; secret/Bearer authentication and the managed relationship/entity-type gate run before buffering, while multipart country authorization runs after parsing. On a country alias, the path-derived country replaces any multipart country field before that authorization. Mykobo's `POST /v1/mykobo/profiles` is Supabase-authenticated before buffering and accepts up to four named files (`front`, `back`, `face`, `utility_bill`), each up to 10MB. These routes bound individual file size but do not currently configure a MIME/type `fileFilter`; the Mykobo request can buffer up to 40MB in aggregate.
 
@@ -99,7 +108,7 @@ in [Managed-Profile Memberships](../01-auth/managed-profile-memberships.md).
 22. **`ramp-info` MUST expose only a sanitized subject-derived projection** — `GET /v1/ramp-info` may accept public or secret credential capability, but not a Supabase session. It derives the profile from `CredentialContext`; an active `manager` or `read_only` member's secret may additionally select its authorized child, while a public key may not. It accepts no body/query profile, user, or PII identifier and returns only per-corridor `kycStatus`, `canBuy`, and `canSell`.
 23. **Managed-profile provisioning MUST use immutable associations** — `POST /v1/admin/managed-profiles` requires admin auth, normalizes email, and binds a genuine Supabase/profile identity to unique `(partner_id, external_user_id)` and unique `profile_id` records. Existing Auth identities may be reconciled only when their immutable metadata matches. Technical subjects must not receive customer entities or register ramps.
 24. **Managed-profile context MUST be route-authorized** — On supported child-oriented routes, `X-Managed-Profile-Id` is a selector only. A Supabase session or secret API credential establishes an authenticated member actor; middleware verifies that actor's active `manager` or `read_only` membership, the immutable owner's active manager configuration, a direct active relationship, and the managed child with its single active customer entity before attaching an immutable actor/subject context. Every call site declares a read, management, credential-management, or ramp capability. Read-only members are rejected from every non-read capability even when presenting their own secret credential. Corridor- or customer-type-scoped operations additionally enforce the owner's current customer-type narrowing, every required corridor, and canonical corridor capability; policy-free status and historical reads remain available. Public API keys cannot establish the member actor, raw headers never alter `req.userId`, and ownership checks use the verified child subject. Target-specific authorization must resolve the target under that verified child before evaluating its stored corridor, preserving the route's missing-resource response for foreign targets and never falling back to the actor's resource. A child-owned credential instead authenticates directly as its child and dynamically derives the same controlling relationship and current policy; it cannot select another child and does not require a membership row. Admin impersonation may compose with managed selection only on permitted read/management operations; the admin remains attributable through the impersonation context. Owner-manager or relationship deactivation, membership revocation, and policy narrowing block authorization decisions begun after the committed change but do not cancel already-authorized requests in flight. The header is explicitly CORS-allowlisted, and relationship plus route-specific entity-type authorization precedes multipart buffering; multipart country authorization follows body parsing.
-25. **Headless profile lifecycle MUST fail closed** — Child creation/deletion remain immutable-owner-only; a non-owner active member's deletion returns `403 MANAGED_PROFILE_OWNER_REQUIRED`. List/detail return actor identity and independent provisioning/membership flags, child membership role and owner policy. Default active lists return an empty `200` for actors without eligible memberships; `hasMemberships` uses the unpaginated eligible active-child count, excluding deleted children, inactive owners and invalid entity layouts. Both `status=deleted` and `status=all` require the actor's own active manager configuration and contain only owned children. Retained deleted-child detail requires the active immutable owner, valid membership/entity layout and no selector; invited members and ineligible retained reads receive masked `404`. Explicit matching-selector detail bootstrap requires stored membership history before returning `MANAGED_PROFILE_MEMBERSHIP_INVALID`; deleted-child bootstrap invalidates even for its owner, while never-member existing/unknown probes receive identical `404`s. Bearer and member-secret callers follow the same rules. Creation uses immutable, owner-scoped reserved contact/external identifiers and atomically creates the owner membership/event. Any active `manager` member may issue/revoke child credentials; either role may list. Issuance/revocation recheck live authority under owner-first, child-aggregate, membership locks; generic credential routes reject managed subjects. Child deletion follows owner-first locking, revokes child credentials atomically, preserves financial/compliance history, and is idempotent while owner configuration remains active. Managed profiles cannot create a second customer-entity type. See [Managed-Profile Memberships](../01-auth/managed-profile-memberships.md#lifecycle-reads) for the complete read contract.
+25. **Headless profile lifecycle MUST fail closed** - Child creation/deletion remain immutable-owner-only; a non-owner active member's deletion returns `403 MANAGED_PROFILE_OWNER_REQUIRED`. List/detail return actor identity and independent provisioning/membership flags, effective organization role and owner policy. Default active lists return an empty `200` for actors without live memberships; `hasMemberships` means live organization membership with active owner configuration even with zero children, independent of child eligibility or pagination. Both `status=deleted` and `status=all` require the actor's own active manager configuration and contain only owned children. Retained deleted-child detail requires the active immutable owner, valid membership/entity layout and no selector; invited members and ineligible retained reads receive masked `404`. Explicit matching-selector detail bootstrap requires stored membership history for the child's owner before returning `MANAGED_PROFILE_MEMBERSHIP_INVALID`; deleted-child bootstrap invalidates even for its owner, while never-member existing/unknown probes receive identical `404`s. Bearer and member-secret callers follow the same rules. Creation uses immutable, owner-scoped reserved contact/external identifiers and adds no membership grants/events: owner self-membership is created once per manager config. Any active organization `manager` member may issue/revoke child credentials; either role may list. Issuance/revocation recheck live authority under owner-first, child-aggregate, membership locks; generic credential routes reject managed subjects. Child deletion follows owner-first locking, revokes child credentials atomically, preserves financial/compliance history, and is idempotent while owner configuration remains active. Managed profiles cannot create a second customer-entity type. See [Organization Memberships](../01-auth/managed-profile-memberships.md#lifecycle-reads) for the complete read contract.
 26. **Managed selector handling MUST be explicit per route** — Recipient invite preview and acceptance reject `X-Managed-Profile-Id` rather than redeeming as a selected child; sender-side recipient routes are delegated only after managed-profile authorization. Direct child credentials are rejected from webhook and manager lifecycle routes. Managed children have one immutable active customer entity from provisioning, so `PUT /v1/onboarding/active-entity` is not a delegated child operation. The legacy Monerium and Mykobo routes are the accepted exception: they ignore the selector and remain scoped to the Supabase-authenticated manager. Managed clients must not send the header to those routes, and dashboard child mode disables those actions.
 27. **Public onboarding discovery MUST keep OpenAPI authoritative for request schemas** — `GET /v1/onboarding/requirements` is unauthenticated and returns only the reviewed static Avenia/Alfredpay flow identity, document requirements, ordered non-GET API/hosted/upload actions, workflow value bindings, and documentation/OpenAPI links. Initial reads, readiness getters, redirect getters, and status polling MUST NOT be advertised; integration documentation and OpenAPI own those completion details. No top-level field catalog or independent request schema is returned. `fixedBody`, `fixedQuery`, and `derivedValues` may bind provider discriminators or prior step outputs only to body/query fields accepted by the referenced OpenAPI operation. The endpoint MUST NOT inspect profile state, return customer or provider identifiers, accept an owner selector, or advertise unsupported combinations such as AR business or Monerium flows. Every advertised API step, request-schema fragment, and workflow-binding target is checked against the reviewed OpenAPI document so stale mappings fail the documentation gate.
 28. **Selected-child bearer ramps MUST fail before body buffering** — The three mutable ramp entrypoints authenticate selected-child Supabase bearer requests ahead of the global JSON parser, reject impersonation, verify membership role, and return `403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL` for a valid manager member without reading the body. Member-owned secret credentials and direct child credentials continue through the normal parsed route and full body-derived corridor/ownership checks.
@@ -108,6 +117,21 @@ Selected-child provider `credential_manage` bearer denial uses the shipped
 `MANAGED_PROFILE_REQUIRES_API_CREDENTIAL` code; child credential and domestic fiat-account
 `manage` mutations still permit eligible manager-member bearer sessions. Membership and invitation
 routes in the inventory above are bearer-only regardless of secret credential strength.
+
+Organization membership is keyed by the child's immutable owner config and inherited by all
+present/future children, not a per-child grant. Every person has one active affiliation globally,
+including owners of disabled configs. Deactivation retains memberships and denies operations;
+removal/downgrade changes all child delegated access without revoking shared child credentials.
+Pending invitations remain durable org offers after inviter removal. Second-org acceptance is
+`409 ORGANIZATION_MEMBERSHIP_CONFLICT`. This one-account-one-org approximation excludes personal
+resource sharing and requires a later ADR before any multi-org model or owner-transfer change.
+
+Stored history proves prior child access only when an actor membership for the child's immutable
+owner overlaps the child's lifetime: `membership.createdAt <= (child.deletedAt ?? now)` and
+(`membership.revokedAt IS NULL` or `membership.revokedAt > child.createdAt`) on the same row.
+Children created after revocation or wholly within a membership gap remain masked `404` despite
+historic org membership. Config-created owner self-membership and its event use null/system
+creator and actor attribution: `ADMIN_SECRET` identifies no human owner action.
 
 ## Threat Vectors & Mitigations
 

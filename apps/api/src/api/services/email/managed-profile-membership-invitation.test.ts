@@ -92,19 +92,22 @@ describe("managed-profile invitation email", () => {
 
   it("renders the invitation link in HTML and text with seven-day, explicit-acceptance copy", () => {
     const invitationUrl = `https://dashboard.example.com/member-invitations/${invitationId}`;
-    const rendered = renderNotification(EmailNotification.build({
-      locale: "en-US",
-      payload: { childId: "must-not-appear", invitationUrl, role: "read_only" },
-      provider: NotificationProvider.Vortex,
-      recipientEmail,
-      resourceId: invitationId,
-      type: NotificationType.ManagedProfileMembershipInvitation,
-      userId: null
-    }));
+    const rendered = renderNotification(
+      EmailNotification.build({
+        locale: "en-US",
+        payload: { childId: "must-not-appear", invitationUrl, role: "read_only" },
+        provider: NotificationProvider.Vortex,
+        recipientEmail,
+        resourceId: invitationId,
+        type: NotificationType.ManagedProfileMembershipInvitation,
+        userId: null
+      })
+    );
     for (const body of [rendered.html, rendered.text]) {
       expect(body).toContain(invitationUrl);
       expect(body).toContain("Seven days after the invitation was created");
       expect(body).toContain("explicitly accept");
+      expect(body).toContain("all current and future managed profiles in the organization");
       expect(body).not.toContain("must-not-appear");
       expect(body).not.toContain("read_only");
       expect(body).not.toContain(recipientEmail);

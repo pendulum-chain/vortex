@@ -5,7 +5,6 @@ import sequelize from "../config/database";
 import CustomerEntity from "../models/customerEntity.model";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
-import ManagedProfileMembership from "../models/managedProfileMembership.model";
 import ProviderCustomer from "../models/providerCustomer.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
@@ -15,6 +14,7 @@ import { SupabaseAuthService } from "../api/services/auth";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { createManagedProfileCredential } from "../api/services/apiCredential.service";
 import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
+import { configureManagedProfileManager } from "../api/services/managed-profile-manager.service";
 
 const BASE_PATH = "/v1/alfredpay";
 const originalGetInstance = AlfredpayApiService.getInstance;
@@ -47,7 +47,7 @@ describe("managed Alfredpay customer creation", () => {
     allowedCustomerTypes: Array<"business" | "individual"> | null = null
   ) {
     const manager = await createTestUser({ email: "manager@example.com" });
-    await ManagedProfileManager.create({ allowedCorridors, allowedCustomerTypes, isActive: true, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors, allowedCustomerTypes, isActive: true, profileId: manager.id });
     return manager;
   }
 
@@ -299,10 +299,6 @@ describe("managed Alfredpay customer creation", () => {
         },
         { transaction }
       );
-      await ManagedProfileMembership.create(
-        { managedProfileId: childId, memberProfileId: manager.id, role: "manager" },
-        { transaction }
-      );
     });
     const credential = await createTestApiKey({ userId: manager.id });
     const createCustomer = mock(async () => ({ customerId: "unexpected", createdAt: new Date().toISOString() }));
@@ -364,7 +360,7 @@ describe("managed Alfredpay customer creation", () => {
 
     // A second manager picks the victim's email as its child's unverified contact email.
     const attackerManager = await createTestUser({ email: "attacker@example.com" });
-    await ManagedProfileManager.create({
+    await configureManagedProfileManager({
       allowedCorridors: ["MX"],
       allowedCustomerTypes: null,
       isActive: true,

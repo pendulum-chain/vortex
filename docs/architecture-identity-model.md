@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038-069 and the API models
-on 2026-09-07.
+Status: current architectural contract, including the approved rewrite of unshipped
+migration 069 under [ADR 0006](adr-0006-organization-wide-teams.md), on 2026-09-07.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -32,8 +32,10 @@ erDiagram
     profiles ||--o| managed_profile_managers : enables
     managed_profile_managers ||--o{ managed_profiles : controls
     profiles ||--o| managed_profiles : identifies
-    managed_profiles ||--o{ managed_profile_memberships : authorizes
-    profiles ||--o{ managed_profile_memberships : participates
+    managed_profile_managers ||--|{ managed_profile_memberships : authorizes
+    profiles ||--o{ managed_profile_memberships : membership_history
+    managed_profile_managers ||--o{ managed_profile_membership_invitations : offers
+    managed_profile_managers ||--o{ managed_profile_membership_events : audits
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -118,30 +120,54 @@ routes, plus sender-side recipient list, invitation creation/archive, relationsh
 and eligibility. Invite preview and acceptance remain bearer-invitee operations and reject a
 managed-child selector.
 
-Migration 069 adds active, revocable `manager` and `read_only` memberships between
-authenticated profiles and managed children, email-bound invitations, and append-only
-membership events. Every retained child is backfilled with an active owner-manager
-membership; new provisioning creates the owner membership and its `member_added` event in
-the same transaction as the profile, entity, and relationship. Database constraints keep
-ownership immutable, protect the active owner's manager membership, require authenticated
-member profiles, and permit only one active grant for each child/member pair.
+### Organization affiliation and inherited child access
+
+Exactly one owning manager account/configuration defines exactly one organization. This
+is the current **one-account-one-org approximation**, not a generic organization entity
+model. Every person, including owners, invited managers, and read-only members, is limited
+to one active organization affiliation. An owner, including one with a disabled manager
+configuration, cannot join another organization. Personal user resources are not shared.
+
+The unshipped per-child feature and its data are disposable. Migration 069 is rewritten
+directly, without a forward migration or compatibility path. It retains the existing
+membership/invitation/event table names and internal class filenames, replacing the
+`managed_profile_id` property with `owner_profile_id`, a foreign key to
+`managed_profile_managers.profile_id`. Membership roles remain `manager` and `read_only`.
+The active unique constraint is global on `member_profile_id`; the ER's many memberships
+represent retained history, not concurrent affiliations. Invitations are unique while
+pending by `(owner_profile_id, email)`, and events are append-only in the same owner scope.
+
+Backfill exactly one protected owner-manager self-membership per manager configuration,
+including disabled owners and owners with no children. New configuration creation adds
+this membership and its `member_added` event once; child provisioning adds no grants or
+membership events. Config-created self-membership has `createdByProfileId: null` and its
+event has `actorProfileId: null` for system attribution, with the owner as member subject;
+`ADMIN_SECRET` does not identify the owner as an acting human. Owner membership cannot be removed or downgraded. Active owner
+configuration is required for organization/team operations and delegated child access;
+deactivation retains memberships and denies operations rather than releasing affiliation.
 
 The immutable controlling manager remains the child owner and supplies corridor/customer-type
 policy, pricing fallback, external identity namespace, and lifecycle authority. Memberships grant
 other authenticated actors access without transferring ownership. List/detail return
 `actor: { profileId, canProvisionManagedProfiles, hasMemberships }` plus each child's actor-specific
 role, owner flag and controlling-owner policy. Provisioning capability reflects the actor's own
-active manager configuration. Membership presence is the unpaginated eligible active-child count
-across owners, independent of page/status/detail target; deleted children, inactive owners and
-invalid entity layouts do not count. Eligibility requires an unrevoked allowed-role membership and
-a managed child selecting its sole active owned entity. The default active list returns `200` with
+active manager configuration. `hasMemberships` means live organization membership with an
+active owner configuration, even with zero children, independent of page/status/detail target.
+Both the enabled owner and invited members retain this flag in an empty organization. Each
+returned child still requires an active relationship and valid entity layout. Organization
+roles apply to all present and future children of that owner, not a per-child assignment.
+The default active list returns `200` with
 an empty list even when both actor flags are false. Both `status=deleted` and `status=all` require
 the actor's own active owner configuration and return only its owned children, excluding even active
 invited children owned by others. Retained results still require valid membership/entity layout.
 
-Detail bootstrap is an exactly matching `X-Managed-Profile-Id` on the child `GET`. Only stored
-membership history permits `MANAGED_PROFILE_MEMBERSHIP_INVALID` after membership, owner, child or
-entity eligibility is lost; even the owner cannot bootstrap a deleted child. Never-member callers
+Detail bootstrap is an exactly matching `X-Managed-Profile-Id` on the child `GET`. Prior access
+requires an actor membership for that immutable owner overlapping the child's lifetime:
+`membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or
+`membership.revokedAt > child.createdAt`) on the same row. Only this evidence permits
+`MANAGED_PROFILE_MEMBERSHIP_INVALID` after membership, owner, child or entity eligibility is lost.
+Children created after revocation or wholly within a membership gap remain masked `404` even
+with historic org membership; even the owner cannot bootstrap a deleted child. Never-member callers
 receive identical masked `404`s for existing and unknown children. Ordinary retained detail reads
 require the active immutable owner, valid membership/entity layout and no selector; invited members
 and ineligible retained reads receive masked `404`. Bearer and member-secret callers use the same
@@ -154,10 +180,29 @@ KYC/KYB mutations (`MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`, the shipped spelli
 fiat-account mutations are `manage`, allowing manager-member bearers. Child-owned credentials remain
 shared company principals independent of the human who created or possesses them.
 
-Membership invitations are scoped to one child and expire after seven days. The exact current
-verified Supabase email must explicitly accept; OTP authentication alone never grants membership.
-Invitation, membership, and event rows are not directly available through PostgREST. The child Team
-surface exposes only server-authorized roster, pending invitation, and access-history projections.
+Membership invitations are durable organization offers and expire after seven days; inviter
+removal or downgrade does not invalidate a pending offer. The exact current verified Supabase
+email must explicitly accept; OTP alone never grants membership. Accepting a second organization
+returns `409 ORGANIZATION_MEMBERSHIP_CONFLICT`, including for disabled owners. Invitation,
+membership, and event rows are not directly available through PostgREST. Team lives in the main
+nonacting dashboard and works without children. `GET /v1/organization` returns the actor's live
+organization or null; `/v1/organization/*` exposes its roster, invitations, and history.
+Invitee preview/acceptance uses `/v1/organization-member-invitations/:invitationId`.
+All organization, team, and invitee routes require a human Supabase bearer and reject any child
+selector, API/public key, and impersonation. No old per-child team aliases remain.
+
+All seven scoped Team operations require UUID query `expectedOwnerProfileId`, including item
+PATCH/DELETE. It binds the displayed org, not authority or a multi-org selector: current org
+remains server-derived with live service authorization. Missing/malformed input is
+`400 MANAGED_PROFILE_INVALID_INPUT`; a different expected/current owner is
+`409 ORGANIZATION_CONTEXT_CHANGED`. Discovery and invitee locator routes remain exempt.
+This prevents a stale A dialog from issuing a B invitation after removal from A and acceptance
+of B elsewhere; clients must refresh context and require a new decision, not replay the dialog.
+
+Removal or downgrade affects delegated access to all children but does not revoke child-owned
+shared credentials. No multi-organization management, organization kinds, owner transfer, or
+organization switcher is supported. Any such capability requires explicitly revisiting the
+architectural model through a later ADR, not reinterpreting membership.
 
 Migration 063 rollback locks both managed tables and refuses to proceed while either a
 child relationship or manager configuration exists, so manager policy cannot be silently
@@ -165,7 +210,8 @@ discarded by a down/up cycle.
 
 The durable rationale and intentionally excluded capabilities are recorded in
 [`ADR 0003`](adr-0003-managed-headless-profiles.md) and its partial supersession,
-[`ADR 0005`](adr-0005-managed-profile-memberships.md).
+[`ADR 0005`](adr-0005-managed-profile-memberships.md), superseded in scope by
+[`ADR 0006`](adr-0006-organization-wide-teams.md).
 
 ### Recipients
 

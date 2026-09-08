@@ -15,6 +15,14 @@ Manager status is granted by Vortex, not self-service. During partner onboarding
 
 Delegated operations resolve the immutable owner's current policy, not the acting member's personal policy. Removing a corridor blocks new corridor-bound mutations and disallowed exact-limit reads; quote discovery and historical/status reads remain available. Already-started background ramps may continue, but this never grants a bearer permission to update or start a child ramp. EUR is not available for managed children because its flows are bound to a verified login email.
 
+### One Organization Per Owning Account
+
+Exactly one owning manager account/config defines exactly one organization. This is the current **one-account-one-org approximation**, not a general organization entity model. Every person, including owners, invited managers, and read-only members, is limited to one active organization affiliation. Owners, including owners with disabled configuration, cannot join another org.
+
+An organization's role applies to **all present and future children** of its owner. Personal user resources are not shared. A Manager administers non-owner team members and supported child resources/credentials; only the Owner provisions/deletes children, reads retained deleted children, and controls owner policy through existing administration. Read-only grants no writes, even using personal secret credentials. The existing provider/ramp secret requirements still apply.
+
+Active owner configuration is required for organization/team and child operations. Deactivation retains memberships but denies operations; it does not free an affiliation to join another org. Multi-organization management, organization kinds, owner transfer, and an organization switcher are not supported. Future support requires explicitly revisiting the architectural model through a later ADR, not reinterpreting membership.
+
 ## Create A Managed Child
 
 Authenticate with your manager profile's secret key (`X-API-Key`) or Supabase Bearer session. A public `pk_*` key is insufficient, and a child-owned credential can never manage other children.
@@ -53,7 +61,7 @@ Content-Type: application/json
 
 `profileId` is the value you pass as `X-Managed-Profile-Id` in every delegated call. Persist the pair (`externalSubjectId`, `profileId`) in your system of record.
 
-Lifecycle endpoints: `GET /v1/managed-profiles` defaults to eligible active memberships across all owners (`limit=1..100`, non-negative `offset`; defaults `50`, `0`). `status=deleted` and `status=all` both require the actor's own active manager configuration and are owner-scoped only, excluding children owned by others even if active. `GET /v1/managed-profiles/{profileId}` reads one eligible active child; retained deleted-child reads require the active immutable owner and no selector. List/read responses identify the actor and decorate each child with the actor's `manager` or `read_only` membership, `isOwner`, and owner policy. `DELETE` remains owner-only: an active non-owner member receives `403 MANAGED_PROFILE_OWNER_REQUIRED`. Deletion is idempotent while the owner configuration is active, revokes child credentials, blocks new activity, and preserves compliance and financial history. Deleted `externalSubjectId` and `contactEmail` values stay reserved.
+Lifecycle endpoints: `GET /v1/managed-profiles` defaults to eligible active children of the actor's one organization (`limit=1..100`, non-negative `offset`; defaults `50`, `0`). `status=deleted` and `status=all` both require the actor's own active manager configuration and are owner-scoped only; invited members cannot use retained filters. `GET /v1/managed-profiles/{profileId}` reads one eligible active child; retained deleted-child reads require the active immutable owner and no selector. List/read responses identify the actor and decorate each child with the actor's effective `manager` or `read_only` membership, `isOwner`, and owner policy. `DELETE` remains owner-only: an active non-owner member receives `403 MANAGED_PROFILE_OWNER_REQUIRED`. Deletion is idempotent while the owner configuration is active, revokes child credentials, blocks new activity, and preserves compliance and financial history. Deleted `externalSubjectId` and `contactEmail` values stay reserved.
 
 For example, a non-owner member can bootstrap its selected child:
 
@@ -86,7 +94,7 @@ X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 }
 ```
 
-The list response uses the same actor and decorated child shape inside `managedProfiles`, adding `pagination: { limit, offset, total }`. `canProvisionManagedProfiles` reflects the actor's own active manager configuration. `hasMemberships` is based on an unpaginated eligible active-child count across all owners, independent of the page, status filter and detail target. Eligibility excludes revoked/invalid roles, deleted children, inactive owners and invalid entity layouts; a child must select its sole active owned customer entity. An empty page can therefore retain `hasMemberships: true`, while an owner reading retained records can have `hasMemberships: false`.
+The list response uses the same actor and decorated child shape inside `managedProfiles`, adding `pagination: { limit, offset, total }`. `canProvisionManagedProfiles` reflects the actor's own active manager configuration and stays owner-only. `hasMemberships` means live organization membership with active owner configuration, **even with zero children**, independent of page, status filter and detail target. Child eligibility separately excludes deleted children and invalid entity layouts; a returned child must select its sole active owned customer entity. Neither an empty org nor an empty page removes live organization membership.
 
 The default list returns `200` even for an actor with no owner configuration or eligible memberships:
 
@@ -102,11 +110,11 @@ The default list returns `200` even for an actor with no owner configuration or 
 }
 ```
 
-An enabled owner before provisioning instead receives flags `true`, `false`. Neither an empty page nor a `200` by itself proves managed access. There is no singular `manager` object; creation remains undecorated. Membership never transfers ownership or grants sibling provisioning, child deletion, policy/pricing administration, or global profile roles.
+An enabled owner before provisioning instead receives flags `true`, `true`; an invited member of an empty active org receives `false`, `true`. Neither an empty page nor a `200` by itself proves managed access. There is no singular `manager` object; creation remains undecorated. Membership never transfers ownership or grants sibling provisioning, child deletion, policy/pricing administration, or global profile roles.
 
 ### Bootstrap And Retained Reads
 
-Bootstrap means `GET` detail with `X-Managed-Profile-Id` **exactly matching** the path. The selector expresses intent, not prior access: stored membership history (active or revoked) is required before ineligibility returns `403 MANAGED_PROFILE_MEMBERSHIP_INVALID`. This covers revoked membership, deleted children, disabled owners and invalid entity layouts. Deleted children invalidate bootstrap even for their owner. Both bearer and member-secret callers use this rule; callers who were never members receive the same masked `404 MANAGED_PROFILE_NOT_FOUND` for an existing or unknown child, whether or not they send a matching selector. A mismatched selector is `403 MANAGED_PROFILE_ACCESS_DENIED`.
+Bootstrap means `GET` detail with `X-Managed-Profile-Id` **exactly matching** the path. The selector expresses intent, not prior access: an actor membership for the child's immutable owner must overlap that child's lifetime. The same row must satisfy `membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or `membership.revokedAt > child.createdAt`); use now if the child is not deleted. Only then may ineligibility return `403 MANAGED_PROFILE_MEMBERSHIP_INVALID`. A child created after revocation or wholly within a membership gap remains masked `404`, even with historic org membership. Revocation, deleted children, disabled owners and invalid entity layouts invalidate evidenced bootstrap. Deleted children invalidate bootstrap even for their owner. Both bearer and member-secret callers use this rule; callers with no overlapping owner-matching membership receive the same masked `404 MANAGED_PROFILE_NOT_FOUND` for an existing or unknown child, whether or not they send a matching selector. A mismatched selector is `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 To inspect a retained deleted child, the immutable owner uses an ordinary detail read **without a selector**, with active owner configuration and valid membership/entity layout. Invited members and ineligible retained reads receive `404`. Ordinary reads never produce membership-invalid: missing membership is `404`, while an active member's active-child read with disabled owner or invalid layout is `403 MANAGED_PROFILE_ACCESS_DENIED`. Clear a dashboard selection on evidenced bootstrap membership-invalid, not on role/policy denial, generic `404` or transient failures.
 
@@ -134,28 +142,45 @@ Child credential creation/revocation supports a member bearer session as well as
 
 One deliberate exception: `POST /v1/brl/kyc/import-token` (the Sumsub share-token import) rejects direct child credentials with `403`. An active `manager` member must import with its own secret and the delegation header; a selected-child bearer cannot import.
 
-## Invite And Manage Members
+## Discover Your Organization And Team
 
-Members are authenticated human profiles; the child remains headless. There are exactly two roles: `manager` can perform supported child mutations and administer non-owner members; `read_only` can only read, even when using a secret key. The immutable owner is always an active `manager` member and cannot be changed or revoked.
+Members are authenticated human profiles; children remain headless. There are exactly two roles: `manager` can perform supported child mutations and administer non-owner members; `read_only` can only read, even when using a personal secret key. The immutable owner has one protected `manager` self-membership from configuration creation, including before any children exist. Provisioning a child creates no new grants.
 
-All nine endpoints below require `Authorization: Bearer <access_token>`. Do not attach API-key headers, even alongside a bearer. API credentials, direct child credentials, and impersonation are rejected. On child-path routes, an optional `X-Managed-Profile-Id` must match the path UUID case-insensitively. On invitee routes it is forbidden.
+All ten endpoints below require `Authorization: Bearer <access_token>`. Do not attach API/public-key headers, even alongside a bearer. All reject API credentials, direct child credentials, impersonation, and **any** `X-Managed-Profile-Id`, including a matching, empty, or malformed selector. There are no child-path Team aliases. Team lives in the main nonacting dashboard and works for empty organizations.
 
 | Endpoint | Authority | Success |
 |---|---|---|
-| `GET /v1/managed-profiles/{profileId}/members` | Either role | `200 { members, pagination }` |
-| `PATCH /v1/managed-profiles/{profileId}/members/{memberProfileId}` | Manager member | `200 { member }` |
-| `DELETE /v1/managed-profiles/{profileId}/members/{memberProfileId}` | Manager member | `204`, no body |
-| `GET /v1/managed-profiles/{profileId}/member-invitations` | Either role | `200 { invitations, pagination }` |
-| `POST /v1/managed-profiles/{profileId}/member-invitations` | Manager member | `201 { invitation }`, or `200` for identical pending retry |
-| `DELETE /v1/managed-profiles/{profileId}/member-invitations/{invitationId}` | Manager member | `204`, no body |
-| `GET /v1/managed-profiles/{profileId}/member-events` | Either role | `200 { events, pagination }` |
-| `GET /v1/managed-profile-member-invitations/{invitationId}` | Exact verified-email invitee | `200 { invitation, inviter, managedProfile }` |
-| `POST /v1/managed-profile-member-invitations/{invitationId}/accept` | Exact verified-email invitee | `200 { managedProfileId, member }` |
+| `GET /v1/organization` | Human actor | `200 { organization: { ownerProfileId, ownerEmail, membership: { role, isOwner } } \| null }` |
+| `GET /v1/organization/members` | Either role | `200 { members, pagination }` |
+| `PATCH /v1/organization/members/{memberProfileId}` | Manager member | `200 { member }` |
+| `DELETE /v1/organization/members/{memberProfileId}` | Manager member | `204`, no body |
+| `GET /v1/organization/member-invitations` | Either role | `200 { invitations, pagination }` |
+| `POST /v1/organization/member-invitations` | Manager member | `201 { invitation }`, or `200` for identical pending retry |
+| `DELETE /v1/organization/member-invitations/{invitationId}` | Manager member | `204`, no body |
+| `GET /v1/organization/member-events` | Either role | `200 { events, pagination }` |
+| `GET /v1/organization-member-invitations/{invitationId}` | Exact verified-email invitee | `200 { invitation, inviter, organization }` |
+| `POST /v1/organization-member-invitations/{invitationId}/accept` | Exact verified-email invitee | `200 { ownerProfileId, member }` |
+
+Discovery returns `organization: null` without a live membership, including when the owner configuration is disabled. A live empty org returns the same organization projection as one with children. `ownerEmail` is nullable. Team derives its organization from the actor, not a caller-supplied owner ID.
+
+**Required Team precondition:** all seven scoped Team operations, including item PATCH/DELETE, require UUID query `expectedOwnerProfileId`. Capture `ownerProfileId` from the organization being displayed and keep it with each request/dialog. Discovery `GET /v1/organization` and both invitee locator routes are exempt. The parameter binds displayed-org intent, not authority or a multi-org selector: the server still derives the current org and performs live service authorization. Missing/malformed input returns `400 MANAGED_PROFILE_INVALID_INPUT`; expected/current owner mismatch returns `409 ORGANIZATION_CONTEXT_CHANGED` with `{ "error": { "code": "ORGANIZATION_CONTEXT_CHANGED", "message": "...", "status": 409 } }`.
+
+For example, a dialog opened in A must still send A's owner ID if the actor is removed from A and accepts B elsewhere. On conflict, refresh discovery and ask for a new decision; never automatically retry the old invitation against B. All seven paths keep their existing bodies and pagination:
+
+```http
+GET /v1/organization/members?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001&limit=50
+PATCH /v1/organization/members/00000000-0000-0000-0000-000000000003?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
+DELETE /v1/organization/members/00000000-0000-0000-0000-000000000003?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
+GET /v1/organization/member-invitations?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001&limit=50
+POST /v1/organization/member-invitations?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
+DELETE /v1/organization/member-invitations/00000000-0000-0000-0000-000000000004?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
+GET /v1/organization/member-events?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001&limit=50
+```
 
 ### 1. Create An Invitation
 
 ```http
-POST /v1/managed-profiles/00000000-0000-0000-0000-000000000002/member-invitations
+POST /v1/organization/member-invitations?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
 Authorization: Bearer <manager_member_access_token>
 Content-Type: application/json
 
@@ -166,7 +191,7 @@ Content-Type: application/json
 {
   "invitation": {
     "id": "00000000-0000-0000-0000-000000000004",
-    "managedProfileId": "00000000-0000-0000-0000-000000000002",
+    "ownerProfileId": "00000000-0000-0000-0000-000000000001",
     "invitedByProfileId": "00000000-0000-0000-0000-000000000001",
     "email": "operator@example.com",
     "role": "manager",
@@ -180,29 +205,29 @@ Content-Type: application/json
 }
 ```
 
-Email is trimmed/lowercased and validated (maximum 254 normalized characters). The invitation expires after seven days and its email is queued transactionally. Creation does not reveal whether an unrelated profile exists. Only one pending invitation per child/email is allowed regardless of role. Identical retries return the same invitation without another email; changing the pending role requires cancellation and a new invite. A visible active member yields `409 MEMBERSHIP_ALREADY_EXISTS`. No secret acceptance token or URL is returned.
+Email is trimmed/lowercased and validated (maximum 254 normalized characters). The invitation expires after seven days and its email is queued transactionally. It is a durable organization offer: later inviter removal or downgrade does not cancel it. Creation does not reveal whether an unrelated profile exists. Only one pending invitation per organization/email is allowed regardless of role. Identical retries return the same invitation without another email; changing the pending role requires cancellation and a new invite. A visible active member yields `409 MEMBERSHIP_ALREADY_EXISTS`. No secret acceptance token or URL is returned.
 
 ### 2. Sign In, Preview, Then Accept
 
 The invitee signs in using the invited email and obtains a Supabase session. The invitation UUID is only a locator, not a bearer secret. Preview and acceptance compare the normalized invitation email with the **current Supabase principal's verified email**, requiring `email_confirmed_at`. Request-body email and cached `profiles.email` are not authority. OTP verification alone does not grant child access.
 
 ```http
-GET /v1/managed-profile-member-invitations/00000000-0000-0000-0000-000000000004
+GET /v1/organization-member-invitations/00000000-0000-0000-0000-000000000004
 Authorization: Bearer <operator_access_token>
 ```
 
-Authorized preview returns the invitation above, `inviter: { profileId, email }` (nullable inviter email), and `managedProfile: { profileId, externalSubjectId }`. It can return `pending`, `accepted`, `cancelled`, or `expired`. An unknown UUID or mismatched/unverified email returns generic `403 MANAGED_PROFILE_ACCESS_DENIED` without child, inviter, role, or status details.
+Authorized preview requires active owner configuration and returns the invitation above, `inviter: { email, profileId }` (nullable inviter email), and `organization: { ownerProfileId, ownerEmail }` (nullable owner email). It can return `pending`, `accepted`, `cancelled`, or `expired`. An unknown UUID or mismatched/unverified email returns generic `403 MANAGED_PROFILE_ACCESS_DENIED` without organization, inviter, role, or status details.
 
-After showing the child and role to the invitee, explicitly accept with **no request body and no managed selector**:
+After showing the organization and role to the invitee, explicitly accept with **no request body and no managed selector**:
 
 ```http
-POST /v1/managed-profile-member-invitations/00000000-0000-0000-0000-000000000004/accept
+POST /v1/organization-member-invitations/00000000-0000-0000-0000-000000000004/accept
 Authorization: Bearer <operator_access_token>
 ```
 
 ```json
 {
-  "managedProfileId": "00000000-0000-0000-0000-000000000002",
+  "ownerProfileId": "00000000-0000-0000-0000-000000000001",
   "member": {
     "id": "00000000-0000-0000-0000-000000000005",
     "memberProfileId": "00000000-0000-0000-0000-000000000003",
@@ -216,12 +241,14 @@ Authorization: Bearer <operator_access_token>
 
 Acceptance transactionally creates one active membership and `invitation_accepted`/`member_added` events. A previously revoked member receives a new membership row. Replay returns `200` only if the same accepter still has an active membership matching the invitation role; it does not restore access after removal/downgrade or duplicate events. Otherwise an accepted invitation returns `409 INVITATION_ACCEPTED`. Cancelled/expired invitations cannot be accepted.
 
+Second-org acceptance returns `409 ORGANIZATION_MEMBERSHIP_CONFLICT`. This includes owners with disabled configurations and members whose existing org is disabled: deactivation does not release affiliation. Concurrent accepts cannot grant two active org memberships. Acceptance of a pending offer does not depend on the inviter still being a member, but does require active owner configuration. Success grants the role for all current and future children and leads to the main org/Team surface, not child selection.
+
 ### 3. Change Access And Audit
 
 Use the **member profile UUID**, not `member.id`, in member mutation paths:
 
 ```http
-PATCH /v1/managed-profiles/00000000-0000-0000-0000-000000000002/members/00000000-0000-0000-0000-000000000003
+PATCH /v1/organization/members/00000000-0000-0000-0000-000000000003?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001
 Authorization: Bearer <manager_member_access_token>
 Content-Type: application/json
 
@@ -232,7 +259,7 @@ This returns `{ member }` in the acceptance member shape, with updated role/time
 
 Member and invitation lists use `limit=1..100` and non-negative `offset` (defaults `50`, `0`), returning `{ limit, offset, total }`. Members are active-only, oldest first by creation time/UUID, and add nullable `email` to each member. Invitations include pending and terminal records, newest first by creation time/UUID. There is no invitation status filter. Creation, preview, listing, acceptance and cancellation persist observed expiry once.
 
-Events use `?limit=50&cursor=<event_uuid>`, newest first by creation time/UUID, returning `pagination: { limit, nextCursor }`. The cursor must belong to this child; `null` means there are no older events. `offset` is validated if supplied but ignored. Each event contains `id`, `action`, `createdAt`, and nullable `actorProfileId`, `memberProfileId`, `invitationId`, `previousRole`, `role`. Actions are `invited`, `invitation_accepted`, `invitation_cancelled`, `invitation_expired`, `member_added`, `role_changed`, `member_removed`. Events omit email, invitation URLs and secrets.
+Events use `?expectedOwnerProfileId=<displayed_owner_uuid>&limit=50&cursor=<event_uuid>`, newest first by creation time/UUID, returning `pagination: { limit, nextCursor }`. The cursor must belong to this organization; `null` means there are no older events. `offset` is validated if supplied but ignored. Each event contains `id`, `action`, `createdAt`, and nullable `actorProfileId`, `memberProfileId`, `invitationId`, `previousRole`, `role`. Actions are `invited`, `invitation_accepted`, `invitation_cancelled`, `invitation_expired`, `member_added`, `role_changed`, `member_removed`. Config-created owner self-membership has system/null creator attribution, and its `member_added` event has `actorProfileId: null` with the owner as member subject; admin-secret authentication does not identify a human owner action. Events omit email, invitation URLs and secrets.
 
 Membership routes share a per-actor limit of 120 requests/minute (`429` text response with standard rate-limit headers). Authentication errors use `{ "error": "..." }`: `401` for missing/invalid sessions and `503` for transient authentication unavailability. Service errors use `{ "error": { "code", "message", "status" } }`.
 
@@ -240,14 +267,17 @@ Unlike token import and selected-child bearer ramp rejection, membership routes 
 
 | Status/code | Meaning |
 |---|---|
-| `400 MANAGED_PROFILE_INVALID_INPUT` | Path IDs must be UUIDs. |
-| `400 INVALID_PAGINATION` | Invalid page size/offset or event cursor, including a cursor outside the child. |
+| `400 MANAGED_PROFILE_INVALID_INPUT` | Path IDs and the required scoped-Team query `expectedOwnerProfileId` must be UUIDs; missing precondition is also invalid. |
+| `400 INVALID_PAGINATION` | Invalid page size/offset or event cursor, including a cursor outside the organization. |
+| `400 MANAGED_PROFILE_UNSUPPORTED` | Any child selector on an organization/team/invitee route. |
 | `400 INVALID_MEMBERSHIP_ROLE` / `INVALID_INVITATION_EMAIL` | Invalid role or creation email. |
-| `403 MANAGED_PROFILE_ACCESS_DENIED` | Missing child authority, forbidden API-key headers, mismatched selector, or unauthorized invitee. |
+| `403 MANAGED_PROFILE_ACCESS_DENIED` | Missing org authority, inactive owner, forbidden API/public-key headers, or unauthorized invitee. |
 | `403 IMPERSONATION_NOT_ALLOWED` | All membership operations reject impersonation. |
-| `404 MEMBER_NOT_FOUND` / `INVITATION_NOT_FOUND` | The authorized child's mutation target is absent. Invitee probing uses `403`, not `404`. |
+| `404 MEMBER_NOT_FOUND` / `INVITATION_NOT_FOUND` | The authorized organization's mutation target is absent. Invitee probing uses `403`, not `404`. |
 | `409 INVITATION_ROLE_CONFLICT` | Cancel the pending invite before changing its role. |
-| `409 MEMBERSHIP_ALREADY_EXISTS` | An active child membership already exists. |
+| `409 MEMBERSHIP_ALREADY_EXISTS` | An active membership in this organization already exists. |
+| `409 ORGANIZATION_MEMBERSHIP_CONFLICT` | The invitee is affiliated with another org, including as a disabled owner. |
+| `409 ORGANIZATION_CONTEXT_CHANGED` | Scoped Team request's expected owner differs from the actor's current org. Refresh context and require a new decision; do not replay stale intent in the new org. |
 | `409 INVITATION_ACCEPTED` / `INVITATION_CANCELLED` / `INVITATION_EXPIRED` | Terminal invitation; repeated cancellation also conflicts. |
 | `500 INTERNAL_SERVER_ERROR` | Membership request could not be processed. |
 
@@ -310,7 +340,7 @@ Two things behave differently for managed children:
 | Response | Meaning |
 |---|---|
 | `403 MANAGED_PROFILE_ACCESS_DENIED` | The relationship, controlling manager, selector, child credential, or entity layout is invalid or inactive. |
-| `403 MANAGED_PROFILE_MEMBERSHIP_INVALID` | Matching-selector detail bootstrap has membership history but is no longer eligible, including deleted child or disabled owner; applies to bearer and member-secret callers. |
+| `403 MANAGED_PROFILE_MEMBERSHIP_INVALID` | Matching-selector detail bootstrap has an actor membership for the child's owner overlapping its lifetime but is no longer eligible, including deleted child or disabled owner; applies to bearer and member-secret callers. |
 | `403 MANAGED_PROFILE_OWNER_REQUIRED` | Retained list filters require the actor's own active owner configuration; active non-owner members cannot delete the child. |
 | `403 MANAGED_PROFILE_MANAGER_REQUIRED` | The operation requires a `manager` membership; `read_only` is insufficient. |
 | `403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL` | A selected-child ramp mutation requires your member-owned secret credential, not a bearer session. |

@@ -57,7 +57,8 @@ content is rendered verbatim to users and may later be emailed, so it is a PII-l
       `prefs[<stored type>] === false` mutes one type — the stored type strings are the
       shared `EmailNotificationType` enum consumed by both the worker and the dashboard's
       Settings toggles. A muted row is recorded `skipped`, never sent. Sending remains
-      server-side triggered only. Managed-profile membership invitations are the narrow exception:
+      server-side triggered only. Organization membership invitations are the narrow exception
+      (the existing `managed_profile_membership_invitation` discriminator is unchanged):
       they may address a normalized email before a profile exists and bypass profile preferences,
       but exact verified-email acceptance is still required. The `email_notifications` queue is unrelated to the
       in-app `notifications` table this spec covers, and no client can write either.

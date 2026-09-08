@@ -11,6 +11,7 @@ import { SupabaseAuthService } from "../services/auth";
 import * as bearerPrincipal from "../middlewares/bearerPrincipal";
 import * as credentialService from "../services/apiCredential.service";
 import { getManagedProfile, listManagedProfiles } from "../services/managed-profile-lifecycle.service";
+import { configureManagedProfileManager } from "../services/managed-profile-manager.service";
 import {
   changeManagedProfileMember,
   createManagedProfileInvitation,
@@ -45,7 +46,7 @@ describe("managed profile lifecycle routes", () => {
 
   async function createManager(isActive = true) {
     const manager = await createTestUser();
-    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive, profileId: manager.id });
     const credential = await createTestApiKey({ userId: manager.id });
     return { headers: { "Content-Type": "application/json", "X-API-Key": credential.plaintextKey }, manager };
   }
@@ -61,7 +62,7 @@ describe("managed profile lifecycle routes", () => {
     expect(childResponse.status).toBe(201);
     const profileId = ((await childResponse.json()) as { managedProfile: { profileId: string } }).managedProfile.profileId;
     const member = await createTestUser();
-    const { invitation } = await createManagedProfileInvitation(owner.manager.id, profileId, { email: member.email, role: "manager" });
+    const { invitation } = await createManagedProfileInvitation(owner.manager.id, owner.manager.id, { email: member.email, role: "manager" });
     await readOrAcceptManagedProfileInvitation({ profileId: member.id, email: member.email, emailConfirmedAt: new Date().toISOString() }, invitation.id, true);
     const secret = await createTestApiKey({ userId: member.id });
     spyOn(SupabaseAuthService, "verifyToken").mockResolvedValue({ user_id: member.id, valid: true });
@@ -92,7 +93,7 @@ describe("managed profile lifecycle routes", () => {
     for (const role of ["manager", "read_only"] as const) {
       it(`restricts retained profiles and invalidates historical bootstrap for a ${role} ${auth} actor`, async () => {
         const { member, owner, profileId, secret } = await invitedManager();
-        if (role === "read_only") await changeManagedProfileMember(owner.manager.id, profileId, member.id, role);
+        if (role === "read_only") await changeManagedProfileMember(owner.manager.id, owner.manager.id, member.id, role);
         spyOn(SupabaseAuthService, "verifyToken").mockImplementation(async token => ({ user_id: token, valid: true }));
         const headers: Record<string, string> = auth === "bearer"
           ? { Authorization: `Bearer ${member.id}` }
@@ -140,7 +141,7 @@ describe("managed profile lifecycle routes", () => {
         const retained = await fetch(childUrl, { headers: ownerHeaders });
         expect(retained.status).toBe(200);
         expect(await retained.json()).toMatchObject({
-          actor: { canProvisionManagedProfiles: true, hasMemberships: false },
+          actor: { canProvisionManagedProfiles: true, hasMemberships: true },
           managedProfile: { profileId, status: "deleted" }
         });
         for (const status of ["all", "deleted"] as const) {
@@ -153,7 +154,7 @@ describe("managed profile lifecycle routes", () => {
           const owned = await fetch(`${baseUrl}?status=${status}`, { headers: ownerHeaders });
           expect(owned.status).toBe(200);
           expect(await owned.json()).toMatchObject({
-            actor: { canProvisionManagedProfiles: true, hasMemberships: false },
+            actor: { canProvisionManagedProfiles: true, hasMemberships: true },
             managedProfiles: [{ profileId, status: "deleted" }], pagination: { total: 1 }
           });
         }
@@ -169,7 +170,7 @@ describe("managed profile lifecycle routes", () => {
 
     it(`uses membership history, not the ${auth} selector, to distinguish invalid bootstrap from unknown-child probing`, async () => {
       const { member, owner, profileId, secret } = await invitedManager();
-      await removeManagedProfileMember(owner.manager.id, profileId, member.id);
+      await removeManagedProfileMember(owner.manager.id, owner.manager.id, member.id);
       const stranger = await createTestUser();
       const strangerCredential = await createTestApiKey({ userId: stranger.id });
       spyOn(SupabaseAuthService, "verifyToken").mockImplementation(async token => ({ user_id: token, valid: true }));
@@ -207,8 +208,8 @@ describe("managed profile lifecycle routes", () => {
           expect(initial.status).toBe(201);
           const existing = (await initial.json()) as { id: string };
           const beforeService = async () => {
-            if (change === "remove") await removeManagedProfileMember(owner.manager.id, profileId, member.id);
-            else await changeManagedProfileMember(owner.manager.id, profileId, member.id, "read_only");
+            if (change === "remove") await removeManagedProfileMember(owner.manager.id, owner.manager.id, member.id);
+            else await changeManagedProfileMember(owner.manager.id, owner.manager.id, member.id, "read_only");
           };
           // This boundary is reached only after the real route middleware has authorized the member.
           const create = credentialService.createManagedProfileCredential;
@@ -254,12 +255,64 @@ describe("managed profile lifecycle routes", () => {
     }
     const revokeResponse = await fetch(`${url}/${keys[0].id}`, { headers: { Authorization: "Bearer member-token" }, method: "DELETE" });
     expect(revokeResponse.status).toBe(204);
-    await removeManagedProfileMember(owner.manager.id, profileId, member.id);
+    await removeManagedProfileMember(owner.manager.id, owner.manager.id, member.id);
     expect((await ApiCredential.findByPk(keys[1].id))?.revokedAt).toBeNull();
     expect(await credentialService.validatePublicKey(keys[1].publicKey)).toMatchObject({ profileId, strength: "public" });
     expect(await credentialService.validateSecretKey(keys[1].secretKey)).toMatchObject({ profileId, strength: "secret" });
     expect(await credentialService.validateSecretKey(keys[0].secretKey)).toBeNull();
     expect((await fetch(`${url}/${keys[1].id}`, { headers: { "X-API-Key": secret.plaintextKey }, method: "DELETE" })).status).toBe(404);
+  });
+
+  it("applies credential authority to all organization children and masks children created after removal", async () => {
+    const { member, owner, profileId, secret } = await invitedManager();
+    const children = [profileId];
+    const createChild = async (suffix: string, headers = owner.headers) => {
+      const response = await fetch(baseUrl, {
+        headers, method: "POST",
+        body: JSON.stringify({ contactEmail: `${suffix}@example.com`, customerType: "individual", externalSubjectId: suffix })
+      });
+      expect(response.status).toBe(201);
+      return ((await response.json()) as { managedProfile: { profileId: string } }).managedProfile.profileId;
+    };
+    children.push(await createChild("org-sibling"), await createChild("org-later"));
+    const foreignOwner = await createManager();
+    const foreign = await createChild("foreign-child", foreignOwner.headers);
+    const headers = { "Content-Type": "application/json", "X-API-Key": secret.plaintextKey };
+    const credentials: Array<{ id: string; secretKey: string }> = [];
+    for (const child of children) {
+      const response = await fetch(`${baseUrl}/${child}/api-credentials`, {
+        headers, method: "POST", body: JSON.stringify({ name: "Shared company integration" })
+      });
+      expect(response.status).toBe(201);
+      credentials.push(await response.json() as { id: string; secretKey: string });
+      expect((await fetch(`${baseUrl}/${child}`, { headers, method: "DELETE" })).status).toBe(403);
+    }
+    expect((await fetch(`${baseUrl}/${foreign}/api-credentials`, { headers, method: "POST", body: "{}" })).status).toBe(404);
+    for (const auth of [headers, { Authorization: "Bearer member-token", "Content-Type": "application/json" }]) {
+      expect((await fetch(baseUrl, {
+        headers: auth, method: "POST",
+        body: JSON.stringify({ contactEmail: "denied-create@example.com", customerType: "individual", externalSubjectId: "denied-create" })
+      })).status).toBe(403);
+    }
+    await changeManagedProfileMember(owner.manager.id, owner.manager.id, member.id, "read_only");
+    for (const [index, child] of children.entries()) {
+      expect((await fetch(`${baseUrl}/${child}/api-credentials`, { headers })).status).toBe(200);
+      expect((await fetch(`${baseUrl}/${child}/api-credentials`, { headers, method: "POST", body: "{}" })).status).toBe(403);
+      expect((await fetch(`${baseUrl}/${child}/api-credentials/${credentials[index].id}`, { headers, method: "DELETE" })).status).toBe(403);
+    }
+    await removeManagedProfileMember(owner.manager.id, owner.manager.id, member.id);
+    for (const [index, child] of children.entries()) {
+      expect((await fetch(`${baseUrl}/${child}/api-credentials`, { headers })).status).toBe(404);
+      expect(await credentialService.validateSecretKey(credentials[index].secretKey)).toMatchObject({ profileId: child });
+    }
+    const future = await createChild("after-org-removal");
+    for (const child of [future, foreign, crypto.randomUUID()]) {
+      const response = await fetch(`${baseUrl}/${child}`, { headers: { ...headers, "X-Managed-Profile-Id": child } });
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({
+        error: { code: "MANAGED_PROFILE_NOT_FOUND", message: "Managed profile was not found", status: 404 }
+      });
+    }
   });
 
   it("requires authentication but returns the empty actor projection without active enablement", async () => {
@@ -329,7 +382,7 @@ describe("managed profile lifecycle routes", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      actor: { canProvisionManagedProfiles: true, hasMemberships: false, profileId: manager.id },
+      actor: { canProvisionManagedProfiles: true, hasMemberships: true, profileId: manager.id },
       managedProfiles: [],
       pagination: { limit: 50, offset: 0, total: 0 }
     });
@@ -415,13 +468,13 @@ describe("managed profile lifecycle routes", () => {
     await ManagedProfileMembership.bulkCreate([
       {
         createdByProfileId: owner.manager.id,
-        managedProfileId: profileId,
+        ownerProfileId: owner.manager.id,
         memberProfileId: managerMember.manager.id,
         role: "manager"
       },
       {
         createdByProfileId: owner.manager.id,
-        managedProfileId: profileId,
+        ownerProfileId: owner.manager.id,
         memberProfileId: readOnlyMember.id,
         role: "read_only"
       }
@@ -469,7 +522,7 @@ describe("managed profile lifecycle routes", () => {
     expect((await fetch(revokeUrl, { headers: readOnlyHeaders, method: "DELETE" })).status).toBe(403);
     expect((await fetch(revokeUrl, { headers: bearerHeaders, method: "DELETE" })).status).toBe(204);
 
-    const membership = await ManagedProfileMembership.findOne({ where: { managedProfileId: profileId, memberProfileId: member.id } });
+    const membership = await ManagedProfileMembership.findOne({ where: { ownerProfileId: owner.manager.id, memberProfileId: member.id } });
     await membership!.update({ role: "read_only" });
     expect((await fetch(`${baseUrl}/${profileId}/api-credentials`, { headers: bearerHeaders })).status).toBe(200);
     expect((await fetch(`${baseUrl}/${profileId}/api-credentials`, {

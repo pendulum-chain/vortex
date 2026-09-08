@@ -6,14 +6,14 @@
 surface — the per-operator, Supabase-identity-bearing counterpart to the shared-secret
 `/v1/admin/*` surface documented in [`admin-auth.md`](admin-auth.md). Authenticated profiles
 are direct session targets. Managed headless profiles are reached by impersonating their
-authenticated owner or member and composing that session with an active managed-profile
+authenticated owner or member and composing that session with an active organization
 membership and selector.
 
 Impersonation is not read-only. The operator may create quotes, inspect ramp and KYC/KYB status,
 history, and errors, and perform customer-account mutations outside the protected boundaries.
 Ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and OAuth actions
 reject the request. Durable credential minting and revocation are denied, as are managed-child
-creation/deletion and membership/invitation mutations. Alfredpay fiat-account creation and
+creation/deletion and all organization/team/invitee operations, including reads. Alfredpay fiat-account creation and
 deletion remain deliberately available:
 these provider-side payout-account mutations outlive the session and are part of the accepted
 operator capability (see the risk register, RISK-018).
@@ -205,10 +205,11 @@ IMPERSONATION_NOT_ALLOWED`), and is refused `GET /accounts` and `POST /impersona
     disabling integrations through credential revocation, or creating/deleting retained child
     identities. Alfredpay fiat-account creation and deletion are intentionally outside this denial:
     their durable provider-side mutation is explicitly accepted by RISK-018.
-19. **An impersonated request MUST NOT mutate managed membership or invitations** — member role
-    change/removal, invitation creation/cancellation, and invitee acceptance reject impersonation
-    before service mutation. An impersonation token can use only the target profile's already-live
-    membership and cannot manufacture or upgrade child access.
+19. **An impersonated request MUST NOT use organization/team/invitee APIs** - organization
+    discovery, team reads and mutations, invitation preview and acceptance all reject impersonation.
+    Supported child inspection still uses only the target's already-live organization membership
+    for the child's immutable owner, inherited across that org's children. It cannot manufacture
+    or upgrade child access. Team remains a main nonacting human-account surface.
 
 ## Threat Vectors & Mitigations
 

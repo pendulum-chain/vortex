@@ -115,7 +115,7 @@ function harness(options: HarnessOptions = {}) {
     return { managerProfileId: "manager-1", profileId: "subject-1", status: "active" };
   }) as never;
   const membership = {
-    managedProfileId: "subject-1",
+    ownerProfileId: "manager-1",
     memberProfileId: "member-1",
     revokedAt: options.membershipRevoked ? new Date() : null,
     role: options.membershipRole ?? "manager"
@@ -178,7 +178,7 @@ describe("importBrKycToken", () => {
   });
 
   it.each([
-    { managedProfileId: "another-child" },
+    { ownerProfileId: "another-owner" },
     { memberProfileId: "another-member" },
     { role: "read_only" },
     { revokedAt: new Date() }

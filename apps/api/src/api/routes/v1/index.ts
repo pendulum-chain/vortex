@@ -226,8 +226,8 @@ router.use("/onboarding", onboardingRoutes);
 
 /** One-record API credential management for authenticated Supabase users. */
 router.use("/api-credentials", apiCredentialsRoutes);
-router.use("/managed-profiles", managedProfileMembershipRoutes);
-router.use("/managed-profile-member-invitations", managedProfileInviteeRoutes);
+router.use("/organization", managedProfileMembershipRoutes);
+router.use("/organization-member-invitations", managedProfileInviteeRoutes);
 router.use("/managed-profiles", managedProfilesRoutes);
 
 /**

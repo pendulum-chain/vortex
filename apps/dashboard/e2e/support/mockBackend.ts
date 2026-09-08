@@ -3,10 +3,11 @@ import type {
   InvitationPreview,
   MemberEvent,
   MemberInvitation,
+  Organization,
   TeamMember
 } from "../../src/services/api/managed-profile-memberships.service";
 import { MOCK_WALLET_ADDRESS } from "./mockWallet";
-import { E2E_USER_ID } from "./session";
+import { E2E_USER_EMAIL, E2E_USER_ID } from "./session";
 
 export const APP_ORIGIN = "http://127.0.0.1:5174";
 export const E2E_RAMP_ID = "ramp-e2e-1";
@@ -14,6 +15,7 @@ export const E2E_QUOTE_ID = "quote-e2e-1";
 export const E2E_FIAT_ACCOUNT_ID = "fiat-account-e2e-mx";
 export const E2E_FIAT_ACCOUNT_ID_2 = "fiat-account-e2e-mx-2";
 export const E2E_MANAGED_PROFILE_ID = "managed-profile-e2e-child-1";
+export const E2E_ORGANIZATION_OWNER_ID = "11111111-1111-4111-8111-111111111111";
 export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
@@ -259,6 +261,14 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
+  organizationInventories?: Record<
+    string,
+    {
+      managedProfiles: NonNullable<MockBackendOptions["managedProfiles"]>;
+      team: NonNullable<MockBackendOptions["team"]>;
+    }
+  >;
+  organization?: Organization | null;
   team?: { members: TeamMember[]; invitations: MemberInvitation[]; events: MemberEvent[] };
   memberInvitation?: {
     preview: InvitationPreview;
@@ -421,12 +431,33 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
+  // Child fixtures are organization inventory. A null membership keeps all of them
+  // inaccessible until acceptance; newly appended children inherit the same authority.
+  if (options.organization === undefined) {
+    const membership = options.managedProfiles?.[0]?.membership;
+    options.organization =
+      membership || options.canProvisionManagedProfiles
+        ? {
+            membership: membership ?? { isOwner: true, role: "manager" },
+            ownerEmail: membership?.isOwner === false ? "owner@example.test" : E2E_USER_EMAIL,
+            ownerProfileId: membership?.isOwner === false ? E2E_ORGANIZATION_OWNER_ID : E2E_USER_ID
+          }
+        : null;
+  }
   const knownManagedProfileIds = new Set([
     ...(options.managedProfiles ?? []).map(profile => profile.profileId),
     ...(options.previousManagedProfileIds ?? [])
   ]);
   const membershipRequests: Array<{ method: string; path: string; body: Record<string, unknown> | null; search: string }> = [];
   const team = options.team ?? { events: [], invitations: [], members: [] };
+  const inventories = options.organizationInventories ?? {
+    [options.organization?.ownerProfileId ??
+      options.memberInvitation?.preview.organization.ownerProfileId ??
+      E2E_ORGANIZATION_OWNER_ID]: {
+      managedProfiles: options.managedProfiles ?? [],
+      team
+    }
+  };
   const apiRequests: Array<{ managedProfileId: string | undefined; method: string; path: string }> = [];
   const apiCredentialRequests: Array<{ body: Record<string, unknown> | null; method: string; path: string }> = [];
   const limitsRequests: Array<Record<string, unknown>> = [];
@@ -500,12 +531,17 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     apiRequests.push({ managedProfileId: request.headers()["x-managed-profile-id"], method, path });
 
     const fulfillJson = (body: unknown, code = 200) => route.fulfill({ json: body as object, status: code });
-    const eligibleProfiles = (options.managedProfiles ?? []).filter(
-      profile => profile.status === "active" && options.managedProfileOwnerActive !== false
-    );
+    const organization = options.managedProfileOwnerActive === false ? null : options.organization;
+    const inventory = organization ? inventories[organization.ownerProfileId] : undefined;
+    const eligibleProfiles = organization
+      ? (inventory?.managedProfiles ?? [])
+          .filter(profile => profile.status === "active")
+          .map(profile => ({ ...profile, membership: { ...organization.membership } }))
+      : [];
+    for (const profile of eligibleProfiles) knownManagedProfileIds.add(profile.profileId);
     const managedProfileActor = {
       canProvisionManagedProfiles: options.canProvisionManagedProfiles === true,
-      hasMemberships: eligibleProfiles.length > 0,
+      hasMemberships: !!organization,
       profileId: E2E_USER_ID
     };
 
@@ -541,19 +577,35 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    const teamPath = path.match(/^\/v1\/managed-profiles\/([^/]+)\/(members|member-invitations|member-events)(?:\/([^/]+))?$/);
-    const inviteePath = path.match(/^\/v1\/managed-profile-member-invitations\/([^/]+)(\/accept)?$/);
-    if (teamPath || inviteePath) {
+    const teamPath = path.match(/^\/v1\/organization\/(members|member-invitations|member-events)(?:\/([^/]+))?$/);
+    const inviteePath = path.match(/^\/v1\/organization-member-invitations\/([^/]+)(\/accept)?$/);
+    if (teamPath || inviteePath || path === "/v1/organization") {
       const body = request.postData() ? (request.postDataJSON() as Record<string, unknown>) : null;
-      membershipRequests.push({ body, method, path, search: url.search });
-      if (!request.headers().authorization || request.headers().authorization.startsWith("Bearer vtx_imp_")) {
+      if (teamPath || inviteePath) membershipRequests.push({ body, method, path, search: url.search });
+      if (
+        !request.headers().authorization ||
+        request.headers().authorization.startsWith("Bearer vtx_imp_") ||
+        request.headers()["x-managed-profile-id"] ||
+        request.headers()["x-api-key"] ||
+        request.headers()["x-public-key"]
+      ) {
         await fulfillJson({ error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "A Supabase session is required" } }, 403);
+        return;
+      }
+      if (path === "/v1/organization") {
+        await fulfillJson({ organization });
         return;
       }
       if (inviteePath) {
         const fixture = options.memberInvitation;
         const failure = method === "POST" ? fixture?.acceptError : fixture?.previewError;
-        if (failure || !fixture || request.headers()["x-managed-profile-id"]) {
+        const email = String(verifyOtpRequests.at(-1)?.email ?? E2E_USER_EMAIL).toLowerCase();
+        if (
+          failure ||
+          !fixture ||
+          fixture.preview.invitation.id !== inviteePath[1] ||
+          fixture.preview.invitation.email.toLowerCase() !== email
+        ) {
           await fulfillJson(
             { error: { code: failure?.code ?? "MANAGED_PROFILE_ACCESS_DENIED", message: "Invitation unavailable" } },
             failure?.status ?? 403
@@ -564,6 +616,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
           await fulfillJson(fixture.preview);
         } else {
           const invitation = fixture.preview.invitation;
+          if (organization && organization.ownerProfileId !== invitation.ownerProfileId) {
+            await fulfillJson(
+              { error: { code: "ORGANIZATION_MEMBERSHIP_CONFLICT", message: "Already in another organization" } },
+              409
+            );
+            return;
+          }
           if (invitation.status !== "pending") {
             await fulfillJson(
               { error: { code: `INVITATION_${invitation.status.toUpperCase()}`, message: "Invitation is no longer pending" } },
@@ -571,6 +630,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
             );
             return;
           }
+          const team = inventories[invitation.ownerProfileId]?.team;
+          if (!team) throw new Error("Missing invitation organization inventory");
           invitation.status = "accepted";
           invitation.acceptedAt = new Date().toISOString();
           const member: TeamMember = {
@@ -583,16 +644,44 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
             updatedAt: invitation.acceptedAt
           };
           team.members.push(member);
-          await fulfillJson({ managedProfileId: invitation.managedProfileId, member });
+          options.organization = {
+            ...fixture.preview.organization,
+            membership: { isOwner: false, role: invitation.role }
+          };
+          const { email: _email, ...acceptedMember } = member;
+          await fulfillJson({ member: acceptedMember, ownerProfileId: invitation.ownerProfileId });
         }
         return;
       }
       if (teamPath) {
-        const [, profileId, resource, targetId] = teamPath;
-        const child = eligibleProfiles.find(profile => profile.profileId === profileId);
-        if (!child || (method !== "GET" && child.membership.role !== "manager")) {
+        const [, resource, targetId] = teamPath;
+        const expectedOwnerIds = url.searchParams.getAll("expectedOwnerProfileId");
+        const expectedOwnerProfileId = expectedOwnerIds[0] ?? "";
+        if (
+          expectedOwnerIds.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedOwnerProfileId)
+        ) {
+          await fulfillJson(
+            { error: { code: "MANAGED_PROFILE_INVALID_INPUT", message: "Expected organization owner must be a UUID" } },
+            400
+          );
+          return;
+        }
+        const team = inventory?.team;
+        if (!organization || !team) {
           await fulfillJson(
             { error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Managed-profile access is denied" } },
+            403
+          );
+          return;
+        }
+        if (organization.ownerProfileId !== expectedOwnerProfileId) {
+          await fulfillJson({ error: { code: "ORGANIZATION_CONTEXT_CHANGED", message: "Your organization changed" } }, 409);
+          return;
+        }
+        if (method !== "GET" && organization.membership.role !== "manager") {
+          await fulfillJson(
+            { error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Organization access is read-only" } },
             403
           );
           return;
@@ -635,13 +724,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
           if (method === "PATCH") {
             action = "role_changed";
             member.role = role;
-            if (targetId === E2E_USER_ID) child.membership.role = role;
+            if (targetId === E2E_USER_ID) organization.membership.role = role;
             await fulfillJson({ member });
           } else {
             action = "member_removed";
             role = member.role;
             team.members.splice(index, 1);
-            if (targetId === E2E_USER_ID) options.managedProfiles?.splice(options.managedProfiles.indexOf(child), 1);
+            if (targetId === E2E_USER_ID) options.organization = null;
             await route.fulfill({ status: 204 });
           }
         } else if (method === "POST") {
@@ -654,7 +743,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
             expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(),
             id: `team-invitation-${team.invitations.length + 1}`,
             invitedByProfileId: E2E_USER_ID,
-            managedProfileId: profileId,
+            ownerProfileId: organization.ownerProfileId,
             role,
             status: "pending"
           };
@@ -691,7 +780,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       const managedProfile = eligibleProfiles.find(profile => profile.profileId === profileId);
       if (!managedProfile) {
         const bootstrap = request.headers()["x-managed-profile-id"] === profileId;
-        const relationship = options.managedProfiles?.find(profile => profile.profileId === profileId);
+        const relationship = inventory?.managedProfiles.find(profile => profile.profileId === profileId);
         const code =
           bootstrap && knownManagedProfileIds.has(profileId ?? "")
             ? "MANAGED_PROFILE_MEMBERSHIP_INVALID"

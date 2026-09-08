@@ -8,9 +8,17 @@ import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestUser } from "../test-utils/factories";
 
-async function createManager(): Promise<User> {
+async function createManager(
+  allowedCorridors: ManagedProfileManager["allowedCorridors"] = ["BR", "EU"]
+): Promise<User> {
   const profile = await createTestUser();
-  await ManagedProfileManager.create({ allowedCorridors: ["BR", "EU"], profileId: profile.id });
+  await sequelize.transaction(async transaction => {
+    await ManagedProfileManager.create({ allowedCorridors, allowedCustomerTypes: null, profileId: profile.id }, { transaction });
+    await ManagedProfileMembership.create(
+      { ownerProfileId: profile.id, memberProfileId: profile.id, role: "manager" },
+      { transaction }
+    );
+  });
   return profile;
 }
 
@@ -32,10 +40,6 @@ async function createManagedProfile(
         managerProfileId,
         profileId: profile.id
       },
-      { transaction }
-    );
-    await ManagedProfileMembership.create(
-      { managedProfileId: profile.id, memberProfileId: managerProfileId, role: "manager" },
       { transaction }
     );
     return profile;
@@ -176,16 +180,13 @@ describe("managed profile schema", () => {
   });
 
   it("allows an empty corridor grant so every corridor can be revoked", async () => {
-    await expect(
-      ManagedProfileManager.create({ allowedCorridors: [], profileId: (await createTestUser()).id })
-    ).resolves.toBeInstanceOf(ManagedProfileManager);
+    const owner = await createManager([]);
+    expect((await ManagedProfileManager.findByPk(owner.id))?.allowedCorridors).toEqual([]);
   });
 
   it("allows null customer-type policy and rejects empty, unknown, or duplicate restrictions", async () => {
-    const unrestricted = await createTestUser();
-    await expect(
-      ManagedProfileManager.create({ allowedCorridors: ["AR"], allowedCustomerTypes: null, profileId: unrestricted.id })
-    ).resolves.toBeInstanceOf(ManagedProfileManager);
+    const unrestricted = await createManager(["AR"]);
+    expect((await ManagedProfileManager.findByPk(unrestricted.id))?.allowedCustomerTypes).toBeNull();
 
     for (const allowedCustomerTypes of [[], ["unknown"], ["individual", "individual"]]) {
       await expect(

@@ -153,7 +153,15 @@ approved/rejected` — read from the provider, surviving reload. `pending` is on
   category — recipient-approval alerts — was dropped for now: no such notification type exists
   in the backend yet.)
 
-### Managed profiles (implemented)
+### Organization Team and managed profiles
+
+The approved model is a **one-account-one-org approximation**: one owning manager
+account/config defines exactly one organization, and every person has at most one active
+org affiliation. Owners, including disabled owners, cannot join another org. All present
+and future children inherit the organization role. Personal user resources are not shared.
+There is no multi-organization management, organization kind, owner transfer, or organization
+switcher. Such capabilities require explicitly revisiting the architectural model in a later
+ADR, not reinterpreting membership. See [ADR 0006](adr-0006-organization-wide-teams.md).
 
 This is managed-child delegation, not another login or admin impersonation mechanism. A managed
 child is headless and has no Supabase identity. An authenticated member remains the actor, and
@@ -166,11 +174,11 @@ decision.
   `canProvisionManagedProfiles || hasMemberships`, including an enabled owner before its first child.
   Both flags false hides the item. List/detail return `actor: { profileId,
   canProvisionManagedProfiles, hasMemberships }`; a default empty list is `200`, not an access-denial
-  signal. `hasMemberships` counts unpaginated eligible active children independently of page/status,
-  excluding deleted children, inactive owners and invalid entity layouts. Neither page length nor
+  signal. `hasMemberships` means live organization membership even with zero children,
+  independently of page/status; owner deactivation makes it false but retains affiliation. Neither page length nor
   a successful response is authority.
 - As a member, I can keep using the dashboard as my own account when no child is selected.
-- As a member, I open **Managed profiles** and see only children assigned to me. Each row identifies
+- As a member, I open **Managed profiles** and see all eligible children of my organization. Each row identifies
   the child, shows its immutable customer type, my `Manager` or `Read only` role and `Owner` badge
   where applicable, and the controlling owner's authorized corridors. Corridors remain owner
   policy, not per-membership grants.
@@ -197,7 +205,8 @@ decision.
   start requests, so hidden navigation is not the authorization boundary.
 - The dashboard bootstraps a persisted selection using `GET /v1/managed-profiles/:profileId` with
   an exactly matching `X-Managed-Profile-Id`, and revalidates when the window regains focus. It
-  refreshes role and owner metadata in place. Only stored membership history permits the API to
+  refreshes role and owner metadata in place. Only an actor membership for the child's owner
+  overlapping the child lifetime permits the API to
   return `MANAGED_PROFILE_MEMBERSHIP_INVALID` after revocation, child deletion, owner deactivation
   or invalid entity layout; deletion invalidates even the owner's bootstrap. Never-member callers
   get identical masked `404`s for existing and unknown children. The dashboard clears child mode
@@ -205,8 +214,15 @@ decision.
   rejects a successful response with mismatched actor/child identity or non-active status rather
   than silently retrying against the member's own resources.
 
+Bootstrap evidence requires the same membership row to satisfy
+`membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or
+`membership.revokedAt > child.createdAt`), with matching actor and immutable owner. A child
+created after revocation or wholly within a membership gap stays masked `404`, despite historic
+org membership; this is not permission to clear selection or disclose that child.
+
 **Child-mode navigation.** Onboarding status, Recipients, Get a quote, Transactions, child API keys,
-Team, and Limits remain available where their API routes support managed-child authorization. New
+and Limits remain available where their API routes support managed-child authorization. Team
+is not a child-mode surface; it belongs in the main nonacting dashboard. New
 transfer, resume-payment, and recipient/quote transfer entry points are removed immediately from
 every selected-child session because browser bearer sessions cannot satisfy the secret-credential
 requirement for managed ramp operations. KYC/KYB actions are read-only. Settings and notification
@@ -232,16 +248,47 @@ credentials, create/archive recipients, and add/delete payout accounts; a `read_
 If a live bootstrap downgrades the role, any open recipient action, credential revocation, or payout
 account form/dialog closes before another submission can be made.
 
-**Team access.** Both roles can inspect the child roster, pending invitations, and recent access
+**Team access.** In the main nonacting dashboard, `GET /v1/organization` discovers
+`{ organization: { ownerProfileId, ownerEmail, membership: { role, isOwner } } | null }`.
+`ownerEmail` is nullable. Team is available to both roles even before any child exists.
+Both roles can inspect the organization roster, pending invitations, and recent access
 events. A non-impersonated `manager` can invite an email as `manager` or `read_only`, cancel a
 pending invitation, change a non-owner role, or remove a non-owner member. Owner rows are visibly
 immutable. No mutation is displayed optimistically before server confirmation.
 
+Active owner configuration is required for Team and org operations. Deactivation retains
+memberships but denies operations and returns no live organization on discovery. Only the
+owner can provision/delete children, inspect retained deleted children, or control owner policy
+through existing administration. An invited Manager cannot do these. Read-only permits no
+writes, including delegated calls using personal secrets. Removing/downgrading a member changes
+access to all children but does not revoke child-owned shared API credentials; the UI must warn
+that exposed shared keys need separate revocation.
+
+Team requests use `/v1/organization/members`, `/member-invitations`, and `/member-events` with
+the existing member/invitation/event pagination and projections. All organization, team, and
+invitee routes require a human Supabase bearer and reject any child selector, API/public-key
+headers, and impersonation. No old per-child Team paths or aliases remain.
+
+All seven scoped Team requests, including item PATCH/DELETE, carry required UUID query
+`expectedOwnerProfileId` captured from the displayed organization. Missing/malformed input is
+`400 MANAGED_PROFILE_INVALID_INPUT`; expected/current org mismatch is
+`409 ORGANIZATION_CONTEXT_CHANGED`. Discovery and invitee locator routes are exempt. The server
+still derives the current org and enforces live service authorization; the precondition is not
+authority or an org switcher. A dialog opened in A must retain A's owner ID even if another tab
+accepts B after removal from A. On context conflict, refresh the org, discard stale intent, and
+require a new user decision instead of silently submitting the old invitation into B.
+
 An invitation link opens `/member-invitations/:invitationId`. Before authentication the page shows
-no child, inviter, role, or status detail. After OTP authentication, the exact current verified
+no organization, inviter, role, or status detail. After OTP authentication, the exact current verified
 Supabase email may preview and explicitly accept the invitation. Wrong-account, expired, cancelled,
-already-accepted, retry, and success states remain distinct. Acceptance refreshes managed-profile
-queries and offers to open the child; OTP verification by itself does not grant access.
+already-accepted, retry, second-org conflict, and success states remain distinct. Preview and
+acceptance use `/v1/organization-member-invitations/:invitationId` and `/:invitationId/accept`.
+Preview identifies `{ ownerProfileId, ownerEmail }`, not a child. Acceptance returns
+`{ ownerProfileId, member }`, refreshes organization and managed-profile queries, and leads to
+the main organization/Team surface, including when no children exist. OTP alone grants no access.
+Invitations expire after seven days and remain durable org offers even after the inviter is
+removed. A person already affiliated elsewhere, including a disabled owner, receives
+`409 ORGANIZATION_MEMBERSHIP_CONFLICT` rather than an organization switcher.
 
 **Recipients in child mode.** A manager member may create invitations, archive invitations, update
 or archive relationships, and check eligibility on the child's behalf.

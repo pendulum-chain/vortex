@@ -4,6 +4,7 @@ import {
   cancelManagedProfileInvitation,
   changeManagedProfileMember,
   createManagedProfileInvitation,
+  getManagedProfileOrganization,
   listManagedProfileInvitations,
   listManagedProfileMemberEvents,
   listManagedProfileMembers,
@@ -17,7 +18,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 function handle(action: (req: Request, res: Response, actorProfileId: string) => Promise<void>): RequestHandler {
   return async (req, res) => {
     try {
-      if (!req.userId || req.impersonation || req.credential) {
+      if (!req.userId || req.impersonation || req.credential || req.get("X-Managed-Profile-Id") !== undefined) {
         throw new ManagedProfileMembershipError("MANAGED_PROFILE_ACCESS_DENIED", 403, "A Supabase session is required");
       }
       for (const [key, value] of Object.entries(req.params)) {
@@ -59,14 +60,14 @@ function page(req: Request) {
 
 export const readMembers = handle(async (req, res, actor) => {
   const { limit, offset } = page(req);
-  res.json(await listManagedProfileMembers(actor, req.params.profileId as string, limit, offset));
+  res.json(await listManagedProfileMembers(actor, await organization(req, actor), limit, offset));
 });
 
 export const patchMember = handle(async (req, res, actor) => {
   res.json(
     await changeManagedProfileMember(
       actor,
-      req.params.profileId as string,
+      await organization(req, actor),
       req.params.memberProfileId as string,
       req.body?.role
     )
@@ -74,17 +75,17 @@ export const patchMember = handle(async (req, res, actor) => {
 });
 
 export const deleteMember = handle(async (req, res, actor) => {
-  await removeManagedProfileMember(actor, req.params.profileId as string, req.params.memberProfileId as string);
+  await removeManagedProfileMember(actor, await organization(req, actor), req.params.memberProfileId as string);
   res.status(204).send();
 });
 
 export const readInvitations = handle(async (req, res, actor) => {
   const { limit, offset } = page(req);
-  res.json(await listManagedProfileInvitations(actor, req.params.profileId as string, limit, offset));
+  res.json(await listManagedProfileInvitations(actor, await organization(req, actor), limit, offset));
 });
 
 export const postInvitation = handle(async (req, res, actor) => {
-  const result = await createManagedProfileInvitation(actor, req.params.profileId as string, {
+  const result = await createManagedProfileInvitation(actor, await organization(req, actor), {
     email: req.body?.email,
     role: req.body?.role
   });
@@ -92,7 +93,7 @@ export const postInvitation = handle(async (req, res, actor) => {
 });
 
 export const deleteInvitation = handle(async (req, res, actor) => {
-  await cancelManagedProfileInvitation(actor, req.params.profileId as string, req.params.invitationId as string);
+  await cancelManagedProfileInvitation(actor, await organization(req, actor), req.params.invitationId as string);
   res.status(204).send();
 });
 
@@ -102,7 +103,7 @@ export const readMemberEvents = handle(async (req, res, actor) => {
   if (cursor !== undefined && (typeof cursor !== "string" || !UUID_PATTERN.test(cursor))) {
     throw new ManagedProfileMembershipError("INVALID_PAGINATION", 400, "Cursor must be an event UUID");
   }
-  res.json(await listManagedProfileMemberEvents(actor, req.params.profileId as string, limit, cursor as string | undefined));
+  res.json(await listManagedProfileMemberEvents(actor, await organization(req, actor), limit, cursor as string | undefined));
 });
 
 export const previewInvitation = handle(async (req, res, actor) => {
@@ -123,4 +124,33 @@ export const acceptInvitation = handle(async (req, res, actor) => {
       true
     )
   );
+});
+
+async function organization(req: Request, actor: string): Promise<string> {
+  const expectedOwnerProfileId = req.query.expectedOwnerProfileId;
+  if (typeof expectedOwnerProfileId !== "string" || !UUID_PATTERN.test(expectedOwnerProfileId)) {
+    throw new ManagedProfileMembershipError(
+      "MANAGED_PROFILE_INVALID_INPUT",
+      400,
+      "expectedOwnerProfileId must be a single organization owner UUID"
+    );
+  }
+  const current = await getManagedProfileOrganization(actor);
+  if (!current) {
+    throw new ManagedProfileMembershipError("MANAGED_PROFILE_ACCESS_DENIED", 403, "Managed-profile access is denied");
+  }
+  // This is a context precondition, not authority. The service still locks and
+  // authorizes the actor against this exact organization before accessing its data.
+  if (current.ownerProfileId !== expectedOwnerProfileId.toLowerCase()) {
+    throw new ManagedProfileMembershipError(
+      "ORGANIZATION_CONTEXT_CHANGED",
+      409,
+      "Your organization has changed. Refresh the team page and try again."
+    );
+  }
+  return current.ownerProfileId;
+}
+
+export const readOrganization = handle(async (_req, res, actor) => {
+  res.json({ organization: await getManagedProfileOrganization(actor) });
 });

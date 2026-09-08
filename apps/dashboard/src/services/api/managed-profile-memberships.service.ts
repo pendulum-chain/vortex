@@ -2,6 +2,12 @@ import { AuthService } from "../auth";
 import { ApiError, apiClient, isApiError } from "./api-client";
 import type { ManagedProfileMembershipRole } from "./managed-profiles.service";
 
+export interface Organization {
+  ownerProfileId: string;
+  ownerEmail: string | null;
+  membership: { role: ManagedProfileMembershipRole; isOwner: boolean };
+}
+
 export interface TeamMember {
   createdAt: string;
   id: string;
@@ -21,7 +27,7 @@ export interface MemberInvitation {
   expiresAt: string;
   id: string;
   invitedByProfileId: string;
-  managedProfileId: string;
+  ownerProfileId: string;
   role: ManagedProfileMembershipRole;
   status: "pending" | "accepted" | "cancelled" | "expired";
 }
@@ -47,7 +53,7 @@ export interface MemberEvent {
 export interface InvitationPreview {
   invitation: MemberInvitation;
   inviter: { email: string | null; profileId: string };
-  managedProfile: { externalSubjectId: string; profileId: string };
+  organization: Pick<Organization, "ownerProfileId" | "ownerEmail">;
 }
 
 export interface OffsetPagination {
@@ -68,64 +74,68 @@ export function shouldRetryMembershipQuery(failureCount: number, error: unknown)
   return !(isApiError(error) && error.status >= 400 && error.status < 500) && failureCount < 2;
 }
 
-export const ManagedProfileMembershipsService = {
+export const OrganizationService = {
   async accept(invitationId: string) {
     requireSession();
-    return apiClient.post<{ managedProfileId: string; member: Omit<TeamMember, "email"> }>(
-      `/managed-profile-member-invitations/${encodeURIComponent(invitationId)}/accept`
+    return apiClient.post<{ ownerProfileId: string; member: Omit<TeamMember, "email"> }>(
+      `/organization-member-invitations/${encodeURIComponent(invitationId)}/accept`
     );
   },
-  async cancel(profileId: string, invitationId: string) {
+  async cancel(expectedOwnerProfileId: string, invitationId: string) {
     requireSession();
-    return apiClient.delete<void>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/member-invitations/${encodeURIComponent(invitationId)}`
-    );
+    return apiClient.delete<void>(`/organization/member-invitations/${encodeURIComponent(invitationId)}`, {
+      params: { expectedOwnerProfileId }
+    });
   },
-  async changeRole(profileId: string, memberProfileId: string, role: ManagedProfileMembershipRole) {
+  async changeRole(expectedOwnerProfileId: string, memberProfileId: string, role: ManagedProfileMembershipRole) {
     requireSession();
     return apiClient.patch<{ member: Omit<TeamMember, "email"> }>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/members/${encodeURIComponent(memberProfileId)}`,
-      { role }
+      `/organization/members/${encodeURIComponent(memberProfileId)}`,
+      { role },
+      { params: { expectedOwnerProfileId } }
     );
   },
-  async events(profileId: string, cursor?: string, signal?: AbortSignal) {
+  async events(expectedOwnerProfileId: string, cursor?: string, signal?: AbortSignal) {
     requireSession();
     return apiClient.get<{ events: MemberEvent[]; pagination: { limit: number; nextCursor: string | null } }>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/member-events`,
-      { params: { cursor, limit: 20 }, signal }
+      "/organization/member-events",
+      { params: { cursor, expectedOwnerProfileId, limit: 20 }, signal }
     );
   },
-  async invitations(profileId: string, offset = 0, signal?: AbortSignal) {
+  async get(signal?: AbortSignal) {
+    requireSession();
+    return apiClient.get<{ organization: Organization | null }>("/organization", { signal });
+  },
+  async invitations(expectedOwnerProfileId: string, offset = 0, signal?: AbortSignal) {
     requireSession();
     return apiClient.get<{ invitations: MemberInvitation[]; pagination: OffsetPagination }>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/member-invitations`,
-      { params: { limit: 20, offset }, signal }
+      "/organization/member-invitations",
+      { params: { expectedOwnerProfileId, limit: 20, offset }, signal }
     );
   },
-  async invite(profileId: string, input: { email: string; role: ManagedProfileMembershipRole }) {
+  async invite(expectedOwnerProfileId: string, input: { email: string; role: ManagedProfileMembershipRole }) {
     requireSession();
-    return apiClient.post<{ invitation: MemberInvitation }>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/member-invitations`,
-      input
-    );
+    return apiClient.post<{ invitation: MemberInvitation }>("/organization/member-invitations", input, {
+      params: { expectedOwnerProfileId }
+    });
   },
-  async members(profileId: string, offset = 0, signal?: AbortSignal) {
+  async members(expectedOwnerProfileId: string, offset = 0, signal?: AbortSignal) {
     requireSession();
-    return apiClient.get<{ members: TeamMember[]; pagination: OffsetPagination }>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/members`,
-      { params: { limit: 20, offset }, signal }
-    );
-  },
-  async preview(invitationId: string, signal?: AbortSignal) {
-    requireSession();
-    return apiClient.get<InvitationPreview>(`/managed-profile-member-invitations/${encodeURIComponent(invitationId)}`, {
+    return apiClient.get<{ members: TeamMember[]; pagination: OffsetPagination }>("/organization/members", {
+      params: { expectedOwnerProfileId, limit: 20, offset },
       signal
     });
   },
-  async remove(profileId: string, memberProfileId: string) {
+  async preview(invitationId: string, signal?: AbortSignal) {
     requireSession();
-    return apiClient.delete<void>(
-      `/managed-profiles/${encodeURIComponent(profileId)}/members/${encodeURIComponent(memberProfileId)}`
-    );
+    return apiClient.get<InvitationPreview>(`/organization-member-invitations/${encodeURIComponent(invitationId)}`, {
+      signal
+    });
+  },
+  async remove(expectedOwnerProfileId: string, memberProfileId: string) {
+    requireSession();
+    return apiClient.delete<void>(`/organization/members/${encodeURIComponent(memberProfileId)}`, {
+      params: { expectedOwnerProfileId }
+    });
   }
 };

@@ -7,56 +7,57 @@ const GENERATOR_FILE = "docs/api/scripts/generate-openapi-types.ts";
 const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 
 const MEMBERSHIP_OPERATIONS = [
+  ["/v1/organization", "get", "OrganizationResponse", ["200", "400", "401", "403", "429", "500", "503"]],
   [
-    "/v1/managed-profiles/{profileId}/members",
+    "/v1/organization/members",
     "get",
     "ListManagedProfileMembersResponse",
-    ["200", "400", "401", "403", "429", "500", "503"]
+    ["200", "400", "401", "403", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/members/{memberProfileId}",
+    "/v1/organization/members/{memberProfileId}",
     "patch",
     "ManagedProfileMemberResponse",
     ["200", "400", "401", "403", "404", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/members/{memberProfileId}",
+    "/v1/organization/members/{memberProfileId}",
     "delete",
     null,
     ["204", "400", "401", "403", "404", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/member-invitations",
+    "/v1/organization/member-invitations",
     "get",
     "ListManagedProfileInvitationsResponse",
-    ["200", "400", "401", "403", "429", "500", "503"]
+    ["200", "400", "401", "403", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/member-invitations",
+    "/v1/organization/member-invitations",
     "post",
     "ManagedProfileInvitationResponse",
     ["200", "201", "400", "401", "403", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/member-invitations/{invitationId}",
+    "/v1/organization/member-invitations/{invitationId}",
     "delete",
     null,
     ["204", "400", "401", "403", "404", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profiles/{profileId}/member-events",
+    "/v1/organization/member-events",
     "get",
     "ListManagedProfileMemberEventsResponse",
-    ["200", "400", "401", "403", "429", "500", "503"]
+    ["200", "400", "401", "403", "409", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profile-member-invitations/{invitationId}",
+    "/v1/organization-member-invitations/{invitationId}",
     "get",
     "PreviewManagedProfileInvitationResponse",
     ["200", "400", "401", "403", "429", "500", "503"]
   ],
   [
-    "/v1/managed-profile-member-invitations/{invitationId}/accept",
+    "/v1/organization-member-invitations/{invitationId}/accept",
     "post",
     "AcceptManagedProfileInvitationResponse",
     ["200", "400", "401", "403", "409", "429", "500", "503"]
@@ -485,7 +486,8 @@ if (exposedAdminPaths.length > 0) {
 
 const unexpectedManagedProfilePaths = paths.filter(
   path =>
-    path.startsWith("/v1/managed-profile") && !MANAGED_PROFILE_PATHS.includes(path as (typeof MANAGED_PROFILE_PATHS)[number])
+    (path.startsWith("/v1/managed-profile") || path.startsWith("/v1/organization")) &&
+    !MANAGED_PROFILE_PATHS.includes(path as (typeof MANAGED_PROFILE_PATHS)[number])
 );
 if (unexpectedManagedProfilePaths.length > 0) {
   throw new Error(`OpenAPI file exposes unexpected managed-profile paths:\n${unexpectedManagedProfilePaths.join("\n")}`);
@@ -516,7 +518,7 @@ const requiredManagedProfileOperations = [...MANAGED_PROFILE_OPERATIONS, ...MEMB
   .map(([path, method]) => `${method.toUpperCase()} ${path}`)
   .sort();
 if (JSON.stringify(documentedManagedProfileOperations.sort()) !== JSON.stringify(requiredManagedProfileOperations)) {
-  throw new Error("OpenAPI file must expose exactly seven lifecycle and nine membership/invitation operations.");
+  throw new Error("OpenAPI file must expose exactly seven lifecycle and ten organization/team/invitation operations.");
 }
 
 function operationAt(path: string, method: string): JsonObject {
@@ -624,12 +626,47 @@ if (
   (actorProperties.profileId as JsonObject).format !== "uuid" ||
   (actorProperties.canProvisionManagedProfiles as JsonObject).type !== "boolean" ||
   (actorProperties.hasMemberships as JsonObject).type !== "boolean" ||
-  !String((actorProperties.hasMemberships as JsonObject).description).includes("unpaginated eligible active-child count") ||
-  !String((actorProperties.hasMemberships as JsonObject).description).includes(
-    "Excludes deleted children, inactive owners and invalid entity layouts"
+  !String((actorProperties.hasMemberships as JsonObject).description).includes("live organization membership") ||
+  !String((actorProperties.hasMemberships as JsonObject).description).includes("even with zero children") ||
+  !String((actorProperties.hasMemberships as JsonObject).description).includes("active owner configuration")
+) {
+  throw new Error("ManagedProfileActor must expose owner-only provisioning and live organization membership flags.");
+}
+assertRequiredFields("OrganizationResponse", ["organization"]);
+assertRequiredFields("Organization", ["ownerProfileId", "ownerEmail", "membership"]);
+assertRequiredFields("OrganizationIdentity", ["ownerProfileId", "ownerEmail"]);
+assertRequiredFields("OrganizationMembership", ["role", "isOwner"]);
+const organizationProperties = (schemas.Organization as JsonObject).properties as JsonObject;
+const organizationIdentityProperties = (schemas.OrganizationIdentity as JsonObject).properties as JsonObject;
+const organizationMembershipProperties = (schemas.OrganizationMembership as JsonObject).properties as JsonObject;
+const organizationResponse = ((schemas.OrganizationResponse as JsonObject).properties as JsonObject).organization as JsonObject;
+const previewProperties = (schemas.PreviewManagedProfileInvitationResponse as JsonObject).properties as JsonObject;
+const inviter = previewProperties.inviter as JsonObject;
+const inviterProperties = inviter.properties as JsonObject;
+const acceptProperties = (schemas.AcceptManagedProfileInvitationResponse as JsonObject).properties as JsonObject;
+if (
+  JSON.stringify(organizationResponse.oneOf) !==
+    JSON.stringify([{ $ref: "#/components/schemas/Organization" }, { type: "null" }]) ||
+  !transitivelyReferences(organizationProperties.membership, "#/components/schemas/OrganizationMembership") ||
+  !transitivelyReferences(organizationMembershipProperties.role, "#/components/schemas/ManagedProfileMembershipRole") ||
+  (organizationMembershipProperties.isOwner as JsonObject).type !== "boolean" ||
+  !transitivelyReferences(previewProperties.organization, "#/components/schemas/OrganizationIdentity") ||
+  JSON.stringify(Object.keys(inviterProperties).sort()) !== JSON.stringify(["email", "profileId"]) ||
+  JSON.stringify([...(inviter.required as string[])].sort()) !== JSON.stringify(["email", "profileId"]) ||
+  JSON.stringify((inviterProperties.email as JsonObject).type) !== JSON.stringify(["string", "null"]) ||
+  (inviterProperties.profileId as JsonObject).format !== "uuid" ||
+  (acceptProperties.ownerProfileId as JsonObject).format !== "uuid" ||
+  !transitivelyReferences(acceptProperties.member, "#/components/schemas/ManagedProfileMember") ||
+  [organizationProperties, organizationIdentityProperties].some(
+    properties =>
+      (properties.ownerProfileId as JsonObject).type !== "string" ||
+      (properties.ownerProfileId as JsonObject).format !== "uuid" ||
+      JSON.stringify((properties.ownerEmail as JsonObject).type) !== JSON.stringify(["string", "null"])
   )
 ) {
-  throw new Error("ManagedProfileActor must expose independent provisioning and eligible active-membership flags.");
+  throw new Error(
+    "Organization discovery must be nullable; discovery and invitee responses must expose the exact owner, inviter and member shapes."
+  );
 }
 assertRequiredFields("ManagedProfileAccessResponse", ["actor", "managedProfile"]);
 assertRequiredFields("ManagedProfileMember", ["id", "memberProfileId", "role", "isOwner", "createdAt", "updatedAt"]);
@@ -639,7 +676,7 @@ assertRequiredFields("CreateManagedProfileInvitationRequest", ["email", "role"])
 assertRequiredFields("ChangeManagedProfileMemberRequest", ["role"]);
 assertRequiredFields("ManagedProfileInvitation", [
   "id",
-  "managedProfileId",
+  "ownerProfileId",
   "invitedByProfileId",
   "email",
   "role",
@@ -652,8 +689,8 @@ assertRequiredFields("ManagedProfileInvitation", [
 ]);
 assertRequiredFields("ManagedProfileInvitationResponse", ["invitation"]);
 assertRequiredFields("ListManagedProfileInvitationsResponse", ["invitations", "pagination"]);
-assertRequiredFields("PreviewManagedProfileInvitationResponse", ["invitation", "inviter", "managedProfile"]);
-assertRequiredFields("AcceptManagedProfileInvitationResponse", ["managedProfileId", "member"]);
+assertRequiredFields("PreviewManagedProfileInvitationResponse", ["invitation", "inviter", "organization"]);
+assertRequiredFields("AcceptManagedProfileInvitationResponse", ["ownerProfileId", "member"]);
 assertRequiredFields("ManagedProfileMemberEvent", [
   "id",
   "action",
@@ -694,7 +731,8 @@ for (const [value, statements] of [
       "returns 200 with an empty list even when both actor flags are false",
       "Both status=deleted and status=all require the actor's own active manager configuration",
       "owner-scoped only",
-      "even active invited children in status=all"
+      "all present and future children",
+      "live organization membership even with zero children"
     ]
   ],
   [
@@ -702,6 +740,11 @@ for (const [value, statements] of [
     [
       "Bootstrap is explicitly GET detail with an exactly matching X-Managed-Profile-Id",
       "Stored membership history (active or revoked) is required",
+      "for this actor and the child's immutable owner",
+      "membership.createdAt <= (child.deletedAt ?? now)",
+      "membership.revokedAt IS NULL or membership.revokedAt > child.createdAt",
+      "on the same membership row",
+      "wholly within a membership gap remains masked 404",
       "A deleted child invalidates even the owner's bootstrap",
       "same masked 404 MANAGED_PROFILE_NOT_FOUND for an existing or unknown child",
       "Retained deleted-child reads are allowed only to the immutable owner",
@@ -724,7 +767,8 @@ const listSuccessMedia = (listSuccess.content as JsonObject)["application/json"]
 const listExamples = listSuccessMedia.examples as JsonObject;
 for (const [name, canProvision, hasMemberships, total] of [
   ["noEligibleMemberships", false, false, 0],
-  ["ownerBeforeProvisioning", true, false, 0],
+  ["ownerBeforeProvisioning", true, true, 0],
+  ["memberBeforeProvisioning", false, true, 0],
   ["pageBeyondResults", false, true, 1]
 ] as const) {
   const value = (listExamples?.[name] as JsonObject)?.value as JsonObject;
@@ -737,6 +781,33 @@ for (const [name, canProvision, hasMemberships, total] of [
   ) {
     throw new Error(`Managed list example ${name} must preserve independent actor flags on empty pages.`);
   }
+}
+
+const contextError = schemas.OrganizationContextChangedErrorResponse as JsonObject;
+assertRequiredFields("OrganizationContextChangedErrorResponse", ["error"]);
+const contextErrorBody = (contextError.properties as JsonObject).error as JsonObject;
+const contextErrorProperties = contextErrorBody.properties as JsonObject;
+if (
+  JSON.stringify(Object.keys(contextErrorProperties).sort()) !== JSON.stringify(["code", "message", "status"]) ||
+  JSON.stringify([...(contextErrorBody.required as string[])].sort()) !== JSON.stringify(["code", "message", "status"]) ||
+  (contextErrorProperties.code as JsonObject).const !== "ORGANIZATION_CONTEXT_CHANGED" ||
+  (contextErrorProperties.status as JsonObject).const !== 409 ||
+  (contextErrorProperties.message as JsonObject).type !== "string"
+) {
+  throw new Error("Organization context conflict must expose typed code, message and status 409.");
+}
+const expectedOwnerParameter = ((openapi.components as JsonObject).parameters as JsonObject)
+  .ExpectedOwnerProfileId as JsonObject;
+for (const statement of ["derived server-side", "live service authorization", "not authority or a multi-org selector"]) {
+  if (!String(expectedOwnerParameter?.description).includes(statement)) {
+    throw new Error(`Organization precondition must document: ${statement}`);
+  }
+}
+if (
+  !String(managerPolicySchema.description).includes("immutable controlling owner's current policy") ||
+  String(managerPolicySchema.description).includes("different owners")
+) {
+  throw new Error("ManagedProfilePolicy must describe the current immutable controlling owner's policy, not multiple owners.");
 }
 
 for (const [path, method, responseSchema, statuses] of MEMBERSHIP_OPERATIONS) {
@@ -754,21 +825,55 @@ for (const [path, method, responseSchema, statuses] of MEMBERSHIP_OPERATIONS) {
   ) {
     throw new Error(`${method.toUpperCase()} ${path} must preserve bearer-only auth, exact statuses and response shapes.`);
   }
-  const invitee = path.startsWith("/v1/managed-profile-member-invitations/");
-  const parameters = operation.parameters as JsonObject[];
+  const invitee = path.startsWith("/v1/organization-member-invitations/");
+  const pathItem = (openapi.paths as JsonObject)[path] as JsonObject;
+  const parameters = [...((pathItem.parameters ?? []) as JsonObject[]), ...((operation.parameters ?? []) as JsonObject[])];
+  const resolvedParameters = parameters.map(
+    p => (typeof p.$ref === "string" ? valueAtPointer(openapi, p.$ref) : p) as JsonObject
+  );
   if (
-    parameters.some(p => p.$ref === "#/components/parameters/ManagedProfileId") ||
-    (!invitee && !parameters.some(p => p.$ref === "#/components/parameters/MembershipSelection")) ||
-    (invitee && parameters.some(p => p.$ref === "#/components/parameters/MembershipSelection")) ||
+    resolvedParameters.some(
+      p => p?.name === "X-Managed-Profile-Id" || p?.name === "profileId" || p?.name === "ownerProfileId"
+    ) ||
+    !String(operation.description).includes(
+      "Rejects any child selector, API/public-key headers (even with a bearer), and impersonation"
+    ) ||
     ((invitee || method === "get" || method === "delete") && operation.requestBody)
   ) {
     throw new Error(`${method.toUpperCase()} ${path} must not advertise request-email acceptance or secret-key selection.`);
+  }
+  const scopedTeam = path.startsWith("/v1/organization/");
+  const expectedOwners = resolvedParameters.filter(p => p?.name === "expectedOwnerProfileId");
+  if (scopedTeam) {
+    const precondition = expectedOwners[0];
+    const schema = precondition?.schema as JsonObject | undefined;
+    if (
+      expectedOwners.length !== 1 ||
+      precondition.in !== "query" ||
+      precondition.required !== true ||
+      schema?.type !== "string" ||
+      schema.format !== "uuid" ||
+      !transitivelyReferences(responses["409"], "#/components/schemas/OrganizationContextChangedErrorResponse") ||
+      !JSON.stringify(responses["400"]).includes("MANAGED_PROFILE_INVALID_INPUT") ||
+      !JSON.stringify(responses["400"]).includes("expectedOwnerProfileId")
+    ) {
+      throw new Error(
+        `${method.toUpperCase()} ${path} must require the UUID query precondition expectedOwnerProfileId with documented 400 and typed context 409.`
+      );
+    }
+  } else if (
+    expectedOwners.length > 0 ||
+    transitivelyReferences(responses, "#/components/schemas/OrganizationContextChangedErrorResponse")
+  ) {
+    throw new Error(
+      `${method.toUpperCase()} ${path} must remain exempt from the expectedOwnerProfileId precondition and context conflict.`
+    );
   }
   if ("204" in responses && "content" in (responses["204"] as JsonObject)) {
     throw new Error(`${method.toUpperCase()} ${path} 204 must have no body.`);
   }
 }
-const invitationCreate = operationAt("/v1/managed-profiles/{profileId}/member-invitations", "post");
+const invitationCreate = operationAt("/v1/organization/member-invitations", "post");
 if (
   !transitivelyReferences(invitationCreate.requestBody, "#/components/schemas/CreateManagedProfileInvitationRequest") ||
   !transitivelyReferences(
@@ -776,7 +881,7 @@ if (
     "#/components/schemas/ManagedProfileInvitationResponse"
   ) ||
   !transitivelyReferences(
-    operationAt("/v1/managed-profiles/{profileId}/members/{memberProfileId}", "patch").requestBody,
+    operationAt("/v1/organization/members/{memberProfileId}", "patch").requestBody,
     "#/components/schemas/ChangeManagedProfileMemberRequest"
   )
 ) {
@@ -784,6 +889,19 @@ if (
 }
 
 const invitationProperties = (schemas.ManagedProfileInvitation as JsonObject).properties as JsonObject;
+const invitationAccept = operationAt("/v1/organization-member-invitations/{invitationId}/accept", "post");
+if (
+  !JSON.stringify((invitationAccept.responses as JsonObject)["409"]).includes("ORGANIZATION_MEMBERSHIP_CONFLICT") ||
+  !String(invitationAccept.description).includes("including disabled owners") ||
+  !String(invitationAccept.description).includes("inviter removal or downgrade") ||
+  (invitationProperties.ownerProfileId as JsonObject).format !== "uuid" ||
+  "MembershipSelection" in ((openapi.components as JsonObject).parameters as JsonObject) ||
+  "MembershipProfileId" in ((openapi.components as JsonObject).parameters as JsonObject)
+) {
+  throw new Error(
+    "Organization invitations must preserve durable offers, reject second-org acceptance, and remove child selection."
+  );
+}
 const eventProperties = (schemas.ManagedProfileMemberEvent as JsonObject).properties as JsonObject;
 const eventPagination = ((schemas.ListManagedProfileMemberEventsResponse as JsonObject).properties as JsonObject)
   .pagination as JsonObject;

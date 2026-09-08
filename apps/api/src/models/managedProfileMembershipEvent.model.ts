@@ -13,7 +13,7 @@ export type ManagedProfileMembershipAction =
 
 export interface ManagedProfileMembershipEventAttributes {
   id: string;
-  managedProfileId: string;
+  ownerProfileId: string;
   action: ManagedProfileMembershipAction;
   actorProfileId: string | null;
   memberProfileId: string | null;
@@ -34,7 +34,7 @@ class ManagedProfileMembershipEvent
   implements ManagedProfileMembershipEventAttributes
 {
   declare id: string;
-  declare managedProfileId: string;
+  declare ownerProfileId: string;
   declare action: ManagedProfileMembershipAction;
   declare actorProfileId: string | null;
   declare memberProfileId: string | null;
@@ -66,20 +66,20 @@ ManagedProfileMembershipEvent.init(
       references: { key: "id", model: "managed_profile_membership_invitations" },
       type: DataTypes.UUID
     },
-    managedProfileId: {
-      allowNull: false,
-      field: "managed_profile_id",
-      onDelete: "RESTRICT",
-      onUpdate: "CASCADE",
-      references: { key: "profile_id", model: "managed_profiles" },
-      type: DataTypes.UUID
-    },
     memberProfileId: {
       allowNull: true,
       field: "member_profile_id",
       onDelete: "RESTRICT",
       onUpdate: "CASCADE",
       references: { key: "id", model: "profiles" },
+      type: DataTypes.UUID
+    },
+    ownerProfileId: {
+      allowNull: false,
+      field: "owner_profile_id",
+      onDelete: "RESTRICT",
+      onUpdate: "CASCADE",
+      references: { key: "profile_id", model: "managed_profile_managers" },
       type: DataTypes.UUID
     },
     previousRole: { allowNull: true, field: "previous_role", type: DataTypes.STRING(16) },
@@ -89,8 +89,8 @@ ManagedProfileMembershipEvent.init(
   {
     indexes: [
       {
-        fields: ["managed_profile_id", { name: "created_at", order: "DESC" }, { name: "id", order: "DESC" }],
-        name: "idx_managed_profile_membership_events_child_created"
+        fields: ["owner_profile_id", { name: "created_at", order: "DESC" }, { name: "id", order: "DESC" }],
+        name: "idx_managed_profile_membership_events_owner_created"
       }
     ],
     modelName: "ManagedProfileMembershipEvent",

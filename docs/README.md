@@ -20,7 +20,8 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md)         | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution                                          |
 | [`adr-0003-managed-headless-profiles.md`](adr-0003-managed-headless-profiles.md)       | Accepted identity, ownership, authorization, and lifecycle decisions for managed headless profiles                         |
 | [`adr-0004-sandbox-demo-environment.md`](adr-0004-sandbox-demo-environment.md)         | Accepted decision on the seeded sales-demo account in the sandbox environment                                              |
-| [`adr-0005-managed-profile-memberships.md`](adr-0005-managed-profile-memberships.md)   | Accepted child-scoped membership, invitation, capability, and immutable-owner decisions                                    |
+| [`adr-0005-managed-profile-memberships.md`](adr-0005-managed-profile-memberships.md)   | Partially superseded by ADR 0006; retained capability and immutable-owner decisions |
+| [`adr-0006-organization-wide-teams.md`](adr-0006-organization-wide-teams.md) | Accepted one-account-one-org approximation, organization-wide roles, invitations, and single-affiliation decisions |
 | [`architecture-email-notifications.md`](architecture-email-notifications.md)           | Current transactional/auth email architecture: queue, dispatch, producers                                                  |
 | [`architecture-identity-model.md`](architecture-identity-model.md)                     | Current cross-module identity and ownership architecture                                                                   |
 | [`operations-demo-environment.md`](operations-demo-environment.md)                     | Setup and runbook for the sandbox sales-demo account                                                                       |

@@ -1,6 +1,8 @@
 # ADR 0005: Managed-Profile Memberships
 
-Status: accepted. Partially supersedes ADR 0003's exactly-one-manager authorization
+Status: partially superseded by [ADR 0006](adr-0006-organization-wide-teams.md) for
+membership/invitation scope, Team placement, and owner-membership provisioning. The
+child-scoped decisions below are historical, not the current contract. Partially supersedes ADR 0003's exactly-one-manager authorization
 model and its exclusion of operation-specific permissions. It preserves ADR 0003's
 headless child, immutable owner, policy, pricing, namespace, and lifecycle decisions.
 

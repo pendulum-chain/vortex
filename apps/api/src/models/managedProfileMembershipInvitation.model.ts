@@ -4,7 +4,7 @@ import type { ManagedProfileMembershipRole } from "./managedProfileMembership.mo
 
 export interface ManagedProfileMembershipInvitationAttributes {
   id: string;
-  managedProfileId: string;
+  ownerProfileId: string;
   email: string;
   role: ManagedProfileMembershipRole;
   invitedByProfileId: string;
@@ -28,7 +28,7 @@ class ManagedProfileMembershipInvitation
   implements ManagedProfileMembershipInvitationAttributes
 {
   declare id: string;
-  declare managedProfileId: string;
+  declare ownerProfileId: string;
   declare email: string;
   declare role: ManagedProfileMembershipRole;
   declare invitedByProfileId: string;
@@ -75,12 +75,12 @@ ManagedProfileMembershipInvitation.init(
       references: { key: "id", model: "profiles" },
       type: DataTypes.UUID
     },
-    managedProfileId: {
+    ownerProfileId: {
       allowNull: false,
-      field: "managed_profile_id",
+      field: "owner_profile_id",
       onDelete: "RESTRICT",
       onUpdate: "CASCADE",
-      references: { key: "profile_id", model: "managed_profiles" },
+      references: { key: "profile_id", model: "managed_profile_managers" },
       type: DataTypes.UUID
     },
     role: { allowNull: false, type: DataTypes.STRING(16) },
@@ -89,14 +89,14 @@ ManagedProfileMembershipInvitation.init(
   {
     indexes: [
       {
-        fields: ["managed_profile_id", "email"],
+        fields: ["owner_profile_id", "email"],
         name: "uq_managed_profile_membership_invitations_pending",
         unique: true,
         where: { accepted_at: null, cancelled_at: null, expired_at: null }
       },
       {
-        fields: ["managed_profile_id", "created_at"],
-        name: "idx_managed_profile_membership_invitations_child_created"
+        fields: ["owner_profile_id", "created_at"],
+        name: "idx_managed_profile_membership_invitations_owner_created"
       }
     ],
     modelName: "ManagedProfileMembershipInvitation",

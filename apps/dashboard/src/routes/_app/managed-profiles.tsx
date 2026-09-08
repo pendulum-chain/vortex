@@ -29,7 +29,7 @@ function ManagedProfilesPage() {
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Managed profiles</h1>
         <p className="max-w-2xl text-muted-foreground">
-          {profiles.data?.actor.canProvisionManagedProfiles && !profiles.data.actor.hasMemberships
+          {profiles.data?.actor.canProvisionManagedProfiles && profiles.data.pagination.total === 0
             ? "You can provision managed profiles through the API. Active profiles will appear here once created."
             : "Choose a profile to act for using the actions menu."}
         </p>

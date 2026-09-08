@@ -13,7 +13,13 @@ import { down, up } from "./migrations/069-create-managed-profile-memberships";
 
 async function createManager(): Promise<User> {
   const profile = await createTestUser();
-  await ManagedProfileManager.create({ allowedCorridors: ["BR"], profileId: profile.id });
+  await sequelize.transaction(async transaction => {
+    await ManagedProfileManager.create({ allowedCorridors: ["BR"], profileId: profile.id }, { transaction });
+    await ManagedProfileMembership.create(
+      { ownerProfileId: profile.id, memberProfileId: profile.id, role: "manager" },
+      { transaction }
+    );
+  });
   return profile;
 }
 
@@ -35,10 +41,6 @@ async function createManagedProfile(
       },
       { transaction }
     );
-    await ManagedProfileMembership.create(
-      { managedProfileId: profile.id, memberProfileId: managerProfileId, role: "manager" },
-      { transaction }
-    );
     return profile;
   });
 }
@@ -47,7 +49,7 @@ describe("managed profile membership schema", () => {
   beforeAll(setupTestDatabase);
   beforeEach(resetTestDatabase);
 
-  it("backfills an owner manager membership for every retained relationship", async () => {
+  it("backfills once per configuration including inactive zero-child owners, not once per child", async () => {
     const queryInterface = sequelize.getQueryInterface();
     await down(queryInterface);
     let defaultPrivilegesGranted = false;
@@ -61,16 +63,15 @@ describe("managed profile membership schema", () => {
         $$;`);
       await sequelize.query("ALTER DEFAULT PRIVILEGES GRANT ALL PRIVILEGES ON TABLES TO anon, authenticated;");
       defaultPrivilegesGranted = true;
-      const manager = await createManager();
-      const profileIds = await sequelize.transaction(async transaction => {
-        const active = await User.create(
-          { email: null, id: crypto.randomUUID(), kind: "managed" },
-          { transaction }
-        );
-        const deleted = await User.create(
-          { email: null, id: crypto.randomUUID(), kind: "managed" },
-          { transaction }
-        );
+      const manager = await createTestUser();
+      const emptyOwner = await createTestUser();
+      await ManagedProfileManager.bulkCreate([
+        { allowedCorridors: ["BR"], profileId: manager.id },
+        { allowedCorridors: ["BR"], profileId: emptyOwner.id, isActive: false }
+      ]);
+      await sequelize.transaction(async transaction => {
+        const active = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
+        const deleted = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
         await ManagedProfile.bulkCreate(
           [
             {
@@ -90,15 +91,14 @@ describe("managed profile membership schema", () => {
           ],
           { transaction }
         );
-        return [active.id, deleted.id];
       });
 
       await up(queryInterface);
 
-      const memberships = await ManagedProfileMembership.findAll({ order: [["managedProfileId", "ASC"]] });
+      const memberships = await ManagedProfileMembership.findAll({ order: [["ownerProfileId", "ASC"]] });
       expect(memberships).toHaveLength(2);
-      expect(memberships.map(membership => membership.managedProfileId).sort()).toEqual(profileIds.sort());
-      expect(memberships.every(membership => membership.memberProfileId === manager.id)).toBe(true);
+      expect(memberships.map(membership => membership.ownerProfileId).sort()).toEqual([manager.id, emptyOwner.id].sort());
+      expect(memberships.every(membership => membership.memberProfileId === membership.ownerProfileId)).toBe(true);
       expect(memberships.every(membership => membership.role === "manager" && membership.revokedAt === null)).toBe(true);
       expect(memberships.every(membership => membership.createdByProfileId === null)).toBe(true);
       expect(await ManagedProfileMembershipEvent.count()).toBe(0);
@@ -122,58 +122,44 @@ describe("managed profile membership schema", () => {
     }
   });
 
-  it("requires active children to have an active owner manager membership", async () => {
-    const manager = await createManager();
-
-    await expect(
-      sequelize.transaction(async transaction => {
-        const profile = await User.create(
-          { email: null, id: crypto.randomUUID(), kind: "managed" },
-          { transaction }
-        );
-        await ManagedProfile.create(
-          {
-            creationSource: "manager",
-            externalSubjectId: "missing-owner-membership",
-            managerProfileId: manager.id,
-            profileId: profile.id
-          },
-          { transaction }
-        );
-      })
-    ).rejects.toThrow("Active managed profiles require an active owner manager membership");
+  it("requires every configuration to have an active owner membership even without children", async () => {
+    const owner = await createTestUser();
+    for (const isActive of [true, false]) {
+      await expect(ManagedProfileManager.create({ allowedCorridors: ["BR"], profileId: owner.id, isActive })).rejects.toThrow(
+        "Organizations require an active owner manager membership"
+      );
+    }
   });
 
-  it("requires authenticated members and a retained managed-profile target", async () => {
+  it("requires authenticated members and an organization target", async () => {
     const manager = await createManager();
-    const child = await createManagedProfile(manager.id, "membership-kind-child");
     const otherChild = await createManagedProfile(manager.id, "membership-kind-member");
     const authenticatedProfile = await createTestUser();
 
     await expect(
       ManagedProfileMembership.create({
-        managedProfileId: child.id,
+        ownerProfileId: manager.id,
         memberProfileId: otherChild.id,
         role: "read_only"
       })
     ).rejects.toThrow("Managed profile members must be authenticated profiles");
     await expect(
       ManagedProfileMembership.create({
-        managedProfileId: authenticatedProfile.id,
+        ownerProfileId: authenticatedProfile.id,
         memberProfileId: authenticatedProfile.id,
         role: "read_only"
       })
     ).rejects.toThrow();
   });
 
-  it("allows only one active membership and permits a distinct grant after revocation", async () => {
+  it("allows only one active membership globally and permits another organization after revocation", async () => {
     const owner = await createManager();
+    const otherOwner = await createManager();
     const member = await createTestUser();
     const invalidRoleMember = await createTestUser();
-    const child = await createManagedProfile(owner.id, "membership-history");
     const first = await ManagedProfileMembership.create({
       createdByProfileId: owner.id,
-      managedProfileId: child.id,
+      ownerProfileId: owner.id,
       memberProfileId: member.id,
       role: "read_only"
     });
@@ -181,14 +167,14 @@ describe("managed profile membership schema", () => {
     await expect(
       ManagedProfileMembership.create({
         createdByProfileId: owner.id,
-        managedProfileId: child.id,
+        ownerProfileId: otherOwner.id,
         memberProfileId: member.id,
         role: "manager"
       })
     ).rejects.toThrow();
     await expect(
       ManagedProfileMembership.create({
-        managedProfileId: child.id,
+        ownerProfileId: owner.id,
         memberProfileId: invalidRoleMember.id,
         role: "operator" as "manager"
       })
@@ -197,33 +183,32 @@ describe("managed profile membership schema", () => {
     await first.update({ revokedAt: new Date(), revokedByProfileId: owner.id });
     const second = await ManagedProfileMembership.create({
       createdByProfileId: owner.id,
-      managedProfileId: child.id,
+      ownerProfileId: otherOwner.id,
       memberProfileId: member.id,
       role: "manager"
     });
 
     expect(second.id).not.toBe(first.id);
-    expect(await ManagedProfileMembership.count({ where: { managedProfileId: child.id, memberProfileId: member.id } })).toBe(2);
+    expect(await ManagedProfileMembership.count({ where: { memberProfileId: member.id } })).toBe(2);
   });
 
-  it("protects active owner membership and immutable ownership at database level", async () => {
+  it("protects inactive owner membership and immutable ownership at database level", async () => {
     const owner = await createManager();
     const otherManager = await createManager();
     const child = await createManagedProfile(owner.id, "protected-owner");
     const relationship = await ManagedProfile.findOne({ where: { profileId: child.id } });
     const membership = await ManagedProfileMembership.findOne({
-      where: { managedProfileId: child.id, memberProfileId: owner.id }
+      where: { ownerProfileId: owner.id, memberProfileId: owner.id }
     });
+    await ManagedProfileManager.update({ isActive: false }, { where: { profileId: owner.id } });
 
     await expect(membership?.update({ role: "read_only" })).rejects.toThrow(
-      "Active managed profile owner membership cannot be downgraded or removed"
+      "Organization owner membership cannot be downgraded or removed"
     );
     await expect(membership?.update({ revokedAt: new Date(), revokedByProfileId: owner.id })).rejects.toThrow(
-      "Active managed profile owner membership cannot be downgraded or removed"
+      "Organization owner membership cannot be downgraded or removed"
     );
-    await expect(membership?.destroy()).rejects.toThrow(
-      "Active managed profile owner membership cannot be downgraded or removed"
-    );
+    await expect(membership?.destroy()).rejects.toThrow("Organization owner membership cannot be downgraded or removed");
     await expect(relationship?.update({ managerProfileId: otherManager.id })).rejects.toThrow(
       "Managed profile owner cannot be changed after creation"
     );
@@ -232,13 +217,12 @@ describe("managed profile membership schema", () => {
   it("constrains invitation roles, normalized email, terminal state, and pending uniqueness", async () => {
     const owner = await createManager();
     const acceptedBy = await createTestUser();
-    const child = await createManagedProfile(owner.id, "invitation-constraints");
     const expiresAt = new Date(Date.now() + 60_000);
     const invitation = await ManagedProfileMembershipInvitation.create({
       email: "member@example.com",
       expiresAt,
       invitedByProfileId: owner.id,
-      managedProfileId: child.id,
+      ownerProfileId: owner.id,
       role: "manager"
     });
 
@@ -247,7 +231,7 @@ describe("managed profile membership schema", () => {
         email: "member@example.com",
         expiresAt,
         invitedByProfileId: owner.id,
-        managedProfileId: child.id,
+        ownerProfileId: owner.id,
         role: "read_only"
       })
     ).rejects.toThrow();
@@ -256,7 +240,7 @@ describe("managed profile membership schema", () => {
         email: "other@example.com",
         expiresAt,
         invitedByProfileId: owner.id,
-        managedProfileId: child.id,
+        ownerProfileId: owner.id,
         role: "operator" as "manager"
       })
     ).rejects.toThrow();
@@ -265,7 +249,7 @@ describe("managed profile membership schema", () => {
         email: " Member@Example.com ",
         expiresAt,
         invitedByProfileId: owner.id,
-        managedProfileId: child.id,
+        ownerProfileId: owner.id,
         role: "manager"
       })
     ).rejects.toThrow();
@@ -277,7 +261,7 @@ describe("managed profile membership schema", () => {
         email: "member@example.com",
         expiresAt,
         invitedByProfileId: owner.id,
-        managedProfileId: child.id,
+        ownerProfileId: owner.id,
         role: "read_only"
       })
     ).resolves.toBeInstanceOf(ManagedProfileMembershipInvitation);
@@ -285,11 +269,10 @@ describe("managed profile membership schema", () => {
 
   it("makes membership events append-only", async () => {
     const owner = await createManager();
-    const child = await createManagedProfile(owner.id, "append-only-events");
     const event = await ManagedProfileMembershipEvent.create({
       action: "member_added",
       actorProfileId: owner.id,
-      managedProfileId: child.id,
+      ownerProfileId: owner.id,
       memberProfileId: owner.id,
       role: "manager"
     });
@@ -299,7 +282,7 @@ describe("managed profile membership schema", () => {
     await expect(
       ManagedProfileMembershipEvent.create({
         action: "membership_exported" as "member_added",
-        managedProfileId: child.id
+        ownerProfileId: owner.id
       })
     ).rejects.toThrow();
   });

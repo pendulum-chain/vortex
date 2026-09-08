@@ -83,7 +83,7 @@ async function assertCurrentAuthorization(args: SubmitStandardAveniaKycArgs, tra
     relationship.status !== "active" ||
     (args.actorProfileId !== args.subjectProfileId &&
       (!membership ||
-        membership.managedProfileId !== args.subjectProfileId ||
+        membership.ownerProfileId !== relationship.managerProfileId ||
         membership.memberProfileId !== args.actorProfileId ||
         membership.role !== "manager" ||
         membership.revokedAt !== null)) ||

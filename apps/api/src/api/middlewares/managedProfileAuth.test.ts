@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
+import { Op } from "sequelize";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
@@ -66,7 +67,9 @@ describe("authorizeManagedProfile", () => {
       isActive: true
     })) as never;
     ManagedProfileMembership.findOne = mock(async () => ({ id: "membership-1", role: "manager" })) as never;
-    ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: OWNER_ID })) as never;
+    ManagedProfile.findOne = mock(async () => ({
+      id: "relationship-1", managerProfileId: OWNER_ID, createdAt: new Date("2026-01-01"), deletedAt: null
+    })) as never;
     User.findByPk = mock(async () => ({ activeCustomerEntityId: "entity-1", kind: "managed" })) as never;
     CustomerEntity.findAll = mock(async () => [{ id: "entity-1", status: "active", type: "individual" }]) as never;
   }
@@ -162,6 +165,9 @@ describe("authorizeManagedProfile", () => {
       userId: MANAGER_ID
     });
     expect(Object.isFrozen(req.managedProfileContext)).toBe(true);
+    expect(ManagedProfileMembership.findOne).toHaveBeenCalledWith({
+      where: { ownerProfileId: OWNER_ID, memberProfileId: MANAGER_ID, revokedAt: null }
+    });
     expect(next).toHaveBeenCalledTimes(1);
   });
 
@@ -185,6 +191,38 @@ describe("authorizeManagedProfile", () => {
     );
     expect(denied.statusCode).toBe(403);
     expect(denied.body).toMatchObject({ error: { code: "MANAGED_PROFILE_MANAGER_REQUIRED" } });
+  });
+
+  it("uses one live organization grant for every child and denies foreign owners", async () => {
+    allowManagedProfile();
+    const siblingIds = [CHILD_ID, "44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555"];
+    const foreignId = "66666666-6666-4666-8666-666666666666";
+    let role = "manager";
+    let revoked = false;
+    ManagedProfile.findOne = mock(async ({ where }: { where: { profileId: string } }) => ({
+      id: where.profileId, managerProfileId: where.profileId === foreignId ? "foreign-owner" : OWNER_ID
+    })) as never;
+    ManagedProfileMembership.findOne = mock(async ({ where }: { where: { ownerProfileId: string; memberProfileId: string; revokedAt: null } }) =>
+      where.ownerProfileId === OWNER_ID && where.memberProfileId === MANAGER_ID && where.revokedAt === null && !revoked
+        ? { id: "one-org-grant", role } : null
+    ) as never;
+    for (const state of ["manager", "read_only", "revoked"]) {
+      role = state;
+      revoked = state === "revoked";
+      for (const subject of [...siblingIds, foreignId]) {
+        for (const capability of Object.values(ManagedProfileCapability)) {
+          const next = mock(() => {});
+          const res = response();
+          await authorizeManagedProfile({ capability })(request({
+            get: () => subject, userId: undefined, authenticatedCredentialProfileId: MANAGER_ID,
+            credential: { profileId: MANAGER_ID, strength: "secret" }
+          }) as never, res as never, next);
+          const allowed = subject !== foreignId && !revoked && (role === "manager" || capability === ManagedProfileCapability.Read);
+          expect(next.mock.calls.length).toBe(allowed ? 1 : 0);
+          expect(res.statusCode).toBe(allowed ? 200 : 403);
+        }
+      }
+    }
   });
 
   it("rejects provider mutations and ramp execution for a selected-child bearer session", async () => {
@@ -275,7 +313,12 @@ describe("authorizeManagedProfile", () => {
     })(request() as never, historicalResponse as never, mock(() => {}));
     expect(historicalResponse.body).toMatchObject({ error: { code: "MANAGED_PROFILE_MEMBERSHIP_INVALID" } });
     expect(ManagedProfileMembership.count).toHaveBeenCalledWith({
-      where: { managedProfileId: CHILD_ID, memberProfileId: MANAGER_ID }
+      where: {
+        ownerProfileId: OWNER_ID,
+        memberProfileId: MANAGER_ID,
+        createdAt: { [Op.lte]: expect.any(Date) },
+        [Op.or]: [{ revokedAt: null }, { revokedAt: { [Op.gt]: new Date("2026-01-01") } }]
+      }
     });
   });
 

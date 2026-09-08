@@ -1,22 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { VortexLogo } from "@/components/layout/VortexLogo";
-import { toManagedProfileSelection } from "@/components/managed-profiles/managed-profile-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MANAGED_PROFILES_QUERY_KEY } from "@/hooks/useManagedProfiles";
+import { ORGANIZATION_QUERY_KEY, useOrganization } from "@/hooks/useOrganization";
 import { isApiError } from "@/services/api/api-client";
-import {
-  ManagedProfileMembershipsService as service,
-  shouldRetryMembershipQuery
-} from "@/services/api/managed-profile-memberships.service";
-import { ManagedProfilesService } from "@/services/api/managed-profiles.service";
-import { AuthService } from "@/services/auth";
+import { OrganizationService as service, shouldRetryMembershipQuery } from "@/services/api/managed-profile-memberships.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { useImpersonationSession } from "@/stores/impersonation.store";
-import { selectManagedProfile } from "@/stores/managed-profile.store";
+import { clearManagedProfile, useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/member-invitations/$invitationId")({ component: InvitationPage });
 
@@ -24,6 +19,7 @@ function InvitationPage() {
   const { invitationId } = Route.useParams();
   const user = useAuthStore(state => state.user);
   const impersonation = useImpersonationSession();
+  const selection = useManagedProfileSelection();
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <div className="grid w-full max-w-lg gap-6">
@@ -33,7 +29,7 @@ function InvitationPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Team invitation</CardTitle>
-            <CardDescription>Access a managed profile with your own Vortex account.</CardDescription>
+            <CardDescription>Join an organization with your own Vortex account.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             {impersonation ? (
@@ -41,6 +37,25 @@ function InvitationPage() {
                 <p>Invitations are unavailable during impersonation. Exit impersonation before continuing.</p>
                 <Button asChild variant="outline">
                   <Link to="/overview">Return to dashboard</Link>
+                </Button>
+              </>
+            ) : selection ? (
+              <>
+                <p className="break-all text-sm">
+                  You are acting for {selection.targetEmail || selection.externalSubjectId}. Stop acting to review this
+                  invitation with your personal account.
+                </p>
+                <Button
+                  onClick={() => {
+                    try {
+                      if (clearManagedProfile() !== false) return;
+                    } catch {
+                      // The identity boundary also blocks changes during transfer signing.
+                    }
+                    toast.error("Finish or cancel the current transfer signing step before changing profiles.");
+                  }}
+                >
+                  Stop acting to review invitation
                 </Button>
               </>
             ) : !user ? (
@@ -70,10 +85,8 @@ function InvitationPage() {
 
 function InvitationDetails({ invitationId, userId }: { invitationId: string; userId: string }) {
   const client = useQueryClient();
-  const navigate = useNavigate();
   const logout = useAuthStore(state => state.logout);
-  const [opening, setOpening] = useState(false);
-  const [openError, setOpenError] = useState<string | null>(null);
+  const organization = useOrganization();
   const preview = useQuery({
     gcTime: 0,
     queryFn: ({ signal }) => service.preview(invitationId, signal),
@@ -83,16 +96,30 @@ function InvitationDetails({ invitationId, userId }: { invitationId: string; use
   });
   const accept = useMutation({
     mutationFn: () => service.accept(invitationId),
-    onSuccess: async () => {
+    onSettled: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: [MANAGED_PROFILES_QUERY_KEY] }),
         client.invalidateQueries({ queryKey: ["managed-profile-bootstrap"] }),
-        client.invalidateQueries({ queryKey: ["managed-profile-team"] })
+        client.invalidateQueries({ queryKey: ["organization-team"] }),
+        client.invalidateQueries({ queryKey: [ORGANIZATION_QUERY_KEY] })
       ]);
     }
   });
   const error = accept.error ?? preview.error;
   const code = isApiError(error) ? error.data.code : undefined;
+  if (code === "ORGANIZATION_MEMBERSHIP_CONFLICT")
+    return (
+      <>
+        <h2 className="font-semibold">You already belong to another organization</h2>
+        <p className="text-sm" role="alert">
+          Each person can belong to only one organization, including owners and read-only members. Your current access has not
+          changed. Resolve your existing membership with its owner before accepting this invitation.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/team">View your current team</Link>
+        </Button>
+      </>
+    );
   // A denial takes precedence over any cached preview, including a denial at accept time.
   if (isApiError(error) && (error.status === 403 || error.status === 401)) {
     return (
@@ -126,55 +153,55 @@ function InvitationDetails({ invitationId, userId }: { invitationId: string; use
     );
   }
 
-  async function openProfile() {
-    const profileId = accept.data?.managedProfileId ?? preview.data?.managedProfile.profileId;
-    if (!profileId || opening) return;
-    setOpening(true);
-    setOpenError(null);
-    try {
-      // Preview roles are not selection authority; membership may have changed since acceptance.
-      const result = await ManagedProfilesService.get(profileId);
-      if (AuthService.getEffectiveBearerProfileId() !== userId || AuthService.getAcceptedImpersonationSessionSnapshot()) return;
-      if (
-        result.actor.profileId !== userId ||
-        result.managedProfile.profileId !== profileId ||
-        result.managedProfile.status !== "active"
-      )
-        throw new Error("Invalid membership");
-      if (!selectManagedProfile(toManagedProfileSelection(result.managedProfile))) {
-        setOpenError("Finish or cancel the current transfer signing step before changing profiles.");
-        return;
-      }
-      await navigate({ to: "/overview" });
-    } catch {
-      setOpenError("Could not open this profile. Your membership may have changed. Try again or contact a manager.");
-    } finally {
-      setOpening(false);
-    }
-  }
-
   if (status === "success" || status === "accepted" || code === "MEMBERSHIP_ALREADY_EXISTS") {
+    const ownerProfileId = accept.data?.ownerProfileId ?? preview.data?.organization.ownerProfileId;
+    const currentOrganization = !organization.isError && !organization.isFetching ? organization.data?.organization : null;
+    const hasCurrentAccess = !!ownerProfileId && currentOrganization?.ownerProfileId === ownerProfileId;
     return (
       <>
-        <h2 className="font-semibold">
-          {status === "success"
-            ? "Invitation accepted"
-            : code === "MEMBERSHIP_ALREADY_EXISTS"
-              ? "You already have access"
-              : "Invitation already accepted"}
-        </h2>
-        <p className="text-sm">Open the profile to view your current access. Opening it does not change your role.</p>
-        {openError && (
-          <p className="text-destructive text-sm" role="alert">
-            {openError}
-          </p>
+        <h2 className="font-semibold">{status === "success" ? "Invitation accepted" : "Invitation already accepted"}</h2>
+        {hasCurrentAccess ? (
+          <>
+            <p className="text-sm">
+              Your current organization access covers all current and future managed profiles. You remain in your personal
+              account until you explicitly choose to act for a profile.
+            </p>
+            <Button asChild>
+              <Link to="/managed-profiles">View managed profiles</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/team">View team</Link>
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm">
+              Invitation status does not confirm current access. Reopening this link does not grant or restore membership.
+            </p>
+            {organization.isFetching || organization.isPending ? (
+              <p className="text-muted-foreground text-sm">Checking current organization access...</p>
+            ) : currentOrganization ? (
+              <>
+                <p className="break-all text-sm">
+                  Your current organization is {currentOrganization.ownerEmail ?? currentOrganization.ownerProfileId}, not the
+                  organization from this invitation.
+                </p>
+                <Button asChild variant="outline">
+                  <Link to="/team">View your current team</Link>
+                </Button>
+              </>
+            ) : organization.isError ? (
+              <Button onClick={() => organization.refetch()} variant="outline">
+                Retry current access check
+              </Button>
+            ) : (
+              <p className="text-sm">You do not currently have access to this organization.</p>
+            )}
+            <Button asChild variant="outline">
+              <Link to="/overview">Return to your dashboard</Link>
+            </Button>
+          </>
         )}
-        <Button disabled={opening} onClick={openProfile}>
-          {opening ? "Opening profile..." : "Open profile"}
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/managed-profiles">View managed profiles</Link>
-        </Button>
       </>
     );
   }
@@ -200,15 +227,21 @@ function InvitationDetails({ invitationId, userId }: { invitationId: string; use
 
   return (
     <>
-      <h2 className="break-all font-semibold">Join {preview.data.managedProfile.externalSubjectId}</h2>
+      <h2 className="break-all font-semibold">
+        Join {preview.data.organization.ownerEmail ?? preview.data.organization.ownerProfileId}'s organization
+      </h2>
       <p className="break-all text-sm">Invited by {preview.data.inviter.email ?? preview.data.inviter.profileId}</p>
       <p className="text-sm">
         Role: <strong>{preview.data.invitation.role === "manager" ? "Manager" : "Read only"}</strong>
       </p>
       <p className="text-muted-foreground text-sm">
         {preview.data.invitation.role === "manager"
-          ? "You can manage this profile, including non-owner team access and child credentials."
-          : "You can view this profile's data, but cannot make changes."}
+          ? "You can manage all current and future managed profiles, including non-owner team access and child credentials. Only the owner can provision or delete profiles."
+          : "You can view all current and future managed profiles, but cannot make changes."}
+      </p>
+      <p className="text-muted-foreground text-sm">
+        Personal account resources are not shared. Each person can belong to only one organization. Accepting confirms you want
+        to join using the verified email that received this invitation.
       </p>
       <p className="text-muted-foreground text-xs">Expires {new Date(preview.data.invitation.expiresAt).toLocaleString()}</p>
       <Button disabled={accept.isPending || preview.isFetching} onClick={() => accept.mutate()}>

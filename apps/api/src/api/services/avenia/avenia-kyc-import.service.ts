@@ -83,7 +83,7 @@ async function assertCurrentImportAuthorization(args: ImportAveniaKycTokenArgs, 
     relationship.profileId !== args.subjectProfileId ||
     relationship.status !== "active" ||
     !membership ||
-    membership.managedProfileId !== args.subjectProfileId ||
+    membership.ownerProfileId !== relationship.managerProfileId ||
     membership.memberProfileId !== args.actorProfileId ||
     membership.role !== "manager" ||
     membership.revokedAt !== null ||

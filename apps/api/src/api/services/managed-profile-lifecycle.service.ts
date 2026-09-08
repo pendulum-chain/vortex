@@ -9,6 +9,7 @@ import ManagedProfile, {
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import ManagedProfileMembership, { type ManagedProfileMembershipRole } from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
+import { getManagedProfileOrganization } from "./managed-profile-membership.service";
 import { provisionManagedProfile } from "./managed-profile-provisioning.service";
 
 export class ManagedProfileLifecycleError extends Error {
@@ -134,12 +135,19 @@ export async function createManagedProfile(input: {
 function eligibleMembershipIncludes(actorProfileId: string): Includeable[] {
   return [
     {
-      as: "memberships",
-      model: ManagedProfileMembership,
+      as: "manager",
+      include: [
+        {
+          as: "memberships",
+          model: ManagedProfileMembership,
+          required: true,
+          where: { memberProfileId: actorProfileId, revokedAt: null, role: ["manager", "read_only"] }
+        }
+      ],
+      model: ManagedProfileManager,
       required: true,
-      where: { memberProfileId: actorProfileId, revokedAt: null, role: ["manager", "read_only"] }
+      where: { isActive: true }
     },
-    { as: "manager", model: ManagedProfileManager, required: true, where: { isActive: true } },
     {
       as: "profile",
       include: [
@@ -163,17 +171,13 @@ function eligibleMembershipIncludes(actorProfileId: string): Includeable[] {
 }
 
 export async function getManagedProfileActor(actorProfileId: string): Promise<ManagedProfileActor> {
-  const [actorManager, activeMembershipCount] = await Promise.all([
+  const [actorManager, organization] = await Promise.all([
     ManagedProfileManager.findByPk(actorProfileId),
-    ManagedProfile.count({
-      distinct: true,
-      include: eligibleMembershipIncludes(actorProfileId),
-      where: { status: "active" }
-    })
+    getManagedProfileOrganization(actorProfileId)
   ]);
   return {
     canProvisionManagedProfiles: actorManager?.isActive === true,
-    hasMemberships: activeMembershipCount > 0,
+    hasMemberships: organization !== null,
     profileId: actorProfileId
   };
 }
@@ -224,8 +228,8 @@ export async function listManagedProfiles(
           "The managed profile does not have exactly one customer entity"
         );
       }
-      const memberships = relationship.get("memberships") as ManagedProfileMembership[] | undefined;
       const manager = relationship.get("manager") as ManagedProfileManager | undefined;
+      const memberships = manager?.get("memberships") as ManagedProfileMembership[] | undefined;
       const membership = memberships?.[0];
       if (!membership || !manager) {
         throw new ManagedProfileLifecycleError("MANAGED_PROFILE_CONFLICT", "Managed profile access data is incomplete");
@@ -242,14 +246,16 @@ export async function getManagedProfile(
   profileId: string,
   { bootstrap = false }: { bootstrap?: boolean } = {}
 ): Promise<ManagedProfileAccessResult> {
-  const [membership, relationship, subject, entities] = await Promise.all([
-    ManagedProfileMembership.findOne({
-      where: { managedProfileId: profileId, memberProfileId: actorProfileId, revokedAt: null }
-    }),
+  const [relationship, subject, entities] = await Promise.all([
     ManagedProfile.findOne({ where: { profileId } }),
     User.findByPk(profileId, { attributes: ["kind", "activeCustomerEntityId"] }),
     CustomerEntity.findAll({ where: { profileId } })
   ]);
+  const membership =
+    relationship &&
+    (await ManagedProfileMembership.findOne({
+      where: { memberProfileId: actorProfileId, ownerProfileId: relationship.managerProfileId, revokedAt: null }
+    }));
   const manager = relationship && (await ManagedProfileManager.findByPk(relationship.managerProfileId));
   if (
     !membership ||
@@ -262,13 +268,18 @@ export async function getManagedProfile(
     entities[0].status !== "active" ||
     (relationship.status === "deleted" && (bootstrap || relationship.managerProfileId !== actorProfileId))
   ) {
-    // A selector expresses bootstrap intent, not prior access. Only stored history can invalidate selection.
+    // A selector is not prior access: the child must have existed during a stored organization membership interval.
     if (
       bootstrap &&
-      (membership ||
-        (await ManagedProfileMembership.count({
-          where: { managedProfileId: profileId, memberProfileId: actorProfileId }
-        })) > 0)
+      relationship &&
+      (await ManagedProfileMembership.count({
+        where: {
+          createdAt: { [Op.lte]: relationship.deletedAt ?? new Date() },
+          memberProfileId: actorProfileId,
+          ownerProfileId: relationship.managerProfileId,
+          [Op.or]: [{ revokedAt: null }, { revokedAt: { [Op.gt]: relationship.createdAt } }]
+        }
+      })) > 0
     ) {
       throw new ManagedProfileLifecycleError(
         "MANAGED_PROFILE_MEMBERSHIP_INVALID",
@@ -315,7 +326,7 @@ export async function deleteManagedProfile(managerProfileId: string, profileId: 
       const membership = await ManagedProfileMembership.findOne({
         lock: Transaction.LOCK.UPDATE,
         transaction,
-        where: { managedProfileId: profileId, memberProfileId: managerProfileId, revokedAt: null }
+        where: { memberProfileId: managerProfileId, ownerProfileId: relationship.managerProfileId, revokedAt: null }
       });
       if (membership && ["manager", "read_only"].includes(membership.role)) {
         throw new ManagedProfileLifecycleError(

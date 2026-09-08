@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { E2E_MANAGED_PROFILE_ID, mockBackend } from "./support/mockBackend";
+import { E2E_MANAGED_PROFILE_ID, E2E_ORGANIZATION_OWNER_ID, mockBackend } from "./support/mockBackend";
 import { E2E_USER_ID, seedSession } from "./support/session";
 
 const CHILD_EMAIL = "managed-child-with-a-long-identifier@example.test";
@@ -197,12 +197,14 @@ test("read-only child membership keeps reads but removes mutations and transfer 
 });
 
 test("open recipient and payout controls close when the membership is downgraded", async ({ page }) => {
-  const child = {
-    ...CHILD,
-    membership: { isOwner: true, role: "manager" as "manager" | "read_only" }
+  const organization = {
+    membership: { isOwner: false, role: "manager" as "manager" | "read_only" },
+    ownerEmail: "owner@example.test",
+    ownerProfileId: E2E_ORGANIZATION_OWNER_ID
   };
   const backend = await mockBackend(page, {
-    managedProfiles: [child],
+    managedProfiles: [CHILD],
+    organization,
     pendingInvitations: [
       {
         alias: "Downgrade recipient",
@@ -240,18 +242,18 @@ test("open recipient and payout controls close when the membership is downgraded
   await page.goto("/recipients");
   await page.getByRole("cell", { name: "Downgrade recipient" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  child.membership = { isOwner: false, role: "read_only" };
+  organization.membership.role = "read_only";
   await refreshMembership();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Recipient management is read-only for this membership.")).toBeVisible();
 
-  child.membership = { isOwner: true, role: "manager" };
+  organization.membership.role = "manager";
   await refreshMembership();
   await page.goto("/overview");
   await page.getByTestId("corridor-card-MX").getByRole("button", { name: "View pay-out accounts" }).click();
   await page.getByRole("button", { name: "Add another account" }).click();
   await expect(page.getByRole("heading", { name: "Add pay-out account" })).toBeVisible();
-  child.membership = { isOwner: false, role: "read_only" };
+  organization.membership.role = "read_only";
   await refreshMembership();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Read only", { exact: true })).toBeVisible();
@@ -333,24 +335,25 @@ test("long managed identifiers and the acting banner fit a mobile viewport", asy
 });
 
 for (const mobile of [false, true]) {
-  for (const hasMemberships of [false, true]) {
-    test(`provisioning actor retains navigation with ${hasMemberships ? "active" : "no"} memberships (${mobile ? "mobile" : "desktop"})`, async ({
+  for (const hasChildren of [false, true]) {
+    test(`provisioning actor retains navigation with ${hasChildren ? "active" : "no"} children (${mobile ? "mobile" : "desktop"})`, async ({
       page
     }) => {
       if (mobile) await page.setViewportSize({ height: 844, width: 390 });
       const backend = await mockBackend(page, {
         canProvisionManagedProfiles: true,
-        managedProfiles: hasMemberships ? [CHILD] : []
+        managedProfiles: hasChildren ? [CHILD] : []
       });
       await seedSession(page);
       await page.goto("/managed-profiles");
       await expect(page.getByRole("heading", { name: "Managed profiles" })).toBeVisible();
-      if (!hasMemberships) {
+      if (!hasChildren) {
         await expect(page.getByText("No managed profiles", { exact: true })).toBeVisible();
         await expect(page.getByText(/You can provision managed profiles through the API/)).toBeVisible();
       }
       if (mobile) await page.getByRole("button", { name: "Toggle Sidebar" }).first().click();
       await expect(page.getByRole("link", { exact: true, name: "Managed profiles" })).toBeVisible();
+      await expect(page.getByRole("link", { exact: true, name: "Team" })).toBeVisible();
       expect(backend.unmatchedRequests).toEqual([]);
     });
   }

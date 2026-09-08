@@ -5,7 +5,7 @@ export type ManagedProfileMembershipRole = "manager" | "read_only";
 
 export interface ManagedProfileMembershipAttributes {
   id: string;
-  managedProfileId: string;
+  ownerProfileId: string;
   memberProfileId: string;
   role: ManagedProfileMembershipRole;
   createdByProfileId: string | null;
@@ -25,7 +25,7 @@ class ManagedProfileMembership
   implements ManagedProfileMembershipAttributes
 {
   declare id: string;
-  declare managedProfileId: string;
+  declare ownerProfileId: string;
   declare memberProfileId: string;
   declare role: ManagedProfileMembershipRole;
   declare createdByProfileId: string | null;
@@ -47,20 +47,20 @@ ManagedProfileMembership.init(
       type: DataTypes.UUID
     },
     id: { defaultValue: DataTypes.UUIDV4, primaryKey: true, type: DataTypes.UUID },
-    managedProfileId: {
-      allowNull: false,
-      field: "managed_profile_id",
-      onDelete: "RESTRICT",
-      onUpdate: "CASCADE",
-      references: { key: "profile_id", model: "managed_profiles" },
-      type: DataTypes.UUID
-    },
     memberProfileId: {
       allowNull: false,
       field: "member_profile_id",
       onDelete: "RESTRICT",
       onUpdate: "CASCADE",
       references: { key: "id", model: "profiles" },
+      type: DataTypes.UUID
+    },
+    ownerProfileId: {
+      allowNull: false,
+      field: "owner_profile_id",
+      onDelete: "RESTRICT",
+      onUpdate: "CASCADE",
+      references: { key: "profile_id", model: "managed_profile_managers" },
       type: DataTypes.UUID
     },
     revokedAt: { allowNull: true, field: "revoked_at", type: DataTypes.DATE },
@@ -78,12 +78,13 @@ ManagedProfileMembership.init(
   {
     indexes: [
       {
-        fields: ["managed_profile_id", "member_profile_id"],
+        fields: ["member_profile_id"],
         name: "uq_managed_profile_memberships_active",
         unique: true,
         where: { revoked_at: null }
       },
-      { fields: ["member_profile_id", "created_at"], name: "idx_managed_profile_memberships_member" }
+      { fields: ["member_profile_id", "created_at"], name: "idx_managed_profile_memberships_member" },
+      { fields: ["owner_profile_id", "created_at", "id"], name: "idx_managed_profile_memberships_owner_created" }
     ],
     modelName: "ManagedProfileMembership",
     sequelize,

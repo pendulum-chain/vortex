@@ -28,7 +28,7 @@ describe("069 managed-profile memberships rollback", () => {
          managed_profile_membership_events,
          managed_profile_membership_invitations,
          managed_profile_memberships,
-         managed_profiles
+         managed_profile_managers
        IN ACCESS EXCLUSIVE MODE;`,
       { transaction }
     );

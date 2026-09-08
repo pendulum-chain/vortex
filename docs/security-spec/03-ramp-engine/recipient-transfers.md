@@ -169,7 +169,10 @@ out against another tenant's relationship.
 13. **Managed delegation is sender-only and membership-scoped.** `POST /invite`, sender list,
     invitation archive, relationship update/archive, and eligibility accept an authorized
     `X-Managed-Profile-Id` and operate on the child's sender entity. Every delegated decision
-    revalidates the active membership and owner relationship. `read_only` may list and check
+    revalidates the active organization membership for the child's immutable owner and the
+    owner relationship. The role applies to all present/future children, never the member's
+    personal recipient resources; see [Organization Memberships](../01-auth/managed-profile-memberships.md).
+    `read_only` may list and check
     eligibility but cannot create or mutate recipient state. `manager` creation authorizes the
     requested corridor; listing omits records outside the immutable owner's current policy;
     invitation archive, relationship update/archive, and eligibility first resolve an owner-scoped

@@ -101,7 +101,7 @@ describe("api credential service", () => {
     expect(User.findByPk).toHaveBeenCalledWith("child", lockOptions);
     expect(CustomerEntity.findAll).toHaveBeenCalledWith({ ...lockOptions, where: { profileId: "child" } });
     expect(ManagedProfileMembership.findOne).toHaveBeenCalledWith({
-      ...lockOptions, where: { managedProfileId: "child", memberProfileId: "member", revokedAt: null }
+      ...lockOptions, where: { ownerProfileId: "owner", memberProfileId: "member", revokedAt: null }
     });
     if (operation === "create") {
       expect(ApiCredential.count).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
@@ -244,6 +244,7 @@ describe("api credential service", () => {
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
+    ManagedProfileMembership.findOne = mock(async () => null) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
     ManagedProfileManager.findByPk = mock(async () => ({
       allowedCorridors: ["BR", "MX"],
@@ -263,6 +264,7 @@ describe("api credential service", () => {
     expect(Object.isFrozen(result?.managedProfile)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile?.allowedCorridors)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile?.allowedCustomerTypes)).toBe(true);
+    expect(ManagedProfileMembership.findOne).not.toHaveBeenCalled();
   });
 
   it("represents a missing manager customer-type restriction as null", async () => {

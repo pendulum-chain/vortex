@@ -20,18 +20,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           type: DataTypes.UUID
         },
         id: { defaultValue: DataTypes.UUIDV4, primaryKey: true, type: DataTypes.UUID },
-        managed_profile_id: {
-          allowNull: false,
-          onDelete: "RESTRICT",
-          onUpdate: "CASCADE",
-          references: { key: "profile_id", model: "managed_profiles" },
-          type: DataTypes.UUID
-        },
         member_profile_id: {
           allowNull: false,
           onDelete: "RESTRICT",
           onUpdate: "CASCADE",
           references: { key: "id", model: "profiles" },
+          type: DataTypes.UUID
+        },
+        owner_profile_id: {
+          allowNull: false,
+          onDelete: "RESTRICT",
+          onUpdate: "CASCADE",
+          references: { key: "profile_id", model: "managed_profile_managers" },
           type: DataTypes.UUID
         },
         revoked_at: { allowNull: true, type: DataTypes.DATE },
@@ -55,11 +55,14 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
            CHECK ((revoked_at IS NULL) = (revoked_by_profile_id IS NULL));
 
        CREATE UNIQUE INDEX uq_managed_profile_memberships_active
-         ON managed_profile_memberships (managed_profile_id, member_profile_id)
+         ON managed_profile_memberships (member_profile_id)
          WHERE revoked_at IS NULL;
 
        CREATE INDEX idx_managed_profile_memberships_member
-         ON managed_profile_memberships (member_profile_id, created_at);`,
+         ON managed_profile_memberships (member_profile_id, created_at);
+
+       CREATE INDEX idx_managed_profile_memberships_owner_created
+         ON managed_profile_memberships (owner_profile_id, created_at, id);`,
       { transaction }
     );
 
@@ -94,11 +97,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           references: { key: "id", model: "profiles" },
           type: DataTypes.UUID
         },
-        managed_profile_id: {
+        owner_profile_id: {
           allowNull: false,
           onDelete: "RESTRICT",
           onUpdate: "CASCADE",
-          references: { key: "profile_id", model: "managed_profiles" },
+          references: { key: "profile_id", model: "managed_profile_managers" },
           type: DataTypes.UUID
         },
         role: { allowNull: false, type: DataTypes.STRING(16) },
@@ -120,11 +123,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
          );
 
        CREATE UNIQUE INDEX uq_managed_profile_membership_invitations_pending
-         ON managed_profile_membership_invitations (managed_profile_id, email)
+         ON managed_profile_membership_invitations (owner_profile_id, email)
          WHERE accepted_at IS NULL AND cancelled_at IS NULL AND expired_at IS NULL;
 
-       CREATE INDEX idx_managed_profile_membership_invitations_child_created
-         ON managed_profile_membership_invitations (managed_profile_id, created_at);`,
+       CREATE INDEX idx_managed_profile_membership_invitations_owner_created
+         ON managed_profile_membership_invitations (owner_profile_id, created_at);`,
       { transaction }
     );
 
@@ -148,18 +151,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           references: { key: "id", model: "managed_profile_membership_invitations" },
           type: DataTypes.UUID
         },
-        managed_profile_id: {
-          allowNull: false,
-          onDelete: "RESTRICT",
-          onUpdate: "CASCADE",
-          references: { key: "profile_id", model: "managed_profiles" },
-          type: DataTypes.UUID
-        },
         member_profile_id: {
           allowNull: true,
           onDelete: "RESTRICT",
           onUpdate: "CASCADE",
           references: { key: "id", model: "profiles" },
+          type: DataTypes.UUID
+        },
+        owner_profile_id: {
+          allowNull: false,
+          onDelete: "RESTRICT",
+          onUpdate: "CASCADE",
+          references: { key: "profile_id", model: "managed_profile_managers" },
           type: DataTypes.UUID
         },
         previous_role: { allowNull: true, type: DataTypes.STRING(16) },
@@ -188,16 +191,17 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
          ADD CONSTRAINT chk_managed_profile_membership_events_subject_email
            CHECK (subject_email IS NULL OR (subject_email <> '' AND subject_email = lower(btrim(subject_email))));
 
-       CREATE INDEX idx_managed_profile_membership_events_child_created
-         ON managed_profile_membership_events (managed_profile_id, created_at DESC, id DESC);`,
+       CREATE INDEX idx_managed_profile_membership_events_owner_created
+         ON managed_profile_membership_events (owner_profile_id, created_at DESC, id DESC);`,
       { transaction }
     );
 
-    // Existing relationships predate event attribution, so they intentionally receive no event.
+    // One organization per existing configuration, including inactive owners and owners with no children.
+    // Backfill predates event attribution, so it intentionally receives no event.
     await queryInterface.sequelize.query(
       `INSERT INTO managed_profile_memberships (
          id,
-         managed_profile_id,
+         owner_profile_id,
          member_profile_id,
          role,
          created_by_profile_id,
@@ -206,13 +210,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
        )
        SELECT
          uuid_generate_v4(),
-         mp.profile_id,
-         mp.manager_profile_id,
+          mp.profile_id,
+          mp.profile_id,
          'manager',
          NULL,
          mp.created_at,
          mp.created_at
-       FROM managed_profiles mp;`,
+       FROM managed_profile_managers mp;`,
       { transaction }
     );
 
@@ -234,18 +238,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
          FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_manager_immutable();
 
        CREATE FUNCTION enforce_managed_profile_owner_membership() RETURNS trigger AS $$
-       DECLARE
-         relationship managed_profiles%ROWTYPE;
        BEGIN
-         SELECT * INTO relationship
-         FROM managed_profiles
-         WHERE profile_id = OLD.managed_profile_id;
-
-         IF relationship.status = 'active'
-           AND relationship.manager_profile_id = OLD.member_profile_id
+         IF OLD.owner_profile_id = OLD.member_profile_id
            AND (
              TG_OP = 'DELETE'
-             OR NEW.managed_profile_id IS DISTINCT FROM OLD.managed_profile_id
+             OR NEW.owner_profile_id IS DISTINCT FROM OLD.owner_profile_id
              OR NEW.member_profile_id IS DISTINCT FROM OLD.member_profile_id
              OR NEW.role <> 'manager'
              OR NEW.revoked_at IS NOT NULL
@@ -254,7 +251,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
            RAISE EXCEPTION USING
              ERRCODE = '23514',
              CONSTRAINT = 'chk_managed_profiles_owner_membership',
-             MESSAGE = 'Active managed profile owner membership cannot be downgraded or removed';
+             MESSAGE = 'Organization owner membership cannot be downgraded or removed';
          END IF;
 
          IF TG_OP = 'DELETE' THEN
@@ -273,27 +270,27 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     await queryInterface.sequelize.query(
       `CREATE FUNCTION enforce_managed_profile_membership_invariants() RETURNS trigger AS $$
        DECLARE
-         affected_managed_profile_ids uuid[] := ARRAY[]::uuid[];
+         affected_owner_profile_ids uuid[] := ARRAY[]::uuid[];
          affected_member_profile_ids uuid[] := ARRAY[]::uuid[];
        BEGIN
          IF TG_TABLE_NAME = 'managed_profile_memberships' THEN
            IF TG_OP = 'INSERT' THEN
-             affected_managed_profile_ids := ARRAY[NEW.managed_profile_id];
+             affected_owner_profile_ids := ARRAY[NEW.owner_profile_id];
              affected_member_profile_ids := ARRAY[NEW.member_profile_id];
            ELSIF TG_OP = 'DELETE' THEN
-             affected_managed_profile_ids := ARRAY[OLD.managed_profile_id];
+             affected_owner_profile_ids := ARRAY[OLD.owner_profile_id];
              affected_member_profile_ids := ARRAY[OLD.member_profile_id];
            ELSE
-             affected_managed_profile_ids := ARRAY[OLD.managed_profile_id, NEW.managed_profile_id];
+             affected_owner_profile_ids := ARRAY[OLD.owner_profile_id, NEW.owner_profile_id];
              affected_member_profile_ids := ARRAY[OLD.member_profile_id, NEW.member_profile_id];
            END IF;
-         ELSIF TG_TABLE_NAME = 'managed_profiles' THEN
+         ELSIF TG_TABLE_NAME = 'managed_profile_managers' THEN
            IF TG_OP = 'INSERT' THEN
-             affected_managed_profile_ids := ARRAY[NEW.profile_id];
+             affected_owner_profile_ids := ARRAY[NEW.profile_id];
            ELSIF TG_OP = 'DELETE' THEN
-             affected_managed_profile_ids := ARRAY[OLD.profile_id];
+             affected_owner_profile_ids := ARRAY[OLD.profile_id];
            ELSE
-             affected_managed_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
+             affected_owner_profile_ids := ARRAY[OLD.profile_id, NEW.profile_id];
            END IF;
          ELSE
            IF TG_OP = 'INSERT' THEN
@@ -320,14 +317,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
          IF EXISTS (
            SELECT 1
-           FROM managed_profiles relationship
-           WHERE relationship.profile_id = ANY(affected_managed_profile_ids)
-             AND relationship.status = 'active'
+           FROM managed_profile_managers organization
+           WHERE organization.profile_id = ANY(affected_owner_profile_ids)
              AND NOT EXISTS (
                SELECT 1
                FROM managed_profile_memberships membership
-               WHERE membership.managed_profile_id = relationship.profile_id
-                 AND membership.member_profile_id = relationship.manager_profile_id
+               WHERE membership.owner_profile_id = organization.profile_id
+                 AND membership.member_profile_id = organization.profile_id
                  AND membership.role = 'manager'
                  AND membership.revoked_at IS NULL
              )
@@ -335,7 +331,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
            RAISE EXCEPTION USING
              ERRCODE = '23514',
              CONSTRAINT = 'chk_managed_profiles_owner_membership',
-             MESSAGE = 'Active managed profiles require an active owner manager membership';
+             MESSAGE = 'Organizations require an active owner manager membership';
          END IF;
 
          RETURN NULL;
@@ -347,8 +343,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
          DEFERRABLE INITIALLY DEFERRED
          FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_membership_invariants();
 
-       CREATE CONSTRAINT TRIGGER trg_managed_profiles_membership_invariants
-         AFTER INSERT OR UPDATE OR DELETE ON managed_profiles
+       CREATE CONSTRAINT TRIGGER trg_managed_profile_managers_membership_invariants
+         AFTER INSERT OR UPDATE OR DELETE ON managed_profile_managers
          DEFERRABLE INITIALLY DEFERRED
          FOR EACH ROW EXECUTE FUNCTION enforce_managed_profile_membership_invariants();
 
@@ -409,7 +405,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
          managed_profile_membership_events,
          managed_profile_membership_invitations,
          managed_profile_memberships,
-         managed_profiles
+         managed_profile_managers
        IN ACCESS EXCLUSIVE MODE;`,
       { transaction }
     );
@@ -420,10 +416,10 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
          EXISTS (
            SELECT 1
            FROM managed_profile_memberships membership
-           LEFT JOIN managed_profiles relationship
-             ON relationship.profile_id = membership.managed_profile_id
-           WHERE relationship.profile_id IS NULL
-              OR membership.member_profile_id <> relationship.manager_profile_id
+           LEFT JOIN managed_profile_managers organization
+             ON organization.profile_id = membership.owner_profile_id
+           WHERE organization.profile_id IS NULL
+              OR membership.member_profile_id <> organization.profile_id
               OR membership.role <> 'manager'
               OR membership.created_by_profile_id IS NOT NULL
               OR membership.revoked_at IS NOT NULL
@@ -431,12 +427,12 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
          ) AS "hasNonBackfillMemberships",
          EXISTS (
            SELECT 1
-           FROM managed_profiles relationship
+           FROM managed_profile_managers organization
            WHERE NOT EXISTS (
              SELECT 1
              FROM managed_profile_memberships membership
-             WHERE membership.managed_profile_id = relationship.profile_id
-               AND membership.member_profile_id = relationship.manager_profile_id
+             WHERE membership.owner_profile_id = organization.profile_id
+               AND membership.member_profile_id = organization.profile_id
                AND membership.role = 'manager'
                AND membership.created_by_profile_id IS NULL
                AND membership.revoked_at IS NULL
@@ -457,9 +453,12 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
       throw new Error("Cannot revert managed-profile memberships after membership activity has been recorded");
     }
 
-    await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_membership_invariants ON managed_profiles;", {
-      transaction
-    });
+    await queryInterface.sequelize.query(
+      "DROP TRIGGER trg_managed_profile_managers_membership_invariants ON managed_profile_managers;",
+      {
+        transaction
+      }
+    );
     await queryInterface.sequelize.query("DROP TRIGGER trg_profiles_membership_invariants ON profiles;", { transaction });
     await queryInterface.sequelize.query("DROP TRIGGER trg_managed_profiles_manager_immutable ON managed_profiles;", {
       transaction

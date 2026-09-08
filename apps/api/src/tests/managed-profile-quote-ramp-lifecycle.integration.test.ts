@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
+import { configureManagedProfileManager } from "../api/services/managed-profile-manager.service";
 import ApiCredential from "../models/apiCredential.model";
 import ManagedProfile from "../models/managedProfile.model";
 import ManagedProfileManager from "../models/managedProfileManager.model";
@@ -63,7 +64,7 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
 
   it("retains registered child records while enforcing current delegation and owner isolation", async () => {
     const manager = await createTestUser({ email: "managed-lifecycle-manager@example.com" });
-    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive: true, profileId: manager.id });
     const managerCredential = await createTestApiKey({ userId: manager.id });
     const managerHeaders = { "Content-Type": "application/json", "X-API-Key": managerCredential.plaintextKey };
 
@@ -84,10 +85,10 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     const childId = await createChild("managed-lifecycle-child");
     const siblingId = await createChild("managed-lifecycle-sibling");
     const member = await createTestUser({ email: "managed-lifecycle-member@example.com" });
-    await ManagedProfileMembership.bulkCreate([
-      { createdByProfileId: manager.id, managedProfileId: childId, memberProfileId: member.id, role: "manager" },
-      { createdByProfileId: manager.id, managedProfileId: siblingId, memberProfileId: member.id, role: "manager" }
-    ]);
+    const membership = await ManagedProfileMembership.create(
+      { createdByProfileId: manager.id, ownerProfileId: manager.id, memberProfileId: member.id, role: "manager" }
+    );
+    const laterChildId = await createChild("managed-lifecycle-later");
     const memberCredential = await createTestApiKey({ userId: member.id });
     const pricingPartner = await createTestPartner({
       fiatCurrency: FiatToken.BRL,
@@ -138,6 +139,13 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
       "X-API-Key": memberCredential.plaintextKey,
       "X-Managed-Profile-Id": childId
     };
+
+    for (const profileId of [childId, siblingId, laterChildId]) {
+      const detail = await jsonRequest(`/v1/managed-profiles/${profileId}`, {
+        headers: { ...delegatedHeaders, "X-Managed-Profile-Id": profileId }, method: "GET"
+      });
+      expect(detail.status).toBe(200);
+    }
 
     const delegatedOnboarding = await jsonRequest("/v1/onboarding/status", {
       headers: delegatedHeaders,
@@ -343,6 +351,29 @@ describe("managed-profile quote and registered-ramp lifecycle", () => {
     });
     expect(startBeforeNarrowing.status).toBe(400);
     expect(JSON.stringify(startBeforeNarrowing.body)).toContain("No presigned transactions found");
+
+    await membership.update({ role: "read_only" });
+    for (const profileId of [childId, siblingId, laterChildId]) {
+      const denied = await jsonRequest("/v1/ramp/update", {
+        body: JSON.stringify({ rampId: delegatedRampId }),
+        headers: { ...delegatedHeaders, "X-Managed-Profile-Id": profileId }, method: "POST"
+      });
+      expect(denied.status).toBe(403);
+      expect(denied.body).toMatchObject({ error: { code: "MANAGED_PROFILE_MANAGER_REQUIRED" } });
+    }
+    await membership.update({ revokedAt: new Date(), revokedByProfileId: manager.id });
+    for (const profileId of [childId, siblingId, laterChildId]) {
+      const denied = await jsonRequest("/v1/ramp/history", {
+        headers: { ...delegatedHeaders, "X-Managed-Profile-Id": profileId }, method: "GET"
+      });
+      expect(denied.status).toBe(403);
+    }
+    expect((await jsonRequest("/v1/ramp/history", {
+      headers: { "X-API-Key": childCredential.secretKey }, method: "GET"
+    })).status).toBe(200);
+    await ManagedProfileMembership.create({
+      createdByProfileId: manager.id, ownerProfileId: manager.id, memberProfileId: member.id, role: "manager"
+    });
 
     await ManagedProfileManager.update({ allowedCorridors: [] }, { where: { profileId: manager.id } });
     const updateAfterNarrowing = await jsonRequest("/v1/ramp/update", {

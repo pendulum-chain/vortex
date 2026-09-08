@@ -77,34 +77,34 @@ User.hasOne(ManagedProfile, { as: "managedProfileRelationship", foreignKey: "pro
 ManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
 ManagedProfileManager.hasMany(ManagedProfile, { as: "managedProfiles", foreignKey: "managerProfileId" });
 ManagedProfile.belongsTo(ManagedProfileManager, { as: "manager", foreignKey: "managerProfileId" });
-ManagedProfile.hasMany(ManagedProfileMembership, {
+ManagedProfileManager.hasMany(ManagedProfileMembership, {
   as: "memberships",
-  foreignKey: "managedProfileId",
+  foreignKey: "ownerProfileId",
   sourceKey: "profileId"
 });
-ManagedProfileMembership.belongsTo(ManagedProfile, {
-  as: "managedProfile",
-  foreignKey: "managedProfileId",
+ManagedProfileMembership.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
   targetKey: "profileId"
 });
-ManagedProfile.hasMany(ManagedProfileMembershipInvitation, {
+ManagedProfileManager.hasMany(ManagedProfileMembershipInvitation, {
   as: "membershipInvitations",
-  foreignKey: "managedProfileId",
+  foreignKey: "ownerProfileId",
   sourceKey: "profileId"
 });
-ManagedProfileMembershipInvitation.belongsTo(ManagedProfile, {
-  as: "managedProfile",
-  foreignKey: "managedProfileId",
+ManagedProfileMembershipInvitation.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
   targetKey: "profileId"
 });
-ManagedProfile.hasMany(ManagedProfileMembershipEvent, {
+ManagedProfileManager.hasMany(ManagedProfileMembershipEvent, {
   as: "membershipEvents",
-  foreignKey: "managedProfileId",
+  foreignKey: "ownerProfileId",
   sourceKey: "profileId"
 });
-ManagedProfileMembershipEvent.belongsTo(ManagedProfile, {
-  as: "managedProfile",
-  foreignKey: "managedProfileId",
+ManagedProfileMembershipEvent.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
   targetKey: "profileId"
 });
 User.hasMany(ManagedProfileMembership, { as: "managedProfileMemberships", foreignKey: "memberProfileId" });

@@ -14,14 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { CHILD_CREDENTIAL_WARNING } from "@/domain/api-credentials";
 import { MANAGED_PROFILES_QUERY_KEY } from "@/hooks/useManagedProfiles";
+import { ORGANIZATION_QUERY_KEY } from "@/hooks/useOrganization";
 import { isApiError } from "@/services/api/api-client";
 import {
   type MemberInvitation,
-  ManagedProfileMembershipsService as service,
+  type Organization,
+  OrganizationService as service,
   shouldRetryMembershipQuery,
   type TeamMember
 } from "@/services/api/managed-profile-memberships.service";
-import type { ManagedProfileSelection } from "@/services/auth";
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).email("Enter a valid email"),
@@ -43,43 +44,57 @@ const EVENT_LABEL = {
   role_changed: "Role changed"
 };
 
-export function Team({ selection }: { selection: ManagedProfileSelection }) {
+export function Team({
+  actorId,
+  organization,
+  authorityPending
+}: {
+  actorId: string;
+  organization: Organization;
+  authorityPending: boolean;
+}) {
   const client = useQueryClient();
   const [memberOffset, setMemberOffset] = useState(0);
   const [invitationOffset, setInvitationOffset] = useState(0);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
   const [action, setAction] = useState<Action | null>(null);
-  const profileId = selection.targetProfileId;
-  const queryKey = ["managed-profile-team", selection.managerProfileId, profileId];
+  const queryKey = ["organization-team", actorId, organization.ownerProfileId];
   const members = useQuery({
-    queryFn: ({ signal }) => service.members(profileId, memberOffset, signal),
+    queryFn: ({ signal }) => service.members(organization.ownerProfileId, memberOffset, signal),
     queryKey: [...queryKey, "members", memberOffset],
     refetchOnWindowFocus: "always",
     retry: shouldRetryMembershipQuery
   });
   const invitations = useQuery({
-    queryFn: ({ signal }) => service.invitations(profileId, invitationOffset, signal),
+    queryFn: ({ signal }) => service.invitations(organization.ownerProfileId, invitationOffset, signal),
     queryKey: [...queryKey, "invitations", invitationOffset],
     refetchOnWindowFocus: "always",
     retry: shouldRetryMembershipQuery
   });
   const cursor = cursors.at(-1);
   const events = useQuery({
-    queryFn: ({ signal }) => service.events(profileId, cursor, signal),
+    queryFn: ({ signal }) => service.events(organization.ownerProfileId, cursor, signal),
     queryKey: [...queryKey, "events", cursor],
     refetchOnWindowFocus: "always",
     retry: shouldRetryMembershipQuery
   });
-  const denied = [members.error, invitations.error, events.error].some(error => isApiError(error) && error.status === 403);
-  const canManage = selection.membershipRole === "manager" && !denied;
+  const failed = members.isError || invitations.isError || events.isError;
+  const canManage = organization.membership.role === "manager" && !failed;
 
   useEffect(() => {
-    if (denied) void client.invalidateQueries({ queryKey: ["managed-profile-bootstrap"] });
-  }, [client, denied]);
+    if (members.error || invitations.error || events.error) {
+      void client.invalidateQueries({ queryKey: [ORGANIZATION_QUERY_KEY, actorId] });
+    }
+  }, [client, actorId, members.error, invitations.error, events.error]);
+
+  useEffect(() => {
+    if (!canManage) setAction(null);
+  }, [canManage]);
 
   async function refreshTeam() {
     await Promise.all([
       client.invalidateQueries({ queryKey }),
+      client.invalidateQueries({ queryKey: [ORGANIZATION_QUERY_KEY, actorId] }),
       client.invalidateQueries({ queryKey: [MANAGED_PROFILES_QUERY_KEY] }),
       client.invalidateQueries({ queryKey: ["managed-profile-bootstrap"] })
     ]);
@@ -88,13 +103,22 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-semibold text-2xl tracking-tight">Team</h1>
-          <p className="text-muted-foreground">Members, invitations, and access history for this profile.</p>
+          <p className="break-all text-muted-foreground">
+            Organization: {organization.ownerEmail ?? organization.ownerProfileId}
+          </p>
+          <p className="text-muted-foreground">
+            Team access covers all current and future managed profiles. Personal account resources stay private.
+          </p>
         </div>
-        {canManage && <Button onClick={() => setAction({ type: "invite" })}>Invite member</Button>}
+        {canManage && (
+          <Button disabled={authorityPending} onClick={() => setAction({ type: "invite" })}>
+            Invite member
+          </Button>
+        )}
       </div>
-      {selection.membershipRole === "read_only" && (
+      {organization.membership.role === "read_only" && (
         <p className="text-muted-foreground text-sm">Team access is read-only for this membership.</p>
       )}
       <Card>
@@ -121,7 +145,7 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
                       <div className="mt-1 flex flex-wrap gap-2">
                         <Badge variant="secondary">{ROLE_LABEL[member.role]}</Badge>
                         {member.isOwner && <Badge variant="outline">Owner</Badge>}
-                        {member.memberProfileId === selection.managerProfileId && <Badge variant="outline">You</Badge>}
+                        {member.memberProfileId === actorId && <Badge variant="outline">You</Badge>}
                       </div>
                       {member.isOwner && (
                         <p className="mt-1 text-muted-foreground text-xs">Owner access cannot be changed or removed.</p>
@@ -129,10 +153,20 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
                     </div>
                     {canManage && !member.isOwner && (
                       <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => setAction({ member, type: "change" })} size="sm" variant="outline">
+                        <Button
+                          disabled={authorityPending}
+                          onClick={() => setAction({ member, type: "change" })}
+                          size="sm"
+                          variant="outline"
+                        >
                           Change role
                         </Button>
-                        <Button onClick={() => setAction({ member, type: "remove" })} size="sm" variant="outline">
+                        <Button
+                          disabled={authorityPending}
+                          onClick={() => setAction({ member, type: "remove" })}
+                          size="sm"
+                          variant="outline"
+                        >
                           Remove member
                         </Button>
                       </div>
@@ -193,7 +227,12 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
                       <p className="text-muted-foreground text-xs">Expires {new Date(invitation.expiresAt).toLocaleString()}</p>
                     </div>
                     {canManage && invitation.status === "pending" && (
-                      <Button onClick={() => setAction({ invitation, type: "cancel" })} size="sm" variant="outline">
+                      <Button
+                        disabled={authorityPending}
+                        onClick={() => setAction({ invitation, type: "cancel" })}
+                        size="sm"
+                        variant="outline"
+                      >
                         Cancel invitation
                       </Button>
                     )}
@@ -284,7 +323,13 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
         </CardContent>
       </Card>
       {canManage && action && (
-        <TeamActionDialog action={action} onClose={() => setAction(null)} profileId={profileId} refreshTeam={refreshTeam} />
+        <TeamActionDialog
+          action={action}
+          authorityPending={authorityPending}
+          expectedOwnerProfileId={organization.ownerProfileId}
+          onClose={() => setAction(null)}
+          refreshTeam={refreshTeam}
+        />
       )}
     </div>
   );
@@ -292,13 +337,15 @@ export function Team({ selection }: { selection: ManagedProfileSelection }) {
 
 function TeamActionDialog({
   action,
+  authorityPending,
+  expectedOwnerProfileId,
   onClose,
-  profileId,
   refreshTeam
 }: {
   action: Action;
+  authorityPending: boolean;
+  expectedOwnerProfileId: string;
   onClose: () => void;
-  profileId: string;
   refreshTeam: () => Promise<void>;
 }) {
   const form = useForm<InviteValues>({
@@ -311,19 +358,26 @@ function TeamActionDialog({
   ];
   const mutation = useMutation({
     mutationFn: async (values: InviteValues) => {
+      if (authorityPending) throw new Error("Organization access is being refreshed. Try again.");
       switch (action.type) {
         case "invite":
-          await service.invite(profileId, values);
+          await service.invite(expectedOwnerProfileId, values);
           break;
         case "cancel":
-          await service.cancel(profileId, action.invitation.id);
+          await service.cancel(expectedOwnerProfileId, action.invitation.id);
           break;
         case "change":
-          if (!action.member.isOwner) await service.changeRole(profileId, action.member.memberProfileId, nextRole);
+          if (!action.member.isOwner) await service.changeRole(expectedOwnerProfileId, action.member.memberProfileId, nextRole);
           break;
         case "remove":
-          if (!action.member.isOwner) await service.remove(profileId, action.member.memberProfileId);
+          if (!action.member.isOwner) await service.remove(expectedOwnerProfileId, action.member.memberProfileId);
           break;
+      }
+    },
+    onError: error => {
+      if (isApiError(error) && error.data.code === "ORGANIZATION_CONTEXT_CHANGED") {
+        toast.error("Your organization changed. The action was not applied. Review your current team before trying again.");
+        onClose();
       }
     },
     onSettled: refreshTeam,
@@ -339,12 +393,12 @@ function TeamActionDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="break-words">
             {action.type === "invite"
-              ? "Send an email invitation for this profile. Access is granted only after the recipient explicitly accepts."
+              ? "Invite a member to all current and future managed profiles in this organization. Access is granted only after the recipient explicitly accepts with their verified email. Each person can belong to only one organization."
               : action.type === "cancel"
                 ? `Cancel the pending invitation for ${action.invitation.email}? It will no longer be usable.`
                 : action.type === "change"
-                  ? `Change ${action.member.email ?? action.member.memberProfileId} to ${ROLE_LABEL[nextRole]}?`
-                  : `Remove access for ${action.member.email ?? action.member.memberProfileId}?`}
+                  ? `Change ${action.member.email ?? action.member.memberProfileId} to ${ROLE_LABEL[nextRole]} across all current and future managed profiles?`
+                  : `Remove ${action.member.email ?? action.member.memberProfileId} from this organization and all its managed profiles?`}
           </DialogDescription>
         </DialogHeader>
         {(action.type === "remove" || (action.type === "change" && nextRole === "read_only")) && (
@@ -353,7 +407,7 @@ function TeamActionDialog({
         {(action.type === "invite" || (action.type === "change" && nextRole === "manager")) && (
           <p className="text-muted-foreground text-sm">
             Managers can administer non-owner team access and child credentials. Read-only members can view data but cannot make
-            changes.
+            changes. Only the owner can provision or delete profiles. Personal account resources are not shared.
           </p>
         )}
         {mutation.isError && (
@@ -406,7 +460,7 @@ function TeamActionDialog({
             Back
           </Button>
           <Button
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || authorityPending}
             form={action.type === "invite" ? "team-invite-form" : undefined}
             onClick={action.type === "invite" ? undefined : () => mutation.mutate(form.getValues())}
             type={action.type === "invite" ? "submit" : "button"}

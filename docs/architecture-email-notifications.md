@@ -114,12 +114,19 @@ P2 and P3 deliberately overlap. They enqueue through the same
 `enqueueVerificationNotification()` on the same `(provider, type, attempt.id)` key, so the
 poll racing or repeating a webhook is a no-op rather than a second email.
 
-**Managed-profile membership invitation** — invitation creation inserts the invitation,
+**Organization membership invitation** — invitation creation inserts the owner-scoped invitation,
 its `invited` event, and one `managed_profile_membership_invitation` outbox row in the same
 transaction. This is the only producer allowed to address a normalized email directly
 before that address has a Vortex profile. `DASHBOARD_PUBLIC_URL` supplies the trusted link
 origin; request headers and body fields never choose it. Replaying the same pending invite
 uses the invitation ID dedupe key and does not send twice.
+
+The existing `managed_profile_membership_invitation` discriminator and internal
+producer/template filenames are intentionally unchanged. The invitation is a durable
+organization offer, including for an empty org; inviter removal or downgrade does not cancel
+it. Active owner config, exact current verified email, and explicit acceptance are still
+required. The API preview identifies the organization by `ownerProfileId` and nullable
+`ownerEmail`, not a child. See [ADR 0006](adr-0006-organization-wide-teams.md).
 
 The email module exports
 `enqueueManagedProfileInvitation({ invitationId, recipientEmail }, transaction): Promise<void>`
@@ -127,7 +134,7 @@ from `services/email` and `services/email/notification.service`. The transaction
 await this call inside invitation creation and propagate failure so the invitation, event, and
 outbox commit or roll back together. The helper normalizes the email without looking up a
 profile, snapshots only `invitationUrl` in the payload, and uses English generic copy with no
-role, child ID, or inviter identity. The link is `/member-invitations/:invitationId`; its seven-day
+role, owner/child ID, or inviter identity. The link is `/member-invitations/:invitationId`; its seven-day
 lifetime is enforced by invitation acceptance, not restarted by email retries or delayed delivery.
 
 **Ramp completion** — `enqueueRampCompletedEmail()` in
