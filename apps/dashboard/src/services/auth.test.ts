@@ -360,7 +360,9 @@ describe("AuthService managed profile selection", () => {
     AuthService.storeManagedProfileSelection({
       customerType: "business",
       externalSubjectId: "merchant-42",
+      isOwner: true,
       managerProfileId: "user-1",
+      membershipRole: "manager",
       targetEmail: "child@example.com",
       targetProfileId: "child-1",
     });
@@ -382,7 +384,9 @@ describe("AuthService managed profile selection", () => {
     AuthService.storeManagedProfileSelection({
       customerType: "individual",
       externalSubjectId: "first",
+      isOwner: false,
       managerProfileId: "user-1",
+      membershipRole: "read_only",
       targetEmail: "first@example.com",
       targetProfileId: "child-1",
     });
@@ -390,7 +394,9 @@ describe("AuthService managed profile selection", () => {
     AuthService.storeManagedProfileSelection({
       customerType: "individual",
       externalSubjectId: "second",
+      isOwner: true,
       managerProfileId: "user-1",
+      membershipRole: "manager",
       targetEmail: "second@example.com",
       targetProfileId: "child-2",
     });
@@ -403,11 +409,30 @@ describe("AuthService managed profile selection", () => {
     AuthService.storeManagedProfileSelection({
       customerType: "business",
       externalSubjectId: "merchant-42",
+      isOwner: true,
       managerProfileId: "user-1",
+      membershipRole: "manager",
       targetEmail: "child@example.com",
       targetProfileId: "child-1"
     });
 
     assert.equal(AuthService.getEffectiveProfileId(), "child-1");
+  });
+
+  it("clears legacy selections that do not carry membership authority", () => {
+    localStorage.setItem(
+      AuthService.MANAGED_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        customerType: "business",
+        externalSubjectId: "merchant-42",
+        managerProfileId: "user-1",
+        targetEmail: "child@example.com",
+        targetProfileId: "child-1"
+      })
+    );
+    AuthService.initializeAcceptedIdentitySnapshots();
+
+    assert.equal(AuthService.getManagedProfileSelection(), null);
+    assert.equal(localStorage.getItem(AuthService.MANAGED_PROFILE_STORAGE_KEY), null);
   });
 });

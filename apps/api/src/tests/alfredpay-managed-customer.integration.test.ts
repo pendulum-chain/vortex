@@ -14,6 +14,7 @@ import { SupabaseAuthService } from "../api/services/auth";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { createManagedProfileCredential } from "../api/services/apiCredential.service";
 import { provisionManagedProfile } from "../api/services/managed-profile-provisioning.service";
+import { configureManagedProfileManager } from "../api/services/managed-profile-manager.service";
 
 const BASE_PATH = "/v1/alfredpay";
 const originalGetInstance = AlfredpayApiService.getInstance;
@@ -46,7 +47,7 @@ describe("managed Alfredpay customer creation", () => {
     allowedCustomerTypes: Array<"business" | "individual"> | null = null
   ) {
     const manager = await createTestUser({ email: "manager@example.com" });
-    await ManagedProfileManager.create({ allowedCorridors, allowedCustomerTypes, isActive: true, profileId: manager.id });
+    await configureManagedProfileManager({ allowedCorridors, allowedCustomerTypes, isActive: true, profileId: manager.id });
     return manager;
   }
 
@@ -83,7 +84,7 @@ describe("managed Alfredpay customer creation", () => {
     const createCustomer = mock(async () => ({ customerId: "alfred-child", createdAt: new Date().toISOString() }));
     provider(createCustomer);
 
-    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+    const bearerResponse = await fetch(`${baseUrl}/createIndividualCustomer`, {
       body: JSON.stringify({ country: "MX" }),
       headers: {
         Authorization: "Bearer manager-token",
@@ -93,6 +94,19 @@ describe("managed Alfredpay customer creation", () => {
       method: "POST"
     });
 
+    expect(bearerResponse.status).toBe(403);
+    expect(await bearerResponse.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_REQUIRES_API_CREDENTIAL" } });
+    expect(createCustomer).not.toHaveBeenCalled();
+    const credential = await createTestApiKey({ userId: manager.id });
+    const response = await fetch(`${baseUrl}/createIndividualCustomer`, {
+      body: JSON.stringify({ country: "MX" }),
+      headers: {
+        "X-API-Key": credential.plaintextKey,
+        "Content-Type": "application/json",
+        "X-Managed-Profile-Id": child.profileId
+      },
+      method: "POST"
+    });
     expect(response.status).toBe(200);
     expect(createCustomer).toHaveBeenCalledWith("child@example.com", DomesticCustomerType.INDIVIDUAL, "MX");
     expect(JSON.stringify(createCustomer.mock.calls)).not.toContain("manager@example.com");
@@ -212,8 +226,8 @@ describe("managed Alfredpay customer creation", () => {
     const manager = await createManager(["MX"], ["business"]);
     const child = await createChild(manager.id, "business", "direct-business@example.com");
     const credential = await createManagedProfileCredential({
+      actorProfileId: manager.id,
       environment: "test",
-      managerProfileId: manager.id,
       profileId: child.profileId
     });
     await ManagedProfileManager.update(
@@ -346,7 +360,7 @@ describe("managed Alfredpay customer creation", () => {
 
     // A second manager picks the victim's email as its child's unverified contact email.
     const attackerManager = await createTestUser({ email: "attacker@example.com" });
-    await ManagedProfileManager.create({
+    await configureManagedProfileManager({
       allowedCorridors: ["MX"],
       allowedCustomerTypes: null,
       isActive: true,

@@ -1,10 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
-import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
+import ManagedProfileMembershipEvent from "../../models/managedProfileMembershipEvent.model";
 import User from "../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser } from "../../test-utils/factories";
+import { configureManagedProfileManager } from "./managed-profile-manager.service";
 import {
   ManagedProfileProvisioningError,
   provisionManagedProfile
@@ -12,13 +14,13 @@ import {
 
 async function createManager(isActive = true): Promise<User> {
   const profile = await createTestUser();
-  await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive, profileId: profile.id });
+  await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive, profileId: profile.id });
   return profile;
 }
 
 async function createNarrowedManager(allowedCustomerTypes: Array<"business" | "individual">): Promise<User> {
   const profile = await createTestUser();
-  await ManagedProfileManager.create({
+  await configureManagedProfileManager({
     allowedCorridors: ["BR"],
     allowedCustomerTypes,
     isActive: true,
@@ -31,8 +33,10 @@ describe("managed profile provisioning", () => {
   beforeAll(setupTestDatabase);
   beforeEach(resetTestDatabase);
 
-  it("atomically creates the headless profile, customer entity, and relationship", async () => {
+  it("creates the child aggregate without adding organization memberships or events", async () => {
     const manager = await createManager();
+    const membershipCount = await ManagedProfileMembership.count();
+    const eventCount = await ManagedProfileMembershipEvent.count();
 
     const result = await provisionManagedProfile({
       contactEmail: "  Child@Example.COM ",
@@ -63,6 +67,14 @@ describe("managed profile provisioning", () => {
       profileId: result.profileId,
       status: "active"
     });
+    expect(await ManagedProfileMembership.findOne({ where: { ownerProfileId: manager.id } })).toMatchObject({
+      createdByProfileId: null,
+      memberProfileId: manager.id,
+      revokedAt: null,
+      role: "manager"
+    });
+    expect(await ManagedProfileMembership.count()).toBe(membershipCount);
+    expect(await ManagedProfileMembershipEvent.count()).toBe(eventCount);
   });
 
   it("returns the existing profile for an idempotent retry", async () => {
@@ -82,6 +94,8 @@ describe("managed profile provisioning", () => {
     expect(await User.count({ where: { kind: "managed" } })).toBe(1);
     expect(await CustomerEntity.count({ where: { profileId: created.profileId } })).toBe(1);
     expect(await ManagedProfile.count()).toBe(1);
+    expect(await ManagedProfileMembership.count()).toBe(1);
+    expect(await ManagedProfileMembershipEvent.count()).toBe(1);
   });
 
   it("serializes concurrent retries for the same external subject", async () => {

@@ -9,13 +9,14 @@ afterEach(() => {
 describe("SupabaseAuthService.verifyToken", () => {
   it("uses the least-privileged Auth client and returns the authoritative user", async () => {
     const getUser = spyOn(supabase.auth, "getUser").mockResolvedValue({
-      data: { user: { email: "user@example.com", id: "user-1" } },
+      data: { user: { email: "user@example.com", email_confirmed_at: "2026-09-07T00:00:00Z", id: "user-1" } },
       error: null
     } as never);
     const adminGetUser = spyOn(supabaseAdmin.auth, "getUser");
 
     await expect(SupabaseAuthService.verifyToken("access-token")).resolves.toEqual({
       email: "user@example.com",
+      email_confirmed_at: "2026-09-07T00:00:00Z",
       user_id: "user-1",
       valid: true
     });

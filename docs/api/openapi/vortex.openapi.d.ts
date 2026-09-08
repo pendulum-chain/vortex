@@ -114,6 +114,8 @@ export interface paths {
          *     `quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createSubaccount"];
         delete?: never;
@@ -132,6 +134,8 @@ export interface paths {
         /**
          * Get user's KYC status
          * @description **Auth:** secret `X-API-Key` or Supabase Bearer session.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["fetchSubaccountKycStatus"];
         put?: never;
@@ -154,6 +158,8 @@ export interface paths {
          * @description Returns the selfie/liveness-check URL for the subaccount associated with this tax ID.
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["brGetSelfieLivenessUrl"];
         put?: never;
@@ -178,6 +184,8 @@ export interface paths {
          * @description Returns a presigned upload URL for the user's ID document and a provider-hosted URL for selfie liveness capture. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["brGetUploadUrls"];
         delete?: never;
@@ -195,7 +203,9 @@ export interface paths {
         };
         /**
          * Get user information
-         * @description Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
+         * @description Fetches the authenticated subject's subaccount information. The response contains only the EVM wallet address and KYC level. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires an active member's secret key or Bearer session.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getBrUser"];
         put?: never;
@@ -215,7 +225,9 @@ export interface paths {
         };
         /**
          * Get user's remaining transaction limits
-         * @description Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires the manager's secret key or Bearer session.
+         * @description Returns the authenticated subject's remaining BRL limit for the required ramp direction. Omit the deprecated taxId query to derive the canonical account from the authenticated subject; when supplied, taxId is only an ownership-checked cross-check. Managed-profile selection requires an active member's secret key or Bearer session.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getBrUserRemainingLimit"];
         put?: never;
@@ -236,6 +248,8 @@ export interface paths {
         /**
          * Get KYB attempt status
          * @description Refreshes an owned KYB attempt and persists its normalized verification state.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getBrKybAttemptStatus"];
         put?: never;
@@ -258,6 +272,8 @@ export interface paths {
         /**
          * Create KYB document
          * @description Creates a document target. Ordinary documents return presigned upload URLs; `SELFIE-FROM-LIVENESS` returns a provider-hosted liveness URL instead.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createBrKybDocument"];
         delete?: never;
@@ -276,6 +292,8 @@ export interface paths {
         /**
          * Get KYB document
          * @description Reads readiness and upload status for an owned KYB document.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getBrKybDocument"];
         put?: never;
@@ -298,6 +316,8 @@ export interface paths {
         /**
          * Submit API-driven KYB
          * @description Submits the API-driven Level 1 KYB attempt after validating the owned corporate documents and UBO references.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitBrKybLevel1Api"];
         delete?: never;
@@ -318,6 +338,8 @@ export interface paths {
         /**
          * Start hosted KYB
          * @description Starts or resumes the provider's hosted KYB level-1 flow for an owned company subaccount.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["startBrKybLevel1Hosted"];
         delete?: never;
@@ -338,6 +360,8 @@ export interface paths {
         /**
          * Create KYB UBO
          * @description Registers a UBO after verifying that referenced identity documents are ready and owned by the company subaccount.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createBrKybUbo"];
         delete?: never;
@@ -357,13 +381,15 @@ export interface paths {
         put?: never;
         /**
          * Import an individual KYC token
-         * @description Imports an opaque Sumsub share token into the authenticated subject's existing individual KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. Use either a profile-bound secret `X-API-Key` or a Supabase Bearer session. A controlling manager may add `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.
+         * @description Imports an opaque Sumsub share token into the authenticated subject's existing individual KYC case. This alternative path is enabled by approved Vortex policy despite unresolved legal/consent wording and provider-environment confirmations; no live sandbox verification is claimed. Authentication and profile-bound principal enforcement run before managed-profile authorization and strict body validation. For a direct non-managed profile, use a profile-bound secret `X-API-Key` or Supabase Bearer session. For a selected child, an active manager member must use a member-owned secret plus `X-Managed-Profile-Id`; direct managed-child credentials are rejected even without the selector. Public and ownerless credentials are insufficient.
          *
          *     The body accepts only `importToken` and literal `consentAttested: true`; CPF, tax ID, subaccount ID, applicant ID, entity ID, provider-customer ID, profile ID, and other caller identity selectors are forbidden. The provisional server-controlled consent policy is `sumsub-share-v1`. Every token claim appends actor, subject, policy version, and timestamp consent evidence without storing the raw token.
          *
          *     The first normal KYC artifact, status read, or token-import claim permanently selects that case's method. Import the token before reading KYC or onboarding status because a status read selects a nullable method as `standard`. The same idempotency key and token returns a stored confirmed attempt or safely reconciles a durable submitted/ambiguous claim through provider reads, without another provider POST or replaying the token. A different token under the same key returns `409`. A provider `401` means the feature precondition is unavailable, records a failed attempt, returns `412`, and may be retried only with a new idempotency key; the new claim appends consent evidence while preserving prior attestations. Every other post-send provider, transport, malformed-response, timeout, or local-confirmation failure is ambiguous, returns `502`, and is never replayed automatically.
          *
          *     Acceptance is pending only. Vortex polls the exact returned provider attempt; `EXPIRED` remains non-approved and locally pending for reconciliation, and its external status is retained. Only a provider `COMPLETED` plus `APPROVED` completes KYC. The provider webhook is notification-only and cannot approve the case.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["importBrKycToken"];
         delete?: never;
@@ -384,6 +410,8 @@ export interface paths {
         /**
          * Record an initial KYC attempt
          * @description Validates an authenticated BRL onboarding preflight event. The asserted CPF or CNPJ is not persisted because quote ownership does not prove tax-ID ownership.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["recordInitialBrKycAttempt"];
         delete?: never;
@@ -406,6 +434,8 @@ export interface paths {
          * @description Submits the user's KYC level 1 payload to the provider after documents have been uploaded via `/v1/brl/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["brNewKyc"];
         delete?: never;
@@ -446,6 +476,8 @@ export interface paths {
         /**
          * Get customer status
          * @description Returns the local onboarding state after refreshing the latest provider submission when available.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getDomesticStatus"];
         put?: never;
@@ -468,6 +500,8 @@ export interface paths {
         /**
          * Create a business customer
          * @description Creates a business customer for the effective profile. Managed profiles use their immutable contact email.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createDomesticBusinessCustomer"];
         delete?: never;
@@ -488,6 +522,8 @@ export interface paths {
         /**
          * Create an individual customer
          * @description Creates an individual customer for the effective profile. Managed profiles use their immutable contact email.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createDomesticIndividualCustomer"];
         delete?: never;
@@ -506,12 +542,16 @@ export interface paths {
         /**
          * List fiat accounts
          * @description Lists payout fiat accounts for the effective customer.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["listDomesticFiatAccounts"];
         put?: never;
         /**
          * Create a fiat account
          * @description Creates a payout fiat account for the effective customer. Required optional fields depend on the selected account type and corridor.
+         *
+         *     **Managed selection (manage):** Requires a live manager membership. A member-owned secret or Supabase bearer is supported; read_only receives 403 MANAGED_PROFILE_MANAGER_REQUIRED. Fiat-account management is not secret-only credential_manage. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createDomesticFiatAccount"];
         delete?: never;
@@ -533,6 +573,8 @@ export interface paths {
         /**
          * Delete a fiat account
          * @description Deletes one payout fiat account belonging to the effective customer.
+         *
+         *     **Managed selection (manage):** Requires a live manager membership. A member-owned secret or Supabase bearer is supported; read_only receives 403 MANAGED_PROFILE_MANAGER_REQUIRED. Fiat-account management is not secret-only credential_manage. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         delete: operations["deleteDomesticFiatAccount"];
         options?: never;
@@ -550,6 +592,8 @@ export interface paths {
         /**
          * Find KYB submission details
          * @description Returns only KYB submission IDs and related-person IDs needed for document uploads.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["findDomesticKybCustomerAndBusiness"];
         put?: never;
@@ -570,6 +614,8 @@ export interface paths {
         /**
          * Get a KYB redirect link
          * @description Creates a hosted business KYB redirect link when no verification is already in review or complete.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getDomesticKybRedirectLink"];
         put?: never;
@@ -590,6 +636,8 @@ export interface paths {
         /**
          * Get a KYC redirect link
          * @description Creates a hosted individual KYC redirect link when no verification is already in review or complete.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getDomesticKycRedirectLink"];
         put?: never;
@@ -610,6 +658,8 @@ export interface paths {
         /**
          * Get KYC or KYB status
          * @description Returns and persists the latest KYC or KYB submission status. Omit `type` for individual KYC.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getDomesticKycStatus"];
         put?: never;
@@ -632,6 +682,8 @@ export interface paths {
         /**
          * Mark a redirect finished
          * @description Records that the effective customer finished the hosted KYC or KYB redirect flow.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["notifyDomesticKycRedirectFinished"];
         delete?: never;
@@ -652,6 +704,8 @@ export interface paths {
         /**
          * Mark a redirect opened
          * @description Records that the effective customer's hosted KYC or KYB redirect was opened.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["notifyDomesticKycRedirectOpened"];
         delete?: never;
@@ -672,6 +726,8 @@ export interface paths {
         /**
          * Retry KYC or KYB
          * @description Retries a failed KYC or KYB submission. Hosted flows return a redirect link; API-based MX, CO, and AR individual KYC returns `{ success: true }`.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["retryDomesticKyc"];
         delete?: never;
@@ -692,6 +748,8 @@ export interface paths {
         /**
          * Send a KYB submission
          * @description Finalizes an API-based business KYB submission.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["sendDomesticKybSubmission"];
         delete?: never;
@@ -712,6 +770,8 @@ export interface paths {
         /**
          * Send a KYC submission
          * @description Finalizes an API-based individual KYC submission.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["sendDomesticKycSubmission"];
         delete?: never;
@@ -732,6 +792,8 @@ export interface paths {
         /**
          * Upload a KYB file
          * @description Uploads one business KYB document. Files are buffered in memory and limited to 5 MiB.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitDomesticKybFile"];
         delete?: never;
@@ -752,6 +814,8 @@ export interface paths {
         /**
          * Submit KYB information
          * @description Creates or updates an API-based business KYB submission, including the provider's compliance questionnaire.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitDomesticKybInformation"];
         delete?: never;
@@ -772,6 +836,8 @@ export interface paths {
         /**
          * Upload a related-person KYB file
          * @description Uploads the front or back identity document for one KYB related person. Files are limited to 5 MiB.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitDomesticKybRelatedPersonFile"];
         delete?: never;
@@ -792,6 +858,8 @@ export interface paths {
         /**
          * Upload a KYC file
          * @description Uploads one individual KYC document. Files are buffered in memory and limited to 5 MiB.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitDomesticKycFile"];
         delete?: never;
@@ -812,6 +880,8 @@ export interface paths {
         /**
          * Submit KYC information
          * @description Creates or resumes an API-based individual KYC submission.
+         *
+         *     **Managed selection (credential_manage):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child Supabase bearer calls return 403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL; read_only cannot mutate even with a secret. This includes link/artifact creation exposed as GET. Non-managed self calls retain their existing bearer alternative. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["submitDomesticKycInformation"];
         delete?: never;
@@ -834,6 +904,8 @@ export interface paths {
          * @description Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Bank-transfer-corridor usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. BR maximums, usage, and period are read from the provider.
          *
          *     **Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["getUserLimits"];
         delete?: never;
@@ -851,17 +923,19 @@ export interface paths {
         };
         /**
          * List managed profiles
-         * @description Lists children owned by the authenticated active manager, newest first, together with the manager's current corridor and customer-type policy. Policy is manager-scoped and applies to all children; it is not a per-child grant. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
+         * @description Lists eligible children newest first. Returns actor { profileId, canProvisionManagedProfiles, hasMemberships }, each child's effective membership (role, isOwner) and immutable-owner policy; there is no singular manager response. Organization roles cover all present and future children. Default status=active lists eligible children of the actor's one organization and returns 200 with an empty list even when both actor flags are false. Child eligibility excludes revoked/invalid roles, inactive owners, deleted children and invalid child entity layouts. hasMemberships means live organization membership even with zero children, independent of the requested status filter and page; it requires active owner configuration, not an eligible child count.
          *
-         *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
+         *     Both status=deleted and status=all require the actor's own active manager configuration (otherwise 403 MANAGED_PROFILE_OWNER_REQUIRED) and are owner-scoped only: invited members cannot use these retained filters. Retained rows still require eligible membership, owner and entity layout but do not determine hasMemberships.
+         *
+         *     **Auth:** profile-bound secret API key or Supabase Bearer session. Public keys and direct child credentials are rejected. Membership does not grant provisioning or child deletion.
          */
         get: operations["listManagedProfiles"];
         put?: never;
         /**
          * Create a managed profile
-         * @description Creates one headless individual or business child for the authenticated active manager. `externalSubjectId`, normalized `contactEmail`, and `customerType` are immutable. An exact retry for the same external subject is idempotent and returns the existing active child with `200`; the first creation returns `201`. Reusing either reserved identifier with different data returns `409`, including after deletion. No corridor grant is accepted.
+         * @description Creates one headless individual or business child owned by the authenticated active manager. Membership alone does not grant provisioning or sibling creation under another owner. externalSubjectId, normalized contactEmail, and customerType are immutable. An exact retry returns the existing active child with 200; first creation returns 201. Reserved identifiers with different data return 409, including after deletion. No corridor grant is accepted. Unlike list/read, creation returns only the base managedProfile, without actor, membership or policy decoration.
          *
-         *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
+         *     **Auth:** enabled owner's Supabase Bearer session or secret API key. Public keys, direct child credentials and impersonation are rejected.
          */
         post: operations["createManagedProfile"];
         delete?: never;
@@ -879,18 +953,22 @@ export interface paths {
         };
         /**
          * Get a managed profile
-         * @description Returns one owned child, including a retained logically deleted child. Foreign children are hidden with `404`.
+         * @description Returns actor { profileId, canProvisionManagedProfiles, hasMemberships } and managedProfile with effective organization membership and immutable-owner policy. Actor flags use the same live organization membership and owner-only provisioning rules as the list endpoint, not this child's status or the eligible child count. Active child reads require a live manager or read_only membership in the child's organization, active owner configuration and valid child entity layout.
          *
-         *     **Auth:** controlling manager Supabase Bearer session or secret API key.
+         *     Bootstrap is explicitly GET detail with an exactly matching X-Managed-Profile-Id. Stored membership history (active or revoked) is required for this actor and the child's immutable owner, with at least one membership interval overlapping the child lifetime: membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt) on the same membership row. Only then may ineligibility return 403 MANAGED_PROFILE_MEMBERSHIP_INVALID. A child created after revocation or wholly within a membership gap remains masked 404 even with historic org membership. Revoked membership, deleted child, disabled owner or invalid entity layout invalidate an evidenced bootstrap. A deleted child invalidates even the owner's bootstrap. A caller with no overlapping membership receives the same masked 404 MANAGED_PROFILE_NOT_FOUND for an existing or unknown child, with or without a matching selector. A mismatched selector returns 403 MANAGED_PROFILE_ACCESS_DENIED.
+         *
+         *     Retained deleted-child reads are allowed only to the immutable owner with active configuration, valid membership/entity layout and no selector. Invited members and ineligible retained reads are masked with 404. Without bootstrap, missing membership is 404; an active member of an active child with disabled owner or invalid entity layout receives 403 MANAGED_PROFILE_ACCESS_DENIED.
+         *
+         *     **Auth:** Supabase Bearer session or member-owned secret API key; both follow the same bootstrap/history and retained-read checks. Direct child credentials are rejected.
          */
         get: operations["getManagedProfile"];
         put?: never;
         post?: never;
         /**
          * Delete a managed profile
-         * @description Logically deletes an owned child and atomically revokes all of its credentials. Customer, provider, KYC, ramp, external-subject, and contact-email records are retained. Repeating deletion of the same owned child is idempotent and returns `204`.
+         * @description Owner-only logical deletion, atomically revoking all child credentials. A non-owner with an active manager or read_only membership receives 403 MANAGED_PROFILE_OWNER_REQUIRED; outsiders receive the same masked 404 whether the child exists or not. Customer, provider, KYC, ramp, external-subject and contact-email records are retained. Repeating deletion of the same owned child returns 204 while the owner's configuration remains active.
          *
-         *     **Auth:** controlling manager Supabase Bearer session or secret API key.
+         *     **Auth:** immutable owner's Supabase Bearer session or profile-bound secret API key; impersonation and direct child credentials are rejected.
          */
         delete: operations["deleteManagedProfile"];
         options?: never;
@@ -907,17 +985,17 @@ export interface paths {
         };
         /**
          * List a managed profile's API credentials
-         * @description Lists all credentials owned by one active child, newest first, including revoked and expired records. Public values and safe secret prefixes are returned; secret values are never returned.
+         * @description Lists all credentials owned by one active child, newest first, including revoked and expired records. Public values and safe secret prefixes are returned, never secret values. Requires read capability: manager or read_only membership, active owner and valid child. An optional selector must exactly match the path profileId.
          *
-         *     **Auth:** active controlling manager Supabase Bearer session or secret API key.
+         *     **Auth:** member Supabase Bearer session or member-owned secret API key. Direct child credentials cannot administer credentials.
          */
         get: operations["listManagedProfileApiCredentials"];
         put?: never;
         /**
          * Create a managed profile API credential
-         * @description Issues one child-owned public/secret credential pair. The secret is returned only in this creation response and cannot be retrieved later. Expiry defaults to one year and cannot exceed two years. The child's shared cap is five active, non-expired credentials.
+         * @description Issues one child-owned public/secret credential pair. The secret is returned only once. Expiry defaults to one year and cannot exceed two years. The child's shared cap is five active, non-expired credentials. Requires manage capability (manager membership), not the secret-only credential_manage provider capability. An optional selector must exactly match the path profileId. Child credentials are shared company principals: member removal does not revoke them.
          *
-         *     **Auth:** active controlling manager Supabase Bearer session or secret API key.
+         *     **Auth:** manager member's Supabase Bearer session or member-owned secret API key. Impersonation and direct child credentials are rejected.
          */
         post: operations["createManagedProfileApiCredential"];
         delete?: never;
@@ -938,9 +1016,9 @@ export interface paths {
         post?: never;
         /**
          * Revoke a managed profile API credential
-         * @description Revokes one credential owned by an active child, disabling both its public and secret values. Repeating revocation of the same owned credential is idempotent and returns `204`.
+         * @description Revokes one credential owned by an active child, disabling both values. Repeating revocation of the same owned credential returns 204. Requires manage capability (manager membership), not secret-only credential_manage. An optional selector must exactly match the path profileId. Revoke shared child credentials separately when offboarding members who possessed them.
          *
-         *     **Auth:** active controlling manager Supabase Bearer session or secret API key.
+         *     **Auth:** manager member's Supabase Bearer session or member-owned secret API key. Impersonation and direct child credentials are rejected.
          */
         delete: operations["revokeManagedProfileApiCredential"];
         options?: never;
@@ -998,6 +1076,8 @@ export interface paths {
         /**
          * Get aggregate onboarding status
          * @description Returns the effective profile's customer entities and aggregated provider/KYC state. Non-terminal provider statuses may be refreshed before the response is built.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getOnboardingStatus"];
         put?: never;
@@ -1006,6 +1086,174 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discover the current organization
+         * @description Discovers the human actor's one live organization, including before any child exists. Returns organization with ownerProfileId, nullable ownerEmail and membership { role, isOwner }, or null without a live membership. Active owner configuration is required: deactivation retains affiliation but returns null and denies organization/team operations. Supabase bearer-only. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Team belongs in the main nonacting dashboard, not child mode. Organization roles cover all present and future children; personal user resources are not shared. Only the owner provisions/deletes children, reads retained deleted children and controls owner policy. Managers administer non-owner team and supported child resources/credentials; read_only grants no writes even through personal secrets. No multi-organization management, organization kinds, owner transfer or organization switcher is supported; future support requires explicitly revisiting the model in a later ADR.
+         */
+        get: operations["getOrganization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization-member-invitations/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview an organization membership invitation
+         * @description Supabase bearer-only. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. The invitation UUID is only a locator. Preview requires active owner configuration, the current Supabase principal's exact normalized email and a valid email_confirmed_at, not request email or cached profiles.email. Unknown invitations and mismatched/unverified email return generic 403 without organization, inviter, role, or status details. Authorized preview returns invitation, inviter { email, profileId }, and organization { ownerProfileId, ownerEmail }, including terminal status. Both emails are nullable. Observed seven-day expiry is persisted. Preview and OTP verification grant no membership.
+         */
+        get: operations["previewOrganizationMemberInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization-member-invitations/{invitationId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an organization membership invitation
+         * @description Explicit acceptance by a human Supabase bearer principal with the exact current verified invitation email (email_confirmed_at required), with no request body or request email. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Transactionally rechecks invitation, seven-day expiry, active owner configuration and actor affiliation; creates one globally active organization membership and invitation_accepted/member_added events. Returns { ownerProfileId, member }. All present and future children inherit the role; personal user resources are not shared. Pending offers survive inviter removal or downgrade. Everyone is limited to one active org affiliation; owners, including disabled owners, cannot join another org. Second-org acceptance returns 409 ORGANIZATION_MEMBERSHIP_CONFLICT. A previously revoked member gets a new membership row. Replay returns 200 only when the same accepting profile still has an active membership with the invitation's role; it creates no duplicate events. Otherwise terminal invitations return 409. OTP alone grants no organization access.
+         */
+        post: operations["acceptOrganizationMemberInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/member-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read organization access history
+         * @description Supabase bearer-only with a live manager or read_only organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Append-only access history ordered by createdAt then id descending. Pass pagination.nextCursor to fetch strictly older events; null ends pagination. Cursor must identify an event in this organization. Event payloads omit emails, secrets, and invitation URLs. Offset, if supplied, is validated as a non-negative integer but ignored; use cursor pagination.
+         */
+        get: operations["listOrganizationMemberEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/member-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List organization membership invitations
+         * @description Supabase bearer-only with a live manager or read_only organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Returns pending and terminal organization invitations, ordered by createdAt then id descending. Observed seven-day expiry is persisted with one event. No status filter is supported.
+         */
+        get: operations["listOrganizationMemberInvitations"];
+        put?: never;
+        /**
+         * Invite an organization member
+         * @description Supabase bearer-only with a live manager organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Email is trimmed/lowercased and role is manager or read_only. Creates one pending invitation per organization/email, expiring after seven days, and queues its email transactionally. The offer remains valid after inviter removal or downgrade. Identical pending creation returns 200 without another delivery; a different pending role requires cancellation first. Response does not reveal whether an unrelated profile exists. MEMBERSHIP_ALREADY_EXISTS discloses only an active membership already visible in this organization's roster. Returns invitation metadata with ownerProfileId, never a secret acceptance token or URL.
+         */
+        post: operations["createOrganizationMemberInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/member-invitations/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel a pending membership invitation
+         * @description Supabase bearer-only with a live manager organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Cancels a pending invitation for this organization. Expiry is observed before cancellation. Terminal invitations, including repeated cancellation, return 409 rather than 204. Cancellation never removes an accepted membership.
+         */
+        delete: operations["cancelOrganizationMemberInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active organization members
+         * @description Supabase bearer-only with a live manager or read_only organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Lists active members including immutable owner metadata and nullable profile email, ordered by createdAt then id ascending. Membership grants its role over all present and future children, never transfers ownership, and never shares personal user resources.
+         */
+        get: operations["listOrganizationMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/members/{memberProfileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a non-owner member
+         * @description Supabase bearer-only with a live manager organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Cannot revoke the immutable owner. Non-owner managers may remove themselves. A retry returns 204 if the same actor previously revoked that member and still has manager authority; otherwise a missing active target returns 404. Removal ends delegated access to all organization children, but pending invitations sent by the removed inviter remain durable offers. Child-owned shared credentials are independent principals and are NOT revoked by member removal. Revoke exposed child credentials separately.
+         */
+        delete: operations["removeOrganizationMember"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a non-owner member role
+         * @description Supabase bearer-only with a live manager organization membership and active owner configuration, even with zero children. Rejects any child selector, API/public-key headers (even with a bearer), and impersonation. Only manager and read_only are accepted. The immutable owner cannot be changed, even to the same role. Repeating an unchanged non-owner role returns 200 without another event. Non-owner managers may downgrade themselves. The changed role applies to all present and future children. Downgrade does not revoke child-owned shared credentials or cancel pending invitations sent by that member. The response member does not contain email.
+         */
+        patch: operations["changeOrganizationMemberRole"];
         trace?: never;
     };
     "/v1/public-key": {
@@ -1067,6 +1315,8 @@ export interface paths {
         /**
          * Create a new quote
          * @description Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may create quotes through this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createQuote"];
         delete?: never;
@@ -1130,6 +1380,8 @@ export interface paths {
         /**
          * Create a quote for the best network
          * @description Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may create quotes through this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["createBestQuote"];
         delete?: never;
@@ -1147,9 +1399,11 @@ export interface paths {
         };
         /**
          * Get sanitized ramp eligibility
-         * @description Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. A manager secret may select one directly managed child with `X-Managed-Profile-Id`; public keys cannot use the selector. The endpoint never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.
+         * @description Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. A manager or read_only member's secret may select one authorized child with `X-Managed-Profile-Id`; public keys cannot use the selector. The endpoint never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.
          *
          *     **Auth:** `X-Public-Key` or `X-API-Key`.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Selection requires a member-owned secret, never a bearer or public key. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getRampInfo"];
         put?: never;
@@ -1170,12 +1424,14 @@ export interface paths {
         /**
          * Get ramp status
          * @description Fetches an updated ramp process.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: {
             parameters: {
                 query?: never;
                 header?: {
-                    /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                    /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                     "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
                 };
                 path: {
@@ -1270,7 +1526,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                     };
                 };
-                /** @description Ramp ownership or managed-profile authorization failed. */
+                /** @description Ramp ownership or managed-profile authorization failed. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1301,6 +1557,8 @@ export interface paths {
          * @description Returns the chronological error log for a ramp.
          *
          *     **Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: operations["getRampErrorLogs"];
         put?: never;
@@ -1321,6 +1579,8 @@ export interface paths {
         /**
          * Get authenticated user ramp history
          * @description Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: {
             parameters: {
@@ -1331,7 +1591,7 @@ export interface paths {
                     offset?: number;
                 };
                 header?: {
-                    /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                    /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                     "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
                 };
                 path?: never;
@@ -1358,6 +1618,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["ManagedSelectorUnauthorized"];
+                /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
                 403: components["responses"]["ManagedSelectorForbidden"];
             };
         };
@@ -1379,6 +1640,8 @@ export interface paths {
         /**
          * Get ramp history for wallet address
          * @description Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters.
+         *
+         *     **Managed selection (read):** A live manager or read_only membership may use this operation. Use a member-owned secret or the operation's supported bearer alternative. Read capability does not waive endpoint-specific owner corridor/type policy or resource ownership checks. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         get: {
             parameters: {
@@ -1389,7 +1652,7 @@ export interface paths {
                     offset?: number;
                 };
                 header?: {
-                    /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                    /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                     "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
                 };
                 path: {
@@ -1418,6 +1681,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["ManagedSelectorUnauthorized"];
+                /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
                 403: components["responses"]["ManagedSelectorForbidden"];
             };
         };
@@ -1441,6 +1705,8 @@ export interface paths {
         /**
          * Register new ramp process
          * @description Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.
+         *
+         *     **Managed selection (ramp):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child bearer-only register/update/start is always denied before the global body parser, including already registered or in-flight ramps; there is no drain exception. An otherwise authorized manager receives 403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; read_only, invalid membership and impersonation retain their respective denials. Direct child secrets remain supported without a selector. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["registerRamp"];
         delete?: never;
@@ -1463,6 +1729,8 @@ export interface paths {
          * @description Starts a ramp process.
          *
          *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
+         *
+         *     **Managed selection (ramp):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child bearer-only register/update/start is always denied before the global body parser, including already registered or in-flight ramps; there is no drain exception. An otherwise authorized manager receives 403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; read_only, invalid membership and impersonation retain their respective denials. Direct child secrets remain supported without a selector. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["startRamp"];
         delete?: never;
@@ -1494,6 +1762,8 @@ export interface paths {
          *     If the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.
          *
          *     For onramps, no additional data is required after registering the ramp.
+         *
+         *     **Managed selection (ramp):** Requires a live manager membership and member-owned secret X-API-Key. Selected-child bearer-only register/update/start is always denied before the global body parser, including already registered or in-flight ramps; there is no drain exception. An otherwise authorized manager receives 403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; read_only, invalid membership and impersonation retain their respective denials. Direct child secrets remain supported without a selector. The immutable owner's current policy governs all members; policy denial is MANAGED_PROFILE_POLICY_DENIED, not the acting member's personal policy.
          */
         post: operations["updateRamp"];
         delete?: never;
@@ -2008,6 +2278,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptManagedProfileInvitationResponse: {
+            member: components["schemas"]["ManagedProfileMember"];
+            /** Format: uuid */
+            ownerProfileId: string;
+        };
         AccountMeta: {
             /** @description The account address. */
             address: string;
@@ -2213,6 +2488,9 @@ export interface components {
         BrValidatePixKeyResponse: {
             valid: boolean;
         };
+        ChangeManagedProfileMemberRequest: {
+            role: components["schemas"]["ManagedProfileMembershipRole"];
+        };
         CleanupPhase: {
             /** @enum {string} */
             string?: "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
@@ -2256,6 +2534,14 @@ export interface components {
             rampType: components["schemas"]["RampDirection"];
             /** @description `PIX`, `SEPA`, `CBU`. Only required if `rampType` is "SELL". */
             to?: components["schemas"]["PaymentMethod"];
+        };
+        CreateManagedProfileInvitationRequest: {
+            /**
+             * Format: email
+             * @description Trimmed and lowercased before validation and comparison; length limit applies after normalization.
+             */
+            email: string;
+            role: components["schemas"]["ManagedProfileMembershipRole"];
         };
         CreateManagedProfileRequest: {
             /**
@@ -2691,9 +2977,27 @@ export interface components {
         ListApiCredentialsResponse: {
             credentials: components["schemas"]["ApiCredential"][];
         };
+        ListManagedProfileInvitationsResponse: {
+            invitations: components["schemas"]["ManagedProfileInvitation"][];
+            pagination: components["schemas"]["ManagedProfilePagination"];
+        };
+        ListManagedProfileMemberEventsResponse: {
+            events: components["schemas"]["ManagedProfileMemberEvent"][];
+            pagination: {
+                limit: number;
+                /** Format: uuid */
+                nextCursor: string | null;
+            };
+        };
+        ListManagedProfileMembersResponse: {
+            members: (components["schemas"]["ManagedProfileMember"] & {
+                email: string | null;
+            })[];
+            pagination: components["schemas"]["ManagedProfilePagination"];
+        };
         ListManagedProfilesResponse: {
-            managedProfiles: components["schemas"]["ManagedProfile"][];
-            manager: components["schemas"]["ManagedProfileManagerPolicy"];
+            actor: components["schemas"]["ManagedProfileActor"];
+            managedProfiles: components["schemas"]["ManagedProfileAccess"][];
             pagination: components["schemas"]["ManagedProfilePagination"];
         };
         LivenessDocumentEntry: {
@@ -2735,32 +3039,117 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        ManagedProfileAccess: components["schemas"]["ManagedProfile"] & {
+            membership: {
+                isOwner: boolean;
+                role: components["schemas"]["ManagedProfileMembershipRole"];
+            };
+            policy: components["schemas"]["ManagedProfilePolicy"];
+        };
+        ManagedProfileAccessResponse: {
+            actor: components["schemas"]["ManagedProfileActor"];
+            managedProfile: components["schemas"]["ManagedProfileAccess"];
+        };
+        /** @description Actor projection shared by list and detail responses. Flags are independent of pagination, the requested status filter, and the particular child being read. */
+        ManagedProfileActor: {
+            /** @description True exactly when the actor has its own active managed-profile manager configuration. Membership alone does not grant provisioning. */
+            canProvisionManagedProfiles: boolean;
+            /** @description True for a live organization membership with active owner configuration, even with zero children. Requires an unrevoked manager or read_only organization membership, including the protected owner self-membership. Independent of child eligibility, pagination, status filter and detail target. Owner deactivation retains membership but makes this flag false. */
+            hasMemberships: boolean;
+            /** Format: uuid */
+            profileId: string;
+        };
         ManagedProfileErrorResponse: {
             error: {
-                /** @description Machine-readable error code. Managed-profile lifecycle codes include `MANAGED_PROFILE_INVALID_INPUT`, `MANAGED_PROFILE_ACCESS_DENIED`, `MANAGED_PROFILE_NOT_FOUND`, `MANAGED_PROFILE_CONFLICT`, `MANAGED_PROFILE_MANAGER_NOT_FOUND`, and `MANAGED_PROFILE_MANAGER_INACTIVE`. Credential codes include `INVALID_CREDENTIAL_NAME`, `INVALID_CREDENTIAL_EXPIRY`, `CREDENTIAL_ACCESS_DENIED`, `CREDENTIAL_NOT_FOUND`, and `CREDENTIAL_LIMIT_REACHED`. Authentication middleware may return `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `INVALID_PUBLIC_KEY`, or `CREDENTIAL_MISMATCH`. */
+                /** @description Machine-readable error code. Lifecycle codes include MANAGED_PROFILE_INVALID_INPUT, MANAGED_PROFILE_ACCESS_DENIED, MANAGED_PROFILE_NOT_FOUND, MANAGED_PROFILE_CONFLICT, MANAGED_PROFILE_MANAGER_NOT_FOUND, MANAGED_PROFILE_MANAGER_INACTIVE, MANAGED_PROFILE_OWNER_REQUIRED (retained filters or non-owner member deletion), and MANAGED_PROFILE_MEMBERSHIP_INVALID (explicit bootstrap with membership history). Credential codes include INVALID_CREDENTIAL_NAME, INVALID_CREDENTIAL_EXPIRY, CREDENTIAL_ACCESS_DENIED, CREDENTIAL_NOT_FOUND, and CREDENTIAL_LIMIT_REACHED. Authentication middleware may return AUTHENTICATION_REQUIRED, INVALID_SECRET_KEY, INVALID_API_KEY, INVALID_BEARER_TOKEN, INVALID_PUBLIC_KEY, or CREDENTIAL_MISMATCH. */
                 code: string;
                 message: string;
                 status: number;
             };
         };
-        /** @description The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child. */
-        ManagedProfileManagerPolicy: {
-            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
-            allowedCustomerTypes: ("individual" | "business")[] | null;
+        ManagedProfileInvitation: {
+            /** Format: date-time */
+            acceptedAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            expiredAt: string | null;
+            /** Format: date-time */
+            expiresAt: string;
             /** Format: uuid */
-            profileId: string;
+            id: string;
+            /** Format: uuid */
+            invitedByProfileId: string;
+            /** Format: uuid */
+            ownerProfileId: string;
+            role: components["schemas"]["ManagedProfileMembershipRole"];
+            /** @enum {string} */
+            status: "pending" | "accepted" | "cancelled" | "expired";
         };
+        ManagedProfileInvitationResponse: {
+            invitation: components["schemas"]["ManagedProfileInvitation"];
+        };
+        ManagedProfileMember: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            isOwner: boolean;
+            /** Format: uuid */
+            memberProfileId: string;
+            role: components["schemas"]["ManagedProfileMembershipRole"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ManagedProfileMemberEvent: {
+            /** @enum {string} */
+            action: "member_added" | "invited" | "invitation_cancelled" | "invitation_expired" | "invitation_accepted" | "role_changed" | "member_removed";
+            /**
+             * Format: uuid
+             * @description Human actor when known; null for the config-created owner self-membership event, which is system-attributed. ADMIN_SECRET does not identify the owning account as actor; the owner remains memberProfileId. The corresponding internal membership createdByProfileId is also null.
+             */
+            actorProfileId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invitationId: string | null;
+            /** Format: uuid */
+            memberProfileId: string | null;
+            /** @enum {string|null} */
+            previousRole: "manager" | "read_only" | null;
+            /** @enum {string|null} */
+            role: "manager" | "read_only" | null;
+        };
+        ManagedProfileMemberResponse: {
+            member: components["schemas"]["ManagedProfileMember"];
+        };
+        /**
+         * @description Organization-wide role inherited by all present and future children of one immutable owner. manager permits supported child management and non-owner team administration, not owner-only provisioning/deletion, retained reads or policy control. read_only grants no writes, even through personal secrets. Personal human resources are not shared. The schema name is retained with the existing internal membership names; this is not a per-child grant.
+         * @enum {string}
+         */
+        ManagedProfileMembershipRole: "manager" | "read_only";
         ManagedProfilePagination: {
             limit: number;
             offset: number;
             total: number;
+        };
+        /** @description The immutable controlling owner's current policy, returned with each child so authorization and display use that owner's live rules. Not a copied child grant or the acting member's personal policy. The actor has at most one active organization affiliation. EU may occur in stored policy but managed EUR flows remain unsupported. */
+        ManagedProfilePolicy: {
+            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
+            allowedCustomerTypes: ("individual" | "business")[] | null;
         };
         ManagedProfileResponse: {
             managedProfile: components["schemas"]["ManagedProfile"];
         };
         ManagedSelectorErrorResponse: {
             error: {
-                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, `MANAGED_PROFILE_ACCESS_DENIED`, or `IMPERSONATION_NOT_ALLOWED`. */
+                /** @description Machine-readable middleware code such as INVALID_MANAGED_PROFILE_ID, MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH, AUTHENTICATION_REQUIRED, INVALID_SECRET_KEY, INVALID_API_KEY, INVALID_BEARER_TOKEN, CREDENTIAL_MISMATCH, MANAGED_PROFILE_ACCESS_DENIED, MANAGED_PROFILE_MANAGER_REQUIRED, MANAGED_PROFILE_OWNER_REQUIRED, MANAGED_PROFILE_POLICY_DENIED, MANAGED_PROFILE_REQUIRES_API_CREDENTIAL, MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL, or IMPERSONATION_NOT_ALLOWED. MANAGED_PROFILE_MEMBERSHIP_INVALID requires explicit detail bootstrap with an exactly matching selector and an actor membership for the child's owner overlapping the child's lifetime: membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). It is not bearer-only. Historic org membership alone cannot reveal a child created after revocation or wholly within a membership gap; these probes remain masked 404. */
                 code: string;
                 message: string;
                 status: number;
@@ -2916,6 +3305,34 @@ export interface components {
         };
         /** @enum {string} */
         OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E";
+        /** @description One owning manager account/config defines exactly one organization: the current one-account-one-org approximation. Every person has at most one active org affiliation; owners, including disabled owners, cannot join another org. Roles cover all present and future children, not personal user resources. Multi-organization management, organization kinds, owner transfer and an organization switcher are unsupported and require explicitly revisiting the architectural model through a later ADR, not reinterpreting membership. */
+        Organization: {
+            membership: components["schemas"]["OrganizationMembership"];
+            ownerEmail: string | null;
+            /** Format: uuid */
+            ownerProfileId: string;
+        };
+        OrganizationContextChangedErrorResponse: {
+            error: {
+                /** @constant */
+                code: "ORGANIZATION_CONTEXT_CHANGED";
+                message: string;
+                /** @constant */
+                status: 409;
+            };
+        };
+        OrganizationIdentity: {
+            ownerEmail: string | null;
+            /** Format: uuid */
+            ownerProfileId: string;
+        };
+        OrganizationMembership: {
+            isOwner: boolean;
+            role: components["schemas"]["ManagedProfileMembershipRole"];
+        };
+        OrganizationResponse: {
+            organization: components["schemas"]["Organization"] | null;
+        };
         PayloadTooLargeErrorResponse: {
             /** @constant */
             code: 413;
@@ -2976,6 +3393,15 @@ export interface components {
             txData?: string;
         } & {
             [key: string]: unknown;
+        };
+        PreviewManagedProfileInvitationResponse: {
+            invitation: components["schemas"]["ManagedProfileInvitation"];
+            inviter: {
+                email: string | null;
+                /** Format: uuid */
+                profileId: string;
+            };
+            organization: components["schemas"]["OrganizationIdentity"];
         };
         QuoteResponse: {
             anchorFeeFiat: string;
@@ -3359,6 +3785,83 @@ export interface components {
                 "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
             };
         };
+        /** @description Authentication service unavailable (transient Supabase verification failure). */
+        MembershipAuthUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": "Authentication service unavailable"
+                 *     }
+                 */
+                "application/json": components["schemas"]["FlatErrorResponse"];
+            };
+        };
+        /** @description MANAGED_PROFILE_INVALID_INPUT for non-UUID path identifiers; INVALID_PAGINATION for invalid pagination; INVALID_MEMBERSHIP_ROLE for a role other than manager or read_only; INVALID_INVITATION_EMAIL for invalid creation email. All organization/team/invitee routes reject any managed selector with MANAGED_PROFILE_UNSUPPORTED. Malformed JSON is rejected by the global parser before route authentication. */
+        MembershipBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ManagedProfileErrorResponse"] | components["schemas"]["MalformedJsonErrorResponse"];
+            };
+        };
+        /** @description MANAGED_PROFILE_ACCESS_DENIED for API/public-key headers (even with a bearer), inaccessible organization/membership, inactive owner configuration, or invitee email mismatch/unverified email/unknown invitation. MANAGED_PROFILE_MANAGER_REQUIRED for read_only mutations. IMPERSONATION_NOT_ALLOWED for impersonation. No invitation details are disclosed to mismatched invitees. */
+        MembershipForbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+            };
+        };
+        /** @description INTERNAL_SERVER_ERROR: Unable to process membership request. */
+        MembershipInternalError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+            };
+        };
+        /** @description Request body exceeds the global 20 MB limit. Rejected before membership authentication. */
+        MembershipPayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["PayloadTooLargeErrorResponse"];
+            };
+        };
+        /** @description Authenticated membership routes share a limit of 120 requests per minute per actor. Standard rate-limit headers are returned. */
+        MembershipRateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "text/html": string;
+            };
+        };
+        /** @description Missing or invalid authorization header, Invalid or expired token, or Authentication failed. This authentication middleware uses a flat string error, not a structured membership error. */
+        MembershipUnauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["FlatErrorResponse"];
+            };
+        };
+        /** @description ORGANIZATION_CONTEXT_CHANGED: expectedOwnerProfileId does not match the actor's current organization. This displayed-org precondition never selects or authorizes another organization. Refresh context and require a new user decision rather than resubmitting the stale operation against a different org. */
+        OrganizationContextChanged: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OrganizationContextChangedErrorResponse"];
+            };
+        };
         RecordNotFound: {
             headers: {
                 [name: string]: unknown;
@@ -3372,8 +3875,18 @@ export interface components {
         };
     };
     parameters: {
-        /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+        /**
+         * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+         * @example 00000000-0000-0000-0000-000000000001
+         */
+        ExpectedOwnerProfileId: string;
+        /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
         ManagedProfileId: string;
+        MembershipInvitationId: string;
+        MembershipLimit: number;
+        /** @description Authenticated member profile UUID, not the membership row ID. */
+        MembershipMemberProfileId: string;
+        MembershipOffset: number;
     };
     requestBodies: never;
     headers: never;
@@ -3642,7 +4155,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3678,6 +4191,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Internal Server Error. */
             500: {
@@ -3697,7 +4211,7 @@ export interface operations {
                 taxId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3724,6 +4238,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description No KYC process started. */
             404: {
@@ -3770,7 +4285,7 @@ export interface operations {
                 taxId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3797,6 +4312,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description The immutable KYC method or canonical case state conflicts with liveness creation. */
             409: {
@@ -3831,7 +4347,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3862,6 +4378,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description The immutable KYC method or canonical case state conflicts with upload creation. */
             409: {
@@ -3902,7 +4419,7 @@ export interface operations {
                 taxId?: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3929,6 +4446,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount not found. */
             404: {
@@ -3962,7 +4480,7 @@ export interface operations {
                 direction: components["schemas"]["RampDirection"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -3989,6 +4507,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount not found or limits not found. */
             404: {
@@ -4016,7 +4535,7 @@ export interface operations {
                 attemptId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4044,7 +4563,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Attempt does not belong to the effective profile. */
+            /** @description Attempt does not belong to the effective profile. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description KYB attempt or account not found. */
             404: {
@@ -4086,7 +4605,7 @@ export interface operations {
                 subAccountId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4118,7 +4637,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount not found. */
             404: {
@@ -4142,7 +4661,7 @@ export interface operations {
                 subAccountId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path: {
@@ -4172,7 +4691,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Document does not belong to the effective profile. */
+            /** @description Document does not belong to the effective profile. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Document not found. */
             404: {
@@ -4196,7 +4715,7 @@ export interface operations {
                 subAccountId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4228,7 +4747,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount or referenced document not found. */
             404: {
@@ -4259,7 +4778,7 @@ export interface operations {
                 subAccountId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4287,7 +4806,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount not found. */
             404: {
@@ -4331,7 +4850,7 @@ export interface operations {
                 subAccountId: string;
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4363,7 +4882,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description Subaccount or referenced document not found. */
             404: {
@@ -4392,7 +4911,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
                 /** @description Caller-generated key for one token-import attempt. It must contain 1 to 128 visible ASCII characters. Reuse it only with the same token. */
                 "Idempotency-Key": string;
@@ -4433,7 +4952,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
                 };
             };
-            /** @description The selected child is unauthorized, the caller used direct managed-child credentials, or transactional authorization was revoked before provider submission. */
+            /** @description The selected child is unauthorized, the caller used direct managed-child credentials, or transactional authorization was revoked before provider submission. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4502,7 +5021,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4534,7 +5053,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Attempt recording failed. */
             500: {
@@ -4551,7 +5070,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4582,6 +5101,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["BrlaManagedSelectorForbidden"];
             /** @description The immutable KYC method, approval state, or durable submission state conflicts with this request. */
             409: {
@@ -4661,7 +5181,7 @@ export interface operations {
                 type?: components["schemas"]["DomesticCustomerType"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4689,6 +5209,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -4714,7 +5235,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4746,7 +5267,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description An upstream customer exists with a conflicting country or type. */
             409: {
@@ -4781,7 +5302,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4813,7 +5334,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description An upstream customer exists with a conflicting country or type. */
             409: {
@@ -4850,7 +5371,7 @@ export interface operations {
                 country: components["schemas"]["DomesticCountry"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4877,6 +5398,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -4902,7 +5424,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -4933,6 +5455,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -4960,7 +5483,7 @@ export interface operations {
                 country: components["schemas"]["DomesticCountry"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path: {
@@ -4987,6 +5510,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5014,7 +5538,7 @@ export interface operations {
                 country: "CO" | "MX";
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5042,6 +5566,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5069,7 +5594,7 @@ export interface operations {
                 country: components["schemas"]["DomesticCountry"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5097,6 +5622,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5124,7 +5650,7 @@ export interface operations {
                 country: components["schemas"]["DomesticCountry"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5152,6 +5678,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5180,7 +5707,7 @@ export interface operations {
                 type?: components["schemas"]["DomesticCustomerType"];
             };
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5208,6 +5735,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer or verification attempt not found. */
             404: {
@@ -5233,7 +5761,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5265,6 +5793,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5290,7 +5819,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5322,6 +5851,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5347,7 +5877,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5379,6 +5909,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5404,7 +5935,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5436,7 +5967,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5462,7 +5993,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5494,7 +6025,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5520,7 +6051,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5552,7 +6083,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5578,7 +6109,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5610,7 +6141,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5645,7 +6176,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5677,7 +6208,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Business customer not found. */
             404: {
@@ -5703,7 +6234,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5735,7 +6266,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5761,7 +6292,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5793,7 +6324,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Managed profile or corridor is not authorized. */
+            /** @description Managed profile or corridor is not authorized. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer provider mutation: MANAGED_PROFILE_REQUIRES_API_CREDENTIAL. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Customer not found. */
             404: {
@@ -5819,7 +6350,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -5858,7 +6389,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedSelectorErrorResponse"];
                 };
             };
-            /** @description The credential is not linked to a user. */
+            /** @description The credential is not linked to a user. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5883,7 +6414,7 @@ export interface operations {
                 limit?: number;
                 /** @description Number of records to skip. */
                 offset?: number;
-                /** @description Lifecycle records to include. */
+                /** @description active lists eligible active children of the actor's one organization. Both deleted and all require the actor's own active manager configuration and return only that owner's children; invited members cannot use these retained filters. */
                 status?: "active" | "deleted" | "all";
             };
             header?: never;
@@ -5892,7 +6423,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The authenticated manager's current policy, a page of owned managed profiles, and offset pagination metadata. */
+            /** @description Actor identity and independent capability flags, eligible membership-decorated children, and offset pagination. An empty default list is successful, including when both flags are false. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5919,7 +6450,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_OWNER_REQUIRED: status=deleted or status=all without the actor's own active manager configuration. MANAGED_PROFILE_ACCESS_DENIED: direct child credential. CREDENTIAL_MISMATCH: inconsistent key headers. No memberships is not a 403 for the default active list. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5928,7 +6459,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_CONFLICT`: a retained child has an invalid customer-entity layout. */
+            /** @description MANAGED_PROFILE_CONFLICT: access data becomes incomplete during response construction. Invalid child entity layouts are normally excluded by the eligibility query. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5997,7 +6528,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_MANAGER_NOT_FOUND`, `MANAGED_PROFILE_MANAGER_INACTIVE`, or `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active managed-profile manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description `MANAGED_PROFILE_MANAGER_NOT_FOUND`, `MANAGED_PROFILE_MANAGER_INACTIVE`, or `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active managed-profile manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. IMPERSONATION_NOT_ALLOWED: lifecycle mutations reject impersonation. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6029,7 +6560,10 @@ export interface operations {
     getManagedProfile: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path: {
                 /** @description Managed child profile ID. */
                 profileId: string;
@@ -6038,16 +6572,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Owned active or deleted managed profile. */
+            /** @description Actor with both independent flags and an eligible active child, or an owner-only retained child read without a selector. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManagedProfileResponse"];
+                    "application/json": components["schemas"]["ManagedProfileAccessResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID. */
+            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID. INVALID_MANAGED_PROFILE_ID may be returned by path-child authorization before controller validation. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6065,7 +6599,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_MEMBERSHIP_INVALID: explicit matching-selector bootstrap has an actor membership for the child's owner overlapping the child's lifetime but is no longer eligible (including revoked membership, deleted child even for its owner, disabled owner or invalid entity). MANAGED_PROFILE_ACCESS_DENIED: selector/path mismatch, direct child credentials, or an ordinary active-child member read with inactive owner/invalid layout. CREDENTIAL_MISMATCH: inconsistent key headers. The bootstrap rule applies to bearer and member-secret callers. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6074,17 +6608,8 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager. */
+            /** @description MANAGED_PROFILE_NOT_FOUND: unknown child or ordinary read without active membership; invited-member or otherwise ineligible retained read without a selector. Callers with no owner-matching membership interval overlapping the child's lifetime receive the same masked 404 for existing and unknown children, even with a matching selector. Historic org membership is insufficient for a child created after revocation or wholly within a membership gap. */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ManagedProfileErrorResponse"];
-                };
-            };
-            /** @description `MANAGED_PROFILE_CONFLICT`: the retained child has an invalid customer-entity layout. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6140,7 +6665,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated profile is not an active manager, or is a direct managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_OWNER_REQUIRED: a non-owner has an active manager or read_only membership. MANAGED_PROFILE_ACCESS_DENIED: the immutable owner's configuration is inactive, or a direct child credential was used. CREDENTIAL_MISMATCH: inconsistent key headers. IMPERSONATION_NOT_ALLOWED: lifecycle mutations reject impersonation. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6149,7 +6674,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_NOT_FOUND`: the child does not exist or is not owned by this manager. */
+            /** @description MANAGED_PROFILE_NOT_FOUND: missing child or a non-owner without active membership. Outsiders receive the same masked error for existing and unknown children. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6172,7 +6697,10 @@ export interface operations {
     listManagedProfileApiCredentials: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path: {
                 /** @description Managed child profile ID. */
                 profileId: string;
@@ -6190,7 +6718,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListApiCredentialsResponse"];
                 };
             };
-            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID. */
+            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId is not a UUID. INVALID_MANAGED_PROFILE_ID may be returned by path-child authorization before controller validation. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6208,7 +6736,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_ACCESS_DENIED for inactive owner, invalid child layout, direct child credential or selector/path mismatch; CREDENTIAL_MISMATCH for inconsistent key headers. MANAGED_PROFILE_MANAGER_REQUIRED for read_only mutations; IMPERSONATION_NOT_ALLOWED for credential mutations under impersonation. CREDENTIAL_ACCESS_DENIED if service-level owner or membership authority is no longer active. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6217,7 +6745,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager. */
+            /** @description MANAGED_PROFILE_NOT_FOUND: inactive/missing child or missing membership. CREDENTIAL_NOT_FOUND: credential is outside this child's scope or the service cannot resolve the child. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6240,7 +6768,10 @@ export interface operations {
     createManagedProfileApiCredential: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path: {
                 /** @description Managed child profile ID. */
                 profileId: string;
@@ -6262,7 +6793,7 @@ export interface operations {
                     "application/json": components["schemas"]["CreateApiCredentialResponse"];
                 };
             };
-            /** @description Invalid profileId, credential name, or expiry. */
+            /** @description Invalid profileId, credential name, or expiry. INVALID_MANAGED_PROFILE_ID may be returned by path-child authorization before controller validation. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6280,7 +6811,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_ACCESS_DENIED for inactive owner, invalid child layout, direct child credential or selector/path mismatch; CREDENTIAL_MISMATCH for inconsistent key headers. MANAGED_PROFILE_MANAGER_REQUIRED for read_only mutations; IMPERSONATION_NOT_ALLOWED for credential mutations under impersonation. CREDENTIAL_ACCESS_DENIED if service-level owner or membership authority is no longer active. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6289,7 +6820,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_NOT_FOUND`: the active child does not exist or is not owned by this manager. */
+            /** @description MANAGED_PROFILE_NOT_FOUND: inactive/missing child or missing membership. CREDENTIAL_NOT_FOUND: credential is outside this child's scope or the service cannot resolve the child. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6321,7 +6852,10 @@ export interface operations {
     revokeManagedProfileApiCredential: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
             path: {
                 /** @description Managed child profile ID. */
                 profileId: string;
@@ -6339,7 +6873,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId or credentialId is not a UUID. */
+            /** @description `MANAGED_PROFILE_INVALID_INPUT`: profileId or credentialId is not a UUID. INVALID_MANAGED_PROFILE_ID may be returned by path-child authorization before controller validation. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6357,7 +6891,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_ACCESS_DENIED`: the manager is inactive. `MANAGED_PROFILE_ACCESS_DENIED`: the authenticated credential belongs directly to a managed child. `CREDENTIAL_MISMATCH` is returned when public and secret headers identify different credentials. */
+            /** @description MANAGED_PROFILE_ACCESS_DENIED for inactive owner, invalid child layout, direct child credential or selector/path mismatch; CREDENTIAL_MISMATCH for inconsistent key headers. MANAGED_PROFILE_MANAGER_REQUIRED for read_only mutations; IMPERSONATION_NOT_ALLOWED for credential mutations under impersonation. CREDENTIAL_ACCESS_DENIED if service-level owner or membership authority is no longer active. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6366,7 +6900,7 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_NOT_FOUND`: the active child or credential does not exist, or is not owned by this manager. */
+            /** @description MANAGED_PROFILE_NOT_FOUND: inactive/missing child or missing membership. CREDENTIAL_NOT_FOUND: credential is outside this child's scope or the service cannot resolve the child. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6490,7 +7024,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -6518,6 +7052,7 @@ export interface operations {
             };
             /** @description Authentication required. */
             401: components["responses"]["ManagedSelectorUnauthorized"];
+            /** @description Managed access denied. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: components["responses"]["ManagedSelectorForbidden"];
             /** @description Onboarding aggregation failed. */
             500: {
@@ -6530,11 +7065,449 @@ export interface operations {
             };
         };
     };
+    getOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The actor's live organization or null; independent of child count. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    previewOrganizationMemberInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: components["parameters"]["MembershipInvitationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified-email invitation preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewManagedProfileInvitationResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for a non-UUID invitationId; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    acceptOrganizationMemberInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: components["parameters"]["MembershipInvitationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership accepted, or unchanged valid replay. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptManagedProfileInvitationResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for a non-UUID invitationId; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            /** @description ORGANIZATION_MEMBERSHIP_CONFLICT for second-org acceptance, including owners with disabled configuration; INVITATION_ACCEPTED, INVITATION_CANCELLED, INVITATION_EXPIRED, or MEMBERSHIP_ALREADY_EXISTS for existing/terminal access. Accepted replay is successful only under the documented active-role condition. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+                };
+            };
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    listOrganizationMemberEvents: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+                limit?: components["parameters"]["MembershipLimit"];
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Access events and cursor pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListManagedProfileMemberEventsResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for missing or malformed expectedOwnerProfileId; INVALID_PAGINATION for invalid limit/offset or event cursor, including a cursor outside the organization; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            409: components["responses"]["OrganizationContextChanged"];
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    listOrganizationMemberInvitations: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+                limit?: components["parameters"]["MembershipLimit"];
+                offset?: components["parameters"]["MembershipOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All invitation statuses and offset pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListManagedProfileInvitationsResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for missing or malformed expectedOwnerProfileId; INVALID_PAGINATION for invalid limit/offset; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            409: components["responses"]["OrganizationContextChanged"];
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    createOrganizationMemberInvitation: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "email": "operator@example.com",
+                 *       "role": "manager"
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateManagedProfileInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Identical pending invitation; no duplicate email. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileInvitationResponse"];
+                };
+            };
+            /** @description Invitation created and email queued. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileInvitationResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for missing or malformed expectedOwnerProfileId; INVALID_MEMBERSHIP_ROLE or INVALID_INVITATION_EMAIL for invalid input; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            /** @description ORGANIZATION_CONTEXT_CHANGED when expectedOwnerProfileId differs from the actor's current org; INVITATION_ROLE_CONFLICT or MEMBERSHIP_ALREADY_EXISTS for invitation conflicts. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"] | components["schemas"]["OrganizationContextChangedErrorResponse"];
+                };
+            };
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    cancelOrganizationMemberInvitation: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+            };
+            header?: never;
+            path: {
+                invitationId: components["parameters"]["MembershipInvitationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitation cancelled; empty body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for non-UUID path IDs or missing/malformed expectedOwnerProfileId. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            /** @description INVITATION_NOT_FOUND: no invitation with this ID in the authorized organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+                };
+            };
+            /** @description ORGANIZATION_CONTEXT_CHANGED when expectedOwnerProfileId differs from the actor's current org; INVITATION_ACCEPTED, INVITATION_CANCELLED, or INVITATION_EXPIRED for terminal invitations. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"] | components["schemas"]["OrganizationContextChangedErrorResponse"];
+                };
+            };
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    listOrganizationMembers: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+                limit?: components["parameters"]["MembershipLimit"];
+                offset?: components["parameters"]["MembershipOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active members and offset pagination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListManagedProfileMembersResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for missing or malformed expectedOwnerProfileId; INVALID_PAGINATION for invalid limit/offset; MANAGED_PROFILE_UNSUPPORTED for any managed selector. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            409: components["responses"]["OrganizationContextChanged"];
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    removeOrganizationMember: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+            };
+            header?: never;
+            path: {
+                /** @description Authenticated member profile UUID, not the membership row ID. */
+                memberProfileId: components["parameters"]["MembershipMemberProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member revoked; empty body. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for non-UUID path IDs or missing/malformed expectedOwnerProfileId. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            /** @description MEMBER_NOT_FOUND: no active target or same-actor revocation retry. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+                };
+            };
+            /** @description ORGANIZATION_CONTEXT_CHANGED when expectedOwnerProfileId differs from the actor's current org; MANAGED_PROFILE_OWNER_MEMBERSHIP_REQUIRED when removing the protected owner. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"] | components["schemas"]["OrganizationContextChangedErrorResponse"];
+                };
+            };
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
+    changeOrganizationMemberRole: {
+        parameters: {
+            query: {
+                /**
+                 * @description Required displayed-organization precondition on all seven scoped Team operations. Capture ownerProfileId from the organization being displayed and keep it with the request/dialog. The current organization is derived server-side and live service authorization still applies; this is not authority or a multi-org selector. Missing or malformed expectedOwnerProfileId returns 400 MANAGED_PROFILE_INVALID_INPUT; an expected owner different from the actor's current organization returns 409 ORGANIZATION_CONTEXT_CHANGED. Refresh organization context and require a new user decision, never retry an old dialog automatically against the new org. Discovery GET /v1/organization and invitee locator routes are exempt.
+                 * @example 00000000-0000-0000-0000-000000000001
+                 */
+                expectedOwnerProfileId: components["parameters"]["ExpectedOwnerProfileId"];
+            };
+            header?: never;
+            path: {
+                /** @description Authenticated member profile UUID, not the membership row ID. */
+                memberProfileId: components["parameters"]["MembershipMemberProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "role": "read_only"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ChangeManagedProfileMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Current member role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileMemberResponse"];
+                };
+            };
+            /** @description MANAGED_PROFILE_INVALID_INPUT for non-UUID path IDs or missing/malformed expectedOwnerProfileId; INVALID_MEMBERSHIP_ROLE unless role is manager or read_only. Malformed JSON is rejected before route authentication. */
+            400: components["responses"]["MembershipBadRequest"];
+            401: components["responses"]["MembershipUnauthorized"];
+            403: components["responses"]["MembershipForbidden"];
+            /** @description MEMBER_NOT_FOUND: no active target member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"];
+                };
+            };
+            /** @description ORGANIZATION_CONTEXT_CHANGED when expectedOwnerProfileId differs from the actor's current org; MANAGED_PROFILE_OWNER_MEMBERSHIP_REQUIRED when changing the protected owner. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedProfileErrorResponse"] | components["schemas"]["OrganizationContextChangedErrorResponse"];
+                };
+            };
+            413: components["responses"]["MembershipPayloadTooLarge"];
+            429: components["responses"]["MembershipRateLimited"];
+            500: components["responses"]["MembershipInternalError"];
+            503: components["responses"]["MembershipAuthUnavailable"];
+        };
+    };
     createQuote: {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -6659,7 +7632,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Partner authorization or managed-profile authorization failed. */
+            /** @description Partner authorization or managed-profile authorization failed. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6698,7 +7671,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -6785,7 +7758,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Partner authorization or managed-profile authorization failed. */
+            /** @description Partner authorization or managed-profile authorization failed. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6824,7 +7797,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -6859,7 +7832,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiCredentialManagedSelectorErrorResponse"];
                 };
             };
-            /** @description `CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials. */
+            /** @description `CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6874,7 +7847,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path: {
@@ -6912,7 +7885,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp does not belong to authenticated principal. */
+            /** @description Ramp does not belong to authenticated principal. Missing or invalid membership uses MANAGED_PROFILE_ACCESS_DENIED. Where owner corridor/type policy is checked, denial uses MANAGED_PROFILE_POLICY_DENIED. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6934,7 +7907,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -7108,7 +8081,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. */
+            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer ramp mutation: MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; no drain exception. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7137,7 +8110,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -7257,7 +8230,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer ramp mutation: MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; no drain exception. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7286,7 +8259,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Selects one child through the actor's live manager or read_only organization membership. Use a member-owned secret X-API-Key or, for allowed read/manage operations, a Supabase Bearer session. Public keys and direct child credentials cannot select a child. The immutable owner's active relationship and current corridor/type policy govern access, not the member's personal manager policy. read_only permits only read capability (including quote creation). credential_manage provider/KYC mutations require a manager membership and member-owned secret (403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL for bearer); ramp register/update/start likewise require a secret (403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL), with bearer denial before body parsing and no drain exception. Role denial is MANAGED_PROFILE_MANAGER_REQUIRED; policy denial is MANAGED_PROFILE_POLICY_DENIED. On GET /v1/managed-profiles/{profileId}, an exactly matching selector explicitly requests bootstrap: an actor membership for the child's owner must overlap that child's lifetime before ineligibility returns MANAGED_PROFILE_MEMBERSHIP_INVALID. The same row must satisfy membership.createdAt <= (child.deletedAt ?? now) and (membership.revokedAt IS NULL or membership.revokedAt > child.createdAt). A child created after revocation or wholly within a membership gap receives masked 404 even with historic org membership; never-member existing/unknown probes are also masked identically. Bearer and member-secret callers use the same checks. Retained deleted-child reads require the active immutable owner and no selector. Other delegated probes use MANAGED_PROFILE_ACCESS_DENIED where applicable. Invalid UUIDs return 400 INVALID_MANAGED_PROFILE_ID. See each operation for restrictions. */
                 "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
             };
             path?: never;
@@ -7419,7 +8392,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. Managed role denial: MANAGED_PROFILE_MANAGER_REQUIRED; owner-policy denial: MANAGED_PROFILE_POLICY_DENIED. Bearer ramp mutation: MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL; no drain exception. */
             403: {
                 headers: {
                     [name: string]: unknown;

@@ -19,7 +19,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CHILD_CREDENTIAL_WARNING } from "@/domain/api-credentials";
 import { useCreateApiCredential } from "@/hooks/useApiCredentials";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 const schema = z
   .object({
@@ -47,6 +49,7 @@ function expirationDate(values: FormValues): string {
 }
 
 export function CreateApiCredentialDialog() {
+  const managedProfile = useManagedProfileSelection();
   const [open, setOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const createCredential = useCreateApiCredential();
@@ -92,7 +95,10 @@ export function CreateApiCredentialDialog() {
           Create credential
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl" showCloseButton={!createCredential.data || acknowledged}>
+      <DialogContent
+        className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl"
+        showCloseButton={!createCredential.data || acknowledged}
+      >
         {createCredential.data ? (
           <CreatedCredential
             acknowledged={acknowledged}
@@ -106,7 +112,9 @@ export function CreateApiCredentialDialog() {
             <DialogHeader>
               <DialogTitle>Create API credential</DialogTitle>
               <DialogDescription>
-                Use this credential from a trusted server to authenticate Vortex SDK requests.
+                {managedProfile
+                  ? CHILD_CREDENTIAL_WARNING
+                  : "Use this credential from a trusted server to authenticate Vortex SDK requests."}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>

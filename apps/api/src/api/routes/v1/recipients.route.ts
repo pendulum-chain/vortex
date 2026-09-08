@@ -1,4 +1,4 @@
-import { Request, Response, Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import {
   acceptInvite,
   archiveInvitation,
@@ -11,10 +11,25 @@ import {
   updateRecipient,
   validateCreateInvite
 } from "../../controllers/recipients.controller";
-import { authorizeManagedProfile, rejectManagedProfileSelection } from "../../middlewares/managedProfileAuth";
+import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
+import {
+  authorizeManagedProfile,
+  ManagedProfileCapability,
+  rejectDirectManagedCredential,
+  rejectManagedProfileSelection
+} from "../../middlewares/managedProfileAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
+
+// Secret access is delegated only: do not expand the existing self/direct-child API surface.
+function requireRecipientSenderAuth(req: Request, res: Response, next: NextFunction): void {
+  if (req.get("X-Managed-Profile-Id") === undefined) {
+    requireAuth(req, res, next);
+    return;
+  }
+  void requirePartnerOrUserAuth()(req, res, next);
+}
 
 /**
  * POST /v1/recipients/invite
@@ -22,9 +37,10 @@ const router: Router = Router({ mergeParams: true });
  */
 router.post(
   "/invite",
-  requireAuth,
+  requireRecipientSenderAuth,
+  rejectDirectManagedCredential,
   validateCreateInvite,
-  authorizeManagedProfile({ corridor: req => req.body.country.toUpperCase() }),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Manage, corridor: req => req.body.country.toUpperCase() }),
   createInvite as unknown as (req: Request, res: Response) => void
 );
 
@@ -57,8 +73,9 @@ router.post(
  */
 router.get(
   "/",
-  requireAuth,
-  authorizeManagedProfile({ enforceCustomerTypePolicy: true }),
+  requireRecipientSenderAuth,
+  rejectDirectManagedCredential,
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read, enforceCustomerTypePolicy: true }),
   listRecipients as unknown as (req: Request, res: Response) => void
 );
 
@@ -69,8 +86,9 @@ router.get(
  */
 router.patch(
   "/invitations/:id",
-  requireAuth,
-  authorizeManagedProfile({ corridor: resolveInvitationAuthorizationTarget }),
+  requireRecipientSenderAuth,
+  rejectDirectManagedCredential,
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Manage, corridor: resolveInvitationAuthorizationTarget }),
   archiveInvitation as unknown as (req: Request<{ id: string }>, res: Response) => void
 );
 
@@ -80,8 +98,9 @@ router.patch(
  */
 router.patch(
   "/:id",
-  requireAuth,
-  authorizeManagedProfile({ corridor: resolveRecipientAuthorizationTarget }),
+  requireRecipientSenderAuth,
+  rejectDirectManagedCredential,
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Manage, corridor: resolveRecipientAuthorizationTarget }),
   updateRecipient as unknown as (req: Request<{ id: string }>, res: Response) => void
 );
 
@@ -91,8 +110,9 @@ router.patch(
  */
 router.get(
   "/:id/eligibility",
-  requireAuth,
-  authorizeManagedProfile({ corridor: resolveRecipientAuthorizationTarget }),
+  requireRecipientSenderAuth,
+  rejectDirectManagedCredential,
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read, corridor: resolveRecipientAuthorizationTarget }),
   getRecipientEligibility as unknown as (req: Request<{ id: string }>, res: Response) => void
 );
 

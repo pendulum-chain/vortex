@@ -10,6 +10,7 @@ declare global {
     interface Request {
       userId?: string;
       userEmail?: string;
+      emailConfirmedAt?: string;
       /** Set only when the caller presented an impersonation token; `userId` is the target. */
       impersonation?: ImpersonationContext;
     }
@@ -40,6 +41,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     req.userId = result.userId;
     req.userEmail = result.userEmail;
+    req.emailConfirmedAt = result.emailConfirmedAt;
     req.impersonation = result.impersonation;
     next();
   } catch (error) {
@@ -71,6 +73,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
     }
     req.userId = result.userId;
     req.userEmail = result.userEmail;
+    req.emailConfirmedAt = result.emailConfirmedAt;
     req.impersonation = result.impersonation;
     next();
   } catch (error) {

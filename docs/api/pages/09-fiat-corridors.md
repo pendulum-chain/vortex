@@ -39,7 +39,7 @@ Use `/v1/brl/*` for BRL account and verification operations. The previous `/v1/b
 
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
-A normal partner key cannot select an arbitrary user. An enabled managed-profile manager may use a secret `sk_*` key or Supabase session with `X-Managed-Profile-Id` to drive supported BR KYC operations for its directly managed child when the manager has the `BR` corridor and the child's immutable type is allowed by both current manager policy and Vortex's BR capability matrix. A null manager customer-type policy adds no further restriction. A public `pk_*` key is insufficient. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
+A normal partner key cannot select an arbitrary user. An active `manager` member may use its member-owned secret `sk_*` key and `X-Managed-Profile-Id` for supported BR KYC mutations when the immutable owner's current policy allows `BR` and the child's immutable type. Selected-child bearer sessions cannot perform provider mutations, including selfie/upload artifact creation; `manager` and `read_only` bearers may use supported status/account/document reads. Null owner customer-type policy adds no restriction beyond Vortex's BR capability matrix. Public keys cannot select children. When possible, use the Vortex application or hosted widget for onboarding. Business users can start verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 
 ### Individual KYC By API
 
@@ -57,7 +57,7 @@ Track the outcome through `GET /v1/brl/getKycStatus?taxId=<owned-tax-id>` or `GE
 
 An API-only alternative can import a caller-supplied Sumsub share token into an existing individual provider account. The path is enabled under approved Vortex policy even though final legal/consent wording, provider environment enablement, recipient IDs, and provider retry confirmations remain unresolved. This documentation does not claim that a live sandbox import has been verified.
 
-The direct profile or controlling manager first provisions exactly one active Brazilian individual provider customer through the normal account flow. Import the token before reading KYC or aggregate onboarding status: a status read permanently selects a still-null method as `standard`, after which token import returns `409`. Then call:
+The direct profile or authorized manager member first provisions exactly one active Brazilian individual provider customer through the normal account flow. Import the token before reading KYC or aggregate onboarding status: a status read permanently selects a still-null method as `standard`, after which token import returns `409`. Then call:
 
 ```http
 POST /v1/brl/kyc/import-token
@@ -72,7 +72,7 @@ Content-Type: application/json
 }
 ```
 
-Use either a profile-bound secret key or a Supabase Bearer session. Omit `X-Managed-Profile-Id` for a direct non-managed profile. For a managed child, only its controlling manager may import with the selector; direct managed-child credentials are rejected. Authentication and authorization happen before strict body validation, and Vortex transactionally rechecks the manager's active status, exact active relationship, current BR and individual permissions, and the child's active entity before preparing or submitting the import. Revocation before submission prevents the provider import call. The body allows exactly the two fields shown, `importToken` must contain 1 to 1024 UTF-8 bytes, and `consentAttested` must be literal `true`. Do not send CPF, tax ID, `subAccountId`, Sumsub applicant ID, profile/entity IDs, provider-customer IDs, or any other identity selector.
+For a direct non-managed profile, use a profile-bound secret or Supabase Bearer session without `X-Managed-Profile-Id`. For a selected child, an active `manager` member must use a member-owned secret; selected-child bearer sessions and direct child credentials are rejected. Authentication and authorization happen before strict body validation. Vortex rechecks membership authority, the active owner/relationship, current owner BR and individual permissions, and the child's active entity before preparing or submitting the import. Revocation before submission prevents the provider import call. The body allows exactly the two fields shown, `importToken` must contain 1 to 1024 UTF-8 bytes, and `consentAttested` must be literal `true`. Do not send CPF, tax ID, `subAccountId`, Sumsub applicant ID, profile/entity IDs, provider-customer IDs, or other identity selectors.
 
 Vortex records every token-claim attestation in the case's submission JSON as an append-only actor, subject, timestamp, and provisional consent-policy entry. A provider-`401` retry under a new key appends rather than replacing the earlier evidence. These attestations are not a substitute for the caller's legal basis, applicant disclosures, biometric or special-category consent, or cross-organization transfer obligations.
 
@@ -105,7 +105,7 @@ Treat the share token as a secret. Keep it only long enough to make this request
 
 ### Business KYB Level 1 By API
 
-Brazilian business verification (mode `api` in discovery) runs entirely through the API. Authentication is the same as the rest of the family: a profile-bound secret key or Supabase Bearer session, or a controlling manager using `X-Managed-Profile-Id` for a directly managed business child with the `BR` corridor. The subaccount must be a company (CNPJ) account; KYB operations on an individual account return `400`.
+Brazilian business verification (mode `api` in discovery) runs entirely through the API. Direct non-managed profiles use a profile-bound secret or Supabase Bearer session. Selected-child KYB mutations require a `manager` member's secret with `X-Managed-Profile-Id` and the owner's current `BR` policy; bearer sessions support reads only. Direct child secrets support these KYB operations without selection. The subaccount must be a company (CNPJ) account; KYB operations on an individual account return `400`.
 
 The sequence, including the readiness reads that discovery intentionally omits:
 
@@ -163,7 +163,7 @@ Onboarding can be completed three ways:
 
 Argentina business onboarding is not supported. After finalizing any flow, track the outcome through `GET /v1/onboarding/status`; provider review is asynchronous and there is no synchronous approval response.
 
-Ramp registration resolves KYC and payment identity from the effective profile, not from payment or identity fields in the request. Authenticate as the user through a user-scoped key or Supabase Bearer session. Alternatively, an enabled managed-profile manager may use its secret key or session with `X-Managed-Profile-Id`; Vortex verifies the direct child relationship, corridor, immutable customer type, optional manager narrowing, and canonical corridor/type support before resolving the child's KYC/provider records. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
+Ramp registration resolves KYC and payment identity from the effective profile, not from request identity fields. Non-managed users authenticate with a user-scoped key or Supabase Bearer session. Selected-child register/update/start require an active `manager` member's secret and `X-Managed-Profile-Id`, never a bearer; there is no drain exception. Vortex verifies membership, active owner/child relationship, immutable customer type and current owner corridor/type policy. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Quotes remain available anonymously for rate discovery; selected-child quote creation is a `read` capability available to either membership role. Eligibility is enforced at registration time, not quote time.
 
 ### Fiat Accounts
 

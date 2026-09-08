@@ -4,12 +4,8 @@ import { type ListManagedProfilesParams, ManagedProfilesService } from "@/servic
 
 export const MANAGED_PROFILES_QUERY_KEY = "managed-profiles";
 
-export function isManagedProfilesAccessDenied(error: unknown): boolean {
-  return isApiError(error) && error.status === 403 && error.data.code === "MANAGED_PROFILE_ACCESS_DENIED";
-}
-
 export function shouldRetryManagedProfilesQuery(failureCount: number, error: unknown): boolean {
-  return !isManagedProfilesAccessDenied(error) && failureCount < 2;
+  return !(isApiError(error) && error.status >= 400 && error.status < 500) && failureCount < 2;
 }
 
 export function useManagedProfiles(params: ListManagedProfilesParams = {}, enabled = true) {
@@ -18,6 +14,7 @@ export function useManagedProfiles(params: ListManagedProfilesParams = {}, enabl
     placeholderData: keepPreviousData,
     queryFn: ({ signal }) => ManagedProfilesService.list(params, signal),
     queryKey: [MANAGED_PROFILES_QUERY_KEY, params],
+    refetchOnWindowFocus: "always",
     retry: shouldRetryManagedProfilesQuery
   });
 }

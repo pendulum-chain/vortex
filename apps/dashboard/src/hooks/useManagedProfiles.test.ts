@@ -1,16 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ApiError } from "@/services/api/api-client";
-import { isManagedProfilesAccessDenied, shouldRetryManagedProfilesQuery } from "./useManagedProfiles";
+import { shouldRetryManagedProfilesQuery } from "./useManagedProfiles";
 
 describe("managed profile capability detection", () => {
-  it("recognizes only the exact access-denied response as non-manager capability", () => {
-    const denied = new ApiError(403, { code: "MANAGED_PROFILE_ACCESS_DENIED" }, "Denied");
-    const transientForbidden = new ApiError(403, { code: "UPSTREAM_UNAVAILABLE" }, "Unavailable");
-
-    assert.equal(isManagedProfilesAccessDenied(denied), true);
-    assert.equal(isManagedProfilesAccessDenied(transientForbidden), false);
-    assert.equal(isManagedProfilesAccessDenied(new Error("Network failure")), false);
+  it("does not automatically retry client failures", () => {
+    for (const status of [400, 401, 403, 404, 429]) {
+      assert.equal(shouldRetryManagedProfilesQuery(0, new ApiError(status, {}, "Failed")), false);
+    }
   });
 
   it("retries transient failures but not definitive access denial", () => {

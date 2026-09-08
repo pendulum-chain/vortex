@@ -1,6 +1,13 @@
 import type { Page } from "@playwright/test";
+import type {
+  InvitationPreview,
+  MemberEvent,
+  MemberInvitation,
+  Organization,
+  TeamMember
+} from "../../src/services/api/managed-profile-memberships.service";
 import { MOCK_WALLET_ADDRESS } from "./mockWallet";
-import { E2E_USER_ID } from "./session";
+import { E2E_USER_EMAIL, E2E_USER_ID } from "./session";
 
 export const APP_ORIGIN = "http://127.0.0.1:5174";
 export const E2E_RAMP_ID = "ramp-e2e-1";
@@ -8,6 +15,7 @@ export const E2E_QUOTE_ID = "quote-e2e-1";
 export const E2E_FIAT_ACCOUNT_ID = "fiat-account-e2e-mx";
 export const E2E_FIAT_ACCOUNT_ID_2 = "fiat-account-e2e-mx-2";
 export const E2E_MANAGED_PROFILE_ID = "managed-profile-e2e-child-1";
+export const E2E_ORGANIZATION_OWNER_ID = "11111111-1111-4111-8111-111111111111";
 export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
@@ -253,6 +261,20 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
+  organizationInventories?: Record<
+    string,
+    {
+      managedProfiles: NonNullable<MockBackendOptions["managedProfiles"]>;
+      team: NonNullable<MockBackendOptions["team"]>;
+    }
+  >;
+  organization?: Organization | null;
+  team?: { members: TeamMember[]; invitations: MemberInvitation[]; events: MemberEvent[] };
+  memberInvitation?: {
+    preview: InvitationPreview;
+    previewError?: { code: string; status: number };
+    acceptError?: { code: string; status: number };
+  };
   apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
@@ -276,12 +298,24 @@ interface MockBackendOptions {
   pendingInvitations?: Array<Record<string, unknown>>;
   // Capability roles returned on GET /v1/onboarding/status (default: none).
   roles?: string[];
-  // Enables manager lifecycle access. The default 403 mirrors an ordinary dashboard user.
+  // The actor's own active manager configuration, independent of child membership.
+  canProvisionManagedProfiles?: boolean;
+  // Whether the fixtures' controlling owners are active, independent of the actor's own configuration.
+  managedProfileOwnerActive?: boolean;
+  // Stored membership history for children no longer in the active fixture roster.
+  previousManagedProfileIds?: string[];
+  // Ordinary users receive 200 with no profiles and both navigation flags false.
   managedProfiles?: Array<{
     contactEmail: string | null;
     customerType: "business" | "individual";
     externalSubjectId: string;
+    membership: { isOwner: boolean; role: "manager" | "read_only" };
+    policy: {
+      allowedCorridors: Array<"AR" | "BR" | "CO" | "EU" | "MX" | "US">;
+      allowedCustomerTypes: Array<"business" | "individual"> | null;
+    };
     profileId: string;
+    status: "active" | "deleted";
   }>;
   // Response for POST /v1/recipients/invite/:token/accept (default: an accepted MX individual invite).
   acceptInvite?: { status: number; body: Record<string, unknown> };
@@ -397,6 +431,33 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
+  // Child fixtures are organization inventory. A null membership keeps all of them
+  // inaccessible until acceptance; newly appended children inherit the same authority.
+  if (options.organization === undefined) {
+    const membership = options.managedProfiles?.[0]?.membership;
+    options.organization =
+      membership || options.canProvisionManagedProfiles
+        ? {
+            membership: membership ?? { isOwner: true, role: "manager" },
+            ownerEmail: membership?.isOwner === false ? "owner@example.test" : E2E_USER_EMAIL,
+            ownerProfileId: membership?.isOwner === false ? E2E_ORGANIZATION_OWNER_ID : E2E_USER_ID
+          }
+        : null;
+  }
+  const knownManagedProfileIds = new Set([
+    ...(options.managedProfiles ?? []).map(profile => profile.profileId),
+    ...(options.previousManagedProfileIds ?? [])
+  ]);
+  const membershipRequests: Array<{ method: string; path: string; body: Record<string, unknown> | null; search: string }> = [];
+  const team = options.team ?? { events: [], invitations: [], members: [] };
+  const inventories = options.organizationInventories ?? {
+    [options.organization?.ownerProfileId ??
+      options.memberInvitation?.preview.organization.ownerProfileId ??
+      E2E_ORGANIZATION_OWNER_ID]: {
+      managedProfiles: options.managedProfiles ?? [],
+      team
+    }
+  };
   const apiRequests: Array<{ managedProfileId: string | undefined; method: string; path: string }> = [];
   const apiCredentialRequests: Array<{ body: Record<string, unknown> | null; method: string; path: string }> = [];
   const limitsRequests: Array<Record<string, unknown>> = [];
@@ -470,6 +531,19 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     apiRequests.push({ managedProfileId: request.headers()["x-managed-profile-id"], method, path });
 
     const fulfillJson = (body: unknown, code = 200) => route.fulfill({ json: body as object, status: code });
+    const organization = options.managedProfileOwnerActive === false ? null : options.organization;
+    const inventory = organization ? inventories[organization.ownerProfileId] : undefined;
+    const eligibleProfiles = organization
+      ? (inventory?.managedProfiles ?? [])
+          .filter(profile => profile.status === "active")
+          .map(profile => ({ ...profile, membership: { ...organization.membership } }))
+      : [];
+    for (const profile of eligibleProfiles) knownManagedProfileIds.add(profile.profileId);
+    const managedProfileActor = {
+      canProvisionManagedProfiles: options.canProvisionManagedProfiles === true,
+      hasMemberships: !!organization,
+      profileId: E2E_USER_ID
+    };
 
     // Auth shapes mirror apps/api/src/api/controllers/auth.controller.ts: snake_case on the
     // wire, mapped to camelCase by src/services/api/auth.api.ts.
@@ -503,17 +577,233 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    if (path === "/v1/managed-profiles" && method === "GET") {
-      if (!options.managedProfiles) {
-        await fulfillJson({ code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Managed profile access denied" }, 403);
+    const teamPath = path.match(/^\/v1\/organization\/(members|member-invitations|member-events)(?:\/([^/]+))?$/);
+    const inviteePath = path.match(/^\/v1\/organization-member-invitations\/([^/]+)(\/accept)?$/);
+    if (teamPath || inviteePath || path === "/v1/organization") {
+      const body = request.postData() ? (request.postDataJSON() as Record<string, unknown>) : null;
+      if (teamPath || inviteePath) membershipRequests.push({ body, method, path, search: url.search });
+      if (
+        !request.headers().authorization ||
+        request.headers().authorization.startsWith("Bearer vtx_imp_") ||
+        request.headers()["x-managed-profile-id"] ||
+        request.headers()["x-api-key"] ||
+        request.headers()["x-public-key"]
+      ) {
+        await fulfillJson({ error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "A Supabase session is required" } }, 403);
         return;
       }
+      if (path === "/v1/organization") {
+        await fulfillJson({ organization });
+        return;
+      }
+      if (inviteePath) {
+        const fixture = options.memberInvitation;
+        const failure = method === "POST" ? fixture?.acceptError : fixture?.previewError;
+        const email = String(verifyOtpRequests.at(-1)?.email ?? E2E_USER_EMAIL).toLowerCase();
+        if (
+          failure ||
+          !fixture ||
+          fixture.preview.invitation.id !== inviteePath[1] ||
+          fixture.preview.invitation.email.toLowerCase() !== email
+        ) {
+          await fulfillJson(
+            { error: { code: failure?.code ?? "MANAGED_PROFILE_ACCESS_DENIED", message: "Invitation unavailable" } },
+            failure?.status ?? 403
+          );
+          return;
+        }
+        if (method === "GET") {
+          await fulfillJson(fixture.preview);
+        } else {
+          const invitation = fixture.preview.invitation;
+          if (organization && organization.ownerProfileId !== invitation.ownerProfileId) {
+            await fulfillJson(
+              { error: { code: "ORGANIZATION_MEMBERSHIP_CONFLICT", message: "Already in another organization" } },
+              409
+            );
+            return;
+          }
+          if (invitation.status !== "pending") {
+            await fulfillJson(
+              { error: { code: `INVITATION_${invitation.status.toUpperCase()}`, message: "Invitation is no longer pending" } },
+              409
+            );
+            return;
+          }
+          const team = inventories[invitation.ownerProfileId]?.team;
+          if (!team) throw new Error("Missing invitation organization inventory");
+          invitation.status = "accepted";
+          invitation.acceptedAt = new Date().toISOString();
+          const member: TeamMember = {
+            createdAt: invitation.acceptedAt,
+            email: invitation.email,
+            id: "accepted-member",
+            isOwner: false,
+            memberProfileId: E2E_USER_ID,
+            role: invitation.role,
+            updatedAt: invitation.acceptedAt
+          };
+          team.members.push(member);
+          options.organization = {
+            ...fixture.preview.organization,
+            membership: { isOwner: false, role: invitation.role }
+          };
+          const { email: _email, ...acceptedMember } = member;
+          await fulfillJson({ member: acceptedMember, ownerProfileId: invitation.ownerProfileId });
+        }
+        return;
+      }
+      if (teamPath) {
+        const [, resource, targetId] = teamPath;
+        const expectedOwnerIds = url.searchParams.getAll("expectedOwnerProfileId");
+        const expectedOwnerProfileId = expectedOwnerIds[0] ?? "";
+        if (
+          expectedOwnerIds.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedOwnerProfileId)
+        ) {
+          await fulfillJson(
+            { error: { code: "MANAGED_PROFILE_INVALID_INPUT", message: "Expected organization owner must be a UUID" } },
+            400
+          );
+          return;
+        }
+        const team = inventory?.team;
+        if (!organization || !team) {
+          await fulfillJson(
+            { error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Managed-profile access is denied" } },
+            403
+          );
+          return;
+        }
+        if (organization.ownerProfileId !== expectedOwnerProfileId) {
+          await fulfillJson({ error: { code: "ORGANIZATION_CONTEXT_CHANGED", message: "Your organization changed" } }, 409);
+          return;
+        }
+        if (method !== "GET" && organization.membership.role !== "manager") {
+          await fulfillJson(
+            { error: { code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Organization access is read-only" } },
+            403
+          );
+          return;
+        }
+        const limit = Number(url.searchParams.get("limit") ?? 50);
+        const offset = Number(url.searchParams.get("offset") ?? 0);
+        if (method === "GET") {
+          if (resource === "member-events") {
+            const cursor = url.searchParams.get("cursor");
+            const start = cursor ? team.events.findIndex(event => event.id === cursor) + 1 : 0;
+            const events = team.events.slice(start, start + limit);
+            await fulfillJson({
+              events,
+              pagination: { limit, nextCursor: team.events.length > start + limit ? events.at(-1)?.id : null }
+            });
+          } else {
+            const rows = resource === "members" ? team.members : team.invitations;
+            await fulfillJson({
+              [resource === "members" ? "members" : "invitations"]: rows.slice(offset, offset + limit),
+              pagination: { limit, offset, total: rows.length }
+            });
+          }
+          return;
+        }
+        const now = new Date().toISOString();
+        let action: MemberEvent["action"] = "invited";
+        let role = body?.role === "manager" ? ("manager" as const) : ("read_only" as const);
+        let previousRole: MemberEvent["previousRole"] = null;
+        if (resource === "members") {
+          const index = team.members.findIndex(member => member.memberProfileId === targetId);
+          const member = team.members[index];
+          if (!member || member.isOwner) {
+            await fulfillJson(
+              { error: { code: "MANAGED_PROFILE_OWNER_MEMBERSHIP_REQUIRED", message: "Owner access cannot be changed" } },
+              409
+            );
+            return;
+          }
+          previousRole = member.role;
+          if (method === "PATCH") {
+            action = "role_changed";
+            member.role = role;
+            if (targetId === E2E_USER_ID) organization.membership.role = role;
+            await fulfillJson({ member });
+          } else {
+            action = "member_removed";
+            role = member.role;
+            team.members.splice(index, 1);
+            if (targetId === E2E_USER_ID) options.organization = null;
+            await route.fulfill({ status: 204 });
+          }
+        } else if (method === "POST") {
+          const invitation: MemberInvitation = {
+            acceptedAt: null,
+            cancelledAt: null,
+            createdAt: now,
+            email: String(body?.email).trim().toLowerCase(),
+            expiredAt: null,
+            expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(),
+            id: `team-invitation-${team.invitations.length + 1}`,
+            invitedByProfileId: E2E_USER_ID,
+            ownerProfileId: organization.ownerProfileId,
+            role,
+            status: "pending"
+          };
+          team.invitations.unshift(invitation);
+          await fulfillJson({ invitation }, 201);
+        } else {
+          const invitation = team.invitations.find(item => item.id === targetId);
+          if (!invitation || invitation.status !== "pending") {
+            await fulfillJson({ error: { code: "INVITATION_CANCELLED", message: "Invitation is no longer pending" } }, 409);
+            return;
+          }
+          invitation.status = "cancelled";
+          invitation.cancelledAt = now;
+          action = "invitation_cancelled";
+          role = invitation.role;
+          await route.fulfill({ status: 204 });
+        }
+        team.events.unshift({
+          action,
+          actorProfileId: E2E_USER_ID,
+          createdAt: now,
+          id: `team-event-${team.events.length + 1}`,
+          invitationId: resource === "member-invitations" ? (targetId ?? team.invitations[0].id) : null,
+          memberProfileId: resource === "members" ? targetId : null,
+          previousRole,
+          role
+        });
+        return;
+      }
+    }
+
+    if (/^\/v1\/managed-profiles\/[^/]+$/.test(path) && method === "GET") {
+      const profileId = path.split("/").at(-1);
+      const managedProfile = eligibleProfiles.find(profile => profile.profileId === profileId);
+      if (!managedProfile) {
+        const bootstrap = request.headers()["x-managed-profile-id"] === profileId;
+        const relationship = inventory?.managedProfiles.find(profile => profile.profileId === profileId);
+        const code =
+          bootstrap && knownManagedProfileIds.has(profileId ?? "")
+            ? "MANAGED_PROFILE_MEMBERSHIP_INVALID"
+            : relationship?.status === "active"
+              ? "MANAGED_PROFILE_ACCESS_DENIED"
+              : "MANAGED_PROFILE_NOT_FOUND";
+        await fulfillJson(
+          { error: { code, message: "Managed profile is unavailable" } },
+          code === "MANAGED_PROFILE_NOT_FOUND" ? 404 : 403
+        );
+        return;
+      }
+      await fulfillJson({ actor: managedProfileActor, managedProfile });
+      return;
+    }
+
+    if (path === "/v1/managed-profiles" && method === "GET") {
       const limit = Number(url.searchParams.get("limit") ?? 20);
       const offset = Number(url.searchParams.get("offset") ?? 0);
       await fulfillJson({
-        managedProfiles: options.managedProfiles.slice(offset, offset + limit),
-        manager: { allowedCorridors: ["MX"], allowedCustomerTypes: null, profileId: E2E_USER_ID },
-        pagination: { limit, offset, total: options.managedProfiles.length }
+        actor: managedProfileActor,
+        managedProfiles: eligibleProfiles.slice(offset, offset + limit),
+        pagination: { limit, offset, total: eligibleProfiles.length }
       });
       return;
     }
@@ -611,12 +901,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    if (path === "/v1/api-credentials" && method === "GET") {
+    const isChildCredentialPath = /^\/v1\/managed-profiles\/[^/]+\/api-credentials(?:\/[^/]+)?$/.test(path);
+
+    if ((path === "/v1/api-credentials" || isChildCredentialPath) && method === "GET") {
       await fulfillJson({ credentials: apiCredentials });
       return;
     }
 
-    if (path === "/v1/api-credentials" && method === "POST") {
+    if ((path === "/v1/api-credentials" || isChildCredentialPath) && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       apiCredentialRequests.push({ body, method, path });
       const credentialId = `credential-e2e-${apiCredentialRequests.length}`;
@@ -645,7 +937,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    if (path.startsWith("/v1/api-credentials/") && method === "DELETE") {
+    if ((path.startsWith("/v1/api-credentials/") || isChildCredentialPath) && method === "DELETE") {
       apiCredentialRequests.push({
         body: request.postData() ? (request.postDataJSON() as Record<string, unknown>) : null,
         method,
@@ -1173,12 +1465,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     kyc,
     kycFormSubmissions,
     limitsRequests,
+    membershipRequests,
     monerium,
     quoteRequests,
     registerRequests,
     requestOtpRequests,
     startRequests,
     status,
+    team,
     unexpectedExternalRequests,
     unmatchedRequests,
     updateRequests,

@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import express from "express";
 import { config } from "../../../config/vars";
-import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfileRole from "../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { SupabaseAuthService } from "../../services/auth";
 import { createSession } from "../../services/impersonation.service";
+import { configureManagedProfileManager } from "../../services/managed-profile-manager.service";
 import apiCredentialsRoutes from "./api-credentials.route";
 import managedProfilesRoutes from "./managed-profiles.route";
 
@@ -108,7 +108,9 @@ describe("rejectImpersonation wiring on credential routes", () => {
     const actor = await createTestUser();
     const target = await createTestUser();
     await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
-    await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: target.id });
+    await configureManagedProfileManager({
+      allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive: true, profileId: target.id
+    });
     const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: target.id });
     const headers = { Authorization: `Bearer ${token}` };
 

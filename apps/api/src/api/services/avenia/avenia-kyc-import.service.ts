@@ -7,6 +7,7 @@ import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase, { type IndividualKycSubmission } from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../../models/managedProfileMembership.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
@@ -23,11 +24,13 @@ export interface ResolvedAveniaIndividualKycCase {
 
 export interface ImportAveniaKycTokenArgs {
   actorProfileId: string;
+  controllingManagerProfileId?: string;
   subjectProfileId: string;
   expectedCustomerEntityId?: string;
   idempotencyKey: string;
   importToken: string;
   managedProfileId?: string;
+  membershipId?: string;
 }
 
 export interface ImportedAveniaKycToken {
@@ -52,24 +55,38 @@ function managedAccessDenied(): APIError {
 }
 
 async function assertCurrentImportAuthorization(args: ImportAveniaKycTokenArgs, transaction: Transaction): Promise<void> {
-  if (!args.managedProfileId && !args.expectedCustomerEntityId) {
+  if (!args.controllingManagerProfileId && !args.managedProfileId && !args.expectedCustomerEntityId && !args.membershipId) {
     if (args.actorProfileId !== args.subjectProfileId) throw managedAccessDenied();
     return;
   }
-  if (!args.managedProfileId || !args.expectedCustomerEntityId) throw managedAccessDenied();
+  if (!args.controllingManagerProfileId || !args.managedProfileId || !args.expectedCustomerEntityId || !args.membershipId) {
+    throw managedAccessDenied();
+  }
 
-  const manager = await ManagedProfileManager.findByPk(args.actorProfileId, { lock: transaction.LOCK.UPDATE, transaction });
-  const relationship = await ManagedProfile.findByPk(args.managedProfileId, { lock: transaction.LOCK.UPDATE, transaction });
+  const manager = await ManagedProfileManager.findByPk(args.controllingManagerProfileId, {
+    lock: transaction.LOCK.UPDATE,
+    transaction
+  });
   const subject = await User.findByPk(args.subjectProfileId, { lock: transaction.LOCK.UPDATE, transaction });
+  const relationship = await ManagedProfile.findByPk(args.managedProfileId, { lock: transaction.LOCK.UPDATE, transaction });
   const entity = await CustomerEntity.findByPk(args.expectedCustomerEntityId, { lock: transaction.LOCK.UPDATE, transaction });
+  const membership = await ManagedProfileMembership.findByPk(args.membershipId, {
+    lock: transaction.LOCK.UPDATE,
+    transaction
+  });
   if (
     !manager?.isActive ||
     !manager.allowedCorridors.includes("BR") ||
     (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes("individual")) ||
     !relationship ||
-    relationship.managerProfileId !== args.actorProfileId ||
+    relationship.managerProfileId !== args.controllingManagerProfileId ||
     relationship.profileId !== args.subjectProfileId ||
     relationship.status !== "active" ||
+    !membership ||
+    membership.ownerProfileId !== relationship.managerProfileId ||
+    membership.memberProfileId !== args.actorProfileId ||
+    membership.role !== "manager" ||
+    membership.revokedAt !== null ||
     subject?.kind !== "managed" ||
     subject.activeCustomerEntityId !== args.expectedCustomerEntityId ||
     !entity ||
@@ -215,13 +232,13 @@ async function prepareImportClaim(
   tokenFingerprint: string
 ): Promise<PreparedClaim> {
   return sequelize.transaction(async transaction => {
+    await assertCurrentImportAuthorization(args, transaction);
     const { kycCase, providerCustomer } = await resolveEligibleCase(
       args.subjectProfileId,
       args.expectedCustomerEntityId,
       transaction,
       true
     );
-    await assertCurrentImportAuthorization(args, transaction);
     const existing = kycCase.verificationSubmission;
     if (existing?.idempotencyKeyHash === idempotencyKeyHash) {
       if (existing.tokenFingerprint !== tokenFingerprint) throw conflict("The idempotency key was used with a different token");
@@ -286,17 +303,21 @@ async function submitPreparedClaim(
   attemptBaselineIds: string[]
 ): Promise<ImportedAveniaKycToken | string> {
   const result = await sequelize.transaction(async transaction => {
+    let authorizationError: APIError | undefined;
+    try {
+      await assertCurrentImportAuthorization(args, transaction);
+    } catch (error) {
+      if (!(error instanceof APIError) || error.status !== httpStatus.FORBIDDEN) throw error;
+      authorizationError = error;
+    }
     const providerCustomer = await ProviderCustomer.findByPk(claim.providerCustomer.id, {
       lock: transaction.LOCK.UPDATE,
       transaction
     });
     const kycCase = await KycCase.findByPk(claim.kycCaseId, { lock: transaction.LOCK.UPDATE, transaction });
-    try {
-      await assertCurrentImportAuthorization(args, transaction);
-    } catch (error) {
-      if (!(error instanceof APIError) || error.status !== httpStatus.FORBIDDEN) throw error;
+    if (authorizationError) {
       if (
-        kycCase?.verificationSubmission &&
+        kycCase?.verificationSubmission?.status === "prepared" &&
         sameTokenClaim(kycCase.verificationSubmission, args, idempotencyKeyHash, tokenFingerprint)
       ) {
         await kycCase.update(
@@ -310,7 +331,7 @@ async function submitPreparedClaim(
           { transaction }
         );
       }
-      return error;
+      return authorizationError;
     }
     const submission = kycCase?.verificationSubmission;
     if (

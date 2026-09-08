@@ -1,5 +1,5 @@
 import type { DomesticFiatAccount } from "@vortexfi/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
 import { isApiError } from "@/services/api/api-client";
@@ -7,15 +7,27 @@ import { FiatAccountDialog, type FiatAccountDialogView } from "./alfredpay/FiatA
 
 interface PayoutAccountsSectionProps {
   accounts: DomesticFiatAccount[] | undefined;
+  canMutate?: boolean;
   corridorId: AlfredpayCorridorId;
   error: Error | null;
   isLoading: boolean;
   refetch: () => void;
 }
 
-export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, refetch }: PayoutAccountsSectionProps) {
+export function PayoutAccountsSection({
+  accounts,
+  canMutate = true,
+  corridorId,
+  error,
+  isLoading,
+  refetch
+}: PayoutAccountsSectionProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<FiatAccountDialogView>("list");
+
+  useEffect(() => {
+    if (!canMutate) setOpen(false);
+  }, [canMutate]);
 
   function show(nextView: FiatAccountDialogView) {
     setView(nextView);
@@ -49,12 +61,15 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
       {savedAccounts.length === 0 ? (
         <>
           <p className="text-muted-foreground text-xs">
-            Add a pay-out account to enable reception of money through pay-outs. Pay-ins and third-party payments work without
-            one.
+            {canMutate
+              ? "Add a pay-out account to enable reception of money through pay-outs. Pay-ins and third-party payments work without one."
+              : "No pay-out accounts are registered. This membership has read-only access."}
           </p>
-          <Button onClick={() => show("form")} type="button">
-            Add pay-out account
-          </Button>
+          {canMutate && (
+            <Button onClick={() => show("form")} type="button">
+              Add pay-out account
+            </Button>
+          )}
         </>
       ) : (
         <Button onClick={() => show("list")} type="button" variant="outline">
@@ -63,6 +78,7 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
       )}
       <FiatAccountDialog
         accounts={savedAccounts}
+        canMutate={canMutate}
         corridorId={corridorId}
         onOpenChange={setOpen}
         onViewChange={setView}

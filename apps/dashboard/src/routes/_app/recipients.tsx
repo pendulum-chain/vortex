@@ -10,6 +10,7 @@ import { CORRIDOR_LIST, CORRIDORS } from "@/domain/corridors";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/_app/recipients")({
   component: RecipientsPage
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_app/recipients")({
 
 function RecipientsPage() {
   const account = useActiveAccount();
+  const managedProfile = useManagedProfileSelection();
   const { recipients: accountRecipients, approvedCorridors: approvedIds } = useRecipients(account);
 
   if (!account) {
@@ -27,6 +29,7 @@ function RecipientsPage() {
   const hasApprovedCorridor = approvedIds.size > 0;
   const corridors = hasApprovedCorridor ? CORRIDOR_LIST.filter(corridor => corridor.availability === "live") : [];
   const defaultCorridorId = [...approvedIds].map(id => CORRIDORS[id]).find(corridor => corridor.availability === "live")?.id;
+  const canMutate = managedProfile === null || managedProfile.membershipRole === "manager";
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">
@@ -37,8 +40,14 @@ function RecipientsPage() {
             Add recipients and share an invite link so they complete KYC/KYB for {account.name}.
           </p>
         </div>
-        <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />
+        {canMutate && <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />}
       </StaggerItem>
+
+      {!canMutate && (
+        <StaggerItem className="rounded-lg border bg-muted/40 px-4 py-3 text-muted-foreground text-sm">
+          Recipient management is read-only for this membership.
+        </StaggerItem>
+      )}
 
       {!hasApprovedCorridor ? (
         <StaggerItem>
@@ -86,7 +95,7 @@ function RecipientsPage() {
                   transfers.
                 </p>
               </div>
-              <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />
+              {canMutate && <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />}
             </CardContent>
           </Card>
         </StaggerItem>
@@ -94,7 +103,7 @@ function RecipientsPage() {
         <StaggerItem>
           <Card>
             <CardContent>
-              <RecipientsTable recipients={accountRecipients} />
+              <RecipientsTable canMutate={canMutate} recipients={accountRecipients} />
             </CardContent>
           </Card>
         </StaggerItem>

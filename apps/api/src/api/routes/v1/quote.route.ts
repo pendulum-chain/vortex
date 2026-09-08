@@ -2,7 +2,7 @@ import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
-import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import { authorizeManagedProfile, ManagedProfileCapability } from "../../middlewares/managedProfileAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -52,7 +52,7 @@ router
     apiKeyAuth({ required: false }),
     validateCreateQuoteInput,
     enforcePartnerAuth(),
-    authorizeManagedProfile(),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
     createQuote
   );
 
@@ -118,7 +118,7 @@ router
     apiKeyAuth({ required: false }),
     validateCreateBestQuoteInput,
     enforcePartnerAuth(),
-    authorizeManagedProfile(),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
     createBestQuote
   );
 

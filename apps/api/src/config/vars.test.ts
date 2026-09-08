@@ -6,6 +6,7 @@ const bunExecutable = Bun.argv[0];
 
 const requiredProductionEnv = {
   ADMIN_SECRET: "test-admin-secret",
+  DASHBOARD_PUBLIC_URL: "https://dashboard.example.com",
   FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   MONERIUM_CLIENT_ID: "test-monerium-client-id",
@@ -45,6 +46,45 @@ async function importVarsWithEnv(env: Record<string, string>) {
 }
 
 describe("vars deployment environment validation", () => {
+  it("requires the dashboard origin in production, but permits it to be absent in tests", async () => {
+    const production = await importVarsWithEnv({ DASHBOARD_PUBLIC_URL: "", NODE_ENV: "production" });
+    expect(production.exitCode).toBe(1);
+    expect(production.stderr).toContain("DASHBOARD_PUBLIC_URL");
+    const test = await importVarsWithEnv({ DASHBOARD_PUBLIC_URL: "", NODE_ENV: "test" });
+    expect(test.exitCode).toBe(0);
+  });
+
+  it.each([
+    "not-a-url",
+    "//dashboard.example.com",
+    "javascript:alert(1)",
+    "http://dashboard.example.com",
+    "https://user:secret@dashboard.example.com",
+    "https://dashboard.example.com/path",
+    "https://dashboard.example.com/?redirect=evil",
+    "https://dashboard.example.com/#fragment",
+    "https://dashboard.example.com/?",
+    "http://localhost:5174"
+  ])("rejects an unsafe production dashboard origin: %s", async value => {
+    const result = await importVarsWithEnv({ DASHBOARD_PUBLIC_URL: value, NODE_ENV: "production" });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("DASHBOARD_PUBLIC_URL must be an HTTPS origin");
+    expect(result.stderr).not.toContain(value);
+  });
+
+  it.each(["http://localhost:5174", "http://127.0.0.1:5174", "http://[::1]:5174", "https://dashboard.example.com/"])(
+    "allows a trusted dashboard origin in tests: %s",
+    async value => {
+      const result = await importVarsWithEnv({ DASHBOARD_PUBLIC_URL: value, NODE_ENV: "test" });
+      expect(result.exitCode).toBe(0);
+    }
+  );
+
+  it("does not allow remote HTTP even in tests", async () => {
+    const result = await importVarsWithEnv({ DASHBOARD_PUBLIC_URL: "http://evil.example.com", NODE_ENV: "test" });
+    expect(result.exitCode).toBe(1);
+  });
+
   it("allows sandbox mode with a production runtime when the deployment is explicitly sandbox", async () => {
     const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "sandbox",

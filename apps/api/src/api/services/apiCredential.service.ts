@@ -4,8 +4,10 @@ import { Op, QueryTypes, Transaction } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import ApiCredential, { ApiCredentialEnvironment } from "../../models/apiCredential.model";
+import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 
@@ -141,9 +143,9 @@ export async function createCredential(input: {
 }
 
 export async function createManagedProfileCredential(input: {
+  actorProfileId: string;
   environment: ApiCredentialEnvironment;
   expiresAt?: unknown;
-  managerProfileId: string;
   name?: unknown;
   profileId: string;
 }): Promise<ApiCredentialDto & { secretKey: string }> {
@@ -151,29 +153,50 @@ export async function createManagedProfileCredential(input: {
   const publicKey = generateApiKey("public", input.environment);
   const secretKey = generateApiKey("secret", input.environment);
   const credential = await sequelize.transaction(async transaction => {
-    const profile = await User.findByPk(input.profileId, {
-      attributes: ["id", "kind"],
-      lock: transaction.LOCK.UPDATE,
-      transaction
-    });
-    if (profile?.kind !== "managed") {
-      throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
-    }
-    const relationship = await ManagedProfile.findOne({
-      lock: transaction.LOCK.UPDATE,
-      transaction,
-      where: { managerProfileId: input.managerProfileId, profileId: input.profileId, status: "active" }
-    });
-    if (!relationship) {
-      throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
-    }
-    const manager = await ManagedProfileManager.findByPk(input.managerProfileId, { transaction });
-    if (!manager?.isActive) {
-      throw new ApiCredentialServiceError("CREDENTIAL_ACCESS_DENIED", "Managed-profile manager is not active");
-    }
+    await lockManagedCredentialAuthority(input.actorProfileId, input.profileId, transaction);
     return insertCredential({ ...input, partnerId: null }, validated, publicKey, secretKey, transaction);
   });
   return { ...toDto(credential), secretKey };
+}
+
+async function lockManagedCredentialAuthority(
+  actorProfileId: string,
+  profileId: string,
+  transaction: Transaction
+): Promise<void> {
+  const locator = await ManagedProfile.findOne({ transaction, where: { profileId } });
+  if (!locator) throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
+
+  // Serialize with membership changes and deletion: owner first, child aggregate, then membership.
+  const options = { lock: transaction.LOCK.UPDATE, transaction };
+  const manager = await ManagedProfileManager.findByPk(locator.managerProfileId, options);
+  const owner = await User.findByPk(locator.managerProfileId, options);
+  if (!manager?.isActive || owner?.kind !== "authenticated") {
+    throw new ApiCredentialServiceError("CREDENTIAL_ACCESS_DENIED", "Managed-profile manager is not active");
+  }
+  const profile = await User.findByPk(profileId, options);
+  const relationship = await ManagedProfile.findOne({
+    ...options,
+    where: { managerProfileId: locator.managerProfileId, profileId, status: "active" }
+  });
+  if (profile?.kind !== "managed" || !relationship) {
+    throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "Managed profile was not found");
+  }
+  const entities = await CustomerEntity.findAll({ ...options, where: { profileId } });
+  const actor = await User.findByPk(actorProfileId, { transaction });
+  const membership = await ManagedProfileMembership.findOne({
+    ...options,
+    where: { memberProfileId: actorProfileId, ownerProfileId: relationship.managerProfileId, revokedAt: null }
+  });
+  if (
+    entities.length !== 1 ||
+    entities[0].id !== profile.activeCustomerEntityId ||
+    entities[0].status !== "active" ||
+    actor?.kind !== "authenticated" ||
+    membership?.role !== "manager"
+  ) {
+    throw new ApiCredentialServiceError("CREDENTIAL_ACCESS_DENIED", "An active manager membership is required");
+  }
 }
 
 async function insertCredential(
@@ -228,20 +251,21 @@ export async function listManagedProfileCredentials(managerProfileId: string, pr
 }
 
 export async function revokeManagedProfileCredential(
-  managerProfileId: string,
+  actorProfileId: string,
   profileId: string,
   credentialId: string
 ): Promise<void> {
-  await requireManagedCredentialSubject(managerProfileId, profileId);
-  // Revocation stays idempotent, but only the first one writes: a repeat must not rewrite when
-  // the credential actually stopped being valid.
-  const [updated] = await ApiCredential.update(
-    { revokedAt: new Date() },
-    { where: { id: credentialId, profileId, revokedAt: null } }
-  );
-  if (updated === 0 && (await ApiCredential.count({ where: { id: credentialId, profileId } })) === 0) {
-    throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
-  }
+  await sequelize.transaction(async transaction => {
+    await lockManagedCredentialAuthority(actorProfileId, profileId, transaction);
+    // Replays preserve the original revocation time, but still require live authority.
+    const [updated] = await ApiCredential.update(
+      { revokedAt: new Date() },
+      { transaction, where: { id: credentialId, profileId, revokedAt: null } }
+    );
+    if (updated === 0 && (await ApiCredential.count({ transaction, where: { id: credentialId, profileId } })) === 0) {
+      throw new ApiCredentialServiceError("CREDENTIAL_NOT_FOUND", "API credential not found");
+    }
+  });
 }
 
 export async function listCredentials(filter: { partnerId?: string | null; profileId: string }): Promise<ApiCredentialDto[]> {

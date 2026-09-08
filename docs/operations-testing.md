@@ -15,15 +15,15 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 
 ## Test layers
 
-| Layer | What | Where | Runner |
-|---|---|---|---|
-| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
-| 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
-| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
-| 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
-| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor. | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking) |
-| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); SquidRouter, Alfredpay, Avenia/BRLA, CoinGecko | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
+| Layer                     | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Where                                                                                         | Runner                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1. Unit                   | Pure logic: helpers, token configs, SDK handlers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | each package, next to source                                                                  | `bun test` (Vitest for frontend)     |
+| 2. API integration        | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `apps/api/src/tests/`                                                                         | `bun test`                           |
+| 3. Corridor scenarios     | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/`                                                               | `bun test`                           |
+| 4. SDK contract           | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`)                                                                                                                                                                                                                                                                                                                                                      | `apps/api/src/tests/sdk-contract*.test.ts`                                                    | `bun test`                           |
+| 5. Frontend               | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `apps/frontend/src`                                                                           | Vitest                               |
+| 6. E2E                    | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking)      |
+| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); SquidRouter, Alfredpay, Avenia/BRLA, CoinGecko                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `apps/api/src/tests/contracts/`                                                               | `bun test` / nightly `contracts.yml` |
 
 ### The invariants the suite protects
 
@@ -65,21 +65,21 @@ dashboard Playwright section below rather than reading it out of this table.
 Legend: ✅ directly tested · ◐ covered only via shared code/another corridor (see footnote) ·
 ❌ missing · — not applicable · 🚫 kill-switched.
 
-| Corridor (rail) | Dir | Happy path | Transient | Unrecoverable | Security / caps | Cross-chain leg | SDK | E2E journey |
-|---|---|---|---|---|---|---|---|---|
-| BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅² | ✅ | ✅ |
-| BRL (Avenia / Pix) | SELL | ✅ | ✅ | ✅ | ✅ pre/post-swap caps, recipient | ✅ F-021 | ✅ | ✅ |
-| MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ✅ | ✅ |
-| MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ✅¹ | ✅ | ✅ |
-| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
-| USD (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
-| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
-| COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
-| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
-| ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
-| EUR (Mykobo / SEPA) | BUY | ✅³ | ✅³ | ✅³ | ✅ recipient, KYC gate | ◐⁴ | 🚫 | 🚫 |
-| EUR (Mykobo / SEPA) | SELL | ✅³ | ✅³ | ✅³ | ✅ payout-vs-intent match, KYC gate | ◐⁴ | 🚫 | 🚫 |
-| AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌ | ❌ | ❌ | — | ❌ | ❌ |
+| Corridor (rail)                            | Dir  | Happy path  | Transient | Unrecoverable | Security / caps                     | Cross-chain leg       | SDK | E2E journey |
+| ------------------------------------------ | ---- | ----------- | --------- | ------------- | ----------------------------------- | --------------------- | --- | ----------- |
+| BRL (Avenia / Pix)                         | BUY  | ✅          | ✅        | ✅            | ✅ recipient                        | ✅²                   | ✅  | ✅          |
+| BRL (Avenia / Pix)                         | SELL | ✅          | ✅        | ✅            | ✅ pre/post-swap caps, recipient    | ✅ F-021              | ✅  | ✅          |
+| MXN (Alfredpay / SPEI)                     | BUY  | ✅          | ✅        | ✅            | ✅ recipient                        | ✅ settlement subsidy | ✅  | ✅          |
+| MXN (Alfredpay / SPEI)                     | SELL | ✅          | ✅        | ✅            | ✅ calldata, F-001 cap              | ✅¹                   | ✅  | ✅          |
+| USD (Alfredpay / ACH)                      | BUY  | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅                    | ✅  | ✅          |
+| USD (Alfredpay / ACH)                      | SELL | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅¹                   | ✅  | ✅          |
+| COP (Alfredpay / ACH)                      | BUY  | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅                    | ✅  | ✅          |
+| COP (Alfredpay / ACH)                      | SELL | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅¹                   | ✅  | ✅          |
+| ARS (Alfredpay / CBU)                      | BUY  | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅                    | ✅  | ✅          |
+| ARS (Alfredpay / CBU)                      | SELL | ✅          | ✅        | ✅            | ✅ + limit breach                   | ✅¹                   | ✅  | ✅          |
+| EUR (Mykobo / SEPA)                        | BUY  | ✅³         | ✅³       | ✅³           | ✅ recipient, KYC gate              | ◐⁴                    | 🚫  | 🚫          |
+| EUR (Mykobo / SEPA)                        | SELL | ✅³         | ✅³       | ✅³           | ✅ payout-vs-intent match, KYC gate | ◐⁴                    | 🚫  | 🚫          |
+| AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌        | ❌            | ❌                                  | —                     | ❌  | ❌          |
 
 ¹ Alfredpay SELL cross-chain is covered on the no-permit fallback path (user-broadcast squid
 approve+swap verified against the blueprints by hash); the permit/TokenRelayer variant is
@@ -195,7 +195,7 @@ different set of endpoints than the widget. Covered so far:
   `squidRouterNoPermitTransfer` with its hash reported in a second update → `/ramp/start` → status
   polling to a terminal phase while the form navigates to `/transactions`. A second test pins
   payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
-  one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
+  one must register against _that_ `fiatAccountId` — a broken selector would pay the wrong account.
 - **Onramps and transfer modes** (`onramp-journeys.spec.ts`): route-backed Offramp/Onramp/
   Cross-border selection, the complete Cross-border coming-soon state, and parameterized BUY
   journeys for BRL PIX plus MXN/USD/COP/ARS bank instructions. Each journey runs without AppKit,
@@ -206,14 +206,60 @@ different set of endpoints than the widget. Covered so far:
   approved AlfredPay corridor creates a self payout account and updates the card/recipient state;
   disconnected wallet actions open AppKit's `Connect` view, while the connected address opens its
   `Account` view. The connected-wallet-only funding gate remains pinned.
-- **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, manager child
-  selection, persisted acting mode, route-scoped managed-profile headers, hidden manager-only
-  navigation, stopping child mode, and long-identifier mobile layout.
+- **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, role/owner badges,
+  persisted acting mode, route-scoped managed-profile headers, child credential lifecycle,
+  read-only recipient and payout-account gates, live-downgrade dialog closure, immediate blocking
+  of every transfer entry point, stopping child mode, and long-identifier mobile layout.
 
-Managed-child selection has unit coverage for persisted manager-bound selection, cross-tab changes,
-route-scoped header attachment and authorization failure handling, transfer identity guards, and
-owner-keyed payment recovery. API integration coverage exercises delegated recipient operations and
-policy revalidation.
+Managed-child selection has unit coverage for persisted actor-bound role metadata, same-child
+downgrades while identity switching is blocked, cross-tab changes, route-scoped header attachment,
+bootstrap-only authorization reconciliation, transfer identity guards, and owner-keyed payment
+recovery. API integration coverage exercises membership capabilities, delegated recipient
+operations, per-child owner policy, and policy revalidation.
+
+The [organization-wide Team contract](adr-0006-organization-wide-teams.md) adds these required
+regression gates to the membership, migration, route, and dashboard suites. These are acceptance
+criteria, not a claim that a local or deployed suite has already passed:
+
+- Migration 069 is rewritten directly for disposable unshipped data: `owner_profile_id` references
+  manager config, one active membership is globally unique on `member_profile_id`, and each config
+  has one protected owner self-membership, including disabled owners and empty orgs. New config
+  creation emits one membership event; child provisioning emits no grants or membership events.
+  Config-created `createdByProfileId` and event `actorProfileId` are null/system attribution,
+  with the owner as member subject, rather than an invented human actor for `ADMIN_SECRET`.
+- Existing and newly provisioned siblings inherit the org role without grants. Foreign children
+  and human personal resources remain inaccessible. Read-only cannot write using a personal secret.
+- Owner/manager/read-only and concurrent second-org accepts enforce single affiliation;
+  `ORGANIZATION_MEMBERSHIP_CONFLICT` is `409`. Disabled owners cannot join another org, and
+  accepting an invitation races safely with enabling a separate owning manager configuration.
+- Deactivation retains memberships while denying org/team/child operations. Removal/downgrade
+  changes all child delegated access without revoking child-owned shared credentials. Pending
+  offers survive inviter removal/downgrade; verified email, explicit acceptance, seven-day expiry,
+  transactional audit/outbox, replay, owner protection, and RLS tests remain required.
+- All ten organization/team/invitee operations reject any child selector, API/public-key headers
+  (including with a bearer), and impersonation. Old per-child team/invitee routes have no aliases.
+  Pin exact organization discovery, preview/acceptance, member/event projections, and pagination.
+- Keep the existing runtime regressions for owner-matching membership/child-lifetime overlap:
+  `membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or
+  `membership.revokedAt > child.createdAt`) on one row. Children created after revocation or
+  wholly in a membership gap stay masked `404`; historic org membership alone is insufficient.
+- Team route/client regressions bind all seven operations to required UUID query
+  `expectedOwnerProfileId`: missing/malformed `400 MANAGED_PROFILE_INVALID_INPUT`, different
+  expected/current owner `409 ORGANIZATION_CONTEXT_CHANGED`, and discovery/invitee exemptions.
+  A stale invitation dialog for A must never create an invite in B after cross-tab affiliation change.
+  `bun test ./docs/api/scripts/check-openapi.test.ts` separately pins the documented parameter,
+  exemptions, typed conflict, bootstrap prose, and owner-policy description without duplicating
+  runtime authorization tests or mutating the shared worktree.
+- Main nonacting Team works on desktop/mobile before any children exist; both owners and invited
+  members get live org discovery and `hasMemberships: true` for empty orgs. `canProvisionManagedProfiles`
+  stays owner-only. Child-mode Team is absent, role changes refresh every child's gates, shared-key
+  warnings are visible, and invitations lead to the org rather than selecting a child.
+- Run `bun docs:api:types`, then `bun docs:api:check` for OpenAPI/schema/auth inventory and generated
+  freshness; `bun wire-contract:check` should show no shared/SDK snapshot change. This deliberately
+  breaks the unshipped per-child API, so do not add compatibility paths or run the Apidog export.
+
+Recreate a disposable local test database if it applied the old 069; do not test the rewritten
+migration against that stale schema or add a production forward-compatibility migration for it.
 
 Notes:
 
@@ -269,7 +315,7 @@ zod schema in `packages/shared/src/services/<service>/schemas.ts` models the raw
 the PR-blocking api suite) and against the real partner API (`RUN_LIVE_TESTS=1`, nightly
 `contracts.yml`, non-blocking).
 
-Sandbox shakiness is priced in: an error from the live call itself is *inconclusive*
+Sandbox shakiness is priced in: an error from the live call itself is _inconclusive_
 (warn + skip), except that a `ZodError` from parsing a successful response is rethrown and fails the test. The nightly sets
 `CONTRACT_EXPECT_LIVE=1`, which fails a run where zero live calls completed, so credential rot or
 a dead endpoint alerts within a day instead of rotting as green. Covered: SquidRouter (`/v2/route`

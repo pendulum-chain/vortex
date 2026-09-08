@@ -132,6 +132,27 @@ function readEmailAllowlist(): string[] {
     .filter(entry => entry.length > 0);
 }
 
+function readDashboardPublicUrl(): string | undefined {
+  const raw = process.env.DASHBOARD_PUBLIC_URL?.trim();
+  if (!raw) return undefined;
+
+  const invalid = new Error("DASHBOARD_PUBLIC_URL must be an HTTPS origin (HTTP loopback only in development/test)");
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw invalid;
+  }
+  const localHttp =
+    url.protocol === "http:" &&
+    ["development", "test"].includes(readDeploymentEnv()) &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if ((url.protocol !== "https:" && !localHttp) || url.username || url.password || url.href !== `${url.origin}/`) {
+    throw invalid;
+  }
+  return url.origin;
+}
+
 export const RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS = 300;
 
 function readRecipientInviteDiscountLimit(): number {
@@ -146,6 +167,7 @@ function readRecipientInviteDiscountLimit(): number {
 
 interface Config {
   env: string;
+  dashboardPublicUrl: string | undefined;
   deploymentEnv: DeploymentEnv;
   /** Login email of the seeded sales-demo account. Sandbox only; see docs/operations-demo-environment.md. */
   demoAccountEmail: string;
@@ -269,6 +291,7 @@ export const config: Config = {
   adminSecret: process.env.ADMIN_SECRET || "",
   amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
   backendTestStarterAccount: process.env.BACKEND_TEST_STARTER_ACCOUNT,
+  dashboardPublicUrl: readDashboardPublicUrl(),
   database: {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
@@ -428,6 +451,7 @@ if (config.env === "production") {
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!config.dashboardPublicUrl) missing.push("DASHBOARD_PUBLIC_URL");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
 
   if (missing.length > 0) {

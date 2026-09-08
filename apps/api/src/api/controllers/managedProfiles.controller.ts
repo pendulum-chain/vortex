@@ -4,7 +4,6 @@ import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { CUSTOMER_ENTITY_TYPES } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
-import ManagedProfileManager from "../../models/managedProfileManager.model";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
 import {
   ApiCredentialServiceError,
@@ -15,7 +14,7 @@ import {
 import {
   createManagedProfile,
   deleteManagedProfile,
-  getManagedProfile,
+  getManagedProfileActor,
   listManagedProfiles,
   ManagedProfileLifecycleError
 } from "../services/managed-profile-lifecycle.service";
@@ -26,6 +25,10 @@ function managerProfileId(req: Request): string {
   const profileId = getAuthenticatedProfileId(req);
   if (!profileId) throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Authentication is required");
   return profileId;
+}
+
+function controllingManagerProfileId(req: Request): string {
+  return req.managedProfileContext?.controllingManagerProfileId ?? managerProfileId(req);
 }
 
 function sendError(res: Response, error: unknown): void {
@@ -122,17 +125,9 @@ export async function readManagedProfiles(req: Request, res: Response): Promise<
       offset,
       status: status as ManagedProfileStatus | "all"
     });
-    const manager = await ManagedProfileManager.findByPk(managerProfileId(req));
-    if (!manager?.isActive) {
-      throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Managed profile access is denied");
-    }
     res.status(httpStatus.OK).json({
+      actor: result.actor,
       managedProfiles: result.managedProfiles,
-      manager: {
-        allowedCorridors: manager.allowedCorridors,
-        allowedCustomerTypes: manager.allowedCustomerTypes,
-        profileId: manager.profileId
-      },
       pagination: { limit: result.limit, offset: result.offset, total: result.total }
     });
   } catch (error) {
@@ -143,8 +138,9 @@ export async function readManagedProfiles(req: Request, res: Response): Promise<
 export async function readManagedProfile(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
     requireProfileId(req.params.profileId);
-    const managedProfile = await getManagedProfile(managerProfileId(req), req.params.profileId);
-    res.status(httpStatus.OK).json({ managedProfile });
+    const actorProfileId = managerProfileId(req);
+    const actor = await getManagedProfileActor(actorProfileId);
+    res.status(httpStatus.OK).json({ actor, managedProfile: res.locals.managedProfile });
   } catch (error) {
     sendError(res, error);
   }
@@ -164,9 +160,9 @@ export async function postManagedProfileApiCredential(req: Request<{ profileId: 
   try {
     requireProfileId(req.params.profileId);
     const credential = await createManagedProfileCredential({
+      actorProfileId: managerProfileId(req),
       environment: config.sandboxEnabled ? "test" : "live",
       expiresAt: req.body?.expiresAt,
-      managerProfileId: managerProfileId(req),
       name: req.body?.name,
       profileId: req.params.profileId
     });
@@ -179,7 +175,7 @@ export async function postManagedProfileApiCredential(req: Request<{ profileId: 
 export async function readManagedProfileApiCredentials(req: Request<{ profileId: string }>, res: Response): Promise<void> {
   try {
     requireProfileId(req.params.profileId);
-    const credentials = await listManagedProfileCredentials(managerProfileId(req), req.params.profileId);
+    const credentials = await listManagedProfileCredentials(controllingManagerProfileId(req), req.params.profileId);
     res.status(httpStatus.OK).json({ credentials });
   } catch (error) {
     sendError(res, error);

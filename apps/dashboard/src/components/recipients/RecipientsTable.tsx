@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,15 +10,20 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { Recipient } from "@/domain/types";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 import { RecipientActionsDialog } from "./RecipientActionsDialog";
 
 const MotionRow = motion.create(TableRow);
 
-export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
+export function RecipientsTable({ canMutate = true, recipients }: { canMutate?: boolean; recipients: Recipient[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Derived from the live list, not a snapshot: a refetch while the modal is open (e.g. the
   // invite got accepted and its token cleared) must not keep offering stale data.
   const selected = selectedId ? (recipients.find(recipient => recipient.id === selectedId) ?? null) : null;
+
+  useEffect(() => {
+    if (!canMutate) setSelectedId(null);
+  }, [canMutate]);
 
   return (
     <>
@@ -93,16 +98,23 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           })}
         </TableBody>
       </Table>
-      {selected && <RecipientActionsDialog onOpenChange={open => !open && setSelectedId(null)} recipient={selected} />}
+      {selected && (
+        <RecipientActionsDialog
+          canMutate={canMutate}
+          onOpenChange={open => !open && setSelectedId(null)}
+          recipient={selected}
+        />
+      )}
     </>
   );
 }
 
 function RecipientAction({ recipient }: { recipient: Recipient }) {
   const navigate = useNavigate();
+  const managedProfile = useManagedProfileSelection();
 
   // Only your own payout accounts are sendable today.
-  if (recipient.isSelf && recipient.status === "approved") {
+  if (!managedProfile && recipient.isSelf && recipient.status === "approved") {
     return (
       <Button onClick={() => navigate({ search: { recipient: recipient.id }, to: "/transfer" })} size="sm">
         Create transfer

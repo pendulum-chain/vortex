@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
+import { useManagedProfileBootstrap } from "@/hooks/useManagedProfileBootstrap";
 import { useAuthStore } from "@/stores/auth.store";
 import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
@@ -22,6 +23,7 @@ function AppLayout() {
   const managedProfile = useManagedProfileSelection();
   const pathname = useRouterState({ select: state => state.location.pathname });
   const { data: onboardingStatus, isError, isLoading, refetch } = useOnboardingStatusQuery(!!user);
+  useManagedProfileBootstrap(managedProfile);
 
   if (!user) {
     return <Navigate replace to="/login" />;

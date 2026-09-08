@@ -1,7 +1,11 @@
 import { Request, Response, Router } from "express";
 import { getOnboardingRequirements, getOnboardingStatus, putActiveEntity } from "../../controllers/onboarding.controller";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
-import { authorizeManagedProfile, rejectManagedProfileSelection } from "../../middlewares/managedProfileAuth";
+import {
+  authorizeManagedProfile,
+  ManagedProfileCapability,
+  rejectManagedProfileSelection
+} from "../../middlewares/managedProfileAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
@@ -15,7 +19,7 @@ router.get("/requirements", getOnboardingRequirements);
 router.get(
   "/status",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   getOnboardingStatus as unknown as (req: Request, res: Response) => void
 );
 router.put(

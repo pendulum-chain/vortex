@@ -12,6 +12,7 @@ import {
   Users,
   UsersRound
 } from "lucide-react";
+import { canAccessManagedProfiles } from "@/components/managed-profiles/managed-profile-ui";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +25,8 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
-import { isManagedProfilesAccessDenied, useManagedProfiles } from "@/hooks/useManagedProfiles";
+import { useManagedProfiles } from "@/hooks/useManagedProfiles";
+import { useOrganization } from "@/hooks/useOrganization";
 import { useImpersonationSession } from "@/stores/impersonation.store";
 import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 import { VortexLogo } from "./VortexLogo";
@@ -42,7 +44,8 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEM = { icon: UserCog, label: "Admin", to: "/admin" } as const;
 const MANAGED_PROFILES_NAV_ITEM = { icon: UsersRound, label: "Managed profiles", to: "/managed-profiles" } as const;
-const CHILD_NAV_ITEMS = NAV_ITEMS.filter(item => item.to !== "/api-keys" && item.to !== "/settings");
+const TEAM_NAV_ITEM = { icon: UsersRound, label: "Team", to: "/team" } as const;
+const CHILD_NAV_ITEMS = NAV_ITEMS.filter(item => item.to !== "/transfer" && item.to !== "/settings");
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: state => state.location.pathname });
@@ -50,16 +53,17 @@ export function AppSidebar() {
   const managedProfile = useManagedProfileSelection();
   const managedProfiles = useManagedProfiles({ limit: 1, offset: 0 }, !managedProfile);
   const isImpersonating = useImpersonationSession() !== null;
+  const organization = useOrganization();
   const isAdmin = onboardingStatus?.roles.includes("vortex_admin") ?? false;
   // An operator acting as a customer must see exactly the customer's navigation.
   const isActingForChild = !!managedProfile;
-  const isManager = !!managedProfiles.data?.manager;
-  const managerCheckFailed = managedProfiles.isError && !isManagedProfilesAccessDenied(managedProfiles.error);
+  const hasManagedProfileAccess = canAccessManagedProfiles(managedProfiles.data?.actor);
   const navItems = isActingForChild
     ? CHILD_NAV_ITEMS
     : [
         ...NAV_ITEMS,
-        ...(isManager ? [MANAGED_PROFILES_NAV_ITEM] : []),
+        ...(hasManagedProfileAccess ? [MANAGED_PROFILES_NAV_ITEM] : []),
+        ...(!isImpersonating && !organization.isError && organization.data?.organization ? [TEAM_NAV_ITEM] : []),
         ...(isAdmin && !isImpersonating ? [ADMIN_NAV_ITEM] : [])
       ];
 
@@ -84,7 +88,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {managerCheckFailed && !isActingForChild && (
+              {managedProfiles.isError && !isActingForChild && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     disabled={managedProfiles.isFetching}
@@ -94,6 +98,14 @@ export function AppSidebar() {
                   >
                     <RefreshCw className={managedProfiles.isFetching ? "animate-spin" : undefined} />
                     <span>Retry profile access</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {organization.isError && !isActingForChild && !isImpersonating && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled={organization.isFetching} onClick={() => organization.refetch()} type="button">
+                    <RefreshCw className={organization.isFetching ? "animate-spin" : undefined} />
+                    <span>Retry team access</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}

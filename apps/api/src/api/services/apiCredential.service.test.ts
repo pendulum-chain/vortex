@@ -2,20 +2,26 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import ApiCredential from "../../models/apiCredential.model";
+import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 import {
   createCredential,
+  createManagedProfileCredential,
   assertApiCredentialSchemaReady,
   MAX_ACTIVE_CREDENTIALS_PER_PROFILE,
   revokeCredential,
+  revokeManagedProfileCredential,
   validatePublicKey,
   validateSecretKey
 } from "./apiCredential.service";
 
 const originals = {
+  entityFindAll: CustomerEntity.findAll,
+  membershipFindOne: ManagedProfileMembership.findOne,
   count: ApiCredential.count,
   managerFindByPk: ManagedProfileManager.findByPk,
   managedProfileFindOne: ManagedProfile.findOne,
@@ -29,6 +35,8 @@ const originals = {
 };
 
 afterEach(() => {
+  CustomerEntity.findAll = originals.entityFindAll;
+  ManagedProfileMembership.findOne = originals.membershipFindOne;
   ApiCredential.count = originals.count;
   ApiCredential.create = originals.create;
   ApiCredential.findAll = originals.findAll;
@@ -42,6 +50,80 @@ afterEach(() => {
 });
 
 describe("api credential service", () => {
+  function managedAuthority() {
+    const lockOrder: string[] = [];
+    const transaction = { LOCK: { UPDATE: "UPDATE" } };
+    const membership = { role: "manager" };
+    sequelize.transaction = mock(async callback => callback(transaction as never)) as never;
+    ManagedProfile.findOne = mock(async (options: { lock?: unknown }) => {
+      if (options.lock) lockOrder.push("relationship");
+      return { managerProfileId: "owner", profileId: "child", status: "active" };
+    }) as never;
+    ManagedProfileManager.findByPk = mock(async () => {
+      lockOrder.push("owner-config");
+      return { isActive: true };
+    }) as never;
+    User.findByPk = mock(async (id: string, options: { lock?: unknown }) => {
+      if (options.lock) lockOrder.push(`profile:${id}`);
+      return { activeCustomerEntityId: "entity", kind: id === "child" ? "managed" : "authenticated" };
+    }) as never;
+    CustomerEntity.findAll = mock(async () => {
+      lockOrder.push("entity");
+      return [{ id: "entity", status: "active" }];
+    }) as never;
+    ManagedProfileMembership.findOne = mock(async () => {
+      lockOrder.push("membership");
+      return membership;
+    }) as never;
+    ApiCredential.count = mock(async () => 0) as never;
+    ApiCredential.create = mock(async values => {
+      lockOrder.push("write");
+      return { ...values, id: "credential" };
+    }) as never;
+    ApiCredential.update = mock(async () => {
+      lockOrder.push("write");
+      return [1];
+    }) as never;
+    return { lockOrder, membership, transaction };
+  }
+
+  it.each(["create", "revoke"] as const)("holds common owner/child/membership locks through credential %s", async operation => {
+    const { lockOrder, transaction } = managedAuthority();
+    if (operation === "create") {
+      await createManagedProfileCredential({ actorProfileId: "member", environment: "test", profileId: "child" });
+    } else {
+      await revokeManagedProfileCredential("member", "child", "credential");
+    }
+    expect(lockOrder).toEqual(["owner-config", "profile:owner", "profile:child", "relationship", "entity", "membership", "write"]);
+    const lockOptions = { lock: "UPDATE", transaction };
+    expect(ManagedProfileManager.findByPk).toHaveBeenCalledWith("owner", lockOptions);
+    expect(User.findByPk).toHaveBeenCalledWith("owner", lockOptions);
+    expect(User.findByPk).toHaveBeenCalledWith("child", lockOptions);
+    expect(CustomerEntity.findAll).toHaveBeenCalledWith({ ...lockOptions, where: { profileId: "child" } });
+    expect(ManagedProfileMembership.findOne).toHaveBeenCalledWith({
+      ...lockOptions, where: { ownerProfileId: "owner", memberProfileId: "member", revokedAt: null }
+    });
+    if (operation === "create") {
+      expect(ApiCredential.count).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
+      expect(ApiCredential.create).toHaveBeenCalledWith(expect.objectContaining({ profileId: "child", partnerId: null }), { transaction });
+    } else {
+      expect(ApiCredential.update).toHaveBeenCalledWith({ revokedAt: expect.any(Date) }, {
+        transaction, where: { id: "credential", profileId: "child", revokedAt: null }
+      });
+    }
+  });
+
+  it.each(["read_only", "unknown"])("denies live %s membership for both credential mutations", async role => {
+    const { membership } = managedAuthority();
+    membership.role = role;
+    await expect(createManagedProfileCredential({ actorProfileId: "member", environment: "test", profileId: "child" }))
+      .rejects.toMatchObject({ code: "CREDENTIAL_ACCESS_DENIED" });
+    await expect(revokeManagedProfileCredential("member", "child", "credential"))
+      .rejects.toMatchObject({ code: "CREDENTIAL_ACCESS_DENIED" });
+    expect(ApiCredential.create).not.toHaveBeenCalled();
+    expect(ApiCredential.update).not.toHaveBeenCalled();
+  });
+
   it("locks the profile and excludes expired credentials from the cap query", async () => {
     const transaction = { LOCK: { UPDATE: "UPDATE" } };
     let countWhere: Record<PropertyKey, unknown> = {};
@@ -162,6 +244,7 @@ describe("api credential service", () => {
       update: mock(async () => credential)
     });
     ApiCredential.findOne = mock(async () => credential) as never;
+    ManagedProfileMembership.findOne = mock(async () => null) as never;
     ManagedProfile.findOne = mock(async () => ({ id: "relationship-1", managerProfileId: "manager-1" })) as never;
     ManagedProfileManager.findByPk = mock(async () => ({
       allowedCorridors: ["BR", "MX"],
@@ -181,6 +264,7 @@ describe("api credential service", () => {
     expect(Object.isFrozen(result?.managedProfile)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile?.allowedCorridors)).toBe(true);
     expect(Object.isFrozen(result?.managedProfile?.allowedCustomerTypes)).toBe(true);
+    expect(ManagedProfileMembership.findOne).not.toHaveBeenCalled();
   });
 
   it("represents a missing manager customer-type restriction as null", async () => {

@@ -9,6 +9,7 @@ import FinancialOperation from "../../models/financialOperation.model";
 import KycCase from "../../models/kycCase.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
@@ -66,6 +67,7 @@ function mockEntityPerProfile() {
 
 const originalUserFindByPk = User.findByPk;
 const originalManagedProfileFindOne = PartnerManagedProfile.findOne;
+const originalManagedProfileMembershipFindByPk = ManagedProfileMembership.findByPk;
 const originalEntityFindAll = CustomerEntity.findAll;
 
 beforeEach(() => {
@@ -75,6 +77,7 @@ beforeEach(() => {
 
 afterEach(() => {
   PartnerManagedProfile.findOne = originalManagedProfileFindOne;
+  ManagedProfileMembership.findByPk = originalManagedProfileMembershipFindByPk;
   User.findByPk = originalUserFindByPk;
   CustomerEntity.findAll = originalEntityFindAll;
 });
@@ -422,6 +425,13 @@ describe("importKycToken", () => {
       profileId: "child-1",
       status: "active"
     })) as unknown as typeof ManagedProfile.findByPk;
+    ManagedProfileMembership.findByPk = mock(async () => ({
+      id: "membership-1",
+      ownerProfileId: "manager-1",
+      memberProfileId: "manager-1",
+      revokedAt: null,
+      role: "manager"
+    })) as unknown as typeof ManagedProfileMembership.findByPk;
     const customer = {
       country: "BR",
       customerEntityId: entityId,
@@ -491,8 +501,11 @@ describe("importKycToken", () => {
         get: () => "request-1",
         managedProfileContext: {
           actorProfileId: "manager-1",
+          controllingManagerProfileId: "manager-1",
           customerEntityId: "entity-child-1",
           managedProfileId: "relationship-1",
+          membershipId: "membership-1",
+          membershipRole: "manager",
           subjectProfileId: "child-1"
         }
       } as any,

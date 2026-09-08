@@ -187,6 +187,7 @@ export class SupabaseAuthService {
     valid: boolean;
     user_id?: string;
     email?: string;
+    email_confirmed_at?: string;
   }> {
     // Access-token verification is an Auth operation and does not require broad
     // service-role privileges. The project anon key identifies the trusted Supabase
@@ -205,6 +206,7 @@ export class SupabaseAuthService {
 
     return {
       email: data.user.email,
+      email_confirmed_at: data.user.email_confirmed_at,
       user_id: data.user.id,
       valid: true
     };

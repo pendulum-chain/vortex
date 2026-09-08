@@ -8,7 +8,7 @@ Absorb everything the widget (`apps/frontend`) does today — on/offramp quoting
 signing, KYC/KYB, ramp tracking — behind an email-authenticated account, and add two
 capabilities the widget cannot express:
 
-1. **Cross-border payments** — a sender pays **fiat in** and a *third-party* recipient
+1. **Cross-border payments** — a sender pays **fiat in** and a _third-party_ recipient
    receives **fiat out**, in another country. Onramp chained to offramp; the stablecoin leg
    is an implementation detail the sender never sees, and the sender needs no wallet at all.
    This is the dashboard's core feature. `#review`
@@ -22,19 +22,19 @@ persistent identity, saved recipients, history, notifications — and money that
 two people.
 
 **Current scope.** The dashboard ships the unified schema (customer entities, provider customers,
- KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
- self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
- fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
- remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo. The API and dashboard implement
- managed headless profiles and route-scoped manager delegation: active managers can select a child,
- act through supported dashboard surfaces, and return to their own account without changing the
- authenticated manager identity.
-
+KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
+self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
+fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
+remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
+onboarding uses Monerium but active EUR ramps resolve Mykobo. The API and dashboard implement
+managed headless profiles and route-scoped manager delegation: active managers can select a child,
+act through supported dashboard surfaces, and return to their own account without changing the
+authenticated manager identity.
 
 ## User stories
 
 ### Account & auth
+
 - As a user, I sign in with my email via a 6-digit OTP; no wallet is needed to reach my account.
 - As a user, my account has a type (individual or company) and an identifier (CPF/CNPJ), and I
   see it on Settings.
@@ -42,6 +42,7 @@ two people.
   never asks for one.
 
 ### Onboarding (KYC/KYB)
+
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
   Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
@@ -66,7 +67,7 @@ two people.
   Monerium** affordance is built on it, so confirming (or refuting) it with Monerium changes
   shipped behavior, not just documentation.
 - As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
-  approved/rejected` — read from the provider, surviving reload. `pending` is only used for
+approved/rejected` — read from the provider, surviving reload. `pending` is only used for
   missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
   Monerium's hosted OAuth KYC/KYB.
@@ -82,6 +83,7 @@ two people.
   third-party payments. Raw bank details are sent directly to AlfredPay and are not stored locally.
 
 ### Recipients & invitations `#review`
+
 - As a sender, once **any** corridor of mine is approved I invite a recipient for **any live
   corridor** by generating a shareable link; I choose their country, rail, and payout currency,
   and type an **alias** — a sender-local label that identifies the link (and later the recipient)
@@ -116,12 +118,13 @@ two people.
   provider-neutral (**"Pending review"**, no provider names in the recipients list).
 - As a sender, a recipient becomes payable only when: invite accepted, relationship active,
   their onboarding approved for that corridor, and a payout reference is verified. Otherwise I see
-  *why* it is blocked.
+  _why_ it is blocked.
 - As a recipient, I can be linked to many senders; I onboard once.
 
 ### Transfers
 
 **Paying a third party.** The core feature. `#review`
+
 - As a sender, I select an approved recipient, enter the payout amount in their currency, and see
   the rate and fees before committing.
 - As a sender, I choose how to fund it: **crypto** from my connected wallet, or **fiat** from my
@@ -130,39 +133,62 @@ two people.
 - As a recipient, the money arrives in my bank account on my corridor's rail.
 
 **Paying myself.** Widget parity.
+
 - As a user, I send crypto from my wallet and receive fiat in my own bank account (implemented).
 - As a user, I pay BRL, MXN, COP, USD, or ARS from my bank account and receive a selected token at
   an editable EVM destination address. A connected AppKit wallet prefills that address but is not
   required and never signs a BUY transaction (implemented).
 
 ### Transactions
+
 - As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,
   status (`processing · completed · failed · cancelled`), and the reason a payout failed. Ramps that
   remain in the `initial` phase are omitted from history.
 
 ### Notifications & settings
+
 - As a user, I get in-app and email alerts when a corridor's KYC/KYB resolves and when a ramp
   settles.
 - As a user, I toggle each of those two email notification categories on Settings. (A third
   category — recipient-approval alerts — was dropped for now: no such notification type exists
   in the backend yet.)
 
-### Managed profiles (implemented)
+### Organization Team and managed profiles
+
+The approved model is a **one-account-one-org approximation**: one owning manager
+account/config defines exactly one organization, and every person has at most one active
+org affiliation. Owners, including disabled owners, cannot join another org. All present
+and future children inherit the organization role. Personal user resources are not shared.
+There is no multi-organization management, organization kind, owner transfer, or organization
+switcher. Such capabilities require explicitly revisiting the architectural model in a later
+ADR, not reinterpreting membership. See [ADR 0006](adr-0006-organization-wide-teams.md).
 
 This is managed-child delegation, not another login or admin impersonation mechanism. A managed
-child is headless and has no Supabase identity. The manager remains the authenticated actor, and
+child is headless and has no Supabase identity. An authenticated member remains the actor, and
 supported API requests carry the selected child's profile ID in `X-Managed-Profile-Id`. The API
-must continue to verify the active manager, direct active relationship, child entity, corridor,
-and customer-type policy on every delegated authorization decision.
+must continue to verify the active membership and role, controlling owner, direct active
+relationship, child entity, corridor, and customer-type policy on every delegated authorization
+decision.
 
-- As an active managed-profile manager, I see **Managed profiles** in the sidebar. Ordinary users
-  do not see the item. Manager detection uses the authenticated manager lifecycle API rather than
-  a client-side role claim.
-- As a manager, I can keep using the dashboard as my own account when no child is selected.
-- As a manager, I open **Managed profiles** and see my active children. Each row identifies the
-  child by contact email and external subject ID, shows its immutable customer type, and shows the
-  corridors authorized for the manager. Corridors are manager policy, not per-child grants.
-- As a manager, I use a row's three-dot menu to open a confirmation dialog and choose **Act for
+- I see **Managed profiles** when the lifecycle response's actor has
+  `canProvisionManagedProfiles || hasMemberships`, including an enabled owner before its first child.
+  Both flags false hides the item. List/detail return `actor: { profileId,
+  canProvisionManagedProfiles, hasMemberships }`; a default empty list is `200`, not an access-denial
+  signal. `hasMemberships` means live organization membership even with zero children,
+  independently of page/status; owner deactivation makes it false but retains affiliation. Neither page length nor
+  a successful response is authority.
+- As a member, I can keep using the dashboard as my own account when no child is selected.
+- As a member, I open **Managed profiles** and see all eligible children of my organization. Each row identifies
+  the child, shows its immutable customer type, my `Manager` or `Read only` role and `Owner` badge
+  where applicable, and the controlling owner's authorized corridors. Corridors remain owner
+  policy, not per-membership grants.
+- Retained API views (`status=deleted` and `status=all`) require my own active owner configuration
+  and contain only my owned children; even `all` excludes active invited children owned by others.
+  A retained deleted-child detail is owner-only with active configuration and valid membership/entity
+  layout, without a selector. Invited members receive masked `404`; retained records are never
+  selectable child-mode subjects. A non-owner active member's child deletion is
+  `403 MANAGED_PROFILE_OWNER_REQUIRED`.
+- As a member, I use a row's three-dot menu to open a confirmation dialog and choose **Act for
   this profile**. The product must not call this action “Log in as” or “Impersonate”.
 - Confirming stores the selection, clears account-scoped query and notification state, disconnects
   the displayed wallet session, and redirects to `/overview`. It MUST NOT clear ramp ephemerals,
@@ -171,43 +197,104 @@ and customer-type policy on every delegated authorization decision.
   explicitly stopped, and is bound to the authenticated manager profile so it cannot survive a
   change of login identity.
 - While acting for a child, a persistent yellow banner above the topbar names the child and offers
-  **Stop acting**. Stopping clears the selection and returns to `/managed-profiles` under the
-  manager's own account.
-- Entering child mode, switching children, or stopping child mode is blocked while the transfer
-  machine is in its client-owned preparation and signing sequence. This sequence starts when a
-  submitted transfer enters final quote/balance validation and includes ramp registration,
-  ephemeral signing, user-wallet signing or broadcast, and submission of the signed ramp update.
-  The selector and banner explain that the current signing step must finish or fail before the
-  identity can change; they never reset the machine to force the switch through.
-- Once the ramp and all currently required signatures are durably submitted to the backend, an
-  identity change is allowed. A BUY awaiting payment keeps its payment instructions and ramp ID
-  under the originating manager/child identity. A started ramp continues on the backend and
-  remains discoverable in that identity's transaction history even if local polling stops.
-  Returning to the originating identity restores any resumable payment state.
-- Transfer resume state is keyed by the effective owner identity (manager profile when acting as
-  self, otherwise managed child profile), not one global dashboard key. It must never be displayed,
-  resumed, or submitted under another selected identity.
-- If the selected relationship is deleted, the manager is disabled, or authorization otherwise
-  becomes invalid, the dashboard clears child mode and returns to the manager's selection page
-  rather than silently retrying against the manager's own resources.
+  **Stop acting**, and repeats the current role and owner badges. Stopping clears the selection and
+  returns to `/managed-profiles` under the member's own account.
+- Selected-child mode never mounts a transfer form or resumes a saved payment. Existing transfer
+  state remains keyed by its effective subject and is neither displayed nor submitted while a
+  child is selected. The backend independently rejects selected-child bearer register, update, and
+  start requests, so hidden navigation is not the authorization boundary.
+- The dashboard bootstraps a persisted selection using `GET /v1/managed-profiles/:profileId` with
+  an exactly matching `X-Managed-Profile-Id`, and revalidates when the window regains focus. It
+  refreshes role and owner metadata in place. Only an actor membership for the child's owner
+  overlapping the child lifetime permits the API to
+  return `MANAGED_PROFILE_MEMBERSHIP_INVALID` after revocation, child deletion, owner deactivation
+  or invalid entity layout; deletion invalidates even the owner's bootstrap. Never-member callers
+  get identical masked `404`s for existing and unknown children. The dashboard clears child mode
+  for membership-invalid, not generic `404`, role/policy denial or transient failures. It also
+  rejects a successful response with mismatched actor/child identity or non-active status rather
+  than silently retrying against the member's own resources.
 
-**Child-mode navigation.** Onboarding status, Recipients, Get a quote, New transfer, Transactions,
-and Limits remain available where their API routes support managed-child authorization. KYC/KYB
-actions are read-only: a manager cannot start, continue, retry, or re-authenticate verification for
-the child from the dashboard. Generic API keys, Settings and notification preferences, the admin
-console, webhook management, and email-bound Monerium/Mykobo operations remain manager-scoped or
-unavailable and must not be shown as child operations. The dashboard API client adds
+Bootstrap evidence requires the same membership row to satisfy
+`membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or
+`membership.revokedAt > child.createdAt`), with matching actor and immutable owner. A child
+created after revocation or wholly within a membership gap stays masked `404`, despite historic
+org membership; this is not permission to clear selection or disclose that child.
+
+**Child-mode navigation.** Onboarding status, Recipients, Get a quote, Transactions, child API keys,
+and Limits remain available where their API routes support managed-child authorization. Team
+is not a child-mode surface; it belongs in the main nonacting dashboard. New
+transfer, resume-payment, and recipient/quote transfer entry points are removed immediately from
+every selected-child session because browser bearer sessions cannot satisfy the secret-credential
+requirement for managed ramp operations. KYC/KYB actions are read-only. Settings and notification
+preferences, the admin console, webhook management, and email-bound Monerium/Mykobo operations
+remain member-scoped or unavailable and must not be shown as child operations. The dashboard API client adds
 `X-Managed-Profile-Id` only when a service explicitly opts into a supported delegated route; it
 must never attach the header indiscriminately, because an endpoint that ignores it would otherwise
 operate on the manager while the UI claims to show the child.
+
+The provider-mutation bearer denial retains its shipped spelling
+`MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`; ramp denial is
+`MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL` with no in-flight drain exception. Child API-key
+and domestic fiat-account mutations are `manage` capability and remain available to manager
+members through a real bearer session, subject to the existing impersonation restrictions.
 
 The legacy Monerium and Mykobo routes are the known instance of that ignored-header behavior: they
 always use the authenticated manager identity. Dashboard services do not opt them into managed
 selection, and child-mode onboarding actions remain disabled.
 
-**Recipients in child mode.** The selected child is the sender and owns its invitations and
-sender-recipient relationships. The manager may list recipients, create invitations, archive
-invitations, update or archive relationships, and check eligibility on the child's behalf.
+**Role gates in child mode.** The selected child owns its API credentials, recipient records, and
+Alfredpay payout accounts. Both roles may list them. A `manager` member may create/revoke child API
+credentials, create/archive recipients, and add/delete payout accounts; a `read_only` member cannot.
+If a live bootstrap downgrades the role, any open recipient action, credential revocation, or payout
+account form/dialog closes before another submission can be made.
+
+**Team access.** In the main nonacting dashboard, `GET /v1/organization` discovers
+`{ organization: { ownerProfileId, ownerEmail, membership: { role, isOwner } } | null }`.
+`ownerEmail` is nullable. Team is available to both roles even before any child exists.
+Both roles can inspect the organization roster, pending invitations, and recent access
+events. A non-impersonated `manager` can invite an email as `manager` or `read_only`, cancel a
+pending invitation, change a non-owner role, or remove a non-owner member. Owner rows are visibly
+immutable. No mutation is displayed optimistically before server confirmation.
+The invitation list hides accepted invitations addressed to the viewer's current email;
+other members still see those records. This is presentation-only: the API, pagination,
+membership roster, and access history remain unchanged.
+
+Active owner configuration is required for Team and org operations. Deactivation retains
+memberships but denies operations and returns no live organization on discovery. Only the
+owner can provision/delete children, inspect retained deleted children, or control owner policy
+through existing administration. An invited Manager cannot do these. Read-only permits no
+writes, including delegated calls using personal secrets. Removing/downgrading a member changes
+access to all children but does not revoke child-owned shared API credentials; the UI must warn
+that exposed shared keys need separate revocation.
+
+Team requests use `/v1/organization/members`, `/member-invitations`, and `/member-events` with
+the existing member/invitation/event pagination and projections. All organization, team, and
+invitee routes require a human Supabase bearer and reject any child selector, API/public-key
+headers, and impersonation. No old per-child Team paths or aliases remain.
+
+All seven scoped Team requests, including item PATCH/DELETE, carry required UUID query
+`expectedOwnerProfileId` captured from the displayed organization. Missing/malformed input is
+`400 MANAGED_PROFILE_INVALID_INPUT`; expected/current org mismatch is
+`409 ORGANIZATION_CONTEXT_CHANGED`. Discovery and invitee locator routes are exempt. The server
+still derives the current org and enforces live service authorization; the precondition is not
+authority or an org switcher. A dialog opened in A must retain A's owner ID even if another tab
+accepts B after removal from A. On context conflict, refresh the org, discard stale intent, and
+require a new user decision instead of silently submitting the old invitation into B.
+
+An invitation link opens `/member-invitations/:invitationId`. Before authentication the page shows
+no organization, inviter, role, or status detail. After OTP authentication, the exact current verified
+Supabase email may preview and explicitly accept the invitation. Wrong-account, expired, cancelled,
+already-accepted, retry, second-org conflict, and success states remain distinct. Preview and
+acceptance use `/v1/organization-member-invitations/:invitationId` and `/:invitationId/accept`.
+Preview identifies `{ ownerProfileId, ownerEmail }`, not a child. Acceptance returns
+`{ ownerProfileId, member }`, refreshes organization and managed-profile queries, and leads to
+the main organization/Team surface, including when no children exist. OTP alone grants no access.
+Invitations expire after seven days and remain durable org offers even after the inviter is
+removed. A person already affiliated elsewhere, including a disabled owner, receives
+`409 ORGANIZATION_MEMBERSHIP_CONFLICT` rather than an organization switcher.
+
+**Recipients in child mode.** A manager member may create invitations, archive invitations, update
+or archive relationships, and check eligibility on the child's behalf.
 Invitation creation remains subject to the manager's corridor policy. Privileged discount
 attachment checks the authenticated manager actor's `discount_manager` role rather than granting
 that role to the child. Invite preview and acceptance are not delegated: those actions belong to
@@ -281,13 +368,9 @@ provider-shaped rather than UI-shaped.
   transactions page omits the matching initial BUY ramp from history and offers **Resume payment**
   in a prominent standalone card. Resume affordances are scoped
   to the account that created the ramp; switching accounts does not expose its payment details.
-  Managed-child selection extends this rule by keying resumable snapshots to the effective owner
-  profile rather than using one global snapshot. Selection changes are forbidden while the machine
-  is in `CheckingQuote`, `CheckingBalance`, `Registering`, or `SigningUserTxs`. Once registration
-  and signing updates are durably accepted, its owner-scoped `AwaitingPayment` snapshot or backend
-  transaction record survives selection changes and is available again when that owner is selected.
-  Ramp ephemeral storage is independent recovery custody and is never pruned or cleared by
-  manager/child selection.
+  Managed-child selection never exposes or resumes these snapshots because selected-child bearer
+  ramp execution is prohibited. Ramp ephemeral storage remains independent recovery custody and is
+  never pruned or cleared by manager/child selection.
   The customer can return to the same instructions while the payment window remains open. Once
   the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
   expired ramp remains rejected by the API.
@@ -301,7 +384,7 @@ provider-shaped rather than UI-shaped.
 - **Cross-border needs a second principal in ramp registration.** Registration today is
   structurally a self-ramp — payout destinations are sender-bound. A sender→recipient transfer
   must carry the relationship id, have the server verify ownership and eligibility, and resolve
-  the payout side from the *recipient's* provider identity. BRL is the cheapest first corridor
+  the payout side from the _recipient's_ provider identity. BRL is the cheapest first corridor
   (it already accepts a third-party PIX destination). `#review`
 
 - **Invitations are link-based.** The invite link carries a bearer token — 24 random bytes. The
@@ -309,7 +392,7 @@ provider-shaped rather than UI-shaped.
   **while it is pending** (a deliberate product decision, so the sender can re-copy the link from
   the list) and is cleared on first acceptance. It is exposed only to the sender who owns the
   invitation, it is not the invitation id, and it does not authenticate:
-  `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
+  `POST /v1/recipients/invite/:token/accept` requires _both_ a session and the token.
 
 - **Redemption and recipient KYC happen in the widget. `#decided`** The invite link opens the widget
   carrying the token (`?invite=`) plus `?kybLocked=<country>`, which pre-pins the corridor when the
@@ -319,6 +402,7 @@ provider-shaped rather than UI-shaped.
   has OTP login and the shipped KYC/KYB flows; it gains one new step — after login, redeem the token
   against the accept endpoint, then proceed into the existing KYB flow. The dashboard needs no
   `/invite` route.
+
   - **Accepted cost:** widget and dashboard sessions are namespaced apart on purpose
     (`vortex_access_token` vs `vortex_dashboard_access_token`), so a recipient who later uses the
     dashboard signs in a second time. Fine for this iteration.
@@ -353,8 +437,8 @@ provider-shaped rather than UI-shaped.
 
 - Self-onramps and self-offramps are functional. Third-party recipient payments and fiat-funded
   fiat-to-fiat payments remain future work; the Cross-border mode renders a complete coming-soon state.
-- **No recipient can currently become payable.** The payable gate requires a *verified payout
-  reference*, and nothing in the API creates `RecipientPayoutReference` rows — payout-instrument
+- **No recipient can currently become payable.** The payable gate requires a _verified payout
+  reference_, and nothing in the API creates `RecipientPayoutReference` rows — payout-instrument
   registration is not implemented. Invitations and recipient KYC work end-to-end, but capability
   #2 stops at "onboarded", not "payable". The product and provider contract must define how
   payout instruments are created for both senders creating links and recipients redeeming them,
@@ -387,7 +471,7 @@ provider-shaped rather than UI-shaped.
   `profiles.active_customer_entity_id` once (`ACTIVE_ENTITY_IMMUTABLE` on change attempts), a
   unique `(profile_id, type)` index precludes duplicate entities, and profiles without a
   selection fall back deterministically to their oldest entity in
-  `getOrCreateCustomerEntityForProfile`. Whether users will ever be able to *switch* the active
+  `getOrCreateCustomerEntityForProfile`. Whether users will ever be able to _switch_ the active
   entity (individual ↔ company) remains open.
 
 ## Admin console (operator surface)

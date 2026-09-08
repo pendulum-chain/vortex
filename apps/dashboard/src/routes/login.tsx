@@ -1,18 +1,21 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { safeLoginReturnTo } from "@/components/auth/login-return";
 import { VortexLogo } from "@/components/layout/VortexLogo";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/login")({
-  component: LoginPage
+  component: LoginPage,
+  validateSearch: (search: Record<string, unknown>): { returnTo?: string } => ({ returnTo: safeLoginReturnTo(search.returnTo) })
 });
 
 function LoginPage() {
   const user = useAuthStore(state => state.user);
   const navigate = useNavigate();
+  const { returnTo } = Route.useSearch();
 
   if (user) {
-    return <Navigate to="/overview" />;
+    return <Navigate replace to={returnTo ?? "/overview"} />;
   }
 
   return (
@@ -23,7 +26,7 @@ function LoginPage() {
         </div>
         <AuthCard
           description="Enter your email — we'll sign you in or create your account."
-          onAuthenticated={() => navigate({ to: "/overview" })}
+          onAuthenticated={() => navigate({ replace: true, to: returnTo ?? "/overview" })}
           title="Connect with Vortex"
         />
       </div>

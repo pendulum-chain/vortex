@@ -18,6 +18,7 @@ Run the docs check before publishing:
 
 ```bash
 bun run docs:api:check
+bun test ./docs/api/scripts/check-openapi.test.ts
 ```
 
 Generate TypeScript declarations from the OpenAPI file when endpoint schemas change:
@@ -112,6 +113,18 @@ The likely long-term path is schema first: move API request and response contrac
 ## Scope Rules
 
 The endpoint reference should stay SDK-led and partner-facing. Preserve currently documented Apidog endpoints unless we intentionally decide to remove one. Do not add internal routes just because they exist in the API server.
+
+The explicitly approved organization surface includes `GET /v1/organization`, its team
+routes, and `/v1/organization-member-invitations/*`, grouped under Managed Profiles. These ten
+operations are human Supabase bearer-only and reject all child selectors, API/public keys,
+and impersonation. They intentionally replace the unshipped per-child team API with no aliases;
+this is an API surface break, not an expected shared/SDK snapshot change. See
+[ADR 0006](../adr-0006-organization-wide-teams.md) and the manifest scope. Do not run the Apidog
+export while authoring this source change: it downloads and overwrites the local OpenAPI.
+
+All seven scoped Team operations require UUID query `expectedOwnerProfileId` to bind the
+displayed org without granting authority; missing/malformed input is `400`, and changed org
+context is typed `409 ORGANIZATION_CONTEXT_CHANGED`. Discovery and invitee routes are exempt.
 
 The docs must strongly state that Vortex does not receive, store, or reconstruct ephemeral account secret keys. The SDK or direct API client is responsible for keeping those secrets available until the ramp and any recovery window are complete.
 

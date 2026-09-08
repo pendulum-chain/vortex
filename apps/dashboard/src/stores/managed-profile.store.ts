@@ -7,6 +7,19 @@ const reactListeners = new Set<() => void>();
 function applyStoredSelection(): void {
   const nextSnapshot = AuthService.getManagedProfileSelectionSnapshot();
   if (nextSnapshot === currentSnapshot) return;
+  const currentSelection = AuthService.parseManagedProfileSelectionSnapshot(currentSnapshot);
+  const nextSelection = AuthService.parseManagedProfileSelectionSnapshot(nextSnapshot);
+  const sameIdentity =
+    currentSelection !== null &&
+    nextSelection !== null &&
+    currentSelection.managerProfileId === nextSelection.managerProfileId &&
+    currentSelection.targetProfileId === nextSelection.targetProfileId;
+  if (sameIdentity) {
+    currentSnapshot = nextSnapshot;
+    AuthService.acceptManagedProfileSelectionSnapshot(nextSnapshot);
+    for (const listener of reactListeners) listener();
+    return;
+  }
   if (!AuthService.canChangeEffectiveIdentity()) {
     AuthService.restoreAcceptedManagedProfileSelection();
     return;
@@ -40,6 +53,17 @@ export function selectManagedProfile(selection: Omit<ManagedProfileSelection, "m
   const managerProfileId = AuthService.getEffectiveBearerProfileId();
   if (!managerProfileId) return false;
   AuthService.storeManagedProfileSelection({ ...selection, managerProfileId });
+  return true;
+}
+
+export function refreshManagedProfileSelection(
+  selection: Omit<ManagedProfileSelection, "managerProfileId">,
+  expectedSnapshot: string
+): boolean {
+  if (AuthService.getManagedProfileSelectionSnapshot() !== expectedSnapshot) return false;
+  const current = AuthService.parseManagedProfileSelectionSnapshot(expectedSnapshot);
+  if (!current || current.targetProfileId !== selection.targetProfileId) return false;
+  AuthService.storeManagedProfileSelection({ ...selection, managerProfileId: current.managerProfileId });
   return true;
 }
 

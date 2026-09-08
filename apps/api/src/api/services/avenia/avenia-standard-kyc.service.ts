@@ -14,6 +14,7 @@ import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase, { type IndividualKycSubmission } from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../../models/managedProfileMembership.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
@@ -27,6 +28,7 @@ export interface SubmitStandardAveniaKycArgs {
   controllingManagerProfileId?: string;
   expectedCustomerEntityId?: string;
   managedProfileId?: string;
+  membershipId?: string;
   payload: KycLevel1Payload;
   providerCustomer: ProviderCustomer;
   subjectProfileId: string;
@@ -45,32 +47,32 @@ function managedAccessDenied(): APIError {
 }
 
 function assertAuthorizationShape(args: SubmitStandardAveniaKycArgs): void {
-  if (!args.controllingManagerProfileId && !args.managedProfileId && !args.expectedCustomerEntityId) {
+  if (!args.controllingManagerProfileId && !args.managedProfileId && !args.expectedCustomerEntityId && !args.membershipId) {
     if (args.actorProfileId !== args.subjectProfileId) throw managedAccessDenied();
     return;
   }
   if (!args.controllingManagerProfileId || !args.managedProfileId || !args.expectedCustomerEntityId) {
     throw managedAccessDenied();
   }
-  if (args.actorProfileId !== args.controllingManagerProfileId && args.actorProfileId !== args.subjectProfileId) {
+  if (args.actorProfileId !== args.subjectProfileId && !args.membershipId) {
     throw managedAccessDenied();
   }
 }
 
-async function assertCurrentAuthorization(
-  args: SubmitStandardAveniaKycArgs,
-  transaction: Transaction,
-  providerCustomer?: ProviderCustomer | null
-): Promise<void> {
+async function assertCurrentAuthorization(args: SubmitStandardAveniaKycArgs, transaction: Transaction): Promise<void> {
   assertAuthorizationShape(args);
   if (!args.controllingManagerProfileId || !args.managedProfileId || !args.expectedCustomerEntityId) return;
   const manager = await ManagedProfileManager.findByPk(args.controllingManagerProfileId, {
     lock: transaction.LOCK.UPDATE,
     transaction
   });
-  const relationship = await ManagedProfile.findByPk(args.managedProfileId, { lock: transaction.LOCK.UPDATE, transaction });
   const subject = await User.findByPk(args.subjectProfileId, { lock: transaction.LOCK.UPDATE, transaction });
+  const relationship = await ManagedProfile.findByPk(args.managedProfileId, { lock: transaction.LOCK.UPDATE, transaction });
   const entity = await CustomerEntity.findByPk(args.expectedCustomerEntityId, { lock: transaction.LOCK.UPDATE, transaction });
+  const membership =
+    args.actorProfileId === args.subjectProfileId
+      ? null
+      : await ManagedProfileMembership.findByPk(args.membershipId, { lock: transaction.LOCK.UPDATE, transaction });
   if (
     !manager?.isActive ||
     !manager.allowedCorridors.includes("BR") ||
@@ -79,13 +81,19 @@ async function assertCurrentAuthorization(
     relationship.managerProfileId !== args.controllingManagerProfileId ||
     relationship.profileId !== args.subjectProfileId ||
     relationship.status !== "active" ||
+    (args.actorProfileId !== args.subjectProfileId &&
+      (!membership ||
+        membership.ownerProfileId !== relationship.managerProfileId ||
+        membership.memberProfileId !== args.actorProfileId ||
+        membership.role !== "manager" ||
+        membership.revokedAt !== null)) ||
     subject?.kind !== "managed" ||
     subject.activeCustomerEntityId !== args.expectedCustomerEntityId ||
     !entity ||
     entity.profileId !== args.subjectProfileId ||
     entity.status !== "active" ||
     entity.type !== "individual" ||
-    (providerCustomer ?? args.providerCustomer).customerEntityId !== args.expectedCustomerEntityId
+    args.providerCustomer.customerEntityId !== args.expectedCustomerEntityId
   ) {
     throw managedAccessDenied();
   }
@@ -93,6 +101,7 @@ async function assertCurrentAuthorization(
 
 async function claimAuthorizedStandardMethod(args: SubmitStandardAveniaKycArgs): Promise<KycCase> {
   return sequelize.transaction(async transaction => {
+    await assertCurrentAuthorization(args, transaction);
     const providerCustomer = await ProviderCustomer.findByPk(args.providerCustomer.id, {
       lock: transaction.LOCK.UPDATE,
       transaction
@@ -107,7 +116,9 @@ async function claimAuthorizedStandardMethod(args: SubmitStandardAveniaKycArgs):
     });
     if (cases.length !== 1) throw conflict("Exactly one canonical KYC case is required");
     const kycCase = cases[0];
-    await assertCurrentAuthorization(args, transaction, providerCustomer);
+    if (args.expectedCustomerEntityId && providerCustomer.customerEntityId !== args.expectedCustomerEntityId) {
+      throw managedAccessDenied();
+    }
     if (providerCustomer.status === VerificationStatus.Approved || kycCase.status === VerificationStatus.Approved) {
       throw conflict("The KYC case is already approved");
     }
@@ -179,6 +190,7 @@ async function prepareSubmission(
   payloadFingerprint: string
 ): Promise<KycCase> {
   return sequelize.transaction(async transaction => {
+    await assertCurrentAuthorization(args, transaction);
     const providerCustomer = await ProviderCustomer.findByPk(args.providerCustomer.id, {
       lock: transaction.LOCK.UPDATE,
       transaction
@@ -187,7 +199,9 @@ async function prepareSubmission(
     if (!kycCase || !providerCustomer || kycCase.verificationMethod !== "standard") {
       throw new Error("Standard KYC submission state disappeared");
     }
-    await assertCurrentAuthorization(args, transaction, providerCustomer);
+    if (args.expectedCustomerEntityId && providerCustomer.customerEntityId !== args.expectedCustomerEntityId) {
+      throw managedAccessDenied();
+    }
     if (kycCase.status === VerificationStatus.Approved || providerCustomer.status === VerificationStatus.Approved) {
       throw conflict("This customer is already approved");
     }
@@ -219,6 +233,7 @@ async function prepareRetrySubmission(
   payloadFingerprint: string
 ): Promise<KycCase> {
   return sequelize.transaction(async transaction => {
+    await assertCurrentAuthorization(args, transaction);
     const providerCustomer = await ProviderCustomer.findByPk(args.providerCustomer.id, {
       lock: transaction.LOCK.UPDATE,
       transaction
@@ -235,7 +250,9 @@ async function prepareRetrySubmission(
     ) {
       throw reconciliationError();
     }
-    await assertCurrentAuthorization(args, transaction, providerCustomer);
+    if (args.expectedCustomerEntityId && providerCustomer.customerEntityId !== args.expectedCustomerEntityId) {
+      throw managedAccessDenied();
+    }
     if (kycCase.status === VerificationStatus.Approved || providerCustomer.status === VerificationStatus.Approved) {
       throw conflict("This customer is already approved");
     }
@@ -263,15 +280,22 @@ async function claimPreparedSubmission(
   attemptBaselineIds: string[]
 ): Promise<APIError | boolean> {
   return sequelize.transaction(async transaction => {
+    let authorizationError: APIError | undefined;
+    try {
+      await assertCurrentAuthorization(args, transaction);
+    } catch (error) {
+      if (!(error instanceof APIError) || error.status !== httpStatus.FORBIDDEN) throw error;
+      authorizationError = error;
+    }
     const providerCustomer = await ProviderCustomer.findByPk(args.providerCustomer.id, {
       lock: transaction.LOCK.UPDATE,
       transaction
     });
     const kycCase = await KycCase.findByPk(kycCaseId, { lock: transaction.LOCK.UPDATE, transaction });
-    try {
-      await assertCurrentAuthorization(args, transaction, providerCustomer);
-    } catch (error) {
-      if (!(error instanceof APIError) || error.status !== httpStatus.FORBIDDEN) throw error;
+    if (args.expectedCustomerEntityId && providerCustomer?.customerEntityId !== args.expectedCustomerEntityId) {
+      authorizationError ??= managedAccessDenied();
+    }
+    if (authorizationError) {
       const submission = kycCase?.verificationSubmission;
       if (kycCase && submission?.status === "prepared") {
         assertSubmissionBinding(submission, args, payloadFingerprint);
@@ -280,7 +304,7 @@ async function claimPreparedSubmission(
           { transaction }
         );
       }
-      return error;
+      return authorizationError;
     }
     const submission = kycCase?.verificationSubmission;
     if (!providerCustomer || !kycCase || !submission || kycCase.verificationMethod !== "standard") {

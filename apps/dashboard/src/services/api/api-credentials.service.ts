@@ -30,7 +30,20 @@ interface ListApiCredentialsResponse {
 }
 
 export const ApiCredentialsService = {
-  create: (request: CreateApiCredentialRequest) => apiClient.post<CreateApiCredentialResponse>("/api-credentials", request),
-  list: (signal?: AbortSignal) => apiClient.get<ListApiCredentialsResponse>("/api-credentials", { signal }),
-  revoke: (credentialId: string) => apiClient.delete<void>(`/api-credentials/${credentialId}`)
+  create: (request: CreateApiCredentialRequest, managedProfileId?: string) =>
+    apiClient.post<CreateApiCredentialResponse>(
+      managedProfileId ? `/managed-profiles/${managedProfileId}/api-credentials` : "/api-credentials",
+      request
+    ),
+  list: (signal?: AbortSignal, managedProfileId?: string) =>
+    apiClient.get<ListApiCredentialsResponse>(
+      managedProfileId ? `/managed-profiles/${managedProfileId}/api-credentials` : "/api-credentials",
+      { signal }
+    ),
+  revoke: (credentialId: string, managedProfileId?: string) =>
+    apiClient.delete<void>(
+      managedProfileId
+        ? `/managed-profiles/${managedProfileId}/api-credentials/${credentialId}`
+        : `/api-credentials/${credentialId}`
+    )
 };

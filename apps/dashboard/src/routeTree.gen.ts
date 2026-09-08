@@ -20,9 +20,11 @@ import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppQuoteRouteImport } from './routes/_app/quote'
 import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as AppTransferRouteImport } from './routes/_app/transfer'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as MemberInvitationsInvitationIdRouteImport } from './routes/member-invitations.$invitationId'
 import { Route as MoneriumCallbackRouteImport } from './routes/monerium.callback'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin.index'
 import { Route as AppAdminProfileIdRouteImport } from './routes/_app/admin.$profileId'
@@ -81,6 +83,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransactionsRoute = AppTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
@@ -96,6 +103,12 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MemberInvitationsInvitationIdRoute =
+  MemberInvitationsInvitationIdRouteImport.update({
+    id: '/member-invitations/$invitationId',
+    path: '/member-invitations/$invitationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MoneriumCallbackRoute = MoneriumCallbackRouteImport.update({
   id: '/monerium/callback',
   path: '/monerium/callback',
@@ -123,9 +136,11 @@ export interface FileRoutesByFullPath {
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
+  '/team': typeof AppTeamRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/member-invitations/$invitationId': typeof MemberInvitationsInvitationIdRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/admin/$profileId': typeof AppAdminProfileIdRoute
   '/admin/': typeof AppAdminIndexRoute
@@ -140,9 +155,11 @@ export interface FileRoutesByTo {
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
+  '/team': typeof AppTeamRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/member-invitations/$invitationId': typeof MemberInvitationsInvitationIdRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/admin/$profileId': typeof AppAdminProfileIdRoute
   '/admin': typeof AppAdminIndexRoute
@@ -160,9 +177,11 @@ export interface FileRoutesById {
   '/_app/quote': typeof AppQuoteRoute
   '/_app/recipients': typeof AppRecipientsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/team': typeof AppTeamRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/_app/transfer': typeof AppTransferRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/member-invitations/$invitationId': typeof MemberInvitationsInvitationIdRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
   '/_app/admin/$profileId': typeof AppAdminProfileIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
@@ -180,9 +199,11 @@ export interface FileRouteTypes {
     | '/quote'
     | '/recipients'
     | '/settings'
+    | '/team'
     | '/transactions'
     | '/transfer'
     | '/invite/$token'
+    | '/member-invitations/$invitationId'
     | '/monerium/callback'
     | '/admin/$profileId'
     | '/admin/'
@@ -197,9 +218,11 @@ export interface FileRouteTypes {
     | '/quote'
     | '/recipients'
     | '/settings'
+    | '/team'
     | '/transactions'
     | '/transfer'
     | '/invite/$token'
+    | '/member-invitations/$invitationId'
     | '/monerium/callback'
     | '/admin/$profileId'
     | '/admin'
@@ -216,9 +239,11 @@ export interface FileRouteTypes {
     | '/_app/quote'
     | '/_app/recipients'
     | '/_app/settings'
+    | '/_app/team'
     | '/_app/transactions'
     | '/_app/transfer'
     | '/invite/$token'
+    | '/member-invitations/$invitationId'
     | '/monerium/callback'
     | '/_app/admin/$profileId'
     | '/_app/admin/'
@@ -229,6 +254,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  MemberInvitationsInvitationIdRoute: typeof MemberInvitationsInvitationIdRoute
   MoneriumCallbackRoute: typeof MoneriumCallbackRoute
 }
 
@@ -311,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/team': {
+      id: '/_app/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transactions': {
       id: '/_app/transactions'
       path: '/transactions'
@@ -330,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/invite/$token'
       fullPath: '/invite/$token'
       preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/member-invitations/$invitationId': {
+      id: '/member-invitations/$invitationId'
+      path: '/member-invitations/$invitationId'
+      fullPath: '/member-invitations/$invitationId'
+      preLoaderRoute: typeof MemberInvitationsInvitationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/monerium/callback': {
@@ -379,6 +419,7 @@ interface AppRouteChildren {
   AppQuoteRoute: typeof AppQuoteRoute
   AppRecipientsRoute: typeof AppRecipientsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AppTransferRoute: typeof AppTransferRoute
 }
@@ -392,6 +433,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppQuoteRoute: AppQuoteRoute,
   AppRecipientsRoute: AppRecipientsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTeamRoute: AppTeamRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AppTransferRoute: AppTransferRoute,
 }
@@ -403,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   InviteTokenRoute: InviteTokenRoute,
+  MemberInvitationsInvitationIdRoute: MemberInvitationsInvitationIdRoute,
   MoneriumCallbackRoute: MoneriumCallbackRoute,
 }
 export const routeTree = rootRouteImport

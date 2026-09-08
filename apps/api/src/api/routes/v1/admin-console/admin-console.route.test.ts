@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn
 import express from "express";
 import { config } from "../../../../config/vars";
 import AdminImpersonationSession from "../../../../models/adminImpersonationSession.model";
-import ManagedProfileManager from "../../../../models/managedProfileManager.model";
 import ProfileRole from "../../../../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../../test-utils/db";
 import { createTestAlfredpayCustomer, createTestUser } from "../../../../test-utils/factories";
 import { SupabaseAuthService } from "../../../services/auth";
 import { createSession } from "../../../services/impersonation.service";
 import { createManagedProfile } from "../../../services/managed-profile-lifecycle.service";
+import { configureManagedProfileManager } from "../../../services/managed-profile-manager.service";
 import accountsRoutes from "./accounts.route";
 import impersonationRoutes from "./impersonation.route";
 
@@ -77,7 +77,12 @@ describe("admin-console routes", () => {
     it("identifies a managed profile and its authenticated manager", async () => {
       const admin = await createAdmin();
       const manager = await createTestUser();
-      await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+      await configureManagedProfileManager({
+        allowedCorridors: ["BR"],
+        allowedCustomerTypes: null,
+        isActive: true,
+        profileId: manager.id
+      });
       const { managedProfile } = await createManagedProfile({
         contactEmail: "managed-child@example.com",
         creationSource: "vortex",

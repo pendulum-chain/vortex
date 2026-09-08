@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { getRampInfo } from "../../controllers/rampInfo.controller";
 import { apiKeyAuth } from "../../middlewares/apiKeyAuth";
-import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import { authorizeManagedProfile, ManagedProfileCapability } from "../../middlewares/managedProfileAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 
 const router = Router({ mergeParams: true });
@@ -17,6 +17,14 @@ const credentialLimiter = rateLimit({
   windowMs
 });
 
-router.get("/", ipLimiter, validatePublicKey(), apiKeyAuth(), authorizeManagedProfile(), credentialLimiter, getRampInfo);
+router.get(
+  "/",
+  ipLimiter,
+  validatePublicKey(),
+  apiKeyAuth(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
+  credentialLimiter,
+  getRampInfo
+);
 
 export default router;

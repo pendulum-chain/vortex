@@ -6,13 +6,15 @@
 surface — the per-operator, Supabase-identity-bearing counterpart to the shared-secret
 `/v1/admin/*` surface documented in [`admin-auth.md`](admin-auth.md). Authenticated profiles
 are direct session targets. Managed headless profiles are reached by impersonating their
-authenticated manager and composing that session with the existing managed-profile selector.
+authenticated owner or member and composing that session with an active organization
+membership and selector.
 
 Impersonation is not read-only. The operator may create quotes, inspect ramp and KYC/KYB status,
 history, and errors, and perform customer-account mutations outside the protected boundaries.
 Ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and OAuth actions
 reject the request. Durable credential minting and revocation are denied, as are managed-child
-creation and deletion. Alfredpay fiat-account creation and deletion remain deliberately available:
+creation/deletion and all organization/team/invitee operations, including reads. Alfredpay fiat-account creation and
+deletion remain deliberately available:
 these provider-side payout-account mutations outlive the session and are part of the accepted
 operator capability (see the risk register, RISK-018).
 
@@ -20,13 +22,13 @@ operator capability (see the risk register, RISK-018).
 
 All routes live under `/v1/admin-console/*` (`accounts.route.ts`, `impersonation.route.ts`).
 
-| Route | Guard | Success | Notable errors |
-|---|---|---|---|
-| `GET /accounts?search=&cursor=&limit=` | `requireVortexAdmin` | `200` — paginated account list; search matches login email, managed contact/external ID, or controlling-manager email; managed rows include child contact identity and controlling-manager identity | — |
-| `GET /accounts/:profileId` | `requireVortexAdmin` | `200` — profile kind, managed relationship when present, entities, provider customers, KYC cases, and recent direct impersonation sessions targeting this profile | `400 INVALID_PROFILE_ID`; `404 USER_NOT_FOUND` |
-| `POST /impersonation` `{ targetProfileId }` | `requireVortexAdmin` | `201 { token, sessionId, expiresAt, target: { id, email } }` | `400 INVALID_IMPERSONATION_INPUT` (malformed `targetProfileId`); `400 IMPERSONATION_TARGET_INVALID` (self-target, unknown target — from `ImpersonationTargetError`); `403 VORTEX_ADMIN_REQUIRED` if the role is removed during creation; `503 IMPERSONATION_DISABLED` (kill switch off — the caller is authorized, the capability is off, so this is a capability error, not an auth error) |
-| `GET /impersonation?limit=` | `requireVortexAdmin` | `200 { sessions: [...] }` — active-first audit view; a non-positive or malformed limit falls back to the default | — |
-| `DELETE /impersonation/:sessionId` | see Invariant 12 | `204` | `400 INVALID_IMPERSONATION_SESSION_ID`; `403 IMPERSONATION_NOT_ALLOWED`; `403 VORTEX_ADMIN_REQUIRED`; `404 IMPERSONATION_SESSION_NOT_FOUND` |
+| Route                                       | Guard                | Success                                                                                                                                                                                             | Notable errors                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /accounts?search=&cursor=&limit=`      | `requireVortexAdmin` | `200` — paginated account list; search matches login email, managed contact/external ID, or controlling-manager email; managed rows include child contact identity and controlling-manager identity | —                                                                                                                                                                                                                                                                                                                                                                                           |
+| `GET /accounts/:profileId`                  | `requireVortexAdmin` | `200` — profile kind, managed relationship when present, entities, provider customers, KYC cases, and recent direct impersonation sessions targeting this profile                                   | `400 INVALID_PROFILE_ID`; `404 USER_NOT_FOUND`                                                                                                                                                                                                                                                                                                                                              |
+| `POST /impersonation` `{ targetProfileId }` | `requireVortexAdmin` | `201 { token, sessionId, expiresAt, target: { id, email } }`                                                                                                                                        | `400 INVALID_IMPERSONATION_INPUT` (malformed `targetProfileId`); `400 IMPERSONATION_TARGET_INVALID` (self-target, unknown target — from `ImpersonationTargetError`); `403 VORTEX_ADMIN_REQUIRED` if the role is removed during creation; `503 IMPERSONATION_DISABLED` (kill switch off — the caller is authorized, the capability is off, so this is a capability error, not an auth error) |
+| `GET /impersonation?limit=`                 | `requireVortexAdmin` | `200 { sessions: [...] }` — active-first audit view; a non-positive or malformed limit falls back to the default                                                                                    | —                                                                                                                                                                                                                                                                                                                                                                                           |
+| `DELETE /impersonation/:sessionId`          | see Invariant 12     | `204`                                                                                                                                                                                               | `400 INVALID_IMPERSONATION_SESSION_ID`; `403 IMPERSONATION_NOT_ALLOWED`; `403 VORTEX_ADMIN_REQUIRED`; `404 IMPERSONATION_SESSION_NOT_FOUND`                                                                                                                                                                                                                                                 |
 
 `requireVortexAdmin` (`vortexAdminAuth.ts`) is the chain `requireAuth → rejectImpersonation →
 checkVortexAdminRole`: Supabase auth, then no impersonation chaining, then the `vortex_admin`
@@ -42,7 +44,7 @@ Invariant 12 for the exact self-revoke mechanism this enables.
 
 1. `POST /v1/admin-console/impersonation` with `{ targetProfileId }` mints a session
    (`impersonation.service.ts::createSession`) and returns `{ token, sessionId, expiresAt,
-   target }`. The token is `vtx_imp_` followed by 32 random bytes (256 bits), base64url-encoded.
+target }`. The token is `vtx_imp_` followed by 32 random bytes (256 bits), base64url-encoded.
    Only its SHA-256 hash is persisted to `admin_impersonation_sessions`; the raw value is
    returned exactly once and never stored server-side.
 2. The operator presents the token as an ordinary `Authorization: Bearer` header on subsequent
@@ -64,11 +66,12 @@ Invariant 12 for the exact self-revoke mechanism this enables.
 5. `GET /v1/admin-console/impersonation` lists sessions for audit (active first, then recent);
    `DELETE /v1/admin-console/impersonation/:sessionId` revokes one immediately.
 
-For a managed child, the dashboard starts the session against the authenticated manager returned
-by the account lookup, then stores the child profile ID as the managed-profile selection. The
-impersonation audit target remains the manager. Delegated requests carry `X-Managed-Profile-Id`
-and continue through the normal active-manager, direct-relationship, entity, customer-type, and
-corridor authorization checks. No impersonation token directly targets a headless profile.
+For a managed child, the dashboard starts the session against an authenticated profile with an
+active membership, then stores the child profile ID as the managed-profile selection. The
+impersonation audit target remains that authenticated member. Delegated requests carry
+`X-Managed-Profile-Id` and continue through normal live membership, immutable-owner policy,
+relationship, entity, customer-type, and corridor checks. No impersonation token directly targets
+a headless profile, grants a missing membership, or upgrades a role.
 
 Both `requireAuth`/`optionalAuth` (`supabaseAuth.ts`) and the dual-auth handlers
 (`dualAuth.ts`) call `resolveBearerPrincipal()`, so an impersonation token is honored on any
@@ -123,7 +126,7 @@ and requires deployment/database access rather than an HTTP credential — see
    stop resolving immediately, with no per-row revocation pass required.
 7. **Starting a new session for the same (actor, target) MUST supersede the prior one** —
    `createSession()` revokes any existing non-revoked session for that exact `(actorProfileId,
-   targetProfileId)` pair with `revokedReason: "superseded"` before minting the new token. This
+targetProfileId)` pair with `revokedReason: "superseded"` before minting the new token. This
    is serialized by a row lock on the actor profile and backed by the partial unique index
    `uq_admin_impersonation_sessions_active`, so concurrent starts cannot leave two non-revoked
    sessions for the same pair.
@@ -142,7 +145,7 @@ and requires deployment/database access rather than an HTTP credential — see
     directly.
 11. **An impersonated request MUST NOT be able to mint durable credentials** —
     `rejectImpersonation` is applied ahead of both `POST /v1/api-credentials` and `POST
-    /v1/managed-profiles/:profileId/api-credentials`: a credential minted while acting as someone
+/v1/managed-profiles/:profileId/api-credentials`: a credential minted while acting as someone
     else would outlive the 30-minute session and become a standing backdoor into the target or a
     managed child.
 12. **An impersonated request MUST NOT be able to reach the admin console, except to end its own
@@ -156,12 +159,12 @@ and requires deployment/database access rather than an HTTP credential — see
     straight to revocation. Any other impersonated request to that same route — a different
     `sessionId`, including a different session belonging to the same operator — is rejected with
     `403 IMPERSONATION_NOT_ALLOWED` before any role check runs. Every other route (`GET
-    /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, `GET /impersonation`) sits
+/accounts`, `GET /accounts/:profileId`, `POST /impersonation`, `GET /impersonation`) sits
     behind `requireVortexAdmin` = [`requireAuth`, `rejectImpersonation`, role check], so an
     impersonated caller is refused at the `rejectImpersonation` step, before role or business
     logic runs at all. **Verified**: `admin-console.route.test.ts` — an impersonated caller can
     end its own session (`204`), is refused ending a different session (`403
-    IMPERSONATION_NOT_ALLOWED`), and is refused `GET /accounts` and `POST /impersonation`
+IMPERSONATION_NOT_ALLOWED`), and is refused `GET /accounts` and `POST /impersonation`
     (`403`).
 13. **Every `api_client_events` row raised during an impersonated request MUST carry both
     identities** — `buildApiClientRequestMetadata()` stamps `metadata.impersonationSessionId` and
@@ -202,24 +205,29 @@ and requires deployment/database access rather than an HTTP credential — see
     disabling integrations through credential revocation, or creating/deleting retained child
     identities. Alfredpay fiat-account creation and deletion are intentionally outside this denial:
     their durable provider-side mutation is explicitly accepted by RISK-018.
+19. **An impersonated request MUST NOT use organization/team/invitee APIs** - organization
+    discovery, team reads and mutations, invitation preview and acceptance all reject impersonation.
+    Supported child inspection still uses only the target's already-live organization membership
+    for the child's immutable owner, inherited across that org's children. It cannot manufacture
+    or upgrade child access. Team remains a main nonacting human-account surface.
 
 ## Threat Vectors & Mitigations
 
-| Threat | Attack Scenario | Mitigation |
-|---|---|---|
-| Database dump exposes usable tokens | Attacker reads `admin_impersonation_sessions` from a backup or replica | Only a SHA-256 hash is stored; the raw token is never persisted (Invariant 2) |
-| Stolen or leaked impersonation token replayed after the operator's intent has ended | Token captured via logs, browser history, or a compromised operator device | 30-minute non-renewable TTL (Invariant 4); instant hash-based revocation via `DELETE /impersonation/:sessionId` (Invariant 8); re-checked liveness on every use (Invariant 5) |
-| Impersonation used to mint a permanent backdoor | Operator (or an attacker who obtained an operator's token) mints an API secret key for the target or a managed child while impersonating, which outlives the session | `rejectImpersonation` on both credential-creation routes (Invariant 11) |
-| Privilege re-escalation / impersonation chaining | An impersonated request is used to start a second impersonation session, list sessions, or browse accounts | `requireVortexAdmin`'s `rejectImpersonation` step refuses `GET /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation` outright (Invariant 12) |
-| Impersonated caller abuses the self-revoke carve-out to end someone else's session | Operator impersonating profile A presents that token against profile B's `sessionId` | Rejected with `403 IMPERSONATION_NOT_ALLOWED`: the carve-out only matches when the path `:sessionId` equals the caller's own `req.impersonation.sessionId` (Invariant 12) |
-| Impersonation initiates or advances money movement | Operator calls ramp register, update, or start while acting as a customer | All three mutating ramp routes apply `rejectImpersonation` after principal resolution and before controller execution (Invariant 16); quote creation and ramp inspection remain available |
-| Self-impersonation used to launder attribution | Operator targets their own profile to blur operator/target identity | Rejected at both the application layer and a database `CHECK` constraint (Invariant 3) |
-| Stale sessions surviving an incident response kill switch | Operator response to a suspected compromise is "disable impersonation", but existing tokens keep working | `IMPERSONATION_ENABLED=false` invalidates all live sessions on next resolution, not just new mints (Invariant 6) |
-| Removed operator role leaves previously minted tokens usable | An operator is deprovisioned while one or more impersonation sessions remain live | Role removal atomically revokes all non-revoked sessions, and token resolution independently re-checks `vortex_admin` on every use (Invariants 5 and 8) |
-| Token brute force / guessing | Attacker attempts to guess a valid `vtx_imp_*` value | 256 bits of randomness in the token; lookup requires an exact SHA-256 hash match |
-| Shared-secret surface used to self-grant impersonation rights | An operator (or anyone) with `ADMIN_SECRET` calls `POST /v1/admin/profile-roles` to grant themselves `vortex_admin`, turning a shared secret into broad customer-account access | `vortex_admin` excluded from `HTTP_GRANTABLE_PROFILE_ROLES` (Invariant 14); the only grant path is `scripts/grant-vortex-admin.ts`, which requires deployment/database access, not an HTTP credential |
-| Concurrent session creation races the supersession check | Two near-simultaneous `POST /impersonation` calls for the same (actor, target) both attempt to supersede and mint | Actor-row transaction locking serializes creation; the partial unique index rejects any second non-revoked row if locking regresses (Invariant 7) |
-| Profile deletion erases the impersonation audit trail | Deleting a target or operator cascades into session history | Both foreign keys use `ON DELETE RESTRICT`, preserving the audit record until retention is handled explicitly (Invariant 15) |
+| Threat                                                                              | Attack Scenario                                                                                                                                                                 | Mitigation                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database dump exposes usable tokens                                                 | Attacker reads `admin_impersonation_sessions` from a backup or replica                                                                                                          | Only a SHA-256 hash is stored; the raw token is never persisted (Invariant 2)                                                                                                                         |
+| Stolen or leaked impersonation token replayed after the operator's intent has ended | Token captured via logs, browser history, or a compromised operator device                                                                                                      | 30-minute non-renewable TTL (Invariant 4); instant hash-based revocation via `DELETE /impersonation/:sessionId` (Invariant 8); re-checked liveness on every use (Invariant 5)                         |
+| Impersonation used to mint a permanent backdoor                                     | Operator (or an attacker who obtained an operator's token) mints an API secret key for the target or a managed child while impersonating, which outlives the session            | `rejectImpersonation` on both credential-creation routes (Invariant 11)                                                                                                                               |
+| Privilege re-escalation / impersonation chaining                                    | An impersonated request is used to start a second impersonation session, list sessions, or browse accounts                                                                      | `requireVortexAdmin`'s `rejectImpersonation` step refuses `GET /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation` outright (Invariant 12)                        |
+| Impersonated caller abuses the self-revoke carve-out to end someone else's session  | Operator impersonating profile A presents that token against profile B's `sessionId`                                                                                            | Rejected with `403 IMPERSONATION_NOT_ALLOWED`: the carve-out only matches when the path `:sessionId` equals the caller's own `req.impersonation.sessionId` (Invariant 12)                             |
+| Impersonation initiates or advances money movement                                  | Operator calls ramp register, update, or start while acting as a customer                                                                                                       | All three mutating ramp routes apply `rejectImpersonation` after principal resolution and before controller execution (Invariant 16); quote creation and ramp inspection remain available             |
+| Self-impersonation used to launder attribution                                      | Operator targets their own profile to blur operator/target identity                                                                                                             | Rejected at both the application layer and a database `CHECK` constraint (Invariant 3)                                                                                                                |
+| Stale sessions surviving an incident response kill switch                           | Operator response to a suspected compromise is "disable impersonation", but existing tokens keep working                                                                        | `IMPERSONATION_ENABLED=false` invalidates all live sessions on next resolution, not just new mints (Invariant 6)                                                                                      |
+| Removed operator role leaves previously minted tokens usable                        | An operator is deprovisioned while one or more impersonation sessions remain live                                                                                               | Role removal atomically revokes all non-revoked sessions, and token resolution independently re-checks `vortex_admin` on every use (Invariants 5 and 8)                                               |
+| Token brute force / guessing                                                        | Attacker attempts to guess a valid `vtx_imp_*` value                                                                                                                            | 256 bits of randomness in the token; lookup requires an exact SHA-256 hash match                                                                                                                      |
+| Shared-secret surface used to self-grant impersonation rights                       | An operator (or anyone) with `ADMIN_SECRET` calls `POST /v1/admin/profile-roles` to grant themselves `vortex_admin`, turning a shared secret into broad customer-account access | `vortex_admin` excluded from `HTTP_GRANTABLE_PROFILE_ROLES` (Invariant 14); the only grant path is `scripts/grant-vortex-admin.ts`, which requires deployment/database access, not an HTTP credential |
+| Concurrent session creation races the supersession check                            | Two near-simultaneous `POST /impersonation` calls for the same (actor, target) both attempt to supersede and mint                                                               | Actor-row transaction locking serializes creation; the partial unique index rejects any second non-revoked row if locking regresses (Invariant 7)                                                     |
+| Profile deletion erases the impersonation audit trail                               | Deleting a target or operator cascades into session history                                                                                                                     | Both foreign keys use `ON DELETE RESTRICT`, preserving the audit record until retention is handled explicitly (Invariant 15)                                                                          |
 
 ## Gaps Identified During This Review
 
@@ -271,18 +279,18 @@ and requires deployment/database access rather than an HTTP credential — see
 - [x] `rejectImpersonation` blocks credential minting through `/v1/api-credentials` and the
       managed-profile credential-creation route — **PASS** (`api-credentials.route.test.ts`).
 - [x] `rejectImpersonation` blocks `POST /v1/ramp/register`, `POST /v1/ramp/update`, and `POST
-      /v1/ramp/start`, while quote creation reaches normal validation and ramp history remains
+    /v1/ramp/start`, while quote creation reaches normal validation and ramp history remains
       readable — **PASS** (`ramp.route.test.ts`).
 - [x] `rejectImpersonation` blocks Alfredpay, Avenia, Monerium, and Mykobo KYC/KYB action routes
       during admin impersonation while aggregate status stays readable — **PASS**
       (`provider-verification.route.test.ts`).
 - [x] `requireVortexAdmin` (`requireAuth → rejectImpersonation → role check`) gates `GET
-      /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation`; an
+    /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation`; an
       impersonated caller is refused all four — **PASS** (`admin-console.route.test.ts`, "refuses
       an impersonated caller from reaching GET /accounts or POST /impersonation").
 - [x] `DELETE /impersonation/:sessionId` allows an impersonated caller to end only its own session
       (`req.impersonation.sessionId === :sessionId`) and rejects any other target with `403
-      IMPERSONATION_NOT_ALLOWED`, while a non-impersonated caller still needs `vortex_admin` to
+    IMPERSONATION_NOT_ALLOWED`, while a non-impersonated caller still needs `vortex_admin` to
       revoke any session — **PASS** (`admin-console.route.test.ts`, all four cases under "DELETE
       /impersonation/:sessionId while impersonating").
 - [x] Every `api_client_events` row raised while `req.impersonation` is set carries
@@ -300,7 +308,7 @@ and requires deployment/database access rather than an HTTP credential — see
       **PASS** (`impersonation.service.test.ts`).
 - [x] An out-of-band, idempotent operator process for granting `vortex_admin` exists and is
       documented — **PASS** (`scripts/grant-vortex-admin.ts`, `bun run grant:vortex-admin
-      <email>`).
+    <email>`).
 - [x] Managed-child creation/deletion and manager/child credential creation/revocation reject
       impersonation, while list/read operations remain available — **PASS**
       (`api-credentials.route.test.ts`).

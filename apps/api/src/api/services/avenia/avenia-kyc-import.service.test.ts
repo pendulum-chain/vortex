@@ -6,6 +6,7 @@ import CustomerEntity from "../../../models/customerEntity.model";
 import KycCase from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../../models/managedProfileMembership.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import {
@@ -24,6 +25,7 @@ const originals = {
   entityFindOne: CustomerEntity.findOne,
   getInstance: BrlaApiService.getInstance,
   managerFindByPk: ManagedProfileManager.findByPk,
+  membershipFindByPk: ManagedProfileMembership.findByPk,
   relationshipFindByPk: ManagedProfile.findByPk,
   transaction: sequelize.transaction,
   userFindByPk: User.findByPk
@@ -35,6 +37,9 @@ interface HarnessOptions {
   baseline?: Array<{ createdAt: string; id: string; levelName: string }>;
   boundAttemptIds?: string[];
   importToken?: () => Promise<{ id: string; message: string }>;
+  managed?: boolean;
+  membershipRevoked?: boolean;
+  membershipRole?: "manager" | "read_only";
   verificationMethod?: KycCase["verificationMethod"];
 }
 
@@ -79,33 +84,48 @@ function harness(options: HarnessOptions = {}) {
   BrlaApiService.getInstance = mock(
     () => ({ getKycAttempts, getUploadedDocuments, importKycToken: providerImport }) as unknown as BrlaApiService
   );
-  User.findByPk = mock(async () => ({ activeCustomerEntityId: "entity-1", kind: "authenticated" })) as never;
+  User.findByPk = mock(async (_id: string, query?: { lock?: unknown }) => {
+    if (query?.lock) lockOrder.push("subject");
+    return { activeCustomerEntityId: "entity-1", kind: options.managed ? "managed" : "authenticated" };
+  }) as never;
   CustomerEntity.findOne = mock(async () => ({ id: "entity-1", profileId: "subject-1", status: "active", type: "individual" })) as never;
-  CustomerEntity.findByPk = mock(async () => ({ id: "entity-1", profileId: "subject-1", status: "active", type: "individual" })) as never;
+  CustomerEntity.findByPk = mock(async () => {
+    lockOrder.push("entity");
+    return { id: "entity-1", profileId: "subject-1", status: "active", type: "individual" };
+  }) as never;
   ProviderCustomer.findAll = mock(async () => [providerCustomer]) as never;
   ProviderCustomer.findByPk = mock(async (_id: string, query?: { lock?: unknown }) => {
     if (query?.lock) lockOrder.push("customer");
     return providerCustomer;
   }) as never;
-  KycCase.findAll = mock(async (query?: { attributes?: string[] }) =>
-    query?.attributes ? (options.boundAttemptIds ?? []).map(providerCaseId => ({ providerCaseId })) : [kycCase]
-  ) as never;
+  KycCase.findAll = mock(async (query?: { attributes?: string[]; lock?: unknown }) => {
+    if (query?.lock) lockOrder.push("case");
+    return query?.attributes ? (options.boundAttemptIds ?? []).map(providerCaseId => ({ providerCaseId })) : [kycCase];
+  }) as never;
   KycCase.findByPk = mock(async (_id: string, query?: { lock?: unknown }) => {
     if (query?.lock) lockOrder.push("case");
     return kycCase;
   }) as never;
-  ManagedProfileManager.findByPk = mock(async () => ({
-    allowedCorridors: ["BR"],
-    allowedCustomerTypes: null,
-    isActive: true
-  })) as never;
-  ManagedProfile.findByPk = mock(async () => ({
-    managerProfileId: "manager-1",
-    profileId: "subject-1",
-    status: "active"
-  })) as never;
+  ManagedProfileManager.findByPk = mock(async () => {
+    lockOrder.push("owner");
+    return { allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive: true };
+  }) as never;
+  ManagedProfile.findByPk = mock(async () => {
+    lockOrder.push("relationship");
+    return { managerProfileId: "manager-1", profileId: "subject-1", status: "active" };
+  }) as never;
+  const membership = {
+    ownerProfileId: "manager-1",
+    memberProfileId: "member-1",
+    revokedAt: options.membershipRevoked ? new Date() : null,
+    role: options.membershipRole ?? "manager"
+  };
+  ManagedProfileMembership.findByPk = mock(async () => {
+    lockOrder.push("membership");
+    return membership;
+  }) as never;
   sequelize.transaction = mock(async callback => callback({ LOCK: { UPDATE: "UPDATE" } } as never)) as never;
-  return { getKycAttempts, getUploadedDocuments, kycCase, lockOrder, providerCustomer, providerImport };
+  return { getKycAttempts, getUploadedDocuments, kycCase, lockOrder, membership, providerCustomer, providerImport };
 }
 
 const request = {
@@ -124,12 +144,75 @@ afterEach(() => {
   CustomerEntity.findOne = originals.entityFindOne;
   BrlaApiService.getInstance = originals.getInstance;
   ManagedProfileManager.findByPk = originals.managerFindByPk;
+  ManagedProfileMembership.findByPk = originals.membershipFindByPk;
   ManagedProfile.findByPk = originals.relationshipFindByPk;
   sequelize.transaction = originals.transaction;
   User.findByPk = originals.userFindByPk;
 });
 
 describe("importBrKycToken", () => {
+  const managedRequest = {
+    ...request,
+    actorProfileId: "member-1",
+    controllingManagerProfileId: "manager-1",
+    expectedCustomerEntityId: "entity-1",
+    managedProfileId: "relationship-1",
+    membershipId: "membership-1"
+  };
+
+  it("allows an active manager membership under the immutable owner policy", async () => {
+    const state = harness({ managed: true });
+
+    await expect(importBrKycToken(managedRequest)).resolves.toEqual({ attemptId: "attempt-1", status: "pending" });
+    expect(ManagedProfileManager.findByPk).toHaveBeenCalledWith("manager-1", expect.objectContaining({ lock: "UPDATE" }));
+    expect(ManagedProfileMembership.findByPk).toHaveBeenCalledWith(
+      "membership-1",
+      expect.objectContaining({ lock: "UPDATE" })
+    );
+    expect(state.providerImport).toHaveBeenCalledTimes(1);
+    expect(state.lockOrder).toEqual([
+      "owner", "subject", "relationship", "entity", "membership", "case",
+      "owner", "subject", "relationship", "entity", "membership", "customer", "case",
+      "customer", "case"
+    ]);
+  });
+
+  it.each([
+    { ownerProfileId: "another-owner" },
+    { memberProfileId: "another-member" },
+    { role: "read_only" },
+    { revokedAt: new Date() }
+  ])("rechecks exact live membership after preparation: %j", async invalidMembership => {
+    const state = harness({ managed: true });
+    state.getKycAttempts.mockImplementation(async () => {
+      Object.assign(state.membership, invalidMembership);
+      return { attempts: [] };
+    });
+    await expect(importBrKycToken(managedRequest)).rejects.toMatchObject({ status: 403 });
+    expect(state.providerImport).not.toHaveBeenCalled();
+    expect(state.kycCase.verificationSubmission).toMatchObject({ status: "failed", errorClassification: "authorization_revoked" });
+    expect(state.lockOrder.slice(-7)).toEqual(["owner", "subject", "relationship", "entity", "membership", "customer", "case"]);
+  });
+
+  it("denies a revoked manager membership before importing with the provider", async () => {
+    const state = harness({ managed: true, membershipRevoked: true });
+
+    await expect(importBrKycToken(managedRequest)).rejects.toMatchObject({ status: 403 });
+    expect(state.providerImport).not.toHaveBeenCalled();
+  });
+
+  it.each(["submitted", "confirmed"] as const)("does not overwrite a concurrently %s claim after membership revocation", async status => {
+    const state = harness({ managed: true });
+    state.getKycAttempts.mockImplementation(async () => {
+      state.membership.revokedAt = new Date();
+      state.kycCase.verificationSubmission!.status = status;
+      return { attempts: [] };
+    });
+    await expect(importBrKycToken(managedRequest)).rejects.toMatchObject({ status: 403 });
+    expect(state.providerImport).not.toHaveBeenCalled();
+    expect(state.kycCase.verificationSubmission!.status).toBe(status);
+  });
+
   it("stores only fingerprints, binds the exact attempt, and replays only the same confirmed key", async () => {
     const state = harness();
     expect(await importBrKycToken(request)).toEqual({ attemptId: "attempt-1", status: "pending" });
@@ -154,7 +237,7 @@ describe("importBrKycToken", () => {
       }
     });
     expect(JSON.stringify(state.kycCase.verificationSubmission)).not.toContain(request.importToken);
-    expect(state.lockOrder.slice(-2)).toEqual(["customer", "case"]);
+    expect(state.lockOrder).toEqual(["case", "customer", "case", "customer", "case", "case"]);
     await expect(importBrKycToken({ ...request, idempotencyKey: "another-key" })).rejects.toMatchObject({ status: 409 });
     await expect(importBrKycToken({ ...request, importToken: "changed-token" })).rejects.toMatchObject({ status: 409 });
   });

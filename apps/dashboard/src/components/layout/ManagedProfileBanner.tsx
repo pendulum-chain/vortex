@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { clearManagedProfile, useManagedProfileSelection } from "@/stores/managed-profile.store";
 
@@ -27,9 +28,13 @@ export function ManagedProfileBanner() {
 
   return (
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-amber-300 border-b bg-amber-100 px-4 py-2 text-amber-950 text-sm">
-      <span className="min-w-0 break-all">
-        Acting for <strong>{label}</strong>
-      </span>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="min-w-0 break-all">
+          Acting for <strong>{label}</strong>
+        </span>
+        <Badge variant="outline">{selection.membershipRole === "manager" ? "Manager" : "Read only"}</Badge>
+        {selection.isOwner && <Badge variant="outline">Owner</Badge>}
+      </div>
       <Button
         className="border-amber-400 bg-amber-50 hover:bg-amber-200"
         onClick={handleStop}

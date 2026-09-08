@@ -14,14 +14,17 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Quote/widget attribution | Yes | Yes | Yes |
 | Sanitized `GET /v1/ramp-info` | Yes | Yes | No |
 | Exact limits and provider-account reads | No | Yes | Yes |
-| Ramp register/update/start/status/history/errors | No | Yes | Yes |
-| Act for an authorized managed child | No | Yes | Yes |
-| Manage a directly owned child's credentials | No | Yes | Yes |
-| Import an individual-KYC share token (BR) | No | Yes | Yes |
+| Non-managed ramp register/update/start | No | Yes | Yes |
+| Managed-child ramp register/update/start | No | Manager member or direct child | No |
+| Managed-child reads, including quotes and ramp status/history/errors | No | Either member role or supported direct child | Either member role |
+| Child credentials and domestic fiat-account mutations | No | Manager member | Manager member |
+| Selected-child provider/KYC/KYB mutations, including BR token import | No | Manager member | No |
+| Membership/invitation administration | No | No | Manager member; either role for lists |
+| Membership invitation preview/acceptance | No | No | Exact verified-email invitee |
 | Webhook management (non-managed subjects only) | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
-`GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A manager secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
+`GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A `manager` or `read_only` member's secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits. Direct non-managed provider/KYC calls retain their existing secret-or-bearer authentication; selected-child restrictions do not remove that self-service alternative.
 
 ## Subject And Partner Binding
 
@@ -31,44 +34,81 @@ Ramp registration requires a real profile subject in every corridor. KYC and pro
 
 ## Act For A Managed Child
 
-Vortex may enable an authenticated profile as a managed-profile manager and assign its allowed corridors and, optionally, a narrower set of customer types. On supported child-oriented endpoints, that manager can select one directly managed headless child:
+Vortex may enable an authenticated profile to provision and own managed children, assigning its allowed corridors and optional customer-type narrowing. Exactly one owning manager account/config defines one organization: the current **one-account-one-org approximation**. Each person has at most one active organization affiliation; owners, including disabled owners, cannot join another org. Organization `manager` and `read_only` roles apply to all present and future children of that immutable owner, never to human personal resources. An active member can select an eligible child on supported operations without personal owner configuration:
 
 ```http
 X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 ```
 
-A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, and ramp history resolve from the child subject. Quote pricing uses the child's active profile assignment when present, otherwise the controlling manager profile's active assignment, then default Vortex pricing. This precedence is identical for manager-delegated requests and direct child credentials.
+A Supabase Bearer session may replace the member-owned secret only for supported `read` and `manage` operations. A public `pk_*` value cannot authenticate delegation. Vortex verifies live membership and role, active controlling owner and child relationship, the child's single active customer entity, and applicable owner corridor/type policy. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured list only narrows it. The member remains the actor; ownership, KYC/provider lookup, and ramp history resolve from the child. Pricing uses the child's active assignment, then the immutable owner's active assignment, then default Vortex pricing, identically for delegation and direct child credentials. The acting member's own manager policy or pricing does not replace the owner's.
 
-The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors; and sender-side recipient operations. Sender-side recipient operations are invite creation, recipient and pending-invitation listing, invitation archive/unarchive, recipient relationship updates, and recipient eligibility reads. These recipient operations currently require a Supabase Bearer session; an `sk_*` key does not authorize them. Invite preview and acceptance remain invitee-scoped and do not support `X-Managed-Profile-Id`; a headless managed child cannot authenticate as an invitee or accept an invitation. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. The EUR corridor's flows remain bound to a verified login email and do not support managed children.
+### Delegated Capabilities
 
-`POST /v1/brl/kyc/import-token` is a deliberate exception to direct child credential access. A controlling manager may call it with the manager's secret key or Supabase session plus `X-Managed-Profile-Id`, but a credential owned by the managed child is rejected with `403 MANAGED_PROFILE_ACCESS_DENIED`, even without the selector. Direct non-managed profiles may import for themselves with their own secret key or session. Public keys and ownerless credentials cannot import. The legacy `/v1/brla/kyc/import-token` path remains an equivalent migration alias.
+| Capability | Allowed membership | Selected-child authentication | Routes |
+|---|---|---|---|
+| `read` | `manager`, `read_only` | Member secret or supported bearer alternative | Quote creation/best quote; ramp status/history/errors; exact limits; onboarding status; BR account/status/document reads; domestic status, customer lookup and fiat-account lists; recipient lists/eligibility; child credential lists |
+| `manage` | `manager` | Member secret or bearer | Child credential creation/revocation; domestic fiat-account creation/deletion; sender-side recipient mutations |
+| `credential_manage` | `manager` | Member secret only | BR subaccount creation, selfie/upload artifacts, KYC submission/preflight/import, KYB document/UBO creation and submission; domestic customer creation, KYC/KYB redirect links/notifications, retries, information/files and submissions |
+| `ramp` | `manager` | Member secret only | `POST /v1/ramp/register`, `/update`, `/start` |
+
+Capability is not inferred from the HTTP method: quote creation is `read`; creating a selfie or hosted KYC/KYB link with `GET` is `credential_manage`. Child API-key management is `manage`, despite its name, and supports a real bearer session. `read_only` cannot mutate through its own secret key. `GET /v1/ramp-info` is the credential-only read exception.
+
+Selected-child provider mutations with a bearer return `403 MANAGED_PROFILE_REQUIRES_API_CREDENTIAL`. Selected-child bearer-only ramp mutations are unconditionally denied before global body parsing, including already registered/in-flight ramps: an otherwise authorized manager receives `403 MANAGED_PROFILE_RAMP_REQUIRES_API_CREDENTIAL`. There is **no drain exception**. Invalid membership, read-only role and impersonation can fail earlier with their own denial codes. Background processing of an already-started ramp does not grant a bearer permission to call register, update or start.
+
+Sender-side recipient operations accept a member-owned secret **only when `X-Managed-Profile-Id` is present**. They also accept bearer sessions. `GET /v1/recipients` and `GET /v1/recipients/:id/eligibility` are `read`; `POST /v1/recipients/invite`, `PATCH /v1/recipients/invitations/:id` (archive/unarchive), and `PATCH /v1/recipients/:id` are `manage`. Without a selector, sender routes remain bearer-only. Direct child credentials are rejected even without a selector. Recipient invite preview/acceptance remain invitee-scoped, bearer-authenticated, and reject managed selection; headless children cannot accept. Recipient invitations establish payment relationships, not managed-profile team membership.
+
+Corridor removal blocks corridor-bound mutations and disallowed exact-limit/recipient eligibility requests, but not quote discovery or historical/status reads. Recipient lists also enforce owner customer-type narrowing. The EUR corridor's flows remain bound to a verified login email and do not support managed children.
+
+`POST /v1/brl/kyc/import-token` is a deliberate exception to direct child credential access. An active `manager` member may call it with a member-owned secret and `X-Managed-Profile-Id`; a selected-child bearer is insufficient. A credential owned by the managed child is rejected with `403 MANAGED_PROFILE_ACCESS_DENIED`, even without the selector. Direct non-managed profiles may import for themselves with their own secret key or session. Public keys and ownerless credentials cannot import. The legacy `/v1/brla/kyc/import-token` path remains an equivalent migration alias.
 
 Authentication, direct-child rejection, and managed authorization run before strict validation of `Idempotency-Key` and the request body. An unauthenticated caller therefore receives an authentication error rather than learning whether a bearer-like personal-data transfer token or attestation is well formed. The request has no profile, user, CPF, subaccount, applicant, entity, or provider-customer selector in its body or query; identity is derived only from the authenticated effective profile.
 
 Webhook registration and deletion do not support managed children. `X-Managed-Profile-Id` returns `400 MANAGED_PROFILE_UNSUPPORTED`, and a direct child credential returns `403 MANAGED_PROFILE_ACCESS_DENIED`. Managed-child integrations must poll the child-scoped ramp status/history endpoints. A manager credential without the selector remains manager-owned and therefore cannot register a webhook for a child-owned quote.
 
-`X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
+`X-Managed-Profile-Id` is only a selector. On general delegated operations, missing membership or an invalid relationship/layout uses `403 MANAGED_PROFILE_ACCESS_DENIED`; role denial is `MANAGED_PROFILE_MANAGER_REQUIRED` and owner-policy denial is `MANAGED_PROFILE_POLICY_DENIED`. Detail bootstrap is explicitly `GET /v1/managed-profiles/:profileId` with an **exactly matching** selector. It returns `403 MANAGED_PROFILE_MEMBERSHIP_INVALID` only when an actor membership for the child's immutable owner overlaps the child lifetime and the child is now ineligible. On the same row, require `membership.createdAt <= (child.deletedAt ?? now)` and (`membership.revokedAt IS NULL` or `membership.revokedAt > child.createdAt`); now applies to an undeleted child. A child created after revocation or wholly within a membership gap is masked `404` even with historic org membership. Revocation, deleted child, disabled owner or invalid entity layout invalidate evidenced bootstrap; a deleted child invalidates even its owner's bootstrap. Bearer sessions and member-owned secrets follow the same checks; this is not a bearer-only error.
+
+A caller who was never a member receives the same masked `404 MANAGED_PROFILE_NOT_FOUND` for existing and unknown children, with or without a matching selector. A mismatched detail selector receives `403 MANAGED_PROFILE_ACCESS_DENIED`. An ordinary detail read without a selector returns `404` for missing membership; an active member's ordinary read of an active child with disabled owner or invalid layout remains `403 MANAGED_PROFILE_ACCESS_DENIED`. A dashboard may clear selection on membership-invalid, not on `404`, role/policy denial or a transient error. Membership administration routes retain their generic `403` access denial.
 
 ### Manage Headless Profiles
 
 This section is the authoritative contract; for a step-by-step walkthrough with examples, see [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
 
-An active manager may use its Supabase session or profile-bound secret credential on these endpoints:
+Lifecycle endpoints accept a Supabase session or profile-bound secret credential, with the authority below. Public keys and direct child credentials are rejected. Provisioning, deletion and child credential mutations reject impersonation.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /v1/managed-profiles` | Create an `individual` or `business` child from immutable `externalSubjectId` and provider `contactEmail` values |
-| `GET /v1/managed-profiles` | List children and the manager's current policy; defaults to active records with `limit=50&offset=0` |
-| `GET /v1/managed-profiles/:profileId` | Read an owned active or deleted child |
+| `POST /v1/managed-profiles` | Enabled owner only: create an `individual` or `business` child from immutable `externalSubjectId` and provider `contactEmail` |
+| `GET /v1/managed-profiles` | List eligible active memberships and actor flags, including an empty `200`; retained filters are owner-only |
+| `GET /v1/managed-profiles/:profileId` | Either role for eligible active children; matching selector explicitly requests bootstrap; retained deleted reads are owner-only without selection |
 | `DELETE /v1/managed-profiles/:profileId` | Logically delete an owned child and revoke its credentials |
-| `POST /v1/managed-profiles/:profileId/api-credentials` | Issue a child-owned public/secret credential pair |
-| `GET /v1/managed-profiles/:profileId/api-credentials` | List the child's credentials without secret values |
-| `DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId` | Revoke one child credential |
+| `POST /v1/managed-profiles/:profileId/api-credentials` | Manager member: issue a child-owned public/secret credential pair |
+| `GET /v1/managed-profiles/:profileId/api-credentials` | Either role: list the child's credentials without secret values |
+| `DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId` | Manager member: revoke one child credential |
 
 Creation is not tied to one corridor and may create only an `individual` or `business` child. Every later corridor-bound operation checks the manager's current corridors, optional customer-type narrowing, and Vortex's canonical corridor/type support. Tightening policy blocks later authorization decisions but does not cancel a request already authorized or background processing for a ramp that already started. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, and blocks new child activity.
 
-Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. The response always includes `manager.profileId`, `manager.allowedCorridors`, and `manager.allowedCustomerTypes` alongside `managedProfiles` and `pagination`. This policy belongs to the manager and applies to every child; it is not copied onto individual managed profiles. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
+Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; defaults are `active`, `50`, `0`. Both list and detail responses include `actor: { profileId, canProvisionManagedProfiles, hasMemberships }`. `canProvisionManagedProfiles` reflects the actor's own active manager configuration, not its membership role. `hasMemberships` means **live organization membership even with zero children**, with an unrevoked allowed role and active owner configuration, independent of page/status/detail target. Child eligibility separately requires an active relationship, a managed child, and exactly one active owned entity selected by that child. Deleted or invalid children do not remove org affiliation.
+
+The default active list returns `200` even without owner configuration or live membership: `managedProfiles: []`, `pagination.total: 0`, and both flags false. An enabled owner with no children has both flags true; an invited member of an empty active org has `canProvisionManagedProfiles: false` and `hasMemberships: true`. Both `status=deleted` **and `status=all`** require the actor's own active manager configuration (`403 MANAGED_PROFILE_OWNER_REQUIRED` otherwise) and return **only children owned by that actor**. Invited members cannot use either retained filter. Retained results still require valid membership and entity layout.
+
+An ordinary retained deleted-child detail read must omit `X-Managed-Profile-Id` and requires the immutable owner, active owner configuration and valid membership/entity layout. Invited members and ineligible retained reads receive masked `404`, identically with bearer or member-secret authentication. A matching selector requests bootstrap instead and cannot access retained records. Each listed/read child includes effective `membership: { role, isOwner }` and `policy: { allowedCorridors, allowedCustomerTypes }`; there is no singular `manager` field. Creation still returns only `{ managedProfile }` without actor/membership/policy decorations. Disabling an owner retains memberships but denies organization/team and child operations; it does not permit joining another org.
+
+The immutable owner membership is always `manager` and cannot be removed or changed. Other manager members may administer non-owner members, but cannot provision siblings for the owner, delete the child, change owner policy/pricing, or change global profile roles. Child secrets remain independent shared company principals: member removal/downgrade does not revoke them. Revoke any exposed child credentials separately; child deletion revokes them all.
+
+Deleting a child as a non-owner with an active `manager` or `read_only` membership returns `403 MANAGED_PROFILE_OWNER_REQUIRED`. A non-owner without active membership receives masked `404`; the immutable owner with disabled configuration receives `403 MANAGED_PROFILE_ACCESS_DENIED`.
+
+### Membership Invitations
+
+All ten organization/team/invitee operations require a human Supabase bearer session and reject `X-API-Key`, `X-Public-Key` (even with a valid bearer), impersonation, and any child selector. `GET /v1/organization` returns `{ organization: { ownerProfileId, ownerEmail, membership: { role, isOwner } } | null }`; `ownerEmail` is nullable, and disabled owner configuration yields null. Team uses `/v1/organization/members`, `/member-invitations`, and `/member-events`, works for empty orgs in the main nonacting dashboard, and has no old per-child aliases. Invitees use `/v1/organization-member-invitations/:invitationId` and `/:invitationId/accept`. Preview returns `{ invitation, inviter: { email, profileId }, organization: { ownerProfileId, ownerEmail } }`; acceptance returns `{ ownerProfileId, member }`. Invitation `ownerProfileId` replaces `managedProfileId`; other body/member/event shapes and pagination are unchanged. See [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles) for the complete route table and examples.
+
+Creation invites one trimmed/lowercased email to `manager` or `read_only` for seven days and queues one durable email. It does not reveal unrelated profile existence. Repeating an identical pending invite returns `200` without another delivery; a different role returns `409 INVITATION_ROLE_CONFLICT` and requires cancellation first. An already visible active member returns `409 MEMBERSHIP_ALREADY_EXISTS`.
+
+All seven scoped Team operations require UUID query `expectedOwnerProfileId`, including item PATCH/DELETE. For example, `POST /v1/organization/member-invitations?expectedOwnerProfileId=00000000-0000-0000-0000-000000000001` binds the dialog to that displayed org. Missing/malformed input is `400 MANAGED_PROFILE_INVALID_INPUT`; mismatch with the actor's server-derived current org is `409 ORGANIZATION_CONTEXT_CHANGED` in `{ error: { code, message, status } }`. This is a precondition, not authority or a multi-org selector; live service authorization still applies. Discovery and invitee locator routes are exempt. After context conflict, refresh discovery and require a new user decision rather than replaying A's stale dialog in B after an affiliation change.
+
+The UUID is only a locator. Preview and explicit acceptance bind the **current verified Supabase email** (`email_confirmed_at` required), not request email or cached profile email. An unknown UUID or mismatched/unverified caller receives generic `403` without invitation details. OTP verification alone grants nothing. Acceptance atomically creates membership and audit events; replay succeeds only for the same accepter with an active membership still matching the invitation role. Cancellation and expiry are terminal; repeated cancellation returns `409`. Member removal does not consume or revoke shared child secrets.
+
+Pending invitations are durable organization offers even if their inviter is later removed or downgraded. Acceptance requires active owner configuration and rejects a second org with `409 ORGANIZATION_MEMBERSHIP_CONFLICT`, including for disabled owners. Removal/downgrade changes all child delegated access without revoking child-owned shared credentials. No multi-organization management, organization kinds, owner transfer, or organization switcher is supported; adding any requires explicitly revisiting the architectural model in a later ADR, not reinterpreting membership. The old per-child API was unshipped and is intentionally replaced without compatibility aliases.
 
 The child contact email is normalized and immutable, is unique among the manager's children, is used for provider customer creation, and never becomes a Supabase login identity. A deleted child's contact email remains reserved for that manager. Partners must supply an email identity they are authorized to use; uniqueness is not global across managers. A child-owned credential authenticates directly as that child without `X-Managed-Profile-Id`. Every use dynamically requires the active manager relationship; corridor-bound mutations and exact-limit reads use the controlling manager's current corridor/type policy. A direct child credential cannot select another managed child. Logical deletion immediately invalidates and revokes both halves.
 
@@ -151,7 +191,7 @@ A secret may be configured without a public value when only authenticated operat
 - `GET /v1/api-credentials` returns one item per credential. It includes the public value and safe secret prefix, never the secret value.
 - `DELETE /v1/api-credentials/{credentialId}` returns `204` and atomically revokes both values. It takes no request body and no second key ID.
 
-Both endpoints require the subject's Supabase Bearer session. Secret API credentials cannot create or revoke other credentials.
+Both self-profile endpoints require the subject's Supabase Bearer session. Secret API credentials cannot manage their own profile's credentials through `/v1/api-credentials`; eligible manager-member secrets can administer child credentials through the separate managed-profile routes above.
 
 ## Common Errors
 

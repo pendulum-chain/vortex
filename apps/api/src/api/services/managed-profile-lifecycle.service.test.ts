@@ -3,6 +3,7 @@ import ApiCredential from "../../models/apiCredential.model";
 import CustomerEntity from "../../models/customerEntity.model";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import ManagedProfileMembership from "../../models/managedProfileMembership.model";
 import User from "../../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestApiKey, createTestUser } from "../../test-utils/factories";
@@ -10,15 +11,16 @@ import { getOrCreateCustomerEntityForProfile } from "./customer-entity.service";
 import { createCredential, createManagedProfileCredential, revokeManagedProfileCredential } from "./apiCredential.service";
 import {
   deleteManagedProfile,
+  getManagedProfileActor,
   getManagedProfile,
-  listManagedProfiles,
-  ManagedProfileLifecycleError
+  listManagedProfiles
 } from "./managed-profile-lifecycle.service";
 import { provisionManagedProfile } from "./managed-profile-provisioning.service";
+import { configureManagedProfileManager } from "./managed-profile-manager.service";
 
 async function createManager(isActive = true) {
   const manager = await createTestUser();
-  await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive, profileId: manager.id });
+  await configureManagedProfileManager({ allowedCorridors: ["BR"], allowedCustomerTypes: null, isActive, profileId: manager.id });
   return manager;
 }
 
@@ -48,6 +50,8 @@ describe("managed profile lifecycle", () => {
     expect(activePage.total).toBe(1);
     expect(activePage.managedProfiles[0]).toMatchObject({
       externalSubjectId: "active-child",
+      membership: { isOwner: true, role: "manager" },
+      policy: { allowedCorridors: ["BR"], allowedCustomerTypes: null },
       profileId: active.profileId,
       status: "active"
     });
@@ -59,6 +63,68 @@ describe("managed profile lifecycle", () => {
     expect(await getManagedProfile(manager.id, deleted.profileId)).toMatchObject({
       customerType: "business",
       status: "deleted"
+    });
+  });
+
+  it("inherits one organization role across siblings and later children, but not foreign owners", async () => {
+    const owner = await createManager();
+    const otherOwner = await createManager();
+    const member = await createTestUser();
+    const visible = await provisionManagedProfile({
+      contactEmail: "visible@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "visible-child",
+      managerProfileId: owner.id
+    });
+    const foreign = await provisionManagedProfile({
+      contactEmail: "hidden@example.com",
+      creationSource: "manager",
+      customerType: "individual",
+      externalSubjectId: "hidden-child",
+      managerProfileId: otherOwner.id
+    });
+    await ManagedProfileMembership.create({
+      ownerProfileId: owner.id,
+      memberProfileId: member.id,
+      role: "read_only"
+    });
+
+    const page = await listManagedProfiles(member.id, { limit: 50, offset: 0, status: "active" });
+
+    expect(page.total).toBe(1);
+    expect(page.managedProfiles).toEqual([
+      expect.objectContaining({
+        membership: { isOwner: false, role: "read_only" },
+        policy: { allowedCorridors: ["BR"], allowedCustomerTypes: null },
+        profileId: visible.profileId
+      })
+    ]);
+    expect(await getManagedProfile(member.id, visible.profileId)).toMatchObject({
+      membership: { isOwner: false, role: "read_only" },
+      policy: { allowedCorridors: ["BR"], allowedCustomerTypes: null }
+    });
+    const later = await provisionManagedProfile({
+      contactEmail: "later@example.com", creationSource: "manager", customerType: "individual",
+      externalSubjectId: "later", managerProfileId: owner.id
+    });
+    const sibling = await provisionManagedProfile({
+      contactEmail: "sibling@example.com", creationSource: "manager", customerType: "individual",
+      externalSubjectId: "sibling", managerProfileId: owner.id
+    });
+    expect((await listManagedProfiles(member.id, { limit: 50, offset: 0, status: "active" })).total).toBe(3);
+    for (const child of [visible, later, sibling]) {
+      expect(await getManagedProfile(member.id, child.profileId)).toMatchObject({ membership: { role: "read_only" } });
+      await expect(deleteManagedProfile(member.id, child.profileId)).rejects.toMatchObject({ code: "MANAGED_PROFILE_OWNER_REQUIRED" });
+    }
+    await expect(getManagedProfile(member.id, foreign.profileId)).rejects.toMatchObject({ code: "MANAGED_PROFILE_NOT_FOUND" });
+    await expect(deleteManagedProfile(member.id, foreign.profileId)).rejects.toMatchObject({ code: "MANAGED_PROFILE_NOT_FOUND" });
+    await ManagedProfileMembership.update({ revokedAt: new Date(), revokedByProfileId: owner.id }, { where: { ownerProfileId: owner.id, memberProfileId: member.id } });
+    for (const child of [visible, later, sibling]) {
+      await expect(getManagedProfile(member.id, child.profileId)).rejects.toMatchObject({ code: "MANAGED_PROFILE_NOT_FOUND" });
+    }
+    expect(await listManagedProfiles(member.id, { limit: 50, offset: 0, status: "active" })).toMatchObject({
+      actor: { hasMemberships: false }, total: 0
     });
   });
 
@@ -106,7 +172,7 @@ describe("managed profile lifecycle", () => {
     );
   });
 
-  it("hides another manager's children and denies inactive managers all lifecycle access", async () => {
+  it("hides another manager's children and returns an empty active list for inactive owners", async () => {
     const manager = await createManager();
     const otherManager = await createManager();
     const child = await provisionManagedProfile({
@@ -125,14 +191,95 @@ describe("managed profile lifecycle", () => {
     });
 
     await ManagedProfileManager.update({ isActive: false }, { where: { profileId: manager.id } });
-    await expect(listManagedProfiles(manager.id, { limit: 50, offset: 0, status: "active" })).rejects.toBeInstanceOf(
-      ManagedProfileLifecycleError
-    );
+    expect(await listManagedProfiles(manager.id, { limit: 50, offset: 0, status: "active" })).toMatchObject({
+      actor: { canProvisionManagedProfiles: false, hasMemberships: false, profileId: manager.id },
+      managedProfiles: [],
+      total: 0
+    });
     await expect(getManagedProfile(manager.id, child.profileId)).rejects.toMatchObject({
       code: "MANAGED_PROFILE_ACCESS_DENIED"
     });
     await expect(deleteManagedProfile(manager.id, child.profileId)).rejects.toMatchObject({
       code: "MANAGED_PROFILE_ACCESS_DENIED"
+    });
+  });
+
+  it("keeps hasMemberships independent of pagination and owner-only retained filters", async () => {
+    const owner = await createManager();
+    const otherOwner = await createManager();
+    const member = await createTestUser();
+    await ManagedProfileMembership.create({ ownerProfileId: owner.id, memberProfileId: member.id, role: "read_only" });
+    expect(await getManagedProfileActor(member.id)).toMatchObject({ canProvisionManagedProfiles: false, hasMemberships: true });
+    expect(await getManagedProfileActor(owner.id)).toMatchObject({ canProvisionManagedProfiles: true, hasMemberships: true });
+    const owned = await provisionManagedProfile({
+      managerProfileId: owner.id, customerType: "individual", creationSource: "manager",
+      contactEmail: "owned-retained@example.com", externalSubjectId: "owned-retained"
+    });
+    const active = await provisionManagedProfile({
+      managerProfileId: owner.id, customerType: "individual", creationSource: "manager",
+      contactEmail: "own-active@example.com", externalSubjectId: "own-active"
+    });
+    await provisionManagedProfile({
+      managerProfileId: otherOwner.id, customerType: "individual", creationSource: "manager",
+      contactEmail: "delegated-active@example.com", externalSubjectId: "delegated-active"
+    });
+    await deleteManagedProfile(owner.id, owned.profileId);
+    for (const status of ["active", "all", "deleted"] as const) {
+      const page = await listManagedProfiles(owner.id, { limit: 1, offset: 100, status });
+      expect(page).toMatchObject({
+        actor: { canProvisionManagedProfiles: true, hasMemberships: true, profileId: owner.id },
+        managedProfiles: [], total: status === "all" ? 2 : 1
+      });
+      const firstPage = await listManagedProfiles(owner.id, { limit: 1, offset: 0, status });
+      expect(firstPage.managedProfiles.map(row => row.profileId)).toEqual([status === "deleted" ? owned.profileId : active.profileId]);
+    }
+    for (const status of ["all", "deleted"] as const) {
+      await expect(listManagedProfiles(member.id, { limit: 50, offset: 0, status })).rejects.toMatchObject({ code: "MANAGED_PROFILE_OWNER_REQUIRED" });
+    }
+    await expect(getManagedProfile(member.id, owned.profileId)).rejects.toMatchObject({ code: "MANAGED_PROFILE_NOT_FOUND" });
+    await CustomerEntity.update({ status: "archived" }, { where: { profileId: active.profileId } });
+    expect(await listManagedProfiles(owner.id, { limit: 1, offset: 0, status: "active" })).toMatchObject({
+      actor: { canProvisionManagedProfiles: true, hasMemberships: true }, managedProfiles: [], total: 0
+    });
+    await CustomerEntity.update({ status: "active" }, { where: { profileId: active.profileId } });
+    await CustomerEntity.create({ profileId: active.profileId, status: "active", type: "business" });
+    expect(await listManagedProfiles(owner.id, { limit: 1, offset: 0, status: "active" })).toMatchObject({
+      actor: { canProvisionManagedProfiles: true, hasMemberships: true }, managedProfiles: [], total: 0
+    });
+  });
+
+  it("masks future children and membership gaps while invalidating evidenced bootstrap", async () => {
+    const owner = await createManager();
+    const member = await createTestUser();
+    const membership = await ManagedProfileMembership.create({
+      ownerProfileId: owner.id, memberProfileId: member.id, role: "manager"
+    });
+    const existing = await provisionManagedProfile({
+      managerProfileId: owner.id, customerType: "individual", creationSource: "manager",
+      contactEmail: "before-revoke@example.com", externalSubjectId: "before-revoke"
+    });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await membership.update({ revokedAt: new Date(), revokedByProfileId: owner.id });
+    await expect(getManagedProfile(member.id, existing.profileId, { bootstrap: true })).rejects.toMatchObject({
+      code: "MANAGED_PROFILE_MEMBERSHIP_INVALID"
+    });
+    const future = await provisionManagedProfile({
+      managerProfileId: owner.id, customerType: "individual", creationSource: "manager",
+      contactEmail: "after-revoke@example.com", externalSubjectId: "after-revoke"
+    });
+    for (const profileId of [future.profileId, crypto.randomUUID()]) {
+      await expect(getManagedProfile(member.id, profileId, { bootstrap: true })).rejects.toMatchObject({
+        code: "MANAGED_PROFILE_NOT_FOUND"
+      });
+    }
+    await deleteManagedProfile(owner.id, future.profileId);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await ManagedProfileMembership.create({ ownerProfileId: owner.id, memberProfileId: member.id, role: "manager" });
+    await expect(getManagedProfile(member.id, future.profileId, { bootstrap: true })).rejects.toMatchObject({
+      code: "MANAGED_PROFILE_NOT_FOUND"
+    });
+    await expect(getManagedProfile(owner.id, future.profileId, { bootstrap: true })).rejects.toMatchObject({
+      code: "MANAGED_PROFILE_MEMBERSHIP_INVALID"
     });
   });
 
@@ -179,8 +326,8 @@ describe("managed profile lifecycle", () => {
     let deletionSettled = false;
     try {
       const creation = createManagedProfileCredential({
+        actorProfileId: manager.id,
         environment: "test",
-        managerProfileId: manager.id,
         profileId: child.profileId
       });
       await creationAtInsert;
@@ -226,8 +373,8 @@ describe("managed profile lifecycle", () => {
       managerProfileId: manager.id
     });
     const credential = await createManagedProfileCredential({
+      actorProfileId: manager.id,
       environment: "test",
-      managerProfileId: manager.id,
       profileId: child.profileId
     });
 

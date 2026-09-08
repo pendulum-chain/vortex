@@ -2,7 +2,7 @@ import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
 import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
-import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import { authorizeManagedProfile, ManagedProfileCapability } from "../../middlewares/managedProfileAuth";
 import {
   validateAveniaKybDocument,
   validateAveniaKybLevel1,
@@ -23,28 +23,28 @@ const router: Router = Router({ mergeParams: true });
 router.get(
   "/getUser",
   optionalPartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   brlaController.getAveniaUser as unknown as RequestHandler
 );
 
 router.get(
   "/getUserRemainingLimit",
   optionalPartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   brlaController.getAveniaUserRemainingLimit as unknown as RequestHandler
 );
 
 router.get(
   "/getKycStatus",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile(),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
   brlaController.fetchSubaccountKycStatus as unknown as RequestHandler
 );
 
 router.get(
   "/getSelfieLivenessUrl",
   requirePartnerOrUserAuth(),
-  authorizeManagedProfile({ corridor: "BR" }),
+  authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
   rejectImpersonation,
   brlaController.getSelfieLivenessUrl as unknown as RequestHandler
 );
@@ -55,36 +55,40 @@ router
   .route("/createSubaccount")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     validateSubaccountCreation,
     brlaController.createSubaccount as unknown as RequestHandler
   );
 
-router
-  .route("/getUploadUrls")
-  .post(
-    requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
-    rejectImpersonation,
-    validateStartKyc2,
-    brlaController.getUploadUrls
-  );
+router.route("/getUploadUrls").post(
+  requirePartnerOrUserAuth(),
+  authorizeManagedProfile({
+    capability: ManagedProfileCapability.CredentialManage,
+    corridor: "BR",
+    customerType: "individual"
+  }),
+  rejectImpersonation,
+  validateStartKyc2,
+  brlaController.getUploadUrls
+);
 
-router
-  .route("/newKyc")
-  .post(
-    requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
-    rejectImpersonation,
-    brlaController.newKyc
-  );
+router.route("/newKyc").post(
+  requirePartnerOrUserAuth(),
+  authorizeManagedProfile({
+    capability: ManagedProfileCapability.CredentialManage,
+    corridor: "BR",
+    customerType: "individual"
+  }),
+  rejectImpersonation,
+  brlaController.newKyc
+);
 
 router
   .route("/kyb/new-level-1/web-sdk")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     brlaController.initiateKybLevel1
   );
@@ -93,7 +97,7 @@ router
   .route("/kyb/documents")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     validateAveniaKybDocument,
     brlaController.createKybDocument as unknown as RequestHandler
@@ -101,13 +105,17 @@ router
 
 router
   .route("/kyb/documents/:documentId")
-  .get(requirePartnerOrUserAuth(), authorizeManagedProfile(), brlaController.getKybDocument as unknown as RequestHandler);
+  .get(
+    requirePartnerOrUserAuth(),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
+    brlaController.getKybDocument as unknown as RequestHandler
+  );
 
 router
   .route("/kyb/ubos")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     validateAveniaKybUbo,
     brlaController.createKybUbo as unknown as RequestHandler
@@ -117,7 +125,7 @@ router
   .route("/kyb/new-level-1/api")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     validateAveniaKybLevel1,
     brlaController.submitKybLevel1Api as unknown as RequestHandler
@@ -125,13 +133,17 @@ router
 
 router
   .route("/kyb/attempt-status")
-  .get(requirePartnerOrUserAuth(), authorizeManagedProfile(), brlaController.getKybAttemptStatus as unknown as RequestHandler);
+  .get(
+    requirePartnerOrUserAuth(),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.Read }),
+    brlaController.getKybAttemptStatus as unknown as RequestHandler
+  );
 
 router
   .route("/kyc/record-attempt")
   .post(
     requirePartnerOrUserAuth(),
-    authorizeManagedProfile({ corridor: "BR" }),
+    authorizeManagedProfile({ capability: ManagedProfileCapability.CredentialManage, corridor: "BR" }),
     rejectImpersonation,
     brlaController.recordInitialKycAttempt
   );

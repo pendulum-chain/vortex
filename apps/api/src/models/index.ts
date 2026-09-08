@@ -10,6 +10,9 @@ import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import ManagedProfile from "./managedProfile.model";
 import ManagedProfileManager from "./managedProfileManager.model";
+import ManagedProfileMembership from "./managedProfileMembership.model";
+import ManagedProfileMembershipEvent from "./managedProfileMembershipEvent.model";
+import ManagedProfileMembershipInvitation from "./managedProfileMembershipInvitation.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -74,6 +77,69 @@ User.hasOne(ManagedProfile, { as: "managedProfileRelationship", foreignKey: "pro
 ManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
 ManagedProfileManager.hasMany(ManagedProfile, { as: "managedProfiles", foreignKey: "managerProfileId" });
 ManagedProfile.belongsTo(ManagedProfileManager, { as: "manager", foreignKey: "managerProfileId" });
+ManagedProfileManager.hasMany(ManagedProfileMembership, {
+  as: "memberships",
+  foreignKey: "ownerProfileId",
+  sourceKey: "profileId"
+});
+ManagedProfileMembership.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
+  targetKey: "profileId"
+});
+ManagedProfileManager.hasMany(ManagedProfileMembershipInvitation, {
+  as: "membershipInvitations",
+  foreignKey: "ownerProfileId",
+  sourceKey: "profileId"
+});
+ManagedProfileMembershipInvitation.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
+  targetKey: "profileId"
+});
+ManagedProfileManager.hasMany(ManagedProfileMembershipEvent, {
+  as: "membershipEvents",
+  foreignKey: "ownerProfileId",
+  sourceKey: "profileId"
+});
+ManagedProfileMembershipEvent.belongsTo(ManagedProfileManager, {
+  as: "organization",
+  foreignKey: "ownerProfileId",
+  targetKey: "profileId"
+});
+User.hasMany(ManagedProfileMembership, { as: "managedProfileMemberships", foreignKey: "memberProfileId" });
+ManagedProfileMembership.belongsTo(User, { as: "memberProfile", foreignKey: "memberProfileId" });
+User.hasMany(ManagedProfileMembership, { as: "createdManagedProfileMemberships", foreignKey: "createdByProfileId" });
+ManagedProfileMembership.belongsTo(User, { as: "createdByProfile", foreignKey: "createdByProfileId" });
+User.hasMany(ManagedProfileMembership, { as: "revokedManagedProfileMemberships", foreignKey: "revokedByProfileId" });
+ManagedProfileMembership.belongsTo(User, { as: "revokedByProfile", foreignKey: "revokedByProfileId" });
+User.hasMany(ManagedProfileMembershipInvitation, {
+  as: "managedProfileMembershipInvitationsSent",
+  foreignKey: "invitedByProfileId"
+});
+ManagedProfileMembershipInvitation.belongsTo(User, { as: "invitedByProfile", foreignKey: "invitedByProfileId" });
+User.hasMany(ManagedProfileMembershipInvitation, {
+  as: "managedProfileMembershipInvitationsAccepted",
+  foreignKey: "acceptedByProfileId"
+});
+ManagedProfileMembershipInvitation.belongsTo(User, { as: "acceptedByProfile", foreignKey: "acceptedByProfileId" });
+User.hasMany(ManagedProfileMembershipInvitation, {
+  as: "managedProfileMembershipInvitationsCancelled",
+  foreignKey: "cancelledByProfileId"
+});
+ManagedProfileMembershipInvitation.belongsTo(User, { as: "cancelledByProfile", foreignKey: "cancelledByProfileId" });
+ManagedProfileMembershipInvitation.hasMany(ManagedProfileMembershipEvent, {
+  as: "events",
+  foreignKey: "invitationId"
+});
+ManagedProfileMembershipEvent.belongsTo(ManagedProfileMembershipInvitation, {
+  as: "invitation",
+  foreignKey: "invitationId"
+});
+User.hasMany(ManagedProfileMembershipEvent, { as: "managedProfileMembershipEventsActed", foreignKey: "actorProfileId" });
+ManagedProfileMembershipEvent.belongsTo(User, { as: "actorProfile", foreignKey: "actorProfileId" });
+User.hasMany(ManagedProfileMembershipEvent, { as: "managedProfileMembershipEventsReceived", foreignKey: "memberProfileId" });
+ManagedProfileMembershipEvent.belongsTo(User, { as: "memberProfile", foreignKey: "memberProfileId" });
 
 // Partner pricing split
 Partner.hasMany(PartnerPricingConfig, { as: "pricingConfigs", foreignKey: "partnerId" });
@@ -124,6 +190,9 @@ const models = {
   MaintenanceSchedule,
   ManagedProfile,
   ManagedProfileManager,
+  ManagedProfileMembership,
+  ManagedProfileMembershipEvent,
+  ManagedProfileMembershipInvitation,
   Notification,
   NotificationPreference,
   Partner,

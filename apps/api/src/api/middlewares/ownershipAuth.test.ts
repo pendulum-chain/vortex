@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, mock} from "bun:test";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
+import {ManagedProfileCapability} from "./managedProfileAuth";
 import {assertQuoteOwnership, assertRampOwnership} from "./ownershipAuth";
 
 describe("assertQuoteOwnership", () => {
@@ -148,6 +149,7 @@ describe("assertQuoteOwnership", () => {
           },
           managedProfileContext: {
             actorProfileId: "manager-user",
+            capability: ManagedProfileCapability.Ramp,
             controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
@@ -170,6 +172,7 @@ describe("assertQuoteOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            capability: ManagedProfileCapability.Ramp,
             controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
@@ -323,6 +326,7 @@ describe("assertRampOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            capability: ManagedProfileCapability.Ramp,
             controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",
@@ -346,6 +350,7 @@ describe("assertRampOwnership", () => {
         {
           managedProfileContext: {
             actorProfileId: "manager-user",
+            capability: ManagedProfileCapability.Ramp,
             controllingManagerProfileId: "manager-user",
             customerEntityId: "entity-1",
             managedProfileId: "relationship-1",

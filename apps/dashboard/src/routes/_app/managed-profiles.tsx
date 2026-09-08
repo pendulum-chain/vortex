@@ -1,11 +1,12 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ManagedProfilesList } from "@/components/managed-profiles/ManagedProfilesList";
+import { canAccessManagedProfiles } from "@/components/managed-profiles/managed-profile-ui";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isManagedProfilesAccessDenied, useManagedProfiles } from "@/hooks/useManagedProfiles";
+import { useManagedProfiles } from "@/hooks/useManagedProfiles";
 import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 const PAGE_LIMIT = 20;
@@ -21,13 +22,17 @@ function ManagedProfilesPage() {
 
   if (selection) return <Navigate replace to="/overview" />;
   if (profiles.isLoading) return <Skeleton className="mx-auto mt-12 h-80 max-w-6xl" />;
-  if (profiles.isError && isManagedProfilesAccessDenied(profiles.error)) return <Navigate replace to="/overview" />;
+  if (profiles.isSuccess && !canAccessManagedProfiles(profiles.data.actor)) return <Navigate replace to="/overview" />;
 
   return (
     <Stagger className="mx-auto grid max-w-6xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Managed profiles</h1>
-        <p className="max-w-2xl text-muted-foreground">Choose a profile to act for using the actions menu.</p>
+        <p className="max-w-2xl text-muted-foreground">
+          {profiles.data?.actor.canProvisionManagedProfiles && profiles.data.pagination.total === 0
+            ? "You can provision managed profiles through the API. Active profiles will appear here once created."
+            : "Choose a profile to act for using the actions menu."}
+        </p>
       </StaggerItem>
       <StaggerItem>
         <Card>
@@ -46,10 +51,7 @@ function ManagedProfilesPage() {
               </div>
             ) : (
               <>
-                <ManagedProfilesList
-                  corridors={profiles.data.manager.allowedCorridors}
-                  profiles={profiles.data.managedProfiles}
-                />
+                <ManagedProfilesList profiles={profiles.data.managedProfiles} />
                 <div className="mt-4 flex items-center justify-end gap-2">
                   <Button
                     disabled={offset === 0}

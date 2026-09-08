@@ -22,6 +22,7 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import limitsRoutes from "./limits.route";
 import maintenanceRoutes from "./maintenance.route";
+import managedProfileMembershipRoutes, { managedProfileInviteeRoutes } from "./managed-profile-memberships.route";
 import managedProfilesRoutes from "./managed-profiles.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
@@ -225,6 +226,8 @@ router.use("/onboarding", onboardingRoutes);
 
 /** One-record API credential management for authenticated Supabase users. */
 router.use("/api-credentials", apiCredentialsRoutes);
+router.use("/organization", managedProfileMembershipRoutes);
+router.use("/organization-member-invitations", managedProfileInviteeRoutes);
 router.use("/managed-profiles", managedProfilesRoutes);
 
 /**

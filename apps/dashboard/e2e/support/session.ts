@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-export const E2E_USER_ID = "user-e2e-1";
+export const E2E_USER_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 export const E2E_USER_EMAIL = "e2e@vortexfinance.co";
 // displayNameFromEmail("e2e@vortexfinance.co") in src/stores/auth.store.ts.
 export const E2E_USER_NAME = "E2e";
