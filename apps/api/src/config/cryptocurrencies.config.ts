@@ -21,7 +21,10 @@ const supportedNetworks = Object.values(Networks)
 
 const throwInvalidNetworkError = (network: string | undefined): never => {
   throw new APIError({
-    message: `Invalid network: '${network}'. Supported networks are: '${supportedNetworks}'`
+    message:
+      network === undefined
+        ? "Missing required query parameter 'network'. Example: /v1/supported-cryptocurrencies?network=ethereum"
+        : `Invalid network: '${network}'. Supported networks are: '${supportedNetworks}'`
   });
 };
 

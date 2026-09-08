@@ -107,8 +107,16 @@ describe("getSupportedCryptocurrencies", () => {
     expect(result.every(token => token.rampTypes.length === 0)).toBe(true);
   });
 
-  it("rejects a missing or unsupported network", () => {
-    expect(() => getSupportedCryptocurrencies(undefined)).toThrow(APIError);
+  it("explains how to pass the required network query parameter", () => {
+    expect(() => getSupportedCryptocurrencies(undefined)).toThrow(
+      "Missing required query parameter 'network'. Example: /v1/supported-cryptocurrencies?network=ethereum"
+    );
+  });
+
+  it("lists supported networks when an invalid network is supplied", () => {
     expect(() => getSupportedCryptocurrencies(Networks.Pendulum)).toThrow(APIError);
+    expect(() => getSupportedCryptocurrencies(Networks.Pendulum)).toThrow(
+      "Invalid network: 'pendulum'. Supported networks are:"
+    );
   });
 });

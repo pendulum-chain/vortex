@@ -359,6 +359,9 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       // The network filter is required: routed token lists are per-network.
       const cryptoUnfiltered = await requestJson("/v1/supported-cryptocurrencies");
       expect(cryptoUnfiltered.status).toBe(400);
+      expect(cryptoUnfiltered.body.error).toBe(
+        "Missing required query parameter 'network'. Example: /v1/supported-cryptocurrencies?network=ethereum"
+      );
 
       const countries = await requestJson("/v1/supported-countries");
       expect(countries.status).toBe(200);
