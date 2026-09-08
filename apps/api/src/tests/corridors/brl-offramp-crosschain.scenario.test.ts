@@ -479,4 +479,36 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     },
     30000
   );
+
+  it("native ETH source: the quote prices only the router fee as network fee, not the swapped principal", async () => {
+    // Squid sends a native input as msg.value, so the route's value is the principal plus the
+    // router fee. Pricing the whole value as network fee zeroed the swap input (regression).
+    const routerFeeWei = 13_400_376_419_807n;
+    const { transactionValueWei, computeToAmount, computeToAmountUsd } = world.squidRouter;
+    world.squidRouter.transactionValueWei = (parseUnits("1", 18) + routerFeeWei).toString();
+    world.squidRouter.computeToAmount = () => "2500000000"; // 2,500 USDC on Base
+    world.squidRouter.computeToAmountUsd = () => "2500";
+    try {
+      const response = await app.request("/v1/quotes", {
+        body: JSON.stringify({
+          from: Networks.Ethereum,
+          inputAmount: "1",
+          inputCurrency: EvmToken.ETH,
+          network: Networks.Ethereum,
+          outputCurrency: FiatToken.BRL,
+          rampType: RampDirection.SELL,
+          to: "pix"
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(response.status).toBe(201);
+      const quote = (await response.json()) as { networkFeeUsd: string; outputAmount: string };
+      // 13,400,376,419,807 wei at the FakePrices 2,500 USD/ETH feed.
+      expect(Number(quote.networkFeeUsd)).toBeCloseTo(0.0335, 3);
+      expect(Number(quote.outputAmount)).toBeGreaterThan(0);
+    } finally {
+      Object.assign(world.squidRouter, { computeToAmount, computeToAmountUsd, transactionValueWei });
+    }
+  });
 });

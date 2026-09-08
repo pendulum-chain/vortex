@@ -6,6 +6,7 @@ import {
   getOnChainTokenDetails,
   getRoute,
   isEvmTokenDetails,
+  NATIVE_TOKEN_ADDRESS,
   Networks,
   OnChainToken,
   parseContractBalanceResponse,
@@ -113,9 +114,16 @@ function getNativeTokenCoingeckoId(network: Networks): string {
 
 async function calculateSquidrouterNetworkFee(
   route: SquidrouterRoute | SquidrouterCachedRoute,
-  fromNetwork: Networks
+  fromNetwork: Networks,
+  routeParams: RouteParams
 ): Promise<string> {
-  const squidRouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
+  // A native source token (ETH, POL, ...) is sent as msg.value, so the route's value carries the
+  // swapped principal on top of the router fee. Only the fee part is a network cost.
+  const isNativeSource = routeParams.fromToken.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+  const nativeFeeWei = isNativeSource
+    ? Big(route.transactionRequest.value).minus(routeParams.fromAmount)
+    : Big(route.transactionRequest.value);
+  const squidRouterSwapValue = multiplyByPowerOfTen(nativeFeeWei.lt(0) ? Big(0) : nativeFeeWei, -18);
   const nativeTokenId = getNativeTokenCoingeckoId(fromNetwork);
 
   try {
@@ -198,7 +206,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
   } catch {
     outputAmountUsd = null;
   }
-  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork);
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork, routeParams);
 
   return {
     fromToken: routeParams.fromToken,
