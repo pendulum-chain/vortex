@@ -4,12 +4,13 @@ import {
   EvmToken,
   EvmTransactionData,
   evmTokenConfig,
+  NATIVE_TOKEN_ADDRESS,
   Networks
 } from "@vortexfi/shared";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { requireAccount } from "../../core/accounts";
 import { encodeEvmTransactionData } from "../../core/evm-transactions";
-import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
+import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
 import type { EvmOfframpSourceRegistrationFacts } from "./registration";
 import type { EvmOfframpSourceMetadata } from "./simulation";
 
@@ -58,23 +59,25 @@ export async function prepareEvmOfframpSourceTxs(
     toNetwork: Networks.Base,
     toToken: baseUsdc
   });
+  const swapIntent: TxIntent = {
+    lane: "main",
+    network: metadata.fromNetwork,
+    phase: "squidRouterSwap",
+    signer: facts.userAddress,
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  };
+  const intents: TxIntent[] = [swapIntent];
+  if (metadata.fromToken.toLowerCase() !== NATIVE_TOKEN_ADDRESS.toLowerCase()) {
+    intents.unshift({
+      lane: "main",
+      network: metadata.fromNetwork,
+      phase: "squidRouterApprove",
+      signer: facts.userAddress,
+      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+    });
+  }
   return {
-    intents: [
-      {
-        lane: "main",
-        network: metadata.fromNetwork,
-        phase: "squidRouterApprove",
-        signer: facts.userAddress,
-        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-      },
-      {
-        lane: "main",
-        network: metadata.fromNetwork,
-        phase: "squidRouterSwap",
-        signer: facts.userAddress,
-        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-      }
-    ],
+    intents,
     state: { userAddress: facts.userAddress }
   };
 }

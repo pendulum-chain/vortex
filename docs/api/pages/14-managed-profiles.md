@@ -4,6 +4,8 @@ Managed profiles let a platform onboard and operate Vortex accounts for its own 
 
 Use managed profiles when interactive signup is unavailable or undesirable — a B2B platform embedding cross-border payouts, a fintech onboarding its verified user base, or an operations backend running ramps for corporate sub-accounts. Provision one genuine child per real individual or business; never share one child between customers.
 
+Managed profiles are optional. If each customer can own a normal Vortex profile and authenticate with their own session or API credential, use a standalone profile instead: API-driven onboarding, a custom UI, and the full ramp lifecycle all work without manager status, and the EUR corridor requires a standalone profile. Manager status is only for platforms that must own the customer's Vortex identity.
+
 This page is the integration walkthrough. The exact authorization contract — every check Vortex performs, edge-case semantics, and error codes — lives in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) and is authoritative where the two overlap.
 
 ## Prerequisites

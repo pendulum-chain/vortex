@@ -351,8 +351,17 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       // (FiatToken.EURC's wire value is "EUR".)
       expect(currencies.map(currency => currency.symbol).sort()).toEqual(["ARS", "BRL", "COP", "EUR", "MXN", "USD"]);
 
-      const crypto = await requestJson("/v1/supported-cryptocurrencies");
+      const crypto = await requestJson("/v1/supported-cryptocurrencies?network=ethereum");
       expect(crypto.status).toBe(200);
+      const cryptocurrencies = crypto.body.cryptocurrencies as Array<{ assetSymbol: string; rampTypes: string[] }>;
+      expect(cryptocurrencies.find(token => token.assetSymbol === "USDC")?.rampTypes).toEqual(["BUY", "SELL"]);
+
+      // The network filter is required: routed token lists are per-network.
+      const cryptoUnfiltered = await requestJson("/v1/supported-cryptocurrencies");
+      expect(cryptoUnfiltered.status).toBe(400);
+      expect(cryptoUnfiltered.body.error).toBe(
+        "Missing required query parameter 'network'. Example: /v1/supported-cryptocurrencies?network=ethereum"
+      );
 
       const countries = await requestJson("/v1/supported-countries");
       expect(countries.status).toBe(200);

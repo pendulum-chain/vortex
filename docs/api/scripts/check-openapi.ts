@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { ONBOARDING_REQUIREMENTS } from "../../../packages/shared/src/endpoints/onboarding-requirements.endpoints";
+import { isNetworkAssetHub, isNetworkEVM, Networks } from "../../../packages/shared/src/helpers/networks";
 
 const OPENAPI_FILE = "docs/api/openapi/vortex.openapi.json";
 const GENERATED_TYPES_FILE = "docs/api/openapi/vortex.openapi.d.ts";
@@ -493,6 +494,38 @@ for (const [path, method, requiredStatuses] of MANAGED_PROFILE_OPERATIONS) {
 const createManagedProfile = operationAt("/v1/managed-profiles", "post");
 const createManagedProfileResponses = createManagedProfile.responses as JsonObject;
 const schemas = ((openapi.components as JsonObject).schemas ?? {}) as JsonObject;
+const supportedCryptocurrencyNetworkRef = "#/components/schemas/SupportedCryptocurrencyNetwork";
+const expectedSupportedCryptocurrencyNetworks = Object.values(Networks)
+  .filter(network => isNetworkEVM(network) || isNetworkAssetHub(network))
+  .sort();
+const supportedCryptocurrencyNetworkSchema = schemas.SupportedCryptocurrencyNetwork as JsonObject;
+const documentedSupportedCryptocurrencyNetworks = Array.isArray(supportedCryptocurrencyNetworkSchema?.enum)
+  ? [...supportedCryptocurrencyNetworkSchema.enum].sort()
+  : [];
+const supportedCryptocurrencies = operationAt("/v1/supported-cryptocurrencies", "get");
+const supportedCryptocurrencyParameters = Array.isArray(supportedCryptocurrencies.parameters)
+  ? supportedCryptocurrencies.parameters
+  : [];
+const supportedCryptocurrencyNetworkParameter = supportedCryptocurrencyParameters.find(
+  parameter =>
+    parameter &&
+    typeof parameter === "object" &&
+    (parameter as JsonObject).in === "query" &&
+    (parameter as JsonObject).name === "network"
+) as JsonObject | undefined;
+const supportedCryptocurrencyResponseNetworkSchema = valueAtPointer(
+  openapi,
+  "#/paths/~1v1~1supported-cryptocurrencies/get/responses/200/content/application~1json/schema/properties/cryptocurrencies/items/properties/assetNetwork"
+) as JsonObject | undefined;
+if (
+  JSON.stringify(documentedSupportedCryptocurrencyNetworks) !== JSON.stringify(expectedSupportedCryptocurrencyNetworks) ||
+  (supportedCryptocurrencyNetworkParameter?.schema as JsonObject | undefined)?.$ref !== supportedCryptocurrencyNetworkRef ||
+  supportedCryptocurrencyResponseNetworkSchema?.$ref !== supportedCryptocurrencyNetworkRef
+) {
+  throw new Error(
+    "GET /v1/supported-cryptocurrencies must document every runtime EVM/AssetHub network through its endpoint-specific schema."
+  );
+}
 if (
   JSON.stringify(createManagedProfile.requestBody).includes("#/components/schemas/CreateManagedProfileRequest") === false ||
   JSON.stringify(createManagedProfileResponses["200"]).includes("#/components/schemas/ManagedProfileResponse") === false ||

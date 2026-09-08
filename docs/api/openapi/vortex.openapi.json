@@ -3613,6 +3613,23 @@
         "required": ["success"],
         "type": "object"
       },
+      "SupportedCryptocurrencyNetwork": {
+        "description": "Networks accepted by the supported-cryptocurrencies endpoint.",
+        "enum": [
+          "assethub",
+          "arbitrum",
+          "avalanche",
+          "base",
+          "base-sepolia",
+          "bsc",
+          "ethereum",
+          "moonbeam",
+          "paseo",
+          "polygon",
+          "polygonAmoy"
+        ],
+        "type": "string"
+      },
       "TaxIdType": {
         "enum": ["CPF", "CNPJ"],
         "type": "string"
@@ -10378,16 +10395,16 @@
     "/v1/supported-cryptocurrencies": {
       "get": {
         "deprecated": false,
-        "description": "Retrieve all supported cryptocurrencies, filtered by network.",
+        "description": "Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.",
         "parameters": [
           {
-            "description": "Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`",
-            "example": "",
+            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`",
+            "example": "ethereum",
             "in": "query",
             "name": "network",
-            "required": false,
+            "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/SupportedCryptocurrencyNetwork"
             }
           }
         ],
@@ -10412,13 +10429,20 @@
                             "type": ["string", "null"]
                           },
                           "assetNetwork": {
-                            "$ref": "#/components/schemas/Networks"
+                            "$ref": "#/components/schemas/SupportedCryptocurrencyNetwork"
                           },
                           "assetSymbol": {
                             "type": "string"
+                          },
+                          "rampTypes": {
+                            "description": "Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable, for example on networks without ramp support or for the retired AssetHub corridors.",
+                            "items": {
+                              "$ref": "#/components/schemas/RampDirection"
+                            },
+                            "type": "array"
                           }
                         },
-                        "required": ["assetDecimals", "assetNetwork", "assetSymbol"],
+                        "required": ["assetDecimals", "assetNetwork", "assetSymbol", "rampTypes"],
                         "type": "object"
                       },
                       "type": "array"
@@ -10430,6 +10454,23 @@
               }
             },
             "description": "",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or unsupported `network`.",
             "headers": {}
           }
         },

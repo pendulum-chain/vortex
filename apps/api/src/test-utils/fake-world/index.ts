@@ -1,5 +1,6 @@
 import { ApiManager } from "@vortexfi/shared";
 import { type FakeAlfredpay, type FakeBrla, type FakeMykobo, installFakeAnchors } from "./fake-anchors";
+import { installBackgroundWorkTracking } from "./fake-background-work";
 import { type FakeEvm, installFakeEvm } from "./fake-evm";
 import { type FakePrices, installFakePrices } from "./fake-prices";
 import { type FakeSquidRouter, installFakeSquidRouter } from "./fake-squidrouter";
@@ -30,6 +31,9 @@ export function installFakeWorld(): FakeWorld {
   const { fakeAlfredpay, fakeBrla, fakeMykobo, restore: restoreAnchors } = installFakeAnchors();
   const { fakePrices, restore: restorePrices } = installFakePrices();
   const { fakeSquidRouter, restore: restoreSquidRouter } = installFakeSquidRouter();
+  // Not an external boundary, but fire-and-forget app work (the ramp-completion email
+  // enqueue) must be trackable so truncateAllTables can wait for it between tests.
+  const { restore: restoreBackgroundWorkTracking } = installBackgroundWorkTracking();
 
   // Substrate/Pendulum flows are not faked yet; fail loudly if a code path
   // unexpectedly needs them so the gap is explicit rather than a hang.
@@ -102,6 +106,7 @@ export function installFakeWorld(): FakeWorld {
     prices: fakePrices,
     restore: () => {
       ApiManager.getInstance = originalGetApiManager;
+      restoreBackgroundWorkTracking();
       restoreSquidRouter();
       restorePrices();
       restoreAnchors();

@@ -153,7 +153,7 @@ Webhook management uses the corresponding server-side secret through `X-API-Key`
 | Scenario | Use |
 |---|---|
 | Browser / mobile app, hosted UX | Widget |
-| Custom browser UX on an approved origin, accepting prototype localStorage custody | `@vortexfi/sdk` with Bearer auth |
+| Custom browser UX on a [Vortex-approved origin](https://api-docs.vortexfinance.co/authentication-and-partner-keys), accepting prototype localStorage custody | `@vortexfi/sdk` with Bearer auth |
 | Custom Node.js UX | `@vortexfi/sdk` with a secret credential |
 | Trusted Python backend | `vortex-sdk-python` |
 | Other backend stacks | Direct API ([AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration)) |
