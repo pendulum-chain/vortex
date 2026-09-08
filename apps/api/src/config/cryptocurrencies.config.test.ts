@@ -27,7 +27,7 @@ const mergedConfig = {
 } as unknown as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
 
 describe("getSupportedCryptocurrencies", () => {
-  it("lists routed tokens as BUY-only and static tokens as BUY and SELL", () => {
+  it("lists routed tokens alongside static ones, both buyable and sellable", () => {
     const result = getSupportedCryptocurrencies(Networks.Ethereum, mergedConfig);
     const bySymbol = Object.fromEntries(result.map(token => [token.assetSymbol, token]));
 
@@ -36,7 +36,7 @@ describe("getSupportedCryptocurrencies", () => {
       assetDecimals: 18,
       assetNetwork: Networks.Ethereum,
       assetSymbol: "PAXG",
-      rampTypes: [RampDirection.BUY]
+      rampTypes: [RampDirection.BUY, RampDirection.SELL]
     });
     expect(bySymbol.USDC.rampTypes).toEqual([RampDirection.BUY, RampDirection.SELL]);
   });
@@ -53,7 +53,6 @@ describe("getSupportedCryptocurrencies", () => {
         .map(token => token.assetSymbol)
         .sort()
     );
-    expect(result.every(token => token.rampTypes.includes(RampDirection.SELL))).toBe(true);
   });
 
   it("marks AssetHub USDC as rampable and other AssetHub tokens as not", () => {

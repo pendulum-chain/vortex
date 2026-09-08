@@ -3,7 +3,6 @@ import {
   assetHubTokenConfig,
   EvmNetworks,
   EvmTokenDetails,
-  evmTokenConfig,
   getEvmTokenConfig,
   isNetworkAssetHub,
   isNetworkEVM,
@@ -27,10 +26,6 @@ const getEvmNetworkTokens = (
   network: EvmNetworks,
   tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 ): SupportedCryptocurrencyDetails[] => {
-  // The offramp flow catalog only matches tokens from the static config; routed (Squid-discovered) tokens are BUY-only.
-  const sellableAddresses = new Set(
-    Object.values(evmTokenConfig[network] ?? {}).map(token => token.erc20AddressSourceChain.toLowerCase())
-  );
   // The merged config stores static tokens under both their enum key and their symbol; dedupe by contract address.
   const byAddress = new Map<string, SupportedCryptocurrencyDetails>();
   for (const details of Object.values(tokensByNetwork[network] ?? {})) {
@@ -42,7 +37,8 @@ const getEvmNetworkTokens = (
       assetDecimals: details.decimals,
       assetNetwork: details.network,
       assetSymbol: details.assetSymbol,
-      rampTypes: sellableAddresses.has(address) ? [RampDirection.BUY, RampDirection.SELL] : [RampDirection.BUY]
+      // The flow catalog matches EVM sources and destinations against this same merged token catalog.
+      rampTypes: [RampDirection.BUY, RampDirection.SELL]
     });
   }
   return [...byAddress.values()];

@@ -18,7 +18,7 @@ export interface SupportedCryptocurrencyDetailsBase {
   assetSymbol: string;
   assetNetwork: Networks;
   assetDecimals: number;
-  /// Ramp directions the quote engine accepts for this token. Routed (dynamically discovered) EVM tokens are BUY-only.
+  /// Ramp directions at least one corridor supports for this token on its network.
   rampTypes: RampDirection[];
 }
 

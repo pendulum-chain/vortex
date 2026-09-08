@@ -1663,7 +1663,7 @@ export interface paths {
         };
         /**
          * Supported Cryptocurrencies
-         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; use `rampTypes` to see whether a token can be bought, sold, or both.
+         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.
          */
         get: {
             parameters: {
@@ -1694,7 +1694,7 @@ export interface paths {
                                 assetForeignAssetId?: string | null;
                                 assetNetwork: components["schemas"]["Networks"];
                                 assetSymbol: string;
-                                /** @description Ramp directions the quote engine accepts for this token. Routed EVM tokens are `BUY`-only; an empty list means the token is listed but not currently rampable. */
+                                /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable. */
                                 rampTypes: components["schemas"]["RampDirection"][];
                             }[];
                         };
