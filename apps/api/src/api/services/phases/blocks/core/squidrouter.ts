@@ -2,10 +2,12 @@ import {
   DestinationType,
   EvmToken,
   EvmTokenDetails,
+  getEvmTokensForNetwork,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getRoute,
   isEvmTokenDetails,
+  isNetworkEVM,
   NATIVE_TOKEN_ADDRESS,
   Networks,
   OnChainToken,
@@ -51,6 +53,12 @@ export interface EvmBridgeResult {
   finalEffectiveExchangeRate?: string;
   outputTokenDecimals: number;
 }
+
+const STATIC_NATIVE_TOKEN_PRICE_FALLBACKS_USD: Readonly<Partial<Record<string, number>>> = {
+  ethereum: 2500,
+  moonbeam: 0.08,
+  "polygon-ecosystem-token": 0.5
+};
 
 /**
  * Helper to get token details for final output currency on EVM destination
@@ -108,8 +116,19 @@ function getNativeTokenCoingeckoId(network: Networks): string {
     case Networks.Moonbeam:
       return "moonbeam";
     default:
-      return "moonbeam";
+      throw new Error(`Unsupported Squid Router source network: ${network}`);
   }
+}
+
+function getDiscoveredNativeTokenPriceUSD(network: Networks): number | undefined {
+  if (!isNetworkEVM(network)) {
+    return undefined;
+  }
+  const nativeToken = getEvmTokensForNetwork(network).find(
+    token => token.isNative || token.erc20AddressSourceChain.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  );
+  const priceUSD = nativeToken?.usdPrice;
+  return priceUSD !== undefined && Number.isFinite(priceUSD) && priceUSD > 0 ? priceUSD : undefined;
 }
 
 async function calculateSquidrouterNetworkFee(
@@ -132,11 +151,16 @@ async function calculateSquidrouterNetworkFee(
     logger.debug(`Network fee calculated using ${nativeTokenId} price: $${nativePriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   } catch (error) {
-    logger.error(
-      `Failed to get ${nativeTokenId} price, using fallback: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    // Conservative per-chain fallback so we never silently report ~$0 for ETH-priced chains.
-    const fallbackPriceUSD = nativeTokenId === "ethereum" ? 2500 : nativeTokenId === "polygon-ecosystem-token" ? 0.5 : 0.08;
+    logger.error(`Failed to get ${nativeTokenId} price: ${error instanceof Error ? error.message : "Unknown error"}`);
+    const discoveredPriceUSD = getDiscoveredNativeTokenPriceUSD(fromNetwork);
+    // Static fallbacks cover the established chains when token discovery is unavailable. Newly
+    // discovered chains must bring their own validated native-token price or fail the quote.
+    const staticFallbackPriceUSD = STATIC_NATIVE_TOKEN_PRICE_FALLBACKS_USD[nativeTokenId];
+    const fallbackPriceUSD = discoveredPriceUSD ?? staticFallbackPriceUSD;
+    if (fallbackPriceUSD === undefined) {
+      logger.error(`No validated ${nativeTokenId} fallback price is available`);
+      throw error;
+    }
     const squidFeeUSD = squidRouterSwapValue.mul(fallbackPriceUSD).toFixed(6);
     logger.warn(`Using fallback ${nativeTokenId} price: $${fallbackPriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;

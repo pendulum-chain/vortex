@@ -18,7 +18,10 @@ architecture and MUST NOT be used as evidence for current behavior.
    - Mykobo and Avenia fee blocks install their live provider fee;
    - routed blocks install the Squid network fee, priced from the route's native `value`;
      for a native source token (ETH, POL) the swapped principal is subtracted first, so
-     only the router fee is charged;
+     only the router fee is charged. If the primary price feed is unavailable, a
+     positive native-token USD price from Squid discovery may be used; a newly enabled
+     chain without a validated fallback price fails quote creation instead of borrowing
+     another chain's fallback;
    - direct/no-bridge routes preserve a zero network fee.
 3. Quote finalization persists the resulting snapshot in
    `quote_tickets.metadata.fees`. After quote creation, fee amounts are immutable.

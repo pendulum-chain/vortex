@@ -1,6 +1,13 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
-import { EphemeralAccountType, type EvmNetworks, EvmToken, evmTokenConfig, Networks } from "@vortexfi/shared";
+import {
+  EphemeralAccountType,
+  type EvmNetworks,
+  EvmToken,
+  evmTokenConfig,
+  NATIVE_TOKEN_ADDRESS,
+  Networks
+} from "@vortexfi/shared";
 import type { PrepareCtx } from "../core/types";
 import type { EvmOfframpSourceRegistrationFacts } from "../phases/evm-offramp-source/registration";
 import type { EvmOfframpSourceMetadata } from "../phases/evm-offramp-source/simulation";
@@ -82,5 +89,19 @@ describe("EVM offramp source transaction variants", () => {
       fromNetwork: Networks.Polygon,
       toNetwork: Networks.Base
     });
+  });
+
+  it("uses only the Squid swap for a native source token", async () => {
+    const prepared = await prepareEvmOfframpSourceTxs(context(Networks.Ethereum, EvmToken.ETH));
+    expect(prepared.intents.map(intent => intent.phase)).toEqual(["squidRouterSwap"]);
+    expect(prepared.intents[0]?.signer).toBe(USER);
+    expect(prepared.intents[0]?.network).toBe(Networks.Ethereum);
+    expect(routeRequests.at(-1)).toMatchObject({
+      destinationAddress: EPHEMERAL,
+      fromAddress: USER,
+      fromNetwork: Networks.Ethereum,
+      toNetwork: Networks.Base
+    });
+    expect(String(routeRequests.at(-1)?.fromToken).toLowerCase()).toBe(NATIVE_TOKEN_ADDRESS.toLowerCase());
   });
 });
