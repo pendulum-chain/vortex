@@ -32,7 +32,7 @@ The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integra
 | Browser / mobile / hosted checkout | Vortex Widget |
 | Any other language or runtime | Direct API integration following the SDK's behavior |
 
-The SDK publishes Node.js and modern-browser builds. Server integrations authenticate with a user-linked `sk_*`; browser integrations must use a renewable Supabase Bearer session through `accessTokenProvider` and must never embed an `sk_*`. Browser origins must be explicitly approved in the API's `BROWSER_SDK_ORIGINS` configuration. The hosted Widget remains the lowest-effort production UI.
+The SDK publishes Node.js and modern-browser builds. Server integrations authenticate with a user-linked `sk_*`; browser integrations must use a renewable Supabase Bearer session through `accessTokenProvider` and must never embed an `sk_*`. Browser origins must be approved by Vortex before any browser request reaches the API; email <support@vortexfinance.co> to have yours added (see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys)). The hosted Widget remains the lowest-effort production UI.
 
 ## Custody Model
 

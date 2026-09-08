@@ -26,7 +26,7 @@ Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), M
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
-Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
+Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
 ## C. Python (`vortex-sdk-python`)
 

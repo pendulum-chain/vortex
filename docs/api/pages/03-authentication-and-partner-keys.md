@@ -23,6 +23,17 @@ Both values share one immutable credential ID, subject profile, optional partner
 
 `GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A manager secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
 
+## Browser Origin Approval
+
+Vortex accepts browser requests only from origins it has explicitly approved. Every request a browser makes to the API — the browser build of `@vortexfi/sdk`, a `fetch` from your own front end, or `POST /v1/session/create` called from page code — is refused by CORS unless your exact origin is on the allowlist. Server-to-server calls are unaffected.
+
+To have an origin approved, email <support@vortexfinance.co> with:
+
+- each origin exactly as the browser sends it, including scheme and any non-default port (for example `https://app.example.com` or `https://checkout.example.com:8443`);
+- whether it is for sandbox, production, or both.
+
+Entries are exact-match and wildcards are never accepted, so every subdomain, preview domain, and development host that calls the API must be listed individually. Request approval before you integrate: without it every browser call fails at the CORS preflight, which surfaces as a browser network error rather than a Vortex error code.
+
 ## Subject And Partner Binding
 
 Every credential authenticates exactly one Vortex profile. A profile-managed credential has no partner and is managed by its signed-in subject. A partner-managed credential has an optional partner attribution but still authenticates only its bound profile.

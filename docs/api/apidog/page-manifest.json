@@ -138,7 +138,7 @@
           "OTP sign-in",
           "crypto ramp authentication"
         ],
-        "metaDescription": "How Vortex authenticates clients with pk_*/sk_* keys or Supabase sessions, including managed-child delegation and secure BRL KYC token import.",
+        "metaDescription": "How Vortex authenticates clients with pk_*/sk_* keys or Supabase sessions, including browser origin approval, managed-child delegation, and BRL KYC token import.",
         "metaTitle": "Authentication And API Keys — Vortex API"
       },
       "slug": "authentication-and-partner-keys",
@@ -342,7 +342,7 @@
           "wallet network validation",
           "ramp status polling"
         ],
-        "metaDescription": "Build a resilient custom Vortex UI: standalone or managed profiles, safe quote handling, browser token refresh, wallet checks, resumable payments, and status polling.",
+        "metaDescription": "Build a resilient custom Vortex UI: standalone vs managed profiles, browser origin approval, safe quote handling, token refresh, resumable payments, and status polling.",
         "metaTitle": "Custom UI Integration Best Practices — Vortex"
       },
       "slug": "custom-ui-integration",

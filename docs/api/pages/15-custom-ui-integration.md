@@ -15,6 +15,8 @@ A custom UI and API-driven onboarding do **not** require managed profiles. The i
 
 Both models support the same custom UI, the same API-driven onboarding, and the same ramp lifecycle. Choose managed profiles only when your platform must own the customer's Vortex identity; the EUR corridor is bound to a verified login email and supports standalone profiles only.
 
+Browser-based UIs also need their origin approved by Vortex before any request reaches the API — see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 ## Keep Quotes Bound To Current Input
 
 Amount fields often request a new quote while the user is still typing. Network responses can arrive out of order, so a slower response for an old amount must not replace the current quote.
