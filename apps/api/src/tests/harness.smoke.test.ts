@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { assertApiCredentialSchemaReady } from "../api/services/apiCredential.service";
+import { trackBackgroundWork } from "../test-utils/background-work";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
 import { setupTestDatabase, truncateAllTables } from "../test-utils/db";
 import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
@@ -62,5 +63,27 @@ describe("test harness smoke test", () => {
       functionName: "balanceOf"
     });
     expect(balance).toBe(123n);
+  });
+
+  it("truncateAllTables waits for tracked fire-and-forget work before touching the tables", async () => {
+    // Regression: the phase processor's completion-email enqueue outlived its test and
+    // deadlocked against the next test's TRUNCATE.
+    let finish: () => void = () => undefined;
+    trackBackgroundWork(
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+    );
+
+    let truncated = false;
+    const truncating = truncateAllTables().then(() => {
+      truncated = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(truncated).toBe(false);
+
+    finish();
+    await truncating;
+    expect(truncated).toBe(true);
   });
 });

@@ -134,6 +134,11 @@ migrated with the production Umzug migrations and truncated between tests. Seque
 mocked in integration tests — transactionality (quote consumption, processing locks) is part of
 what we test. Unit tests may still mock models where the DB is incidental.
 
+Fire-and-forget app work that outlives a test (today: the phase processor's ramp-completion
+email enqueue) is routed through `test-utils/background-work.ts` by the fake world, and
+`truncateAllTables` waits for it to settle first; a TRUNCATE issued under an in-flight INSERT
+deadlocks in Postgres and fails the next test at random.
+
 ### Factories
 
 `apps/api/src/test-utils/factories.ts` builds `User`, `Partner`, `ApiCredential`, `QuoteTicket`,
