@@ -5,8 +5,8 @@ import {
   evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
+  getOnChainTokenDetails,
   isDomesticToken,
-  isEvmToken,
   isNetworkEVM,
   mapFiatToDestination,
   Networks,
@@ -84,10 +84,10 @@ const flowDefinitions: FlowDefinition[] = [
   {
     create(request) {
       const network = getNetworkFromDestination(request.from);
-      if (!network || !isNetworkEVM(network) || !isEvmToken(request.inputCurrency)) {
+      if (!network || !isNetworkEVM(network)) {
         throw new APIError({ message: "Unsupported EVM source for EUR offramp", status: httpStatus.BAD_REQUEST });
       }
-      return makeEurOfframpBaseFlow(request.inputCurrency, network);
+      return makeEurOfframpBaseFlow(request.inputCurrency as EvmToken, network);
     },
     executorFlow: eurOfframpBaseFlow,
     matches(request) {
@@ -98,18 +98,19 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === EPaymentMethod.SEPA &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        isEvmToken(request.inputCurrency) &&
-        evmTokenConfig[network][request.inputCurrency] !== undefined
+        // Source tokens come from the merged token catalog (static config plus Squid-discovered
+        // tokens), the same catalog BUY destinations resolve against.
+        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
       );
     }
   },
   {
     create(request) {
       const network = getNetworkFromDestination(request.from);
-      if (!network || !isNetworkEVM(network) || !isEvmToken(request.inputCurrency)) {
+      if (!network || !isNetworkEVM(network)) {
         throw new APIError({ message: "Unsupported EVM source for BRL offramp", status: httpStatus.BAD_REQUEST });
       }
-      return makeBrlOfframpBaseFlow(request.inputCurrency, network);
+      return makeBrlOfframpBaseFlow(request.inputCurrency as EvmToken, network);
     },
     executorFlow: brlOfframpBaseFlow,
     matches(request) {
@@ -119,8 +120,9 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === FiatToken.BRL &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        isEvmToken(request.inputCurrency) &&
-        evmTokenConfig[network][request.inputCurrency] !== undefined
+        // Source tokens come from the merged token catalog (static config plus Squid-discovered
+        // tokens), the same catalog BUY destinations resolve against.
+        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
       );
     }
   },
@@ -141,7 +143,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        evmTokenConfig[network][request.inputCurrency as EvmToken] !== undefined
+        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
       );
     }
   },
