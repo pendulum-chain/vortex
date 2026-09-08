@@ -1,5 +1,6 @@
 import { Networks } from "../helpers";
 import { OnChainToken } from "../tokens/types/base";
+import { RampDirection } from "../types/rampDirection";
 
 export type SupportedCryptocurrency = OnChainToken;
 
@@ -17,10 +18,12 @@ export interface SupportedCryptocurrencyDetailsBase {
   assetSymbol: string;
   assetNetwork: Networks;
   assetDecimals: number;
+  /// Ramp directions at least one corridor supports for this token on its network.
+  rampTypes: RampDirection[];
 }
 
 export interface GetSupportedCryptocurrenciesRequest {
-  network?: Networks;
+  network: Networks;
 }
 
 export interface GetSupportedCryptocurrenciesResponse {

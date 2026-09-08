@@ -1663,16 +1663,16 @@ export interface paths {
         };
         /**
          * Supported Cryptocurrencies
-         * @description Retrieve all supported cryptocurrencies, filtered by network.
+         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.
          */
         get: {
             parameters: {
-                query?: {
+                query: {
                     /**
-                     * @description Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`
-                     * @example
+                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `bsc`, `ethereum`, `moonbeam`, `polygon`
+                     * @example ethereum
                      */
-                    network?: string;
+                    network: string;
                 };
                 header?: never;
                 path?: never;
@@ -1694,7 +1694,20 @@ export interface paths {
                                 assetForeignAssetId?: string | null;
                                 assetNetwork: components["schemas"]["Networks"];
                                 assetSymbol: string;
+                                /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable, for example on networks without ramp support or for the retired AssetHub corridors. */
+                                rampTypes: components["schemas"]["RampDirection"][];
                             }[];
+                        };
+                    };
+                };
+                /** @description Missing or unsupported `network`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
                         };
                     };
                 };

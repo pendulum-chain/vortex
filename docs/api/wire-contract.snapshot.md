@@ -922,7 +922,7 @@ GetSupportedCountryResponse: {
 }
 
 GetSupportedCryptocurrenciesRequest: {
-  network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
 }
 
 GetSupportedCryptocurrenciesResponse: {
@@ -931,11 +931,13 @@ GetSupportedCryptocurrenciesResponse: {
     assetDecimals: number;
     assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
     assetSymbol: string;
+    rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
   } | {
     assetDecimals: number;
     assetForeignAssetId?: number;
     assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
     assetSymbol: string;
+    rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
   }>;
 }
 
@@ -1964,6 +1966,7 @@ SupportedAssetHubCryptocurrencyDetails: {
   assetForeignAssetId?: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedCountry: {
@@ -1984,17 +1987,20 @@ SupportedCryptocurrencyDetails: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 } | {
   assetDecimals: number;
   assetForeignAssetId?: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedCryptocurrencyDetailsBase: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedEVMCryptocurrencyDetails: {
@@ -2002,6 +2008,7 @@ SupportedEVMCryptocurrencyDetails: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedFiatCurrency: {

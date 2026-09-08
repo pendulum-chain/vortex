@@ -16,7 +16,9 @@ architecture and MUST NOT be used as evidence for current behavior.
    currency. A block that obtains a live provider or bridge price may replace only the
    component it owns:
    - Mykobo and Avenia fee blocks install their live provider fee;
-   - routed blocks install the Squid network fee;
+   - routed blocks install the Squid network fee, priced from the route's native `value`;
+     for a native source token (ETH, POL) the swapped principal is subtracted first, so
+     only the router fee is charged;
    - direct/no-bridge routes preserve a zero network fee.
 3. Quote finalization persists the resulting snapshot in
    `quote_tickets.metadata.fees`. After quote creation, fee amounts are immutable.
