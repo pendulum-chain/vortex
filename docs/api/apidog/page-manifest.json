@@ -342,7 +342,7 @@
           "wallet network validation",
           "ramp status polling"
         ],
-        "metaDescription": "Build a resilient custom Vortex UI with safe quote handling, browser token refresh, wallet checks, resumable payments, start reconciliation, and status polling.",
+        "metaDescription": "Build a resilient custom Vortex UI: standalone or managed profiles, safe quote handling, browser token refresh, wallet checks, resumable payments, and status polling.",
         "metaTitle": "Custom UI Integration Best Practices — Vortex"
       },
       "slug": "custom-ui-integration",
