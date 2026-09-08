@@ -1694,7 +1694,7 @@ export interface paths {
                                 assetForeignAssetId?: string | null;
                                 assetNetwork: components["schemas"]["Networks"];
                                 assetSymbol: string;
-                                /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable. */
+                                /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable, for example on networks without ramp support or for the retired AssetHub corridors. */
                                 rampTypes: components["schemas"]["RampDirection"][];
                             }[];
                         };

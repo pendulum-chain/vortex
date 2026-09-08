@@ -1,6 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { EvmNetworks, EvmToken, EvmTokenDetails, evmTokenConfig, Networks, RampDirection, TokenType } from "@vortexfi/shared";
+import {
+  EPaymentMethod,
+  EvmNetworks,
+  EvmToken,
+  EvmTokenDetails,
+  evmTokenConfig,
+  FiatToken,
+  Networks,
+  RampDirection,
+  TokenType
+} from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
+import { isRetiredAssetHubCorridor, validateChainSupport } from "../api/services/phases/blocks/core/helpers";
 import { getSupportedCryptocurrencies } from "./cryptocurrencies.config";
 
 const staticUsdc = evmTokenConfig[Networks.Ethereum][EvmToken.USDC] as EvmTokenDetails;
@@ -26,6 +37,8 @@ const mergedConfig = {
   }
 } as unknown as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
 
+const BOTH = [RampDirection.BUY, RampDirection.SELL];
+
 describe("getSupportedCryptocurrencies", () => {
   it("lists routed tokens alongside static ones, both buyable and sellable", () => {
     const result = getSupportedCryptocurrencies(Networks.Ethereum, mergedConfig);
@@ -36,9 +49,9 @@ describe("getSupportedCryptocurrencies", () => {
       assetDecimals: 18,
       assetNetwork: Networks.Ethereum,
       assetSymbol: "PAXG",
-      rampTypes: [RampDirection.BUY, RampDirection.SELL]
+      rampTypes: BOTH
     });
-    expect(bySymbol.USDC.rampTypes).toEqual([RampDirection.BUY, RampDirection.SELL]);
+    expect(bySymbol.USDC.rampTypes).toEqual(BOTH);
   });
 
   it("dedupes static tokens stored under enum key and symbol alias", () => {
@@ -55,11 +68,43 @@ describe("getSupportedCryptocurrencies", () => {
     );
   });
 
-  it("marks AssetHub USDC as rampable and other AssetHub tokens as not", () => {
+  it("advertises no directions on EVM networks the quote service rejects", () => {
+    for (const network of [Networks.Moonbeam, Networks.BaseSepolia, Networks.PolygonAmoy]) {
+      // The runtime guard behind the metadata: quote creation rejects both directions.
+      expect(() => validateChainSupport(RampDirection.BUY, EPaymentMethod.PIX, network)).toThrow(APIError);
+      expect(() => validateChainSupport(RampDirection.SELL, network, EPaymentMethod.PIX)).toThrow(APIError);
+
+      const result = getSupportedCryptocurrencies(network);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.every(token => token.rampTypes.length === 0)).toBe(true);
+    }
+  });
+
+  it("advertises no directions for AssetHub, whose only corridors are retired", () => {
+    // Chain support alone would allow AssetHub; the retirement guard is what closes it.
+    expect(() => validateChainSupport(RampDirection.BUY, EPaymentMethod.PIX, Networks.AssetHub)).not.toThrow();
+    expect(
+      isRetiredAssetHubCorridor({
+        from: EPaymentMethod.PIX,
+        inputCurrency: FiatToken.BRL,
+        outputCurrency: "USDC" as EvmToken,
+        rampType: RampDirection.BUY,
+        to: Networks.AssetHub
+      })
+    ).toBe(true);
+    expect(
+      isRetiredAssetHubCorridor({
+        from: Networks.AssetHub,
+        inputCurrency: "USDC" as EvmToken,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: EPaymentMethod.PIX
+      })
+    ).toBe(true);
+
     const result = getSupportedCryptocurrencies(Networks.AssetHub);
-    const bySymbol = Object.fromEntries(result.map(token => [token.assetSymbol, token.rampTypes]));
-    expect(bySymbol.USDC).toEqual([RampDirection.BUY, RampDirection.SELL]);
-    expect(bySymbol.DOT).toEqual([]);
+    expect(result.map(token => token.assetSymbol).sort()).toEqual(["DOT", "USDC", "USDT"]);
+    expect(result.every(token => token.rampTypes.length === 0)).toBe(true);
   });
 
   it("rejects a missing or unsupported network", () => {
