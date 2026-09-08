@@ -1669,10 +1669,10 @@ export interface paths {
             parameters: {
                 query: {
                     /**
-                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `bsc`, `ethereum`, `moonbeam`, `polygon`
+                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`
                      * @example ethereum
                      */
-                    network: string;
+                    network: components["schemas"]["SupportedCryptocurrencyNetwork"];
                 };
                 header?: never;
                 path?: never;
@@ -1692,7 +1692,7 @@ export interface paths {
                                 assetDecimals: number;
                                 /** @description Defined if network is Assethub. */
                                 assetForeignAssetId?: string | null;
-                                assetNetwork: components["schemas"]["Networks"];
+                                assetNetwork: components["schemas"]["SupportedCryptocurrencyNetwork"];
                                 assetSymbol: string;
                                 /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable, for example on networks without ramp support or for the retired AssetHub corridors. */
                                 rampTypes: components["schemas"]["RampDirection"][];
@@ -3248,6 +3248,11 @@ export interface components {
             /** @constant */
             success: true;
         };
+        /**
+         * @description Networks accepted by the supported-cryptocurrencies endpoint.
+         * @enum {string}
+         */
+        SupportedCryptocurrencyNetwork: "assethub" | "arbitrum" | "avalanche" | "base" | "base-sepolia" | "bsc" | "ethereum" | "moonbeam" | "paseo" | "polygon" | "polygonAmoy";
         /** @enum {string} */
         TaxIdType: "CPF" | "CNPJ";
         TriggerOfframpRequest: {

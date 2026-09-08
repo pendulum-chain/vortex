@@ -3613,6 +3613,23 @@
         "required": ["success"],
         "type": "object"
       },
+      "SupportedCryptocurrencyNetwork": {
+        "description": "Networks accepted by the supported-cryptocurrencies endpoint.",
+        "enum": [
+          "assethub",
+          "arbitrum",
+          "avalanche",
+          "base",
+          "base-sepolia",
+          "bsc",
+          "ethereum",
+          "moonbeam",
+          "paseo",
+          "polygon",
+          "polygonAmoy"
+        ],
+        "type": "string"
+      },
       "TaxIdType": {
         "enum": ["CPF", "CNPJ"],
         "type": "string"
@@ -10381,13 +10398,13 @@
         "description": "Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.",
         "parameters": [
           {
-            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `bsc`, `ethereum`, `moonbeam`, `polygon`",
+            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`",
             "example": "ethereum",
             "in": "query",
             "name": "network",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/SupportedCryptocurrencyNetwork"
             }
           }
         ],
@@ -10412,7 +10429,7 @@
                             "type": ["string", "null"]
                           },
                           "assetNetwork": {
-                            "$ref": "#/components/schemas/Networks"
+                            "$ref": "#/components/schemas/SupportedCryptocurrencyNetwork"
                           },
                           "assetSymbol": {
                             "type": "string"
