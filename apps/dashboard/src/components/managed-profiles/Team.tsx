@@ -23,6 +23,7 @@ import {
   shouldRetryMembershipQuery,
   type TeamMember
 } from "@/services/api/managed-profile-memberships.service";
+import { useAuthStore } from "@/stores/auth.store";
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).email("Enter a valid email"),
@@ -54,6 +55,9 @@ export function Team({
   authorityPending: boolean;
 }) {
   const client = useQueryClient();
+  const actorEmail = useAuthStore(state => state.user?.email)
+    ?.trim()
+    .toLowerCase();
   const [memberOffset, setMemberOffset] = useState(0);
   const [invitationOffset, setInvitationOffset] = useState(0);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
@@ -71,6 +75,9 @@ export function Team({
     refetchOnWindowFocus: "always",
     retry: shouldRetryMembershipQuery
   });
+  const visibleInvitations = (invitations.data?.invitations ?? []).filter(
+    invitation => !actorEmail || invitation.status !== "accepted" || invitation.email.trim().toLowerCase() !== actorEmail
+  );
   const cursor = cursors.at(-1);
   const events = useQuery({
     queryFn: ({ signal }) => service.events(organization.ownerProfileId, cursor, signal),
@@ -214,7 +221,7 @@ export function Team({
           ) : (
             <>
               <ul className="divide-y">
-                {invitations.data.invitations.map(invitation => (
+                {visibleInvitations.map(invitation => (
                   <li className="flex flex-wrap items-center justify-between gap-3 py-4" key={invitation.id}>
                     <div className="min-w-0 flex-1 basis-48">
                       <p className="break-all font-medium">{invitation.email}</p>
@@ -239,9 +246,7 @@ export function Team({
                   </li>
                 ))}
               </ul>
-              {invitations.data.invitations.length === 0 && (
-                <p className="py-4 text-muted-foreground">No invitations on this page.</p>
-              )}
+              {visibleInvitations.length === 0 && <p className="py-4 text-muted-foreground">No invitations on this page.</p>}
               <div className="mt-4 flex justify-end gap-2">
                 <Button
                   disabled={invitationOffset === 0 || invitations.isFetching}

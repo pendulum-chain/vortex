@@ -255,6 +255,9 @@ Both roles can inspect the organization roster, pending invitations, and recent 
 events. A non-impersonated `manager` can invite an email as `manager` or `read_only`, cancel a
 pending invitation, change a non-owner role, or remove a non-owner member. Owner rows are visibly
 immutable. No mutation is displayed optimistically before server confirmation.
+The invitation list hides accepted invitations addressed to the viewer's current email;
+other members still see those records. This is presentation-only: the API, pagination,
+membership roster, and access history remain unchanged.
 
 Active owner configuration is required for Team and org operations. Deactivation retains
 memberships but denies operations and returns no live organization on discovery. Only the

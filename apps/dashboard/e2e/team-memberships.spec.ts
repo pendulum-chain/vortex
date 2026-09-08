@@ -178,6 +178,67 @@ for (const mobile of [false, true]) {
     expect(backend.unexpectedExternalRequests).toEqual([]);
   });
 
+  test(`Team hides only the viewer's accepted invitation (${mobile ? "mobile" : "desktop"})`, async ({ page }) => {
+    if (mobile) await page.setViewportSize({ height: 844, width: 390 });
+    const backend = await mockBackend(page, {
+      organization: organization(),
+      team: {
+        events: [{ ...event(0), action: "invitation_accepted", memberProfileId: E2E_USER_ID }],
+        invitations: [
+          { ...invitation(), acceptedAt: NOW, status: "accepted" },
+          { ...invitation(1), acceptedAt: NOW, status: "accepted" },
+          { ...invitation(2), email: E2E_USER_EMAIL }
+        ],
+        members: [member(), { ...member(1), email: E2E_USER_EMAIL, memberProfileId: E2E_USER_ID }]
+      }
+    });
+    await seedSession(page);
+    await page.goto("/team");
+    const invitations = page.getByRole("list").filter({ has: page.getByText("Expires", { exact: false }) });
+    await expect(invitations.getByRole("listitem")).toHaveCount(2);
+    const own = invitations.getByRole("listitem").filter({ hasText: E2E_USER_EMAIL });
+    await expect(own.getByText("pending", { exact: true })).toBeVisible();
+    await expect(own.getByText("accepted", { exact: true })).toHaveCount(0);
+    const other = invitations.getByRole("listitem").filter({ hasText: "invitee-1@example.test" });
+    await expect(other.getByText("accepted", { exact: true })).toBeVisible();
+    await expect(page.getByText("You", { exact: true })).toBeVisible();
+    await expect(page.getByText("Invitation accepted", { exact: true })).toBeVisible();
+    expect(backend.membershipRequests.every(request => request.method === "GET")).toBe(true);
+    expect(backend.unmatchedRequests).toEqual([]);
+    await noOverflow(page);
+  });
+
+  test(`Team keeps pagination reachable when accepted invitations are hidden (${mobile ? "mobile" : "desktop"})`, async ({
+    page
+  }) => {
+    if (mobile) await page.setViewportSize({ height: 844, width: 390 });
+    const backend = await mockBackend(page, {
+      organization: organization("read_only"),
+      team: {
+        events: [],
+        invitations: Array.from({ length: 21 }, (_, index) =>
+          index === 0 || index === 20
+            ? { ...invitation(index), acceptedAt: NOW, email: E2E_USER_EMAIL, status: "accepted" as const }
+            : invitation(index)
+        ),
+        members: []
+      }
+    });
+    await seedSession(page);
+    await page.goto("/team");
+    const invitations = page.getByRole("list").filter({ has: page.getByText("Expires", { exact: false }) });
+    await expect(invitations.getByRole("listitem")).toHaveCount(19);
+    await page.getByRole("button", { name: "Next invitations" }).click();
+    await expect(page.getByText("No invitations on this page.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Next invitations" })).toBeDisabled();
+    await page.getByRole("button", { name: "Previous invitations" }).click();
+    await expect(invitations.getByRole("listitem")).toHaveCount(19);
+    expect(backend.membershipRequests.some(request => request.search.includes("offset=20"))).toBe(true);
+    expect(backend.membershipRequests.every(request => request.method === "GET")).toBe(true);
+    expect(backend.unmatchedRequests).toEqual([]);
+    await noOverflow(page);
+  });
+
   test(`read-only Team paginates every list without mutation UI (${mobile ? "mobile" : "desktop"})`, async ({ page }) => {
     if (mobile) await page.setViewportSize({ height: 844, width: 390 });
     const backend = await mockBackend(page, {
