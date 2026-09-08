@@ -15,6 +15,7 @@ Before going live, verify the following:
 - Test failed, delayed, and retried ramp states in sandbox.
 - Define a support process for users who close the app before a ramp finishes.
 - Rotate partner keys if they are exposed or no longer needed.
+- Confirm every browser origin that calls the API, in sandbox and production, is on the Vortex origin allowlist; request additions at <support@vortexfinance.co>.
 - For BRL flows, confirm that your onboarding path produces an eligible user before starting the ramp.
 - Confirm your integration complies with the Vortex [Terms and Conditions](https://www.vortexfinance.co/en/terms-and-conditions) and [Privacy Policy](https://www.vortexfinance.co/en/privacy-policy).
 

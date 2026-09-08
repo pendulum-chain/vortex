@@ -26,7 +26,7 @@ Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), M
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
-Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
+Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
 ## C. Python (`vortex-sdk-python`)
 
@@ -213,7 +213,14 @@ See also [Production Checklist](https://api-docs.vortexfinance.co/production-che
 
 ## H. API-Driven KYC And KYB Onboarding
 
-Where a corridor supports it, onboarding runs through the API without any Vortex UI. The contract has three parts:
+Where a corridor supports it, onboarding runs through the API without any Vortex UI.
+
+Two profile models can run these flows, and the choice is independent of how you build your UI:
+
+- **Standalone profile (default).** The customer owns a normal Vortex profile and authenticates with their own Supabase session or API credential. No manager status is required, and this is the only model the EUR corridor supports.
+- **Managed profile (optional).** Your platform creates and controls a headless child profile that has no Vortex login, OTP, or claiming lifecycle. Vortex must enable your profile as a manager first — see H.1.
+
+Neither model changes the three-part contract below:
 
 1. **Discover the flow.**
 
@@ -234,8 +241,8 @@ Non-negotiable rules for an agent implementing these flows:
 - **BR individuals: the verification method locks permanently.** The first standard document, liveness artifact, submission, or status read commits the account to the `standard` method; a Sumsub token import commits it to `sumsub_share_token` and blocks the standard path. Decide the method before touching either flow.
 - **Pin `requirementsVersion`** alongside the docs commit and SDK version you already record (Section A), and re-run discovery when it changes.
 
-### H.1 Onboarding For Your Own Customers (Managed Profiles)
+### H.1 Optional: Platform-Controlled Onboarding With Managed Profiles
 
-Platforms that onboard their own users headlessly — no Vortex login or UI for the end customer — create **managed child profiles** and run every onboarding and ramp operation on the child's behalf, either with the manager credential plus `X-Managed-Profile-Id` or with child-owned credentials. All discovery-published onboarding steps and the full ramp lifecycle accept this delegation, subject to the manager's corridor policy; webhooks do not (poll instead). The walkthrough with examples is [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles); the authoritative contract is in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Agents implementing this pattern must key their idempotency and state on the manager-scoped `externalSubjectId` → `profileId` mapping, and must complete a BR child's Sumsub token import **before** any status read for that child (the method-lock rule above).
+If your platform must create and control headless customers — no Vortex login or UI for the end customer, and no later claiming flow — use **managed child profiles** and run every onboarding and ramp operation on the child's behalf, either with the manager credential plus `X-Managed-Profile-Id` or with child-owned credentials. All discovery-published onboarding steps and the full ramp lifecycle accept this delegation, subject to the manager's corridor policy; webhooks do not (poll instead). The walkthrough with examples is [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles); the authoritative contract is in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Agents implementing this pattern must key their idempotency and state on the manager-scoped `externalSubjectId` → `profileId` mapping, and must complete a BR child's Sumsub token import **before** any status read for that child (the method-lock rule above).
 
 ---

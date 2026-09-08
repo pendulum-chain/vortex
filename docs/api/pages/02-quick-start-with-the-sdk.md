@@ -46,7 +46,7 @@ const sdk = new VortexSdk({
 });
 ```
 
-The configured browser origin must be present in the API deployment's `BROWSER_SDK_ORIGINS` allowlist. The browser build rejects `secretKey` at construction.
+Your browser origin must be approved by Vortex before any request from it reaches the API; email <support@vortexfinance.co> to have it added, and see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). The browser build rejects `secretKey` at construction.
 
 You can check the authenticated subject's sanitized corridor readiness without exposing exact limits or profile data:
 

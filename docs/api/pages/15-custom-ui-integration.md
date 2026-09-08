@@ -4,6 +4,19 @@ A custom Vortex UI must coordinate asynchronous quotes, authentication, wallets,
 
 The practices below complement the [SDK Quick Start](https://api-docs.vortexfinance.co/quick-start-with-the-sdk) and [Ramp Lifecycle](https://api-docs.vortexfinance.co/ramp-lifecycle). They apply to any custom UI even when the framework, wallet library, or fiat corridor differs.
 
+## Decide Your Profile Model First
+
+A custom UI and API-driven onboarding do **not** require managed profiles. The interface you build and the profile-ownership model are independent choices.
+
+| Your customers | Model |
+|---|---|
+| Own their Vortex identity and authenticate with their own Supabase session or API credential | **Standalone profile** — one normal Vortex profile per customer. No manager status required. |
+| Must never have a Vortex login, because your platform creates and controls them | **[Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles)** — headless child profiles with no login, OTP, or later claiming lifecycle. Vortex must enable your profile as a manager first. |
+
+Both models support the same custom UI, the same API-driven onboarding, and the same ramp lifecycle. Choose managed profiles only when your platform must own the customer's Vortex identity; the EUR corridor is bound to a verified login email and supports standalone profiles only.
+
+Browser-based UIs also need their origin approved by Vortex before any request reaches the API — see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 ## Keep Quotes Bound To Current Input
 
 Amount fields often request a new quote while the user is still typing. Network responses can arrive out of order, so a slower response for an old amount must not replace the current quote.
