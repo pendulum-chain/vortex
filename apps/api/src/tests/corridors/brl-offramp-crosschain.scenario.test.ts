@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import * as shared from "@vortexfi/shared";
 import {
   AveniaTicketStatus,
+  type EvmTokenDetails,
   type EvmTransactionData,
   EvmToken,
   evmTokenConfig,
@@ -9,12 +11,15 @@ import {
   PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
+  TokenType,
   type UnsignedTx
 } from "@vortexfi/shared";
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { resolvePersistedBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
+import { assertPersistedBlockFlowVersionsSupported } from "../../api/services/phases/blocks/register-handlers";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -479,6 +484,81 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     },
     30000
   );
+
+  async function requestSellQuote(inputCurrency: string, inputAmount: string) {
+    return app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Ethereum,
+        inputAmount,
+        inputCurrency,
+        network: Networks.Ethereum,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: "pix"
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+  }
+
+  it("unknown SELL source token: the catalog maps the request and the flow input rejects it with 400", async () => {
+    const response = await requestSellQuote("NOPE", "1");
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { message: string };
+    expect(body.message).toContain("Token NOPE is not configured on ethereum");
+  });
+
+  it("restart compatibility: an active routed-token SELL ramp resolves when token discovery is static-only", async () => {
+    // PAXG only exists in the Squid-discovered part of the token catalog. Discovery knows it while
+    // the quote and ramp are created ...
+    const realGetOnChainTokenDetails = shared.getOnChainTokenDetails;
+    const routedPaxg: EvmTokenDetails = {
+      assetSymbol: "PAXG",
+      decimals: 18,
+      erc20AddressSourceChain: "0x45804880de22913dafe09f4980848ece6ecbaf78",
+      isNative: false,
+      network: Networks.Ethereum,
+      pendulumRepresentative: requireToken(Networks.Base, EvmToken.USDC).pendulumRepresentative,
+      type: TokenType.Evm
+    };
+    mock.module("@vortexfi/shared", () => ({
+      ...shared,
+      getOnChainTokenDetails: (network: Networks, token: string, ...rest: unknown[]) =>
+        network === Networks.Ethereum && token === "PAXG"
+          ? routedPaxg
+          : (realGetOnChainTokenDetails as (...args: unknown[]) => unknown)(network, token, ...rest)
+    }));
+    const { computeToAmount, computeToAmountUsd } = world.squidRouter;
+    world.squidRouter.computeToAmount = () => "50000000"; // 50 USDC on Base
+    world.squidRouter.computeToAmountUsd = () => "50";
+    try {
+      const user = await createTestUser();
+      await createTestTaxId(user.id, { taxId: TAX_ID });
+      const response = await requestSellQuote("PAXG", "0.02");
+      expect(response.status).toBe(201);
+      const quote = (await response.json()) as { id: string };
+      const ramp = await registerViaApi(
+        quote.id,
+        user.id,
+        privateKeyToAccount(generatePrivateKey()),
+        privateKeyToAccount(generatePrivateKey())
+      );
+
+      // ... then the API restarts while Squid's token list is unavailable, so discovery falls back
+      // to the static config, which has no PAXG. Startup must still resolve the persisted flow.
+      mock.module("@vortexfi/shared", () => ({ ...shared, getOnChainTokenDetails: realGetOnChainTokenDetails }));
+      expect(realGetOnChainTokenDetails(Networks.Ethereum, "PAXG")).toBeUndefined();
+
+      await assertPersistedBlockFlowVersionsSupported();
+      const persistedQuote = await QuoteTicket.findByPk(quote.id);
+      expect(resolvePersistedBlockFlow(persistedQuote?.metadata).name).toBe("BrlOfframpBase");
+      const rampState = await RampState.findByPk(ramp.id);
+      expect(rampState?.currentPhase).toBe("initial");
+    } finally {
+      mock.module("@vortexfi/shared", () => ({ ...shared, getOnChainTokenDetails: realGetOnChainTokenDetails }));
+      Object.assign(world.squidRouter, { computeToAmount, computeToAmountUsd });
+    }
+  });
 
   it("native ETH source: the quote prices only the router fee as network fee, not the swapped principal", async () => {
     // Squid sends a native input as msg.value, so the route's value is the principal plus the

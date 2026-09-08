@@ -5,9 +5,9 @@ import {
   evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
-  getOnChainTokenDetails,
   isDomesticToken,
   isNetworkEVM,
+  isOnChainToken,
   mapFiatToDestination,
   Networks,
   RampDirection
@@ -98,9 +98,11 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === EPaymentMethod.SEPA &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        // Source tokens come from the merged token catalog (static config plus Squid-discovered
-        // tokens), the same catalog BUY destinations resolve against.
-        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
+        // Structural only: the flow input resolver rejects symbols unknown to the merged token
+        // catalog at quote time. Matching must not depend on live token discovery, because
+        // persisted flows are re-resolved at startup, when discovery may have fallen back to
+        // the static config.
+        isOnChainToken(request.inputCurrency)
       );
     }
   },
@@ -120,9 +122,11 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === FiatToken.BRL &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        // Source tokens come from the merged token catalog (static config plus Squid-discovered
-        // tokens), the same catalog BUY destinations resolve against.
-        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
+        // Structural only: the flow input resolver rejects symbols unknown to the merged token
+        // catalog at quote time. Matching must not depend on live token discovery, because
+        // persisted flows are re-resolved at startup, when discovery may have fallen back to
+        // the static config.
+        isOnChainToken(request.inputCurrency)
       );
     }
   },
@@ -143,7 +147,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        getOnChainTokenDetails(network, request.inputCurrency) !== undefined
+        isOnChainToken(request.inputCurrency)
       );
     }
   },

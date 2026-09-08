@@ -1,42 +1,6 @@
-import { afterAll, describe, expect, it, mock } from "bun:test";
-import * as shared from "@vortexfi/shared";
-import {
-  EvmToken,
-  type EvmTokenDetails,
-  evmTokenConfig,
-  FiatToken,
-  mapFiatToDestination,
-  Networks,
-  RampDirection,
-  TokenType
-} from "@vortexfi/shared";
+import { describe, expect, it } from "bun:test";
+import { EvmToken, FiatToken, mapFiatToDestination, Networks, RampDirection } from "@vortexfi/shared";
 import { resolveBlockFlow } from "../flows/catalog";
-
-// Snapshot before mock.module: bun mutates the imported namespace in place.
-const sharedReal = { ...shared };
-
-// A token that only exists in the Squid-discovered (dynamic) part of the token catalog.
-const ROUTED_PAXG: EvmTokenDetails = {
-  assetSymbol: "PAXG",
-  decimals: 18,
-  erc20AddressSourceChain: "0x45804880de22913dafe09f4980848ece6ecbaf78",
-  isNative: false,
-  network: Networks.Ethereum,
-  pendulumRepresentative: (evmTokenConfig[Networks.Ethereum][EvmToken.USDC] as EvmTokenDetails).pendulumRepresentative,
-  type: TokenType.Evm
-};
-
-mock.module("@vortexfi/shared", () => ({
-  ...sharedReal,
-  getOnChainTokenDetails: (network: Networks, token: string, ...rest: unknown[]) =>
-    network === Networks.Ethereum && token === "PAXG"
-      ? ROUTED_PAXG
-      : (sharedReal.getOnChainTokenDetails as (...args: unknown[]) => unknown)(network, token, ...rest)
-}));
-
-afterAll(() => {
-  mock.module("@vortexfi/shared", () => sharedReal);
-});
 
 function sellRequest(inputCurrency: string, outputCurrency: FiatToken) {
   return {
@@ -51,13 +15,16 @@ function sellRequest(inputCurrency: string, outputCurrency: FiatToken) {
 }
 
 describe("SELL flow catalog with routed (Squid-discovered) source tokens", () => {
-  it("maps a routed EVM source token to the BRL, EUR, and Alfredpay offramp flows", () => {
+  // PAXG is absent from the static token config, and no dynamic token list is loaded in tests, so a
+  // match here proves the catalog does not consult live token discovery. Persisted flows are
+  // re-resolved at startup, when discovery may have fallen back to the static config.
+  it("maps a routed EVM source token to the BRL, EUR, and Alfredpay offramp flows without live token discovery", () => {
     expect(resolveBlockFlow(sellRequest("PAXG", FiatToken.BRL)).name).toBe("BrlOfframpBase");
     expect(resolveBlockFlow(sellRequest("PAXG", FiatToken.EURC)).name).toBe("EurOfframpBase");
     expect(resolveBlockFlow(sellRequest("PAXG", FiatToken.USD)).name).toBe("AlfredpayOfframp");
   });
 
-  it("still rejects a source token unknown to the token catalog", () => {
-    expect(() => resolveBlockFlow(sellRequest("NOPE", FiatToken.BRL))).toThrow(/No block flow mapped/);
+  it("still rejects a fiat symbol as an on-chain SELL source", () => {
+    expect(() => resolveBlockFlow(sellRequest(FiatToken.BRL, FiatToken.BRL))).toThrow(/No block flow mapped/);
   });
 });
