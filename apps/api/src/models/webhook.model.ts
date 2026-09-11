@@ -59,7 +59,7 @@ Webhook.init(
             throw new Error("events must be a non-empty array");
           }
 
-          const validEvents: WebhookEventType[] = [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE];
+          const validEvents: WebhookEventType[] = Object.values(WebhookEventType);
           for (const event of value) {
             if (!validEvents.includes(event)) {
               throw new Error(`Invalid event type: ${event}`);

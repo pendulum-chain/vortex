@@ -24,7 +24,12 @@ export class WebhookDeliveryService {
     return TransactionStatus.PENDING;
   }
 
-  private async deliverWebhook(webhook: Webhook, payload: WebhookPayload, attempt = 1): Promise<boolean> {
+  /**
+   * One signed delivery attempt with the SSRF re-resolution guard. Shared by the
+   * legacy in-process retry loop and the durable outbox dispatcher, which owns its
+   * own retry/backoff bookkeeping.
+   */
+  public async deliverSingleAttempt(webhook: Webhook, payload: WebhookPayload): Promise<{ ok: boolean; error: string | null }> {
     try {
       // Re-resolved on every attempt so a DNS record cannot be re-pointed at internal
       // infrastructure after registration (SSRF guard).
@@ -59,16 +64,22 @@ export class WebhookDeliveryService {
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        logger.info(`Webhook delivered successfully: ${webhook.id} to ${webhook.url} (attempt ${attempt})`);
-        return true;
+        return { error: null, ok: true };
       }
-
-      logger.warn(`Webhook delivery failed: ${webhook.id} to ${webhook.url} - Status: ${response.status} (attempt ${attempt})`);
-      return false;
+      return { error: `HTTP ${response.status}`, ok: false };
     } catch (error) {
-      logger.error(`Webhook delivery error: ${webhook.id} to ${webhook.url} (attempt ${attempt}):`, error);
-      return false;
+      return { error: error instanceof Error ? error.message : String(error), ok: false };
     }
+  }
+
+  private async deliverWebhook(webhook: Webhook, payload: WebhookPayload, attempt = 1): Promise<boolean> {
+    const result = await this.deliverSingleAttempt(webhook, payload);
+    if (result.ok) {
+      logger.info(`Webhook delivered successfully: ${webhook.id} to ${webhook.url} (attempt ${attempt})`);
+      return true;
+    }
+    logger.warn(`Webhook delivery failed: ${webhook.id} to ${webhook.url} - ${result.error} (attempt ${attempt})`);
+    return false;
   }
 
   private async deliverWithRetry(webhook: Webhook, payload: WebhookPayload): Promise<void> {

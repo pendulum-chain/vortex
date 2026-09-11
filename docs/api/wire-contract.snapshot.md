@@ -12,6 +12,8 @@ A diff here means: check backward compatibility for live integrations, and keep
 ## packages/shared — partner wire contract (`src/endpoints`)
 
 ```text
+ACCOUNT_WEBHOOK_EVENT_TYPES: readonly [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED]
+
 AcceptedRecipientInvite: {
   id: string;
   invitation: {
@@ -429,6 +431,56 @@ DeleteWebhookRequest: {
 DeleteWebhookResponse: {
   message: string;
   success: boolean;
+}
+
+DepositConvertedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_CONVERTED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  } & {
+    conversions: Array<{
+      eureInRaw: string;
+      executionId: string;
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
+  };
+  timestamp: string;
+}
+
+DepositReceivedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RECEIVED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  };
+  timestamp: string;
+}
+
+DepositStatus: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" }
+
+DepositWebhookPayloadBase: {
+  accountId: string;
+  amountRaw: string;
+  currency: string;
+  depositId: string;
+  profileId: string;
+  status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+  txHash: null | string;
 }
 
 DomesticAddFiatAccountRequest: {
@@ -1610,7 +1662,7 @@ RegisterRampResponse: {
 }
 
 RegisterWebhookRequest: {
-  events?: Array<enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events?: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   quoteId?: string;
   sessionId?: string;
   url: string;
@@ -1618,7 +1670,7 @@ RegisterWebhookRequest: {
 
 RegisterWebhookResponse: {
   createdAt: string;
-  events: Array<enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   id: string;
   isActive: boolean;
   quoteId: null | string;
@@ -2371,6 +2423,40 @@ WebhookDeliveryAttempt: {
   nextRetryAt?: Date;
   payload: {
     eventId: string;
+    eventType: WebhookEventType.DEPOSIT_CONVERTED;
+    payload: {
+      accountId: string;
+      amountRaw: string;
+      currency: string;
+      depositId: string;
+      profileId: string;
+      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      txHash: null | string;
+    } & {
+      conversions: Array<{
+        eureInRaw: string;
+        executionId: string;
+        txHash: null | string;
+        usdcNetRaw: string;
+      }>;
+      usdcNetRaw: string;
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
+    eventType: WebhookEventType.DEPOSIT_RECEIVED;
+    payload: {
+      accountId: string;
+      amountRaw: string;
+      currency: string;
+      depositId: string;
+      profileId: string;
+      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      txHash: null | string;
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
     eventType: WebhookEventType.STATUS_CHANGE;
     payload: {
       quoteId: string;
@@ -2396,9 +2482,43 @@ WebhookDeliveryAttempt: {
   webhookId: string;
 }
 
-WebhookEventType: enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
+WebhookEventType: enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
 
 WebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_CONVERTED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  } & {
+    conversions: Array<{
+      eureInRaw: string;
+      executionId: string;
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
+  };
+  timestamp: string;
+} | {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RECEIVED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  };
+  timestamp: string;
+} | {
   eventId: string;
   eventType: WebhookEventType.STATUS_CHANGE;
   payload: {

@@ -6,6 +6,7 @@ You can subscribe to:
 
 - **Transaction creation** — a new ramp is registered.
 - **Status changes** — a ramp's status moves between `PENDING`, `COMPLETE`, and `FAILED`.
+- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`) or converted and forwarded (`DEPOSIT_CONVERTED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery.
 
 ## Security Model
 
@@ -36,7 +37,7 @@ Content-Type: application/json
 }
 ```
 
-The body must include **exactly one** of `quoteId` or `sessionId`. Use `sessionId` to subscribe to events from a Widget-hosted ramp instead of a partner-created quote.
+For the transaction events, the body must include **exactly one** of `quoteId` or `sessionId`. Use `sessionId` to subscribe to events from a Widget-hosted ramp instead of a partner-created quote. Omitting `events` subscribes to the two transaction events only — deposit events are never a default.
 
 Store the returned webhook ID so you can delete it later.
 
@@ -102,14 +103,95 @@ Status values:
 - `COMPLETE` — ramp completed successfully.
 - `FAILED` — ramp failed or timed out.
 
+## Deposit Events
+
+Managers whose business clients hold EUR onramp accounts can subscribe to deposit events instead of polling `GET /v1/monerium-b2b/deposits`. These subscriptions follow account-scoped rules:
+
+- Register with your **manager profile's own secret key** (no `X-Managed-Profile-Id` header, no `quoteId`/`sessionId`) and an explicit `events` list containing only deposit events. Mixing them with transaction events is rejected, as is a partner-scoped credential.
+- One subscription covers **all your managed children's accounts**; the payload identifies the child by `profileId` and the account by `accountId`.
+
+```json
+{
+  "url": "https://manager.example.com/vortex/deposits",
+  "events": ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"]
+}
+```
+
+### `DEPOSIT_RECEIVED`
+
+Fired once when a client's EUR deposit has been matched to the corresponding on-chain mint. A provider-reported order without verified chain identity does not emit this event.
+
+```json
+{
+  "eventId": "deposit-received:9f6f6a7e-...",
+  "eventType": "DEPOSIT_RECEIVED",
+  "timestamp": "2025-01-15T10:35:00.000Z",
+  "payload": {
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "depositId": "9f6f6a7e-...",
+    "amountRaw": "100000000000000000000",
+    "currency": "eur",
+    "status": "minted",
+    "txHash": "0x..."
+  }
+}
+```
+
+`amountRaw` is in 18-decimal base units of the deposit currency.
+
+### `DEPOSIT_CONVERTED`
+
+Fired once per deposit after the full deposit has been converted and every contributing execution has reached a safe confirmation depth on chain. A deposit split by the per-swap cap still produces one final aggregate event.
+
+```json
+{
+  "eventId": "deposit-converted:9f6f6a7e-...",
+  "eventType": "DEPOSIT_CONVERTED",
+  "timestamp": "2025-01-15T10:41:00.000Z",
+  "payload": {
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "depositId": "9f6f6a7e-...",
+    "amountRaw": "100000000000000000000",
+    "currency": "eur",
+    "status": "minted",
+    "txHash": "0x...",
+    "conversions": [
+      {
+        "eureInRaw": "60000000000000000000",
+        "executionId": "e77a...",
+        "txHash": "0x...",
+        "usdcNetRaw": "64800000"
+      },
+      {
+        "eureInRaw": "40000000000000000000",
+        "executionId": "f88b...",
+        "txHash": "0x...",
+        "usdcNetRaw": "43200000"
+      }
+    ],
+    "usdcNetRaw": "108000000"
+  }
+}
+```
+
+Each `conversions[]` entry contains the EURe portion consumed and the net USDC attributed to this deposit by that execution. The payload-level `usdcNetRaw` is their aggregate. When one execution consumes several deposits, its output is divided proportionally by allocated EURe; floor dust goes to the largest allocation.
+
+### Delivery Semantics
+
+Deposit events are delivered **durably, at least once**: each event is persisted before sending and retried with growing backoff (1, 5, 15, 60, 180 minutes; abandoned after 6 attempts). Unlike transaction webhooks, a failing endpoint never deactivates the subscription — deliveries resume when your endpoint recovers, and outages lose nothing that has not exhausted its retries. Deduplicate on `eventId`; events are emitted only from subscription time forward (history is never replayed to a new subscription).
+
 ## Retry Mechanism
 
-Vortex automatically retries failed webhook deliveries:
+Vortex automatically retries failed **transaction webhook** deliveries:
 
 - **Attempts**: up to 5
 - **Backoff**: exponential (1s, 2s, 4s, 8s, 16s)
 - **Timeout**: 30 seconds per request
 - **Auto-deactivation**: after 5 consecutive failures, the webhook is disabled and must be re-registered.
+
+Deposit events use the durable delivery semantics above instead.
 
 Return `2xx` quickly. Do heavy work asynchronously after acknowledging the request.
 

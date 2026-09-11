@@ -16,6 +16,20 @@ const requiredProductionEnv = {
   WEBHOOK_PRIVATE_KEY: "test-webhook-private-key"
 };
 
+const requiredMoneriumB2bEnv = {
+  FLOW_VARIANT: "mykobo",
+  MONERIUM_B2B_ATTESTOR_PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+  MONERIUM_B2B_ENABLED: "true",
+  MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS: "0x0000000000000000000000000000000000000001",
+  MONERIUM_B2B_GUARDIAN_PRIVATE_KEY: "0x2222222222222222222222222222222222222222222222222222222222222222",
+  MONERIUM_B2B_KEEPER_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+  MONERIUM_B2B_PRIVATE_RPC_URL: "https://private-rpc.example.com",
+  MONERIUM_B2B_RPC_URL: "https://rpc.example.com",
+  MONERIUM_B2B_WEBHOOK_SECRET: "whsec_MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
+  MONERIUM_WHITELABEL_CLIENT_ID: "test-whitelabel-client-id",
+  MONERIUM_WHITELABEL_CLIENT_SECRET: "test-whitelabel-client-secret"
+};
+
 async function importVarsWithEnv(env: Record<string, string>) {
   const proc = Bun.spawn({
     cmd: [
@@ -107,6 +121,73 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
+  });
+
+  it("keeps Monerium B2B disabled unless its flag is exactly true", async () => {
+    for (const enabled of ["", "TRUE", "1", "false"]) {
+      const result = await importVarsWithEnv({
+        DEPLOYMENT_ENV: "production",
+        MONERIUM_B2B_ENABLED: enabled,
+        NODE_ENV: "production"
+      });
+
+      expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+    }
+  });
+
+  it("requires the complete Monerium B2B configuration when enabled", async () => {
+    for (const name of Object.keys(requiredMoneriumB2bEnv).filter(
+      name => name !== "MONERIUM_B2B_ENABLED" && name !== "FLOW_VARIANT"
+    )) {
+      const result = await importVarsWithEnv({
+        ...requiredMoneriumB2bEnv,
+        DEPLOYMENT_ENV: "production",
+        [name]: "",
+        NODE_ENV: "production"
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(name);
+    }
+  });
+
+  it("accepts a complete Monerium B2B production configuration", async () => {
+    const result = await importVarsWithEnv({
+      ...requiredMoneriumB2bEnv,
+      DEPLOYMENT_ENV: "production",
+      NODE_ENV: "production"
+    });
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+
+  it("rejects malformed activation secrets and a zero factory", async () => {
+    for (const overrides of [
+      { MONERIUM_B2B_ATTESTOR_PRIVATE_KEY: "not-a-key" },
+      { MONERIUM_B2B_ATTESTOR_PRIVATE_KEY: requiredMoneriumB2bEnv.MONERIUM_B2B_KEEPER_PRIVATE_KEY },
+      { MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS: "0x0000000000000000000000000000000000000000" },
+      { MONERIUM_B2B_WEBHOOK_SECRET: "plain-text" }
+    ]) {
+      const result = await importVarsWithEnv({
+        ...requiredMoneriumB2bEnv,
+        ...overrides,
+        DEPLOYMENT_ENV: "production",
+        NODE_ENV: "production"
+      });
+      expect(result.exitCode).toBe(1);
+    }
+  });
+
+  it("requires the mykobo flow variant when Monerium B2B is enabled", async () => {
+    const result = await importVarsWithEnv({
+      ...requiredMoneriumB2bEnv,
+      DEPLOYMENT_ENV: "production",
+      FLOW_VARIANT: "monerium",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("FLOW_VARIANT=mykobo");
   });
 
   it("accepts a lower recipient-invite discount ceiling", async () => {
