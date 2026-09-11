@@ -1,16 +1,20 @@
 import { Op, Transaction } from "sequelize";
-import { Address, parseEventLogs, TransactionReceipt, TransactionReceiptNotFoundError } from "viem";
+import { Address, encodeFunctionData, Hex, parseEventLogs, TransactionReceipt, TransactionReceiptNotFoundError } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumChainCursor from "../../../models/moneriumChainCursor.model";
 import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
+import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import {
   erc20Abi,
   factoryAbi,
   forwarderAbi,
+  getChainId,
   getForwarderImmutables,
   getKeeperWalletClient,
   getPublicClient,
@@ -22,7 +26,8 @@ import { withForwarderLock } from "./deposit-processor";
  * Per-account conversion executor (plan §3, "Keeper" + "Attribution (R04)"):
  * balance >= minSwapAmount -> poke() (stranding marker, R03) + swapAndForward() via the
  * private submission transport, with an execution record created and committed BEFORE
- * anything is sent, then snapshot-based deposit attribution on confirmation.
+ * anything is sent. Snapshot-based deposit attribution is deferred until the mint
+ * cursor covers the confirmed swap's exact block/log boundary.
  *
  * Serialization: every database mutation runs inside the per-forwarder advisory lock
  * (withForwarderLock). The chain send/wait itself deliberately happens OUTSIDE a lock —
@@ -37,18 +42,18 @@ import { withForwarderLock } from "./deposit-processor";
 const RETRY_BASE_MS = 60_000;
 const RETRY_MAX_MS = 60 * 60_000;
 
-/** A pending execution with a tx hash but no receipt after this long is declared failed. */
-const PENDING_TX_STALE_MS = 15 * 60_000;
-
 /** How long one cycle waits for the swap receipt before deferring to the next cycle. */
 const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 
 /**
- * Blocks scanned backwards when recovering a broadcast whose hash was never persisted
- * (~6h at 12s blocks — far beyond any realistic crash-to-restart gap; the scan only
- * runs for rows whose nonce is already consumed on-chain).
+ * A nonce-less pending row is a live pre-send reservation until this deadline. The
+ * executor compare-and-sets the row before broadcasting, so a stalled owner cannot
+ * resume and send after another process expires the reservation.
  */
-const HASHLESS_RECOVERY_LOOKBACK_BLOCKS = 1800n;
+const PRE_SEND_RESERVATION_MS = 5 * 60_000;
+
+/** Keep recovery log requests below common RPC block-range limits. */
+const RECOVERY_LOG_BLOCK_RANGE = 2000n;
 
 /**
  * Serializes nonce derivation and the broadcasts that consume it across every process
@@ -66,6 +71,44 @@ async function withKeeperSendLock<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
+interface SwapBroadcastSequence {
+  broadcastBlockNumber: number;
+  pendingNonce: number;
+  pokeNeeded: boolean;
+  reserveSwap(nonce: number, broadcastBlockNumber: number): Promise<boolean>;
+  sendPoke(nonce: number): Promise<void>;
+  sendSwap(nonce: number): Promise<Hex>;
+}
+
+/** Safety-critical ordering: harmless poke, durable swap identity, value-moving send. */
+export async function broadcastSwapSequence(input: SwapBroadcastSequence): Promise<Hex> {
+  let swapNonce = input.pendingNonce;
+  if (input.pokeNeeded) {
+    await input.sendPoke(swapNonce);
+    swapNonce += 1;
+  }
+  if (!(await input.reserveSwap(swapNonce, input.broadcastBlockNumber))) {
+    throw new Error("execution lost its pre-send reservation");
+  }
+  return input.sendSwap(swapNonce);
+}
+
+/** Maps SwapExecuted into accounting values; `forwarded` may include pre-existing USDC. */
+export function conversionAmountsFromSwapEvent(event: { fee: bigint; forwarded: bigint; usdcOut: bigint }): {
+  feeRaw: string;
+  usdcGrossRaw: string;
+  usdcNetRaw: string;
+} {
+  if (event.fee > event.usdcOut) {
+    throw new Error("SwapExecuted fee exceeds this swap's USDC output");
+  }
+  return {
+    feeRaw: event.fee.toString(),
+    usdcGrossRaw: event.usdcOut.toString(),
+    usdcNetRaw: (event.usdcOut - event.fee).toString()
+  };
+}
+
 // ------------------------------------------------------------------ R04 allocation math
 
 export interface AllocatableDeposit {
@@ -74,27 +117,19 @@ export interface AllocatableDeposit {
 }
 
 /**
- * Snapshot selection honoring the per-swap cap: deposits are taken oldest-mint-first
- * until the next one would push the cumulative amount past eureInRaw (a cap-cut deposit
- * stays unallocated and joins the next execution). One exception: an OVERSIZED oldest
- * deposit — alone larger than the swapped amount — is selected anyway, because eureIn
- * is capped at perSwapCap and only shrinks as the balance drains, so such a deposit
- * could never fit a later execution and would permanently block attribution for every
- * deposit behind it. It is attributed to the execution that begins converting it.
- * Callers pass only unallocated minted deposits with mint block <= execution block (R04).
+ * Allocates an execution across oldest outstanding deposit balances. A cap-cut deposit
+ * is split: its remainder remains available for the next execution. This is what makes
+ * both one-execution-to-many-deposits and one-deposit-to-many-executions representable.
  */
 export function selectDepositsForExecution(deposits: AllocatableDeposit[], eureInRaw: bigint): AllocatableDeposit[] {
   const selected: AllocatableDeposit[] = [];
-  let cumulative = 0n;
+  let remaining = eureInRaw;
   for (const deposit of deposits) {
-    if (cumulative + deposit.amountRaw > eureInRaw) {
-      if (selected.length === 0) {
-        selected.push(deposit);
-      }
-      break;
-    }
-    cumulative += deposit.amountRaw;
-    selected.push(deposit);
+    if (remaining <= 0n) break;
+    const amountRaw = deposit.amountRaw > remaining ? remaining : deposit.amountRaw;
+    if (amountRaw <= 0n) continue;
+    selected.push({ amountRaw, id: deposit.id });
+    remaining -= amountRaw;
   }
   return selected;
 }
@@ -102,10 +137,10 @@ export function selectDepositsForExecution(deposits: AllocatableDeposit[], eureI
 /**
  * R04 pro-rata attribution of the execution's net USDC: each deposit gets
  * floor(usdcNetRaw * effectiveAmount / eureInRaw), where effectiveAmount is the
- * deposit's amount clamped to the EURe this execution actually swapped (only an
- * oversized sole deposit ever clamps); the remainder (floor dust, plus any value from
- * inflows not represented in the selection) goes to the largest deposit (ties: the
- * earliest). Sum of shares always equals usdcNetRaw for a non-empty selection.
+ * allocated EURe amount / eureInRaw. When allocations cover the execution exactly,
+ * floor dust goes to the largest allocation (ties: earliest). If indexed deposits do
+ * not cover the execution, unknown value remains unattributed instead of inflating a
+ * known customer's share.
  */
 export function allocateUsdcProRata(
   deposits: AllocatableDeposit[],
@@ -117,21 +152,18 @@ export function allocateUsdcProRata(
     return shares;
   }
   let allocated = 0n;
-  let cumulative = 0n;
   let largest = deposits[0];
   for (const deposit of deposits) {
-    const remaining = eureInRaw > cumulative ? eureInRaw - cumulative : 0n;
-    const effectiveAmount = deposit.amountRaw > remaining ? remaining : deposit.amountRaw;
-    cumulative += effectiveAmount;
-    const share = (usdcNetRaw * effectiveAmount) / eureInRaw;
+    const share = (usdcNetRaw * deposit.amountRaw) / eureInRaw;
     shares.set(deposit.id, share);
     allocated += share;
     if (deposit.amountRaw > largest.amountRaw) {
       largest = deposit;
     }
   }
+  const coveredEure = deposits.reduce((sum, deposit) => sum + deposit.amountRaw, 0n);
   const remainder = usdcNetRaw - allocated;
-  if (remainder > 0n) {
+  if (coveredEure === eureInRaw && remainder > 0n) {
     shares.set(largest.id, (shares.get(largest.id) as bigint) + remainder);
   }
   return shares;
@@ -143,13 +175,13 @@ function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
-async function allocateDeposits(execution: MoneriumConversionExecution, transaction: Transaction): Promise<void> {
-  if (execution.blockNumber === null) {
-    return;
+async function allocateDeposits(execution: MoneriumConversionExecution, transaction: Transaction): Promise<number> {
+  if (execution.blockNumber === null || execution.swapLogIndex === null) {
+    return 0;
   }
-  // R04 snapshot: unallocated minted deposits with mint block <= execution block,
-  // oldest mint first. Unattributed inflow rows participate: their EURe was part of the
-  // swapped balance, and linking them marks the inflow as consumed by this execution.
+  // R04 snapshot: outstanding portions of minted deposits before the execution's exact
+  // block/log position, oldest mint first. Unattributed inflows participate because
+  // their EURe was part of the swapped balance, but never surface as customer claims.
   const deposits = await MoneriumFiatDeposit.findAll({
     order: [
       ["block_number", "ASC"],
@@ -158,32 +190,105 @@ async function allocateDeposits(execution: MoneriumConversionExecution, transact
     transaction,
     where: {
       accountId: execution.accountId,
-      allocatedExecutionId: null,
-      blockNumber: { [Op.lte]: execution.blockNumber },
+      [Op.or]: [
+        { blockNumber: { [Op.lt]: execution.blockNumber } },
+        { blockNumber: execution.blockNumber, logIndex: { [Op.lt]: execution.swapLogIndex } }
+      ],
       status: MoneriumFiatDepositStatus.Minted
     }
   });
+  const existingAllocations = deposits.length
+    ? await MoneriumDepositAllocation.findAll({ transaction, where: { depositId: deposits.map(deposit => deposit.id) } })
+    : [];
+  const allocatedByDeposit = new Map<string, bigint>();
+  for (const allocation of existingAllocations) {
+    allocatedByDeposit.set(
+      allocation.depositId,
+      (allocatedByDeposit.get(allocation.depositId) ?? 0n) + BigInt(allocation.eureInRaw)
+    );
+  }
   const eureInRaw = BigInt(execution.eureInRaw);
   const selected = selectDepositsForExecution(
-    deposits.map(deposit => ({ amountRaw: BigInt(deposit.amountRaw), id: deposit.id })),
+    deposits
+      .map(deposit => ({
+        amountRaw: BigInt(deposit.amountRaw) - (allocatedByDeposit.get(deposit.id) ?? 0n),
+        id: deposit.id
+      }))
+      .filter(deposit => deposit.amountRaw > 0n),
     eureInRaw
   );
   if (selected.length === 0) {
-    return;
+    return 0;
   }
   const shares = allocateUsdcProRata(selected, eureInRaw, BigInt(execution.usdcNetRaw ?? "0"));
-  const selectedIds = selected.map(deposit => deposit.id);
-  await MoneriumFiatDeposit.update(
-    { allocatedExecutionId: execution.id },
-    { transaction, where: { id: { [Op.in]: selectedIds } } }
+  await MoneriumDepositAllocation.bulkCreate(
+    selected.map(deposit => ({
+      depositId: deposit.id,
+      eureInRaw: deposit.amountRaw.toString(),
+      executionId: execution.id,
+      usdcNetRaw: (shares.get(deposit.id) ?? 0n).toString()
+    })),
+    { transaction }
   );
+  const coveredEure = selected.reduce((sum, deposit) => sum + deposit.amountRaw, 0n);
+  if (coveredEure !== eureInRaw) {
+    logger.error(
+      `monerium-b2b: execution ${execution.id} converted ${eureInRaw.toString()} raw EURe but only ` +
+        `${coveredEure.toString()} was covered by indexed deposit allocations`
+    );
+  }
   logger.info(
-    `monerium-b2b: execution ${execution.id} allocated ${selectedIds.length} deposit(s): ` +
-      [...shares.entries()].map(([id, share]) => `${id}=${share.toString()}`).join(", ")
+    `monerium-b2b: execution ${execution.id} allocated ${selected.length} deposit portion(s): ` +
+      selected
+        .map(deposit => `${deposit.id}:eure=${deposit.amountRaw.toString()},usdc=${(shares.get(deposit.id) ?? 0n).toString()}`)
+        .join(", ")
   );
+  return selected.length;
 }
 
-/** Applies a mined receipt to a pending execution: confirmed + event amounts + R04 allocation, or failed on revert. */
+/**
+ * Allocates confirmed swaps only after the mint cursor has scanned through their
+ * block. This closes the normal head-lag race and also includes a mint that landed
+ * between the executor's balance read and the swap transaction.
+ */
+export async function reconcileConfirmedExecutionAllocations(
+  deps: { getChainId(): Promise<number> } = { getChainId }
+): Promise<number> {
+  const chainId = await deps.getChainId();
+  const cursor = await MoneriumChainCursor.findByPk(`eure-mints:${chainId}`);
+  if (!cursor) return 0;
+
+  const executions = await MoneriumConversionExecution.findAll({
+    order: [
+      ["block_number", "ASC"],
+      ["swap_log_index", "ASC"]
+    ],
+    where: {
+      blockNumber: { [Op.lte]: Number(cursor.lastBlock) },
+      id: { [Op.notIn]: sequelize.literal("(SELECT execution_id FROM monerium_deposit_allocations)") },
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      swapLogIndex: { [Op.ne]: null }
+    }
+  });
+  let allocated = 0;
+  for (const execution of executions) {
+    const account = await MoneriumAccount.findByPk(execution.accountId);
+    if (!account) continue;
+    allocated += await withForwarderLock(account.forwarderAddress, async transaction => {
+      if (await MoneriumDepositAllocation.count({ transaction, where: { executionId: execution.id } })) {
+        return 0;
+      }
+      const current = await MoneriumConversionExecution.findByPk(execution.id, { transaction });
+      if (!current || current.status !== MoneriumConversionExecutionStatus.Confirmed) {
+        return 0;
+      }
+      return allocateDeposits(current, transaction);
+    });
+  }
+  return allocated;
+}
+
+/** Applies a mined receipt to a pending execution: confirmed + event amounts, or failed on revert. */
 async function finalizeExecution(
   execution: MoneriumConversionExecution,
   receipt: TransactionReceipt,
@@ -216,22 +321,22 @@ async function finalizeExecution(
     );
     return;
   }
-  const { eureIn, usdcOut, fee, forwarded } = swapEvents[0].args;
+  const swapEvent = swapEvents[0];
+  const { eureIn } = swapEvent.args;
+  const conversionAmounts = conversionAmountsFromSwapEvent(swapEvent.args);
   await execution.update(
     {
       blockNumber: Number(receipt.blockNumber),
       error: null,
       // The event's amountIn is authoritative (min(balance, cap) at execution time).
       eureInRaw: eureIn.toString(),
-      feeRaw: fee.toString(),
+      ...conversionAmounts,
       status: MoneriumConversionExecutionStatus.Confirmed,
-      txHash: receipt.transactionHash,
-      usdcGrossRaw: usdcOut.toString(),
-      usdcNetRaw: forwarded.toString()
+      swapLogIndex: swapEvent.logIndex,
+      txHash: receipt.transactionHash
     },
     { transaction }
   );
-  await allocateDeposits(execution, transaction);
 }
 
 // ------------------------------------------------------------------ pending resolution + backoff
@@ -240,62 +345,125 @@ type PreparationResult = { kind: "proceed"; attempt: number } | { kind: "skip"; 
 
 export type HashlessPendingClassification =
   | { kind: "fail"; reason: string }
-  | { kind: "in-flight" }
+  | { kind: "in-flight"; reason: string }
   | { kind: "adopt"; txHash: string };
+
+export interface RecoveryTransactionIdentity {
+  from: string;
+  input: string;
+  nonce: number;
+  to: string | null;
+}
+
+const SWAP_AND_FORWARD_CALLDATA = encodeFunctionData({ abi: forwarderAbi, functionName: "swapAndForward" });
+
+/** Exact transaction identity required before a lost hash may be adopted. */
+export function isExpectedSwapTransaction(
+  transaction: RecoveryTransactionIdentity,
+  keeperAddress: string,
+  forwarderAddress: string,
+  nonce: number
+): boolean {
+  return (
+    transaction.from.toLowerCase() === keeperAddress.toLowerCase() &&
+    transaction.nonce === nonce &&
+    transaction.to?.toLowerCase() === forwarderAddress.toLowerCase() &&
+    transaction.input.toLowerCase() === SWAP_AND_FORWARD_CALLDATA.toLowerCase()
+  );
+}
 
 /**
  * Decides what happened to a pending execution whose tx hash was never persisted (a
  * crash or DB error between broadcast and the hash update). Inputs are pure chain
- * observations: the keeper account's confirmed/pending nonce counts and any
- * SwapExecuted transaction hashes on this forwarder not claimed by another execution.
+ * observations. A nonce that has not been consumed remains uncertain indefinitely;
+ * once consumed, only one exact sender+nonce+target+calldata match may be adopted.
  */
 export function classifyHashlessPending(input: {
   nonce: number | null;
   latestNonceCount: number;
-  pendingNonceCount: number;
-  unclaimedSwapTxHashes: string[];
+  matchingSwapTxHashes: string[];
+  scanComplete: boolean;
 }): HashlessPendingClassification {
   if (input.nonce === null) {
     // The nonce is persisted before any broadcast, so no nonce means the send phase
     // was never reached — nothing can be in flight.
     return { kind: "fail", reason: "crashed before the transaction was sent" };
   }
-  if (input.latestNonceCount > input.nonce) {
-    // The swap nonce was consumed on-chain: either our swap mined (an unclaimed
-    // SwapExecuted exists — adopt its hash and finalize normally) or the transaction
-    // reverted/was replaced (no event; the swap did not execute).
-    const txHash = input.unclaimedSwapTxHashes[0];
-    if (txHash) {
-      return { kind: "adopt", txHash };
-    }
-    return { kind: "fail", reason: "nonce consumed without a SwapExecuted event (swap reverted or replaced)" };
+  if (input.latestNonceCount <= input.nonce) {
+    return { kind: "in-flight", reason: "the persisted nonce has not been consumed" };
   }
-  if (input.pendingNonceCount > input.nonce) {
-    return { kind: "in-flight" };
+  if (!input.scanComplete) {
+    return { kind: "in-flight", reason: "an exact recovery scan could not be completed" };
   }
-  return { kind: "fail", reason: "broadcast never reached the mempool" };
+  if (input.matchingSwapTxHashes.length === 1) {
+    return { kind: "adopt", txHash: input.matchingSwapTxHashes[0] };
+  }
+  if (input.matchingSwapTxHashes.length > 1) {
+    return { kind: "in-flight", reason: "multiple exact recovery candidates were found" };
+  }
+  return { kind: "fail", reason: "nonce consumed without the expected swap transaction" };
 }
 
-/** SwapExecuted tx hashes on this forwarder (recent blocks) not claimed by any execution row. */
-async function findUnclaimedSwapTxHashes(account: MoneriumAccount, transaction: Transaction): Promise<string[]> {
+/** Inclusive, non-overlapping block ranges for a complete bounded recovery scan. */
+export function recoveryBlockRanges(fromBlock: bigint, toBlock: bigint): Array<{ fromBlock: bigint; toBlock: bigint }> {
+  const ranges: Array<{ fromBlock: bigint; toBlock: bigint }> = [];
+  for (let start = fromBlock; start <= toBlock; start += RECOVERY_LOG_BLOCK_RANGE) {
+    const end = start + RECOVERY_LOG_BLOCK_RANGE - 1n;
+    ranges.push({ fromBlock: start, toBlock: end < toBlock ? end : toBlock });
+  }
+  return ranges;
+}
+
+/**
+ * Scans every block since the pre-broadcast head and returns only unclaimed
+ * SwapExecuted transactions with the exact keeper identity persisted on the row.
+ */
+async function findMatchingSwapTxHashes(
+  pending: MoneriumConversionExecution,
+  account: MoneriumAccount,
+  transaction: Transaction
+): Promise<{ matchingSwapTxHashes: string[]; scanComplete: boolean }> {
+  if (pending.nonce === null || pending.broadcastBlockNumber === null) {
+    return { matchingSwapTxHashes: [], scanComplete: false };
+  }
   const client = getPublicClient();
   const latestBlock = await client.getBlockNumber();
-  const fromBlock = latestBlock > HASHLESS_RECOVERY_LOOKBACK_BLOCKS ? latestBlock - HASHLESS_RECOVERY_LOOKBACK_BLOCKS : 0n;
-  const logs = await client.getLogs({
-    address: account.forwarderAddress as Address,
-    event: swapExecutedEvent,
-    fromBlock
-  });
-  if (logs.length === 0) {
-    return [];
+  const loggedHashes = new Set<Hex>();
+  for (const range of recoveryBlockRanges(BigInt(pending.broadcastBlockNumber), latestBlock)) {
+    const logs = await client.getLogs({
+      address: account.forwarderAddress as Address,
+      event: swapExecutedEvent,
+      ...range
+    });
+    for (const log of logs) {
+      loggedHashes.add(log.transactionHash.toLowerCase() as Hex);
+    }
+  }
+  if (loggedHashes.size === 0) {
+    return { matchingSwapTxHashes: [], scanComplete: true };
   }
   const known = await MoneriumConversionExecution.findAll({
     attributes: ["txHash"],
     transaction,
-    where: { accountId: account.id, txHash: { [Op.ne]: null } }
+    where: { id: { [Op.ne]: pending.id }, txHash: { [Op.ne]: null } }
   });
   const claimed = new Set(known.map(row => (row.txHash as string).toLowerCase()));
-  return logs.map(log => log.transactionHash).filter(hash => !claimed.has(hash.toLowerCase()));
+  const hashes = [...loggedHashes];
+  const keeperAddress = getKeeperWalletClient().account.address;
+  const matchingSwapTxHashes: string[] = [];
+  let claimedExactMatch = false;
+  for (const hash of hashes) {
+    const candidate = await client.getTransaction({ hash });
+    if (!isExpectedSwapTransaction(candidate, keeperAddress, account.forwarderAddress, pending.nonce)) {
+      continue;
+    }
+    if (claimed.has(hash.toLowerCase())) {
+      claimedExactMatch = true;
+    } else {
+      matchingSwapTxHashes.push(hash);
+    }
+  }
+  return { matchingSwapTxHashes, scanComplete: !claimedExactMatch };
 }
 
 /**
@@ -309,30 +477,49 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     where: { accountId: account.id, status: MoneriumConversionExecutionStatus.Pending }
   });
   for (const pending of pendings) {
-    if (!pending.txHash) {
-      let latestNonceCount = 0;
-      let pendingNonceCount = 0;
-      if (pending.nonce !== null) {
-        const client = getPublicClient();
-        const keeperAddress = getKeeperWalletClient().account.address;
-        [latestNonceCount, pendingNonceCount] = await Promise.all([
-          client.getTransactionCount({ address: keeperAddress, blockTag: "latest" }),
-          client.getTransactionCount({ address: keeperAddress, blockTag: "pending" })
-        ]);
+    const client = getPublicClient();
+    if (pending.txHash) {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash: pending.txHash as Hex });
+        await finalizeExecution(pending, receipt, account.forwarderAddress, transaction);
+        continue;
+      } catch (error) {
+        if (!(error instanceof TransactionReceiptNotFoundError)) {
+          return { kind: "skip", reason: `receipt lookup failed for ${pending.txHash}: ${errorText(error)}` };
+        }
       }
-      const unclaimedSwapTxHashes =
-        pending.nonce !== null && latestNonceCount > pending.nonce ? await findUnclaimedSwapTxHashes(account, transaction) : [];
-      const classification = classifyHashlessPending({
-        latestNonceCount,
-        nonce: pending.nonce,
-        pendingNonceCount,
-        unclaimedSwapTxHashes
-      });
+    }
+
+    if (pending.nonce === null) {
+      if (pending.txHash) {
+        return { kind: "skip", reason: `execution ${pending.id} has a hash but no recovery nonce` };
+      }
+      if (Date.now() - pending.createdAt.getTime() < PRE_SEND_RESERVATION_MS) {
+        return { kind: "skip", reason: `execution ${pending.id} is preparing its transaction` };
+      }
+      const [expired] = await MoneriumConversionExecution.update(
+        { error: "crashed before the transaction was sent", status: MoneriumConversionExecutionStatus.Failed },
+        {
+          transaction,
+          where: { id: pending.id, nonce: null, status: MoneriumConversionExecutionStatus.Pending }
+        }
+      );
+      if (expired === 0) {
+        return { kind: "skip", reason: `execution ${pending.id} changed while its pre-send reservation was expiring` };
+      }
+      continue;
+    }
+
+    try {
+      const keeperAddress = getKeeperWalletClient().account.address;
+      const latestNonceCount = await client.getTransactionCount({ address: keeperAddress, blockTag: "latest" });
+      const recovery =
+        latestNonceCount > pending.nonce
+          ? await findMatchingSwapTxHashes(pending, account, transaction)
+          : { matchingSwapTxHashes: [], scanComplete: true };
+      const classification = classifyHashlessPending({ latestNonceCount, nonce: pending.nonce, ...recovery });
       if (classification.kind === "in-flight") {
-        return {
-          kind: "skip",
-          reason: `execution ${pending.id} broadcast may still be in the mempool (nonce ${pending.nonce})`
-        };
+        return { kind: "skip", reason: `execution ${pending.id} remains pending: ${classification.reason}` };
       }
       if (classification.kind === "fail") {
         await pending.update(
@@ -342,32 +529,13 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
         continue;
       }
       logger.warn(
-        `monerium-b2b: recovered lost tx hash ${classification.txHash} for execution ${pending.id} via nonce ${pending.nonce}`
+        `monerium-b2b: recovered exact tx hash ${classification.txHash} for execution ${pending.id} via nonce ${pending.nonce}`
       );
       await pending.update({ txHash: classification.txHash }, { transaction });
-      // fall through to the receipt path with the adopted hash
-    }
-    let receipt: TransactionReceipt | null;
-    try {
-      receipt = await getPublicClient().getTransactionReceipt({ hash: pending.txHash as Address });
-    } catch (error) {
-      if (error instanceof TransactionReceiptNotFoundError) {
-        receipt = null;
-      } else {
-        // RPC failure is not evidence of anything — never let it run the stale clock
-        // toward a false Failed while the swap may have succeeded.
-        return { kind: "skip", reason: `receipt lookup failed for ${pending.txHash}: ${errorText(error)}` };
-      }
-    }
-    if (receipt) {
+      const receipt = await client.getTransactionReceipt({ hash: classification.txHash as Hex });
       await finalizeExecution(pending, receipt, account.forwarderAddress, transaction);
-    } else if (Date.now() - pending.updatedAt.getTime() > PENDING_TX_STALE_MS) {
-      await pending.update(
-        { error: "timed out waiting for a receipt", status: MoneriumConversionExecutionStatus.Failed },
-        { transaction }
-      );
-    } else {
-      return { kind: "skip", reason: `execution ${pending.id} still awaiting receipt ${pending.txHash}` };
+    } catch (error) {
+      return { kind: "skip", reason: `recovery lookup failed for execution ${pending.id}: ${errorText(error)}` };
     }
   }
 
@@ -436,6 +604,12 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   const client = getPublicClient();
   const forwarder = account.forwarderAddress as Address;
   const { eure, factory } = await getForwarderImmutables(forwarder);
+  if (
+    !config.moneriumB2b.forwarderFactoryAddress ||
+    factory.toLowerCase() !== config.moneriumB2b.forwarderFactoryAddress.toLowerCase()
+  ) {
+    throw new Error(`Forwarder ${forwarder} is not bound to the configured trusted factory`);
+  }
   const [balance, strandedSince, minSwapAmount, minSwapFloor, perSwapCap] = await Promise.all([
     client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
     client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "strandedSince" }),
@@ -498,30 +672,48 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
 
     // Send phase, serialized across processes: explicit nonces because poke + swap go
     // back-to-back through the private transport, which may not expose a coherent
-    // pending pool for derivation. The swap nonce is persisted durably BEFORE any
-    // broadcast so crash recovery can tell "never sent" from "sent, hash lost".
+    // pending pool for derivation. Poke is harmless and may fail before the value-moving
+    // send is attempted; persist the swap nonce only after poke succeeds, immediately
+    // before swapAndForward is broadcast.
     const txHash = await withKeeperSendLock(async () => {
-      let nonce = await client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" });
-      const pokeNonce = pokeNeeded ? nonce++ : null;
-      await execution.update({ nonce });
-
-      if (pokeNeeded) {
-        await keeper.writeContract({
-          abi: forwarderAbi,
-          account: keeper.account,
-          address: forwarder,
-          chain: null,
-          functionName: "poke",
-          nonce: pokeNonce as number
-        });
-      }
-      return keeper.writeContract({
-        abi: forwarderAbi,
-        account: keeper.account,
-        address: forwarder,
-        chain: null,
-        functionName: "swapAndForward",
-        nonce
+      const [pendingNonce, broadcastBlock] = await Promise.all([
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" }),
+        client.getBlockNumber()
+      ]);
+      const broadcastBlockNumber = Number(broadcastBlock);
+      return broadcastSwapSequence({
+        broadcastBlockNumber,
+        pendingNonce,
+        pokeNeeded,
+        reserveSwap: async nonce => {
+          const [reserved] = await MoneriumConversionExecution.update(
+            { broadcastBlockNumber, nonce },
+            { where: { id: execution.id, nonce: null, status: MoneriumConversionExecutionStatus.Pending } }
+          );
+          if (reserved === 1) {
+            execution.set({ broadcastBlockNumber, nonce });
+          }
+          return reserved === 1;
+        },
+        sendPoke: async nonce => {
+          await keeper.writeContract({
+            abi: forwarderAbi,
+            account: keeper.account,
+            address: forwarder,
+            chain: null,
+            functionName: "poke",
+            nonce
+          });
+        },
+        sendSwap: nonce =>
+          keeper.writeContract({
+            abi: forwarderAbi,
+            account: keeper.account,
+            address: forwarder,
+            chain: null,
+            functionName: "swapAndForward",
+            nonce
+          })
       });
     });
     await execution.update({ txHash });
@@ -533,7 +725,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   } catch (error) {
     if (execution.txHash) {
       // The transaction is (or may be) in flight; leave the row pending — the next
-      // cycle resolves it via receipt lookup or declares it stale.
+      // cycle resolves it by receipt or exact nonce-bound recovery. Time alone is
+      // never evidence that it is safe to send another value-moving transaction.
       logger.warn(`monerium-b2b: execution ${execution.id} awaiting receipt after error: ${errorText(error)}`);
       return;
     }

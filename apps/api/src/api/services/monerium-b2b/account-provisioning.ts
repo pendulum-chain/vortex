@@ -1,3 +1,4 @@
+import { Transaction, UniqueConstraintError } from "sequelize";
 import { type Address, parseAbi } from "viem";
 import sequelize from "../../../config/database";
 import { config } from "../../../config/vars";
@@ -58,11 +59,14 @@ const factoryRegistryAbi = parseAbi(["function isForwarder(address forwarder) vi
 
 /** Pure comparison of the submitted account data against the deployed clone's config. */
 export function forwarderConfigMismatch(
-  expected: { destination: string; fallbackAddress: string; feeBps: number },
-  onchain: { destination: string; fallbackAddress: string; feeBps: number; isForwarder: boolean }
+  expected: { destination: string; factory: string; fallbackAddress: string; feeBps: number },
+  onchain: { destination: string; factory: string; fallbackAddress: string; feeBps: number; isForwarder: boolean }
 ): string | null {
+  if (onchain.factory.toLowerCase() !== expected.factory.toLowerCase()) {
+    return `on-chain factory ${onchain.factory} differs from the trusted factory`;
+  }
   if (!onchain.isForwarder) {
-    return "the address is not a clone registered by its factory";
+    return "the address is not a clone registered by the trusted factory";
   }
   if (onchain.destination.toLowerCase() !== expected.destination) {
     return `on-chain destination ${onchain.destination} differs from the submitted value`;
@@ -93,9 +97,16 @@ async function verifyForwarderOnChain(
   if (!config.moneriumB2b.rpcUrl) {
     return;
   }
+  const trustedFactory = config.moneriumB2b.forwarderFactoryAddress;
+  if (!trustedFactory) {
+    throw new MoneriumB2bProvisioningError(
+      "MONERIUM_B2B_ACCOUNT_CONFLICT",
+      "MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS is not configured"
+    );
+  }
   const client = getPublicClient();
   const address = forwarderAddress as Address;
-  let onchain: { destination: string; fallbackAddress: string; feeBps: number; isForwarder: boolean };
+  let onchain: { destination: string; factory: string; fallbackAddress: string; feeBps: number; isForwarder: boolean };
   try {
     const [onchainDestination, onchainFallback, onchainFeeBps, factory] = await Promise.all([
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "destination" }),
@@ -105,11 +116,17 @@ async function verifyForwarderOnChain(
     ]);
     const isForwarder = await client.readContract({
       abi: factoryRegistryAbi,
-      address: factory,
+      address: trustedFactory as Address,
       args: [address],
       functionName: "isForwarder"
     });
-    onchain = { destination: onchainDestination, fallbackAddress: onchainFallback, feeBps: onchainFeeBps, isForwarder };
+    onchain = {
+      destination: onchainDestination,
+      factory,
+      fallbackAddress: onchainFallback,
+      feeBps: onchainFeeBps,
+      isForwarder
+    };
   } catch (error) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
@@ -118,7 +135,7 @@ async function verifyForwarderOnChain(
       }`
     );
   }
-  const mismatch = forwarderConfigMismatch({ destination, fallbackAddress, feeBps }, onchain);
+  const mismatch = forwarderConfigMismatch({ destination, factory: trustedFactory, fallbackAddress, feeBps }, onchain);
   if (mismatch) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
@@ -131,76 +148,74 @@ async function verifyForwarderOnChain(
 // profiles are onboarded and approved on Monerium's side before they are mapped
 // here, so the local provider records are imported directly as approved
 // (docs/operations-monerium-interface.md, profile lifecycle).
-async function mirrorApprovedKyb(customerEntityId: string, moneriumProfileId: string): Promise<void> {
-  await sequelize.transaction(async transaction => {
-    const boundElsewhere = await ProviderCustomer.findOne({
-      transaction,
-      where: { provider: "monerium", providerCustomerId: moneriumProfileId }
-    });
-    if (boundElsewhere && boundElsewhere.customerEntityId !== customerEntityId) {
-      throw new MoneriumB2bProvisioningError(
-        "MONERIUM_B2B_ACCOUNT_CONFLICT",
-        "The Monerium profile is already bound to a different customer"
-      );
-    }
+async function mirrorApprovedKyb(customerEntityId: string, moneriumProfileId: string, transaction: Transaction): Promise<void> {
+  const boundElsewhere = await ProviderCustomer.findOne({
+    transaction,
+    where: { provider: "monerium", providerCustomerId: moneriumProfileId }
+  });
+  if (boundElsewhere && boundElsewhere.customerEntityId !== customerEntityId) {
+    throw new MoneriumB2bProvisioningError(
+      "MONERIUM_B2B_ACCOUNT_CONFLICT",
+      "The Monerium profile is already bound to a different customer"
+    );
+  }
 
-    const [customer] = await ProviderCustomer.findOrCreate({
-      defaults: {
-        customerEntityId,
-        customerType: "business",
-        provider: "monerium",
-        providerCustomerId: moneriumProfileId,
-        rail: "eur",
-        status: VerificationStatus.Approved,
-        statusExternal: "approved"
-      },
-      transaction,
-      where: { customerEntityId, customerType: "business", provider: "monerium", rail: "eur" }
-    });
-    if (customer.providerCustomerId && customer.providerCustomerId !== moneriumProfileId) {
-      throw new MoneriumB2bProvisioningError(
-        "MONERIUM_B2B_ACCOUNT_CONFLICT",
-        "The customer entity is already bound to a different Monerium profile"
-      );
-    }
-    if (customer.providerCustomerId !== moneriumProfileId || customer.status !== VerificationStatus.Approved) {
-      await customer.update(
-        { providerCustomerId: moneriumProfileId, status: VerificationStatus.Approved, statusExternal: "approved" },
-        { transaction }
-      );
-    }
+  const [customer] = await ProviderCustomer.findOrCreate({
+    defaults: {
+      customerEntityId,
+      customerType: "business",
+      provider: "monerium",
+      providerCustomerId: moneriumProfileId,
+      rail: "eur",
+      status: VerificationStatus.Approved,
+      statusExternal: "approved"
+    },
+    transaction,
+    where: { customerEntityId, customerType: "business", provider: "monerium", rail: "eur" }
+  });
+  if (customer.providerCustomerId && customer.providerCustomerId !== moneriumProfileId) {
+    throw new MoneriumB2bProvisioningError(
+      "MONERIUM_B2B_ACCOUNT_CONFLICT",
+      "The customer entity is already bound to a different Monerium profile"
+    );
+  }
+  if (customer.providerCustomerId !== moneriumProfileId || customer.status !== VerificationStatus.Approved) {
+    await customer.update(
+      { providerCustomerId: moneriumProfileId, status: VerificationStatus.Approved, statusExternal: "approved" },
+      { transaction }
+    );
+  }
 
-    const existingCase = await KycCase.findOne({ transaction, where: { providerCustomerId: customer.id } });
-    if (existingCase) {
-      if (existingCase.status !== VerificationStatus.Approved) {
-        await existingCase.update(
-          {
-            approvedAt: existingCase.approvedAt ?? new Date(),
-            providerCaseId: moneriumProfileId,
-            rejectedAt: null,
-            status: VerificationStatus.Approved,
-            statusExternal: "approved"
-          },
-          { transaction }
-        );
-      }
-    } else {
-      await KycCase.create(
+  const existingCase = await KycCase.findOne({ transaction, where: { providerCustomerId: customer.id } });
+  if (existingCase) {
+    if (existingCase.status !== VerificationStatus.Approved) {
+      await existingCase.update(
         {
-          approvedAt: new Date(),
-          customerEntityId,
-          provider: "monerium",
+          approvedAt: existingCase.approvedAt ?? new Date(),
           providerCaseId: moneriumProfileId,
-          providerCustomerId: customer.id,
+          rejectedAt: null,
           status: VerificationStatus.Approved,
-          statusExternal: "approved",
-          submittedAt: new Date(),
-          type: "kyb"
+          statusExternal: "approved"
         },
         { transaction }
       );
     }
-  });
+  } else {
+    await KycCase.create(
+      {
+        approvedAt: new Date(),
+        customerEntityId,
+        provider: "monerium",
+        providerCaseId: moneriumProfileId,
+        providerCustomerId: customer.id,
+        status: VerificationStatus.Approved,
+        statusExternal: "approved",
+        submittedAt: new Date(),
+        type: "kyb"
+      },
+      { transaction }
+    );
+  }
 }
 
 function accountMatchesInput(
@@ -246,68 +261,82 @@ export async function provisionMoneriumB2bAccount(
   // account whose config the monitors later legitimize.
   await verifyForwarderOnChain(forwarderAddress, destination, fallbackAddress, feeBps);
 
-  // The pilot reliance scope is KYB'd corporates only, so the child is always a
-  // business entity. Errors (inactive manager, subject/email conflicts) propagate
-  // as ManagedProfileProvisioningError for the controller to map.
-  const managedProfile: ProvisionManagedProfileResult = await provisionManagedProfile({
-    contactEmail: input.contactEmail,
-    creationSource: "vortex",
-    customerType: "business",
-    externalSubjectId: input.externalSubjectId,
-    managerProfileId: input.managerProfileId
-  });
+  let result: { account: { created: boolean; row: MoneriumAccount }; managedProfile: ProvisionManagedProfileResult };
+  try {
+    result = await sequelize.transaction(async transaction => {
+      // The pilot reliance scope is KYB'd corporates only, so the child is always a
+      // business entity. Every local row is created in this transaction so a late
+      // account conflict cannot leave an orphaned approved identity behind.
+      const managedProfile = await provisionManagedProfile(
+        {
+          contactEmail: input.contactEmail,
+          creationSource: "vortex",
+          customerType: "business",
+          externalSubjectId: input.externalSubjectId,
+          managerProfileId: input.managerProfileId
+        },
+        transaction
+      );
 
-  await mirrorApprovedKyb(managedProfile.customerEntityId, moneriumProfileId);
+      await mirrorApprovedKyb(managedProfile.customerEntityId, moneriumProfileId, transaction);
 
-  const account = await sequelize.transaction(async transaction => {
-    const existing = await MoneriumAccount.findOne({ transaction, where: { profileId: moneriumProfileId } });
-    if (existing) {
-      if (!accountMatchesInput(existing, managedProfile.profileId, forwarderAddress, destination, fallbackAddress, feeBps)) {
+      const existing = await MoneriumAccount.findOne({ transaction, where: { profileId: moneriumProfileId } });
+      if (existing) {
+        if (!accountMatchesInput(existing, managedProfile.profileId, forwarderAddress, destination, fallbackAddress, feeBps)) {
+          throw new MoneriumB2bProvisioningError(
+            "MONERIUM_B2B_ACCOUNT_CONFLICT",
+            "The Monerium profile is already mapped with different account data"
+          );
+        }
+        if (existing.vortexProfileId === null) {
+          await existing.update({ vortexProfileId: managedProfile.profileId }, { transaction });
+        }
+        return { account: { created: false, row: existing }, managedProfile };
+      }
+
+      const boundToProfile = await MoneriumAccount.findOne({
+        transaction,
+        where: { vortexProfileId: managedProfile.profileId }
+      });
+      if (boundToProfile) {
         throw new MoneriumB2bProvisioningError(
           "MONERIUM_B2B_ACCOUNT_CONFLICT",
-          "The Monerium profile is already mapped with different account data"
+          "The managed profile already has a Monerium account for a different Monerium profile"
         );
       }
-      // Adopt a pre-mapping row that was inserted by hand before the managed
-      // profile linkage existed.
-      if (existing.vortexProfileId === null) {
-        await existing.update({ vortexProfileId: managedProfile.profileId }, { transaction });
+      const forwarderTaken = await MoneriumAccount.findOne({ transaction, where: { forwarderAddress } });
+      if (forwarderTaken) {
+        throw new MoneriumB2bProvisioningError(
+          "MONERIUM_B2B_ACCOUNT_CONFLICT",
+          "The forwarder address is already bound to another account"
+        );
       }
-      return { created: false, row: existing };
-    }
 
-    const boundToProfile = await MoneriumAccount.findOne({
-      transaction,
-      where: { vortexProfileId: managedProfile.profileId }
+      const row = await MoneriumAccount.create(
+        {
+          destination,
+          fallbackAddress,
+          feeBps,
+          forwarderAddress,
+          profileId: moneriumProfileId,
+          status: MoneriumAccountStatus.Onboarding,
+          vortexProfileId: managedProfile.profileId
+        },
+        { transaction }
+      );
+      return { account: { created: true, row }, managedProfile };
     });
-    if (boundToProfile) {
+  } catch (error) {
+    if (error instanceof UniqueConstraintError) {
       throw new MoneriumB2bProvisioningError(
         "MONERIUM_B2B_ACCOUNT_CONFLICT",
-        "The managed profile already has a Monerium account for a different Monerium profile"
+        "The Monerium account mapping conflicts with an existing record"
       );
     }
-    const forwarderTaken = await MoneriumAccount.findOne({ transaction, where: { forwarderAddress } });
-    if (forwarderTaken) {
-      throw new MoneriumB2bProvisioningError(
-        "MONERIUM_B2B_ACCOUNT_CONFLICT",
-        "The forwarder address is already bound to another account"
-      );
-    }
+    throw error;
+  }
 
-    const row = await MoneriumAccount.create(
-      {
-        destination,
-        fallbackAddress,
-        feeBps,
-        forwarderAddress,
-        profileId: moneriumProfileId,
-        status: MoneriumAccountStatus.Onboarding,
-        vortexProfileId: managedProfile.profileId
-      },
-      { transaction }
-    );
-    return { created: true, row };
-  });
+  const { account, managedProfile } = result;
 
   return {
     accountId: account.row.id,

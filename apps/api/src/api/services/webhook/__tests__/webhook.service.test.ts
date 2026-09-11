@@ -382,6 +382,23 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook (deposit events)', () => {
+    it('rejects deposit-event registration while Monerium B2B is disabled', async () => {
+      const disabledService = new WebhookService(false);
+
+      const error = await disabledService.registerWebhook({
+        events: [WebhookEventType.DEPOSIT_RECEIVED],
+        url: 'https://example.com/webhook'
+      }, USER_OWNER).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(400);
+      expect((error as APIError).message).toContain('disabled');
+      expect(createMock).not.toHaveBeenCalled();
+    });
+
     it('registers an account-scoped deposit webhook without a quote or session', async () => {
       const mockWebhook = createMockWebhook({
         events: [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED],

@@ -1,10 +1,17 @@
+import {
+  type MoneriumChain,
+  type MoneriumWebhookEvent as MoneriumWebhookPayload,
+  moneriumWebhookEventSchema
+} from "@vortexfi/shared";
 import { Op, Transaction } from "sequelize";
 import { parseUnits } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import MoneriumAccount from "../../../models/moneriumAccount.model";
+import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
+import { getChainId, moneriumChainForChainId } from "./chain";
 
 /**
  * Asynchronous processor for the durable webhook inbox (plan §3): upserts
@@ -76,14 +83,29 @@ interface ParsedOrderEvent {
   orderId: string;
   forwarderAddress: string;
   amount: string;
-  currency: string;
+  chain: MoneriumChain;
+  currency: "eur";
+  profileId: string;
   state: string;
   txHash: string | null;
 }
 
 export interface ParsedIbanEvent {
   address: string;
+  chain: MoneriumChain;
   iban: string;
+  profileId: string;
+}
+
+export interface DepositProcessorDeps {
+  getChainId(): Promise<number>;
+}
+
+const defaultDeps: DepositProcessorDeps = { getChainId };
+
+function parseWebhookPayload(payload: unknown): MoneriumWebhookPayload | null {
+  const parsed = moneriumWebhookEventSchema.safeParse(payload);
+  return parsed.success ? parsed.data : null;
 }
 
 /**
@@ -92,15 +114,21 @@ export interface ParsedIbanEvent {
  * that is not an IBAN event with both the IBAN and its linked address.
  */
 export function parseIbanEvent(payload: unknown): ParsedIbanEvent | null {
-  const envelope = payload as { data?: unknown; type?: unknown } | null;
-  if (!envelope || typeof envelope !== "object") return null;
-  if (typeof envelope.type !== "string" || !envelope.type.startsWith("iban")) return null;
-  const data = (envelope.data ?? {}) as Record<string, unknown>;
-  if (typeof data.iban !== "string" || typeof data.address !== "string" || data.iban.trim().length === 0) return null;
-  return { address: data.address, iban: data.iban.trim() };
+  const event = parseWebhookPayload(payload);
+  if (!event || event.type !== "iban.updated") return null;
+  return {
+    address: event.data.address,
+    chain: event.data.chain,
+    iban: event.data.iban.trim(),
+    profileId: event.data.profile
+  };
 }
 
-async function processIbanEvent(row: MoneriumWebhookEvent, event: ParsedIbanEvent): Promise<void> {
+async function processIbanEvent(
+  row: MoneriumWebhookEvent,
+  event: ParsedIbanEvent,
+  expectedChain: MoneriumChain
+): Promise<void> {
   await withForwarderLock(event.address, async transaction => {
     const account = await MoneriumAccount.findOne({
       transaction,
@@ -108,6 +136,8 @@ async function processIbanEvent(row: MoneriumWebhookEvent, event: ParsedIbanEven
     });
     if (!account) {
       logger.warn("monerium-b2b: iban.updated references an unknown forwarder address, skipping");
+    } else if (event.chain !== expectedChain || event.profileId !== account.profileId) {
+      logger.error(`monerium-b2b: iban.updated scope mismatch for account ${account.id}, skipping`);
     } else if (account.iban === null) {
       await account.update({ iban: event.iban }, { transaction });
     } else if (account.iban !== event.iban) {
@@ -127,33 +157,63 @@ async function processIbanEvent(row: MoneriumWebhookEvent, event: ParsedIbanEven
  * not EURe issue orders — those are acked and marked processed without a deposit write.
  */
 export function parseOrderEvent(payload: unknown): ParsedOrderEvent | null {
-  const envelope = payload as { data?: unknown; type?: unknown } | null;
-  if (!envelope || typeof envelope !== "object") return null;
-  if (typeof envelope.type === "string" && !envelope.type.startsWith("order")) return null;
-  const data = (envelope.data ?? envelope) as Record<string, unknown>;
-  if (typeof data.kind === "string" && data.kind !== "issue") return null;
-  if (typeof data.id !== "string" || typeof data.address !== "string" || typeof data.amount !== "string") return null;
-  const state = typeof data.state === "string" ? data.state : "";
-  const meta = (data.meta ?? {}) as Record<string, unknown>;
+  const event = parseWebhookPayload(payload);
+  if (!event || (event.type !== "order.created" && event.type !== "order.updated")) return null;
+  const data = event.data;
+  if (data.kind !== "issue" || data.currency !== "eur") return null;
   return {
     amount: data.amount,
-    currency: typeof data.currency === "string" ? data.currency : "eur",
+    chain: data.chain,
+    currency: data.currency,
     forwarderAddress: data.address,
     orderId: data.id,
-    state,
-    txHash: typeof meta.txHash === "string" ? meta.txHash : null
+    profileId: data.profile,
+    state: data.state,
+    txHash: data.meta.txHashes?.length === 1 ? data.meta.txHashes[0] : null
   };
 }
 
-async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
-  const ibanEvent = parseIbanEvent(row.payload);
-  if (ibanEvent) {
-    await processIbanEvent(row, ibanEvent);
+async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessorDeps): Promise<void> {
+  const parsedPayload = parseWebhookPayload(row.payload);
+  if (!parsedPayload) {
+    logger.error(`monerium-b2b: authenticated webhook ${row.eventId} has an invalid payload, discarding`);
+    await row.update({ processedAt: new Date() });
     return;
   }
 
-  const event = parseOrderEvent(row.payload);
+  if (
+    parsedPayload.type !== "iban.updated" &&
+    parsedPayload.type !== "order.created" &&
+    parsedPayload.type !== "order.updated"
+  ) {
+    await row.update({ processedAt: new Date() });
+    return;
+  }
+
+  const numericChainId = await deps.getChainId();
+  const expectedChain = moneriumChainForChainId(numericChainId);
+  if (!expectedChain) {
+    throw new Error(`No Monerium chain name is configured for chain id ${numericChainId}`);
+  }
+
+  if (parsedPayload.type === "iban.updated") {
+    await processIbanEvent(row, parseIbanEvent(parsedPayload) as ParsedIbanEvent, expectedChain);
+    return;
+  }
+
+  const event = parseOrderEvent(parsedPayload);
   if (!event) {
+    await row.update({ processedAt: new Date() });
+    return;
+  }
+
+  let amountRaw: string;
+  try {
+    const parsedAmount = parseUnits(event.amount, EURE_DECIMALS);
+    if (parsedAmount <= 0n) throw new Error("amount must be positive");
+    amountRaw = parsedAmount.toString();
+  } catch {
+    logger.error(`monerium-b2b: webhook order ${event.orderId} has an invalid EUR amount, discarding`);
     await row.update({ processedAt: new Date() });
     return;
   }
@@ -169,14 +229,112 @@ async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
       await row.update({ processedAt: new Date() }, { transaction });
       return;
     }
+    if (event.chain !== expectedChain || event.profileId !== account.profileId) {
+      logger.error(`monerium-b2b: webhook order ${event.orderId} scope mismatch for account ${account.id}, skipping`);
+      await row.update({ processedAt: new Date() }, { transaction });
+      return;
+    }
 
     const targetStatus = mapOrderStateToDepositStatus(event.state);
-    const existing = await MoneriumFiatDeposit.findOne({ transaction, where: { moneriumOrderId: event.orderId } });
+    let existing = await MoneriumFiatDeposit.findOne({ transaction, where: { moneriumOrderId: event.orderId } });
+    if (!existing && event.txHash && targetStatus === MoneriumFiatDepositStatus.Minted) {
+      const unattributed = await MoneriumFiatDeposit.findAll({
+        limit: 2,
+        transaction,
+        where: {
+          [Op.and]: [sequelize.where(sequelize.fn("lower", sequelize.col("tx_hash")), event.txHash.toLowerCase())],
+          accountId: account.id,
+          amountRaw,
+          chainId: numericChainId,
+          moneriumOrderId: { [Op.like]: "unattr:%" },
+          status: MoneriumFiatDepositStatus.Minted
+        }
+      });
+      if (unattributed.length > 1) {
+        logger.error(`monerium-b2b: webhook order ${event.orderId} matches multiple unattributed mint rows, skipping`);
+        await row.update({ processedAt: new Date() }, { transaction });
+        return;
+      }
+      if (unattributed.length === 1) {
+        existing = unattributed[0];
+        await existing.update({ moneriumOrderId: event.orderId }, { transaction });
+        logger.info(`monerium-b2b: reconciled late order ${event.orderId} to mint ${event.txHash}`);
+      }
+    }
+    if (existing && existing.accountId !== account.id) {
+      logger.error(`monerium-b2b: webhook order ${event.orderId} is already bound to a different account, skipping`);
+      await row.update({ processedAt: new Date() }, { transaction });
+      return;
+    }
+    if (existing && existing.amountRaw !== amountRaw) {
+      logger.error(`monerium-b2b: webhook order ${event.orderId} changed amount, refusing divergent replay`);
+      await row.update({ processedAt: new Date() }, { transaction });
+      return;
+    }
+    if (existing?.txHash && event.txHash && existing.txHash.toLowerCase() !== event.txHash.toLowerCase()) {
+      logger.error(`monerium-b2b: webhook order ${event.orderId} changed mint transaction hash, refusing divergence`);
+      await row.update({ processedAt: new Date() }, { transaction });
+      return;
+    }
+    const canAcceptMint =
+      existing &&
+      (existing.status === MoneriumFiatDepositStatus.Minted ||
+        isForwardTransition(existing.status, MoneriumFiatDepositStatus.Minted));
+    if (
+      existing &&
+      canAcceptMint &&
+      event.txHash &&
+      targetStatus === MoneriumFiatDepositStatus.Minted &&
+      existing.chainId === null &&
+      existing.blockHash === null &&
+      existing.blockNumber === null &&
+      existing.logIndex === null
+    ) {
+      const unattributed = await MoneriumFiatDeposit.findAll({
+        limit: 2,
+        transaction,
+        where: {
+          [Op.and]: [sequelize.where(sequelize.fn("lower", sequelize.col("tx_hash")), event.txHash.toLowerCase())],
+          accountId: account.id,
+          amountRaw,
+          chainId: numericChainId,
+          id: { [Op.ne]: existing.id },
+          moneriumOrderId: { [Op.like]: "unattr:%" },
+          status: MoneriumFiatDepositStatus.Minted
+        }
+      });
+      if (unattributed.length > 1) {
+        logger.error(`monerium-b2b: webhook order ${event.orderId} matches multiple unattributed mint rows, skipping`);
+        await row.update({ processedAt: new Date() }, { transaction });
+        return;
+      }
+      if (unattributed.length === 1) {
+        const mint = unattributed[0];
+        if (await MoneriumDepositAllocation.count({ transaction, where: { depositId: existing.id } })) {
+          logger.error(`monerium-b2b: webhook order ${event.orderId} already has allocations, refusing identity merge`);
+          await row.update({ processedAt: new Date() }, { transaction });
+          return;
+        }
+        await MoneriumDepositAllocation.update({ depositId: existing.id }, { transaction, where: { depositId: mint.id } });
+        await mint.destroy({ transaction });
+        await existing.update(
+          {
+            blockHash: mint.blockHash,
+            blockNumber: mint.blockNumber,
+            chainId: mint.chainId,
+            logIndex: mint.logIndex,
+            txHash: mint.txHash
+          },
+          { transaction }
+        );
+        logger.info(`monerium-b2b: merged late order ${event.orderId} with mint ${event.txHash}`);
+      }
+    }
     if (!existing) {
       await MoneriumFiatDeposit.create(
         {
           accountId: account.id,
-          amountRaw: parseUnits(event.amount, EURE_DECIMALS).toString(),
+          amountRaw,
           currency: event.currency,
           moneriumOrderId: event.orderId,
           status: targetStatus ?? MoneriumFiatDepositStatus.Pending,
@@ -184,18 +342,22 @@ async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
         },
         { transaction }
       );
-    } else if (targetStatus && targetStatus !== existing.status) {
-      if (isForwardTransition(existing.status, targetStatus)) {
-        await existing.update(
-          { status: targetStatus, ...(event.txHash && !existing.txHash ? { txHash: event.txHash } : {}) },
-          {
-            transaction
-          }
-        );
-      } else {
-        logger.warn(
-          `monerium-b2b: ignoring backward status transition ${existing.status} -> ${targetStatus} for order ${event.orderId}`
-        );
+    } else {
+      const updates: { status?: MoneriumFiatDepositStatus; txHash?: string } = {};
+      if (targetStatus && targetStatus !== existing.status) {
+        if (isForwardTransition(existing.status, targetStatus)) {
+          updates.status = targetStatus;
+        } else {
+          logger.warn(
+            `monerium-b2b: ignoring backward status transition ${existing.status} -> ${targetStatus} for order ${event.orderId}`
+          );
+        }
+      }
+      if (targetStatus === MoneriumFiatDepositStatus.Minted && event.txHash && !existing.txHash && canAcceptMint) {
+        updates.txHash = event.txHash;
+      }
+      if (Object.keys(updates).length > 0) {
+        await existing.update(updates, { transaction });
       }
     }
 
@@ -208,7 +370,7 @@ async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
  * unprocessed and is retried on the next run; rows we recognize but choose to skip are
  * marked processed so they cannot poison the loop.
  */
-export async function processMoneriumWebhookInbox(): Promise<number> {
+export async function processMoneriumWebhookInbox(deps: DepositProcessorDeps = defaultDeps): Promise<number> {
   const rows = await MoneriumWebhookEvent.findAll({
     order: [["created_at", "ASC"]],
     where: { processedAt: null }
@@ -216,7 +378,7 @@ export async function processMoneriumWebhookInbox(): Promise<number> {
   let processed = 0;
   for (const row of rows) {
     try {
-      await processInboxRow(row);
+      await processInboxRow(row, deps);
       processed += 1;
     } catch (error) {
       logger.error(`monerium-b2b: failed to process webhook inbox row ${row.eventId}:`, error);

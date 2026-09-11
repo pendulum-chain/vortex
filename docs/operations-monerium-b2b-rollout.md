@@ -42,30 +42,44 @@ attestations per customer, 3–5 clients at **€50k/client/day** (paper control
 
 ## Deploy checklist (mainnet bring-up)
 
-1. **Treasury first (O2):** create the dedicated fee Safe multisig — `FEE_RECIPIENT` is
+1. Apply database migrations from exactly one deployment instance. Migration execution
+   is not serialized across replicas; do not let multiple instances run the migrator
+   concurrently. Migrations 076/077 install allocation accounting and its exact
+   same-block boundary. Treat 076 as forward-only after activation: its `down` migration
+   refuses to discard any existing allocation rows, so restore from backup instead of
+   forcing a rollback once conversions have been attributed.
+2. **Treasury first (O2):** create the dedicated fee Safe multisig — `FEE_RECIPIENT` is
    immutable in the implementation. Confirm guardian key custody plan (EOA acceptable
    for pilot; hardware/multisig at GA).
-2. Re-verify the pinned pools and fee tiers at the deploy block (P10) and re-run the
+3. Re-verify the pinned pools and fee tiers at the deploy block (P10) and re-run the
    liquidity baseline quote methodology (T6); confirm `perSwapCap` €25k still executes
    within the slippage bound.
-3. Deploy implementation + factory with the final parameters (ADR table: 52 h oracle
+4. Deploy implementation + factory with the final parameters (ADR table: 52 h oracle
    age, 100 bps slippage/fee cap, 60 d/24 h/60 d delays, €25 floor/€50k ceiling); set
    operational `minSwapAmount` €250 and `perSwapCap` €25k; register the keeper key.
-4. Verify factory + implementation source on the block explorer; generate, verify, and
+5. Verify factory + implementation source on the block explorer; generate, verify, and
    publish the manifest.
-5. Production whitelabel credentials from Monerium; configure the keeper backend (the
+6. Production whitelabel credentials from Monerium; configure the keeper backend (the
    mykobo flow variant only): credentials, attestor/keeper/guardian keys (three distinct;
-   keeper funded), read RPC + private orderflow RPC, webhook secret.
-6. Register the webhook endpoint at Monerium (`profile.updated`, `iban.updated`,
+   keeper funded), read RPC + private orderflow RPC, webhook secret, and
+   `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`. Keep `MONERIUM_B2B_ENABLED=false` until
+   every remaining gate is complete.
+7. Register the webhook endpoint at Monerium (`profile.updated`, `iban.updated`,
    `order.created`, `order.updated`).
-7. Sandbox residue before first production onboarding: simulate a SEPA deposit end to
-   end (dashboard → Receive → "Simulate bank transfer") and pin the three
-   `TODO(sandbox)` items (webhook digest encoding, delivery id field, order-state
-   vocabulary).
-8. SulPayments side: manager profile configured (EU corridor, business type), secret
+8. Before first production onboarding, simulate a SEPA deposit end to end (dashboard →
+   Receive → "Simulate bank transfer") and re-verify the signed `webhook-id`,
+   `webhook-timestamp`, and `webhook-signature: v1,<base64>` fixture against a real
+   production delivery.
+9. SulPayments side: manager profile configured (EU corridor, business type), secret
    credential issued, deposit-event webhook registered and verifying signatures against
    `GET /v1/public-key`.
-9. Per client: runbook §1 (deploy clone → map → automated link/IBAN → penny test →
+10. Confirm every mapped forwarder has a zero EURe balance before the first enablement.
+    The mint cursor bootstraps at the current settled head and intentionally does not
+    convert historic, unindexed balances; reconcile any pre-existing balance manually.
+11. Set `MONERIUM_B2B_ENABLED=true` on only the designated `mykobo` keeper backend and
+   restart. Startup must fail if any required B2B setting is absent. Confirm the routes,
+   raw webhook parser, and keeper are active before accepting a deposit.
+12. Per client: runbook §1 (deploy clone → map → automated link/IBAN → penny test →
    activate).
 
 ## Terms & disclosure inputs (engineering-accurate; G2/partner own final wording)

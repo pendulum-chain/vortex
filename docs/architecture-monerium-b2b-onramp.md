@@ -24,6 +24,12 @@ repeatedly funded. Inside Vortex the client is a **managed child profile** under
 partner manager, which is what carries KYB records, API credentials, the read API, and
 webhook tenancy.
 
+The module is dark by default. Unless `MONERIUM_B2B_ENABLED=true`, its public/admin
+routes, raw-body webhook parser, and keeper worker are not mounted; account-scoped
+deposit webhook registration is rejected. Existing generic outbox deliveries continue
+to drain. Enabling it is fail-fast and requires the complete credential/key/RPC set,
+the trusted factory address, and `FLOW_VARIANT=mykobo`.
+
 ## System map
 
 ```mermaid
@@ -93,8 +99,8 @@ sequenceDiagram
     Note over M: Monerium onboards the corporate under partner reliance - profile "approved"
     Op->>C: deployForwarder(destination, fallback, feeBps) via factory
     Op->>Adm: POST /v1/admin/monerium-b2b/accounts
-    Adm->>C: verify clone (isForwarder + config read-back)
-    Adm->>Adm: managed child + KYB mirror + monerium_accounts row (onboarding)
+    Adm->>C: verify clone against configured trusted factory + config read-back
+    Adm->>Adm: atomically commit managed child + KYB mirror + account
     K->>M: POST /addresses (attestor-signed link)  [exactly-once]
     K->>M: POST /ibans for the forwarder address   [exactly-once]
     M-->>K: iban.updated webhook -> IBAN recorded
@@ -111,8 +117,9 @@ Steps in prose:
    self-custodied `fallbackAddress`, and initial `feeBps`; manifest generated and
    verified.
 3. **Admin mapping** — one idempotent call provisions the managed child, mirrors the
-   approved KYB into `provider_customers` + `kyc_cases`, verifies the clone on chain,
-   and creates the account row bound via `vortex_profile_id`.
+   approved KYB into `provider_customers` + `kyc_cases`, verifies the clone against the
+   configured trusted factory on chain, and creates the account row bound via
+   `vortex_profile_id`. All local records commit in one database transaction.
 4. **Keeper automation** links the forwarder (attestor signature) and requests the IBAN,
    each exactly-once through the profile-scoped `financial_operations` ledger; the
    `iban.updated` webhook records the IBAN.
@@ -136,17 +143,19 @@ sequenceDiagram
     V->>F: swapAndForward()  [execution row committed first]
     F->>F: swap min(balance, perSwapCap) via Uniswap, Chainlink minOut
     F->>P: USDC - fee to client wallet (fee to treasury)
-    V->>V: finalize from SwapExecuted event + R04 attribution
+    V->>V: finalize from SwapExecuted event
+    Note over V: mint cursor reaches the swap block
+    V->>V: R04 attribution through the exact swap log position
     Note over V: 32 blocks later
     V->>P: DEPOSIT_CONVERTED -> outbox -> partner webhook
 ```
 
-Vortex learns about a mint on **three redundant channels**, which all converge on the
-same per-forwarder advisory lock: the **webhooks** carry the order accounting (amount,
-order id, compliance holds), the **mint watcher** stamps the on-chain identity that
-attribution needs, and a plain **balance check** in the worker makes any funded
-forwarder a conversion candidate even if both other channels lag. Any one channel alone
-is enough to get funds converted.
+Vortex learns about a deposit through two complementary channels, which converge on the
+same per-forwarder advisory lock: the **webhooks** carry the provider order accounting
+(amount, order id, compliance holds), while the **mint watcher** proves the on-chain
+mint identity. Only a settled, chain-indexed mint makes an account a conversion
+candidate. A live balance by itself is deliberately insufficient: this prevents a swap
+from outrunning the watcher's reorg window and becoming impossible to attribute safely.
 
 ## How the mint watcher walks the chain
 
@@ -160,7 +169,7 @@ flowchart TD
     C -- no --> D["bootstrap: create cursor at safeHead\n(history is covered by webhook-recorded orders)"]
     C -- yes --> E["fromBlock = cursor + 1\ntoBlock = min(safeHead, fromBlock + 2000)"]
     E --> F["getLogs: EURe Transfer -> any known forwarder"]
-    F --> G["per log, under the forwarder lock:\nmatch to an open deposit (by tx hash, else amount)\nor record a flagged unattr: row"]
+    F --> G["per log, under the forwarder lock:\nmatch to an open deposit (by tx hash + amount, else amount)\nor record a flagged unattr: row"]
     G --> H["advance cursor to toBlock\n(only after processing)"]
     H --> A
 ```
@@ -174,14 +183,14 @@ The mechanics that matter:
   is a unique index: already-recorded mints are skipped.
 - The scan stops **12 blocks below the head**: that identity is not reorg-stable
   (a dropped transaction re-mines with a different block and log index), so only
-  settled blocks are read. The lag costs ~2.5 minutes of latency on the *chain-identity*
-  channel only — the webhook channel and balance check are not delayed by it, so
-  conversion itself is not slowed.
+  settled blocks are read. Conversion intentionally inherits this ~2.5-minute safety
+  delay rather than acting on an unindexed live balance.
 - Ranges are capped at 2,000 blocks per cycle, so after downtime the watcher catches up
   in bounded chunks instead of one unbounded `getLogs`.
 - On first run there is no cursor: it bootstraps at the current settled head and scans
-  only forward. Historic mints are already represented by webhook-recorded orders;
-  back-filling their chain fields is a manual operation.
+  only forward. Historic mints are outside the automatic path even when a webhook row
+  exists; back-filling their chain fields is a manual operation. The rollout therefore
+  requires zero EURe balances on mapped forwarders before first enablement.
 
 ## Lifecycles
 
@@ -226,10 +235,16 @@ stateDiagram-v2
 ```
 
 Deposit statuses are **forward-only** (a delayed or replayed webhook can never regress a
-row), and a hashless pending execution is resolved by nonce classification against the
-chain rather than guesswork. The account additionally carries a `dormant_since` marker
-(guardian-paused after 60 days without a conversion; conversion stops, the protective
-stranding marker still arms).
+row). Account statuses follow only the arrows above; `closed` is terminal and a repeated
+write of the current status is idempotent. A nonce-less execution row is a five-minute
+pre-send reservation; expiry uses a compare-and-set so its original owner can no longer
+broadcast. Once the swap nonce is persisted, time alone never fails the execution.
+Recovery scans bounded 2,000-block pages from the pre-broadcast block and adopts only
+one transaction matching the keeper sender, nonce, forwarder target, exact
+`swapAndForward()` calldata, and emitted event; incomplete or ambiguous evidence stays
+pending for manual reconciliation. The account additionally carries a `dormant_since`
+marker (guardian-paused after 60 days without a conversion; conversion stops, the
+protective stranding marker still arms).
 
 ## Batching and large deposits
 
@@ -244,10 +259,18 @@ Batching happens in both directions, automatically:
 - **Several small deposits merge.** The contract swaps the balance, not a deposit: two
   €5k deposits sitting on the forwarder convert in a single execution, and R04
   attribution splits the USDC back across both deposit rows pro-rata. A deposit that
-  would only partially fit under the cap waits intact for the next execution — unless
-  it is alone larger than the cap itself, in which case it attaches to the execution
-  that begins converting it (it could never fit a later, smaller one), with its share
-  clamped to the swapped amount.
+  only partially fits under the cap is split into an allocation for this execution and
+  an outstanding remainder for the next. Partners receive one `DEPOSIT_CONVERTED`
+  event only after the whole deposit is allocated and every contributing execution is
+  deep enough; its `conversions[]` lists each portion and `usdcNetRaw` is the aggregate
+  of each swap's `usdcOut - fee`. It excludes unsolicited USDC that the contract sweeps
+  to the same destination alongside a swap.
+
+Allocation is intentionally deferred after the swap receipt. The mint watcher must
+first advance through the execution block; the reconciler then includes deposits from
+earlier blocks and only deposits whose `Transfer` log precedes `SwapExecuted` in the
+same block. This exact boundary also captures a mint that lands between the executor's
+balance read and its swap transaction without attributing a later mint to that swap.
 
 In normal operation merging is rare: the keeper runs every minute, so deposits share an
 execution only when they arrive within about a minute of each other or during downtime.
@@ -304,7 +327,8 @@ erDiagram
     profiles ||--o| monerium_accounts : "vortex_profile_id (managed child)"
     monerium_accounts ||--o{ monerium_fiat_deposits : "account_id"
     monerium_accounts ||--o{ monerium_conversion_executions : "account_id"
-    monerium_conversion_executions |o--o{ monerium_fiat_deposits : "allocated_execution_id (R04)"
+    monerium_fiat_deposits ||--o{ monerium_deposit_allocations : "deposit_id"
+    monerium_conversion_executions ||--o{ monerium_deposit_allocations : "execution_id (R04)"
     webhooks ||--o{ webhook_deliveries : "webhook_id (deposit events)"
 
     monerium_accounts {
@@ -323,22 +347,30 @@ erDiagram
         enum status
         string tx_hash
         int log_index
-        uuid allocated_execution_id FK
     }
     monerium_conversion_executions {
         decimal eure_in_raw
         decimal usdc_net_raw
         string tx_hash
         int nonce
+        int broadcast_block_number
+        int swap_log_index
         enum status
+    }
+    monerium_deposit_allocations {
+        uuid deposit_id FK
+        uuid execution_id FK
+        decimal eure_in_raw
+        decimal usdc_net_raw
     }
 ```
 
 | Table | Purpose |
 |---|---|
 | `monerium_accounts` (069, 071) | One row per client account: Monerium profile UUID, IBAN, forwarder/destination/fallback addresses, `fee_bps`, lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
-| `monerium_fiat_deposits` (069, 070, 073) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status, on-chain mint identity, allocation link to its execution, and the two webhook-emission markers |
-| `monerium_conversion_executions` (069, 074) | One row per `swapAndForward()`, created before broadcast: EURe in, USDC gross/fee/net from the event, tx hash, planned nonce (crash recovery), status |
+| `monerium_fiat_deposits` (069, 070, 073, 076) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status, on-chain mint identity, and two webhook-emission markers |
+| `monerium_conversion_executions` (069, 074, 075, 077) | One row per `swapAndForward()`, created before broadcast: EURe in, USDC gross + fee from the event, conversion net (`usdcOut - fee`, excluding unrelated USDC swept by `forwarded`), tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and `SwapExecuted` log index (allocation boundary), status |
+| `monerium_deposit_allocations` (076) | N:M accounting join: the EURe portion and attributed net USDC for each deposit/execution pair |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |
 | `webhook_deliveries` (072) | Generic durable outbox for the deposit-event webhook family: one row per (webhook, event), claim-based dispatch with backoff, 30-day retention after settling |
@@ -352,10 +384,13 @@ the exactly-once link/IBAN calls, and — registered by the partner — a user-o
 
 ## Failure posture (pointers)
 
-Webhook deliveries survive crashes (persist-before-200 inbox); provider onboarding calls
-are exactly-once (`financial_operations`); a broadcast whose hash was lost is recovered
-from the persisted nonce plus unclaimed `SwapExecuted` logs rather than re-sent; all
-per-account writes serialize on one advisory lock; and the client always has two exits
+Webhook deliveries survive crashes (persist-before-200 inbox); a late provider webhook
+reconciles the exact same-account unattributed mint into the provider order, including
+when that order row already exists, without duplicating chain identity or allocations;
+provider onboarding calls are exactly-once (`financial_operations`) and their reads are
+bound to the configured profile and chain; a broadcast whose hash was lost is recovered
+from its persisted nonce/block plus an exact transaction-and-event match rather than
+re-sent; all per-account writes serialize on one advisory lock; and the client always has two exits
 that no operator failure can block — the fallback-address sweep and, past the trigger
 delay, permissionless swap execution. Full invariants and threat model:
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md).

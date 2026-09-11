@@ -445,11 +445,13 @@ DepositConvertedWebhookPayload: {
     status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
     txHash: null | string;
   } & {
-    conversion: {
+    conversions: Array<{
+      eureInRaw: string;
       executionId: string;
       txHash: null | string;
-      usdcNetRaw: null | string;
-    };
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
   };
   timestamp: string;
 }
@@ -2431,11 +2433,13 @@ WebhookDeliveryAttempt: {
       status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
       txHash: null | string;
     } & {
-      conversion: {
+      conversions: Array<{
+        eureInRaw: string;
         executionId: string;
         txHash: null | string;
-        usdcNetRaw: null | string;
-      };
+        usdcNetRaw: string;
+      }>;
+      usdcNetRaw: string;
     };
     timestamp: string;
   } | {
@@ -2492,11 +2496,13 @@ WebhookPayload: {
     status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
     txHash: null | string;
   } & {
-    conversion: {
+    conversions: Array<{
+      eureInRaw: string;
       executionId: string;
       txHash: null | string;
-      usdcNetRaw: null | string;
-    };
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
   };
   timestamp: string;
 } | {

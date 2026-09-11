@@ -8,8 +8,9 @@ export enum MoneriumConversionExecutionStatus {
 }
 
 // One row per swapAndForward execution (or intentional batch). Allocation to deposits
-// is snapshot-based (plan §3, R04): included deposits are those with mint block <=
-// execution block not yet allocated; pro-rata by amount, remainder to largest.
+// is cursor-gated and snapshot-based (plan §3, R04): included deposits precede the
+// execution's exact block/log position and are not yet allocated; pro-rata by amount,
+// remainder to largest.
 export interface MoneriumConversionExecutionAttributes {
   id: string;
   accountId: string;
@@ -21,7 +22,11 @@ export interface MoneriumConversionExecutionAttributes {
   txHash: string | null;
   /** The swap's transaction nonce, persisted BEFORE broadcast (crash-recovery identity). */
   nonce: number | null;
+  /** Chain head observed with the nonce, persisted before broadcast for complete recovery scans. */
+  broadcastBlockNumber: number | null;
   blockNumber: number | null;
+  /** Block-global SwapExecuted log position used as the deposit snapshot boundary. */
+  swapLogIndex: number | null;
   status: MoneriumConversionExecutionStatus;
   error: string | null;
   createdAt: Date;
@@ -36,7 +41,9 @@ type MoneriumConversionExecutionCreationAttributes = Optional<
   | "usdcNetRaw"
   | "txHash"
   | "nonce"
+  | "broadcastBlockNumber"
   | "blockNumber"
+  | "swapLogIndex"
   | "status"
   | "error"
   | "createdAt"
@@ -56,7 +63,9 @@ class MoneriumConversionExecution
   declare destination: string;
   declare txHash: string | null;
   declare nonce: number | null;
+  declare broadcastBlockNumber: number | null;
   declare blockNumber: number | null;
+  declare swapLogIndex: number | null;
   declare status: MoneriumConversionExecutionStatus;
   declare error: string | null;
   declare createdAt: Date;
@@ -73,6 +82,11 @@ MoneriumConversionExecution.init(
     blockNumber: {
       allowNull: true,
       field: "block_number",
+      type: DataTypes.INTEGER
+    },
+    broadcastBlockNumber: {
+      allowNull: true,
+      field: "broadcast_block_number",
       type: DataTypes.INTEGER
     },
     createdAt: {
@@ -112,6 +126,11 @@ MoneriumConversionExecution.init(
       allowNull: false,
       defaultValue: MoneriumConversionExecutionStatus.Pending,
       type: DataTypes.ENUM(...Object.values(MoneriumConversionExecutionStatus))
+    },
+    swapLogIndex: {
+      allowNull: true,
+      field: "swap_log_index",
+      type: DataTypes.INTEGER
     },
     txHash: {
       allowNull: true,

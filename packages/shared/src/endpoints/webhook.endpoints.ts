@@ -106,13 +106,18 @@ export interface DepositConvertedWebhookPayload {
   eventType: WebhookEventType.DEPOSIT_CONVERTED;
   timestamp: string;
   payload: DepositWebhookPayloadBase & {
-    conversion: {
+    /** Every confirmed conversion portion that consumed this deposit, oldest first. */
+    conversions: Array<{
+      /** EURe from this deposit consumed by this execution (18-decimal base units). */
+      eureInRaw: string;
       executionId: string;
       /** The swap-and-forward transaction. */
       txHash: string | null;
-      /** Net USDC forwarded for the whole execution, 6-decimal base units. */
-      usdcNetRaw: string | null;
-    };
+      /** Net USDC from this execution attributed to this deposit (6-decimal base units). */
+      usdcNetRaw: string;
+    }>;
+    /** Aggregate net USDC attributed to the complete deposit (6-decimal base units). */
+    usdcNetRaw: string;
   };
 }
 

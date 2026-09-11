@@ -15,6 +15,7 @@ const DESTINATION = "0x2222222222222222222222222222222222222222";
 const FALLBACK = "0x3333333333333333333333333333333333333333";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 const IBAN = "EE08 7224 5745 6244 9516";
+const ETHEREUM_CHAIN = { getChainId: async () => 1 };
 
 const savedConfig = { ...config.moneriumB2b };
 
@@ -263,19 +264,32 @@ describe("iban.updated inbox recording", () => {
     const account = await createMappedAccount();
     await MoneriumWebhookEvent.create({
       eventId: "evt-iban-1",
-      payload: { data: { address: FORWARDER, chain: "ethereum", iban: IBAN }, type: "iban.updated" }
+      payload: {
+        data: { address: FORWARDER, chain: "ethereum", iban: IBAN, profile: MONERIUM_PROFILE },
+        timestamp: "2026-08-25T12:00:00Z",
+        type: "iban.updated"
+      }
     });
 
-    await processMoneriumWebhookInbox();
+    await processMoneriumWebhookInbox(ETHEREUM_CHAIN);
     await account.reload();
     expect(account.iban).toBe(IBAN);
 
     // A later iban.updated with a different IBAN is an alert condition, not data.
     await MoneriumWebhookEvent.create({
       eventId: "evt-iban-2",
-      payload: { data: { address: FORWARDER, chain: "ethereum", iban: "EE00 0000 0000 0000 0000" }, type: "iban.updated" }
+      payload: {
+        data: {
+          address: FORWARDER,
+          chain: "ethereum",
+          iban: "EE00 0000 0000 0000 0000",
+          profile: MONERIUM_PROFILE
+        },
+        timestamp: "2026-08-25T12:00:00Z",
+        type: "iban.updated"
+      }
     });
-    await processMoneriumWebhookInbox();
+    await processMoneriumWebhookInbox(ETHEREUM_CHAIN);
     await account.reload();
     expect(account.iban).toBe(IBAN);
 
@@ -285,10 +299,19 @@ describe("iban.updated inbox recording", () => {
   it("acks iban events for unknown forwarders without failing the drain", async () => {
     await MoneriumWebhookEvent.create({
       eventId: "evt-iban-3",
-      payload: { data: { address: "0x8888888888888888888888888888888888888888", iban: IBAN }, type: "iban.updated" }
+      payload: {
+        data: {
+          address: "0x8888888888888888888888888888888888888888",
+          chain: "ethereum",
+          iban: IBAN,
+          profile: MONERIUM_PROFILE
+        },
+        timestamp: "2026-08-25T12:00:00Z",
+        type: "iban.updated"
+      }
     });
 
-    expect(await processMoneriumWebhookInbox()).toBe(1);
+    expect(await processMoneriumWebhookInbox(ETHEREUM_CHAIN)).toBe(1);
     expect(await MoneriumWebhookEvent.count({ where: { processedAt: null } })).toBe(0);
   });
 });

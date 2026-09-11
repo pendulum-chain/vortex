@@ -119,7 +119,7 @@ Managers whose business clients hold EUR onramp accounts can subscribe to deposi
 
 ### `DEPOSIT_RECEIVED`
 
-Fired once when a client's EUR deposit has been received and the corresponding funds landed in the account's on-chain forwarding contract.
+Fired once when a client's EUR deposit has been matched to the corresponding on-chain mint. A provider-reported order without verified chain identity does not emit this event.
 
 ```json
 {
@@ -142,7 +142,7 @@ Fired once when a client's EUR deposit has been received and the corresponding f
 
 ### `DEPOSIT_CONVERTED`
 
-Fired once per deposit after its conversion has executed and reached a safe confirmation depth on chain.
+Fired once per deposit after the full deposit has been converted and every contributing execution has reached a safe confirmation depth on chain. A deposit split by the per-swap cap still produces one final aggregate event.
 
 ```json
 {
@@ -157,16 +157,26 @@ Fired once per deposit after its conversion has executed and reached a safe conf
     "currency": "eur",
     "status": "minted",
     "txHash": "0x...",
-    "conversion": {
-      "executionId": "e77a...",
-      "txHash": "0x...",
-      "usdcNetRaw": "108000000"
-    }
+    "conversions": [
+      {
+        "eureInRaw": "60000000000000000000",
+        "executionId": "e77a...",
+        "txHash": "0x...",
+        "usdcNetRaw": "64800000"
+      },
+      {
+        "eureInRaw": "40000000000000000000",
+        "executionId": "f88b...",
+        "txHash": "0x...",
+        "usdcNetRaw": "43200000"
+      }
+    ],
+    "usdcNetRaw": "108000000"
   }
 }
 ```
 
-`usdcNetRaw` (6-decimal base units) is the net USDC forwarded by the conversion execution; when one execution batches several deposits it is the execution total, with per-deposit shares proportional to `amountRaw`.
+Each `conversions[]` entry contains the EURe portion consumed and the net USDC attributed to this deposit by that execution. The payload-level `usdcNetRaw` is their aggregate. When one execution consumes several deposits, its output is divided proportionally by allocated EURe; floor dust goes to the largest allocation.
 
 ### Delivery Semantics
 

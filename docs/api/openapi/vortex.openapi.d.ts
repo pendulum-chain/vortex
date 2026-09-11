@@ -979,7 +979,7 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Returns the acting profile's EUR deposits newest first, each with its allocated conversion execution once the swap has run. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -2850,8 +2850,10 @@ export interface components {
         MoneriumB2bDeposit: {
             /** @description Deposit amount in 18-decimal base units of the deposit currency. */
             amountRaw: string;
-            /** @description The allocated conversion execution once the swap has run; null while the deposit awaits conversion. */
-            conversion: {
+            /** @description Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit. */
+            conversions: {
+                /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
+                eureInRaw: string;
                 executionId: string;
                 /**
                  * @description Execution status.
@@ -2860,9 +2862,9 @@ export interface components {
                 status: "pending" | "confirmed" | "failed";
                 /** @description The swap-and-forward transaction hash. */
                 txHash: string | null;
-                /** @description Net USDC forwarded for the whole execution in 6-decimal base units. When one execution batches several deposits this is the execution total; per-deposit shares are proportional to amountRaw. */
-                usdcNetRaw: string | null;
-            } | null;
+                /** @description Net USDC from this execution attributed to this deposit in 6-decimal base units. */
+                usdcNetRaw: string;
+            }[];
             /** Format: date-time */
             createdAt: string;
             currency: string;
@@ -2874,6 +2876,8 @@ export interface components {
             status: "pending" | "minted" | "held" | "returned";
             /** @description The on-chain mint transaction, when observed. */
             txHash: string | null;
+            /** @description Aggregate net USDC attributed to this deposit so far in 6-decimal base units. */
+            usdcNetRaw: string;
         };
         MoneriumB2bDepositsResponse: {
             deposits: components["schemas"]["MoneriumB2bDeposit"][];

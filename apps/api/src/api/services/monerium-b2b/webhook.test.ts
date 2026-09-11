@@ -27,15 +27,34 @@ let webhook: typeof import("./webhook");
 let controller: typeof import("../../controllers/monerium-b2b.controller");
 let config: typeof import("../../../config/vars").config;
 
-const SECRET = "test-webhook-secret";
+const SECRET = `whsec_${Buffer.from("01234567890123456789012345678901", "utf8").toString("base64")}`;
+const WEBHOOK_ID = "msg_2LhLhM4Q6YwqZ1fX";
+const WEBHOOK_TIMESTAMP = "1789142400";
 
-function sign(rawBody: Buffer, secret: string, encoding: "base64" | "hex" = "hex"): string {
-  return crypto.createHmac("sha256", secret).update(rawBody).digest(encoding);
+function sign(
+  rawBody: Buffer,
+  secret = SECRET,
+  webhookId = WEBHOOK_ID,
+  webhookTimestamp = WEBHOOK_TIMESTAMP
+): string {
+  const key = Buffer.from(secret.slice("whsec_".length), "base64");
+  const signedPayload = Buffer.concat([Buffer.from(`${webhookId}.${webhookTimestamp}.`, "utf8"), rawBody]);
+  return `v1,${crypto.createHmac("sha256", key).update(signedPayload).digest("base64")}`;
 }
 
-function mockRequest(rawBody: Buffer | undefined, signature: string | undefined): never {
+function mockRequest(
+  rawBody: Buffer | undefined,
+  signature: string | undefined,
+  webhookId: string | undefined = WEBHOOK_ID,
+  webhookTimestamp: string | undefined = WEBHOOK_TIMESTAMP
+): never {
   return {
-    header: (name: string) => (name.toLowerCase() === "webhook-signature" ? signature : undefined),
+    header: (name: string) => {
+      if (name.toLowerCase() === "webhook-id") return webhookId;
+      if (name.toLowerCase() === "webhook-timestamp") return webhookTimestamp;
+      if (name.toLowerCase() === "webhook-signature") return signature;
+      return undefined;
+    },
     rawBody
   } as never;
 }
@@ -78,32 +97,26 @@ afterAll(() => {
 describe("verifyWebhookSignature", () => {
   const body = Buffer.from(JSON.stringify({ data: { id: "order-1" }, type: "order.updated" }), "utf8");
 
-  it("accepts a correct HMAC-SHA256 in hex or base64 encoding", () => {
-    expect(webhook.verifyWebhookSignature(body, sign(body, SECRET, "hex"), SECRET)).toBe(true);
-    expect(webhook.verifyWebhookSignature(body, sign(body, SECRET, "base64"), SECRET)).toBe(true);
+  it("accepts the documented Monerium v1 signature", () => {
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body), SECRET)).toBe(true);
   });
 
-  it("rejects a wrong secret, tampered bytes, missing header, and empty secret", () => {
-    expect(webhook.verifyWebhookSignature(body, sign(body, "other-secret"), SECRET)).toBe(false);
-    expect(webhook.verifyWebhookSignature(Buffer.concat([body, Buffer.from(" ")]), sign(body, SECRET), SECRET)).toBe(false);
-    expect(webhook.verifyWebhookSignature(body, undefined, SECRET)).toBe(false);
-    expect(webhook.verifyWebhookSignature(body, "", SECRET)).toBe(false);
-    expect(webhook.verifyWebhookSignature(body, sign(body, SECRET), "")).toBe(false);
-    expect(webhook.verifyWebhookSignature(body, "not-a-mac", SECRET)).toBe(false);
-  });
-});
-
-describe("deriveEventId", () => {
-  it("uses a top-level payload id when present", () => {
-    expect(webhook.deriveEventId(Buffer.from("{}"), { id: "evt-1" })).toBe("evt-1");
-  });
-
-  it("falls back to a digest of the raw bytes, stable across redeliveries", () => {
-    const raw = Buffer.from('{"type":"order.updated"}');
-    const first = webhook.deriveEventId(raw, { type: "order.updated" });
-    expect(first).toStartWith("sha256:");
-    expect(webhook.deriveEventId(Buffer.from(raw), { type: "order.updated" })).toBe(first);
-    expect(webhook.deriveEventId(Buffer.from('{"type":"order.created"}'), { type: "order.created" })).not.toBe(first);
+  it("rejects tampered signed components and malformed credentials", () => {
+    const otherSecret = `whsec_${Buffer.from("other-secret", "utf8").toString("base64")}`;
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body, otherSecret), SECRET)).toBe(false);
+    expect(
+      webhook.verifyWebhookSignature(Buffer.concat([body, Buffer.from(" ")]), WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body), SECRET)
+    ).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, `${WEBHOOK_ID}-tampered`, WEBHOOK_TIMESTAMP, sign(body), SECRET)).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, `${WEBHOOK_TIMESTAMP}1`, sign(body), SECRET)).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, undefined, WEBHOOK_TIMESTAMP, sign(body), SECRET)).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, undefined, sign(body), SECRET)).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, undefined, SECRET)).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body), "test-webhook-secret")).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body), "whsec_not-base64")).toBe(false);
+    expect(webhook.verifyWebhookSignature(body, WEBHOOK_ID, WEBHOOK_TIMESTAMP, sign(body).replace("v1,", "v2,"), SECRET)).toBe(
+      false
+    );
   });
 });
 
@@ -124,7 +137,7 @@ describe("POST /v1/monerium-b2b/webhook controller", () => {
   it("persists the delivery durably before responding 200 and processes async", async () => {
     const res = mockResponse();
     const next = mock((_error: unknown) => undefined);
-    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, SECRET)), res as never, next as never);
+    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody)), res as never, next as never);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
@@ -139,7 +152,8 @@ describe("POST /v1/monerium-b2b/webhook controller", () => {
   it("rejects an invalid signature with 401 and never touches the inbox", async () => {
     const res = mockResponse();
     const next = mock((_error: unknown) => undefined);
-    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, "wrong-secret")), res as never, next as never);
+    const wrongSecret = `whsec_${Buffer.from("wrong-secret", "utf8").toString("base64")}`;
+    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, wrongSecret)), res as never, next as never);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(next.mock.calls[0]?.[0]).toMatchObject({ status: 401 });
@@ -150,7 +164,7 @@ describe("POST /v1/monerium-b2b/webhook controller", () => {
   it("rejects when the raw body was not captured", async () => {
     const res = mockResponse();
     const next = mock((_error: unknown) => undefined);
-    await controller.handleWebhook(mockRequest(undefined, sign(rawBody, SECRET)), res as never, next as never);
+    await controller.handleWebhook(mockRequest(undefined, sign(rawBody)), res as never, next as never);
 
     expect(next.mock.calls[0]?.[0]).toMatchObject({ status: 401 });
     expect(bulkCreate).not.toHaveBeenCalled();
@@ -160,7 +174,7 @@ describe("POST /v1/monerium-b2b/webhook controller", () => {
     config.moneriumB2b.webhookSecret = "";
     const res = mockResponse();
     const next = mock((_error: unknown) => undefined);
-    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, SECRET)), res as never, next as never);
+    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody)), res as never, next as never);
 
     expect(next.mock.calls[0]?.[0]).toMatchObject({ status: 503 });
     expect(bulkCreate).not.toHaveBeenCalled();
@@ -169,14 +183,16 @@ describe("POST /v1/monerium-b2b/webhook controller", () => {
   it("acks a redelivery with 200 (insert is a dedup no-op)", async () => {
     const res = mockResponse();
     const next = mock((_error: unknown) => undefined);
-    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, SECRET)), res as never, next as never);
-    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody, SECRET)), res as never, next as never);
+    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody)), res as never, next as never);
+    await controller.handleWebhook(mockRequest(rawBody, sign(rawBody)), res as never, next as never);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenNthCalledWith(2, 200);
     // Same event id both times — the unique index makes the second insert a no-op.
     const firstRows = bulkCreate.mock.calls[0]?.[0] as Array<{ eventId: string }>;
     const secondRows = bulkCreate.mock.calls[1]?.[0] as Array<{ eventId: string }>;
-    expect(firstRows[0].eventId).toBe(secondRows[0].eventId);
+    expect(firstRows[0].eventId).toBe(WEBHOOK_ID);
+    expect(secondRows[0].eventId).toBe(WEBHOOK_ID);
+    await flushSetImmediate();
   });
 });

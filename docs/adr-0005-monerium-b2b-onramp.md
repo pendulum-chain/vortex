@@ -69,7 +69,9 @@ Supporting decisions, all in force:
   `monerium_*` (the legacy OAuth integration owns no tables; no collision).
 - **Deposit webhooks as a generic event family** (`DEPOSIT_RECEIVED` /
   `DEPOSIT_CONVERTED`) on the public webhook contract, delivered durably (outbox,
-  at-least-once) to the partner manager.
+  at-least-once) to the partner manager. A cap-split deposit emits one final
+  `DEPOSIT_CONVERTED` after all portions settle, with `conversions[]` and aggregate
+  attributed USDC rather than a misleading event per chunk.
 
 ## Final parameters (decided 2026-08-26 unless noted)
 

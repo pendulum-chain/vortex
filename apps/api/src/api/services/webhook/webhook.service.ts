@@ -7,6 +7,7 @@ import {
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
@@ -22,9 +23,23 @@ export interface WebhookOwner {
 }
 
 export class WebhookService {
+  constructor(private readonly moneriumB2bEnabled = config.moneriumB2b.enabled) {}
+
   public async registerWebhook(request: RegisterWebhookRequest, owner: WebhookOwner): Promise<RegisterWebhookResponse> {
     try {
       const { url, quoteId, sessionId, events } = request;
+
+      if (
+        !this.moneriumB2bEnabled &&
+        (events ?? []).some(event =>
+          ACCOUNT_WEBHOOK_EVENT_TYPES.includes(event as (typeof ACCOUNT_WEBHOOK_EVENT_TYPES)[number])
+        )
+      ) {
+        throw new APIError({
+          message: "Monerium B2B deposit webhooks are disabled",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       if (!owner.partnerId && !owner.userId) {
         throw new APIError({

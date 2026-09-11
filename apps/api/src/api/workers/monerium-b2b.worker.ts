@@ -1,11 +1,10 @@
 import { CronJob } from "cron";
-import { Op } from "sequelize";
-import { Address } from "viem";
+import { QueryTypes } from "sequelize";
+import sequelize from "../../config/database";
 import logger from "../../config/logger";
-import MoneriumAccount, { MoneriumAccountStatus } from "../../models/moneriumAccount.model";
-import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
-import { erc20Abi, getForwarderImmutables, getPublicClient, isKeeperChainConfigured } from "../services/monerium-b2b/chain";
-import { runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
+import { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
+import { isKeeperChainConfigured } from "../services/monerium-b2b/chain";
+import { reconcileConfirmedExecutionAllocations, runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
 import { processMoneriumWebhookInbox, pruneProcessedWebhookEvents } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-events";
@@ -61,6 +60,7 @@ class MoneriumB2bWorker {
         }
       } else {
         const mintedAccountIds = await runMintWatcher();
+        await reconcileConfirmedExecutionAllocations();
         const candidateIds = await this.conversionCandidates(mintedAccountIds);
         for (const accountId of candidateIds) {
           try {
@@ -91,46 +91,25 @@ class MoneriumB2bWorker {
   }
 
   /**
-   * Accounts worth running the executor for: fresh mints from this cycle, accounts with
-   * minted-but-unallocated deposits, and accounts whose forwarder holds a nonzero EURe
-   * balance (covers inflows the watcher has not indexed yet).
+   * Accounts worth running the executor for: settled mints from this cycle and accounts
+   * with chain-indexed, minted-but-unallocated deposits. The executor never outruns the
+   * watcher's reorg-safety window merely because a live balance is visible.
    */
   private async conversionCandidates(mintedAccountIds: string[]): Promise<string[]> {
     const candidates = new Set<string>(mintedAccountIds);
 
-    const unallocated = await MoneriumFiatDeposit.findAll({
-      attributes: ["accountId"],
-      group: ["account_id"],
-      where: { allocatedExecutionId: null, status: MoneriumFiatDepositStatus.Minted }
-    });
-    for (const row of unallocated) {
+    const outstanding = await sequelize.query<{ accountId: string }>(
+      `SELECT DISTINCT deposit.account_id AS "accountId"
+       FROM monerium_fiat_deposits AS deposit
+       LEFT JOIN monerium_deposit_allocations AS allocation ON allocation.deposit_id = deposit.id
+       WHERE deposit.status = :minted
+         AND deposit.block_number IS NOT NULL
+       GROUP BY deposit.id
+       HAVING COALESCE(SUM(allocation.eure_in_raw), 0) < deposit.amount_raw`,
+      { replacements: { minted: MoneriumFiatDepositStatus.Minted }, type: QueryTypes.SELECT }
+    );
+    for (const row of outstanding) {
       candidates.add(row.accountId);
-    }
-
-    const balanceCheckAccounts = await MoneriumAccount.findAll({
-      where: {
-        dormantSince: null,
-        // Sequelize renders an empty NOT IN as NOT IN (NULL), which matches nothing.
-        ...(candidates.size > 0 ? { id: { [Op.notIn]: [...candidates] } } : {}),
-        status: { [Op.in]: [MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active] }
-      }
-    });
-    for (const account of balanceCheckAccounts) {
-      try {
-        const forwarder = account.forwarderAddress as Address;
-        const { eure } = await getForwarderImmutables(forwarder);
-        const balance = await getPublicClient().readContract({
-          abi: erc20Abi,
-          address: eure,
-          args: [forwarder],
-          functionName: "balanceOf"
-        });
-        if (balance > 0n) {
-          candidates.add(account.id);
-        }
-      } catch (error) {
-        logger.warn(`monerium-b2b: balance check failed for account ${account.id}:`, error);
-      }
     }
 
     return [...candidates];

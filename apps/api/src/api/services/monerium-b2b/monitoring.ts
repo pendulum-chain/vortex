@@ -3,7 +3,15 @@ import { Address, encodePacked, Hex, parseAbi } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
-import { erc20Abi, factoryAbi, forwarderAbi, getChainId, getForwarderImmutables, getPublicClient } from "./chain";
+import {
+  erc20Abi,
+  factoryAbi,
+  forwarderAbi,
+  getChainId,
+  getForwarderImmutables,
+  getPublicClient,
+  moneriumChainForChainId
+} from "./chain";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 
 /**
@@ -344,10 +352,19 @@ export async function runAssociationMonitor(): Promise<void> {
   if (accounts.length === 0) {
     return;
   }
-  const ibans = (await listIbans()).map(entry => ({ address: entry.address, iban: entry.iban }));
+  const chainId = await getChainId();
+  const chainName = moneriumChainForChainId(chainId);
+  if (!chainName) {
+    logger.error(`monerium-b2b: association monitor has no Monerium chain name for chain id ${chainId}`);
+    return;
+  }
+  const allIbans = await listIbans();
   for (const account of accounts) {
     try {
-      const profileAddresses = await getProfileAddresses(account.profileId);
+      const ibans = allIbans
+        .filter(entry => entry.chain === chainName && entry.profile === account.profileId)
+        .map(entry => ({ address: entry.address, iban: entry.iban }));
+      const profileAddresses = await getProfileAddresses(account.profileId, chainName);
       const changes = diffAssociation(
         { forwarderAddress: account.forwarderAddress, iban: account.iban },
         { ibans, profileAddresses }
@@ -374,32 +391,52 @@ export async function runConfigReconciliation(): Promise<void> {
     return;
   }
   const client = getPublicClient();
+  const trustedFactory = config.moneriumB2b.forwarderFactoryAddress;
+  if (!trustedFactory) {
+    logger.error("monerium-b2b: config reconciliation skipped — trusted forwarder factory is not configured");
+    return;
+  }
   const implementationByFactory = new Map<string, Address>();
 
   for (const account of accounts) {
     try {
       const forwarder = account.forwarderAddress as Address;
       const { factory } = await getForwarderImmutables(forwarder);
-      let implementation = implementationByFactory.get(factory.toLowerCase());
+      if (factory.toLowerCase() !== trustedFactory.toLowerCase()) {
+        logger.error(
+          `monerium-b2b: forwarder ${forwarder} (account ${account.id}) reports untrusted factory ${factory}; ` +
+            `expected ${trustedFactory}`
+        );
+        continue;
+      }
+      const trustedFactoryAddress = trustedFactory as Address;
+      let implementation = implementationByFactory.get(trustedFactory.toLowerCase());
       if (!implementation) {
         implementation = await client.readContract({
           abi: factoryMonitoringAbi,
-          address: factory,
+          address: trustedFactoryAddress,
           functionName: "implementation"
         });
-        implementationByFactory.set(factory.toLowerCase(), implementation);
+        implementationByFactory.set(trustedFactory.toLowerCase(), implementation);
       }
 
       const [destination, fallbackAddress, feeBps, isForwarder, code] = await Promise.all([
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "destination" }),
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "fallbackAddress" }),
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "feeBps" }),
-        client.readContract({ abi: factoryMonitoringAbi, address: factory, args: [forwarder], functionName: "isForwarder" }),
+        client.readContract({
+          abi: factoryMonitoringAbi,
+          address: trustedFactoryAddress,
+          args: [forwarder],
+          functionName: "isForwarder"
+        }),
         client.getCode({ address: forwarder })
       ]);
 
       if (!isForwarder) {
-        logger.error(`monerium-b2b: forwarder ${forwarder} (account ${account.id}) is not registered on factory ${factory}`);
+        logger.error(
+          `monerium-b2b: forwarder ${forwarder} (account ${account.id}) is not registered on trusted factory ${trustedFactory}`
+        );
       }
       if ((code ?? "0x").toLowerCase() !== eip1167RuntimeCode(implementation).toLowerCase()) {
         logger.error(

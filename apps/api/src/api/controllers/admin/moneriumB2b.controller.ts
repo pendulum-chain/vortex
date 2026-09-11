@@ -83,6 +83,12 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
 }
 
 const STATUS_VALUES = Object.values(MoneriumAccountStatus) as string[];
+const STATUS_TRANSITIONS: Record<MoneriumAccountStatus, readonly MoneriumAccountStatus[]> = {
+  [MoneriumAccountStatus.Onboarding]: [MoneriumAccountStatus.Active],
+  [MoneriumAccountStatus.Active]: [MoneriumAccountStatus.Suspended, MoneriumAccountStatus.Closed],
+  [MoneriumAccountStatus.Suspended]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Closed],
+  [MoneriumAccountStatus.Closed]: []
+};
 
 export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: string }>, res: Response): Promise<void> {
   try {
@@ -105,6 +111,17 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       });
       return;
     }
+    const targetStatus = status as MoneriumAccountStatus;
+    if (targetStatus !== account.status && !STATUS_TRANSITIONS[account.status].includes(targetStatus)) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
+          message: `Monerium account cannot transition from ${account.status} to ${targetStatus}`,
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
     // Activation requires the issued IBAN: the penny test (runbook §7) cannot have
     // happened without it, and the association monitor needs the reference state.
     if (status === MoneriumAccountStatus.Active && account.iban === null) {
@@ -118,7 +135,9 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       return;
     }
 
-    await account.update({ status: status as MoneriumAccountStatus });
+    if (targetStatus !== account.status) {
+      await account.update({ status: targetStatus });
+    }
     res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
   } catch (error) {
     logger.error("Error updating Monerium B2B account status:", error);

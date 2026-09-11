@@ -26,15 +26,21 @@ function candidate(overrides: Partial<MatchableDeposit> & { id: string }): Match
 
 describe("matchMintLogToDeposit", () => {
   it("matches by tx hash when the webhook already recorded the mint hash (case-insensitive)", () => {
+    const amount = 5n;
     const deposits = [
       candidate({ id: "other" }),
-      candidate({ id: "hash-match", status: Minted, txHash: TX_A.toLowerCase() })
+      candidate({ amountRaw: amount.toString(), id: "hash-match", status: Minted, txHash: TX_A.toLowerCase() })
     ];
-    const match = matchMintLogToDeposit({ txHash: TX_A, valueRaw: 5n }, deposits);
+    const match = matchMintLogToDeposit({ txHash: TX_A, valueRaw: amount }, deposits);
     expect(match?.id).toBe("hash-match");
   });
 
-  it("matches the oldest pending deposit with the exact mint amount", () => {
+  it("rejects a hash match whose on-chain amount disagrees", () => {
+    const deposits = [candidate({ amountRaw: "5", id: "poisoned", status: Minted, txHash: TX_A })];
+    expect(matchMintLogToDeposit({ txHash: TX_A, valueRaw: 6n }, deposits)).toBeNull();
+  });
+
+  it("quarantines an ambiguous amount match instead of guessing an order", () => {
     const amount = 250n * 10n ** 18n;
     const deposits = [
       candidate({ amountRaw: (100n * 10n ** 18n).toString(), id: "wrong-amount" }),
@@ -42,7 +48,7 @@ describe("matchMintLogToDeposit", () => {
       candidate({ amountRaw: amount.toString(), id: "newer" })
     ];
     const match = matchMintLogToDeposit({ txHash: TX_A, valueRaw: amount }, deposits);
-    expect(match?.id).toBe("older");
+    expect(match).toBeNull();
   });
 
   it("returns null when nothing matches (unattributed fallback)", () => {

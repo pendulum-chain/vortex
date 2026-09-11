@@ -17,12 +17,18 @@ Ground rules that shape every procedure here:
   otherwise in comms.
 - **Never send raw EURe to a CEX destination.** EURe recovery targets are
   `fallbackAddress` only.
+- **Treat allocation migrations as forward-only after use.** Run migrations from one
+  deployment instance only. Migration 076 refuses rollback when any
+  `monerium_deposit_allocations` row exists; take a database backup and roll forward
+  rather than deleting financial attribution records.
 
 ## 1. Client onboarding
 
 Deploy → manifest → verify → map → (automated: link + IBAN) → penny test → activate.
 One pass per client. Prerequisites: guardian key funded on the target chain;
-`MONERIUM_B2B_*` env set on the keeper backend; partner paperwork complete; the client
+`MONERIUM_B2B_ENABLED=true` and the complete `MONERIUM_B2B_*` env set on the one
+`mykobo` keeper backend (including the trusted factory address, read/private RPCs,
+webhook secret, and three keys); partner paperwork complete; the client
 company onboarded and KYB-approved on Monerium's side (partner KYC reliance) with its
 Monerium profile UUID at hand; the partner configured as a managed-profile manager
 (`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type
@@ -204,7 +210,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `ASSOCIATION CHANGE` | Monerium-side association diverged from the DB (IBAN moved, address linked) — the S1 detective control | §2.5 — potential credential compromise unless the change was an announced migration (§5) |
 | `stranded EURe on forwarder` (warn ≥12h) | Keeper is not converting | Check worker liveness, RPC health, keeper gas, oracle staleness (`StalePrice` reverts) |
 | `stranded EURe ... past TRIGGER_DELAY` | Permissionless trigger now live; SLA long broken | Escalate the keeper outage; anyone may call `swapAndForward()` (same policy applies); communicate the delay |
-| `config violation` / `bytecode is not the EIP-1167 clone` / `not registered on factory` | Should-be-impossible state | Full incident: global pause, manifest verifier, compare against manifest history |
+| `untrusted factory` / `config violation` / `bytecode is not the EIP-1167 clone` / `not registered on trusted factory` | Should-be-impossible state | Full incident: global pause, verify `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`, run the manifest verifier, compare against manifest history |
 | `reconciled owner-authorized config change` | Client rotated destination/fallback, or a guardian fee change applied — expected, DB updated | No incident. Unexpected destination change → confirm with the partner; a surprise suggests a compromised fallback key (client should `setClientPaused(true)` and rotate) |
 | `onboarding advance failed` (repeating for one account) | Link/IBAN automation stuck | Check the `financial_operations` row: `failed` retries itself; `unknown` needs manual reconciliation (compare Monerium-side state, then update the row) |
 | `delivery ... abandoned after N attempts` | Partner webhook endpoint down > backoff horizon | Contact partner; deliveries are not retried after abandonment — partner should poll `GET /v1/monerium-b2b/deposits` to catch up |
@@ -487,10 +493,11 @@ MONERIUM_B2B_ATTESTOR_PRIVATE_KEY="$ANVIL_ACCOUNT_2_KEY" \
 bun run --cwd apps/api dev
 ```
 
-The log must contain `Starting Monerium B2B keeper worker`. Wait for one worker cycle
-and verify `monerium_chain_cursors` contains `eure-mints:1` before sending the deposit;
+The log must contain `Starting Monerium B2B keeper worker`. Before this first start,
+verify every mapped forwarder has zero EURe balance. Then wait for one worker cycle and
+verify `monerium_chain_cursors` contains `eure-mints:1` before sending the deposit;
 otherwise the watcher's first-run bootstrap intentionally starts at the current settled
-head and treats earlier chain history as out of scope.
+head and treats earlier chain history and balances as out of scope.
 
 ### 7.6 Send and settle the deposit
 
@@ -519,23 +526,29 @@ log should show an unattributed EURe mint followed by an execution allocation.
 Verify the durable records:
 
 ```sql
-SELECT monerium_order_id, amount_raw, status, tx_hash, log_index,
-       block_number, allocated_execution_id
+SELECT monerium_order_id, amount_raw, status, tx_hash, log_index, block_number
 FROM monerium_fiat_deposits
 WHERE account_id = '<account-id>';
 
 SELECT eure_in_raw, usdc_gross_raw, fee_raw, usdc_net_raw, destination,
-       tx_hash, nonce, block_number, status, error
+       tx_hash, nonce, broadcast_block_number, block_number, swap_log_index, status, error
 FROM monerium_conversion_executions
 WHERE account_id = '<account-id>';
+
+SELECT deposit_id, execution_id, eure_in_raw, usdc_net_raw
+FROM monerium_deposit_allocations
+WHERE deposit_id IN (
+  SELECT id FROM monerium_fiat_deposits WHERE account_id = '<account-id>'
+);
 ```
 
 Required results:
 
-- One `minted` deposit with an `unattr:` order id, the real transfer hash and log index,
-  and a non-null `allocated_execution_id`.
-- One `confirmed` execution with the 25 EURe input, zero fee, non-null nonce/hash/block,
-  destination matching the clone, and `error IS NULL`.
+- One `minted` deposit with an `unattr:` order id and the real transfer hash and log index.
+- One allocation joining that deposit and execution with the 25 EURe input and the
+  attributed net USDC.
+- One `confirmed` execution with the 25 EURe input, zero fee, non-null
+  nonce/hash/block/swap-log-index, destination matching the clone, and `error IS NULL`.
 - The forwarder's EURe balance is zero.
 - The destination's USDC balance increased by `usdc_net_raw`.
 - The conversion receipt contains `SwapExecuted` from the clone and a USDC `Transfer`
@@ -556,14 +569,15 @@ Required results:
 - A direct transfer to a known forwarder is durably recorded as an unattributed mint,
   not silently presented as a Monerium customer order.
 - The executor's durable path leaves a confirmed execution with its nonce, transaction
-  hash, block number, amounts, destination, and deposit allocation recorded.
+  hash, block number, swap log index, amounts, and destination recorded; allocation is
+  added only after the mint cursor covers that execution block.
 - The real contract accepts the current Chainlink EUR/USD answer and swaps successfully
   through the pinned EURe -> EURC -> USDC 5-bps Uniswap V3 path.
 - Keeper authorization, the 25 EURe minimum, allowance reset, full EURe consumption,
   zero-fee accounting, and forwarding to the immutable per-client destination work
   together.
-- Snapshot allocation links the observed deposit to the confirmed execution and assigns
-  the full USDC output.
+- Cursor-gated snapshot allocation links the observed deposit to the confirmed execution
+  at the exact `SwapExecuted` log boundary and assigns the full USDC output.
 
 ### 7.8 What this exercise does not validate
 

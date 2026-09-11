@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import { config } from "../../../config/vars";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
@@ -191,7 +192,9 @@ router.use("/monerium", moneriumRoutes);
  *   delegation or child credential; EU/business policy).
  * GET /v1/monerium-b2b/deposits — the acting profile's deposits with conversion status.
  */
-router.use("/monerium-b2b", moneriumB2bRoutes);
+if (config.moneriumB2b.enabled) {
+  router.use("/monerium-b2b", moneriumB2bRoutes);
+}
 
 /**
  * POST v1/webhook
@@ -285,7 +288,9 @@ router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
  * deployed forwarder accounts (idempotent).
  * POST /v1/admin/monerium-b2b/accounts
  */
-router.use("/admin/monerium-b2b", adminMoneriumB2bRoutes);
+if (config.moneriumB2b.enabled) {
+  router.use("/admin/monerium-b2b", adminMoneriumB2bRoutes);
+}
 
 /**
  * Admin routes for API client observability dashboards

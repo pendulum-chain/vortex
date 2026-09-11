@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import type { CorridorCountry } from "@vortexfi/shared";
+import { config } from "../config/vars";
 import ManagedProfileManager from "../models/managedProfileManager.model";
 import MoneriumConversionExecution, { MoneriumConversionExecutionStatus } from "../models/moneriumConversionExecution.model";
+import MoneriumDepositAllocation from "../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../models/moneriumFiatDeposit.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestUser } from "../test-utils/factories";
@@ -17,14 +19,18 @@ const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 describe("monerium b2b account read surface", () => {
   let app: TestApp;
   let world: FakeWorld;
+  let originalRpcUrl: string | undefined;
 
   beforeAll(async () => {
+    originalRpcUrl = config.moneriumB2b.rpcUrl;
+    config.moneriumB2b.rpcUrl = undefined;
     world = installFakeWorld();
     await setupTestDatabase();
     app = await startTestApp();
   });
 
   afterAll(async () => {
+    config.moneriumB2b.rpcUrl = originalRpcUrl;
     await app?.close();
     world?.restore();
   });
@@ -87,14 +93,19 @@ describe("monerium b2b account read surface", () => {
       txHash: "0xswap",
       usdcNetRaw: "108000000"
     });
-    await MoneriumFiatDeposit.create({
+    const convertedDeposit = await MoneriumFiatDeposit.create({
       accountId: mapped.accountId,
       currency: "eur",
-      allocatedExecutionId: execution.id,
       amountRaw: "100000000000000000000",
       moneriumOrderId: "order-1",
       status: MoneriumFiatDepositStatus.Minted,
       txHash: "0xmint"
+    });
+    await MoneriumDepositAllocation.create({
+      depositId: convertedDeposit.id,
+      eureInRaw: "100000000000000000000",
+      executionId: execution.id,
+      usdcNetRaw: "108000000"
     });
     await MoneriumFiatDeposit.create({
       accountId: mapped.accountId,
@@ -119,10 +130,19 @@ describe("monerium b2b account read surface", () => {
     expect(rows.map(row => row.status)).toEqual(["pending", "minted"]);
     expect(rows[1]).toMatchObject({
       amountRaw: "100000000000000000000",
-      conversion: { executionId: execution.id, status: "confirmed", txHash: "0xswap", usdcNetRaw: "108000000" },
-      txHash: "0xmint"
+      conversions: [
+        {
+          eureInRaw: "100000000000000000000",
+          executionId: execution.id,
+          status: "confirmed",
+          txHash: "0xswap",
+          usdcNetRaw: "108000000"
+        }
+      ],
+      txHash: "0xmint",
+      usdcNetRaw: "108000000"
     });
-    expect(rows[0].conversion).toBeNull();
+    expect(rows[0]).toMatchObject({ conversions: [], usdcNetRaw: "0" });
     expect(deposits.body.pagination).toMatchObject({ total: 2 });
   });
 

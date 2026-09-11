@@ -1,5 +1,6 @@
 import {
   MONERIUM_ADDRESS_OWNERSHIP_MESSAGE,
+  type MoneriumAddress,
   MoneriumApiService,
   type MoneriumChain,
   type MoneriumIban
@@ -48,10 +49,29 @@ export async function listIbans(): Promise<MoneriumIban[]> {
   return (await MoneriumApiService.getInstance().listIbans()).ibans;
 }
 
-/** GET /ibans — the IBAN issued for an address, or null if none yet. */
-export async function getIbanForAddress(address: string): Promise<MoneriumIban | null> {
-  const ibans = await listIbans();
-  return ibans.find(entry => entry.address.toLowerCase() === address.toLowerCase()) ?? null;
+/** Exact account-scoped IBAN match; never guesses across chain/profile duplicates. */
+export function selectAccountIban(
+  ibans: MoneriumIban[],
+  address: string,
+  chain: MoneriumChain,
+  profileId: string
+): MoneriumIban | null {
+  const matches = ibans.filter(
+    entry => entry.address.toLowerCase() === address.toLowerCase() && entry.chain === chain && entry.profile === profileId
+  );
+  if (matches.length > 1) {
+    throw new Error(`Multiple Monerium IBANs matched ${profileId}:${chain}:${address.toLowerCase()}`);
+  }
+  return matches[0] ?? null;
+}
+
+/** GET /ibans — the IBAN issued for this exact profile/chain/address tuple. */
+export async function getIbanForAddress(
+  address: string,
+  chain: MoneriumChain,
+  profileId: string
+): Promise<MoneriumIban | null> {
+  return selectAccountIban(await listIbans(), address, chain, profileId);
 }
 
 /**
@@ -59,7 +79,11 @@ export async function getIbanForAddress(address: string): Promise<MoneriumIban |
  * association monitor (S1 detective control): any address linked to a client profile
  * beyond the forwarder is an alert condition.
  */
-export async function getProfileAddresses(profileId: string): Promise<string[]> {
+export function selectProfileChainAddresses(addresses: MoneriumAddress[], profileId: string, chain: MoneriumChain): string[] {
+  return addresses.filter(entry => entry.profile === profileId && entry.chains.includes(chain)).map(entry => entry.address);
+}
+
+export async function getProfileAddresses(profileId: string, chain: MoneriumChain): Promise<string[]> {
   const response = await MoneriumApiService.getInstance().listAddresses({ profile: profileId });
-  return response.addresses.map(entry => entry.address);
+  return selectProfileChainAddresses(response.addresses, profileId, chain);
 }

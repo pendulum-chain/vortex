@@ -44,7 +44,8 @@ export type MatchableDeposit = Pick<MoneriumFiatDeposit, "id" | "status" | "txHa
 /**
  * Picks the deposit row a mint log belongs to, among the account's deposits that are
  * still missing their mint fields (logIndex null). Precedence:
- * 1. tx-hash match — the webhook may have already recorded the mint hash (order meta);
+ * 1. tx-hash AND amount match — a hash with a conflicting amount is a poisoned
+ *    provider claim and the chain value is recorded separately as unattributed;
  * 2. amount match on any open order without recorded chain identity — oldest first
  *    (caller passes createdAt order). A webhook-Minted row whose order carried no
  *    txHash is still a candidate here: requiring Pending would strand it and record
@@ -60,9 +61,10 @@ export function matchMintLogToDeposit(log: MintLogFields, candidates: MatchableD
   );
   const byHash = open.find(deposit => deposit.txHash !== null && deposit.txHash.toLowerCase() === log.txHash.toLowerCase());
   if (byHash) {
-    return byHash;
+    return BigInt(byHash.amountRaw) === log.valueRaw ? byHash : null;
   }
-  return open.find(deposit => deposit.txHash === null && BigInt(deposit.amountRaw) === log.valueRaw) ?? null;
+  const byAmount = open.filter(deposit => deposit.txHash === null && BigInt(deposit.amountRaw) === log.valueRaw);
+  return byAmount.length === 1 ? byAmount[0] : null;
 }
 
 interface ObservedMint {
@@ -102,17 +104,16 @@ async function recordMint(
       transaction,
       where: { accountId: account.id, logIndex: null }
     });
+    const mismatchedHashClaim = candidates.find(
+      deposit =>
+        deposit.logIndex === null &&
+        deposit.txHash?.toLowerCase() === mint.txHash.toLowerCase() &&
+        BigInt(deposit.amountRaw) !== mint.valueRaw
+    );
     const match = matchMintLogToDeposit({ txHash: mint.txHash, valueRaw: mint.valueRaw }, candidates);
 
     if (match) {
       const deposit = candidates.find(row => row.id === match.id) as MoneriumFiatDeposit;
-      if (deposit.txHash !== null && BigInt(deposit.amountRaw) !== mint.valueRaw) {
-        // Hash-matched but the webhook-reported amount disagrees with the on-chain
-        // value: detective alert, never a silent overwrite of accounting data.
-        logger.error(
-          `monerium-b2b: mint ${mint.txHash}#${mint.logIndex} value ${mint.valueRaw.toString()} disagrees with webhook amount ${deposit.amountRaw} on deposit ${deposit.id}`
-        );
-      }
       await deposit.update(
         {
           blockHash: mint.blockHash,
@@ -126,6 +127,12 @@ async function recordMint(
         { transaction }
       );
     } else {
+      if (mismatchedHashClaim) {
+        logger.error(
+          `monerium-b2b: refusing mismatched mint ${mint.txHash}#${mint.logIndex}: chain value ${mint.valueRaw.toString()} ` +
+            `disagrees with webhook amount ${mismatchedHashClaim.amountRaw} on deposit ${mismatchedHashClaim.id}`
+        );
+      }
       // R09-adjacent: EURe arrived without a matching Monerium order (direct transfer,
       // or the order webhook has not landed yet). Record it flagged as unattributed so
       // the balance stays accounted for; it is never presented as a customer deposit.

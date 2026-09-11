@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import express from "express";
+import { config } from "../../../config/vars";
 import KycCase from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
@@ -17,12 +18,16 @@ const ADMIN_HEADERS = { Authorization: "Bearer test-admin-secret", "Content-Type
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
 const FALLBACK = "0x3333333333333333333333333333333333333333";
+const FACTORY = "0x4444444444444444444444444444444444444444";
 
 describe("monerium b2b account mapping admin route", () => {
   let server: ReturnType<typeof express.application.listen>;
   let baseUrl: string;
+  let originalRpcUrl: string | undefined;
 
   beforeAll(async () => {
+    originalRpcUrl = config.moneriumB2b.rpcUrl;
+    config.moneriumB2b.rpcUrl = undefined;
     await setupTestDatabase();
 
     const app = express();
@@ -35,6 +40,7 @@ describe("monerium b2b account mapping admin route", () => {
   });
 
   afterAll(() => {
+    config.moneriumB2b.rpcUrl = originalRpcUrl;
     server?.close();
   });
 
@@ -190,13 +196,23 @@ describe("monerium b2b account mapping admin route", () => {
     expect(differentFee.status).toBe(409);
 
     expect(await MoneriumAccount.count()).toBe(1);
+    expect(await ManagedProfile.count()).toBe(1);
+    expect(await ProviderCustomer.count()).toBe(1);
+    expect(await KycCase.count()).toBe(1);
+    expect(await User.count()).toBe(2);
   });
 
   it("compares submitted account data against the deployed clone config", () => {
-    const expected = { destination: DESTINATION.toLowerCase(), fallbackAddress: FALLBACK.toLowerCase(), feeBps: 0 };
-    const matching = { destination: DESTINATION, fallbackAddress: FALLBACK, feeBps: 0, isForwarder: true };
+    const expected = {
+      destination: DESTINATION.toLowerCase(),
+      factory: FACTORY.toLowerCase(),
+      fallbackAddress: FALLBACK.toLowerCase(),
+      feeBps: 0
+    };
+    const matching = { destination: DESTINATION, factory: FACTORY, fallbackAddress: FALLBACK, feeBps: 0, isForwarder: true };
 
     expect(forwarderConfigMismatch(expected, matching)).toBeNull();
+    expect(forwarderConfigMismatch(expected, { ...matching, factory: FORWARDER })).toContain("trusted factory");
     expect(forwarderConfigMismatch(expected, { ...matching, isForwarder: false })).toContain("not a clone");
     expect(forwarderConfigMismatch(expected, { ...matching, destination: FALLBACK })).toContain("destination");
     expect(forwarderConfigMismatch(expected, { ...matching, fallbackAddress: DESTINATION })).toContain("fallbackAddress");
@@ -256,6 +272,20 @@ describe("monerium b2b account mapping admin route", () => {
     const reactivated = await patchStatus(account.accountId, "active");
     expect(reactivated.status).toBe(200);
     expect(await reactivated.json()).toMatchObject({ account: { accountStatus: "active" } });
+
+    const regressed = await patchStatus(account.accountId, "onboarding");
+    expect(regressed.status).toBe(409);
+    expect(await regressed.json()).toMatchObject({ error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION" } });
+
+    const closed = await patchStatus(account.accountId, "closed");
+    expect(closed.status).toBe(200);
+    expect((await patchStatus(account.accountId, "closed")).status).toBe(200);
+    for (const invalidStatus of ["active", "onboarding", "suspended"]) {
+      const reopened = await patchStatus(account.accountId, invalidStatus);
+      expect(reopened.status).toBe(409);
+      expect(await reopened.json()).toMatchObject({ error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION" } });
+    }
+    expect((await MoneriumAccount.findByPk(account.accountId))?.status).toBe(MoneriumAccountStatus.Closed);
 
     expect((await patchStatus(account.accountId, "nonsense")).status).toBe(400);
     expect((await patchStatus(crypto.randomUUID(), "active")).status).toBe(404);

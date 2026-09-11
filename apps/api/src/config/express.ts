@@ -68,15 +68,17 @@ app.use("/v1/webhooks/avenia", bodyParser.raw({ limit: "100kb", type: "*/*" }), 
 // gets its own small limit instead of buffering the 20mb the JSON API allows before
 // the signature is even checked. Mounted ahead of the global JSON parser, which
 // skips bodies that are already parsed.
-app.use(
-  "/v1/monerium-b2b/webhook",
-  bodyParser.json({
-    limit: "100kb",
-    verify: (req, _res, buf) => {
-      (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
-    }
-  })
-);
+if (config.moneriumB2b.enabled) {
+  app.use(
+    "/v1/monerium-b2b/webhook",
+    bodyParser.json({
+      limit: "100kb",
+      verify: (req, _res, buf) => {
+        (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
+      }
+    })
+  );
+}
 
 // parse body params and attach them to req.body
 app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));

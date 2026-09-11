@@ -1,3 +1,4 @@
+import type { MoneriumChain } from "@vortexfi/shared";
 import {
   Account,
   Address,
@@ -26,6 +27,15 @@ import { config } from "../../../config/vars";
 
 /** Suggested private-orderflow endpoint for mainnet (MONERIUM_B2B_PRIVATE_RPC_URL). */
 export const DEFAULT_PRIVATE_RPC_URL = "https://rpc.flashbots.net";
+
+const MONERIUM_CHAIN_NAMES: Record<number, MoneriumChain> = {
+  1: "ethereum",
+  11155111: "sepolia"
+};
+
+export function moneriumChainForChainId(chainId: number): MoneriumChain | null {
+  return MONERIUM_CHAIN_NAMES[chainId] ?? null;
+}
 
 /**
  * Client notification confirmation depth in blocks — registry P9

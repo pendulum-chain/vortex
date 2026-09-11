@@ -12,6 +12,7 @@ import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
 import { installDemoProviders } from "./api/services/demo/demo-alfredpay.provider";
+import { shouldStartMoneriumB2bWorker } from "./api/services/monerium-b2b/feature";
 import {
   assertPersistedBlockFlowVersionsSupported,
   registerBlockFlowHandlers
@@ -95,7 +96,11 @@ const initializeApp = async () => {
     if (config.flowVariant === "mykobo") {
       new KybStatusWorker().start();
       new AlfredpayStatusWorker().start();
-      new MoneriumB2bWorker().start();
+      if (shouldStartMoneriumB2bWorker(config.flowVariant, config.moneriumB2b.enabled)) {
+        new MoneriumB2bWorker().start();
+      } else {
+        logger.info("Monerium B2B onramp is disabled");
+      }
     } else {
       logger.info("Provider status workers and the Monerium keeper are owned by the mykobo backend");
     }

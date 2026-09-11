@@ -5,14 +5,16 @@ import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import MoneriumAccount from "../../models/moneriumAccount.model";
 import MoneriumConversionExecution from "../../models/moneriumConversionExecution.model";
+import MoneriumDepositAllocation from "../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
 import {
-  deriveEventId,
+  MONERIUM_ID_HEADER,
   MONERIUM_SIGNATURE_HEADER,
+  MONERIUM_TIMESTAMP_HEADER,
   recordWebhookEvent,
   verifyWebhookSignature
 } from "../services/monerium-b2b/webhook";
@@ -32,7 +34,12 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
 
     // Raw bytes captured by the body-parser verify hook in config/express.ts.
     const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
-    if (!rawBody || !verifyWebhookSignature(rawBody, req.header(MONERIUM_SIGNATURE_HEADER), secret)) {
+    const webhookId = req.header(MONERIUM_ID_HEADER);
+    const webhookTimestamp = req.header(MONERIUM_TIMESTAMP_HEADER);
+    if (
+      !rawBody ||
+      !verifyWebhookSignature(rawBody, webhookId, webhookTimestamp, req.header(MONERIUM_SIGNATURE_HEADER), secret)
+    ) {
       throw new APIError({ message: "Invalid webhook signature", status: httpStatus.UNAUTHORIZED });
     }
 
@@ -43,7 +50,7 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
       throw new APIError({ message: "Webhook payload is not valid JSON", status: httpStatus.BAD_REQUEST });
     }
 
-    await recordWebhookEvent(deriveEventId(rawBody, payload), payload);
+    await recordWebhookEvent(webhookId as string, payload);
     res.status(httpStatus.OK).json({ received: true });
 
     setImmediate(() => {
@@ -131,28 +138,43 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
       where: { accountId: account.id, moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` } }
     });
 
-    const executionIds = [...new Set(rows.map(row => row.allocatedExecutionId).filter((id): id is string => id !== null))];
+    const allocations = rows.length
+      ? await MoneriumDepositAllocation.findAll({
+          order: [["created_at", "ASC"]],
+          where: { depositId: rows.map(row => row.id) }
+        })
+      : [];
+    const executionIds = [...new Set(allocations.map(allocation => allocation.executionId))];
     const executions = executionIds.length ? await MoneriumConversionExecution.findAll({ where: { id: executionIds } }) : [];
     const executionById = new Map(executions.map(execution => [execution.id, execution]));
+    const allocationsByDeposit = new Map<string, MoneriumDepositAllocation[]>();
+    for (const allocation of allocations) {
+      const grouped = allocationsByDeposit.get(allocation.depositId) ?? [];
+      grouped.push(allocation);
+      allocationsByDeposit.set(allocation.depositId, grouped);
+    }
 
     res.status(httpStatus.OK).json({
       deposits: rows.map(row => {
-        const execution = row.allocatedExecutionId ? executionById.get(row.allocatedExecutionId) : undefined;
+        const depositAllocations = allocationsByDeposit.get(row.id) ?? [];
         return {
           amountRaw: row.amountRaw,
-          conversion: execution
-            ? {
-                executionId: execution.id,
-                status: execution.status,
-                txHash: execution.txHash,
-                usdcNetRaw: execution.usdcNetRaw
-              }
-            : null,
+          conversions: depositAllocations.map(allocation => {
+            const execution = executionById.get(allocation.executionId);
+            return {
+              eureInRaw: allocation.eureInRaw,
+              executionId: allocation.executionId,
+              status: execution?.status ?? "pending",
+              txHash: execution?.txHash ?? null,
+              usdcNetRaw: allocation.usdcNetRaw
+            };
+          }),
           createdAt: row.createdAt,
           currency: row.currency,
           depositId: row.id,
           status: row.status,
-          txHash: row.txHash
+          txHash: row.txHash,
+          usdcNetRaw: depositAllocations.reduce((sum, allocation) => sum + BigInt(allocation.usdcNetRaw), 0n).toString()
         };
       }),
       pagination: { limit, offset, total: count }

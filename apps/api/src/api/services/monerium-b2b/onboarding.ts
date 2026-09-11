@@ -6,22 +6,15 @@ import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import { FinancialOperationRejectedError, runFinancialOperation } from "../phases/blocks/core/financial-operation";
 import { signLinkAttestation } from "./attestor";
-import { getChainId } from "./chain";
+import { getChainId, moneriumChainForChainId } from "./chain";
 import { getIbanForAddress, getProfileAddresses, isWhitelabelConfigured, linkAddress, requestIban } from "./monerium-api";
 
 const ONBOARDING_FLOW = { id: "monerium-b2b-onboarding", version: 1 } as const;
 
-// Monerium's chain identifiers for the chains the forwarder deploys to
-// (docs.monerium.com chain values; the attestation binds the numeric chain id).
-const MONERIUM_CHAIN_NAMES: Record<number, MoneriumChain> = {
-  1: "ethereum",
-  11155111: "sepolia"
-};
-
 export interface OnboardingDeps {
   getChainId(): Promise<number>;
-  getIbanForAddress(address: string): Promise<{ iban: string } | null>;
-  getProfileAddresses(profileId: string): Promise<string[]>;
+  getIbanForAddress(address: string, chain: MoneriumChain, profileId: string): Promise<{ iban: string } | null>;
+  getProfileAddresses(profileId: string, chain: MoneriumChain): Promise<string[]>;
   linkAddress(profileId: string, address: string, chain: MoneriumChain, signature: string): Promise<unknown>;
   requestIban(address: string, chain: MoneriumChain): Promise<unknown>;
   signLinkAttestation(chainId: bigint, forwarderAddress: Address): Promise<{ signature: string }>;
@@ -43,9 +36,14 @@ export function isOnboardingConfigured(): boolean {
 
 let configWarned = false;
 
-async function isForwarderLinked(deps: OnboardingDeps, moneriumProfileId: string, forwarderAddress: string): Promise<boolean> {
+async function isForwarderLinked(
+  deps: OnboardingDeps,
+  moneriumProfileId: string,
+  forwarderAddress: string,
+  chainName: MoneriumChain
+): Promise<boolean> {
   const forwarderKey = forwarderAddress.toLowerCase();
-  const addresses = await deps.getProfileAddresses(moneriumProfileId);
+  const addresses = await deps.getProfileAddresses(moneriumProfileId, chainName);
   return addresses.some(address => address.toLowerCase() === forwarderKey);
 }
 
@@ -55,7 +53,7 @@ async function ensureLinked(
   chainId: number,
   chainName: MoneriumChain
 ): Promise<void> {
-  if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress)) return;
+  if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) return;
   await runFinancialOperation({
     attemptClass: "provider-address-link",
     flow: ONBOARDING_FLOW,
@@ -67,7 +65,7 @@ async function ensureLinked(
         // Linking is synchronous upstream: if the address is not linked after a
         // failure, the call had no side effect — signal that so the ledger allows a
         // clean retry next cycle instead of parking the row in `unknown` forever.
-        if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress)) {
+        if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) {
           return { linked: true };
         }
         throw new FinancialOperationRejectedError(
@@ -81,7 +79,7 @@ async function ensureLinked(
     // A crash between the POST and its confirmation resolves by re-reading the
     // profile's linked addresses instead of issuing a second link call.
     reconcile: async () =>
-      (await isForwarderLinked(deps, account.profileId, account.forwarderAddress)) ? { linked: true } : null,
+      (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) ? { linked: true } : null,
     request: { address: account.forwarderAddress.toLowerCase(), chain: chainName, moneriumProfileId: account.profileId },
     retryFailed: true,
     // vortexProfileId is non-null for every account this loop selects.
@@ -92,7 +90,7 @@ async function ensureLinked(
 
 async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainName: MoneriumChain): Promise<void> {
   if (account.iban) return;
-  const issued = await deps.getIbanForAddress(account.forwarderAddress);
+  const issued = await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId);
   if (issued) {
     await account.update({ iban: issued.iban });
     return;
@@ -115,7 +113,8 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
     },
     phase: "requestIban",
     provider: "monerium",
-    reconcile: async () => ((await deps.getIbanForAddress(account.forwarderAddress)) ? { requested: true } : null),
+    reconcile: async () =>
+      (await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId)) ? { requested: true } : null,
     request: { address: account.forwarderAddress.toLowerCase(), chain: chainName },
     retryFailed: true,
     scopeId: account.vortexProfileId as string,
@@ -150,7 +149,7 @@ export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDe
   if (accounts.length === 0) return 0;
 
   const chainId = await deps.getChainId();
-  const chainName = MONERIUM_CHAIN_NAMES[chainId];
+  const chainName = moneriumChainForChainId(chainId);
   if (!chainName) {
     logger.error(`monerium-b2b: no Monerium chain name known for chain id ${chainId}; onboarding automation halted`);
     return 0;
