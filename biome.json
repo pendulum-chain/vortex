@@ -17,6 +17,7 @@
       "!**/dist/**",
       "!**/build/**",
       "!**/node_modules/",
+      "!apps/gold/**",
       "!**/coverage/**",
       "!**/test-results/**",
       "!**/playwright-report/**",
