@@ -31,6 +31,7 @@ import {
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
+import { usePartnerAttributionClaim } from "../../hooks/usePartnerAttributionClaim";
 import { isInCompoundState } from "../../machines/types";
 import { FiatAccountRegistration } from "../alfredpay/FiatAccountRegistration";
 
@@ -79,6 +80,8 @@ const WidgetContent = () => {
 
   // Enable session persistence and auto-refresh
   useAuthTokens(rampActor);
+  // Fix partner pricing to users who signed in through a partner's apiKey link
+  usePartnerAttributionClaim(rampActor);
 
   const {
     rampState,

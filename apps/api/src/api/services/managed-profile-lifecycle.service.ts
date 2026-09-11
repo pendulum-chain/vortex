@@ -90,6 +90,7 @@ function toResultWithCustomerType(
 }
 
 export async function createManagedProfile(input: {
+  attributingPartnerId?: string | null;
   contactEmail: string;
   creationSource: ManagedProfileCreationSource;
   customerType: CustomerEntityType;
