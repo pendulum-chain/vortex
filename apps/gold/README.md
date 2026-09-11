@@ -20,20 +20,16 @@ Brazil-first consumer pilot for buying and selling PAX Gold with PIX while the u
 
 ```bash
 cp .env.example .env.local
-npm install
-npm run dev -- --host 0.0.0.0 --port 4173
+bun install
+bun run dev -- --host 0.0.0.0 --port 4173
 ```
 
 The checked-in defaults run the safe demo. Use OTP `123456` in demo mode.
 
 ## Production configuration
 
-Set `VITE_DEMO_MODE=false` and build with `npm run build`. The browser integration authenticates state-changing Vortex requests with the user's bearer session obtained through e-mail OTP. A `pk_live_*` public value is optional for partner attribution, discount eligibility and public-key-only readiness reads; it is not a substitute for the user's bearer session. Never add the Privy App Secret or a Vortex `sk_*` key to any `VITE_*` variable.
+Set `VITE_DEMO_MODE=false` and build with `bun run build`. The browser integration authenticates state-changing Vortex requests with the user's bearer session obtained through e-mail OTP. A `pk_live_*` public value is optional for partner attribution, discount eligibility and public-key-only readiness reads; it is not a substitute for the user's bearer session. Never add the Privy App Secret or a Vortex `sk_*` key to any `VITE_*` variable.
 
 The frontend never receives the Privy App Secret or a Vortex server secret. Vortex session tokens remain in session storage; CPF and identity documents are not persisted by the app.
 
-On 2026-09-08, the production API returned native Ethereum PAXG with BUY and SELL enabled, successful anonymous quotes for both directions, and the correct CORS origin for `https://gold.satoshipay.io`. SDK remains 0.9.0. These checks do not replace the first real OTP/KYC/PIX round trip. See `LIVE-TEST-2026-09-08.md` for evidence and the acceptance checklist.
-
-Live deployment: [https://gold.satoshipay.io](https://gold.satoshipay.io)
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) and [PRODUCTION-CHECKLIST.md](./PRODUCTION-CHECKLIST.md).
+Live deployment: [https://www.vortexfinance.co/pt-br/gold/](https://www.vortexfinance.co/pt-br/gold/), built and served by the frontend Netlify site (see `apps/frontend/netlify.toml` and `CLAUDE.md` here). The pilot evidence, deployment notes and production checklist from the standalone `gold.satoshipay.io` release stay in `pendulum-chain/vortexperiments`.
