@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote } from "../src/lib/vortex.js";
+import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, resolveApiBase } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -31,4 +31,10 @@ test("classifies provider ramp outcomes conservatively", () => {
   assert.equal(classifyRamp({ status: "failed" }), "failure");
   assert.equal(classifyRamp({ currentPhase: "initial", depositQrCode: "pix" }), "awaiting_payment");
   assert.equal(classifyRamp({ status: "pending", currentPhase: "hydrationSwap" }), "processing");
+});
+
+test("resolves the API base against the page origin unless an absolute URL is configured", () => {
+  assert.equal(resolveApiBase(undefined, "https://www.vortexfinance.co"), "https://www.vortexfinance.co/api/production");
+  assert.equal(resolveApiBase("/api/staging/", "https://deploy-preview-1--vortexfi.netlify.app"), "https://deploy-preview-1--vortexfi.netlify.app/api/staging");
+  assert.equal(resolveApiBase("https://api.vortexfinance.co", "https://www.vortexfinance.co"), "https://api.vortexfinance.co");
 });

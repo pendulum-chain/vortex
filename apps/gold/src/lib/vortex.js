@@ -3,7 +3,12 @@ import { PAXG_ADDRESS, assertSellBalance, sendEthereumTransaction } from "./paxg
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
 
 const ENV = import.meta.env || {};
-const API_BASE = (ENV.VITE_VORTEX_API_BASE_URL || "https://api.vortexfinance.co").replace(/\/$/, "");
+// Same-origin by default: the Vortex Netlify site proxies /api/<env>/* to the API, so a
+// relative VITE_SIGNING_SERVICE_PATH (as the ramp frontend uses) needs no CORS entry.
+export function resolveApiBase(value, origin) {
+  return new URL(value || "/api/production", origin).href.replace(/\/$/, "");
+}
+const API_BASE = resolveApiBase(ENV.VITE_SIGNING_SERVICE_PATH, globalThis.location?.origin ?? "http://localhost");
 const PUBLIC_KEY = ENV.VITE_VORTEX_PUBLIC_KEY || "";
 const ACCESS_KEY = "satoshi:vortex-session:v2";
 const REQUEST_TIMEOUT_MS = 25_000;
