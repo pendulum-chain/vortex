@@ -381,6 +381,108 @@ describe('WebhookService', () => {
     });
   });
 
+  describe('registerWebhook (deposit events)', () => {
+    it('registers an account-scoped deposit webhook without a quote or session', async () => {
+      const mockWebhook = createMockWebhook({
+        events: [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED],
+        partnerId: null,
+        quoteId: null,
+        userId: 'user-1'
+      });
+      createMock.mockResolvedValue(mockWebhook);
+
+      await webhookService.registerWebhook({
+        events: [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED],
+        url: 'https://example.com/webhook'
+      }, USER_OWNER);
+
+      expect(quoteTicketFindByPkMock).not.toHaveBeenCalled();
+      expect(createMock).toHaveBeenCalledWith({
+        events: [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED],
+        isActive: true,
+        partnerId: null,
+        quoteId: null,
+        sessionId: null,
+        url: 'https://example.com/webhook',
+        userId: 'user-1'
+      });
+    });
+
+    it('rejects mixing deposit events with transaction events', async () => {
+      const error = await webhookService.registerWebhook({
+        events: [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.STATUS_CHANGE],
+        url: 'https://example.com/webhook'
+      }, USER_OWNER).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(400);
+      expect(createMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects a deposit webhook carrying a quoteId or sessionId', async () => {
+      for (const target of [{ quoteId: 'quote-123' }, { sessionId: 'session-1' }]) {
+        const error = await webhookService.registerWebhook({
+          events: [WebhookEventType.DEPOSIT_RECEIVED],
+          url: 'https://example.com/webhook',
+          ...target
+        }, USER_OWNER).then(
+          () => { throw new Error('registerWebhook did not reject'); },
+          e => e
+        );
+        expect(error).toBeInstanceOf(APIError);
+        expect((error as APIError).status).toBe(400);
+      }
+      expect(createMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects a deposit webhook for a partner-scoped credential', async () => {
+      // Delivery resolves the account's controlling manager by profile, so a
+      // partner-owned row could never match — refuse it up front.
+      const error = await webhookService.registerWebhook({
+        events: [WebhookEventType.DEPOSIT_RECEIVED],
+        url: 'https://example.com/webhook'
+      }, PARTNER_OWNER).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(400);
+      expect(createMock).not.toHaveBeenCalled();
+    });
+
+    it('never defaults omitted events into the deposit family', async () => {
+      quoteTicketFindByPkMock.mockResolvedValue(createMockQuote());
+      createMock.mockResolvedValue(createMockWebhook());
+
+      await webhookService.registerWebhook({
+        url: 'https://example.com/webhook',
+        quoteId: 'quote-123'
+      }, PARTNER_OWNER);
+
+      expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+        events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE]
+      }));
+    });
+  });
+
+  describe('findAccountEventWebhooks', () => {
+    it('filters by owner profile, event type, and active flag', async () => {
+      findAllMock.mockResolvedValue([]);
+
+      await webhookService.findAccountEventWebhooks(WebhookEventType.DEPOSIT_RECEIVED, 'manager-1');
+
+      expect(findAllMock).toHaveBeenCalledWith({
+        where: {
+          events: { [Op.contains]: [WebhookEventType.DEPOSIT_RECEIVED] },
+          isActive: true,
+          userId: 'manager-1'
+        }
+      });
+    });
+  });
+
   describe('deleteWebhook', () => {
     it('should delete an existing webhook owned by the caller', async () => {
       // Mock data

@@ -10,6 +10,11 @@ import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import ManagedProfile from "./managedProfile.model";
 import ManagedProfileManager from "./managedProfileManager.model";
+import MoneriumAccount from "./moneriumAccount.model";
+import MoneriumChainCursor from "./moneriumChainCursor.model";
+import MoneriumConversionExecution from "./moneriumConversionExecution.model";
+import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
+import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -26,8 +31,17 @@ import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
+import WebhookDelivery from "./webhookDelivery.model";
 
 // Define associations
+MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "accountId" });
+MoneriumFiatDeposit.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions", foreignKey: "accountId" });
+MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumAccount.belongsTo(User, { as: "vortexProfile", foreignKey: "vortexProfileId" });
+User.hasOne(MoneriumAccount, { as: "moneriumAccount", foreignKey: "vortexProfileId" });
+Webhook.hasMany(WebhookDelivery, { as: "deliveries", foreignKey: "webhookId" });
+WebhookDelivery.belongsTo(Webhook, { as: "webhook", foreignKey: "webhookId" });
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
@@ -124,6 +138,11 @@ const models = {
   MaintenanceSchedule,
   ManagedProfile,
   ManagedProfileManager,
+  MoneriumAccount,
+  MoneriumChainCursor,
+  MoneriumConversionExecution,
+  MoneriumFiatDeposit,
+  MoneriumWebhookEvent,
   Notification,
   NotificationPreference,
   Partner,
@@ -139,7 +158,8 @@ const models = {
   SenderRecipient,
   Subsidy,
   User,
-  Webhook
+  Webhook,
+  WebhookDelivery
 };
 
 // Export models and sequelize instance

@@ -30,6 +30,9 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.ALFREDPAY_BASE_URL = "http://alfredpay.invalid";
   process.env.ALFREDPAY_API_KEY = "test-alfredpay-api-key";
   process.env.ALFREDPAY_API_SECRET = "test-alfredpay-api-secret";
+  process.env.MONERIUM_API_URL = "http://monerium.invalid";
+  process.env.MONERIUM_WHITELABEL_CLIENT_ID = "test-monerium-whitelabel-client-id";
+  process.env.MONERIUM_WHITELABEL_CLIENT_SECRET = "test-monerium-whitelabel-client-secret";
   // COINGECKO_API_URL is deliberately NOT overridden: priceFeed config tests
   // assert its default, and the fetch guard blocks real calls anyway.
   process.env.ALCHEMY_API_KEY = "";
