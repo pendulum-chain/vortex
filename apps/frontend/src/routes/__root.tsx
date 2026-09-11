@@ -21,6 +21,10 @@ import { PersistentRampStateProvider } from "../contexts/rampState";
 import { Language } from "../translations/helpers";
 import { wagmiConfig } from "../wagmiConfig";
 
+const SITE_URL = "https://www.vortexfinance.co";
+const SITE_DESCRIPTION =
+  "Buy and sell crypto. Fast, secure, best rates. Vortex handles KYC, compliance and settlement through fiat and stablecoin routes.";
+
 const GTM_ID = "GTM-T8JZSLD8";
 
 const GTM_SNIPPET = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -45,7 +49,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet"
       }
     ],
-    meta: [{ charSet: "utf-8" }, { content: "width=device-width, initial-scale=1.0", name: "viewport" }, { title: "Vortex" }],
+    meta: [
+      { charSet: "utf-8" },
+      { content: "width=device-width, initial-scale=1.0", name: "viewport" },
+      { title: "Vortex" },
+      { content: SITE_DESCRIPTION, name: "description" },
+      { content: "Vortex", property: "og:title" },
+      { content: SITE_DESCRIPTION, property: "og:description" },
+      { content: "website", property: "og:type" },
+      { content: SITE_URL, property: "og:url" },
+      { content: `${SITE_URL}/og-image.png`, property: "og:image" },
+      { content: "summary_large_image", name: "twitter:card" }
+    ],
     scripts: [{ children: GTM_SNIPPET }]
   }),
   shellComponent: RootDocument
