@@ -7,9 +7,12 @@
 # Redirect rules live in `_redirects` (copied into dist/client by the build), not here.
 # Marketing routes are prerendered to static HTML by TanStack Start, so they are plain files
 # under `dist/client`; only the SSR-disabled widget route needs a rewrite.
+# Gold (apps/gold) is a separate Vite app built with base /pt-BR/gold/ and copied into the
+# published tree next to the prerendered locale pages, so Netlify serves it as plain files
+# before any redirect rule applies (publicly at /pt-br/gold/, as Netlify lowercases pretty URLs).
 # The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
 # own domain; this build does not include it.
 
 [build]
-  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend"
+  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:gold && mkdir -p apps/frontend/dist/client/pt-BR/gold && cp -R apps/gold/dist/client/. apps/frontend/dist/client/pt-BR/gold/"
   publish = "dist/client"
