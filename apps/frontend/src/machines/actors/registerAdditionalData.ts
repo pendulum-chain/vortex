@@ -34,14 +34,12 @@ export function buildRegisterRampAdditionalData(
   }
 
   if (rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
-    if (!input.userEmail) {
-      throw new RegisterRampError("User email is required for Mykobo EUR onramp.", RegisterRampErrorType.InvalidInput);
-    }
-
+    // The Monerium onramp mints to the connected wallet linked to the profile and needs its permit;
+    // identity is derived server-side from the authenticated user.
     return {
       destinationAddress: executionInput.sourceOrDestinationAddress,
-      email: input.userEmail,
-      sessionId: input.externalSessionId
+      sessionId: input.externalSessionId,
+      walletAddress: connectedWalletAddress
     };
   }
 

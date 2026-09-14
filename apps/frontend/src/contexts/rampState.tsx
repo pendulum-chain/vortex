@@ -8,9 +8,13 @@ import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
   AveniaKycActorRef,
+  MoneriumKycActorRef,
+  MoneriumWalletActorRef,
   MykoboKycActorRef,
   SelectedAlfredpayData,
   SelectedAveniaData,
+  SelectedMoneriumData,
+  SelectedMoneriumWalletData,
   SelectedMykoboData
 } from "../machines/types";
 import { AuthService } from "../services/auth";
@@ -53,7 +57,9 @@ type SelectableActorRef = Pick<AnyActorRef, "getSnapshot" | "subscribe">;
 type ActorSnapshot<TActor extends SelectableActorRef> = TActor extends { getSnapshot(): infer TSnapshot } ? TSnapshot : never;
 type SelectedKycData = { stateValue: unknown; context: unknown };
 
-function useKycChildActor<T extends SelectableActorRef>(id: "aveniaKyc" | "mykoboKyc" | "alfredpayKyc"): T | undefined {
+function useKycChildActor<T extends SelectableActorRef>(
+  id: "aveniaKyc" | "mykoboKyc" | "alfredpayKyc" | "moneriumKyc" | "moneriumWallet"
+): T | undefined {
   const rampActor = useRampActor();
   return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>)[id]) as T | undefined;
 }
@@ -74,6 +80,8 @@ const PersistenceEffect = () => {
   const rampActor = useRampActor();
   const aveniaActor = useKycChildActor<AveniaKycActorRef>("aveniaKyc");
   const mykoboActor = useKycChildActor<MykoboKycActorRef>("mykoboKyc");
+  const moneriumActor = useKycChildActor<MoneriumKycActorRef>("moneriumKyc");
+  const moneriumWalletActor = useKycChildActor<MoneriumWalletActorRef>("moneriumWallet");
 
   const { rampContext, rampState, isQuoteExpired, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state?.context.isQuoteExpired,
@@ -84,6 +92,8 @@ const PersistenceEffect = () => {
 
   const aveniaState = useSelector(aveniaActor, state => state?.value);
   const mykoboState = useSelector(mykoboActor, state => state?.value);
+  const moneriumState = useSelector(moneriumActor, state => state?.value);
+  const moneriumWalletState = useSelector(moneriumWalletActor, state => state?.value);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run when selected snapshot pieces change; isQuoteExpired/quote must persist
   useEffect(() => {
@@ -106,7 +116,17 @@ const PersistenceEffect = () => {
         markRampEphemeralsTerminal(rampId);
       }
     }
-  }, [rampContext, rampState, aveniaState, mykoboState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
+  }, [
+    rampContext,
+    rampState,
+    aveniaState,
+    mykoboState,
+    moneriumState,
+    moneriumWalletState,
+    isQuoteExpired,
+    quote,
+    rampActor.getPersistedSnapshot
+  ]);
 
   return null;
 };
@@ -212,6 +232,30 @@ export function useAlfredpayKycSelector(): SelectedAlfredpayData | undefined {
   const actor = useAlfredpayKycActor();
   return useKycChildSelector<AlfredpayKycActorRef, SelectedAlfredpayData>(actor, snapshot => ({
     context: snapshot.context as AlfredpayKycContext,
+    stateValue: snapshot.value
+  }));
+}
+
+export function useMoneriumKycActor(): MoneriumKycActorRef | undefined {
+  return useKycChildActor<MoneriumKycActorRef>("moneriumKyc");
+}
+
+export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {
+  const actor = useMoneriumKycActor();
+  return useKycChildSelector<MoneriumKycActorRef, SelectedMoneriumData>(actor, snapshot => ({
+    context: snapshot.context,
+    stateValue: snapshot.value
+  }));
+}
+
+export function useMoneriumWalletActor(): MoneriumWalletActorRef | undefined {
+  return useKycChildActor<MoneriumWalletActorRef>("moneriumWallet");
+}
+
+export function useMoneriumWalletSelector(): SelectedMoneriumWalletData | undefined {
+  const actor = useMoneriumWalletActor();
+  return useKycChildSelector<MoneriumWalletActorRef, SelectedMoneriumWalletData>(actor, snapshot => ({
+    context: snapshot.context,
     stateValue: snapshot.value
   }));
 }

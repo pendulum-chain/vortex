@@ -587,6 +587,46 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumKycFlow": {
+      "checkingStatus": "Connecting to Monerium...",
+      "failure": "Could not continue with Monerium.",
+      "inReview": {
+        "description": "Monerium is reviewing your information. You can come back later.",
+        "later": "Continue later",
+        "refresh": "Refresh status",
+        "title": "Verification in review"
+      },
+      "ready": {
+        "cancel": "Cancel",
+        "continue": "Continue to Monerium",
+        "description": "Monerium securely collects the information required for your EUR verification. You will return here when finished.",
+        "title": "Verify with Monerium"
+      },
+      "redirecting": {
+        "cancel": "Cancel",
+        "description": "Complete the verification in the Monerium tab, then come back here.",
+        "refresh": "I have finished",
+        "title": "Finish with Monerium"
+      },
+      "rejected": "Your verification was not approved.",
+      "retry": "Try again",
+      "startOver": "Start over"
+    },
+    "moneriumWalletFlow": {
+      "cancel": "Cancel",
+      "checking": "Checking your Monerium wallet...",
+      "failure": "Could not link your wallet to Monerium.",
+      "linking": "Confirm the signature in your wallet to link it to Monerium. This costs no gas.",
+      "moving": "Moving your IBAN to this wallet...",
+      "needsMove": {
+        "cancel": "Cancel",
+        "confirm": "Move IBAN",
+        "description": "Your Monerium IBAN currently points to another wallet or chain. EUR pay-ins are minted to the wallet the IBAN points to, so it must be moved to {{address}} to continue.",
+        "title": "Move your IBAN to this wallet"
+      },
+      "retry": "Try again",
+      "waiting": "Monerium is provisioning your IBAN. This usually takes a moment..."
+    },
     "mxnDocumentUpload": {
       "backLabel": "Back of Document",
       "fileHint": "Accepted formats: JPG, PNG, PDF — max 5 MB each",

@@ -52,6 +52,18 @@ const baseContext = {
 } as unknown as RampContext;
 
 describe("buildRegisterRampAdditionalData", () => {
+  it("names the connected wallet for Monerium EUR onramps and never sends the email", () => {
+    const buyContext = {
+      ...baseContext,
+      executionInput: { ...baseContext.executionInput, quote: { id: "quote-1", rampType: RampDirection.BUY } }
+    } as unknown as RampContext;
+    expect(buildRegisterRampAdditionalData(buyContext, baseContext.connectedWalletAddress as string)).toEqual({
+      destinationAddress: "0x2222222222222222222222222222222222222222",
+      sessionId: "session-1",
+      walletAddress: "0x1111111111111111111111111111111111111111"
+    });
+  });
+
   it("passes email and destination address for Mykobo EUR offramps", () => {
     expect(buildRegisterRampAdditionalData(baseContext, baseContext.connectedWalletAddress as string)).toMatchObject({
       destinationAddress: "0x2222222222222222222222222222222222222222",

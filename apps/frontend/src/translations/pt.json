@@ -590,6 +590,46 @@
       },
       "button": "Modo de Manutenção"
     },
+    "moneriumKycFlow": {
+      "checkingStatus": "Conectando à Monerium...",
+      "failure": "Não foi possível continuar com a Monerium.",
+      "inReview": {
+        "description": "A Monerium está analisando suas informações. Você pode voltar mais tarde.",
+        "later": "Continuar depois",
+        "refresh": "Atualizar status",
+        "title": "Verificação em análise"
+      },
+      "ready": {
+        "cancel": "Cancelar",
+        "continue": "Continuar para a Monerium",
+        "description": "A Monerium coleta com segurança as informações necessárias para sua verificação em EUR. Você voltará para cá ao terminar.",
+        "title": "Verificar com a Monerium"
+      },
+      "redirecting": {
+        "cancel": "Cancelar",
+        "description": "Conclua a verificação na aba da Monerium e depois volte para cá.",
+        "refresh": "Já terminei",
+        "title": "Concluir com a Monerium"
+      },
+      "rejected": "Sua verificação não foi aprovada.",
+      "retry": "Tentar novamente",
+      "startOver": "Recomeçar"
+    },
+    "moneriumWalletFlow": {
+      "cancel": "Cancelar",
+      "checking": "Verificando sua carteira Monerium...",
+      "failure": "Não foi possível vincular sua carteira à Monerium.",
+      "linking": "Confirme a assinatura na sua carteira para vinculá-la à Monerium. Isso não custa gás.",
+      "moving": "Movendo seu IBAN para esta carteira...",
+      "needsMove": {
+        "cancel": "Cancelar",
+        "confirm": "Mover IBAN",
+        "description": "Seu IBAN Monerium aponta para outra carteira ou rede no momento. Os depósitos em EUR são emitidos na carteira para a qual o IBAN aponta, então ele precisa ser movido para {{address}} para continuar.",
+        "title": "Mover seu IBAN para esta carteira"
+      },
+      "retry": "Tentar novamente",
+      "waiting": "A Monerium está provisionando seu IBAN. Isso normalmente leva um momento..."
+    },
     "mxnDocumentUpload": {
       "backLabel": "Verso do Documento",
       "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",

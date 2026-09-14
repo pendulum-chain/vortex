@@ -16,6 +16,7 @@ export const initialRampContext: RampContext = {
   isQuoteExpired: false,
   isQuoteRedo: false,
   kybLink: undefined,
+  moneriumCallback: undefined,
   partnerId: undefined,
   paymentData: undefined,
   postAuthTarget: undefined,

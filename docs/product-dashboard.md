@@ -330,16 +330,12 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - **EU recipient onboarding is unavailable.** The widget's legacy EURC KYC child does not create
-    the approved Monerium binding, Polygon EOA, and IBAN required by the active backend onramp.
-    Migration from the sibling OAuth application into the white-label application is still TBD. EU
-    is therefore excluded from the widget's KYB
-    region list: an EU link's
-    `?kybLocked=EU` is not recognized, and the corridor locks only from the acceptance response.
-    The dashboard intentionally does not prevent creating EU invites — once any corridor is
-    approved, all live corridors are selectable in the recipient dialog — so an EU invite can be
-    issued but cannot produce a payable recipient until recipient EU onboarding, corridor binding,
-    and Monerium import are wired. Known gap, tracked with the EUR corridor reconciliation.
+  - **EU onboarding runs through Monerium OAuth.** After login the widget starts the Monerium
+    authorization (top-level in a standalone widget, a new tab when embedded) and returns to
+    `/widget` with the callback, which the persisted ramp hands to the restored verification step.
+    Once approved, the connected EVM wallet signs Monerium's ownership message, Vortex links it and
+    provisions or moves the IBAN, and the EUR pay-in continues with that wallet's permit. The legacy
+    Mykobo form stays in the codebase but no longer routes new EUR flows.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`

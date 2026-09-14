@@ -188,17 +188,19 @@ Managed children, quote simulation, execution, and the B2B onramp are unchanged.
 
 ## Phase 4: widget
 
-- SEPA/EUR onboarding routes to a Monerium flow built on the shared `@vortexfi/kyc`
-  Monerium machine behind the existing Supabase OTP login. The Mykobo form stays dormant.
-- Authorization opens as top-level navigation when the widget is the top document and in a
-  new tab when embedded; a `/monerium/callback` route completes the exchange. The
-  persisted ramp snapshot in `localStorage` already survives the redirect; it no longer
-  carries any token.
-- The connected wallet is linked after OAuth completion through `POST /v1/monerium/wallet`
-  (the widget is wallet-first, so the address and `signMessage` are available). Permit
-  signing reuses `userSigning.ts`. The registered `http://localhost:5473/widget` callback
-  matches the legacy widget pattern of using its own route as the redirect target.
-- `kybRegions.ts` and the phase messages are updated accordingly.
+- SEPA/EUR verification routes to a Monerium step built on the shared `@vortexfi/kyc` machine
+  behind the existing Supabase OTP login. The Mykobo child stays in the codebase for persisted
+  legacy flows only.
+- Authorization opens as top-level navigation when the widget is the top document and in a new
+  tab when embedded (with an "I have finished" re-check). Monerium returns to the registered
+  `/widget` callback; `useSetRampUrlParams` hands `code`/`state` (or `error`) to the persisted
+  ramp, which restarts the restored Monerium step with the callback, then drops the params.
+- A second widget machine links the connected EVM wallet after approval through
+  `POST /v1/monerium/wallet` using the existing message-signature callback, polls readiness until
+  the IBAN is provisioned, and asks before moving an IBAN that sits elsewhere. Substrate wallets
+  are refused because the onramp needs the EOA permit.
+- EUR BUY registration sends the connected wallet as `walletAddress`; the existing user-signing
+  actor already signs the owner permit and the summary step already renders `ibanPaymentData`.
 
 ## Phase 5: SDK and direct API
 
