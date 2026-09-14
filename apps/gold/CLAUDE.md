@@ -4,10 +4,10 @@ Brazil-first consumer app for buying and selling PAX Gold with PIX through `@vor
 branded "ouro. by Vortex". Plain JavaScript React 19 + Vite app with Privy embedded wallets;
 imported as a snapshot from `pendulum-chain/vortexperiments`, which keeps the pilot history.
 
-- It is served by the frontend Netlify site at `https://www.vortexfinance.co/pt-br/gold/`:
-  `apps/frontend/netlify.toml` builds it with Vite `base: "/pt-BR/gold/"` and copies
-  `dist/client` into `dist/client/pt-BR/gold/`, next to the prerendered locale pages (Netlify
-  matches files case-insensitively and lowercases pretty URLs, so no redirect rule exists).
+- It is served by the frontend Netlify site at `https://www.vortexfinance.co/gold/`:
+  `apps/frontend/netlify.toml` builds it with Vite `base: "/gold/"` and copies `dist/client`
+  into the frontend's `dist/client/gold/`, so no redirect rule exists. Like `/widget`, the
+  path is unprefixed; locale-prefixed variants can be added if other markets launch.
   Reference public assets through `import.meta.env.BASE_URL`, never as root-relative
   `/brand/...` paths.
 - The API base comes from `VITE_SIGNING_SERVICE_PATH`, like the frontend: a path such as

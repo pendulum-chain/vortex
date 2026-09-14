@@ -32,4 +32,4 @@ Set `VITE_DEMO_MODE=false` and build with `bun run build`. The browser integrati
 
 The frontend never receives the Privy App Secret or a Vortex server secret. Vortex session tokens remain in session storage; CPF and identity documents are not persisted by the app.
 
-Live deployment: [https://www.vortexfinance.co/pt-br/gold/](https://www.vortexfinance.co/pt-br/gold/), built and served by the frontend Netlify site (see `apps/frontend/netlify.toml` and `CLAUDE.md` here). The pilot evidence, deployment notes and production checklist from the standalone `gold.satoshipay.io` release stay in `pendulum-chain/vortexperiments`.
+Live deployment: [https://www.vortexfinance.co/gold/](https://www.vortexfinance.co/gold/), built and served by the frontend Netlify site (see `apps/frontend/netlify.toml` and `CLAUDE.md` here). The pilot evidence, deployment notes and production checklist from the standalone `gold.satoshipay.io` release stay in `pendulum-chain/vortexperiments`.
