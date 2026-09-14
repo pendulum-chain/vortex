@@ -40,7 +40,7 @@ const FIELD_ATTRS: Record<string, { inputMode?: React.HTMLAttributes<HTMLInputEl
   routingNumber: { inputMode: "numeric", maxLength: 9 }
 };
 
-function schemaForField(f: FieldDef, accountType: FiatAccountTypeKey, t: TFunction): z.ZodType {
+function schemaForField(f: FieldDef, accountType: FiatAccountTypeKey, t: TFunction): z.ZodType<string | undefined> {
   if (f.field === "accountAlias") {
     return z.string().max(40, t("components.fiatAccountRegistration.validation.nickname")).optional();
   }
@@ -75,7 +75,7 @@ function buildZodSchema(
   fields: FieldDef[],
   accountType: FiatAccountTypeKey,
   t: TFunction
-): z.ZodObject<Record<string, z.ZodType>> {
+): z.ZodObject<Record<string, z.ZodType<string | undefined>>> {
   const shape = Object.fromEntries(fields.map(f => [f.field, schemaForField(f, accountType, t)]));
   const base = z.object(shape);
 
@@ -92,7 +92,7 @@ function buildZodSchema(
           });
         }
       }
-    }) as unknown as z.ZodObject<Record<string, z.ZodType>>;
+    }) as unknown as z.ZodObject<Record<string, z.ZodType<string | undefined>>>;
   }
 
   return base;
