@@ -80,7 +80,82 @@ async function existingResult(
   };
 }
 
-export async function provisionManagedProfile(input: ProvisionManagedProfileInput): Promise<ProvisionManagedProfileResult> {
+async function provisionManagedProfileInTransaction(
+  input: ProvisionManagedProfileInput,
+  externalSubjectId: string,
+  contactEmail: string,
+  transaction: Transaction
+): Promise<ProvisionManagedProfileResult> {
+  const manager = await ManagedProfileManager.findByPk(input.managerProfileId, {
+    lock: Transaction.LOCK.UPDATE,
+    transaction
+  });
+  if (!manager) {
+    throw new ManagedProfileProvisioningError("MANAGED_PROFILE_MANAGER_NOT_FOUND", "Managed profile manager not found");
+  }
+  if (!manager.isActive) {
+    throw new ManagedProfileProvisioningError("MANAGED_PROFILE_MANAGER_INACTIVE", "Managed profile manager is inactive");
+  }
+  // Operations are narrowed at request time too, but a child the manager could never operate
+  // is only a dead record, so refuse it at the point of creation.
+  if (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes(input.customerType)) {
+    throw new ManagedProfileProvisioningError(
+      "MANAGED_PROFILE_INVALID_INPUT",
+      "The manager is not allowed to provision this customer type"
+    );
+  }
+
+  const existing = await ManagedProfile.findOne({
+    transaction,
+    where: { externalSubjectId, managerProfileId: input.managerProfileId }
+  });
+  if (existing) return existingResult(existing, contactEmail, input.customerType, transaction);
+
+  const existingContactEmail = await ManagedProfile.findOne({
+    transaction,
+    where: { contactEmail, managerProfileId: input.managerProfileId }
+  });
+  if (existingContactEmail) {
+    throw new ManagedProfileProvisioningError(
+      "MANAGED_PROFILE_CONFLICT",
+      "The contact email is already associated with another managed profile"
+    );
+  }
+
+  const profile = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
+  const customerEntity = await CustomerEntity.create(
+    { profileId: profile.id, status: "active", type: input.customerType },
+    { transaction }
+  );
+  await profile.update({ activeCustomerEntityId: customerEntity.id }, { transaction });
+  const relationship = await ManagedProfile.create(
+    {
+      contactEmail,
+      creationSource: input.creationSource,
+      externalSubjectId,
+      managerProfileId: input.managerProfileId,
+      profileId: profile.id
+    },
+    { transaction }
+  );
+
+  return {
+    contactEmail,
+    created: true,
+    creationSource: relationship.creationSource,
+    customerEntityId: customerEntity.id,
+    customerType: customerEntity.type,
+    externalSubjectId: relationship.externalSubjectId,
+    id: relationship.id,
+    managerProfileId: relationship.managerProfileId,
+    profileId: relationship.profileId
+  };
+}
+
+export async function provisionManagedProfile(
+  input: ProvisionManagedProfileInput,
+  transaction?: Transaction
+): Promise<ProvisionManagedProfileResult> {
   const externalSubjectId = input.externalSubjectId.trim();
   const contactEmail = input.contactEmail.trim().toLowerCase();
   if (!externalSubjectId || Joi.string().email().max(255).required().validate(contactEmail).error) {
@@ -90,70 +165,10 @@ export async function provisionManagedProfile(input: ProvisionManagedProfileInpu
     );
   }
 
-  return sequelize.transaction(async transaction => {
-    const manager = await ManagedProfileManager.findByPk(input.managerProfileId, {
-      lock: Transaction.LOCK.UPDATE,
-      transaction
-    });
-    if (!manager) {
-      throw new ManagedProfileProvisioningError("MANAGED_PROFILE_MANAGER_NOT_FOUND", "Managed profile manager not found");
-    }
-    if (!manager.isActive) {
-      throw new ManagedProfileProvisioningError("MANAGED_PROFILE_MANAGER_INACTIVE", "Managed profile manager is inactive");
-    }
-    // Operations are narrowed at request time too, but a child the manager could never operate
-    // is only a dead record, so refuse it at the point of creation.
-    if (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes(input.customerType)) {
-      throw new ManagedProfileProvisioningError(
-        "MANAGED_PROFILE_INVALID_INPUT",
-        "The manager is not allowed to provision this customer type"
-      );
-    }
-
-    const existing = await ManagedProfile.findOne({
-      transaction,
-      where: { externalSubjectId, managerProfileId: input.managerProfileId }
-    });
-    if (existing) return existingResult(existing, contactEmail, input.customerType, transaction);
-
-    const existingContactEmail = await ManagedProfile.findOne({
-      transaction,
-      where: { contactEmail, managerProfileId: input.managerProfileId }
-    });
-    if (existingContactEmail) {
-      throw new ManagedProfileProvisioningError(
-        "MANAGED_PROFILE_CONFLICT",
-        "The contact email is already associated with another managed profile"
-      );
-    }
-
-    const profile = await User.create({ email: null, id: crypto.randomUUID(), kind: "managed" }, { transaction });
-    const customerEntity = await CustomerEntity.create(
-      { profileId: profile.id, status: "active", type: input.customerType },
-      { transaction }
-    );
-    await profile.update({ activeCustomerEntityId: customerEntity.id }, { transaction });
-    const relationship = await ManagedProfile.create(
-      {
-        contactEmail,
-        creationSource: input.creationSource,
-        externalSubjectId,
-        managerProfileId: input.managerProfileId,
-        profileId: profile.id
-      },
-      { transaction }
-    );
-
-    return {
-      contactEmail,
-      created: true,
-      creationSource: relationship.creationSource,
-      customerEntityId: customerEntity.id,
-      customerType: customerEntity.type,
-      externalSubjectId: relationship.externalSubjectId,
-      id: relationship.id,
-      managerProfileId: relationship.managerProfileId,
-      profileId: relationship.profileId
-    };
-  });
+  if (transaction) {
+    return provisionManagedProfileInTransaction(input, externalSubjectId, contactEmail, transaction);
+  }
+  return sequelize.transaction(innerTransaction =>
+    provisionManagedProfileInTransaction(input, externalSubjectId, contactEmail, innerTransaction)
+  );
 }

@@ -175,6 +175,11 @@ const umzug = new Umzug({
 // createTable. This cannot be a migration itself: umzug resolves the pending list before
 // executing any of them.
 const MIGRATION_RENAMES: Record<string, string> = {
+  // Monerium B2B migrations renumbered 051/052 -> 069/070 when the branch caught up
+  // with staging (which had claimed 051/052 in the meantime). Only development
+  // databases ever ran the old names; deployed databases never did.
+  "051-monerium-b2b-onramp-tables": "069-monerium-b2b-onramp-tables",
+  "052-monerium-keeper-chain-state": "070-monerium-keeper-chain-state",
   "055-create-api-credentials": "057-create-api-credentials",
   "057-create-partner-managed-profiles": "058-create-partner-managed-profiles",
   "058-add-api-credential-id-to-quote-tickets": "059-add-api-credential-id-to-quote-tickets"

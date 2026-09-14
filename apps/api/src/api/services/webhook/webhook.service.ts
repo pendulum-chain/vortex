@@ -1,7 +1,13 @@
-import { RegisterWebhookRequest, RegisterWebhookResponse, WebhookEventType } from "@vortexfi/shared";
+import {
+  ACCOUNT_WEBHOOK_EVENT_TYPES,
+  RegisterWebhookRequest,
+  RegisterWebhookResponse,
+  WebhookEventType
+} from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
@@ -17,9 +23,23 @@ export interface WebhookOwner {
 }
 
 export class WebhookService {
+  constructor(private readonly moneriumB2bEnabled = config.moneriumB2b.enabled) {}
+
   public async registerWebhook(request: RegisterWebhookRequest, owner: WebhookOwner): Promise<RegisterWebhookResponse> {
     try {
       const { url, quoteId, sessionId, events } = request;
+
+      if (
+        !this.moneriumB2bEnabled &&
+        (events ?? []).some(event =>
+          ACCOUNT_WEBHOOK_EVENT_TYPES.includes(event as (typeof ACCOUNT_WEBHOOK_EVENT_TYPES)[number])
+        )
+      ) {
+        throw new APIError({
+          message: "Monerium B2B deposit webhooks are disabled",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       if (!owner.partnerId && !owner.userId) {
         throw new APIError({
@@ -76,6 +96,44 @@ export class WebhookService {
         }
       }
 
+      // Account-scoped event family (deposit events): owner-only subscriptions with
+      // their own rules — no quote/session target, no mixing with transaction events,
+      // and a profile owner (delivery resolves the account's controlling manager by
+      // profile, so a partner-owned row could never match).
+      const accountEventTypes: readonly WebhookEventType[] = ACCOUNT_WEBHOOK_EVENT_TYPES;
+      const requestedAccountEvents = (events ?? []).filter(event => accountEventTypes.includes(event));
+      if (requestedAccountEvents.length > 0) {
+        if ((events ?? []).some(event => !accountEventTypes.includes(event))) {
+          throw new APIError({
+            message: "Deposit events cannot be combined with transaction events in one webhook",
+            status: httpStatus.BAD_REQUEST
+          });
+        }
+        if (quoteId || sessionId) {
+          throw new APIError({
+            message: "Deposit-event webhooks are account-scoped and do not accept a quoteId or sessionId",
+            status: httpStatus.BAD_REQUEST
+          });
+        }
+        if (!owner.userId) {
+          throw new APIError({
+            message: "Deposit-event webhooks require a profile-scoped credential",
+            status: httpStatus.BAD_REQUEST
+          });
+        }
+
+        const webhook = await Webhook.create({
+          events: requestedAccountEvents,
+          isActive: true,
+          partnerId: null,
+          quoteId: null,
+          sessionId: null,
+          url,
+          userId: owner.userId
+        });
+        return this.toRegisterResponse(webhook);
+      }
+
       // Validate that at least one of quoteId or sessionId is provided
       if (!quoteId && !sessionId) {
         throw new APIError({
@@ -99,7 +157,12 @@ export class WebhookService {
         }
       }
 
-      const webhookEvents: WebhookEventType[] = events || Object.values(WebhookEventType);
+      // Omitted events default to the transaction family only — new event families
+      // must always be explicit opt-in, never a silent subscription.
+      const webhookEvents: WebhookEventType[] = events || [
+        WebhookEventType.TRANSACTION_CREATED,
+        WebhookEventType.STATUS_CHANGE
+      ];
 
       const webhook = await Webhook.create({
         events: webhookEvents,
@@ -111,17 +174,7 @@ export class WebhookService {
         userId: owner.partnerId ? null : owner.userId
       });
 
-      logger.info(`Webhook registered: ${webhook.id} for URL: ${url}`);
-
-      return {
-        createdAt: webhook.createdAt.toISOString(),
-        events: webhook.events,
-        id: webhook.id,
-        isActive: webhook.isActive,
-        quoteId: webhook.quoteId,
-        sessionId: webhook.sessionId,
-        url: webhook.url
-      };
+      return this.toRegisterResponse(webhook);
     } catch (error: unknown) {
       logger.error("Error registering webhook:", error);
 
@@ -135,6 +188,35 @@ export class WebhookService {
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
+  }
+
+  private toRegisterResponse(webhook: Webhook): RegisterWebhookResponse {
+    logger.info(`Webhook registered: ${webhook.id} for URL: ${webhook.url}`);
+    return {
+      createdAt: webhook.createdAt.toISOString(),
+      events: webhook.events,
+      id: webhook.id,
+      isActive: webhook.isActive,
+      quoteId: webhook.quoteId,
+      sessionId: webhook.sessionId,
+      url: webhook.url
+    };
+  }
+
+  /**
+   * Owner-filtered lookup for the account-scoped event family: only webhooks owned by
+   * the given profile (the account's controlling manager, resolved by the caller from
+   * the managed-profile relationship). This is the deposit-event counterpart of the
+   * quote-owner filtering in findWebhooksForEvent — there is still no ownerless branch.
+   */
+  public async findAccountEventWebhooks(eventType: WebhookEventType, ownerProfileId: string): Promise<Webhook[]> {
+    return Webhook.findAll({
+      where: {
+        events: { [Op.contains]: [eventType] },
+        isActive: true,
+        userId: ownerProfileId
+      }
+    });
   }
 
   public async deleteWebhook(id: string, owner: WebhookOwner): Promise<boolean> {

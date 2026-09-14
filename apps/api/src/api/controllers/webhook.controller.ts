@@ -46,13 +46,8 @@ export const registerWebhook = async (
       });
     }
 
-    if (!quoteId && !sessionId) {
-      throw new APIError({
-        message: "Either quoteId or sessionId must be provided",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
+    // quoteId/sessionId requirements are owned by the service: transaction-event
+    // webhooks need exactly one, deposit-event webhooks must have neither.
     const webhook = await webhookService.registerWebhook(
       {
         events,
