@@ -110,4 +110,26 @@ describe("moneriumKycMachine", () => {
 
     await waitFor(actor, snapshot => snapshot.matches("Ready"));
   });
+
+  it("re-checks status from Redirecting when the client asks for a refresh", async () => {
+    const machine = machineWith(
+      {
+        completeOAuth: async () => approved,
+        getStatus: async () => {
+          throw new MoneriumAuthorizationRequiredError();
+        },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      () => undefined
+    );
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    actor.send({ type: "START_OAUTH" });
+    await waitFor(actor, snapshot => snapshot.matches("Redirecting"));
+
+    actor.send({ type: "REFRESH" });
+
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    expect(actor.getSnapshot().context.authorizationUrl).toBe("https://example.com/auth");
+  });
 });

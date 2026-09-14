@@ -123,7 +123,9 @@ export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: 
         on: { CLOSE: { target: "Done" }, START_OAUTH: { target: "StartingAuthorization" } }
       },
       Redirecting: {
-        entry: "openAuthorization"
+        entry: "openAuthorization",
+        // A client that could only open the authorization in another tab re-checks on request.
+        on: { REFRESH: { target: "CheckingStatus" } }
       },
       Rejected: {
         on: { CLOSE: { target: "Done" }, RETRY: { target: "Ready" } }
