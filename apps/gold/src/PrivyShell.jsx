@@ -15,5 +15,5 @@ function AuthenticatedApp() {
 }
 
 export function PrivyShell({ appId }) {
-  return <PrivyProvider appId={appId} config={{ loginMethodsAndOrder: { primary: ["sms", "google"], overflow: ["email"] }, intl: { defaultCountry: "BR" }, appearance: { theme: "light", accentColor: "#1F513F" }, embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } }, defaultChain: mainnet, supportedChains: [mainnet] }}><AuthenticatedApp /></PrivyProvider>;
+  return <PrivyProvider appId={appId} config={{ loginMethodsAndOrder: { primary: ["google"], overflow: ["email"] }, appearance: { theme: "light", accentColor: "#1F513F" }, embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } }, defaultChain: mainnet, supportedChains: [mainnet] }}><AuthenticatedApp /></PrivyProvider>;
 }

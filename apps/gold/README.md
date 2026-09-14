@@ -5,7 +5,7 @@ Brazil-first consumer pilot for buying and selling PAX Gold with PIX while the u
 ## What is implemented
 
 - Portuguese landing page and responsive gold dashboard
-- Passwordless Privy login with WhatsApp first, Google second and e-mail under “Outras formas de entrar”, plus automatic embedded Ethereum wallet creation
+- Passwordless Privy login with Google first and e-mail under “Outras formas de entrar”, plus automatic embedded Ethereum wallet creation
 - Vortex e-mail OTP, refresh-token rotation and concurrent refresh coalescing
 - Live Vortex BRL/PIX → PAXG (Ethereum) quote, purchase registration, PIX display, ramp start, status polling and reload recovery
 - Brazilian Avenia onboarding: subaccount recovery/creation, ID upload, hosted liveness, KYC submission and provider-status polling

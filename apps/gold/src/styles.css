@@ -52,7 +52,6 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
 .button--dark { background: var(--ink); color: white; box-shadow: 0 12px 26px rgba(23,23,25,.13); }
 .button--outline { border: 1px solid rgba(38,37,31,.3); background: transparent; color: var(--ink); }
 .button--full { width: 100%; }
-.button--whatsapp { width: 100%; background: #137a43; color: #fff; box-shadow: 0 10px 24px rgba(19,122,67,.18); }
 .button--google { width: 100%; background: #fff; border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(31,24,10,.05); }
 .button--email { width: 100%; min-height: 52px; border: 1px solid var(--line); background: #f6f2eb; box-shadow: none; }
 .google-mark { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; color: #3367d6; border: 1px solid #ddd; font-weight: 600; }
@@ -88,7 +87,6 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
 .login-trust span { display: flex; align-items: center; gap: 12px; font-size: 14px; }
 .login-trust svg { color: var(--green); }
 .login-methods { display: grid; gap: 11px; }
-.login-method-note { margin: -3px 0 3px; color: var(--muted); font-size: 11px; text-align: center; }
 .login-other-trigger { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: #5f5a52; cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
 .login-other-trigger svg { transition: transform 160ms ease; }
 .login-other-trigger svg.open { transform: rotate(180deg); }
