@@ -69,8 +69,9 @@ function Welcome({ firstName, onContinue }) {
 
 function AppHeader({ user, address, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const initials = (user?.name || "Cliente Ouro").split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-  return <header className="app-header"><a href="#painel" aria-label="ouro. painel"><Logo compact /></a><div className="app-header-right"><span className="secure-pill"><ShieldCheck size={17} weight="fill" /> Protegido</span><button className="avatar-button" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen}><span>{initials}</span><CaretDown size={15} /></button>{menuOpen && <div className="account-menu"><b>{user?.name}</b><small>{user?.email}</small><span><Wallet size={16} /> {shortAddress(address)}</span><button type="button" onClick={onLogout}><SignOut size={17} /> Sair</button></div>}</div></header>;
+  return <header className="app-header"><a href="#painel" aria-label="ouro. painel"><Logo compact /></a><div className="app-header-right"><span className="secure-pill"><ShieldCheck size={17} weight="fill" /> Protegido</span><button className="avatar-button" type="button" onClick={() => { setMenuOpen((value) => !value); setCopied(false); }} aria-expanded={menuOpen}><span>{initials}</span><CaretDown size={15} /></button>{menuOpen && <div className="account-menu"><b>{user?.name}</b><small>{user?.email}</small><span title={address}><Wallet size={16} /> {shortAddress(address)}<button className="copy-address" type="button" onClick={async () => { await navigator.clipboard?.writeText(address); setCopied(true); }} disabled={!address} aria-label="Copiar endereço da carteira" title="Copiar endereço">{copied ? <Check size={16} /> : <Copy size={16} />}</button></span><button type="button" onClick={onLogout}><SignOut size={17} /> Sair</button></div>}</div></header>;
 }
 
 function GoldTooltip({ active, payload }) {

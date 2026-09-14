@@ -113,6 +113,8 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
 .account-menu small { margin: 3px 0 15px; color: var(--muted); }
 .account-menu > span { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .account-menu button { display: flex; align-items: center; gap: 8px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); background: transparent; cursor: pointer; color: var(--red); }
+.account-menu .copy-address { margin-left: auto; padding: 0; border: 0; color: var(--muted); }
+.account-menu .copy-address:hover { color: var(--ink); }
 .demo-banner { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 18px; background: #efe5ca; color: #6b5524; font-size: 12px; }
 .demo-banner span { padding-right: 8px; border-right: 1px solid rgba(107,85,36,.28); font-weight: 600; }
 .dashboard { max-width: 1260px; margin: 0 auto; padding: 48px 38px 24px; }
