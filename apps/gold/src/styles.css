@@ -35,6 +35,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .gold-period { color: var(--gold); }
 .wordmark small { margin-top: -5px; color: #99958e; font-size: 13px; letter-spacing: .01em; }
 .wordmark--compact > img { width: 105px; height: 36px; }
+.wordmark--compact small { margin-top: -2px; font-size: 10px; }
 .text-button { min-height: 44px; padding: 8px 0; border: 0; background: transparent; cursor: pointer; font-size: 18px; }
 
 .landing-hero { min-height: 708px; display: grid; grid-template-columns: minmax(500px,1.03fr) minmax(500px,.97fr); align-items: center; padding: 0 clamp(28px,4.3vw,76px) 54px; }

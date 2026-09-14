@@ -36,7 +36,7 @@ const cleanCpf = (value) => String(value || "").replace(/\D/g, "").slice(0, 11);
 const quoteSlippage = (quote, amount, pricePerGram) => Math.max(0, (1 - ((quote?.grams || 0) * pricePerGram) / Number(amount || 1)) * 100);
 
 function Logo({ compact = false }) {
-  return <span className={`wordmark ${compact ? "wordmark--compact" : ""}`}><img src={`${import.meta.env.BASE_URL}brand/ouro-wordmark.png`} alt="ouro." />{!compact && <small>by Vortex</small>}</span>;
+  return <span className={`wordmark ${compact ? "wordmark--compact" : ""}`}><img src={`${import.meta.env.BASE_URL}brand/ouro-wordmark.png`} alt="ouro." /><small>by Vortex</small></span>;
 }
 
 const IconButton = ({ label, children, className = "", ...props }) => <button className={`icon-button ${className}`} type="button" aria-label={label} {...props}>{children}</button>;
