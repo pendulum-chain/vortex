@@ -34,6 +34,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
+| [`proposal-monerium-dual-app.md`](proposal-monerium-dual-app.md) | Implementation plan for running the Monerium OAuth and white-label apps in parallel on the EUR corridor, stacked on PR #1359 |
 | [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
