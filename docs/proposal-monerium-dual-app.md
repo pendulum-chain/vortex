@@ -144,30 +144,32 @@ hermetic contract coverage for the user-token read schemas.
 
 ## Phase 2: API onboarding and readiness
 
-1. `POST /v1/monerium/oauth/start` accepts a `client` selector (`dashboard` | `widget`).
-   The redirect URI comes from an allowlist (`MONERIUM_REDIRECT_URI`,
-   `MONERIUM_WIDGET_REDIRECT_URI`) and is bound into the OAuth transaction exactly as
-   today. Both URIs are registered with Monerium. Link-at-login is dead (P2), so the start
-   request carries no wallet parameters.
-2. Wallet link, new route `POST /v1/monerium/wallet` (bearer session): body
+1. `POST /v1/monerium/oauth/start` accepts a `client` selector (`dashboard`, the default, or
+   `widget`). The redirect URI comes from an allowlist (`MONERIUM_REDIRECT_URI`,
+   `MONERIUM_WIDGET_REDIRECT_URI`; the widget flow is refused with `503` when the latter is
+   unset) and is bound into the OAuth transaction exactly as today. Both URIs are registered
+   with Monerium. Link-at-login is dead (P2), so the start request carries no wallet
+   parameters.
+2. Wallet link, `POST /v1/monerium/wallet` (bearer session, no impersonation): body
    `{ address, chain, signature }` where `signature` is the user's EOA signature over the
-   fixed link message. The backend verifies it with viem `verifyMessage`, rejects
-   addresses with deployed code (the permit needs an EOA), then calls `POST /addresses`
-   with the user's OAuth token. `MONERIUM_REAUTHENTICATION_REQUIRED` when no token is
-   cached.
-3. IBAN provisioning (one IBAN per profile, P2): on wallet link and on status refresh,
-   read `GET /ibans?profile=` with the user token.
-   - none: `POST /ibans { address, chain }` (`202`), readiness `pending` until it appears;
-   - present on the linked address and flow chain: `provisioned`;
-   - present elsewhere: `elsewhere`; the client offers an explicit user-confirmed move
-     (`PATCH /ibans/{iban}`) because it redirects the user's future SEPA deposits. The
-     backend never moves an IBAN without that request.
-   Nothing is persisted; Monerium stays authoritative.
-4. Readiness: extend `GET /v1/monerium/status` (and the Monerium account entry of
-   `GET /v1/onboarding/status`) with
-   `ramp: { source, linkedAddress, chain, iban: "provisioned" | "pending" | "elsewhere" | "missing" }`.
-   For OAuth users this read needs a live token; without one the existing
-   `MONERIUM_REAUTHENTICATION_REQUIRED` error is returned and clients prompt reconnect.
+   fixed link message. The backend verifies it with viem `verifyMessage`, rejects addresses
+   with deployed code (the permit needs an EOA), resolves the profile through the identity
+   resolver, links through whichever app can read it (`POST /addresses`, skipped when already
+   linked), and then handles the profile's single IBAN (P2): none → `POST /ibans` and
+   `iban: "pending"` (Monerium's "already requested" `400` also maps to `pending`); present
+   on that address and chain → `provisioned`; present elsewhere → `elsewhere`.
+3. IBAN move, `POST /v1/monerium/iban/move` with `{ address, chain }`: moves the single
+   IBAN (`PATCH /ibans/{iban}`) to an address already linked on that chain. It exists only as
+   an explicit owner action because it redirects the user's future SEPA deposits; nothing
+   else moves an IBAN.
+4. Readiness: `GET /v1/monerium/status` adds, for approved profiles,
+   `ramp: { source, linkedAddress, chain, iban: "provisioned" | "elsewhere" | "missing" }`
+   measured against the chain the active onramp mints on (`MONERIUM_RAMP_CHAIN`, Polygon),
+   or `rampError: { code: "MONERIUM_REAUTHENTICATION_REQUIRED", message }` when the live
+   read needs an OAuth session that is gone (a persisted approval stays readable). The
+   Monerium account entry of `GET /v1/onboarding/status` carries the same `ramp` object
+   (`null` elsewhere; a lost session surfaces through the existing `error` field). Status
+   reads never mutate provider state. Nothing is persisted; Monerium stays authoritative.
 
 Managed children, quote simulation, execution, and the B2B onramp are unchanged.
 
@@ -175,7 +177,8 @@ Managed children, quote simulation, execution, and the B2B onramp are unchanged.
 
 - EU corridor card reads `ramp` readiness. Approved without a linked wallet or IBAN shows a
   "Link wallet" step: connect wallet, sign the link message, call `POST /v1/monerium/wallet`,
-  then poll until the IBAN is provisioned (or confirm a move when it is `elsewhere`).
+  then poll status until the IBAN is `provisioned` (or confirm a move through
+  `POST /v1/monerium/iban/move` when it is `elsewhere`).
 - Transfer machine, EUR BUY: the connected wallet must equal `ramp.linkedAddress` before
   registration; the owner permit is signed with the existing `signMultipleTypedData`;
   `updateRamp` carries ephemeral presigns plus the permit; `ibanPaymentData` from the

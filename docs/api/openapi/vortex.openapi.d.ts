@@ -3047,6 +3047,15 @@ export interface components {
                     /** @enum {string} */
                     provider: "alfredpay" | "avenia" | "monerium" | "mykobo";
                     rail: string | null;
+                    /** @description EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
+                    ramp: Record<string, never> & (null | {
+                        chain: string;
+                        /** @enum {string} */
+                        iban: "provisioned" | "elsewhere" | "missing";
+                        linkedAddress: string | null;
+                        /** @enum {string} */
+                        source: "whitelabel" | "oauth";
+                    });
                     /** @enum {string} */
                     state: "pending" | "started" | "in_review" | "approved" | "rejected";
                     /** @enum {string} */

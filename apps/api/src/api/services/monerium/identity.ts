@@ -10,7 +10,10 @@ export const MONERIUM_ONBOARDING_REQUIRED = "MONERIUM_ONBOARDING_REQUIRED";
 
 export type MoneriumIdentitySource = "whitelabel" | "oauth";
 
-export type MoneriumIdentityClient = Pick<MoneriumApiService, "getProfile" | "listAddresses" | "listIbans">;
+export type MoneriumIdentityClient = Pick<
+  MoneriumApiService,
+  "getProfile" | "linkAddress" | "listAddresses" | "listIbans" | "requestIban" | "updateIbanDestination"
+>;
 
 export interface MoneriumBinding {
   customerEntityId: string;

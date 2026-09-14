@@ -29,6 +29,7 @@ import {
 } from "../services/avenia/avenia-kyc-import.service";
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
+import { getMoneriumRampReadiness, type MoneriumRampReadiness } from "../services/monerium/wallet";
 
 // Provider status refreshes piggyback on the dashboard's 15s status poll; cap them per customer so
 // polling (and multiple open tabs) doesn't hammer the providers. Marking at check time also dedupes
@@ -128,6 +129,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
       }
     }
     const providerErrors = new Map<string, { code: string; message: string }>();
+    const rampReadiness = new Map<string, MoneriumRampReadiness>();
 
     await Promise.all(
       providerCustomers
@@ -146,6 +148,9 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                     : VerificationStatus.InReview
             );
             customer.set("statusExternal", refreshed.statusExternal);
+            if (refreshed.status === "APPROVED") {
+              rampReadiness.set(customer.id, await getMoneriumRampReadiness(userId));
+            }
           } catch (error) {
             if (error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED) {
               providerErrors.set(customer.id, {
@@ -368,6 +373,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                 : null,
               provider: customer.provider,
               rail: customer.rail,
+              ramp: rampReadiness.get(customer.id) ?? null,
               state: customer.status,
               status: customer.status,
               statusExternal: customer.statusExternal,

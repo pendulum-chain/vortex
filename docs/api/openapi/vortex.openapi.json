@@ -3031,6 +3031,35 @@
                       "rail": {
                         "type": ["string", "null"]
                       },
+                      "ramp": {
+                        "description": "EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error).",
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "properties": {
+                              "chain": {
+                                "type": "string"
+                              },
+                              "iban": {
+                                "enum": ["provisioned", "elsewhere", "missing"],
+                                "type": "string"
+                              },
+                              "linkedAddress": {
+                                "type": ["string", "null"]
+                              },
+                              "source": {
+                                "enum": ["whitelabel", "oauth"],
+                                "type": "string"
+                              }
+                            },
+                            "required": ["chain", "iban", "linkedAddress", "source"],
+                            "type": "object"
+                          }
+                        ],
+                        "type": ["object", "null"]
+                      },
                       "state": {
                         "enum": ["pending", "started", "in_review", "approved", "rejected"],
                         "type": "string"
@@ -3059,7 +3088,8 @@
                       "state",
                       "status",
                       "statusExternal",
-                      "taxReference"
+                      "taxReference",
+                      "ramp"
                     ],
                     "type": "object"
                   },

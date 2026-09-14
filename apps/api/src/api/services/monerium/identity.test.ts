@@ -24,7 +24,14 @@ function apiError(status: number) {
 }
 
 function client(getProfile: () => Promise<ReturnType<typeof profile>>) {
-  return { getProfile: mock(getProfile), listAddresses: mock(async () => ({ addresses: [] })), listIbans: mock(async () => ({ ibans: [] })) };
+  return {
+    getProfile: mock(getProfile),
+    linkAddress: mock(async () => ({ httpStatus: 201 as const })),
+    listAddresses: mock(async () => ({ addresses: [] })),
+    listIbans: mock(async () => ({ ibans: [] })),
+    requestIban: mock(async () => ({ httpStatus: 202 as const })),
+    updateIbanDestination: mock(async () => undefined)
+  };
 }
 
 describe("resolveMoneriumIdentity", () => {

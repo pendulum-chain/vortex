@@ -5,9 +5,11 @@ import {
   completeMoneriumOAuth,
   getMoneriumStatus,
   MONERIUM_OAUTH_CLIENTS,
+  MONERIUM_REAUTHENTICATION_REQUIRED,
   type MoneriumOAuthClient,
   startMoneriumOAuth
 } from "../services/monerium/monerium.service";
+import { getMoneriumRampReadiness, linkMoneriumWallet, moveMoneriumIban } from "../services/monerium/wallet";
 
 type CustomerType = "individual" | "business";
 
@@ -76,7 +78,40 @@ export async function complete(req: Request, res: Response, next: NextFunction):
 export async function status(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = authenticatedUser(req);
-    res.status(httpStatus.OK).json(await getMoneriumStatus(user.userId, customerType(req.query.customerType)));
+    const result = await getMoneriumStatus(user.userId, customerType(req.query.customerType));
+    if (result.status !== "APPROVED") {
+      res.status(httpStatus.OK).json(result);
+      return;
+    }
+    // Readiness needs a live read; a persisted approval stays readable when the OAuth session is gone.
+    try {
+      res.status(httpStatus.OK).json({ ...result, ramp: await getMoneriumRampReadiness(user.userId) });
+    } catch (error) {
+      if (!(error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED)) throw error;
+      res.status(httpStatus.OK).json({ ...result, rampError: { code: error.type, message: error.message } });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function linkWallet(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = authenticatedUser(req);
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    res
+      .status(httpStatus.OK)
+      .json(await linkMoneriumWallet(user.userId, { address: body.address, chain: body.chain, signature: body.signature }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function moveIban(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = authenticatedUser(req);
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    res.status(httpStatus.OK).json(await moveMoneriumIban(user.userId, { address: body.address, chain: body.chain }));
   } catch (error) {
     next(error);
   }

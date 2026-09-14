@@ -60,7 +60,7 @@ function createPaymentReference(): string {
   return `VTX${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`;
 }
 
-function matchingDestinations(
+export function matchingDestinations(
   profileId: string,
   chain: (typeof MONERIUM_ISSUE_NETWORKS)[MoneriumIssueNetwork]["chain"],
   addresses: readonly MoneriumAddress[],
