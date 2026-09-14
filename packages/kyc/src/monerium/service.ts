@@ -1,5 +1,11 @@
-import type { MoneriumKycApi } from "./api";
-import type { MoneriumCustomerType, MoneriumStatusResponse } from "./types";
+import type { MoneriumKycApi, MoneriumWalletApi } from "./api";
+import type {
+  MoneriumCustomerType,
+  MoneriumOAuthClient,
+  MoneriumStatusResponse,
+  MoneriumWalletLinkInput,
+  MoneriumWalletLinkResult
+} from "./types";
 import { MoneriumAuthorizationRequiredError } from "./types";
 
 type Params = Record<string, string | number | boolean | undefined>;
@@ -15,7 +21,7 @@ function getErrorStatus(error: unknown): number | undefined {
     : undefined;
 }
 
-export function createMoneriumKycApi(apiClient: MoneriumKycApiClient): MoneriumKycApi {
+export function createMoneriumKycApi(apiClient: MoneriumKycApiClient): MoneriumKycApi & MoneriumWalletApi {
   return {
     completeOAuth(code: string, state: string): Promise<MoneriumStatusResponse> {
       return apiClient.post<MoneriumStatusResponse>("/monerium/oauth/complete", { code, state });
@@ -30,8 +36,17 @@ export function createMoneriumKycApi(apiClient: MoneriumKycApiClient): MoneriumK
         throw error;
       }
     },
-    startOAuth(customerType: MoneriumCustomerType): Promise<{ authorizationUrl: string }> {
-      return apiClient.post<{ authorizationUrl: string }>("/monerium/oauth/start", { customerType });
+    linkWallet(input: MoneriumWalletLinkInput): Promise<MoneriumWalletLinkResult> {
+      return apiClient.post<MoneriumWalletLinkResult>("/monerium/wallet", input);
+    },
+    moveIban(input: { address: string; chain: string }): Promise<MoneriumWalletLinkResult> {
+      return apiClient.post<MoneriumWalletLinkResult>("/monerium/iban/move", input);
+    },
+    startOAuth(customerType: MoneriumCustomerType, client?: MoneriumOAuthClient): Promise<{ authorizationUrl: string }> {
+      return apiClient.post<{ authorizationUrl: string }>("/monerium/oauth/start", {
+        customerType,
+        ...(client ? { client } : {})
+      });
     }
   };
 }

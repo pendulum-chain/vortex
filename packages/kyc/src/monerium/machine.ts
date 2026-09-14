@@ -11,7 +11,7 @@ function statusOutput(event: unknown): MoneriumStatusResponse {
   return (event as DoneActorEvent<MoneriumStatusResponse>).output;
 }
 
-export function createMoneriumKycMachine({ api, openAuthorizationUrl }: MoneriumKycDeps) {
+export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: MoneriumKycDeps) {
   return setup({
     actions: {
       openAuthorization: ({ context }) => {
@@ -21,6 +21,8 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
         customerType: ({ event }) => statusOutput(event).customerType,
         error: () => undefined,
         profileId: ({ event }) => statusOutput(event).profileId,
+        ramp: ({ event }) => statusOutput(event).ramp,
+        rampError: ({ event }) => statusOutput(event).rampError,
         status: ({ event }) => statusOutput(event).status,
         statusExternal: ({ event }) => statusOutput(event).statusExternal
       })
@@ -30,7 +32,7 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
       completeOAuth: fromPromise(({ input }: { input: { code: string; state: string } }) =>
         api.completeOAuth(input.code, input.state)
       ),
-      startOAuth: fromPromise(({ input }: { input: MoneriumKycInput }) => api.startOAuth(input.customerType))
+      startOAuth: fromPromise(({ input }: { input: MoneriumKycInput }) => api.startOAuth(input.customerType, client))
     },
     guards: {
       callbackHasCode: ({ context }) => !!context.callback && "code" in context.callback,
