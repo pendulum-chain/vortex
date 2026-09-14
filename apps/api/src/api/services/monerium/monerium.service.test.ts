@@ -349,6 +349,22 @@ describe("Monerium OAuth", () => {
     });
   });
 
+  it("binds the widget callback from the allowlist and refuses it when unconfigured", async () => {
+    const previous = config.monerium.widgetRedirectUri;
+    try {
+      config.monerium.widgetRedirectUri = "https://widget.example.com/widget";
+      const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual", "widget");
+      expect(new URL(authorizationUrl).searchParams.get("redirect_uri")).toBe("https://widget.example.com/widget");
+
+      config.monerium.widgetRedirectUri = undefined;
+      await expect(service.startMoneriumOAuth("owner", "owner@example.com", "individual", "widget")).rejects.toMatchObject({
+        status: 503
+      });
+    } finally {
+      config.monerium.widgetRedirectUri = previous;
+    }
+  });
+
   it("rejects a customer type that differs from the authenticated entity", async () => {
     await expect(service.startMoneriumOAuth("owner", "owner@example.com", "business")).rejects.toMatchObject({ status: 400 });
     await expect(service.getMoneriumStatus("owner", "business")).rejects.toMatchObject({ status: 400 });

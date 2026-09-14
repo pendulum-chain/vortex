@@ -16,6 +16,8 @@ import { cache } from "../index";
 const OAUTH_TRANSACTION_TTL_SECONDS = 10 * 60;
 const FETCH_TIMEOUT_MS = 10_000;
 export const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
+export const MONERIUM_OAUTH_CLIENTS = ["dashboard", "widget"] as const;
+export type MoneriumOAuthClient = (typeof MONERIUM_OAUTH_CLIENTS)[number];
 const TOKEN_EXPIRY_SKEW_MS = 30_000;
 const CREDENTIAL_TTL_SECONDS = 24 * 60 * 60;
 const API_V2_ACCEPT = "application/vnd.monerium.api-v2+json";
@@ -313,14 +315,26 @@ async function mirrorProfile(
   return { customerType, profileId: profile.id, status, statusExternal: profile.state };
 }
 
+function redirectUriForClient(client: MoneriumOAuthClient): string {
+  if (client === "dashboard") return config.monerium.redirectUri;
+  if (!config.monerium.widgetRedirectUri) {
+    throw new APIError({ message: "Monerium widget callback is not configured", status: httpStatus.SERVICE_UNAVAILABLE });
+  }
+  return config.monerium.widgetRedirectUri;
+}
+
 export async function startMoneriumOAuth(
   userId: string,
   email: string,
-  customerType: ProviderCustomerType
+  customerType: ProviderCustomerType,
+  client: MoneriumOAuthClient = "dashboard"
 ): Promise<{ authorizationUrl: string }> {
   if (!config.monerium.clientId) {
     throw new APIError({ message: "Monerium OAuth is not configured", status: httpStatus.SERVICE_UNAVAILABLE });
   }
+  // The callback is chosen from the configured allowlist, never from caller input, and bound into
+  // the OAuth transaction so the exchange must use the same exact URI.
+  const redirectUri = redirectUriForClient(client);
   const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
   if (entity.type !== customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
@@ -349,7 +363,7 @@ export async function startMoneriumOAuth(
     customerEntityId: entity.id,
     customerType,
     expectedEmail: email.trim().toLowerCase(),
-    redirectUri: config.monerium.redirectUri,
+    redirectUri,
     userId,
     verifier
   };
