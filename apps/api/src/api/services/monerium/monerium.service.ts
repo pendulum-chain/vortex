@@ -219,6 +219,14 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
   }
 }
 
+/** Access token of the entity's backend-held OAuth session; throws `MONERIUM_REAUTHENTICATION_REQUIRED` when none is cached. */
+export async function getMoneriumUserAccessToken(
+  customerEntityId: string,
+  customerType: ProviderCustomerType
+): Promise<string> {
+  return (await getValidCredentials(customerEntityId, customerType)).accessToken;
+}
+
 async function readProfile(
   credentials: MoneriumCredentials,
   customerType: ProviderCustomerType

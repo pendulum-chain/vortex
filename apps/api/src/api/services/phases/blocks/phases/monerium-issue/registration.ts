@@ -4,15 +4,14 @@ import {
   getEvmTokenBalance,
   type IbanPaymentData,
   type MoneriumAddress,
-  MoneriumApiService,
   type MoneriumIban
 } from "@vortexfi/shared";
 import crypto from "crypto";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
-import ProviderCustomer, { VerificationStatus } from "../../../../../../models/providerCustomer.model";
+import logger from "../../../../../../config/logger";
 import { APIError } from "../../../../../errors/api-error";
-import { getOrCreateCustomerEntityForProfile } from "../../../../customer-entity.service";
+import { type MoneriumIdentity, resolveMoneriumIdentity } from "../../../../monerium/identity";
 import type { RegisterCtx, RegistrationResult } from "../../core/types";
 import { MONERIUM_EURE, MONERIUM_ISSUE_NETWORKS, type MoneriumIssueMetadata, type MoneriumIssueNetwork } from "./simulation";
 
@@ -52,37 +51,9 @@ export interface MoneriumIssueResponseArtifacts extends Record<string, unknown> 
 
 interface MoneriumIssueRegistrationDependencies {
   createReference: () => string;
-  getClient: () => Pick<MoneriumApiService, "getProfile" | "listAddresses" | "listIbans">;
   isContractAddress?: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
   readOwnerEureBalance: typeof getEvmTokenBalance;
-  resolveProfileId: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<string>;
-}
-
-async function resolveMoneriumProfileIdForUser(
-  userId: string,
-  transaction?: RegisterCtx<never>["transaction"]
-): Promise<string> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId, undefined, transaction);
-  const providerCustomer = await ProviderCustomer.findOne({
-    ...(transaction ? { transaction } : {}),
-    where: {
-      customerEntityId: entity.id,
-      customerType: entity.type,
-      provider: "monerium",
-      rail: "eur"
-    }
-  });
-  if (
-    !providerCustomer?.providerCustomerId ||
-    providerCustomer.status !== VerificationStatus.Approved ||
-    providerCustomer.statusExternal?.toLowerCase() !== "approved"
-  ) {
-    throw new APIError({
-      message: "The authenticated legal entity does not have an approved Monerium profile",
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-  return providerCustomer.providerCustomerId;
+  resolveIdentity: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<MoneriumIdentity>;
 }
 
 function createPaymentReference(): string {
@@ -112,9 +83,8 @@ function matchingDestinations(
 export function createRegisterMoneriumIssue(
   dependencies: MoneriumIssueRegistrationDependencies = {
     createReference: createPaymentReference,
-    getClient: () => MoneriumApiService.getInstance(),
     readOwnerEureBalance: getEvmTokenBalance,
-    resolveProfileId: resolveMoneriumProfileIdForUser
+    resolveIdentity: resolveMoneriumIdentity
   }
 ) {
   return async function registerMoneriumIssue(
@@ -128,12 +98,14 @@ export function createRegisterMoneriumIssue(
       });
     }
 
-    const profileId = await dependencies.resolveProfileId(ctx.authenticatedUser.id, ctx.transaction);
-    const client = dependencies.getClient();
-    const profile = await client.getProfile(profileId);
+    const { client, profile, profileId, source } = await dependencies.resolveIdentity(
+      ctx.authenticatedUser.id,
+      ctx.transaction
+    );
     if (profile.id !== profileId || profile.state !== "approved") {
       throw new APIError({ message: "The Monerium profile is not approved", status: httpStatus.BAD_REQUEST });
     }
+    logger.info(`MoneriumIssue: resolved the Monerium profile through the ${source} app`);
 
     const moneriumChain = MONERIUM_ISSUE_NETWORKS[ctx.metadata.network].chain;
     const [addressResponse, ibanResponse] = await Promise.all([

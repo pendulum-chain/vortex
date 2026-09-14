@@ -40,6 +40,10 @@ function client(
   };
 }
 
+function identity(monerium: ReturnType<typeof client>, state: "approved" | "pending" = "approved") {
+  return { client: monerium as never, profile: profile(state), profileId: PROFILE_ID, source: "whitelabel" as const };
+}
+
 function context(input: Record<string, unknown> = {}, network: MoneriumIssueNetwork = Networks.Base) {
   return {
     authenticatedUser: { id: "effective-user-1" },
@@ -53,20 +57,19 @@ function context(input: Record<string, unknown> = {}, network: MoneriumIssueNetw
 describe("MoneriumIssue registration", () => {
   it("derives the Polygon owner and persists its EURe balance baseline", async () => {
     const monerium = client({ chain: "polygon" });
-    const resolveProfileId = mock(async () => PROFILE_ID);
+    const resolveIdentity = mock(async () => identity(monerium));
     const readOwnerEureBalance = mock(async () => new Big("5000000000000000000"));
     const register = createRegisterMoneriumIssue({
       createReference: () => "VTX00000000000000000000000000000001",
-      getClient: () => monerium as never,
-      isContractAddress: async () => false,
+            isContractAddress: async () => false,
       readOwnerEureBalance,
-      resolveProfileId
+      resolveIdentity
     });
 
     const result = await register(context({}, Networks.Polygon));
 
-    expect(resolveProfileId).toHaveBeenCalledWith("effective-user-1", undefined);
-    expect(monerium.getProfile).toHaveBeenCalledWith(PROFILE_ID);
+    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined);
+    expect(monerium.getProfile).not.toHaveBeenCalled();
     expect(monerium.listAddresses).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
     expect(monerium.listIbans).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
     expect(readOwnerEureBalance).toHaveBeenCalledWith({
@@ -102,10 +105,9 @@ describe("MoneriumIssue registration", () => {
     const isContractAddress = mock(async () => false);
     const register = createRegisterMoneriumIssue({
       createReference: () => "VTX00000000000000000000000000000002",
-      getClient: () => monerium as never,
-      isContractAddress,
+            isContractAddress,
       readOwnerEureBalance: async () => new Big(0),
-      resolveProfileId: async () => PROFILE_ID
+      resolveIdentity: async () => identity(monerium)
     });
 
     const result = await register(context({}, Networks.PolygonAmoy));
@@ -117,28 +119,26 @@ describe("MoneriumIssue registration", () => {
   });
 
   it("rejects caller-controlled identity before resolving any provider customer", async () => {
-    const resolveProfileId = mock(async () => PROFILE_ID);
+    const resolveIdentity = mock(async () => identity(client()));
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
-      getClient: () => client() as never,
-      isContractAddress: async () => false,
+            isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
-      resolveProfileId
+      resolveIdentity
     });
 
     await expect(register(context({ profileId: "foreign-profile" }))).rejects.toThrow(
       "Monerium identity is server-derived; profileId must not be supplied"
     );
-    expect(resolveProfileId).not.toHaveBeenCalled();
+    expect(resolveIdentity).not.toHaveBeenCalled();
   });
 
   it("requires the live profile to remain approved", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
-      getClient: () => client({ state: "pending" }) as never,
-      isContractAddress: async () => false,
+            isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
-      resolveProfileId: async () => PROFILE_ID
+      resolveIdentity: async () => identity(client({ state: "pending" }), "pending")
     });
 
     await expect(register(context())).rejects.toThrow("The Monerium profile is not approved");
@@ -147,10 +147,9 @@ describe("MoneriumIssue registration", () => {
   it("rejects a profile-linked contract wallet that cannot sign the EOA permit", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
-      getClient: () => client() as never,
-      isContractAddress: async () => true,
+            isContractAddress: async () => true,
       readOwnerEureBalance: async () => new Big(0),
-      resolveProfileId: async () => PROFILE_ID
+      resolveIdentity: async () => identity(client())
     });
 
     await expect(register(context())).rejects.toThrow("self-transfer requires a profile-linked EOA");
@@ -168,10 +167,9 @@ describe("MoneriumIssue registration", () => {
   ])("rejects a %s provider-chain IBAN/address match", async (_label, ibans) => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
-      getClient: () => client({ ibans }) as never,
-      isContractAddress: async () => false,
+            isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
-      resolveProfileId: async () => PROFILE_ID
+      resolveIdentity: async () => identity(client({ ibans }))
     });
 
     await expect(register(context())).rejects.toThrow("Expected exactly one Monerium base IBAN/address match");
@@ -180,12 +178,11 @@ describe("MoneriumIssue registration", () => {
   it("fails registration when the owner baseline cannot be read", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
-      getClient: () => client({ chain: "polygon" }) as never,
-      isContractAddress: async () => false,
+            isContractAddress: async () => false,
       readOwnerEureBalance: async () => {
         throw new Error("RPC unavailable");
       },
-      resolveProfileId: async () => PROFILE_ID
+      resolveIdentity: async () => identity(client({ chain: "polygon" }))
     });
 
     await expect(register(context({}, Networks.Polygon))).rejects.toThrow("RPC unavailable");
