@@ -1,3 +1,4 @@
+import type { MoneriumRampReadiness } from "@vortexfi/kyc";
 import { apiClient } from "./api-client";
 
 export type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "started";
@@ -11,6 +12,8 @@ export interface OnboardingAccountDto {
   rail: string | null;
   customerType: string | null;
   error: { code: string; message: string } | null;
+  /** EUR onramp readiness for an approved Monerium account, null otherwise. */
+  ramp: MoneriumRampReadiness | null;
   status: string;
   statusExternal: string | null;
   /** Business tax id (CNPJ) — null for individuals; used to resume a pending company flow. */

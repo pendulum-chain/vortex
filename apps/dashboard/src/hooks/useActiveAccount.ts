@@ -41,6 +41,7 @@ function deriveOnboardings(entity: OnboardingEntityDto, type: AccountType): Part
         companyName: account.companyName,
         corridorId,
         kind,
+        ramp: account.ramp ?? null,
         reauthenticationRequired: account.error?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
         status,
         taxReference: account.taxReference,

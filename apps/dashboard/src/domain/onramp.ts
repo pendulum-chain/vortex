@@ -1,3 +1,4 @@
+import type { MoneriumRampReadiness } from "@vortexfi/kyc";
 import {
   doesNetworkSupportRamp,
   type EvmNetworks,
@@ -12,8 +13,24 @@ import {
 } from "@vortexfi/shared";
 import type { CorridorId } from "./types";
 
-/** Corridors the onramp transfer form can execute — EUR quotes on BUY but has no transfer flow yet. */
-export const ONRAMP_CORRIDORS: CorridorId[] = ["BR", "MX", "CO", "US", "AR"];
+/** Corridors the onramp transfer form can execute. */
+export const ONRAMP_CORRIDORS: CorridorId[] = ["BR", "EU", "MX", "CO", "US", "AR"];
+
+export type EurOnrampBlocker = "connect_wallet" | "link_wallet" | "wrong_wallet";
+
+/**
+ * Why an approved EU sender cannot register a EUR pay-in yet. The backend mints to the wallet
+ * linked to the Monerium profile and needs that wallet's permit, so the connected wallet must be
+ * the linked one and the profile's IBAN must already point to it.
+ */
+export function eurOnrampBlocker(
+  ramp: MoneriumRampReadiness | null | undefined,
+  connectedAddress: string | undefined
+): EurOnrampBlocker | null {
+  if (!ramp || ramp.iban !== "provisioned" || !ramp.linkedAddress) return "link_wallet";
+  if (!connectedAddress) return "connect_wallet";
+  return connectedAddress.toLowerCase() === ramp.linkedAddress.toLowerCase() ? null : "wrong_wallet";
+}
 
 export interface RampTokenOption {
   currency: OnChainToken;
