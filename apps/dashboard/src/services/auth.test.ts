@@ -21,6 +21,7 @@ Object.defineProperty(globalThis, "localStorage", {
 
 beforeEach(() => {
   values.clear();
+  AuthService.initializeAcceptedIdentitySnapshots();
   AuthService.storeTokens({
     accessToken: "expired-access-token",
     refreshToken: "refresh-token",
@@ -227,5 +228,186 @@ describe("AuthService", () => {
       userEmail: "new@vortex.local",
       userId: "user-2",
     });
+  });
+});
+
+describe("AuthService impersonation session", () => {
+  it("stores the complete session in one atomic dashboard key", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      targetProfileId: "customer-1",
+      token: "vtx_imp_abc123",
+    });
+
+    const impersonationKeys = [...values.keys()].filter((key) =>
+      key.includes("impersonation"),
+    );
+    assert.deepEqual(impersonationKeys, [
+      AuthService.IMPERSONATION_STORAGE_KEY,
+    ]);
+  });
+
+  it("rejects malformed or incomplete atomic session records", () => {
+    values.set(AuthService.IMPERSONATION_STORAGE_KEY, "not-json");
+    assert.equal(AuthService.getImpersonationSession(), null);
+
+    values.set(
+      AuthService.IMPERSONATION_STORAGE_KEY,
+      JSON.stringify({ sessionId: "session-1", token: "vtx_imp_abc123" }),
+    );
+    assert.equal(AuthService.getImpersonationSession(), null);
+  });
+
+  it("rejects a legacy session without a bearer profile and removes its keys on the next write", () => {
+    values.set("vortex_dashboard_impersonation_token", "vtx_imp_legacy");
+    values.set("vortex_dashboard_impersonation_session_id", "legacy-session");
+    values.set(
+      "vortex_dashboard_impersonation_expires_at",
+      "2026-01-01T00:00:00.000Z",
+    );
+    values.set(
+      "vortex_dashboard_impersonation_target_email",
+      "legacy@example.com",
+    );
+
+    assert.equal(AuthService.getImpersonationSession(), null);
+
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-02-01T00:00:00.000Z",
+      sessionId: "session-2",
+      targetEmail: "current@example.com",
+      targetProfileId: "customer-2",
+      token: "vtx_imp_current",
+    });
+    assert.equal(values.has("vortex_dashboard_impersonation_token"), false);
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_session_id"),
+      false,
+    );
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_expires_at"),
+      false,
+    );
+    assert.equal(
+      values.has("vortex_dashboard_impersonation_target_email"),
+      false,
+    );
+  });
+
+  it("prefers the impersonation token over the operator's own access token", () => {
+    assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
+
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      targetProfileId: "customer-1",
+      token: "vtx_imp_abc123",
+    });
+
+    assert.equal(AuthService.getEffectiveAccessToken(), "vtx_imp_abc123");
+    assert.deepEqual(AuthService.getImpersonationSession(), {
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      targetProfileId: "customer-1",
+      token: "vtx_imp_abc123",
+    });
+  });
+
+  it("falls back to the operator's own token once the impersonation session is cleared", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      targetProfileId: "customer-1",
+      token: "vtx_imp_abc123",
+    });
+
+    AuthService.clearImpersonationSession();
+
+    assert.equal(AuthService.getImpersonationSession(), null);
+    assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
+    // The operator's own session must be untouched by entering/exiting impersonation.
+    assert.deepEqual(AuthService.getTokens(), {
+      accessToken: "expired-access-token",
+      refreshToken: "refresh-token",
+      userEmail: "e2e@vortex.local",
+      userId: "user-1",
+    });
+  });
+
+  it("clears both operator and impersonation credentials on sign-out", () => {
+    AuthService.storeImpersonationSession({
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      sessionId: "session-1",
+      targetEmail: "customer@example.com",
+      targetProfileId: "customer-1",
+      token: "vtx_imp_abc123",
+    });
+
+    AuthService.signOut();
+
+    assert.equal(AuthService.getTokens(), null);
+    assert.equal(AuthService.getImpersonationSession(), null);
+  });
+});
+
+describe("AuthService managed profile selection", () => {
+  it("binds a persisted selection to the effective bearer profile", () => {
+    AuthService.storeManagedProfileSelection({
+      customerType: "business",
+      externalSubjectId: "merchant-42",
+      managerProfileId: "user-1",
+      targetEmail: "child@example.com",
+      targetProfileId: "child-1",
+    });
+
+    assert.equal(AuthService.getEffectiveBearerProfileId(), "user-1");
+    assert.equal(AuthService.getEffectiveProfileId(), "child-1");
+
+    AuthService.storeTokens({
+      accessToken: "other-access-token",
+      refreshToken: "other-refresh-token",
+      userId: "user-2",
+    });
+
+    assert.equal(AuthService.getManagedProfileSelection(), null);
+    assert.equal(AuthService.getEffectiveProfileId(), "user-2");
+  });
+
+  it("compare-and-clears only the selection captured by a caller", () => {
+    AuthService.storeManagedProfileSelection({
+      customerType: "individual",
+      externalSubjectId: "first",
+      managerProfileId: "user-1",
+      targetEmail: "first@example.com",
+      targetProfileId: "child-1",
+    });
+    const staleSnapshot = AuthService.getManagedProfileSelectionSnapshot();
+    AuthService.storeManagedProfileSelection({
+      customerType: "individual",
+      externalSubjectId: "second",
+      managerProfileId: "user-1",
+      targetEmail: "second@example.com",
+      targetProfileId: "child-2",
+    });
+
+    assert.equal(AuthService.clearManagedProfileSelection(staleSnapshot ?? undefined), false);
+    assert.equal(AuthService.getManagedProfileSelection()?.targetProfileId, "child-2");
+  });
+
+  it("restores the effective managed owner from the accepted persisted selection", () => {
+    AuthService.storeManagedProfileSelection({
+      customerType: "business",
+      externalSubjectId: "merchant-42",
+      managerProfileId: "user-1",
+      targetEmail: "child@example.com",
+      targetProfileId: "child-1"
+    });
+
+    assert.equal(AuthService.getEffectiveProfileId(), "child-1");
   });
 });

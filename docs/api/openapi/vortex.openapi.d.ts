@@ -175,7 +175,7 @@ export interface paths {
         put?: never;
         /**
          * Get KYC document upload URLs
-         * @description Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
+         * @description Returns a presigned upload URL for the user's ID document and a provider-hosted URL for selfie liveness capture. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
          *
          *     **Auth:** secret `X-API-Key` or Supabase Bearer session.
          */
@@ -257,7 +257,7 @@ export interface paths {
         put?: never;
         /**
          * Create KYB document
-         * @description Creates a document and returns presigned upload targets. Upload bytes directly to the returned URLs.
+         * @description Creates a document target. Ordinary documents return presigned upload URLs; `SELFIE-FROM-LIVENESS` returns a provider-hosted liveness URL instead.
          */
         post: operations["createBrKybDocument"];
         delete?: never;
@@ -851,7 +851,7 @@ export interface paths {
         };
         /**
          * List managed profiles
-         * @description Lists children owned by the authenticated active manager, newest first. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
+         * @description Lists children owned by the authenticated active manager, newest first, together with the manager's current corridor and customer-type policy. Policy is manager-scoped and applies to all children; it is not a per-child grant. The default filter returns only active children. Use `status=deleted` or `status=all` to include retained logical-deletion records.
          *
          *     **Auth:** controlling manager Supabase Bearer session or secret API key. Public API keys and direct managed-child credentials are rejected.
          */
@@ -943,6 +943,50 @@ export interface paths {
          *     **Auth:** active controlling manager Supabase Bearer session or secret API key.
          */
         delete: operations["revokeManagedProfileApiCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/monerium-b2b/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the acting profile's EUR onramp account
+         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["getMoneriumB2bAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/monerium-b2b/deposits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the acting profile's EUR deposits
+         * @description Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bDeposits"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1661,16 +1705,16 @@ export interface paths {
         };
         /**
          * Supported Cryptocurrencies
-         * @description Retrieve all supported cryptocurrencies, filtered by network.
+         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.
          */
         get: {
             parameters: {
-                query?: {
+                query: {
                     /**
-                     * @description Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`
-                     * @example
+                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`
+                     * @example ethereum
                      */
-                    network?: string;
+                    network: components["schemas"]["SupportedCryptocurrencyNetwork"];
                 };
                 header?: never;
                 path?: never;
@@ -1690,9 +1734,22 @@ export interface paths {
                                 assetDecimals: number;
                                 /** @description Defined if network is Assethub. */
                                 assetForeignAssetId?: string | null;
-                                assetNetwork: components["schemas"]["Networks"];
+                                assetNetwork: components["schemas"]["SupportedCryptocurrencyNetwork"];
                                 assetSymbol: string;
+                                /** @description Ramp directions at least one corridor supports for this token on its network. An empty list means the token is listed but not currently rampable, for example on networks without ramp support or for the retired AssetHub corridors. */
+                                rampTypes: components["schemas"]["RampDirection"][];
                             }[];
+                        };
+                    };
+                };
+                /** @description Missing or unsupported `network`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
                         };
                     };
                 };
@@ -1844,9 +1901,9 @@ export interface paths {
                 content: {
                     "application/json": {
                         events?: string[];
-                        /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific quote. The quote must have been created with your API key. */
+                        /** @description (required* one of two for transaction events: quoteId or sessionId; omit both for deposit events): Subscribe to events for a specific quote. The quote must have been created with your API key. */
                         quoteId?: string;
-                        /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific session */
+                        /** @description (required* one of two for transaction events: quoteId or sessionId; omit both for deposit events): Subscribe to events for a specific session */
                         sessionId?: string;
                         /** @description Your HTTPS webhook endpoint URL. No embedded credentials; must resolve to a publicly routable address. */
                         url: string;
@@ -2097,7 +2154,6 @@ export interface components {
         BrGetSelfieLivenessUrlResponse: {
             id: string;
             livenessUrl: string;
-            uploadURLFront: string;
             validateLivenessToken: string;
         };
         BrImportKycTokenErrorResponse: {
@@ -2131,7 +2187,7 @@ export interface components {
         };
         BrKYCDataUploadResponse: {
             idUpload: components["schemas"]["DocumentUploadEntry"];
-            selfieUpload: components["schemas"]["DocumentUploadEntry"];
+            selfieUpload: components["schemas"]["LivenessDocumentEntry"];
         };
         BrKybAttemptStatusResponse: {
             failureReason?: string;
@@ -2156,16 +2212,7 @@ export interface components {
                 uploadStatusFront: string;
             };
         };
-        BrKybDocumentUploadResponse: {
-            id: string;
-            /** Format: uri */
-            livenessUrl?: string;
-            /** Format: uri */
-            uploadURLBack?: string;
-            /** Format: uri */
-            uploadURLFront: string;
-            validateLivenessToken?: string;
-        };
+        BrKybDocumentUploadResponse: components["schemas"]["DocumentUploadEntry"] | components["schemas"]["LivenessDocumentEntry"];
         BrKybHostedResponse: {
             attemptId: string;
             /** Format: uri */
@@ -2336,10 +2383,8 @@ export interface components {
         DestinationType: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "pendulum" | "stellar" | "pix" | "sepa" | "cbu" | "ach" | "spei";
         DocumentUploadEntry: {
             id: string;
-            livenessUrl?: string;
             uploadURLBack?: string;
             uploadURLFront: string;
-            validateLivenessToken?: string;
         };
         DomesticAddFiatAccountRequest: {
             accountBankCode?: string;
@@ -2735,7 +2780,14 @@ export interface components {
         };
         ListManagedProfilesResponse: {
             managedProfiles: components["schemas"]["ManagedProfile"][];
+            manager: components["schemas"]["ManagedProfileManagerPolicy"];
             pagination: components["schemas"]["ManagedProfilePagination"];
+        };
+        LivenessDocumentEntry: {
+            id: string;
+            /** Format: uri */
+            livenessUrl: string;
+            validateLivenessToken: string;
         };
         MalformedJsonErrorResponse: {
             /** @constant */
@@ -2778,6 +2830,13 @@ export interface components {
                 status: number;
             };
         };
+        /** @description The authenticated manager's current policy. This policy is manager-scoped and applies to every managed child; corridors and customer types are not grants copied onto each child. */
+        ManagedProfileManagerPolicy: {
+            allowedCorridors: ("AR" | "BR" | "CO" | "EU" | "MX" | "US")[];
+            allowedCustomerTypes: ("individual" | "business")[] | null;
+            /** Format: uuid */
+            profileId: string;
+        };
         ManagedProfilePagination: {
             limit: number;
             offset: number;
@@ -2788,10 +2847,74 @@ export interface components {
         };
         ManagedSelectorErrorResponse: {
             error: {
-                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, or `MANAGED_PROFILE_ACCESS_DENIED`. */
+                /** @description Machine-readable middleware code such as `INVALID_MANAGED_PROFILE_ID`, `MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH`, `AUTHENTICATION_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `INVALID_BEARER_TOKEN`, `CREDENTIAL_MISMATCH`, `MANAGED_PROFILE_ACCESS_DENIED`, or `IMPERSONATION_NOT_ALLOWED`. */
                 code: string;
                 message: string;
                 status: number;
+            };
+        };
+        MoneriumB2bAccount: {
+            accountId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The client's payout address on Ethereum. */
+            destination: string;
+            /**
+             * Format: date-time
+             * @description Set while the account is dormancy-paused.
+             */
+            dormantSince: string | null;
+            /** @description The client's self-custodied recovery address. */
+            fallbackAddress: string;
+            feeBps: number;
+            /** @description The account's on-chain forwarding contract. */
+            forwarderAddress: string;
+            /** @description The account's dedicated IBAN; null until issuance completes. */
+            iban: string | null;
+            /** @enum {string} */
+            status: "onboarding" | "active" | "suspended" | "closed";
+        };
+        MoneriumB2bAccountResponse: {
+            account: components["schemas"]["MoneriumB2bAccount"];
+        };
+        MoneriumB2bDeposit: {
+            /** @description Deposit amount in 18-decimal base units of the deposit currency. */
+            amountRaw: string;
+            /** @description Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit. */
+            conversions: {
+                /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
+                eureInRaw: string;
+                executionId: string;
+                /**
+                 * @description Execution status.
+                 * @enum {string}
+                 */
+                status: "pending" | "confirmed" | "failed";
+                /** @description The swap-and-forward transaction hash. */
+                txHash: string | null;
+                /** @description Net USDC from this execution attributed to this deposit in 6-decimal base units. */
+                usdcNetRaw: string;
+            }[];
+            /** Format: date-time */
+            createdAt: string;
+            currency: string;
+            depositId: string;
+            /**
+             * @description Deposit status (forward-only).
+             * @enum {string}
+             */
+            status: "pending" | "minted" | "held" | "returned";
+            /** @description The on-chain mint transaction, when observed. */
+            txHash: string | null;
+            /** @description Aggregate net USDC attributed to this deposit so far in 6-decimal base units. */
+            usdcNetRaw: string;
+        };
+        MoneriumB2bDepositsResponse: {
+            deposits: components["schemas"]["MoneriumB2bDeposit"][];
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
             };
         };
         /**
@@ -3261,6 +3384,11 @@ export interface components {
             /** @constant */
             success: true;
         };
+        /**
+         * @description Networks accepted by the supported-cryptocurrencies endpoint.
+         * @enum {string}
+         */
+        SupportedCryptocurrencyNetwork: "assethub" | "arbitrum" | "avalanche" | "base" | "base-sepolia" | "bsc" | "ethereum" | "moonbeam" | "paseo" | "polygon" | "polygonAmoy";
         /** @enum {string} */
         TaxIdType: "CPF" | "CNPJ";
         TriggerOfframpRequest: {
@@ -5921,7 +6049,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of owned managed profiles and offset pagination metadata. */
+            /** @description The authenticated manager's current policy, a page of owned managed profiles, and offset pagination metadata. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6412,6 +6540,99 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagedProfileErrorResponse"];
                 };
+            };
+        };
+    };
+    getMoneriumB2bAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The acting profile's onramp account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bAccountResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No account exists for the acting profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMoneriumB2bDeposits: {
+        parameters: {
+            query?: {
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: {
+                /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
+                "X-Managed-Profile-Id"?: components["parameters"]["ManagedProfileId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The acting profile's deposits with conversion status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bDepositsResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Managed-profile authorization failed (foreign child, corridor or customer-type policy). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No account exists for the acting profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7104,7 +7325,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
-            /** @description Quote ownership or managed-profile authorization failed. */
+            /** @description Quote ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7235,7 +7456,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7365,7 +7586,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorManagedSelectorResponse"];
                 };
             };
-            /** @description Ramp ownership or managed-profile authorization failed. */
+            /** @description Ramp ownership, managed-profile authorization, or impersonation policy failed. */
             403: {
                 headers: {
                     [name: string]: unknown;

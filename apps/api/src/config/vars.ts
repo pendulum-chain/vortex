@@ -161,6 +161,8 @@ interface Config {
   logs: string;
   adminSecret: string;
   metricsDashboardSecret: string;
+  /** Kill switch for vortex_admin "act as another profile" sessions. */
+  impersonationEnabled: boolean;
   supabase: {
     url: string;
     anonKey: string;
@@ -216,6 +218,18 @@ interface Config {
     redirectUri: string;
     whiteLabelClientId: string;
     whiteLabelClientSecret: string;
+  };
+  // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
+  // Separate credential set from the legacy consumer OAuth integration above.
+  moneriumB2b: {
+    attestorPrivateKey: string | undefined;
+    enabled: boolean;
+    forwarderFactoryAddress: string | undefined;
+    guardianPrivateKey: string | undefined;
+    keeperPrivateKey: string | undefined;
+    privateRpcUrl: string | undefined;
+    rpcUrl: string | undefined;
+    webhookSecret: string;
   };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
@@ -290,6 +304,7 @@ export const config: Config = {
     networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
   },
   flowVariant: readFlowVariant(),
+  impersonationEnabled: process.env.IMPERSONATION_ENABLED === "true",
 
   integrations: {
     alchemy: {
@@ -320,6 +335,23 @@ export const config: Config = {
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
     whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
     whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || ""
+  },
+  moneriumB2b: {
+    // Whitelabel API credentials and base URL live with the shared client
+    // (MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_API_URL — @vortexfi/shared);
+    // this block keeps only the chain/keeper-specific settings.
+    attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
+    enabled: process.env.MONERIUM_B2B_ENABLED === "true",
+    forwarderFactoryAddress: process.env.MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS,
+    // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
+    // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
+    guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
+    keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+    // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
+    // the keeper falls back to the public RPC and logs a warning (see chain.ts).
+    privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
+    webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
   mykobo: {
     feeFallback: readMykoboFeeFallback()
@@ -414,6 +446,62 @@ if (config.demoProviderEnabled && config.deploymentEnv !== "sandbox") {
   throw new Error(
     `DEMO_PROVIDER_ENABLED=true requires DEPLOYMENT_ENV=sandbox (got '${config.deploymentEnv}'); refusing to start`
   );
+}
+
+if (config.moneriumB2b.enabled) {
+  if (config.flowVariant !== "mykobo") {
+    throw new Error("MONERIUM_B2B_ENABLED=true requires FLOW_VARIANT=mykobo");
+  }
+
+  const missing: string[] = [];
+  if (!process.env.MONERIUM_WHITELABEL_CLIENT_ID) missing.push("MONERIUM_WHITELABEL_CLIENT_ID");
+  if (!process.env.MONERIUM_WHITELABEL_CLIENT_SECRET) missing.push("MONERIUM_WHITELABEL_CLIENT_SECRET");
+  if (!config.moneriumB2b.attestorPrivateKey) missing.push("MONERIUM_B2B_ATTESTOR_PRIVATE_KEY");
+  if (!config.moneriumB2b.guardianPrivateKey) missing.push("MONERIUM_B2B_GUARDIAN_PRIVATE_KEY");
+  if (!config.moneriumB2b.keeperPrivateKey) missing.push("MONERIUM_B2B_KEEPER_PRIVATE_KEY");
+  if (!config.moneriumB2b.rpcUrl) missing.push("MONERIUM_B2B_RPC_URL");
+  if (!config.moneriumB2b.webhookSecret) missing.push("MONERIUM_B2B_WEBHOOK_SECRET");
+  if (!config.moneriumB2b.forwarderFactoryAddress) missing.push("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS");
+  if (config.deploymentEnv === "production" && !config.moneriumB2b.privateRpcUrl) {
+    missing.push("MONERIUM_B2B_PRIVATE_RPC_URL");
+  }
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables for Monerium B2B: ${missing.join(", ")}`);
+  }
+
+  if (
+    !/^0x[0-9a-fA-F]{40}$/.test(config.moneriumB2b.forwarderFactoryAddress as string) ||
+    /^0x0{40}$/i.test(config.moneriumB2b.forwarderFactoryAddress as string)
+  ) {
+    throw new Error("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS must be a valid EVM address");
+  }
+  for (const [name, value] of [
+    ["MONERIUM_B2B_ATTESTOR_PRIVATE_KEY", config.moneriumB2b.attestorPrivateKey],
+    ["MONERIUM_B2B_GUARDIAN_PRIVATE_KEY", config.moneriumB2b.guardianPrivateKey],
+    ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey]
+  ] as const) {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(value as string)) {
+      throw new Error(`${name} must be a 32-byte 0x-prefixed private key`);
+    }
+  }
+  const b2bKeys = [
+    config.moneriumB2b.attestorPrivateKey,
+    config.moneriumB2b.guardianPrivateKey,
+    config.moneriumB2b.keeperPrivateKey
+  ].map(value => (value as string).toLowerCase());
+  if (new Set(b2bKeys).size !== b2bKeys.length) {
+    throw new Error("Monerium B2B attestor, guardian, and keeper private keys must be distinct");
+  }
+  const encodedWebhookSecret = config.moneriumB2b.webhookSecret.slice("whsec_".length);
+  const decodedWebhookSecret = Buffer.from(encodedWebhookSecret, "base64");
+  if (
+    !config.moneriumB2b.webhookSecret.startsWith("whsec_") ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encodedWebhookSecret) ||
+    decodedWebhookSecret.length < 24 ||
+    decodedWebhookSecret.length > 64
+  ) {
+    throw new Error("MONERIUM_B2B_WEBHOOK_SECRET must encode 24-64 bytes using whsec_<base64>");
+  }
 }
 
 if (config.env === "production") {

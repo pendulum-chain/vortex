@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
-import { AccessTokenVerificationError, SupabaseAuthService } from "../services/auth";
+import { AccessTokenVerificationError } from "../services/auth";
+import type { ImpersonationContext } from "../services/impersonation.service";
+import { resolveBearerPrincipal } from "./bearerPrincipal";
 
 declare global {
   // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
@@ -8,6 +10,8 @@ declare global {
     interface Request {
       userId?: string;
       userEmail?: string;
+      /** Set only when the caller presented an impersonation token; `userId` is the target. */
+      impersonation?: ImpersonationContext;
     }
   }
 }
@@ -26,7 +30,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     const token = authHeader.substring(7);
-    const result = await SupabaseAuthService.verifyToken(token);
+    const result = await resolveBearerPrincipal(token);
 
     if (!result.valid) {
       return res.status(401).json({
@@ -34,8 +38,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       });
     }
 
-    req.userId = result.user_id;
-    req.userEmail = result.email;
+    req.userId = result.userId;
+    req.userEmail = result.userEmail;
+    req.impersonation = result.impersonation;
     next();
   } catch (error) {
     const unavailable = error instanceof AccessTokenVerificationError && error.transient;
@@ -60,12 +65,13 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   }
 
   try {
-    const result = await SupabaseAuthService.verifyToken(authHeader.substring(7));
+    const result = await resolveBearerPrincipal(authHeader.substring(7));
     if (!result.valid) {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
-    req.userId = result.user_id;
-    req.userEmail = result.email;
+    req.userId = result.userId;
+    req.userEmail = result.userEmail;
+    req.impersonation = result.impersonation;
     next();
   } catch (error) {
     const unavailable = error instanceof AccessTokenVerificationError && error.transient;

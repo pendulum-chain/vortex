@@ -43,6 +43,7 @@ documents win.
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
 | API Credential Auth | `01-auth/api-keys.md` | Unified pk\_/sk\_ credential record, capability matrix, validation, lifecycle |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
+| Admin Impersonation | `01-auth/admin-impersonation.md` | `vortex_admin` acting as a customer profile via `/v1/admin-console/*`: session lifecycle, principal substitution, revocation, audit trail |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
 | Server-Side Signing | `02-signing-keys/server-side-signing.md` | Funding keys, executor keys, webhook signing |
 | State Machine | `03-ramp-engine/state-machine.md` | Phase transitions, locking, idempotency, recovery |
@@ -59,7 +60,8 @@ documents win.
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Legacy persisted EUR on/off-ramp recovery and standalone profile API |
-| Monerium | `05-integrations/monerium.md` | Active direct-API Polygon EUR onramp plus mapped but deferred white-label lifecycle, wallet, IBAN, offramp, and webhook capabilities |
+| Monerium | `05-integrations/monerium.md` | Server-to-server white-label API client, the active direct-API Polygon EUR onramp, and the legacy OAuth KYC/KYB onboarding |
+| Monerium B2B | `05-integrations/monerium-b2b.md` | Whitelabel onramp: attestor address linking, HMAC webhook + durable inbox, forward-only deposits |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
@@ -107,7 +109,7 @@ Most module specifications use these sections:
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
 | **Mykobo** | Legacy persisted EUR flow recovery and standalone profile/KYC endpoints; excluded from new quotes. |
-| **Monerium** | Active direct-API SEPA/EUR BUY provider using Polygon EURe for already provisioned approved users; onboarding/linking/import and EUR SELL are deferred. |
+| **Monerium** | European e-money provider integrated through the white-label API. Active direct-API SEPA/EUR BUY provider using Polygon EURe for already provisioned approved users, and the B2B onramp; onboarding/linking/import and EUR SELL are deferred. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
 | **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |

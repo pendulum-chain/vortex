@@ -109,7 +109,11 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
       : null;
   const { data: quote, error, isFetching } = useQuote(quoteParams);
   const transferState = useSelector(transferActor, snapshot => snapshot);
-  const belongsToActiveAccount = transferState.context.meta?.accountId === account.id;
+  const activeOwnerProfileId = transferState.context.activeOwnerProfileId;
+  const belongsToActiveOwner =
+    !!activeOwnerProfileId &&
+    transferState.context.meta?.ownerProfileId === activeOwnerProfileId &&
+    transferState.context.meta.accountId === account.id;
   const activeTransfer =
     transferState.matches("CheckingQuote") ||
     transferState.matches("CheckingBalance") ||
@@ -119,11 +123,11 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
     transferState.matches("Starting") ||
     transferState.matches("Tracking");
 
-  if (transferState.matches("AwaitingPayment") && transferState.context.ramp && belongsToActiveAccount) {
+  if (transferState.matches("AwaitingPayment") && transferState.context.ramp && belongsToActiveOwner) {
     return <OnrampPaymentInstructions ramp={transferState.context.ramp} />;
   }
 
-  if (activeTransfer && !belongsToActiveAccount) {
+  if (activeTransfer && !belongsToActiveOwner) {
     return (
       <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm">
         <TriangleAlert className="mt-px size-4 shrink-0 text-warning" />
@@ -136,7 +140,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   }
 
   function submit(values: OnrampFormValues) {
-    if (!quote || !quoteParams || activeTransfer) {
+    if (!quote || !quoteParams || !activeOwnerProfileId || activeTransfer) {
       return;
     }
     transferActor.send({
@@ -148,12 +152,14 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         corridorId: values.corridorId as CorridorId,
         direction: quote.rampType,
         fiatPayoutAmount: quote.outputAmount,
+        ownerProfileId: activeOwnerProfileId,
         payinNetwork: values.network,
         payoutCurrency: String(quote.outputCurrency),
         recipientEmail: "Your wallet",
         recipientId: "",
         summary: `${formatCurrencyAmount(quote.outputAmount, String(quote.outputCurrency))} ${quote.outputCurrency} to your wallet`
       },
+      ownerProfileId: activeOwnerProfileId,
       quote,
       quoteRequest: { kind: "input", params: quoteParams },
       type: "START"

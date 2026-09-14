@@ -8,6 +8,7 @@ import {
   isDomesticToken,
   isEvmToken,
   isNetworkEVM,
+  isOnChainToken,
   mapFiatToDestination,
   Networks,
   RampDirection
@@ -92,10 +93,10 @@ const flowDefinitions: FlowDefinition[] = [
   {
     create(request) {
       const network = getNetworkFromDestination(request.from);
-      if (!network || !isNetworkEVM(network) || !isEvmToken(request.inputCurrency)) {
+      if (!network || !isNetworkEVM(network)) {
         throw new APIError({ message: "Unsupported EVM source for EUR offramp", status: httpStatus.BAD_REQUEST });
       }
-      return makeEurOfframpBaseFlow(request.inputCurrency, network);
+      return makeEurOfframpBaseFlow(request.inputCurrency as EvmToken, network);
     },
     executorFlow: eurOfframpBaseFlow,
     matches(request) {
@@ -106,9 +107,12 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === EPaymentMethod.SEPA &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        isEvmToken(request.inputCurrency) &&
-        !isDormantMoneriumEure(request.inputCurrency) &&
-        evmTokenConfig[network][request.inputCurrency] !== undefined
+        // Structural only: the flow input resolver rejects symbols unknown to the merged token
+        // catalog at quote time. Matching must not depend on live token discovery, because
+        // persisted flows are re-resolved at startup, when discovery may have fallen back to
+        // the static config. Dormant EURe deployments stay excluded regardless of discovery.
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
     },
     newQuotes: false
@@ -148,10 +152,10 @@ const flowDefinitions: FlowDefinition[] = [
   {
     create(request) {
       const network = getNetworkFromDestination(request.from);
-      if (!network || !isNetworkEVM(network) || !isEvmToken(request.inputCurrency)) {
+      if (!network || !isNetworkEVM(network)) {
         throw new APIError({ message: "Unsupported EVM source for BRL offramp", status: httpStatus.BAD_REQUEST });
       }
-      return makeBrlOfframpBaseFlow(request.inputCurrency, network);
+      return makeBrlOfframpBaseFlow(request.inputCurrency as EvmToken, network);
     },
     executorFlow: brlOfframpBaseFlow,
     matches(request) {
@@ -161,9 +165,12 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === FiatToken.BRL &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        isEvmToken(request.inputCurrency) &&
-        !isDormantMoneriumEure(request.inputCurrency) &&
-        evmTokenConfig[network][request.inputCurrency] !== undefined
+        // Structural only: the flow input resolver rejects symbols unknown to the merged token
+        // catalog at quote time. Matching must not depend on live token discovery, because
+        // persisted flows are re-resolved at startup, when discovery may have fallen back to
+        // the static config. Dormant EURe deployments stay excluded regardless of discovery.
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
     }
   },
@@ -184,8 +191,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        !isDormantMoneriumEure(request.inputCurrency) &&
-        evmTokenConfig[network][request.inputCurrency as EvmToken] !== undefined
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
     }
   },

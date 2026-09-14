@@ -43,7 +43,41 @@ describe("squidrouterRouteResponseSchema", () => {
   test("rejects a non-raw-units toAmount", () => {
     const body = validRouteBody();
     body.route.estimate.toAmount = "9.95";
+    expect(() => squidrouterRouteResponseSchema.safeParse(body)).not.toThrow();
+    expect(squidrouterRouteResponseSchema.safeParse(body).success).toBe(false);
+  });
+
+  test("requires a raw-units toAmountMin", () => {
+    const missing = validRouteBody();
+    delete (missing.route.estimate as Record<string, unknown>).toAmountMin;
+    expect(() => squidrouterRouteResponseSchema.parse(missing)).toThrow();
+
+    const malformed = validRouteBody();
+    malformed.route.estimate.toAmountMin = "9.90";
+    expect(() => squidrouterRouteResponseSchema.safeParse(malformed)).not.toThrow();
+    expect(squidrouterRouteResponseSchema.safeParse(malformed).success).toBe(false);
+  });
+
+  test("rejects a guaranteed minimum above the estimated output", () => {
+    const body = validRouteBody();
+    body.route.estimate.toAmountMin = "9950001";
     expect(() => squidrouterRouteResponseSchema.parse(body)).toThrow();
+  });
+
+  test("tolerates unparsable, empty, and missing toAmountUSD so non-consuming route callers never fail on it", () => {
+    // Unusable values are tolerated at the wire boundary on purpose: the API's
+    // route helper Big-parses this field tolerantly and only the SubsidizePost
+    // probe consumes it, falling back to its oracle target on an unusable value.
+    for (const tolerated of ["9.95", "N/A", "+1", ""]) {
+      const body = validRouteBody();
+      body.route.estimate.toAmountUSD = tolerated;
+      expect(() => squidrouterRouteResponseSchema.parse(body)).not.toThrow();
+    }
+
+    const missing = validRouteBody();
+    delete (missing.route.estimate as Record<string, unknown>).toAmountUSD;
+    const parsed = squidrouterRouteResponseSchema.parse(missing);
+    expect(parsed.route.estimate.toAmountUSD).toBe("");
   });
 
   test("accepts a hex gasLimit but rejects a non-integer one (BigInt-parsed downstream)", () => {

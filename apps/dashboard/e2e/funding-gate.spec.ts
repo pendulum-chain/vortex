@@ -7,13 +7,23 @@ const POLYGON_USDC = "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359";
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
 const NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
+test("transfer defaults to Base", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/transfer");
+
+  await expect(page.getByRole("combobox").filter({ hasText: "Base" })).toBeVisible();
+  await page.locator("#token-amount").fill("54.054054");
+  await expect.poll(() => backend.quoteRequests.at(-1)?.network).toBe("base");
+});
+
 // Self-custodial crypto deposits are not supported, so the connected wallet is the only funding path.
 test("funding panel offers connected-wallet submission only", async ({ page }) => {
   const backend = await mockBackend(page);
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   const amountInput = page.locator("#token-amount");
   await expect(amountInput).toBeVisible({ timeout: 20_000 });
@@ -36,7 +46,7 @@ test("insufficient selected-network USDC balance blocks an offramp", async ({ pa
   const backend = await mockBackend(page, { tokenBalances: { [POLYGON_USDC]: 50_000_000n } });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.locator("#token-amount").fill("54.054054");
 
@@ -55,7 +65,7 @@ test("balance check follows the selected payin network, not the wallet chain", a
   });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.locator("#token-amount").fill("54.054054");
   const sendButton = page.getByRole("button", { name: /^Send/ });
@@ -77,7 +87,7 @@ test("registration rechecks balance after quote refresh", async ({ page }) => {
   });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.locator("#token-amount").fill("54.054054");
   const sendButton = page.getByRole("button", { name: /^Send/ });
@@ -94,7 +104,7 @@ test("balance lookup failure blocks an offramp", async ({ page }) => {
   const backend = await mockBackend(page, { tokenBalances: null });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.locator("#token-amount").fill("54.054054");
 
@@ -112,7 +122,7 @@ test("balance gate checks the selected ERC-20 rather than another held token", a
   });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.getByRole("combobox").filter({ hasText: "USDC" }).click();
   await page.getByRole("option", { exact: true, name: "USDT" }).click();
@@ -128,7 +138,7 @@ test("native POL uses the portfolio native balance", async ({ page }) => {
   await mockBackend(page, { tokenBalances: { [NATIVE_TOKEN]: 2n * 10n ** 18n } });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   await page.getByRole("combobox").filter({ hasText: "USDC" }).click();
   await page.getByRole("option", { exact: true, name: "POL" }).click();

@@ -23,6 +23,17 @@ Both values share one immutable credential ID, subject profile, optional partner
 
 `GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. A manager secret may supply `X-Managed-Profile-Id`; public keys may not. It accepts no body/query profile or user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
 
+## Browser Origin Approval
+
+Vortex accepts browser requests only from origins it has explicitly approved. Every request a browser makes to the API — the browser build of `@vortexfi/sdk`, a `fetch` from your own front end, or `POST /v1/session/create` called from page code — is refused by CORS unless your exact origin is on the allowlist. Server-to-server calls are unaffected.
+
+To have an origin approved, email <support@vortexfinance.co> with:
+
+- each origin exactly as the browser sends it, including scheme and any non-default port (for example `https://app.example.com` or `https://checkout.example.com:8443`);
+- whether it is for sandbox, production, or both.
+
+Entries are exact-match and wildcards are never accepted, so every subdomain, preview domain, and development host that calls the API must be listed individually. Request approval before you integrate: without it every browser call fails at the CORS preflight, which surfaces as a browser network error rather than a Vortex error code.
+
 ## Subject And Partner Binding
 
 Every credential authenticates exactly one Vortex profile. A profile-managed credential has no partner and is managed by its signed-in subject. A partner-managed credential has an optional partner attribution but still authenticates only its bound profile.
@@ -40,7 +51,7 @@ X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 
 A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, allowed country, optional customer-type narrowing, and canonical country/type support for corridor-bound mutations. An omitted or null customer-type policy adds no restriction beyond the canonical corridor capability matrix; a configured non-empty list only narrows that matrix. The manager remains the authenticated actor; ownership, KYC/provider lookup, and ramp history resolve from the child subject. Quote pricing uses the child's active profile assignment when present, otherwise the controlling manager profile's active assignment, then default Vortex pricing. This precedence is identical for manager-delegated requests and direct child credentials.
 
-The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; and customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. EUR onboarding and user-to-corridor provisioning are not delegated; a non-technical managed child can register the direct-API EUR BUY flow only when its approved provider binding, Polygon EOA, and IBAN were provisioned out of band. Recipient-invitation routes do not support managed children.
+The header is supported for quote creation; ramp registration, update, start, status, history, and errors; exact limits and sanitized ramp info; aggregate onboarding status; BR customer/KYC operations; customer creation, KYC/KYB, and fiat-account operations on the AR, CO, MX, and US corridors; and sender-side recipient operations. Sender-side recipient operations are invite creation, recipient and pending-invitation listing, invitation archive/unarchive, recipient relationship updates, and recipient eligibility reads. These recipient operations currently require a Supabase Bearer session; an `sk_*` key does not authorize them. Invite preview and acceptance remain invitee-scoped and do not support `X-Managed-Profile-Id`; a headless managed child cannot authenticate as an invitee or accept an invitation. Corridor removal blocks mutations and disallowed exact-limit requests but not quote discovery or historical/status reads. EUR onboarding and user-to-corridor provisioning are not delegated; a non-technical managed child can register the direct-API EUR BUY flow only when its approved provider binding, Polygon EOA, and IBAN were provisioned out of band.
 
 `POST /v1/brl/kyc/import-token` is a deliberate exception to direct child credential access. A controlling manager may call it with the manager's secret key or Supabase session plus `X-Managed-Profile-Id`, but a credential owned by the managed child is rejected with `403 MANAGED_PROFILE_ACCESS_DENIED`, even without the selector. Direct non-managed profiles may import for themselves with their own secret key or session. Public keys and ownerless credentials cannot import. The legacy `/v1/brla/kyc/import-token` path remains an equivalent migration alias.
 
@@ -59,7 +70,7 @@ An active manager may use its Supabase session or profile-bound secret credentia
 | Endpoint | Purpose |
 |---|---|
 | `POST /v1/managed-profiles` | Create an `individual` or `business` child from immutable `externalSubjectId` and provider `contactEmail` values |
-| `GET /v1/managed-profiles` | List children; defaults to active records with `limit=50&offset=0` |
+| `GET /v1/managed-profiles` | List children and the manager's current policy; defaults to active records with `limit=50&offset=0` |
 | `GET /v1/managed-profiles/:profileId` | Read an owned active or deleted child |
 | `DELETE /v1/managed-profiles/:profileId` | Logically delete an owned child and revoke its credentials |
 | `POST /v1/managed-profiles/:profileId/api-credentials` | Issue a child-owned public/secret credential pair |
@@ -68,7 +79,7 @@ An active manager may use its Supabase session or profile-bound secret credentia
 
 Creation is not tied to one corridor and may create only an `individual` or `business` child. Every later corridor-bound operation checks the manager's current corridors, optional customer-type narrowing, and Vortex's canonical corridor/type support. Tightening policy blocks later authorization decisions but does not cancel a request already authorized or background processing for a ramp that already started. `POST` returns `201` for a new child and `200` for an identical retry. A deleted external subject remains reserved and cannot create a replacement child. Deletion is idempotent (`204`), preserves compliance and financial history, and blocks new child activity.
 
-Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
+Lists accept `status=active|deleted|all`, `limit=1..100`, and a non-negative `offset`; the default status is `active`. The response always includes `manager.profileId`, `manager.allowedCorridors`, and `manager.allowedCustomerTypes` alongside `managedProfiles` and `pagination`. This policy belongs to the manager and applies to every child; it is not copied onto individual managed profiles. Inactive managers lose create, list, read, delete, and delegated-operation access. Requests for another manager's child return `404` on lifecycle routes.
 
 The child contact email is normalized and immutable, is unique among the manager's children, is used for provider customer creation, and never becomes a Supabase login identity. A deleted child's contact email remains reserved for that manager. Partners must supply an email identity they are authorized to use; uniqueness is not global across managers. A child-owned credential authenticates directly as that child without `X-Managed-Profile-Id`. Every use dynamically requires the active manager relationship; corridor-bound mutations and exact-limit reads use the controlling manager's current corridor/type policy. A direct child credential cannot select another managed child. Logical deletion immediately invalidates and revokes both halves.
 

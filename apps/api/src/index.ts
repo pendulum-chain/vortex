@@ -12,6 +12,7 @@ import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
 import { installDemoProviders } from "./api/services/demo/demo-alfredpay.provider";
+import { shouldStartMoneriumB2bWorker } from "./api/services/monerium-b2b/feature";
 import {
   assertPersistedBlockFlowVersionsSupported,
   registerBlockFlowHandlers
@@ -21,9 +22,11 @@ import AlfredpayStatusWorker from "./api/workers/alfredpay-status.worker";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import KybStatusWorker from "./api/workers/kyb-status.worker";
+import MoneriumB2bWorker from "./api/workers/monerium-b2b.worker";
 import NotificationDispatchWorker from "./api/workers/notification-dispatch.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
+import WebhookOutboxWorker from "./api/workers/webhook-outbox.worker";
 
 dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
@@ -84,14 +87,22 @@ const initializeApp = async () => {
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
     new NotificationDispatchWorker().start();
+    new WebhookOutboxWorker().start();
     // Both flow-variant backends share this database and these provider accounts. Give
     // the replacement backend sole ownership of external status polling so the legacy
     // grace-period backend does not make every Avenia/Alfredpay request a second time.
+    // The Monerium keeper holds the same ownership: two keepers against one database
+    // and one keeper key would race nonces and double-broadcast.
     if (config.flowVariant === "mykobo") {
       new KybStatusWorker().start();
       new AlfredpayStatusWorker().start();
+      if (shouldStartMoneriumB2bWorker(config.flowVariant, config.moneriumB2b.enabled)) {
+        new MoneriumB2bWorker().start();
+      } else {
+        logger.info("Monerium B2B onramp is disabled");
+      }
     } else {
-      logger.info("Provider status workers are owned by the mykobo backend");
+      logger.info("Provider status workers and the Monerium keeper are owned by the mykobo backend");
     }
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)

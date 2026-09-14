@@ -6,6 +6,6 @@ import { apiClient } from "./api-client";
  */
 export const TransactionsService = {
   history(limit = 50): Promise<GetRampHistoryResponse> {
-    return apiClient.get<GetRampHistoryResponse>("/ramp/history", { params: { limit } });
+    return apiClient.get<GetRampHistoryResponse>("/ramp/history", { managedProfile: true, params: { limit } });
   }
 };

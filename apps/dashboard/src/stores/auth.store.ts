@@ -2,7 +2,8 @@ import { disconnect } from "wagmi/actions";
 import { create } from "zustand";
 import { queryClient } from "@/lib/queryClient";
 import { wagmiConfig } from "@/lib/wagmi";
-import { resetTransferState } from "@/machines/transferActor";
+import { activateTransferOwner, canChangeEffectiveIdentity, clearAllTransferRecovery } from "@/machines/transferActor";
+import { AdminConsoleService } from "@/services/api/admin-console.service";
 import { AuthAPI } from "@/services/api/auth.api";
 import { AuthService, type AuthTokens } from "@/services/auth";
 import { restoreAuthSession } from "@/services/sessionRestore";
@@ -45,41 +46,57 @@ function userFromTokens(tokens: AuthTokens): AuthUser {
   return { email, name: displayNameFromEmail(email), userId: tokens.userId };
 }
 
-function clearAccountState(): void {
+export function clearAccountState(): void {
   queryClient.clear();
   useNotificationsStore.getState().clear();
-  resetTransferState();
-  void disconnect(wagmiConfig);
+  if (typeof document !== "undefined") void disconnect(wagmiConfig);
 }
+
+AuthService.configureIdentityTransitionEffects({ activateTransferOwner, canChangeEffectiveIdentity, clearAccountState });
 
 /** Real Supabase OTP auth against /v1/auth/*; the session lives in AuthService storage. */
 export const useAuthStore = create<AuthState>()(set => ({
   logout: () => {
+    if (!canChangeEffectiveIdentity()) return;
+    const impersonation = AuthService.getImpersonationSession();
+    if (impersonation) {
+      void AdminConsoleService.endImpersonation(impersonation.sessionId).catch(() => {
+        // The non-renewable server session remains bounded by its 30-minute TTL.
+      });
+    }
     AuthService.signOut();
     clearAccountState();
+    clearAllTransferRecovery();
     set({ user: null });
   },
   requestOtp: async email => {
     await AuthAPI.requestOTP(email);
   },
   restoreSession: async () => {
+    AuthService.initializeAcceptedIdentitySnapshots();
     const tokens = await restoreAuthSession({
       refresh: () => AuthService.refreshAccessToken(),
       tokens: AuthService.getTokens(),
       verify: accessToken => AuthAPI.verifyToken(accessToken)
     });
     set({ user: tokens ? userFromTokens(tokens) : null });
+    const ownerProfileId = tokens ? AuthService.getEffectiveProfileId() : null;
+    if (ownerProfileId) activateTransferOwner(ownerProfileId);
   },
   user: userFromSession(),
   verifyOtp: async (email, code) => {
     const result = await AuthAPI.verifyOTP(email, code);
     clearAccountState();
+    clearAllTransferRecovery();
+    AuthService.clearManagedProfileSelection();
+    AuthService.clearImpersonationSession();
     AuthService.storeTokens({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
       userEmail: email,
       userId: result.userId
     });
+    activateTransferOwner(result.userId);
     set({ user: { email, name: displayNameFromEmail(email), userId: result.userId } });
   }
 }));

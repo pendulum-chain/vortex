@@ -35,6 +35,19 @@ describe("parseAPIError", () => {
     expect(error.status).toBe(403);
   });
 
+  test("preserves provider limit error types as stable codes", () => {
+    const error = parseAPIError({
+      code: 400,
+      message: "Amount exceeds global limit.",
+      statusCode: 400,
+      type: "provider_limit_exceeded"
+    });
+
+    expect(error).toBeInstanceOf(VortexSdkError);
+    expect(error.status).toBe(400);
+    expect(error.code).toBe("provider_limit_exceeded");
+  });
+
   test("maps Alfredpay onramp auth and KYC errors", () => {
     const error = parseAPIError({
       code: 401,

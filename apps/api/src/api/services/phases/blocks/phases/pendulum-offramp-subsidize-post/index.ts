@@ -5,6 +5,7 @@ import {
   calculateExpectedOutput,
   calculateSubsidyAmount,
   getUsdDenominatedInputAmount,
+  hasConfiguredTargetDiscount,
   resolveDiscountPartner
 } from "../../core/discount";
 import type { Phase, PhaseIO } from "../../core/types";
@@ -38,10 +39,9 @@ export const PendulumOfframpSubsidizePost: Phase<
       partner
     );
     const expectedWithAnchor = expected.expectedOutput.plus(ctx.fees?.displayFiat?.anchor ?? 0);
-    const subsidyUnrounded =
-      (partner?.targetDiscount ?? 0) !== 0
-        ? calculateSubsidyAmount(expectedWithAnchor, input.amount, partner?.maxSubsidy ?? 0)
-        : new Big(0);
+    const subsidyUnrounded = hasConfiguredTargetDiscount(partner?.targetDiscount ?? 0)
+      ? calculateSubsidyAmount(expectedWithAnchor, input.amount, partner?.maxSubsidy ?? 0)
+      : new Big(0);
     const subsidy = new Big(subsidyUnrounded.toFixed(6, 0));
     const subsidyRaw = multiplyByPowerOfTen(subsidyUnrounded, details.decimals).toFixed(0, 0);
     const target = input.amount.plus(subsidy);

@@ -1191,7 +1191,7 @@ describe("Avenia company KYB", () => {
     );
   });
 
-  it("rejects re-initiation when the stored PENDING is stale and Avenia is already processing", async () => {
+  it("rejects re-initiation when a legacy-level Avenia attempt is already processing", async () => {
     mockEntityPerProfile();
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1",
@@ -1206,7 +1206,7 @@ describe("Avenia company KYB", () => {
       () =>
         ({
           getKycAttempts: mock(async () => ({
-            attempts: [{ id: "attempt-1", levelName: "kyb-level-1", status: KycAttemptStatus.PROCESSING }]
+            attempts: [{ id: "attempt-1", levelName: "level-1", status: KycAttemptStatus.PROCESSING }]
           })),
           initiateKybLevel1: initiateMock
         }) as unknown as BrlaApiService
@@ -1219,7 +1219,7 @@ describe("Avenia company KYB", () => {
     expect(initiateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects re-initiation when Avenia already approved the company", async () => {
+  it("rejects re-initiation when Avenia already approved the company under its legacy level name", async () => {
     mockEntityPerProfile();
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1",
@@ -1237,7 +1237,7 @@ describe("Avenia company KYB", () => {
             attempts: [
               {
                 id: "attempt-1",
-                levelName: "kyb-level-1",
+                levelName: "level-1",
                 result: KycAttemptResult.APPROVED,
                 status: KycAttemptStatus.COMPLETED
               }
@@ -1910,7 +1910,15 @@ describe("getUploadUrls", () => {
     sequelize.transaction = originalTransaction;
   });
 
-  const uploadUrlsMock = mock(async () => ({ id: "doc-1", uploadURLBack: "back-url", uploadURLFront: "front-url" }));
+  const uploadUrlsMock = mock(async (documentType: BrDocumentType) =>
+    documentType === BrDocumentType.SELFIE_FROM_LIVENESS
+      ? {
+          id: "selfie-1",
+          livenessUrl: "https://app.avenia.io/liveness/session-1",
+          validateLivenessToken: "liveness-token"
+        }
+      : { id: "doc-1", uploadURLBack: "back-url", uploadURLFront: "front-url" }
+  );
 
   function mockBrlaApi() {
     BrlaApiService.getInstance = mock(
@@ -1945,7 +1953,47 @@ describe("getUploadUrls", () => {
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(uploadUrlsMock).toHaveBeenCalledTimes(2);
+    expect(res.body).toEqual({
+      idUpload: {
+        id: "doc-1",
+        uploadURLBack: "back-url",
+        uploadURLFront: "front-url"
+      },
+      selfieUpload: {
+        id: "selfie-1",
+        livenessUrl: "https://app.avenia.io/liveness/session-1",
+        validateLivenessToken: "liveness-token"
+      }
+    });
+    expect((res.body as { selfieUpload: object }).selfieUpload).not.toHaveProperty("uploadURLFront");
     expect(strayCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns the dedicated hosted-liveness response without an upload URL", async () => {
+    mockBrlaApi();
+    uploadUrlsMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "standard" }]) as unknown as typeof KycCase.findAll;
+
+    const res = createResponse();
+    await getSelfieLivenessUrl({ query: { taxId: "11222333000181" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(res.body).toEqual({
+      id: "selfie-1",
+      livenessUrl: "https://app.avenia.io/liveness/session-1",
+      validateLivenessToken: "liveness-token"
+    });
+    expect(res.body as object).not.toHaveProperty("uploadURLFront");
   });
 
   it("rejects a tax id owned by another profile", async () => {
@@ -2586,7 +2634,7 @@ describe("Avenia API KYB", () => {
         {
           createdAt: "2026-08-12T10:00:00.000Z",
           id: "accepted-attempt",
-          levelName: "kyb-level-1",
+          levelName: "level-1",
           status: KycAttemptStatus.PENDING,
           updatedAt: "2026-08-12T10:00:00.000Z"
         }
@@ -2637,7 +2685,7 @@ describe("Avenia API KYB", () => {
           {
             createdAt: "2026-08-12T10:00:00.000Z",
             id: "conflicting-attempt",
-            levelName: "kyb-level-1",
+            levelName: "level-1",
             status: KycAttemptStatus.PROCESSING,
             updatedAt: "2026-08-12T10:01:00.000Z"
           }

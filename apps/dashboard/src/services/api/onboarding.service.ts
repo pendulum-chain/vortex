@@ -42,6 +42,6 @@ export const OnboardingService = {
     return apiClient.put<{ activeEntityId: string; type: ActiveEntityType }>("/onboarding/active-entity", { type });
   },
   status(): Promise<OnboardingStatusResponse> {
-    return apiClient.get<OnboardingStatusResponse>("/onboarding/status");
+    return apiClient.get<OnboardingStatusResponse>("/onboarding/status", { managedProfile: true });
   }
 };

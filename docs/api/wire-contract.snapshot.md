@@ -12,6 +12,8 @@ A diff here means: check backward compatibility for live integrations, and keep
 ## packages/shared — partner wire contract (`src/endpoints`)
 
 ```text
+ACCOUNT_WEBHOOK_EVENT_TYPES: readonly [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED]
+
 AcceptedRecipientInvite: {
   id: string;
   invitation: {
@@ -245,7 +247,6 @@ BrGetSelfieLivenessUrlRequest: {
 BrGetSelfieLivenessUrlResponse: {
   id: string;
   livenessUrl: string;
-  uploadURLFront: string;
   validateLivenessToken: string;
 }
 
@@ -287,9 +288,8 @@ BrKYCDataUpload: {
   };
   selfieUpload: {
     id: string;
-    livenessUrl?: string;
-    uploadURLFront: string;
-    validateLivenessToken?: string;
+    livenessUrl: string;
+    validateLivenessToken: string;
   };
 }
 
@@ -431,6 +431,56 @@ DeleteWebhookRequest: {
 DeleteWebhookResponse: {
   message: string;
   success: boolean;
+}
+
+DepositConvertedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_CONVERTED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  } & {
+    conversions: Array<{
+      eureInRaw: string;
+      executionId: string;
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
+  };
+  timestamp: string;
+}
+
+DepositReceivedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RECEIVED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  };
+  timestamp: string;
+}
+
+DepositStatus: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" }
+
+DepositWebhookPayloadBase: {
+  accountId: string;
+  amountRaw: string;
+  currency: string;
+  depositId: string;
+  profileId: string;
+  status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+  txHash: null | string;
 }
 
 DomesticAddFiatAccountRequest: {
@@ -924,7 +974,7 @@ GetSupportedCountryResponse: {
 }
 
 GetSupportedCryptocurrenciesRequest: {
-  network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy;
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
 }
 
 GetSupportedCryptocurrenciesResponse: {
@@ -933,11 +983,13 @@ GetSupportedCryptocurrenciesResponse: {
     assetDecimals: number;
     assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
     assetSymbol: string;
+    rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
   } | {
     assetDecimals: number;
     assetForeignAssetId?: number;
     assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
     assetSymbol: string;
+    rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
   }>;
 }
 
@@ -1610,7 +1662,7 @@ RegisterRampResponse: {
 }
 
 RegisterWebhookRequest: {
-  events?: Array<enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events?: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   quoteId?: string;
   sessionId?: string;
   url: string;
@@ -1618,7 +1670,7 @@ RegisterWebhookRequest: {
 
 RegisterWebhookResponse: {
   createdAt: string;
-  events: Array<enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   id: string;
   isActive: boolean;
   quoteId: null | string;
@@ -1966,6 +2018,7 @@ SupportedAssetHubCryptocurrencyDetails: {
   assetForeignAssetId?: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedCountry: {
@@ -1986,17 +2039,20 @@ SupportedCryptocurrencyDetails: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 } | {
   assetDecimals: number;
   assetForeignAssetId?: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedCryptocurrencyDetailsBase: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedEVMCryptocurrencyDetails: {
@@ -2004,6 +2060,7 @@ SupportedEVMCryptocurrencyDetails: {
   assetDecimals: number;
   assetNetwork: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy" };
   assetSymbol: string;
+  rampTypes: Array<enum RampDirection { BUY = "BUY", SELL = "SELL" }>;
 }
 
 SupportedFiatCurrency: {
@@ -2366,6 +2423,40 @@ WebhookDeliveryAttempt: {
   nextRetryAt?: Date;
   payload: {
     eventId: string;
+    eventType: WebhookEventType.DEPOSIT_CONVERTED;
+    payload: {
+      accountId: string;
+      amountRaw: string;
+      currency: string;
+      depositId: string;
+      profileId: string;
+      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      txHash: null | string;
+    } & {
+      conversions: Array<{
+        eureInRaw: string;
+        executionId: string;
+        txHash: null | string;
+        usdcNetRaw: string;
+      }>;
+      usdcNetRaw: string;
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
+    eventType: WebhookEventType.DEPOSIT_RECEIVED;
+    payload: {
+      accountId: string;
+      amountRaw: string;
+      currency: string;
+      depositId: string;
+      profileId: string;
+      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      txHash: null | string;
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
     eventType: WebhookEventType.STATUS_CHANGE;
     payload: {
       quoteId: string;
@@ -2391,9 +2482,43 @@ WebhookDeliveryAttempt: {
   webhookId: string;
 }
 
-WebhookEventType: enum WebhookEventType { STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
+WebhookEventType: enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
 
 WebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_CONVERTED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  } & {
+    conversions: Array<{
+      eureInRaw: string;
+      executionId: string;
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    usdcNetRaw: string;
+  };
+  timestamp: string;
+} | {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RECEIVED;
+  payload: {
+    accountId: string;
+    amountRaw: string;
+    currency: string;
+    depositId: string;
+    profileId: string;
+    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    txHash: null | string;
+  };
+  timestamp: string;
+} | {
   eventId: string;
   eventType: WebhookEventType.STATUS_CHANGE;
   payload: {
@@ -2669,6 +2794,8 @@ APIErrorResponse: {
   isPublic?: boolean;
   message: string;
   status: number;
+  statusCode?: number;
+  type?: string;
 }
 
 APINotInitializedError: class APINotInitializedError {
@@ -2688,6 +2815,8 @@ APIResponseError: class APIResponseError {
   readonly originalError?: Error;
   readonly status: number;
 }
+
+AccessTokenProvider: () => Promise<null | string | undefined>
 
 AlfredPayCountry: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
 
@@ -4759,6 +4888,20 @@ StartRampError: class StartRampError {
   readonly status: number;
 }
 
+StoreEphemeralKeysCallback: (keys: Array<{
+  address: string;
+  rampId: string;
+  secret: string;
+  type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+}>, rampId: string) => Promise<void>
+
+StoredEphemeralKey: {
+  address: string;
+  rampId: string;
+  secret: string;
+  type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+}
+
 SubaccountNotFoundError: class SubaccountNotFoundError {
   constructor();
   readonly code?: string;
@@ -5469,6 +5612,7 @@ UserTypedDataSigningContext: {
 
 VortexSdk: class VortexSdk {
   constructor(config: {
+    accessTokenProvider?: () => Promise<null | string | undefined>;
     alchemyApiKey?: string;
     apiBaseUrl: string;
     autoReconnect?: boolean;
@@ -5480,6 +5624,12 @@ VortexSdk: class VortexSdk {
     publicKey?: string;
     secretKey?: string;
     storeEphemeralKeys?: boolean;
+    storeEphemeralKeysCallback?: (keys: Array<{
+      address: string;
+      rampId: string;
+      secret: string;
+      type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+    }>, rampId: string) => Promise<void>;
   });
   createQuote: <T extends {
     api?: boolean;
@@ -8385,6 +8535,7 @@ VortexSdk: class VortexSdk {
 }
 
 VortexSdkConfig: {
+  accessTokenProvider?: () => Promise<null | string | undefined>;
   alchemyApiKey?: string;
   apiBaseUrl: string;
   autoReconnect?: boolean;
@@ -8396,6 +8547,12 @@ VortexSdkConfig: {
   publicKey?: string;
   secretKey?: string;
   storeEphemeralKeys?: boolean;
+  storeEphemeralKeysCallback?: (keys: Array<{
+    address: string;
+    rampId: string;
+    secret: string;
+    type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+  }>, rampId: string) => Promise<void>;
 }
 
 VortexSdkContext: {

@@ -5,6 +5,7 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentResponse,
+  AveniaDocumentUploadResponse,
   AveniaImportKycTokenRequest,
   AveniaImportKycTokenResponse,
   AveniaPayinTicket,
@@ -169,7 +170,7 @@ export interface EndpointMapping {
   [Endpoint.Documents]: {
     POST: {
       body: DocumentUploadRequest;
-      response: DocumentUploadResponse;
+      response: AveniaDocumentUploadResponse;
     };
     GET: {
       body: undefined;

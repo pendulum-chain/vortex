@@ -3,6 +3,6 @@ import { apiClient } from "./api-client";
 
 export const BrlaService = {
   getUploadUrls(request: BrKYCDataUploadRequest): Promise<BrKYCDataUpload> {
-    return apiClient.post<BrKYCDataUpload>("/brla/getUploadUrls", request);
+    return apiClient.post<BrKYCDataUpload>("/brla/getUploadUrls", request, { managedProfile: true });
   }
 };

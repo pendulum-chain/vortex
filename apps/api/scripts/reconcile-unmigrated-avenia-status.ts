@@ -41,7 +41,7 @@ type Attempt = {
 type AveniaClient = {
   subaccountInfo(subAccountId: string): Promise<unknown>;
   getKycAttempts(subAccountId: string): Promise<unknown>;
-  getKybAttemptStatus(attemptId: string): Promise<unknown>;
+  getKybAttemptStatus(attemptId: string, subAccountId: string): Promise<unknown>;
 };
 
 type Options = {
@@ -309,7 +309,7 @@ export async function reconcileRow(row: InputRow, client: AveniaClient, retries:
       if (row.account_type === "COMPANY") {
         if (row.kyc_attempt) {
           attempt = parseCompanyAttempt(
-            await callWithRetry(() => client.getKybAttemptStatus(row.kyc_attempt), retries),
+            await callWithRetry(() => client.getKybAttemptStatus(row.kyc_attempt, row.sub_account_id), retries),
             row.kyc_attempt
           );
         } else {

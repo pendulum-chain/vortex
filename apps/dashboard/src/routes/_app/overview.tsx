@@ -12,6 +12,8 @@ import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors
 import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
+import { useImpersonationSession } from "@/stores/impersonation.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
@@ -25,6 +27,8 @@ export const Route = createFileRoute("/_app/overview")({
 
 function OverviewPage() {
   const account = useActiveAccount();
+  const impersonation = useImpersonationSession();
+  const managedProfile = useManagedProfileSelection();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
@@ -43,6 +47,7 @@ function OverviewPage() {
   );
   const approved = corridors.filter(corridor => account.onboardings[corridor.id]?.status === "approved").length;
   const openCorridor = activeCorridor ?? search.onboarding ?? null;
+  const verificationReadOnly = impersonation !== null || managedProfile !== null;
 
   function addCorridor() {
     if (!selectedToAdd) {
@@ -78,6 +83,17 @@ function OverviewPage() {
         </div>
       </StaggerItem>
 
+      {verificationReadOnly && (
+        <StaggerItem>
+          <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+            <p className="font-medium">KYC/KYB is read-only while acting for another profile.</p>
+            <p className="text-muted-foreground">
+              You can review verification status, but verification must be completed outside this acting session.
+            </p>
+          </div>
+        </StaggerItem>
+      )}
+
       {corridors.length > 0 ? (
         <Stagger className="grid gap-4 md:grid-cols-2">
           {corridors.map(corridor => (
@@ -88,7 +104,12 @@ function OverviewPage() {
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.99 }}
             >
-              <CorridorCard account={account} corridor={corridor} onStart={() => setActiveCorridor(corridor.id)} />
+              <CorridorCard
+                account={account}
+                corridor={corridor}
+                onStart={() => setActiveCorridor(corridor.id)}
+                verificationReadOnly={verificationReadOnly}
+              />
             </StaggerItem>
           ))}
         </Stagger>
@@ -128,7 +149,7 @@ function OverviewPage() {
         </DialogContent>
       </Dialog>
 
-      {openCorridor && (
+      {openCorridor && !verificationReadOnly && (
         <OnboardingWizard
           account={account}
           corridor={CORRIDORS[openCorridor]}

@@ -21,7 +21,11 @@ function TransactionsPage() {
   const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
   const resumableRamp = useSelector(transferActor, snapshot =>
-    snapshot.matches("AwaitingPayment") && snapshot.context.meta?.accountId === account?.id ? snapshot.context.ramp : null
+    snapshot.matches("AwaitingPayment") &&
+    snapshot.context.meta?.ownerProfileId === snapshot.context.activeOwnerProfileId &&
+    snapshot.context.meta.accountId === account?.id
+      ? snapshot.context.ramp
+      : null
   );
 
   if (!account) {

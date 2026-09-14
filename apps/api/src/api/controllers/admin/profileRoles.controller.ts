@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
-import ProfileRole, { PROFILE_ROLE_NAMES, type ProfileRoleName } from "../../../models/profileRole.model";
+import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
+import ProfileRole, {
+  HTTP_GRANTABLE_PROFILE_ROLES,
+  PROFILE_ROLE_NAMES,
+  type ProfileRoleName
+} from "../../../models/profileRole.model";
 import User from "../../../models/user.model";
 
 function isProfileRoleName(role: unknown): role is ProfileRoleName {
@@ -26,6 +32,17 @@ export async function addProfileRole(req: Request, res: Response): Promise<void>
           code: "INVALID_ROLE_INPUT",
           message: `userId or email is required and role must be one of: ${PROFILE_ROLE_NAMES.join(", ")}`,
           status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    if (!HTTP_GRANTABLE_PROFILE_ROLES.includes(role)) {
+      res.status(httpStatus.FORBIDDEN).json({
+        error: {
+          code: "ROLE_NOT_HTTP_GRANTABLE",
+          message: `${role} must be granted out-of-band (see scripts/grant-vortex-admin.ts), not via this endpoint`,
+          status: httpStatus.FORBIDDEN
         }
       });
       return;
@@ -85,7 +102,21 @@ export async function removeProfileRole(req: Request<{ userIdOrEmail: string; ro
     }
 
     const user = await findProfile(userIdOrEmail);
-    const deleted = user ? await ProfileRole.destroy({ where: { role, userId: user.id } }) : 0;
+    const deleted = user
+      ? await sequelize.transaction(async transaction => {
+          // Share the actor-row lock used by session creation, so role removal cannot race
+          // with a new token being minted after the revocation sweep.
+          await User.findByPk(user.id, { attributes: ["id"], lock: transaction.LOCK.UPDATE, transaction });
+          const deleted = await ProfileRole.destroy({ transaction, where: { role, userId: user.id } });
+          if (deleted && role === "vortex_admin") {
+            await AdminImpersonationSession.update(
+              { revokedAt: new Date(), revokedReason: "vortex_admin_role_revoked" },
+              { transaction, where: { actorProfileId: user.id, revokedAt: null } }
+            );
+          }
+          return deleted;
+        })
+      : 0;
     if (!deleted) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {

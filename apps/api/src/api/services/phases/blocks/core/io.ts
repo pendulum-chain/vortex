@@ -9,6 +9,8 @@ import {
   type OnChainToken
 } from "@vortexfi/shared";
 import Big from "big.js";
+import httpStatus from "http-status";
+import { APIError } from "../../../../errors/api-error";
 import type { ChainBrand, FlowInputResolver, PhaseCtx, PhaseIO, TokenBrand } from "./types";
 
 export function fiatRequestIO<Token extends FiatToken>(...tokens: Token[]): FlowInputResolver<PhaseIO<Token, "fiat">> {
@@ -38,7 +40,7 @@ function onChainRequestIO<Token extends OnChainToken, Chain extends Networks>(
     }
     const tokenDetails = getOnChainTokenDetails(chain, token);
     if (!tokenDetails) {
-      throw new Error(`Token ${token} is not configured on ${chain}`);
+      throw new APIError({ message: `Token ${token} is not configured on ${chain}`, status: httpStatus.BAD_REQUEST });
     }
     const amount = new Big(ctx.request.inputAmount);
     return {

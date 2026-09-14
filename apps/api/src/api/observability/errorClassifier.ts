@@ -6,6 +6,8 @@ export function classifyApiClientError(error: unknown, fallbackStatus?: number |
   const message = getErrorMessage(error).toLowerCase();
   const status = error instanceof APIError ? error.status : fallbackStatus;
 
+  if (error instanceof APIError && error.type === "provider_limit_exceeded") return "provider_limit_exceeded";
+
   if (message.includes("authentication required")) return "auth_missing_api_key";
   if (message.includes("does not own") || message.includes("ownership")) return "ownership_denied";
   if (status === httpStatus.FORBIDDEN) return "ownership_denied";

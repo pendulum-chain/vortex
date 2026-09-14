@@ -137,3 +137,4 @@ apps/dashboard/playwright-report/
 /contracts/cctp-settlement/typechain-types/common.ts
 /contracts/cctp-settlement/typechain-types/hardhat.d.ts
 /contracts/cctp-settlement/typechain-types/index.ts
+.gbrain-source

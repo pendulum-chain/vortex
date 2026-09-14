@@ -1,0 +1,3 @@
+[submodule "contracts/monerium-forwarder/lib/forge-std"]
+	path = contracts/monerium-forwarder/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

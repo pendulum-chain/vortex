@@ -1,5 +1,6 @@
 import sequelize from "../config/database";
 import { runMigrations } from "../database/migrator";
+import { settleBackgroundWork } from "./background-work";
 // Importing the models index registers every model and association on the sequelize instance.
 import "../models";
 
@@ -51,6 +52,9 @@ export async function resetTestDatabase(): Promise<void> {
  * migration bookkeeping intact.
  */
 export async function truncateAllTables(): Promise<void> {
+  // Fire-and-forget work from the previous test (e.g. the ramp-completion email enqueue)
+  // may still be inserting; truncating underneath it deadlocks in Postgres.
+  await settleBackgroundWork();
   const tables = Object.values(sequelize.models)
     // Umzug's SequelizeStorage registers SequelizeMeta as a model; wiping it
     // would make every migration re-run on the next setup.

@@ -66,6 +66,7 @@ export const createQuote = async (
       apiKeyPrefix: getSafeApiKeyPrefix(publicApiKey, ["pk_"]),
       durationMs: getRequestDurationMs(req),
       httpStatus: httpStatus.CREATED,
+      metadata: buildQuoteRequestMetadata(req, "quote_create"),
       network,
       operation: "quote_create",
       partnerId: req.credential?.partnerId || null,
@@ -130,6 +131,7 @@ export const createBestQuote = async (
       apiKeyPrefix: getSafeApiKeyPrefix(publicApiKey, ["pk_"]),
       durationMs: getRequestDurationMs(req),
       httpStatus: httpStatus.CREATED,
+      metadata: buildQuoteRequestMetadata(req, "quote_create_best"),
       network: quote.network,
       operation: "quote_create_best",
       partnerId: req.credential?.partnerId || null,
@@ -179,6 +181,7 @@ export const getQuote = async (
     observeApiClientEvent({
       durationMs: getRequestDurationMs(req),
       httpStatus: httpStatus.OK,
+      metadata: buildQuoteRequestMetadata(req, "quote_get"),
       network: quote.network,
       operation: "quote_get",
       paymentMethod: quote.paymentMethod,
@@ -207,6 +210,7 @@ interface ObservedQuoteRequest {
   query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
+  impersonation?: Request["impersonation"];
   userId?: string;
 }
 
@@ -239,7 +243,7 @@ function observeQuoteFailure(
   });
 }
 
-function buildQuoteRequestMetadata(req: ObservedQuoteRequest, operation: QuoteOperation): Record<string, unknown> {
+export function buildQuoteRequestMetadata(req: ObservedQuoteRequest, operation: QuoteOperation): Record<string, unknown> {
   if (operation === "quote_get") {
     return buildApiClientRequestMetadata(req, { paramKeys: ["id"] });
   }

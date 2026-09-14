@@ -1,4 +1,4 @@
-import { literal, Op } from "sequelize";
+import { literal, Op, type Transaction } from "sequelize";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
@@ -31,10 +31,13 @@ function describeKey({ provider, type, resourceId }: NotificationKey): string {
  * Records a notification to be emailed. Idempotent on the notification key:
  * enqueuing the same event twice is a no-op, so callers can fire without guarding.
  */
-export async function enqueueNotification({ userId, payload, ...key }: EnqueueParams): Promise<void> {
+export async function enqueueNotification(
+  { userId, payload, ...key }: EnqueueParams,
+  transaction?: Transaction
+): Promise<void> {
   // Duplicates are the common case (webhook replays, re-polled attempts), so check the
   // key before resolving the locale — that resolution is a Supabase admin API call.
-  if (await EmailNotification.findOne({ where: { ...key } })) {
+  if (await EmailNotification.findOne({ transaction, where: { ...key } })) {
     return;
   }
 
@@ -42,6 +45,7 @@ export async function enqueueNotification({ userId, payload, ...key }: EnqueuePa
 
   const [, created] = await EmailNotification.findOrCreate({
     defaults: { ...key, locale, payload, userId },
+    transaction,
     where: { ...key }
   });
 

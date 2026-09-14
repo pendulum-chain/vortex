@@ -227,7 +227,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     world.alfredpay.onCreateOnramp = undefined;
     world.alfredpay.onrampStatus = AlfredpayOnrampStatus.TRADE_COMPLETED;
     world.alfredpay.onrampStatusMetadata = null;
-    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    world.alfredpay.offrampStatus = AlfredpayOfframpStatus.CREATED;
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
     // Both direct and cross-chain Alfredpay SELL simulations price a
     // Squid-delivered Polygon USDT settlement leg.
@@ -256,6 +256,9 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
         recipient,
         world.evm.erc20Balance(tx.network, parsed.to, recipient) + amount
       );
+      if (recipient.toLowerCase() === world.alfredpay.offrampDepositAddress.toLowerCase()) {
+        world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+      }
     };
   }
 

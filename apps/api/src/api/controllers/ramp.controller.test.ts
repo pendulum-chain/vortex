@@ -3,7 +3,37 @@ import { describe, expect, it } from "bun:test";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
 import { classifyApiClientError } from "../observability/errorClassifier";
-import { formatProviderContext, mapProviderFailure } from "./ramp.controller";
+import { buildRampRequestMetadata, formatProviderContext, mapProviderFailure } from "./ramp.controller";
+
+describe("buildRampRequestMetadata", () => {
+  it("includes impersonation attribution in ramp request metadata", () => {
+    const metadata = buildRampRequestMetadata(
+      {
+        body: { additionalData: { taxId: "sensitive" }, quoteId: "quote-1", signingAccounts: ["account-1"] },
+        impersonation: {
+          actorProfileId: "actor-1",
+          expiresAt: new Date("2026-08-07T12:00:00.000Z"),
+          sessionId: "session-1",
+          targetEmail: "target@example.com",
+          targetProfileId: "target-1"
+        },
+        method: "POST",
+        path: "/v1/ramp/register"
+      },
+      "ramp_register"
+    );
+
+    expect(metadata).toEqual({
+      hasRequestBodyAdditionalData: true,
+      impersonationSessionId: "session-1",
+      impersonatorProfileId: "actor-1",
+      requestBodyQuoteId: "quote-1",
+      requestBodySigningAccountsCount: 1,
+      requestMethod: "POST",
+      requestPath: "/v1/ramp/register"
+    });
+  });
+});
 
 describe("mapProviderFailure", () => {
   it("maps a 4xx Avenia rejection (e.g. blocked user) to a 422 with a sanitized public message", () => {

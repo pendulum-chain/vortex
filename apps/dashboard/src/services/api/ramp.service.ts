@@ -28,7 +28,7 @@ export function mapPhaseToStatus(phase: string): DomainTransactionStatus {
 /** Ported from the widget's RampService — the real /v1/ramp/* endpoints. */
 export const RampService = {
   getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
-    return apiClient.get<GetRampStatusResponse>(`/ramp/${rampId}`);
+    return apiClient.get<GetRampStatusResponse>(`/ramp/${rampId}`, { managedProfile: true });
   },
 
   registerRamp(
@@ -36,11 +36,15 @@ export const RampService = {
     signingAccounts: AccountMeta[],
     additionalData?: RegisterRampRequest["additionalData"]
   ): Promise<RampProcess> {
-    return apiClient.post<RampProcess>("/ramp/register", { additionalData, quoteId, signingAccounts });
+    return apiClient.post<RampProcess>(
+      "/ramp/register",
+      { additionalData, quoteId, signingAccounts },
+      { managedProfile: true }
+    );
   },
 
   startRamp(rampId: string): Promise<RampProcess> {
-    return apiClient.post<RampProcess>("/ramp/start", { rampId });
+    return apiClient.post<RampProcess>("/ramp/start", { rampId }, { managedProfile: true });
   },
 
   updateRamp(
@@ -48,7 +52,7 @@ export const RampService = {
     presignedTxs: PresignedTx[],
     additionalData?: UpdateRampRequest["additionalData"]
   ): Promise<RampProcess> {
-    return apiClient.post<RampProcess>("/ramp/update", { additionalData, presignedTxs, rampId });
+    return apiClient.post<RampProcess>("/ramp/update", { additionalData, presignedTxs, rampId }, { managedProfile: true });
   }
 };
 

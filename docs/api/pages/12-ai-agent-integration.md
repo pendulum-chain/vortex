@@ -17,16 +17,16 @@ When you point an AI coding agent at Vortex:
 
 | Your runtime | Path |
 |---|---|
-| Node.js (server-side, trusted) | Use [`@vortexfi/sdk`](https://www.npmjs.com/package/@vortexfi/sdk). |
+| Node.js or modern browser with a custom UX | Use [`@vortexfi/sdk`](https://www.npmjs.com/package/@vortexfi/sdk); browser code must authenticate through `accessTokenProvider`, never an `sk_*`. |
 | Python (server-side, trusted) | Use [`vortex-sdk-python`](https://pypi.org/project/vortex-sdk-python). |
-| Browser, mobile, WebView | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
+| Browser, mobile, or WebView preferring a hosted UX and hosted custody | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
 The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR (SEPA) BUY currently requires a direct API integration because the linked owner must sign typed data; EUR SELL is unavailable. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
-Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
+Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
 ## C. Python (`vortex-sdk-python`)
 
@@ -64,7 +64,7 @@ Operational notes specific to the Python wrapper:
 
 - A Node.js runtime must be available on the host. The wrapper manages its own Node process.
 - Ephemeral key storage rules from the Node SDK apply: by default `ephemerals_{rampId}.json` is written **unencrypted** in the working directory.
-- The Node SDK opens three persistent WebSocket connections on init; reuse one `VortexSdk(...)` instance for the lifetime of your service.
+- The Node SDK initializes chain WebSocket connections lazily when returned transactions require them; reuse one `VortexSdk(...)` instance for the lifetime of your service.
 
 Refer to the PyPI page for the latest version, function names, and breaking-change notes: <https://pypi.org/project/vortex-sdk-python>.
 
@@ -215,7 +215,14 @@ See also [Production Checklist](https://api-docs.vortexfinance.co/production-che
 
 ## H. API-Driven KYC And KYB Onboarding
 
-Where a corridor supports it, onboarding runs through the API without any Vortex UI. The contract has three parts:
+Where a corridor supports it, onboarding runs through the API without any Vortex UI.
+
+Two profile models can run these flows, and the choice is independent of how you build your UI:
+
+- **Standalone profile (default).** The customer owns a normal Vortex profile and authenticates with their own Supabase session or API credential. No manager status is required, and this is the only model the EUR corridor supports.
+- **Managed profile (optional).** Your platform creates and controls a headless child profile that has no Vortex login, OTP, or claiming lifecycle. Vortex must enable your profile as a manager first — see H.1.
+
+Neither model changes the three-part contract below:
 
 1. **Discover the flow.**
 
@@ -236,8 +243,8 @@ Non-negotiable rules for an agent implementing these flows:
 - **BR individuals: the verification method locks permanently.** The first standard document, liveness artifact, submission, or status read commits the account to the `standard` method; a Sumsub token import commits it to `sumsub_share_token` and blocks the standard path. Decide the method before touching either flow.
 - **Pin `requirementsVersion`** alongside the docs commit and SDK version you already record (Section A), and re-run discovery when it changes.
 
-### H.1 Onboarding For Your Own Customers (Managed Profiles)
+### H.1 Optional: Platform-Controlled Onboarding With Managed Profiles
 
-Platforms that onboard their own users headlessly — no Vortex login or UI for the end customer — create **managed child profiles** and run every onboarding and ramp operation on the child's behalf, either with the manager credential plus `X-Managed-Profile-Id` or with child-owned credentials. All discovery-published onboarding steps and the full ramp lifecycle accept this delegation, subject to the manager's corridor policy; webhooks do not (poll instead). The walkthrough with examples is [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles); the authoritative contract is in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Agents implementing this pattern must key their idempotency and state on the manager-scoped `externalSubjectId` → `profileId` mapping, and must complete a BR child's Sumsub token import **before** any status read for that child (the method-lock rule above).
+If your platform must create and control headless customers — no Vortex login or UI for the end customer, and no later claiming flow — use **managed child profiles** and run every onboarding and ramp operation on the child's behalf, either with the manager credential plus `X-Managed-Profile-Id` or with child-owned credentials. All discovery-published onboarding steps and the full ramp lifecycle accept this delegation, subject to the manager's corridor policy; webhooks do not (poll instead). The walkthrough with examples is [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles); the authoritative contract is in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Agents implementing this pattern must key their idempotency and state on the manager-scoped `externalSubjectId` → `profileId` mapping, and must complete a BR child's Sumsub token import **before** any status read for that child (the method-lock rule above).
 
 ---

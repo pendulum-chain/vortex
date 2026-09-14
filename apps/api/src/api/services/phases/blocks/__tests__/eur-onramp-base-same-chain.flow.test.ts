@@ -49,6 +49,11 @@ mock.module("../core/squidrouter", () => ({
       outputTokenDecimals: token?.decimals ?? 6
     };
   },
+  getEvmBridgeQuote: async ({ amountDecimal }: { amountDecimal: string }) => ({
+    networkFeeUSD: "0.1",
+    outputAmountDecimal: new Big(amountDecimal),
+    outputAmountUsd: new Big(amountDecimal)
+  }),
   getBridgeTargetTokenDetails: (token: EvmToken) => evmTokenConfig[Networks.Base][token]
 }));
 

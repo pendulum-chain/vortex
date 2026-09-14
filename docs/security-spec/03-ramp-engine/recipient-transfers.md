@@ -7,17 +7,18 @@ onboards (KYC/KYB via the widget) under their **own** profile, and the sender ma
 transfers (offramps) that pay out to that recipient. Backed by the migration-`042` tables
 (`recipient_invitations`, `sender_recipients`, `recipient_payout_references`), all anchored to
 `customer_entities`; migration-`050` added the sender-local `alias`, the retained raw `token`,
-and `archived_at` to `recipient_invitations` (dropping the unused `amount`). Routes live under `/v1/recipients` (`recipients.controller.ts`), all behind
-`requireAuth` (Supabase bearer token):
+and `archived_at` to `recipient_invitations` (dropping the unused `amount`). Routes live under
+`/v1/recipients` (`recipients.controller.ts`) behind Supabase bearer authentication. Sender-side
+routes additionally accept an authorized managed-child selector; preview and acceptance do not:
 
-| Endpoint | Purpose |
-| :-- | :-- |
-| `POST /v1/recipients/invite` | Sender creates an invite (with a sender-local `alias`); response returns the raw link token |
-| `POST /v1/recipients/invite/:token/accept` | Authenticated recipient redeems the token |
-| `GET /v1/recipients` | Sender lists relationships + pending invitations; pending items include the raw token for re-copy |
-| `PATCH /v1/recipients/:id` | Sender sets nickname / `active` / `blocked` / `archived` (archived rows are excluded from the list) |
-| `PATCH /v1/recipients/invitations/:id` | Sender archives/unarchives a pending invitation — a cosmetic list hide; the token stays redeemable (this is **not** revocation) |
-| `GET /v1/recipients/:id/eligibility` | Transfer gate: `{ canCreateTransfer, blockingReasonCode? }` |
+| Endpoint                                   | Purpose                                                                                                                         |
+| :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /v1/recipients/invite`               | Sender creates an invite (with a sender-local `alias`); response returns the raw link token                                     |
+| `POST /v1/recipients/invite/:token/accept` | Authenticated recipient redeems the token                                                                                       |
+| `GET /v1/recipients`                       | Sender lists relationships + pending invitations; pending items include the raw token for re-copy                               |
+| `PATCH /v1/recipients/:id`                 | Sender sets nickname / `active` / `blocked` / `archived` (archived rows are excluded from the list)                             |
+| `PATCH /v1/recipients/invitations/:id`     | Sender archives/unarchives a pending invitation — a cosmetic list hide; the token stays redeemable (this is **not** revocation) |
+| `GET /v1/recipients/:id/eligibility`       | Transfer gate: `{ canCreateTransfer, blockingReasonCode? }`                                                                     |
 
 This matters because the sender↔recipient link is an authorization edge over money movement: a
 broken invite or scoping check lets an attacker attach themselves as someone's recipient, or pay
@@ -44,14 +45,14 @@ out against another tenant's relationship.
    canonical (trimmed, lowercased) form, else `403 INVITE_EMAIL_MISMATCH`.
 3. **Invites bind to one recipient, and expire.** A `pending` invite is redeemable by anyone
    holding the token (subject to 2). Once accepted it binds to `accepted_by_profile_id`: any
-   *other* profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
-   `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a *pending* invite past `expires_at`
+   _other_ profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
+   `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a _pending_ invite past `expires_at`
    transitions the row to `expired`; sender listing performs the same transition and includes
    expired rows without a token so the sender can see why the link stopped working. This holds under concurrency: the acceptance transaction
    re-reads the invitation `FOR UPDATE` and re-checks acceptance/revocation under the lock, so
    two profiles redeeming the same token simultaneously produce exactly one relationship
    (integration-tested with parallel accepts).
-3a. **Re-entry.** The accepting recipient may re-present the token to resume onboarding: the accept
+   3a. **Re-entry.** The accepting recipient may re-present the token to resume onboarding: the accept
    endpoint is idempotent for that profile, returning `200` with the existing relationship instead
    of `201`. Re-entry does not re-notify the sender, does not move `accepted_at`, and does not
    revive an `archived` relationship. It survives `expires_at` passing — the relationship already
@@ -72,16 +73,17 @@ out against another tenant's relationship.
    different rail — returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs
    in one transaction.
-5a. **Relationships are per payout rail.** `sender_recipients` is unique on
+   5a. **Relationships are per payout rail.** `sender_recipients` is unique on
    `(sender, recipient, COALESCE(rail, '*'))` (migration 054; `rail` backfilled from the linked
    invitation): the same pair holds one relationship row per corridor, each keeping its own
-   `invitation_id`. Accepting an invite on a *new* rail adds a row; accepting on an already-linked
+   `invitation_id`. Accepting an invite on a _new_ rail adds a row; accepting on an already-linked
    rail repoints that rail's row (a renewal). Before the split, a second-rail acceptance repointed
-   the pair's single row, silently dropping the first corridor from the sender's list *and* its
+   the pair's single row, silently dropping the first corridor from the sender's list _and_ its
    invitation-derived transfer-eligibility gate.
-6. **All sender-side routes are entity-scoped.** List/PATCH (relationship and invitation
-   archive)/eligibility resolve the caller's `customer_entity` from `req.userId` and filter on
-   `sender_customer_entity_id`; foreign ids
+6. **All sender-side routes are entity-scoped.** Create/list/PATCH (relationship and invitation
+   archive)/eligibility resolve the sender profile through `getEffectiveUserId` and filter on
+   `sender_customer_entity_id`; for managed delegation this is the authorization-verified child,
+   while the authenticated manager remains the actor. Foreign ids
    return a uniform `404`. Entity resolution is deterministic: a partial unique index on
    `customer_entities (profile_id, type)` (migration 049) makes the acceptance-path
    `findOrCreate` race-safe, and `getOrCreateCustomerEntityForProfile` resolves type-less
@@ -104,8 +106,10 @@ out against another tenant's relationship.
    provider cannot onboard (`400 UNSUPPORTED_INVITEE_TYPE`, e.g. AR business — Alfredpay has no
    AR company KYB), and senders with no approved onboarding anywhere
    (`403 NO_APPROVED_CORRIDOR`; approvals are read from `provider_customers.status`, which every
-   provider persists). The dashboard's corridor filter is a UX mirror of these rules, not the
-   enforcement point.
+   provider persists). For delegated managed senders, malformed input retains the same `400`
+   errors before authorization, then the requested country must be in the manager's current
+   `allowedCorridors` and valid for the child's immutable type. The dashboard's corridor filter is
+   a UX mirror of these rules, not the enforcement point.
 10. **Sender self accounts are not recipient payout references.** For Alfredpay self offramps, the
     dashboard lists and creates provider-side fiat accounts owned by the authenticated sender and
     registration carries their `fiatAccountId` in `additionalData`. This does not create a
@@ -116,7 +120,7 @@ out against another tenant's relationship.
     (`buyBps`/`sellBps`, integers `0..configuredMaximum`, where the deployment setting
     `RECIPIENT_INVITE_MAX_DISCOUNT_BPS` defaults to and can never exceed the immutable
     application hard cap of `300`; `0` means none)
-    only from profiles holding the `discount_manager` role in `profile_roles`
+    only when the authenticated actor holds the `discount_manager` role in `profile_roles`
     (`403 DISCOUNT_ROLE_REQUIRED` otherwise — the role check is server-side, the dashboard's
     field visibility is UX only). Validated seeds are stored on
     `recipient_invitations.seeded_discounts` as `{ rampType, fiatCurrency, bps }[]`, with
@@ -160,16 +164,25 @@ out against another tenant's relationship.
     `recipientRelationshipId`, and `recipientPayoutReferenceId` in `additionalData` with `400`
     instead of silently ignoring them. No eligibility response authorizes money movement.
     Enabling recipient payout requires a separately reviewed registration schema, ownership and
-     eligibility enforcement, and provider-side payout-instrument resolution.
-13. **Recipient invitation operations do not support managed-profile selection.** Every
-    `/v1/recipients` route rejects `X-Managed-Profile-Id` rather than silently applying the
-    request to the authenticated manager. Managed children have no invitation acceptance
-    contract; their active customer entity is fixed during provisioning.
+    eligibility enforcement, and provider-side payout-instrument resolution.
+13. **Managed delegation is sender-only.** `POST /invite`, sender list, invitation archive,
+    relationship update/archive, and eligibility accept an authorized `X-Managed-Profile-Id` and
+    operate on the child's sender entity. Every delegated decision revalidates the active direct
+    relationship and the manager's current customer-type narrowing. Creation authorizes the
+    requested corridor; listing omits records outside the manager's current corridor policy;
+    invitation archive, relationship update/archive, and eligibility first resolve an owner-scoped
+    target and authorize its stored invitation country (or the relationship rail for retained
+    legacy rows) before acting. A foreign target remains `404`, including when its corridor is
+    currently denied, and target resolution never falls back to the manager's own entity.
+    `GET /invite/:token` preview and
+    `POST /invite/:token/accept` explicitly reject the selector with
+    `400 MANAGED_PROFILE_UNSUPPORTED`; redemption always uses the bearer-authenticated invitee
+    profile and never a managed child selected by its manager.
 
 ### Ramp registration vs. the recipient model — intentionally out of scope
 
 Ramp registration today is structurally a **self-offramp** flow, and (post ownership
-enforcement) payout destinations are already bound to the *sender* on two of three corridors —
+enforcement) payout destinations are already bound to the _sender_ on two of three corridors —
 verified against the code:
 
 - **Mykobo/EUR** (`MykoboOfframpPayout.register`): the withdraw intent is created for the sender's own
@@ -212,7 +225,7 @@ and attempts to attach recipient context to registration are rejected. No code p
 - **Intercepted link redeemed by the wrong party**: optional email binding rejects mismatched
   accounts; unbound links are deliberately bearer-redeemable (shareable-link product) and rely on
   TTL + first-redeemer binding + sender review of the resulting relationship. An intercepted link
-  is only useful *before* the intended recipient redeems it; after that it is inert to everyone
+  is only useful _before_ the intended recipient redeems it; after that it is inert to everyone
   else (invariant 3).
 - **Cross-tenant access to relationships**: entity-scoped queries; PATCH/eligibility of a foreign
   relationship returns `404` (no existence oracle).

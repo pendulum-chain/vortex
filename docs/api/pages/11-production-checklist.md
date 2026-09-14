@@ -6,7 +6,8 @@ Before going live, verify the following:
 - Store secret API keys only in trusted server-side environments.
 - Never expose `sk_live_*` or `sk_test_*` keys in browser or mobile code.
 - Store ephemeral account secrets securely until ramps complete and recovery is no longer needed.
-- If using the SDK's default `storeEphemeralKeys: true`, run the SDK from a directory with restricted filesystem permissions, encrypt the backup file yourself, or set `storeEphemeralKeys: false` and implement secure storage.
+- For application-managed custody, configure `storeEphemeralKeysCallback` to persist the supplied ephemeral keys in encrypted storage. It replaces the built-in backup, and `registerRamp()` waits for it to succeed before signing ephemeral-owned transactions.
+- If using the SDK's default `storeEphemeralKeys: true`, run the SDK from a directory with restricted filesystem permissions and protect the plaintext backup. Set `storeEphemeralKeys: false` only when intentionally disabling backup; without a callback, it does not expose the keys through another storage path.
 - Persist `quoteId`, `rampId`, user/session ID, partner order ID, and webhook IDs.
 - Handle quote expiry by creating fresh quotes.
 - Use webhooks for transaction lifecycle events and verify every webhook signature against `GET /v1/public-key` using RSA-PSS with SHA-256.
@@ -14,6 +15,7 @@ Before going live, verify the following:
 - Test failed, delayed, and retried ramp states in sandbox.
 - Define a support process for users who close the app before a ramp finishes.
 - Rotate partner keys if they are exposed or no longer needed.
+- Confirm every browser origin that calls the API, in sandbox and production, is on the Vortex origin allowlist; request additions at <support@vortexfinance.co>.
 - For BRL flows, confirm that your onboarding path produces an eligible user before starting the ramp.
 - Confirm your integration complies with the Vortex [Terms and Conditions](https://www.vortexfinance.co/en/terms-and-conditions) and [Privacy Policy](https://www.vortexfinance.co/en/privacy-policy).
 

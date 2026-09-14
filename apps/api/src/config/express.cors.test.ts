@@ -34,8 +34,10 @@ describe("managed-profile CORS preflight", () => {
     await finished;
 
     expect(statusCode).toBe(204);
+    expect(headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
     const allowedHeaders = headers.get("access-control-allow-headers")?.toLowerCase().split(",") ?? [];
     expect(allowedHeaders).toContain("x-managed-profile-id");
     expect(allowedHeaders).toContain("x-api-key");
+    expect(allowedHeaders).toContain("authorization");
   });
 });

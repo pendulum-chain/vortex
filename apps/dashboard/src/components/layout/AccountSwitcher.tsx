@@ -10,13 +10,13 @@ export function AccountSwitcher() {
   }
 
   return (
-    <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
+    <div className="flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-md border px-2.5">
       {account.type === "company" ? (
         <Building2 className="size-4 text-muted-foreground" />
       ) : (
         <User className="size-4 text-muted-foreground" />
       )}
-      <span className="max-w-[14rem] truncate font-medium text-sm">{account.name}</span>
+      <span className="max-w-24 truncate font-medium text-sm sm:max-w-[14rem]">{account.name}</span>
     </div>
   );
 }

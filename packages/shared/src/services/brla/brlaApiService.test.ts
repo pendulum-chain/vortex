@@ -89,6 +89,35 @@ const kyb: BrKybLevel1Payload = {
 };
 
 describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
+  test("accepts the hosted-liveness response without an upload URL", async () => {
+    const response = {
+      id: "liveness-document-1",
+      livenessUrl: "https://app.avenia.io/liveness/session-1",
+      sessionId: "session-1",
+      validateLivenessToken: "liveness-token"
+    };
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const sendRequest = mock(async () => response);
+    Object.assign(service, { sendRequest });
+
+    await expect(
+      service.getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, "sub-1")
+    ).resolves.toEqual(response);
+    expect(sendRequest).toHaveBeenCalledWith(
+      Endpoint.Documents,
+      "POST",
+      "subAccountId=sub-1",
+      { documentType: BrDocumentType.SELFIE_FROM_LIVENESS, isDoubleSided: false }
+    );
+  });
+
+  test("still requires an upload URL for an ordinary document", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { sendRequest: mock(async () => ({ id: "document-1" })) });
+
+    await expect(service.getDocumentUploadUrls(BrDocumentType.ID, true, "sub-1")).rejects.toThrow();
+  });
+
   test("substitutes and encodes provider path parameters before signing the request", async () => {
     const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
     const keyPair = forge.pki.rsa.generateKeyPair(1024);
@@ -483,9 +512,10 @@ describe("BrlaApiService.sendRequest path templating", () => {
     const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
     Object.assign(service, { apiKey: "test-api-key", privateKey });
 
-    await service.getKybAttemptStatus("attempt-9");
+    await service.getKybAttemptStatus("attempt-9", "sub account");
 
     expect(requestedUrl).toContain("/v2/kyc/attempts/attempt-9");
+    expect(requestedUrl).toContain("subAccountId=sub%20account");
     expect(requestedUrl).not.toContain("{attemptId}");
     // A hung connection must not stall callers forever — cron workers with
     // waitForCompletion would otherwise never run another cycle.

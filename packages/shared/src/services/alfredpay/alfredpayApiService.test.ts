@@ -4,7 +4,16 @@ process.env.ALFREDPAY_API_KEY ||= "test-key";
 process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
 const { AlfredpayApiService, toAsciiFileName } = await import("./alfredpayApiService");
-const { AlfredpayKybRelatedPersonFileType, AlfredpayKycFileType, AlfredpayKybFileType } = await import("./types");
+const {
+  AlfredpayChain,
+  AlfredpayFiatCurrency,
+  AlfredpayKybRelatedPersonFileType,
+  AlfredpayKycFileType,
+  AlfredpayKybFileType,
+  AlfredpayOfframpStatus,
+  AlfredpayOnChainCurrency,
+  AlfredpayPaymentMethodType
+} = await import("./types");
 
 describe("toAsciiFileName", () => {
   test("transliterates accents and keeps the extension", () => {
@@ -86,5 +95,83 @@ describe("uploads send an ASCII multipart filename", () => {
   test("KYC document upload", async () => {
     await AlfredpayApiService.getInstance().submitKycFile("cust-1", "sub-1", AlfredpayKycFileType.DOC_FRONT, accentedPng());
     expect(sentFileName("fileBody")).toBe("Identificacion_oficial.png");
+  });
+});
+
+describe("offramp responses are validated at the service boundary", () => {
+  const realFetch = globalThis.fetch;
+  const service = AlfredpayApiService.getInstance();
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function respondWith(body: unknown): void {
+    globalThis.fetch = (async () => Response.json(body)) as unknown as typeof fetch;
+  }
+
+  function validTransaction() {
+    return {
+      chain: AlfredpayChain.MATIC,
+      customerId: "customer-1",
+      depositAddress: "0x5afe00000000000000000000000000000000d0e5",
+      expiration: "2026-08-13T12:00:00.000Z",
+      fiatAccountId: "fiat-account-1",
+      fromAmount: "1000",
+      fromCurrency: AlfredpayOnChainCurrency.USDT,
+      status: AlfredpayOfframpStatus.CREATED,
+      toAmount: "17000",
+      toCurrency: AlfredpayFiatCurrency.MXN,
+      transactionId: "transaction-1"
+    };
+  }
+
+  test("createOfframpQuote rejects malformed pricing terms", async () => {
+    respondWith({
+      chain: AlfredpayChain.MATIC,
+      expiration: "2026-08-13T12:00:00.000Z",
+      fees: [],
+      fromAmount: "1000",
+      fromCurrency: AlfredpayOnChainCurrency.USDT,
+      quoteId: "quote-1",
+      toAmount: "17000",
+      toCurrency: AlfredpayFiatCurrency.MXN
+    });
+
+    await expect(
+      service.createOfframpQuote({
+        chain: AlfredpayChain.MATIC,
+        fromAmount: "1000",
+        fromCurrency: AlfredpayOnChainCurrency.USDT,
+        metadata: { businessId: "business-1", customerId: "customer-1" },
+        paymentMethodType: AlfredpayPaymentMethodType.BANK,
+        toCurrency: AlfredpayFiatCurrency.MXN
+      })
+    ).rejects.toThrow();
+  });
+
+  test("createOfframp rejects a malformed order", async () => {
+    const body = validTransaction();
+    body.depositAddress = "not-an-address";
+    respondWith(body);
+
+    await expect(
+      service.createOfframp({
+        amount: "1000",
+        chain: AlfredpayChain.MATIC,
+        customerId: "customer-1",
+        fiatAccountId: "fiat-account-1",
+        fromCurrency: AlfredpayOnChainCurrency.USDT,
+        originAddress: "0x5afe00000000000000000000000000000000d0e5",
+        quoteId: "quote-1",
+        toCurrency: AlfredpayFiatCurrency.MXN
+      })
+    ).rejects.toThrow();
+  });
+
+  test("getOfframpTransaction rejects malformed recovery terms", async () => {
+    respondWith({ ...validTransaction(), status: "SETTLED" });
+
+    await expect(service.getOfframpTransaction("transaction-1")).rejects.toThrow();
   });
 });

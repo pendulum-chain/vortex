@@ -46,7 +46,7 @@ A normal partner key cannot select an arbitrary user. An enabled managed-profile
 The standard Brazilian individual flow (mode `hybrid` in discovery) can be driven through the API; only the selfie liveness step opens a provider-hosted URL. The sequence published by discovery is:
 
 1. `POST /v1/brl/createSubaccount` — create the individual provider subaccount (skip when one already exists).
-2. `POST /v1/brl/getUploadUrls` — create the identity-document and selfie upload targets. Only `ID` and `DRIVERS-LICENSE` are accepted for the identity document. The response's `idUpload.id` and `selfieUpload.id` are the document references the final submission needs.
+2. `POST /v1/brl/getUploadUrls` — create the identity-document upload target and hosted selfie-liveness session. Only `ID` and `DRIVERS-LICENSE` are accepted for the identity document. Upload the document to `idUpload.uploadURLFront`, open `selfieUpload.livenessUrl` for capture, and retain both entries' `id` values for the final submission. The liveness entry does not contain an upload URL.
 3. `PUT` the identity-document bytes to the returned presigned upload URL.
 4. Open the returned liveness URL and let the user complete the provider-hosted selfie capture.
 5. `POST /v1/brl/newKyc` — submit the Level 1 payload referencing `subAccountId`, `uploadedDocumentId`, and `uploadedSelfieId`. The endpoint waits a built-in 5 seconds for upstream document propagation before submitting, so expect the request to take at least that long.

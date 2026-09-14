@@ -31,7 +31,7 @@ const observedEvents: ApiClientEventInput[] = [];
 const controllerCalls: string[] = [];
 
 mock.module("../observability/apiClientEvent.service", () => ({
-  buildApiClientRequestMetadata: mock(() => ({})),
+  buildApiClientRequestMetadata: mock(apiClientEventServiceReal.buildApiClientRequestMetadata),
   getSafeApiKeyPrefix: mock((apiKey: string | null | undefined) => apiKey?.slice(0, 16) || null),
   observeApiClientEvent: mock((event: ApiClientEventInput) => {
     observedEvents.push(event);
@@ -170,6 +170,7 @@ describe("rejectDuringActiveMaintenance", () => {
           quoteId: "quote-1",
           rampType: "BUY"
         },
+        impersonation: { actorProfileId: "actor-1", sessionId: "session-1" },
         requestId: "request-1",
         requestStartedAt: Date.now() - 50
       } as Request,
@@ -204,11 +205,13 @@ describe("rejectDuringActiveMaintenance", () => {
         apiKeyPrefix: "pk_live_",
         errorType: "service_unavailable",
         httpStatus: 503,
-        metadata: {
+        metadata: expect.objectContaining({
+          impersonationSessionId: "session-1",
+          impersonatorProfileId: "actor-1",
           maintenance_end: end,
           maintenance_start: start,
           maintenance_title: "Database upgrade"
-        },
+        }),
         operation: "quote_create",
         paymentMethod: "pix",
         quoteId: "quote-1",

@@ -1,7 +1,7 @@
+import "dotenv/config";
+
+import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, VortexSdk, VortexSdkConfig } from "@vortexfi/sdk";
 import * as readline from "readline";
-import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "../src/index";
-import { VortexSdkConfig } from "../src/types";
-import { VortexSdk } from "../src/VortexSdk";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -112,14 +112,12 @@ async function runBrlOfframpExample() {
   }
 }
 
-if (require.main === module) {
-  runBrlOfframpExample()
-    .then(() => {
-      console.log("\n✨ Example execution completed");
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("\n💥 Example execution failed:", error);
-      process.exit(1);
-    });
-}
+runBrlOfframpExample()
+  .then(() => {
+    console.log("\n✨ Example execution completed");
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error("\n💥 Example execution failed:", error);
+    process.exit(1);
+  });

@@ -41,8 +41,12 @@ export class FinancialOperationReconciliationRequiredError extends APIError {
 }
 
 export class FinancialOperationRejectedError extends APIError {
-  constructor(message: string) {
-    super({ message, status: httpStatus.UNPROCESSABLE_ENTITY });
+  constructor(message: string, options: { status?: number; type?: string } = {}) {
+    super({
+      message,
+      status: options.status ?? httpStatus.UNPROCESSABLE_ENTITY,
+      type: options.type
+    });
   }
 }
 

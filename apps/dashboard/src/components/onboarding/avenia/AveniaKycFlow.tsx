@@ -1,12 +1,12 @@
 import type { AveniaKycFormData, UploadIds } from "@vortexfi/kyc";
-import { createAveniaKycApi, createAveniaKycMachine, KycStatus } from "@vortexfi/kyc";
+import { createAveniaKycMachine, KycStatus } from "@vortexfi/kyc";
 import { useMachine } from "@xstate/react";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import type { Corridor, OnboardingStatus } from "@/domain/types";
-import { apiClient } from "@/services/api/api-client";
+import { AveniaService } from "@/services/api/avenia.service";
 import { AveniaDocumentUploadScreen } from "./AveniaDocumentUploadScreen";
 import { AveniaKybFormScreen } from "./AveniaKybFormScreen";
 import { AveniaKybHostedStep } from "./AveniaKybHostedStep";
@@ -23,7 +23,7 @@ interface AveniaKycFlowProps {
 }
 
 const aveniaKycMachine = createAveniaKycMachine({
-  api: createAveniaKycApi(apiClient)
+  api: AveniaService
 });
 
 const STATUS_BY_STATE: Record<string, OnboardingStatus> = {

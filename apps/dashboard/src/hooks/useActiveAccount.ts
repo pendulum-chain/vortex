@@ -3,6 +3,7 @@ import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccou
 import type { OnboardingEntityDto, OnboardingState } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 import { useOnboardingStatusQuery } from "./useApprovedCorridors";
 
 const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
@@ -57,6 +58,7 @@ function deriveOnboardings(entity: OnboardingEntityDto, type: AccountType): Part
  */
 export function useActiveAccount(): SenderAccount | undefined {
   const user = useAuthStore(state => state.user);
+  const managedProfile = useManagedProfileSelection();
   const { data } = useOnboardingStatusQuery(!!user);
 
   return useMemo(() => {
@@ -72,11 +74,11 @@ export function useActiveAccount(): SenderAccount | undefined {
     const selectedCorridors = Object.keys(onboardings) as CorridorId[];
     return {
       id: entity.id,
-      identifier: user.email,
-      name: user.name,
+      identifier: managedProfile ? managedProfile.externalSubjectId : user.email,
+      name: managedProfile ? managedProfile.targetEmail || managedProfile.externalSubjectId : user.name,
       onboardings,
       selectedCorridors,
-      type
+      type: managedProfile ? (managedProfile.customerType === "business" ? "company" : "individual") : type
     };
-  }, [user, data]);
+  }, [user, data, managedProfile]);
 }

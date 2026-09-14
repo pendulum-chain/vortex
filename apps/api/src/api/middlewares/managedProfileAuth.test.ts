@@ -241,6 +241,24 @@ describe("authorizeManagedProfile", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  it("applies customer-type narrowing when explicitly required for list reads", async () => {
+    allowManagedProfile();
+    ManagedProfileManager.findByPk = mock(async () => ({
+      allowedCorridors: ["BR"],
+      allowedCustomerTypes: ["business"],
+      isActive: true
+    })) as never;
+    const res = response();
+
+    await authorizeManagedProfile({ enforceCustomerTypePolicy: true })(
+      request() as never,
+      res as never,
+      mock(() => {})
+    );
+
+    expect(res.statusCode).toBe(403);
+  });
+
   it("requires the route customer type to match the immutable child entity type", async () => {
     allowManagedProfile();
     const res = response();

@@ -12,12 +12,14 @@ This is a Bun monorepo.
 |---|---|
 | [`apps/api`](apps/api/) | Express API, ramp engine, provider integrations, PostgreSQL workers |
 | [`apps/frontend`](apps/frontend/) | Public site and embeddable ramp widget |
+| [`apps/demo`](apps/demo/) | Minimal browser SDK example for a BRL/PIX onramp |
 | [`apps/dashboard`](apps/dashboard/) | Authenticated customer dashboard |
 | [`apps/rebalancer`](apps/rebalancer/) | Liquidity rebalancing service |
 | [`packages/shared`](packages/shared/) | Shared contracts, token/network configuration, and signing utilities |
 | [`packages/kyc`](packages/kyc/) | Provider KYC/KYB state machines shared by the two web apps |
 | [`packages/sdk`](packages/sdk/) | Public `@vortexfi/sdk` integration package |
 | [`contracts/relayer`](contracts/relayer/) | Token relayer Solidity project |
+| [`contracts/monerium-forwarder`](contracts/monerium-forwarder/) | Monerium B2B onramp forwarder Solidity project (Foundry) |
 
 See [`MAP.md`](MAP.md) for detailed wayfinding and [`docs/README.md`](docs/README.md)
 for the documentation structure.
@@ -33,13 +35,19 @@ bun dev
 ```
 
 In a fresh Git worktree, run `bun bootstrap:worktree` instead of `bun install`; it also
-builds the shared workspace required by the apps.
+builds the shared and SDK workspaces required by the apps.
+
+The Foundry-based contracts in `contracts/monerium-forwarder` use a git submodule
+(`forge-std`). If you plan to work on those contracts, initialize it once with
+`git submodule update --init` (or clone with `git clone --recurse-submodules`).
+Everything else in the monorepo works without this step.
 
 The default development command starts the shared package, API, and widget. Run other
 surfaces explicitly:
 
 ```bash
 bun dev:dashboard
+bun dev:demo
 bun dev:rebalancer
 ```
 
@@ -66,6 +74,7 @@ bun test:frontend
 bun test:e2e
 bun test:e2e:dashboard
 bun test:contracts:relayer
+bun test:contracts:monerium-forwarder
 ```
 
 The root scripts in [`package.json`](package.json) are the canonical command list.

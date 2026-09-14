@@ -18,7 +18,13 @@ import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
-import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "../phases/blocks/core/helpers";
+import {
+  getTargetFiatCurrency,
+  isRetiredAssetHubCorridor,
+  SUPPORTED_CHAINS,
+  validateChainSupport
+} from "../phases/blocks/core/helpers";
+import { MykoboFeeUnavailableError } from "../phases/blocks/core/mykobo-fee";
 import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
 import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import { BaseRampService } from "../ramp/base.service";
@@ -189,14 +195,7 @@ export class QuoteService extends BaseRampService {
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
 
-    if (
-      (request.rampType === RampDirection.BUY &&
-        request.inputCurrency === FiatToken.BRL &&
-        getNetworkFromDestination(request.to) === Networks.AssetHub) ||
-      (request.rampType === RampDirection.SELL &&
-        getNetworkFromDestination(request.from) === Networks.AssetHub &&
-        request.outputCurrency === FiatToken.BRL)
-    ) {
+    if (isRetiredAssetHubCorridor(request)) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
     }
 

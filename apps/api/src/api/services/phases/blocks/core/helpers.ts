@@ -97,6 +97,23 @@ export function validateChainSupport(rampType: RampDirection, from: DestinationT
 }
 
 /**
+ * The AssetHub BRL corridors are retired at runtime: their flows stay cataloged only so persisted
+ * records can be decoded, and new quotes for them are rejected.
+ */
+export function isRetiredAssetHubCorridor(
+  request: Pick<CreateQuoteRequest, "rampType" | "from" | "to" | "inputCurrency" | "outputCurrency">
+): boolean {
+  return (
+    (request.rampType === RampDirection.BUY &&
+      request.inputCurrency === FiatToken.BRL &&
+      getNetworkFromDestination(request.to) === Networks.AssetHub) ||
+    (request.rampType === RampDirection.SELL &&
+      getNetworkFromDestination(request.from) === Networks.AssetHub &&
+      request.outputCurrency === FiatToken.BRL)
+  );
+}
+
+/**
  * Corridors whose partner-markup component is collected via EVM fee transfers: the
  * BRL Base routes (USDC on Base) and every Alfredpay corridor (USDT on Polygon). A
  * quote with a positive computed markup on these routes requires the pricing

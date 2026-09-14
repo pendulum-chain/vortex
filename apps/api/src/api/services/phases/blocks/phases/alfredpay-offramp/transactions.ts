@@ -263,11 +263,8 @@ export async function prepareAlfredpayOfframpTxs(
     toAddress: facts.depositAddress as `0x${string}`,
     toToken: ALFREDPAY_ERC20_TOKEN
   });
-  // The fallback refunds the user's full bridged value: deposit plus charged
-  // vortex/partner fees MINUS any platform subsidy. bridgeOutputAmountRaw is exactly
-  // that — for undiscounted quotes it equals deposit + fees, while the net-rate
-  // deposit of a discounted quote additionally contains the platform subsidy, which
-  // must never be paid out to the user on a failed ramp.
+  // The fallback refunds the user's quoted bridged value and excludes the
+  // platform-funded subsidy that is not part of the user's principal.
   const fallbackTransfer = await createDestinationTransferTransaction({
     amountRaw: ctx.ownMetadata.bridgeOutputAmountRaw,
     destinationNetwork: Networks.Polygon,

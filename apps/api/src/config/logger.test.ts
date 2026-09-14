@@ -35,4 +35,17 @@ describe("formatLogEntry", () => {
   it("does not add a metadata suffix when no metadata was provided", () => {
     expect(formatLogEntry({ level: "info", message: "Application started" })).toBe(" info Application started");
   });
+
+  it("redacts Alchemy credentials from messages and metadata", () => {
+    const credential = "test-api-key";
+    const rpcUrl = `https://polygon-mainnet.g.alchemy.com/v2/${credential}`;
+    const line = formatLogEntry({
+      error: { rpcUrl },
+      level: "error",
+      message: `RPC Request failed.\nURL: ${rpcUrl}`
+    });
+
+    expect(line).toContain("https://polygon-mainnet.g.alchemy.com/v2/[redacted]");
+    expect(line).not.toContain(credential);
+  });
 });

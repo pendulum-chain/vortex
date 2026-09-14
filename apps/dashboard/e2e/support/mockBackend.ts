@@ -7,6 +7,7 @@ export const E2E_RAMP_ID = "ramp-e2e-1";
 export const E2E_QUOTE_ID = "quote-e2e-1";
 export const E2E_FIAT_ACCOUNT_ID = "fiat-account-e2e-mx";
 export const E2E_FIAT_ACCOUNT_ID_2 = "fiat-account-e2e-mx-2";
+export const E2E_MANAGED_PROFILE_ID = "managed-profile-e2e-child-1";
 export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
@@ -275,6 +276,13 @@ interface MockBackendOptions {
   pendingInvitations?: Array<Record<string, unknown>>;
   // Capability roles returned on GET /v1/onboarding/status (default: none).
   roles?: string[];
+  // Enables manager lifecycle access. The default 403 mirrors an ordinary dashboard user.
+  managedProfiles?: Array<{
+    contactEmail: string | null;
+    customerType: "business" | "individual";
+    externalSubjectId: string;
+    profileId: string;
+  }>;
   // Response for POST /v1/recipients/invite/:token/accept (default: an accepted MX individual invite).
   acceptInvite?: { status: number; body: Record<string, unknown> };
   // Response for GET /v1/recipients/invite/:token (default: a pending MX individual invite).
@@ -389,6 +397,7 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
+  const apiRequests: Array<{ managedProfileId: string | undefined; method: string; path: string }> = [];
   const apiCredentialRequests: Array<{ body: Record<string, unknown> | null; method: string; path: string }> = [];
   const limitsRequests: Array<Record<string, unknown>> = [];
   const requestOtpRequests: Array<Record<string, unknown>> = [];
@@ -458,6 +467,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     const url = new URL(request.url());
     const path = url.pathname;
     const method = request.method();
+    apiRequests.push({ managedProfileId: request.headers()["x-managed-profile-id"], method, path });
 
     const fulfillJson = (body: unknown, code = 200) => route.fulfill({ json: body as object, status: code });
 
@@ -490,6 +500,21 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/auth/refresh" && method === "POST") {
       auth.refreshes += 1;
       await fulfillJson({ access_token: "e2e-access-token", refresh_token: "e2e-refresh-token", success: true });
+      return;
+    }
+
+    if (path === "/v1/managed-profiles" && method === "GET") {
+      if (!options.managedProfiles) {
+        await fulfillJson({ code: "MANAGED_PROFILE_ACCESS_DENIED", message: "Managed profile access denied" }, 403);
+        return;
+      }
+      const limit = Number(url.searchParams.get("limit") ?? 20);
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      await fulfillJson({
+        managedProfiles: options.managedProfiles.slice(offset, offset + limit),
+        manager: { allowedCorridors: ["MX"], allowedCustomerTypes: null, profileId: E2E_USER_ID },
+        pagination: { limit, offset, total: options.managedProfiles.length }
+      });
       return;
     }
 
@@ -1132,6 +1157,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   return {
     acceptInviteRequests,
     apiCredentialRequests,
+    apiRequests,
     archiveInvitationRequests,
     auth,
     avenia,

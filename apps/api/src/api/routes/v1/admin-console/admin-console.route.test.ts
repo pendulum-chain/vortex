@@ -1,0 +1,322 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import express from "express";
+import { config } from "../../../../config/vars";
+import AdminImpersonationSession from "../../../../models/adminImpersonationSession.model";
+import ManagedProfileManager from "../../../../models/managedProfileManager.model";
+import ProfileRole from "../../../../models/profileRole.model";
+import { resetTestDatabase, setupTestDatabase } from "../../../../test-utils/db";
+import { createTestAlfredpayCustomer, createTestUser } from "../../../../test-utils/factories";
+import { SupabaseAuthService } from "../../../services/auth";
+import { createSession } from "../../../services/impersonation.service";
+import { createManagedProfile } from "../../../services/managed-profile-lifecycle.service";
+import accountsRoutes from "./accounts.route";
+import impersonationRoutes from "./impersonation.route";
+
+describe("admin-console routes", () => {
+  let server: ReturnType<typeof express.application.listen>;
+  let baseUrl: string;
+  const originalImpersonationEnabled = config.impersonationEnabled;
+
+  beforeAll(async () => {
+    await setupTestDatabase();
+
+    const app = express();
+    app.use(express.json());
+    app.use("/v1/admin-console/accounts", accountsRoutes);
+    app.use("/v1/admin-console/impersonation", impersonationRoutes);
+    server = app.listen(0);
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Could not bind test server");
+    }
+    baseUrl = `http://127.0.0.1:${address.port}/v1/admin-console`;
+  });
+
+  afterAll(() => {
+    server?.close();
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+    config.impersonationEnabled = originalImpersonationEnabled;
+  });
+
+  afterEach(() => {
+    config.impersonationEnabled = originalImpersonationEnabled;
+  });
+
+  async function createAdmin() {
+    const admin = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: admin.id });
+    return admin;
+  }
+
+  function authAs(user: { id: string; email: string }) {
+    spyOn(SupabaseAuthService, "verifyToken").mockResolvedValue({ email: user.email, user_id: user.id, valid: true });
+    return { Authorization: "Bearer whatever" };
+  }
+
+  describe("GET /accounts", () => {
+    it("lists a profile with its entities and verification summary", async () => {
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      await createTestAlfredpayCustomer(target.id);
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/accounts?search=${encodeURIComponent(target.email)}`, { headers });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        accounts: { id: string; entities: { id: string }[]; verificationSummary: Record<string, number> }[];
+      };
+      const account = body.accounts.find(a => a.id === target.id);
+      expect(account).toBeDefined();
+      expect(account?.entities.length).toBe(1);
+      expect(account?.verificationSummary.approved).toBe(1);
+    });
+
+    it("identifies a managed profile and its authenticated manager", async () => {
+      const admin = await createAdmin();
+      const manager = await createTestUser();
+      await ManagedProfileManager.create({ allowedCorridors: ["BR"], isActive: true, profileId: manager.id });
+      const { managedProfile } = await createManagedProfile({
+        contactEmail: "managed-child@example.com",
+        creationSource: "vortex",
+        customerType: "business",
+        externalSubjectId: "customer_%42",
+        managerProfileId: manager.id
+      });
+      const headers = authAs(admin);
+
+      const listResponse = await fetch(`${baseUrl}/accounts?search=managed-child`, { headers });
+      expect(listResponse.status).toBe(200);
+      const listBody = (await listResponse.json()) as { accounts: Array<Record<string, unknown> & { id: string }> };
+      expect(listBody.accounts.find(account => account.id === managedProfile.profileId)).toMatchObject({
+        email: null,
+        kind: "managed",
+        managedProfile: {
+          contactEmail: "managed-child@example.com",
+          customerType: "business",
+          externalSubjectId: "customer_%42",
+          manager: { email: manager.email, isActive: true, profileId: manager.id },
+          status: "active"
+        }
+      });
+
+      const managerSearchResponse = await fetch(`${baseUrl}/accounts?search=${encodeURIComponent(manager.email)}`, { headers });
+      expect(managerSearchResponse.status).toBe(200);
+      const managerSearchBody = (await managerSearchResponse.json()) as { accounts: Array<{ id: string }> };
+      expect(managerSearchBody.accounts.map(account => account.id)).toContain(managedProfile.profileId);
+
+      const paginatedSearchResponse = await fetch(
+        `${baseUrl}/accounts?search=${encodeURIComponent(manager.email)}&limit=1`,
+        { headers }
+      );
+      expect(paginatedSearchResponse.status).toBe(200);
+      expect(await paginatedSearchResponse.json()).toMatchObject({ nextCursor: "1", total: 2 });
+
+      const literalSearchResponse = await fetch(`${baseUrl}/accounts?search=${encodeURIComponent("_%")}`, { headers });
+      expect(literalSearchResponse.status).toBe(200);
+      const literalSearchBody = (await literalSearchResponse.json()) as { accounts: Array<{ id: string }> };
+      expect(literalSearchBody.accounts.map(account => account.id)).toEqual([managedProfile.profileId]);
+
+      const detailResponse = await fetch(`${baseUrl}/accounts/${managedProfile.profileId}`, { headers });
+      expect(detailResponse.status).toBe(200);
+      expect(await detailResponse.json()).toMatchObject({
+        email: null,
+        id: managedProfile.profileId,
+        kind: "managed",
+        managedProfile: {
+          contactEmail: "managed-child@example.com",
+          customerType: "business",
+          manager: { email: manager.email, isActive: true, profileId: manager.id }
+        }
+      });
+    });
+
+    it("returns full detail for a single profile", async () => {
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      await createTestAlfredpayCustomer(target.id);
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/accounts/${target.id}`, { headers });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        id: string;
+        entities: { providerCustomers: { provider: string }[] }[];
+        impersonationSessions: unknown[];
+      };
+      expect(body.id).toBe(target.id);
+      expect(body.entities.length).toBe(1);
+      expect(body.entities[0].providerCustomers[0].provider).toBe("alfredpay");
+      expect(body.impersonationSessions).toEqual([]);
+    });
+
+    it("returns 404 for an unknown profile", async () => {
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/accounts/${crypto.randomUUID()}`, { headers });
+      expect(response.status).toBe(404);
+    });
+
+    it("returns 400 for a malformed profile id instead of leaking a database error", async () => {
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/accounts/not-a-uuid`, { headers });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_PROFILE_ID");
+    });
+  });
+
+  describe("POST /impersonation", () => {
+    it("returns a token exactly once on the happy path", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation`, {
+        body: JSON.stringify({ targetProfileId: target.id }),
+        headers: { ...headers, "Content-Type": "application/json" },
+        method: "POST"
+      });
+
+      expect(response.status).toBe(201);
+      const body = (await response.json()) as { token: string; sessionId: string; expiresAt: string; target: { id: string } };
+      expect(typeof body.token).toBe("string");
+      expect(body.token.length).toBeGreaterThan(0);
+      expect(body.target.id).toBe(target.id);
+
+      const session = await AdminImpersonationSession.findByPk(body.sessionId);
+      expect(session).not.toBeNull();
+      // The raw token is never persisted — only its hash.
+      expect(session?.tokenHash).not.toBe(body.token);
+    });
+
+    it("maps the impersonation kill switch to 503", async () => {
+      config.impersonationEnabled = false;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation`, {
+        body: JSON.stringify({ targetProfileId: target.id }),
+        headers: { ...headers, "Content-Type": "application/json" },
+        method: "POST"
+      });
+
+      expect(response.status).toBe(503);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("IMPERSONATION_DISABLED");
+    });
+
+    it("returns 400 for a malformed target id", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation`, {
+        body: JSON.stringify({ targetProfileId: "not-a-uuid" }),
+        headers: { ...headers, "Content-Type": "application/json" },
+        method: "POST"
+      });
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_IMPERSONATION_INPUT");
+    });
+
+    it("uses the default list limit for a negative query value", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      await createSession({ actorProfileId: admin.id, targetProfileId: target.id });
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation?limit=-1`, { headers });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { sessions: unknown[] };
+      expect(body.sessions).toHaveLength(1);
+    });
+  });
+
+  describe("DELETE /impersonation/:sessionId while impersonating", () => {
+    it("allows an impersonated caller to end its own session", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      const { token, session } = await createSession({ actorProfileId: admin.id, targetProfileId: target.id });
+
+      const response = await fetch(`${baseUrl}/impersonation/${session.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        method: "DELETE"
+      });
+
+      expect(response.status).toBe(204);
+      const reloaded = await AdminImpersonationSession.findByPk(session.id);
+      expect(reloaded?.revokedAt).not.toBeNull();
+    });
+
+    it("refuses an impersonated caller ending a different session", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const targetA = await createTestUser();
+      const targetB = await createTestUser();
+      const { token } = await createSession({ actorProfileId: admin.id, targetProfileId: targetA.id });
+      const { session: otherSession } = await createSession({
+        actorProfileId: admin.id,
+        targetProfileId: targetB.id
+      });
+
+      const response = await fetch(`${baseUrl}/impersonation/${otherSession.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        method: "DELETE"
+      });
+
+      expect(response.status).toBe(403);
+      const reloaded = await AdminImpersonationSession.findByPk(otherSession.id);
+      expect(reloaded?.revokedAt).toBeNull();
+    });
+
+    it("refuses an impersonated caller from reaching GET /accounts or POST /impersonation", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      const { token } = await createSession({ actorProfileId: admin.id, targetProfileId: target.id });
+
+      const accountsResponse = await fetch(`${baseUrl}/accounts`, { headers: { Authorization: `Bearer ${token}` } });
+      expect(accountsResponse.status).toBe(403);
+
+      const postResponse = await fetch(`${baseUrl}/impersonation`, {
+        body: JSON.stringify({ targetProfileId: target.id }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(postResponse.status).toBe(403);
+    });
+
+    it("still allows a non-impersonated vortex_admin to revoke any session", async () => {
+      config.impersonationEnabled = true;
+      const admin = await createAdmin();
+      const target = await createTestUser();
+      const { session } = await createSession({ actorProfileId: admin.id, targetProfileId: target.id });
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation/${session.id}`, { headers, method: "DELETE" });
+      expect(response.status).toBe(204);
+    });
+
+    it("returns 400 for a malformed session id", async () => {
+      const admin = await createAdmin();
+      const headers = authAs(admin);
+
+      const response = await fetch(`${baseUrl}/impersonation/not-a-uuid`, { headers, method: "DELETE" });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_IMPERSONATION_SESSION_ID");
+    });
+  });
+});

@@ -239,7 +239,6 @@ interface AlfredpayBaseTransaction {
   customerId: string;
   createdAt: string;
   updatedAt: string;
-  quoteId: string;
   fromCurrency: string;
   toCurrency: string;
   fromAmount: string;
@@ -249,6 +248,7 @@ interface AlfredpayBaseTransaction {
 }
 
 export interface AlfredpayOnrampTransaction extends AlfredpayBaseTransaction {
+  quoteId: string;
   status: AlfredpayOnrampStatus;
   email: string;
   paymentMethodType: AlfredpayPaymentMethodType;

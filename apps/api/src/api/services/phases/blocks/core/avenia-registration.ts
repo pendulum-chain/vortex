@@ -18,6 +18,7 @@ import RampState from "../../../../../models/rampState.model";
 import { APIError } from "../../../../errors/api-error";
 import { findAveniaCustomerByTaxId } from "../../../avenia/avenia-customer.service";
 import { PriceFeedService } from "../../../priceFeed.service";
+import { FinancialOperationRejectedError } from "./financial-operation";
 
 type AveniaApi = Pick<
   BrlaApiService,
@@ -89,7 +90,10 @@ export async function validateAveniaLimits(
       : Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
 
   if (effectiveAmountBrl.gt(brlRemaining)) {
-    throw new APIError({ message: "Amount exceeds BRL limit.", status: httpStatus.BAD_REQUEST });
+    throw new FinancialOperationRejectedError("Amount exceeds BRL limit.", {
+      status: httpStatus.BAD_REQUEST,
+      type: "provider_limit_exceeded"
+    });
   }
 
   const globalLimits = limits.find(limit => limit.currency === "*");
@@ -102,7 +106,10 @@ export async function validateAveniaLimits(
       : Number(globalLimits.maxFiatOut) - Number(globalLimits.usedLimit.usedFiatOut);
 
   if (Number(effectiveAmountUsd) > globalRemaining) {
-    throw new APIError({ message: "Amount exceeds global limit.", status: httpStatus.BAD_REQUEST });
+    throw new FinancialOperationRejectedError("Amount exceeds global limit.", {
+      status: httpStatus.BAD_REQUEST,
+      type: "provider_limit_exceeded"
+    });
   }
 }
 

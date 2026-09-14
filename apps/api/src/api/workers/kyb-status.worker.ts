@@ -5,7 +5,7 @@ import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import { NotificationProvider } from "../../models/emailNotification.model";
 import KycCase from "../../models/kycCase.model";
-import { VerificationStatus } from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 
 const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
@@ -65,6 +65,16 @@ class KybStatusWorker {
             // Partner-owned entities have no profile to email. Filtered in the join, not
             // after the fetch, so they cannot occupy the batch's slots.
             where: { profileId: { [Op.not]: null } }
+          },
+          {
+            as: "providerCustomer",
+            model: ProviderCustomer,
+            required: true,
+            where: {
+              customerType: "business",
+              provider: "avenia",
+              providerSubaccountId: { [Op.not]: null }
+            }
           }
         ],
         limit: MAX_CASES_PER_CYCLE,
@@ -114,12 +124,13 @@ class KybStatusWorker {
         try {
           // Non-null by the join filter above; kept for type narrowing.
           const profileId = kycCase.customerEntity?.profileId;
-          if (!profileId) {
+          const subAccountId = kycCase.providerCustomer?.providerSubaccountId;
+          if (!profileId || !subAccountId) {
             continue;
           }
 
           // Non-null by the providerCaseId filter in the query above.
-          const { attempt } = await brlaApiService.getKybAttemptStatus(kycCase.providerCaseId as string);
+          const { attempt } = await brlaApiService.getKybAttemptStatus(kycCase.providerCaseId as string, subAccountId);
           if (!attempt) {
             continue;
           }

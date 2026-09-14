@@ -15,7 +15,7 @@ export function ConnectWalletButton() {
     return (
       <Button className="gap-2" onClick={() => open({ view: "Connect" })} type="button">
         <Wallet className="size-4 shrink-0" />
-        Connect wallet
+        <span className="hidden sm:inline">Connect wallet</span>
       </Button>
     );
   }
@@ -25,7 +25,8 @@ export function ConnectWalletButton() {
     // switchNetwork(caipNetwork) would be a no-op — let the user pick a supported one.
     return (
       <Button className="gap-2" onClick={() => open({ view: "Networks" })} type="button">
-        Wrong network
+        <Wallet className="size-4 shrink-0 sm:hidden" />
+        <span className="hidden sm:inline">Wrong network</span>
       </Button>
     );
   }

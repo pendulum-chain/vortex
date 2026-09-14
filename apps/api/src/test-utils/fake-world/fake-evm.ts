@@ -231,8 +231,22 @@ export class FakeEvm {
             to: params.to,
             value: params.value
           }),
-        writeContract: async (params: { address: string; functionName: string }) =>
-          this.recordTransaction({ data: params.functionName, from: account.address, network, to: params.address })
+        writeContract: async (params: { address: string; args?: readonly unknown[]; functionName: string }) => {
+          const hash = this.recordTransaction({
+            data: params.functionName,
+            from: account.address,
+            network,
+            to: params.address
+          });
+          if (params.functionName === "transferFrom") {
+            const [from, to, amount] = params.args as [string, string, bigint];
+            const fromBalance = this.erc20Balance(network, params.address, from);
+            if (fromBalance < amount) throw new Error("FakeEvm: transferFrom balance is insufficient");
+            this.setErc20Balance(network, params.address, from, fromBalance - amount);
+            this.setErc20Balance(network, params.address, to, this.erc20Balance(network, params.address, to) + amount);
+          }
+          return hash;
+        }
       },
       `WalletClient(${network})`
     );

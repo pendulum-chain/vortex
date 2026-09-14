@@ -18,12 +18,11 @@ describe("recipient routes", () => {
 
   afterAll(() => server.close());
 
-  it("rejects managed profile selection before recipient authentication", async () => {
+  it("requires recipient authentication before managed profile selection", async () => {
     const response = await fetch(baseUrl, {
       headers: { "X-Managed-Profile-Id": "22222222-2222-4222-8222-222222222222" }
     });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ error: { code: "MANAGED_PROFILE_UNSUPPORTED" } });
+    expect(response.status).toBe(401);
   });
 });

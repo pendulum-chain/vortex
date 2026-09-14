@@ -32,12 +32,14 @@ function nextSeq(): number {
   return ++sequence;
 }
 
-export async function createTestUser(overrides: Partial<{ id: string; email: string }> = {}): Promise<User> {
+export async function createTestUser(
+  overrides: Partial<{ id: string; email: string }> = {}
+): Promise<User & { email: string }> {
   const seq = nextSeq();
   return User.create({
     email: overrides.email ?? `test-user-${seq}@example.com`,
     id: overrides.id ?? crypto.randomUUID()
-  });
+  }) as Promise<User & { email: string }>;
 }
 
 type TestPartnerOverrides = Partial<

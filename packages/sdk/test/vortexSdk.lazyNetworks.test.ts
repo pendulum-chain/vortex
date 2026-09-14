@@ -206,6 +206,37 @@ afterEach(() => {
 });
 
 describe("lazy chain WebSocket initialization", () => {
+  test("registration requires a secret key or access token provider", async () => {
+    const sdk = new VortexSdk({ apiBaseUrl: "https://backend.test", storeEphemeralKeys: false });
+
+    await expect(sdk.registerRamp(quote, { destinationAddress: "0xuser" })).rejects.toThrow(
+      "Ramp registration requires a secretKey (sk_*) or accessTokenProvider"
+    );
+  });
+
+  test("registration accepts an access token provider", async () => {
+    const calls = mockBackend();
+    const sdk = new VortexSdk({
+      accessTokenProvider: async () => "access-token",
+      apiBaseUrl: "https://backend.test",
+      storeEphemeralKeys: false,
+    });
+
+    const createdQuote = await sdk.createQuote({
+      from: EPaymentMethod.PIX,
+      inputAmount: "100",
+      inputCurrency: FiatToken.BRL,
+      network: Networks.Base,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.BUY,
+      to: Networks.Base,
+    });
+    const result = await sdk.registerRamp(createdQuote, { destinationAddress: "0xuser" });
+
+    expect(result.rampProcess.id).toBe("ramp_1");
+    expect(calls).toContain("POST /v1/ramp/register");
+  });
+
   test("BRL quote and registration reach the backend when no signing transactions are returned", async () => {
     const calls = mockBackend();
     const sdk = createSdk();
@@ -229,6 +260,51 @@ describe("lazy chain WebSocket initialization", () => {
     expect(calls).toContain("POST /v1/quotes");
     expect(calls).toContain("POST /v1/ramp/register");
     expect(calls).toContain("POST /v1/ramp/update");
+  });
+
+  test("registration awaits custom ephemeral storage and fails before signing or update", async () => {
+    const calls = mockBackend(Networks.Pendulum);
+    let rejectStorage!: (reason?: unknown) => void;
+    let storageStarted!: () => void;
+    const storageStart = new Promise<void>(resolve => {
+      storageStarted = resolve;
+    });
+    const storageResult = new Promise<void>((_, reject) => {
+      rejectStorage = reject;
+    });
+    const sdk = new VortexSdk({
+      apiBaseUrl: "https://backend.test",
+      networkInitializationTimeoutMs: 40,
+      pendulumWsUrl: DEAD_WEBSOCKET_URL,
+      secretKey: "sk_test_user",
+      storeEphemeralKeysCallback: async () => {
+        storageStarted();
+        await storageResult;
+      },
+    });
+
+    const registration = sdk.registerRamp(quote, { destinationAddress: "0xuser" });
+    let registrationSettled = false;
+    void registration.then(
+      () => {
+        registrationSettled = true;
+      },
+      () => {
+        registrationSettled = true;
+      }
+    );
+
+    await withDeadline(storageStart);
+    await new Promise(resolve => setTimeout(resolve, 80));
+
+    expect(registrationSettled).toBe(false);
+    expect(calls).toContain("POST /v1/ramp/register");
+    expect(calls).not.toContain("POST /v1/ramp/update");
+
+    rejectStorage(new Error("vault unavailable"));
+
+    await expect(withDeadline(registration)).rejects.toThrow("vault unavailable");
+    expect(calls).not.toContain("POST /v1/ramp/update");
   });
 
   test("BRL offramp registration also bypasses unavailable chain WebSockets", async () => {

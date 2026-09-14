@@ -1,9 +1,29 @@
-import { AveniaVerificationAttempt, KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
+import { AveniaVerificationAttempt, KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@vortexfi/shared";
+import type { Transaction } from "sequelize";
 import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import { enqueueNotification } from "../email";
 import { VerificationSubject } from "../email/types";
 
 const MAX_REASON_LENGTH = 200;
+
+// Maps provider failure reasons (webhook or attempt resultMessage) to standardized enum values
+export function mapKycFailureReason(providerReason: string | undefined): KycFailureReason {
+  if (!providerReason) {
+    return KycFailureReason.UNKNOWN;
+  }
+  switch (true) {
+    case providerReason.includes("face match failure"):
+      return KycFailureReason.FACE;
+    case providerReason.includes("name does not match"):
+      return KycFailureReason.NAME;
+    case providerReason.includes("birthdate does not match"):
+      return KycFailureReason.BIRTHDATE;
+    case providerReason.includes("tax id does not exist"):
+      return KycFailureReason.TAX_ID;
+    default:
+      return KycFailureReason.UNKNOWN;
+  }
+}
 
 /**
  * The fields an outcome email is built from. Narrower than the full attempt so the webhook
@@ -45,25 +65,29 @@ function terminalNotificationType(attempt: NotifiableAttempt): NotificationType 
 export async function enqueueVerificationNotification(
   attempt: NotifiableAttempt,
   userId: string,
-  subject: VerificationSubject
+  subject: VerificationSubject,
+  transaction?: Transaction
 ): Promise<boolean> {
   const type = terminalNotificationType(attempt);
   if (!type) {
     return false;
   }
 
-  await enqueueNotification({
-    payload: {
-      reason:
-        type === NotificationType.VerificationRejected ? (attempt.resultMessage?.slice(0, MAX_REASON_LENGTH) ?? null) : null,
-      subject,
-      updatedAt: attempt.updatedAt
+  await enqueueNotification(
+    {
+      payload: {
+        reason:
+          type === NotificationType.VerificationRejected ? (attempt.resultMessage?.slice(0, MAX_REASON_LENGTH) ?? null) : null,
+        subject,
+        updatedAt: attempt.updatedAt
+      },
+      provider: NotificationProvider.Avenia,
+      resourceId: attempt.id,
+      type,
+      userId
     },
-    provider: NotificationProvider.Avenia,
-    resourceId: attempt.id,
-    type,
-    userId
-  });
+    transaction
+  );
 
   return true;
 }

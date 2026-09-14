@@ -1,14 +1,18 @@
 import { Request, Response, Router } from "express";
+import { config } from "../../../config/vars";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
 import adminManagedProfilesRoutes from "./admin/managed-profiles.route";
+import adminMoneriumB2bRoutes from "./admin/monerium-b2b.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import profileRolesRoutes from "./admin/profile-roles.route";
+import adminConsoleAccountsRoutes from "./admin-console/accounts.route";
+import adminConsoleImpersonationRoutes from "./admin-console/impersonation.route";
 import alfredpayRoutes from "./alfredpay.route";
 import apiCredentialsRoutes from "./api-credentials.route";
 import authRoutes from "./auth.route";
@@ -23,6 +27,7 @@ import maintenanceRoutes from "./maintenance.route";
 import managedProfilesRoutes from "./managed-profiles.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
+import moneriumB2bRoutes from "./monerium-b2b.route";
 import mykoboRoutes from "./mykobo.route";
 import notificationsRoutes from "./notifications.route";
 import onboardingRoutes from "./onboarding.route";
@@ -181,6 +186,17 @@ router.use("/mykobo", mykoboRoutes);
 router.use("/monerium", moneriumRoutes);
 
 /**
+ * Monerium B2B whitelabel onramp.
+ * POST /v1/monerium-b2b/webhook — HMAC-authenticated durable-inbox webhook receiver.
+ * GET /v1/monerium-b2b/account — the acting profile's onramp account (manager
+ *   delegation or child credential; EU/business policy).
+ * GET /v1/monerium-b2b/deposits — the acting profile's deposits with conversion status.
+ */
+if (config.moneriumB2b.enabled) {
+  router.use("/monerium-b2b", moneriumB2bRoutes);
+}
+
+/**
  * POST v1/webhook
  * DELETE v1/webhook
  */
@@ -250,8 +266,10 @@ router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes
 router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
 
 /**
- * Admin routes for profile capability roles (e.g. discount_manager); profiles are
- * addressed by id or email (unique key)
+ * Admin routes for profile capability roles; profiles are addressed by id or email
+ * (unique key). POST only grants HTTP-grantable roles (discount_manager) — vortex_admin
+ * must be granted out-of-band (see scripts/grant-vortex-admin.ts) since ADMIN_SECRET
+ * alone must never be sufficient to confer it. DELETE can still revoke any role.
  * POST /v1/admin/profile-roles
  * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
  */
@@ -266,10 +284,35 @@ router.use("/admin/managed-profile-managers", managedProfileManagersRoutes);
 router.use("/admin/managed-profiles", adminManagedProfilesRoutes);
 
 /**
+ * Admin route mapping Monerium-onboarded corporates to managed profiles and their
+ * deployed forwarder accounts (idempotent).
+ * POST /v1/admin/monerium-b2b/accounts
+ */
+if (config.moneriumB2b.enabled) {
+  router.use("/admin/monerium-b2b", adminMoneriumB2bRoutes);
+}
+
+/**
  * Admin routes for API client observability dashboards
  * GET /v1/admin/api-client-events
  */
 router.use("/admin/api-client-events", apiClientEventsRoutes);
+
+/**
+ * Vortex-admin console (Supabase-authenticated + vortex_admin role). Deliberately not
+ * under /v1/admin/*, which never accepts Supabase auth as a fallback
+ * (see docs/security-spec/01-auth/admin-auth.md).
+ * GET /v1/admin-console/accounts
+ * GET /v1/admin-console/accounts/:profileId
+ */
+router.use("/admin-console/accounts", adminConsoleAccountsRoutes);
+
+/**
+ * POST /v1/admin-console/impersonation
+ * GET /v1/admin-console/impersonation
+ * DELETE /v1/admin-console/impersonation/:sessionId
+ */
+router.use("/admin-console/impersonation", adminConsoleImpersonationRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

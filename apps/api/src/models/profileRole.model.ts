@@ -2,10 +2,18 @@ import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 // Admin-managed capability roles per profile. discount_manager: may attach pricing
-// discounts to recipient invites (seeded on acceptance).
-export type ProfileRoleName = "discount_manager";
+// discounts to recipient invites (seeded on acceptance). vortex_admin: may use the
+// /v1/admin-console surface, including impersonating another profile.
+export type ProfileRoleName = "discount_manager" | "vortex_admin";
 
-export const PROFILE_ROLE_NAMES: ProfileRoleName[] = ["discount_manager"];
+export const PROFILE_ROLE_NAMES: ProfileRoleName[] = ["discount_manager", "vortex_admin"];
+
+// Roles grantable through POST /v1/admin/profile-roles, which is guarded only by the shared
+// ADMIN_SECRET. vortex_admin confers broad access to act as any customer, so that secret must
+// never be sufficient to grant it; it is granted out-of-band instead (see
+// scripts/grant-vortex-admin.ts). Revocation stays available for
+// every role via DELETE, as a safety valve.
+export const HTTP_GRANTABLE_PROFILE_ROLES: ProfileRoleName[] = ["discount_manager"];
 
 export interface ProfileRoleAttributes {
   id: string;

@@ -1,8 +1,7 @@
 import { getOnChainTokenDetails, Networks, OnChainToken } from "@vortexfi/shared";
-import Big from "big.js";
 import { defineContext } from "../../core/metadata";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
-import { buildFullSubsidy, computeExpectedOutput, type SubsidyMetadata } from "../subsidize-pre/simulation";
+import { buildFullSubsidy, type SubsidyMetadata } from "../subsidize-pre/simulation";
 
 export interface FinalSettlementSubsidyMetadata extends SubsidyMetadata {
   amountRaw: string;
@@ -20,9 +19,11 @@ export async function simulateFinalSettlementSubsidy<Token extends TokenBrand, C
   if (!tokenDetails) {
     throw new Error(`FinalSettlementSubsidy: Missing token details for ${input.token} on ${input.chain}`);
   }
-  const expected = await computeExpectedOutput(ctx, tokenDetails.decimals);
-  const subsidy = buildFullSubsidy(input.amount, input.amountRaw, expected.decimal, expected.raw, ctx);
-  ctx.addNote(`FinalSettlementSubsidy: finalized, amount=${Big(subsidy.subsidyAmountInOutputTokenDecimal).toFixed()}`);
+  // This phase records the quote-bound destination target for execution-time shortfall handling.
+  // It is not a quote-time promotional subsidy calculation, so its metadata must not compare a
+  // fiat-derived expected value with an arbitrary destination-token quantity.
+  const subsidy = buildFullSubsidy(input.amount, input.amountRaw, input.amount, input.amountRaw, ctx);
+  ctx.addNote(`FinalSettlementSubsidy: recorded destination target, amountRaw=${input.amountRaw}`);
   return {
     metadata: { ...subsidy, amountRaw: input.amountRaw, network: input.chain, token: input.token },
     output: input

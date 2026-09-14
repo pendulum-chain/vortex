@@ -1,5 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as rampController from "../../controllers/ramp.controller";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
@@ -37,6 +38,7 @@ router.post(
   "/register",
   rejectDuringActiveMaintenance("ramp_register"),
   requirePartnerOrUserAuth(),
+  rejectImpersonation,
   authorizeManagedProfile({ corridor: getManagedProfileQuoteCorridor }),
   rampController.registerRamp as unknown as RequestHandler
 );
@@ -70,6 +72,7 @@ router.post(
   "/update",
   rejectDuringActiveMaintenance("ramp_update"),
   optionalPartnerOrUserAuth(),
+  rejectImpersonation,
   authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
   rampController.updateRamp as unknown as RequestHandler
 );
@@ -102,6 +105,7 @@ router.post(
   "/start",
   rejectDuringActiveMaintenance("ramp_start"),
   optionalPartnerOrUserAuth(),
+  rejectImpersonation,
   authorizeManagedProfile({ corridor: getManagedProfileRampCorridor }),
   rampController.startRamp as unknown as RequestHandler
 );

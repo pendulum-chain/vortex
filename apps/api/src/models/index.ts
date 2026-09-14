@@ -1,4 +1,5 @@
 import sequelize from "../config/database";
+import AdminImpersonationSession from "./adminImpersonationSession.model";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
@@ -9,6 +10,12 @@ import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import ManagedProfile from "./managedProfile.model";
 import ManagedProfileManager from "./managedProfileManager.model";
+import MoneriumAccount from "./moneriumAccount.model";
+import MoneriumChainCursor from "./moneriumChainCursor.model";
+import MoneriumConversionExecution from "./moneriumConversionExecution.model";
+import MoneriumDepositAllocation from "./moneriumDepositAllocation.model";
+import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
+import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -25,8 +32,21 @@ import SenderRecipient from "./senderRecipient.model";
 import Subsidy from "./subsidy.model";
 import User from "./user.model";
 import Webhook from "./webhook.model";
+import WebhookDelivery from "./webhookDelivery.model";
 
 // Define associations
+MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "accountId" });
+MoneriumFiatDeposit.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions", foreignKey: "accountId" });
+MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumFiatDeposit.hasMany(MoneriumDepositAllocation, { as: "allocations", foreignKey: "depositId" });
+MoneriumDepositAllocation.belongsTo(MoneriumFiatDeposit, { as: "deposit", foreignKey: "depositId" });
+MoneriumConversionExecution.hasMany(MoneriumDepositAllocation, { as: "allocations", foreignKey: "executionId" });
+MoneriumDepositAllocation.belongsTo(MoneriumConversionExecution, { as: "execution", foreignKey: "executionId" });
+MoneriumAccount.belongsTo(User, { as: "vortexProfile", foreignKey: "vortexProfileId" });
+User.hasOne(MoneriumAccount, { as: "moneriumAccount", foreignKey: "vortexProfileId" });
+Webhook.hasMany(WebhookDelivery, { as: "deliveries", foreignKey: "webhookId" });
+WebhookDelivery.belongsTo(Webhook, { as: "webhook", foreignKey: "webhookId" });
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
@@ -51,6 +71,11 @@ ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
+
+User.hasMany(AdminImpersonationSession, { as: "impersonationsPerformed", foreignKey: "actorProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "actor", foreignKey: "actorProfileId" });
+User.hasMany(AdminImpersonationSession, { as: "impersonationsReceived", foreignKey: "targetProfileId" });
+AdminImpersonationSession.belongsTo(User, { as: "target", foreignKey: "targetProfileId" });
 
 User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
 ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
@@ -107,6 +132,7 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 
 // Initialize models
 const models = {
+  AdminImpersonationSession,
   Anchor,
   ApiClientEvent,
   ApiCredential,
@@ -117,6 +143,12 @@ const models = {
   MaintenanceSchedule,
   ManagedProfile,
   ManagedProfileManager,
+  MoneriumAccount,
+  MoneriumChainCursor,
+  MoneriumConversionExecution,
+  MoneriumDepositAllocation,
+  MoneriumFiatDeposit,
+  MoneriumWebhookEvent,
   Notification,
   NotificationPreference,
   Partner,
@@ -132,7 +164,8 @@ const models = {
   SenderRecipient,
   Subsidy,
   User,
-  Webhook
+  Webhook,
+  WebhookDelivery
 };
 
 // Export models and sequelize instance

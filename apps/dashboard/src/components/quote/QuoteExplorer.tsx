@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   type EvmNetworks,
+  EvmToken,
   getEvmTokensLoadedSnapshot,
   isEvmToken,
   Networks,
@@ -56,8 +57,8 @@ export function QuoteExplorer() {
   // `requested*` is what the user last picked; for network and token the `active*` value below
   // is what survives reconciliation and is the only one anything reads.
   const [corridorId, setCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
-  const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Polygon);
-  const [requestedToken, setRequestedToken] = useState<string>("");
+  const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Base);
+  const [requestedToken, setRequestedToken] = useState<string>(EvmToken.USDC);
   const [typedAmount, setTypedAmount] = useState("");
 
   const { approved } = useApprovedCorridors();

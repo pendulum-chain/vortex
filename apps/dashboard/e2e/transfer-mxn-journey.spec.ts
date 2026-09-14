@@ -25,7 +25,7 @@ test("SELL preserves full token precision in prefilled and entered amounts", asy
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto(`/transfer?amount=${EXPECTED_PAYIN_USDC}`);
+  await page.goto(`/transfer?amount=${EXPECTED_PAYIN_USDC}&network=polygon`);
 
   const amountInput = page.locator("#token-amount");
   await expect(amountInput).toHaveValue(EXPECTED_PAYIN_USDC, { timeout: 20_000 });
@@ -44,7 +44,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   // Stage 1: the only approved corridor is MX, and its single saved payout account becomes an
   // approved self-recipient that the form auto-selects — so the amount field is already live.
@@ -140,7 +140,7 @@ test("SELL refreshes a near-expiry quote before registration", async ({ page }) 
   });
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   const amountInput = page.locator("#token-amount");
   await expect(amountInput).toBeVisible({ timeout: 20_000 });
@@ -168,7 +168,7 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto("/transfer");
+  await page.goto("/transfer?network=polygon");
 
   // The first account is selected on load; the payin-network select is the other combobox.
   const recipientSelect = page.getByRole("combobox").filter({ hasText: "Vortex E2E CLABE" });

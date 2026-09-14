@@ -3,9 +3,9 @@ import { APIError } from "../../../../../errors/api-error";
 import type { StartCtx, StartResult } from "../../core/types";
 import type { AlfredpayOfframpMetadata } from "./simulation";
 
-export async function startAlfredpayOfframp(
-  ctx: StartCtx<AlfredpayOfframpMetadata>
-): Promise<StartResult<AlfredpayOfframpMetadata>> {
+export async function startAlfredpayOfframp<Metadata extends AlfredpayOfframpMetadata>(
+  ctx: StartCtx<Metadata>
+): Promise<StartResult<Metadata>> {
   if (ctx.state.alfredpayTransactionId) {
     return {};
   }

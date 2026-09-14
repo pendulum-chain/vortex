@@ -4,16 +4,18 @@ Managed profiles let a platform onboard and operate Vortex accounts for its own 
 
 Use managed profiles when interactive signup is unavailable or undesirable — a B2B platform embedding cross-border payouts, a fintech onboarding its verified user base, or an operations backend running ramps for corporate sub-accounts. Provision one genuine child per real individual or business; never share one child between customers.
 
+Managed profiles are optional. If each customer can own a normal Vortex profile and authenticate with their own session or API credential, use a standalone profile instead: API-driven onboarding, a custom UI, and the full ramp lifecycle all work without manager status, and the EUR corridor requires a standalone profile. Manager status is only for platforms that must own the customer's Vortex identity.
+
 This page is the integration walkthrough. The exact authorization contract — every check Vortex performs, edge-case semantics, and error codes — lives in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) and is authoritative where the two overlap.
 
 ## Prerequisites
 
 Manager status is granted by Vortex, not self-service. During partner onboarding, Vortex enables your profile as a managed-profile manager and assigns:
 
-- **Allowed corridors** — the countries (`BR`, `EU`, `AR`, `CO`, `MX`, `US`) your children may operate in.
+- **Allowed corridors** — the countries (`BR`, `AR`, `CO`, `MX`, `US`, `EU`) your children may operate in.
 - **Optional customer-type narrowing** — restrict children to `individual` or `business`; a null policy allows both wherever the corridor's canonical capability matrix does.
 
-Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Automated EUR onboarding and provider binding are not available for managed children. A non-technical child that operations has already provisioned with an approved EUR provider binding, Polygon EOA, and IBAN may use the direct-API EUR BUY flow when the manager policy allows that corridor.
+Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Automated EUR onboarding and provider binding are not available for managed children. A non-technical child that operations has already provisioned with an approved EUR provider binding, Polygon EOA, and IBAN may use the direct-API EUR BUY flow when the manager policy allows that corridor. The `EU` corridor also covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding.
 
 ## Create A Managed Child
 
@@ -129,7 +131,7 @@ Register, sign, and start exactly as described in [Ramp Lifecycle](https://api-d
 Two things behave differently for managed children:
 
 - **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
-- **Webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead.
+- **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED` for all their children's accounts — see the Webhooks page.
 
 ## Common Errors
 

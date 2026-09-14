@@ -2,15 +2,16 @@
 
 ## Monerium White-Label API
 
-All white-label calls are server-to-server using `client_credentials`. ([Whitelabel: Authentication](https://docs.monerium.com/whitelabel#authentication))
+All white-label calls are server-to-server using `client_credentials`; users remain entirely within Vortex. ([Whitelabel: Authentication](https://docs.monerium.com/whitelabel#authentication))
 
-The Vortex transport is `packages/shared/src/services/monerium/moneriumApiService.ts`. The active
-backend EUR BUY flow uses it during registration to resolve an existing approved profile and its
-Polygon address/IBAN destination. The client caches client-credential tokens in memory, requests API
-v2, retries once after `401`, and applies a 10-second timeout to every call. Credentials use
-`MONERIUM_WHITELABEL_CLIENT_ID` and `MONERIUM_WHITELABEL_CLIENT_SECRET`.
-Production startup requires both values so an enabled EUR corridor cannot serve quotes while every
-registration is guaranteed to fail authentication.
+The Vortex transport is `packages/shared/src/services/monerium/moneriumApiService.ts` — the single
+Monerium transport in the repo. The active backend EUR BUY flow uses it during registration to
+resolve an existing approved profile and its Polygon address/IBAN destination, and the Monerium B2B
+onramp consumes it through the narrow adapter `apps/api/src/api/services/monerium-b2b/monerium-api.ts`.
+The client caches client-credential tokens in memory, requests API v2, retries once after `401`, and
+applies a 10-second timeout to every call. Credentials use `MONERIUM_WHITELABEL_CLIENT_ID` and
+`MONERIUM_WHITELABEL_CLIENT_SECRET`. Production startup requires both values so an enabled EUR
+corridor cannot serve quotes while every registration is guaranteed to fail authentication.
 
 | Operation | Endpoint / sequence | Commentary | Source |
 |---|---|---|---|
@@ -57,8 +58,11 @@ persistence model, and status reconciliation are not yet defined.
 
 Monerium does not expose a separate KYC/KYB case or attempt ID. The profile UUID created by
 `POST /profiles` is the durable workflow identity; its `kind` is immutable, and details, form data,
-and verifications are sections of that same profile. How the OAuth and white-label paths represent
-that workflow in `provider_customers` and `kyc_cases` remains part of the TBD migration design.
+and verifications are sections of that same profile. The legacy OAuth onboarding mirrors one
+`kyc_cases` row per Monerium `provider_customers` row and leaves `provider_case_id` unset; repeated
+submissions and status changes update that row rather than creating a new local case. How the
+white-label path represents that workflow in `provider_customers` and `kyc_cases` remains part of
+the TBD migration design.
 
 | Profile state | Meaning and next action |
 |---|---|
@@ -69,14 +73,17 @@ that workflow in `provider_customers` and `kyc_cases` remains part of the TBD mi
 | `rejected` | Final compliance rejection. Do not retry or create a replacement profile unless Monerium explicitly authorizes a new onboarding. |
 
 The current shared client implements profile reads but not `POST /profiles` or the onboarding
-`POST`/`PATCH` operations above. The active ramp only verifies an already-bound profile. Lifecycle
-orchestration and imported-profile handling remain deferred.
+`POST`/`PATCH` operations above. The active ramp only verifies an already-bound profile. Externally
+imported profiles enter Vortex directly as `approved` and do not execute these submission steps
+locally. Lifecycle orchestration and imported-profile handling remain deferred.
 
 ## Deferred Address And IBAN Management
 
 The operations below describe mapped provider capabilities. Active ramp registration uses only the
 list/read operations and fails closed unless the required Polygon destination already exists. It does
-not call `POST /addresses`, `POST /ibans`, or `PATCH /ibans/{iban}`.
+not call `POST /addresses`, `POST /ibans`, or `PATCH /ibans/{iban}`. The B2B onramp links its
+forwarder addresses and requests their IBANs through these operations under its own orchestration
+([architecture-monerium-b2b-onramp.md](architecture-monerium-b2b-onramp.md)).
 
 | Operation | Endpoint / sequence | Commentary | Source |
 |---|---|---|---|
@@ -126,6 +133,22 @@ client preserves both documented response semantics.
 The current executor does not correlate a Monerium issue order or webhook to the ramp. Balance-delta
 attribution and permit expiry are accepted release limitations recorded in the security risk register.
 
+## Provider On-Ramp Sequence: SEPA to EURe
+
+Reference sequence for provider-managed provisioning. The B2B onramp follows it under its own
+orchestration; the active direct-API ramp performs only the read steps.
+
+1. Confirm `GET /profiles/{profileId}` returns `approved`. ([API: Profile](https://docs.monerium.com/api/#tag/profiles/operation/profile))
+2. List or connect an address using `GET/POST /addresses`. ([Whitelabel: Link wallet](https://docs.monerium.com/whitelabel#link-wallet), [API: Addresses](https://docs.monerium.com/api/#tag/addresses/operation/addresses))
+3. Retrieve existing IBAN using `GET /ibans?profile={profileId}`. ([API: IBANs](https://docs.monerium.com/api/#tag/ibans/operation/ibans))
+4. If none exists, call `POST /ibans` with `{address, chain}`. ([Whitelabel: Request IBAN](https://docs.monerium.com/whitelabel#request-iban))
+5. Wait for `iban.updated`; provisioning is asynchronous. ([Whitelabel: Retrieve the IBAN](https://docs.monerium.com/whitelabel#retrieve-the-iban))
+6. Give the IBAN to the user. ([Whitelabel: EUR IBAN](https://docs.monerium.com/whitelabel#eur-iban))
+7. Incoming SEPA funds automatically create an `issue` order and mint EURe to the IBAN’s linked address. ([Whitelabel: Incoming payments](https://docs.monerium.com/whitelabel#incoming-payments))
+8. Monitor `order.created` and `order.updated`. ([Whitelabel: Monitor orders](https://docs.monerium.com/whitelabel#monitor-orders))
+
+No API call starts an incoming payment. It is passive. ([Whitelabel: Incoming payments](https://docs.monerium.com/whitelabel#incoming-payments))
+
 A sender can override the destination for one payment using memo: ([Whitelabel: Routing with memo](https://docs.monerium.com/whitelabel#routing-with-memo))
 
 ```text
@@ -165,11 +188,13 @@ There is **no documented quote endpoint for standard EUR on-ramp or SEPA off-ram
 
 Monerium has `GET /swap/{chain}/{sellToken}/{buyToken}` and `POST /swap/accept`, but this is a separate preview token-swap feature, currently documented for sandbox USDC/EURe on Arbitrum Sepolia. It should not be treated as the on/off-ramp quote API. ([Swap: Preview configuration](https://docs.monerium.com/swap#preview-configuration), [Swap: Get a quote](https://docs.monerium.com/swap#get-a-quote), [Swap: Accept the quote](https://docs.monerium.com/swap#accept-the-quote))
 
-## Deferred Provider Webhooks
+## Provider Webhooks
 
-The active onramp does not expose a Monerium webhook receiver and does not use provider events for
-settlement attribution. The shared client can manage the subscriptions below for contract testing
-and future lifecycle/order reconciliation work.
+The active direct-API onramp does not expose a Monerium webhook receiver and does not use provider
+events for settlement attribution. The B2B onramp registers its own HMAC-verified receiver for
+`iban.updated` and `order.updated` ([security-spec/05-integrations/monerium-b2b.md](security-spec/05-integrations/monerium-b2b.md)).
+The shared client can manage the subscriptions below for contract testing and future
+lifecycle/order reconciliation work.
 
 Register with `POST /webhooks`: ([Whitelabel: Webhooks](https://docs.monerium.com/whitelabel#webhooks))
 

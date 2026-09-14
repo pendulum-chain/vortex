@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { VortexLogo } from "@/components/layout/VortexLogo";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { CORRIDOR_BY_RAIL } from "@/services/api/mappers";
 import { OnboardingService } from "@/services/api/onboarding.service";
 import { type InvitePreviewResponse, RecipientsService } from "@/services/api/recipients.service";
 import { useAuthStore } from "@/stores/auth.store";
+import { useManagedProfileSelection } from "@/stores/managed-profile.store";
 
 export const Route = createFileRoute("/invite/$token")({
   component: InvitePage
@@ -24,7 +25,10 @@ export const Route = createFileRoute("/invite/$token")({
  */
 function InvitePage() {
   const user = useAuthStore(state => state.user);
+  const managedProfile = useManagedProfileSelection();
   const { token } = Route.useParams();
+
+  if (managedProfile) return <Navigate replace to="/overview" />;
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">

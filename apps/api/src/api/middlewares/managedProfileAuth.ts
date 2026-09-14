@@ -29,7 +29,8 @@ declare global {
 type CorridorResolver =
   | CorridorCountry
   | ((
-      req: Request
+      req: Request,
+      res: Response
     ) => CorridorCountry | CorridorCountry[] | undefined | Promise<CorridorCountry | CorridorCountry[] | undefined>);
 
 type CustomerTypeResolver =
@@ -39,6 +40,7 @@ type CustomerTypeResolver =
 interface ManagedProfileAuthOptions {
   corridor?: CorridorResolver;
   customerType?: CustomerTypeResolver;
+  enforceCustomerTypePolicy?: boolean;
 }
 
 export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {}) {
@@ -57,15 +59,6 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
       }
 
       try {
-        const resolvedCorridors = typeof options.corridor === "function" ? await options.corridor(req) : options.corridor;
-        const corridors = Array.isArray(resolvedCorridors) ? resolvedCorridors : resolvedCorridors ? [resolvedCorridors] : [];
-        if (
-          options.corridor !== undefined &&
-          (corridors.length === 0 || corridors.some(corridor => !directManagedCredential.allowedCorridors.includes(corridor)))
-        ) {
-          sendAccessDenied(res);
-          return;
-        }
         const customerType = await attachManagedProfileContext(req, res, {
           actorProfileId: directCredentialProfileId,
           controllingManagerProfileId: directManagedCredential.controllingManagerProfileId,
@@ -73,6 +66,15 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
           subjectProfileId: directCredentialProfileId
         });
         if (!customerType) return;
+        const corridors = await resolveCorridors(req, res, options.corridor);
+        if (res.headersSent) return;
+        if (
+          options.corridor !== undefined &&
+          (corridors.length === 0 || corridors.some(corridor => !directManagedCredential.allowedCorridors.includes(corridor)))
+        ) {
+          sendAccessDenied(res);
+          return;
+        }
         if (
           !(await authorizeCustomerType(
             req,
@@ -85,6 +87,10 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         ) {
           return;
         }
+        res.locals.managedProfilePolicy = {
+          allowedCorridors: directManagedCredential.allowedCorridors,
+          customerType
+        };
         next();
       } catch (error) {
         next(error);
@@ -124,16 +130,7 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         User.findByPk(subjectProfileId, { attributes: ["activeCustomerEntityId", "kind"] })
       ]);
 
-      const resolvedCorridors = typeof options.corridor === "function" ? await options.corridor(req) : options.corridor;
-      const corridors = Array.isArray(resolvedCorridors) ? resolvedCorridors : resolvedCorridors ? [resolvedCorridors] : [];
-      if (
-        !manager?.isActive ||
-        !relationship ||
-        subject?.kind !== "managed" ||
-        !subject.activeCustomerEntityId ||
-        (options.corridor !== undefined &&
-          (corridors.length === 0 || corridors.some(corridor => !manager.allowedCorridors.includes(corridor))))
-      ) {
+      if (!manager?.isActive || !relationship || subject?.kind !== "managed" || !subject.activeCustomerEntityId) {
         sendAccessDenied(res);
         return;
       }
@@ -145,12 +142,31 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
         subjectProfileId
       });
       if (!customerType) return;
+      const corridors = await resolveCorridors(req, res, options.corridor);
+      if (res.headersSent) return;
+      if (
+        options.corridor !== undefined &&
+        (corridors.length === 0 || corridors.some(corridor => !manager.allowedCorridors.includes(corridor)))
+      ) {
+        sendAccessDenied(res);
+        return;
+      }
       if (!(await authorizeCustomerType(req, res, options, corridors, customerType, manager.allowedCustomerTypes))) return;
+      res.locals.managedProfilePolicy = { allowedCorridors: manager.allowedCorridors, customerType };
       next();
     } catch (error) {
       next(error);
     }
   };
+}
+
+async function resolveCorridors(
+  req: Request,
+  res: Response,
+  resolver: CorridorResolver | undefined
+): Promise<CorridorCountry[]> {
+  const resolved = typeof resolver === "function" ? await resolver(req, res) : resolver;
+  return Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
 }
 
 async function attachManagedProfileContext(
@@ -198,7 +214,7 @@ async function authorizeCustomerType(
     return false;
   }
   if (
-    ((options.corridor !== undefined || options.customerType !== undefined) &&
+    ((options.corridor !== undefined || options.customerType !== undefined || options.enforceCustomerTypePolicy) &&
       allowedCustomerTypes !== null &&
       allowedCustomerTypes !== undefined &&
       !allowedCustomerTypes.includes(customerType)) ||

@@ -410,6 +410,7 @@ interface ObservedRampRequest {
   requestId?: string;
   requestStartedAt?: number;
   credential?: Request["credential"];
+  impersonation?: Request["impersonation"];
   userId?: string;
 }
 
@@ -423,6 +424,7 @@ function observeRampSuccess(
     ...context,
     durationMs: getRequestDurationMs(req),
     httpStatus: status,
+    metadata: buildRampRequestMetadata(req, operation),
     operation,
     partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
@@ -455,7 +457,7 @@ function observeRampFailure(
   });
 }
 
-function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
+export function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
   if (operation === "ramp_register") {
     return buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "signingAccounts", "additionalData"] });
   }

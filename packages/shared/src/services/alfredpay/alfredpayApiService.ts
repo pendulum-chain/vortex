@@ -2,6 +2,7 @@ import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
+import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
 import {
   AlfredpayFee,
   AlfredpayFiatAccountFields,
@@ -288,7 +289,9 @@ export class AlfredpayApiService {
 
   public async createOfframpQuote(request: CreateAlfredpayOfframpQuoteRequest): Promise<DomesticOfframpQuote> {
     const path = "/api/v1/third-party-service/penny/quotes";
-    return (await this.executeRequest(path, "POST", request)) as DomesticOfframpQuote;
+    const response = await this.executeRequest(path, "POST", request);
+    // The loose schema preserves provider fields outside Vortex's consumed subset.
+    return alfredpayQuoteResponseSchema.parse(response) as unknown as DomesticOfframpQuote;
   }
 
   public async getQuote(quoteId: string): Promise<DomesticOnrampQuote | DomesticOfframpQuote> {
@@ -308,12 +311,14 @@ export class AlfredpayApiService {
 
   public async createOfframp(request: CreateAlfredpayOfframpRequest): Promise<CreateAlfredpayOfframpResponse> {
     const path = "/api/v1/third-party-service/penny/offramp";
-    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "POST", request);
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async getOfframpTransaction(transactionId: string): Promise<CreateAlfredpayOfframpResponse> {
     const path = `/api/v1/third-party-service/penny/offramp/${transactionId}`;
-    return (await this.executeRequest(path, "GET")) as CreateAlfredpayOfframpResponse;
+    const response = await this.executeRequest(path, "GET");
+    return alfredpayOfframpTransactionSchema.parse(response) as unknown as CreateAlfredpayOfframpResponse;
   }
 
   public async createFiatAccount(

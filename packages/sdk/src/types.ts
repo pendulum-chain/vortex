@@ -257,6 +257,22 @@ export interface NetworkConfig {
 
 export type OfframpFundingMode = "prefunded" | "deferred";
 
+/**
+ * One ephemeral secret persisted for recovery. The built-in storage writes an
+ * array of these; a configured `storeEphemeralKeysCallback` receives the same
+ * array.
+ */
+export interface StoredEphemeralKey {
+  address: string;
+  rampId: string;
+  secret: string;
+  type: EphemeralAccountType;
+}
+
+export type StoreEphemeralKeysCallback = (keys: StoredEphemeralKey[], rampId: string) => Promise<void>;
+
+export type AccessTokenProvider = () => Promise<string | null | undefined>;
+
 export interface VortexSdkConfig {
   apiBaseUrl: string;
   /**
@@ -268,6 +284,12 @@ export interface VortexSdkConfig {
    * Secret API key (sk_live_* or sk_test_*). Sent as the `X-API-Key` header.
    */
   secretKey?: string;
+  /**
+   * Resolves the current Supabase access token before each request. Intended for
+   * browser integrations where the session can refresh while the SDK is active.
+   * Ignored when `secretKey` is configured.
+   */
+  accessTokenProvider?: AccessTokenProvider;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
@@ -280,6 +302,14 @@ export interface VortexSdkConfig {
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;
+  /**
+   * Custom persistence for ephemeral recovery keys. When set, the SDK calls it
+   * instead of the built-in storage (JSON file in Node.js, `localStorage` in
+   * browsers) and `storeEphemeralKeys` has no effect. `registerRamp` awaits the
+   * callback and fails closed: a rejection aborts registration before
+   * ephemeral-owned transactions are signed.
+   */
+  storeEphemeralKeysCallback?: StoreEphemeralKeysCallback;
   /**
    * Controls whether `registerRamp` checks that the source wallet holds the
    * quoted offramp amount. Deferred integrations must fund the wallet before

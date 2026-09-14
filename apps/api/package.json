@@ -91,6 +91,7 @@
     "build": "bun run swc src -d dist --strip-leading-paths",
     "build:auth-emails": "bun src/scripts/auth-email-templates.ts",
     "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "grant:vortex-admin": "bun scripts/grant-vortex-admin.ts",
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
