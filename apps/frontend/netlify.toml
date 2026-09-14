@@ -10,6 +10,11 @@
 # Gold (apps/gold) is a separate Vite app built with base /pt-BR/gold/ and copied into the
 # published tree next to the prerendered locale pages, so Netlify serves it as plain files
 # before any redirect rule applies (publicly at /pt-br/gold/, as Netlify lowercases pretty URLs).
+# Gold's build reads these site variables (set in the Netlify UI for all contexts):
+#   VITE_PRIVY_APP_ID   – the Privy app id (without it Gold renders a config error); the
+#                         original gold.satoshipay.io release used cmtiwhqgf01uu0el8lx3ejr35
+#   VITE_DEMO_MODE      – must be "false"; any other value ships the no-money demo
+# It shares VITE_SIGNING_SERVICE_PATH with the frontend, so API routing follows the context.
 # The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
 # own domain; this build does not include it.
 
