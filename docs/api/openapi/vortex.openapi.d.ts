@@ -2857,6 +2857,15 @@ export interface components {
             conversions: {
                 /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
                 eureInRaw: string;
+                /** @description Execution-level pricing, identical on every deposit portion the execution consumed: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the execution is not yet confirmed. */
+                execution: {
+                    /** @description Fee taken on the whole execution in 6-decimal base units. */
+                    feeRaw: string | null;
+                    /** @description Reference EUR/USD rate the execution was priced against, in the oracle's decimals (8). */
+                    referenceRateRaw: string | null;
+                    /** @description Subsidy paid by the vault straight to the destination for the whole execution in 6-decimal base units. */
+                    subsidyRaw: string | null;
+                };
                 executionId: string;
                 /**
                  * @description Execution status.

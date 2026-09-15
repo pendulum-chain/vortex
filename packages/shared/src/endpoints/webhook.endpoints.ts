@@ -100,6 +100,21 @@ export interface DepositReceivedWebhookPayload {
   payload: DepositWebhookPayloadBase;
 }
 
+/**
+ * How a whole execution was priced (docs/proposal-monerium-forwarder-fee-subsidy.md):
+ * the partner reference it was settled against, the fee Vortex took above the target
+ * band, and the subsidy the vault paid to reach the floor. Totals for the execution,
+ * not per deposit; a deposit's own share is its `usdcNetRaw`.
+ */
+export interface ConversionExecutionPricing {
+  /** Fee taken on the execution (6-decimal base units). */
+  feeRaw: string | null;
+  /** Reference EUR/USD rate the execution was priced against, in the oracle's decimals (8). */
+  referenceRateRaw: string | null;
+  /** Subsidy paid by the vault straight to the destination (6-decimal base units). */
+  subsidyRaw: string | null;
+}
+
 export interface DepositConvertedWebhookPayload {
   /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
   eventId: string;
@@ -110,6 +125,8 @@ export interface DepositConvertedWebhookPayload {
     conversions: Array<{
       /** EURe from this deposit consumed by this execution (18-decimal base units). */
       eureInRaw: string;
+      /** Execution-level pricing shared by every deposit portion the execution consumed. */
+      execution: ConversionExecutionPricing;
       executionId: string;
       /** The swap-and-forward transaction. */
       txHash: string | null;

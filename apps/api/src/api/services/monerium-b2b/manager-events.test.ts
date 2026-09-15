@@ -162,7 +162,10 @@ describe("monerium b2b manager events", () => {
       blockNumber: 1000,
       destination: DESTINATION,
       eureInRaw: "60000000000000000000",
+      feeRaw: "81000",
+      referenceRateRaw: "108140000",
       status: MoneriumConversionExecutionStatus.Confirmed,
+      subsidyRaw: "0",
       txHash: "0xswap1",
       usdcNetRaw: "64800000"
     });
@@ -171,7 +174,10 @@ describe("monerium b2b manager events", () => {
       blockNumber: 1001,
       destination: DESTINATION,
       eureInRaw: "40000000000000000000",
+      feeRaw: "0",
+      referenceRateRaw: "108120000",
       status: MoneriumConversionExecutionStatus.Confirmed,
+      subsidyRaw: "120000",
       txHash: "0xswap2",
       usdcNetRaw: "43200000"
     });
@@ -222,8 +228,20 @@ describe("monerium b2b manager events", () => {
     expect(deliveries[0].payload).toMatchObject({
       payload: {
         conversions: [
-          { eureInRaw: "60000000000000000000", executionId: firstExecution.id, txHash: "0xswap1", usdcNetRaw: "64800000" },
-          { eureInRaw: "40000000000000000000", executionId: secondExecution.id, txHash: "0xswap2", usdcNetRaw: "43200000" }
+          {
+            eureInRaw: "60000000000000000000",
+            execution: { feeRaw: "81000", referenceRateRaw: "108140000", subsidyRaw: "0" },
+            executionId: firstExecution.id,
+            txHash: "0xswap1",
+            usdcNetRaw: "64800000"
+          },
+          {
+            eureInRaw: "40000000000000000000",
+            execution: { feeRaw: "0", referenceRateRaw: "108120000", subsidyRaw: "120000" },
+            executionId: secondExecution.id,
+            txHash: "0xswap2",
+            usdcNetRaw: "43200000"
+          }
         ],
         depositId: deposit.id,
         usdcNetRaw: "108000000"

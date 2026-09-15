@@ -2479,6 +2479,25 @@
                   "description": "EURe from this deposit consumed by the execution in 18-decimal base units.",
                   "type": "string"
                 },
+                "execution": {
+                  "description": "Execution-level pricing, identical on every deposit portion the execution consumed: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the execution is not yet confirmed.",
+                  "properties": {
+                    "feeRaw": {
+                      "description": "Fee taken on the whole execution in 6-decimal base units.",
+                      "type": ["string", "null"]
+                    },
+                    "referenceRateRaw": {
+                      "description": "Reference EUR/USD rate the execution was priced against, in the oracle's decimals (8).",
+                      "type": ["string", "null"]
+                    },
+                    "subsidyRaw": {
+                      "description": "Subsidy paid by the vault straight to the destination for the whole execution in 6-decimal base units.",
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["feeRaw", "referenceRateRaw", "subsidyRaw"],
+                  "type": "object"
+                },
                 "executionId": {
                   "type": "string"
                 },
@@ -2496,7 +2515,7 @@
                   "type": "string"
                 }
               },
-              "required": ["eureInRaw", "executionId", "status", "txHash", "usdcNetRaw"],
+              "required": ["eureInRaw", "execution", "executionId", "status", "txHash", "usdcNetRaw"],
               "type": "object"
             },
             "type": "array"

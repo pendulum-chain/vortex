@@ -10,6 +10,7 @@ import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
+import { executionPricing } from "../services/monerium-b2b/manager-events";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
 import {
   MONERIUM_ID_HEADER,
@@ -164,6 +165,7 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
             const execution = executionById.get(allocation.executionId);
             return {
               eureInRaw: allocation.eureInRaw,
+              execution: execution ? executionPricing(execution) : { feeRaw: null, referenceRateRaw: null, subsidyRaw: null },
               executionId: allocation.executionId,
               status: execution?.status ?? "pending",
               txHash: execution?.txHash ?? null,
