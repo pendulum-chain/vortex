@@ -120,6 +120,7 @@ export enum QuoteError {
 
   // Compatibility errors
   AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",
+  EurOnrampNetworkUnsupported = "EUR pay-ins are not available on this network yet. Please select a different network.",
 
   // Token/calculation errors
   UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details",

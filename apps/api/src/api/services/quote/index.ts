@@ -3,6 +3,7 @@ import {
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
+  doesNetworkSupportEurOnramp,
   EvmToken,
   FiatToken,
   getNetworkFromDestination,
@@ -55,6 +56,7 @@ export class QuoteService extends BaseRampService {
     }
   ): Promise<QuoteResponse> {
     assertEurOfframpSupported(request);
+    assertEurOnrampNetworkSupported(request);
     return this.executeQuoteCalculation(request);
   }
 
@@ -297,6 +299,22 @@ function assertEurOfframpSupported(request: Pick<CreateQuoteRequest, "outputCurr
       message: "EUR offramps are not supported",
       status: httpStatus.BAD_REQUEST
     });
+  }
+}
+
+/**
+ * Best-quote aggregation skips unsupported networks on its own; only a direct quote needs the
+ * public rejection so clients can tell an unsupported destination from a pricing failure.
+ */
+function assertEurOnrampNetworkSupported(request: Pick<CreateQuoteRequest, "inputCurrency" | "rampType" | "to">): void {
+  const network = getNetworkFromDestination(request.to);
+  if (
+    request.rampType === RampDirection.BUY &&
+    request.inputCurrency === FiatToken.EURC &&
+    network !== undefined &&
+    !doesNetworkSupportEurOnramp(network)
+  ) {
+    throw new APIError({ isPublic: true, message: QuoteError.EurOnrampNetworkUnsupported, status: httpStatus.BAD_REQUEST });
   }
 }
 
