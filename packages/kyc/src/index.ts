@@ -59,6 +59,7 @@ export type {
   MoneriumWalletLinkResult
 } from "./monerium/types";
 export {
+  MONERIUM_REAUTHENTICATION_REQUIRED,
   MoneriumAuthorizationRequiredError,
   type MoneriumCustomerType,
   type MoneriumKycContext,

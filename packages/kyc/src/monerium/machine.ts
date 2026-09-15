@@ -1,7 +1,7 @@
 import { assign, type DoneActorEvent, fromPromise, setup } from "xstate";
 import type { MoneriumKycDeps } from "./api";
 import type { MoneriumKycContext, MoneriumKycInput, MoneriumKycOutput, MoneriumStatusResponse } from "./types";
-import { MoneriumAuthorizationRequiredError } from "./types";
+import { MONERIUM_REAUTHENTICATION_REQUIRED, MoneriumAuthorizationRequiredError } from "./types";
 
 function errorFrom(value: unknown): Error {
   return value instanceof Error ? value : new Error("Monerium onboarding failed");
@@ -39,6 +39,9 @@ export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: 
       callbackHasError: ({ context }) => !!context.callback && "error" in context.callback,
       isApproved: ({ event }) => statusOutput(event).status === "APPROVED",
       isRejected: ({ event }) => statusOutput(event).status === "REJECTED",
+      // A persisted approval stays readable after the backend's OAuth session is gone; the ramp
+      // readiness read then needs a fresh authorization, so route back to the OAuth start.
+      needsReauthentication: ({ event }) => statusOutput(event).rampError?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
       needsUserAction: ({ event }) => ["created", "incomplete"].includes(statusOutput(event).statusExternal.toLowerCase())
     },
     types: {
@@ -60,6 +63,11 @@ export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: 
         invoke: {
           input: ({ context }) => ({ customerType: context.customerType }),
           onDone: [
+            {
+              actions: "storeStatus",
+              guard: "needsReauthentication",
+              target: "Ready"
+            },
             {
               actions: "storeStatus",
               guard: "isApproved",
@@ -125,7 +133,7 @@ export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: 
       Redirecting: {
         entry: "openAuthorization",
         // A client that could only open the authorization in another tab re-checks on request.
-        on: { REFRESH: { target: "CheckingStatus" } }
+        on: { CLOSE: { target: "Done" }, REFRESH: { target: "CheckingStatus" } }
       },
       Rejected: {
         on: { CLOSE: { target: "Done" }, RETRY: { target: "Ready" } }

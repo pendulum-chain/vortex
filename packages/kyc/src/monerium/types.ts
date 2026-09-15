@@ -2,6 +2,9 @@ export type MoneriumCustomerType = "business" | "individual";
 export type MoneriumKycStatus = "APPROVED" | "PENDING" | "REJECTED";
 
 export type MoneriumOAuthClient = "dashboard" | "widget";
+
+/** `rampError.code` reported by GET /v1/monerium/status when the backend's OAuth session is gone. */
+export const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
 export type MoneriumIbanReadiness = "provisioned" | "elsewhere" | "missing";
 
 /** EUR onramp readiness of an approved profile, measured against the chain the onramp mints on. */

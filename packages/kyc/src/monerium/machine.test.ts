@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { createActor, waitFor } from "xstate";
 import type { MoneriumKycApi } from "./api";
 import { createMoneriumKycMachine } from "./machine";
-import { MoneriumAuthorizationRequiredError, type MoneriumStatusResponse } from "./types";
+import { MONERIUM_REAUTHENTICATION_REQUIRED, MoneriumAuthorizationRequiredError, type MoneriumStatusResponse } from "./types";
 
 const approved: MoneriumStatusResponse = {
   customerType: "individual",
@@ -131,5 +131,41 @@ describe("moneriumKycMachine", () => {
 
     await waitFor(actor, snapshot => snapshot.matches("Ready"));
     expect(actor.getSnapshot().context.authorizationUrl).toBe("https://example.com/auth");
+  });
+
+  it("routes a persisted approval whose OAuth session is gone back to authorization", async () => {
+    const machine = machineWith({
+      completeOAuth: async () => approved,
+      getStatus: async () => ({
+        ...approved,
+        rampError: { code: MONERIUM_REAUTHENTICATION_REQUIRED, message: "Monerium reauthentication is required" }
+      }),
+      startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+    });
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    expect(actor.getSnapshot().context.rampError?.code).toBe(MONERIUM_REAUTHENTICATION_REQUIRED);
+  });
+
+  it("lets the user close the flow while the authorization tab is open", async () => {
+    const machine = machineWith(
+      {
+        completeOAuth: async () => approved,
+        getStatus: async () => {
+          throw new MoneriumAuthorizationRequiredError();
+        },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      () => undefined
+    );
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    actor.send({ type: "START_OAUTH" });
+    await waitFor(actor, snapshot => snapshot.matches("Redirecting"));
+
+    actor.send({ type: "CLOSE" });
+
+    await waitFor(actor, snapshot => snapshot.matches("Done"));
   });
 });
