@@ -35,7 +35,15 @@ export const MoneriumWalletFlow = () => {
     return <LoadingPanel message={t("components.moneriumWalletFlow.linking")} />;
   }
   if (stateValue === "Waiting") {
-    return <LoadingPanel message={t("components.moneriumWalletFlow.waiting")} />;
+    return (
+      <div className="flex flex-col items-center gap-4 p-6">
+        <p className="text-center text-body">{t("components.moneriumWalletFlow.waiting")}</p>
+        <Spinner size="lg" theme="dark" />
+        <button className="btn-vortex-secondary btn w-full rounded-xl" onClick={cancel} type="button">
+          {t("components.moneriumWalletFlow.cancel")}
+        </button>
+      </div>
+    );
   }
   if (stateValue === "Moving") {
     return <LoadingPanel message={t("components.moneriumWalletFlow.moving")} />;

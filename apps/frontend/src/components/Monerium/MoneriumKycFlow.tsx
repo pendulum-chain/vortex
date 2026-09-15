@@ -14,16 +14,23 @@ const LoadingPanel = ({ message }: { message: string }) => (
 interface ActionPanelProps {
   title: string;
   description: string;
+  /** Plain link rendered above the buttons; a user gesture on it is never popup-blocked. */
+  link?: { href: string; label: string };
   primaryLabel: string;
   onPrimary: () => void;
   secondaryLabel: string;
   onSecondary: () => void;
 }
 
-const ActionPanel = ({ title, description, primaryLabel, onPrimary, secondaryLabel, onSecondary }: ActionPanelProps) => (
+const ActionPanel = ({ title, description, link, primaryLabel, onPrimary, secondaryLabel, onSecondary }: ActionPanelProps) => (
   <div className="flex flex-col items-center gap-4 p-6">
     <p className="text-center font-medium text-body">{title}</p>
     <p className="text-center text-sm">{description}</p>
+    {link && (
+      <a className="text-center text-sm underline" href={link.href} rel="noopener noreferrer" target="_blank">
+        {link.label}
+      </a>
+    )}
     <button className="btn-vortex-primary btn w-full rounded-xl" onClick={onPrimary} type="button">
       {primaryLabel}
     </button>
@@ -60,14 +67,16 @@ export const MoneriumKycFlow = () => {
   }
 
   if (stateValue === "Ready") {
+    // An approved profile whose backend OAuth session is gone lands here too; it needs a reconnect, not a first verification.
+    const copy = context.rampError ? "reconnect" : "ready";
     return (
       <ActionPanel
-        description={t("components.moneriumKycFlow.ready.description")}
+        description={t(`components.moneriumKycFlow.${copy}.description`)}
         onPrimary={startOAuth}
         onSecondary={close}
         primaryLabel={t("components.moneriumKycFlow.ready.continue")}
         secondaryLabel={t("components.moneriumKycFlow.ready.cancel")}
-        title={t("components.moneriumKycFlow.ready.title")}
+        title={t(`components.moneriumKycFlow.${copy}.title`)}
       />
     );
   }
@@ -76,6 +85,11 @@ export const MoneriumKycFlow = () => {
     return (
       <ActionPanel
         description={t("components.moneriumKycFlow.redirecting.description")}
+        link={
+          context.authorizationUrl
+            ? { href: context.authorizationUrl, label: t("components.moneriumKycFlow.redirecting.open") }
+            : undefined
+        }
         onPrimary={refresh}
         onSecondary={close}
         primaryLabel={t("components.moneriumKycFlow.redirecting.refresh")}

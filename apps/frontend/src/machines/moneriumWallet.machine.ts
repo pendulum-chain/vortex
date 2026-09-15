@@ -15,6 +15,8 @@ export interface MoneriumWalletContext extends MoneriumWalletInput {
   error?: string;
   /** Set once this wallet was linked in this flow, so readiness reads are interpreted for it. */
   linked?: boolean;
+  /** Provisioning polls so far; the wait is bounded rather than spinning forever. */
+  polls?: number;
   readiness?: MoneriumRampReadiness;
 }
 
@@ -28,6 +30,8 @@ export type MoneriumWalletEvent = { type: "CANCEL" } | { type: "CONFIRM_MOVE" } 
 type MoneriumWalletApiClient = Pick<MoneriumKycApi, "getStatus"> & MoneriumWalletApi;
 
 const POLL_INTERVAL_MS = 5_000;
+/** Monerium usually provisions within seconds; after this many polls the user is told to come back later. */
+const MAX_PROVISIONING_POLLS = 36;
 
 function linkedHere(context: MoneriumWalletContext, readiness: MoneriumRampReadiness): boolean {
   return (
@@ -79,6 +83,10 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
     guards: {
       hasEvmWallet: ({ context }) => context.isEvmWallet && !!context.address,
       isPending: ({ context, event }) => readinessOf(event).iban === "missing" && linkedHere(context, readinessOf(event)),
+      isPendingTooLong: ({ context, event }) =>
+        readinessOf(event).iban === "missing" &&
+        linkedHere(context, readinessOf(event)) &&
+        (context.polls ?? 0) >= MAX_PROVISIONING_POLLS,
       isReady: ({ context, event }) => {
         const readiness = readinessOf(event);
         return (
@@ -108,6 +116,14 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
           onDone: [
             { actions: "storeReadiness", guard: "isReady", target: "Ready" },
             { actions: "storeReadiness", guard: "needsMove", target: "NeedsMove" },
+            {
+              actions: [
+                "storeReadiness",
+                assign({ error: () => "Monerium has not provisioned your IBAN yet. Please try again later." })
+              ],
+              guard: "isPendingTooLong",
+              target: "Failure"
+            },
             { actions: "storeReadiness", guard: "isPending", target: "Waiting" },
             { actions: "storeReadiness", target: "Linking" }
           ],
@@ -160,6 +176,7 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
       },
       Ready: { type: "final" },
       Waiting: {
+        entry: assign({ polls: ({ context }) => (context.polls ?? 0) + 1 }),
         invoke: { onDone: { target: "Checking" }, src: "wait" },
         on: { CANCEL: { actions: assign({ error: () => "IBAN provisioning was cancelled" }), target: "Cancelled" } }
       }

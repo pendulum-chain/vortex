@@ -605,9 +605,14 @@
         "description": "A Monerium coleta com segurança as informações necessárias para sua verificação em EUR. Você voltará para cá ao terminar.",
         "title": "Verificar com a Monerium"
       },
+      "reconnect": {
+        "description": "Sua sessão da Monerium expirou. Reconecte para continuar com seu pagamento em EUR.",
+        "title": "Reconectar à Monerium"
+      },
       "redirecting": {
         "cancel": "Cancelar",
         "description": "Conclua a verificação na aba da Monerium e depois volte para cá.",
+        "open": "Abra a Monerium em uma nova aba caso ela não tenha aberto automaticamente",
         "refresh": "Já terminei",
         "title": "Concluir com a Monerium"
       },

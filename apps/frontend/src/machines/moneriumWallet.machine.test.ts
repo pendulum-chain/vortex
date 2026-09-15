@@ -68,6 +68,25 @@ describe("moneriumWalletMachine", () => {
     }
   });
 
+  it("gives up on provisioning after the bounded number of polls", async () => {
+    vi.useFakeTimers();
+    try {
+      const { api: client } = api([status({ iban: "missing", linkedAddress: ADDRESS })]);
+      const actor = createActor(createMoneriumWalletMachine(client), { input: input() }).start();
+      await waitFor(actor, snapshot => snapshot.matches("Waiting"));
+      for (let poll = 0; poll < 36; poll += 1) {
+        await vi.advanceTimersByTimeAsync(5_000);
+      }
+      await waitFor(actor, snapshot => snapshot.matches("Failure"));
+      expect(actor.getSnapshot().context.error).toContain("not provisioned");
+      actor.send({ type: "CANCEL" });
+      await waitFor(actor, snapshot => snapshot.status === "done");
+      expect(actor.getSnapshot().output?.ready).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("asks before moving an IBAN that sits on another wallet", async () => {
     const { api: client, calls } = api([
       status({ iban: "elsewhere", linkedAddress: ADDRESS }),

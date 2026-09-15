@@ -602,9 +602,14 @@
         "description": "Monerium securely collects the information required for your EUR verification. You will return here when finished.",
         "title": "Verify with Monerium"
       },
+      "reconnect": {
+        "description": "Your Monerium session has expired. Reconnect to continue with your EUR pay-in.",
+        "title": "Reconnect Monerium"
+      },
       "redirecting": {
         "cancel": "Cancel",
         "description": "Complete the verification in the Monerium tab, then come back here.",
+        "open": "Open Monerium in a new tab if it did not open automatically",
         "refresh": "I have finished",
         "title": "Finish with Monerium"
       },
