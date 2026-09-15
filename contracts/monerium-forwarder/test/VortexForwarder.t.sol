@@ -113,7 +113,7 @@ contract VortexForwarderTest is Test {
     address rando = makeAddr("rando");
 
     uint256 constant TRIGGER_DELAY = 24 hours;
-    uint256 constant SWEEP_DELAY = 60 days;
+    uint256 constant SWEEP_DELAY = 7 days; // registry P3
 
     // Fee policy defaults (proposal): target 12.5 bps, floor 15 bps below the reference.
     uint32 constant TARGET_PPM = 1_250;

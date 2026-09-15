@@ -61,7 +61,7 @@ contract ForwarderHandler is Test {
                 slippageBps: 40,
                 maxFeePpm: 10_000,
                 maxReferenceDeviationBps: 100,
-                sweepDelay: 60 days,
+                sweepDelay: 7 days, // registry P3
                 triggerDelay: 24 hours,
                 recoveryHash: bytes32(0)
             }),
