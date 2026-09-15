@@ -51,14 +51,13 @@ contract ForwarderHandler is Test {
                 maxFeeBps: 100,
                 sweepDelay: 60 days,
                 triggerDelay: 24 hours,
-                poolFeeEureEurc: 500,
-                poolFeeEurcUsdc: 500,
                 recoveryHash: bytes32(0)
             }),
             1e18,
             50_000e18,
             25e18,
-            10_000e18
+            10_000e18,
+            abi.encodePacked(address(eure), uint24(500), address(eurc), uint24(500), address(usdc))
         );
         factory.setKeeper(keeper, true);
         fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, INITIAL_FEE_BPS, bytes32(uint256(1))));
@@ -102,7 +101,7 @@ contract ForwarderHandler is Test {
 
         uint256 routerUsdcBefore = usdc.totalMinted();
         vm.prank(caller);
-        try fwd.swapAndForward() {
+        try fwd.swapAndForward(0) {
             ghostUsdcPaidByRouter += usdc.totalMinted() - routerUsdcBefore;
         } catch {}
     }

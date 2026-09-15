@@ -27,6 +27,9 @@ contract VortexForwarderForkTest is Test {
     address constant UNIV3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     // Chainlink EUR/USD proxy — verify against data.chain.link before deploy (registry P8).
     address constant CHAINLINK_EUR_USD = 0xb49f677943BC038e9857d61E7d053CaA2C1734C1;
+    // Initial whitelisted route: EURe -> EURC -> USDC on the 5 bps tiers (registry P10).
+    uint24 constant POOL_FEE_EURE_EURC = 500;
+    uint24 constant POOL_FEE_EURC_USDC = 500;
 
     VortexForwarderFactory factory;
     VortexForwarder fwd;
@@ -58,14 +61,13 @@ contract VortexForwarderForkTest is Test {
                 maxFeeBps: 100,
                 sweepDelay: 60 days,
                 triggerDelay: 24 hours,
-                poolFeeEureEurc: 500,
-                poolFeeEurcUsdc: 500,
                 recoveryHash: bytes32(0)
             }),
             1e18,
             50_000e18,
             25e18,
-            10_000e18
+            10_000e18,
+            abi.encodePacked(EURE_V2, POOL_FEE_EURE_EURC, EURC, POOL_FEE_EURC_USDC, USDC)
         );
         factory.setKeeper(keeper, true);
         fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, 0, bytes32(uint256(1))));
@@ -85,13 +87,16 @@ contract VortexForwarderForkTest is Test {
         assertGt(updatedAt, 0);
     }
 
-    function test_fork_pinnedPathUsesV2AndPoolsExist() public onlyForked {
+    function test_fork_initialRouteUsesV2AndPoolsExist() public onlyForked {
         assertEq(address(fwd.EURE()), EURE_V2);
         assertTrue(address(fwd.EURE()) != EURE_V1_DEPRECATED, "route must never touch deprecated V1 EURe");
+        (bytes memory path, bool enabled) = factory.route(0);
+        assertTrue(enabled);
+        assertEq(path, abi.encodePacked(EURE_V2, POOL_FEE_EURE_EURC, EURC, POOL_FEE_EURC_USDC, USDC));
 
-        // Both hops of the pinned path must exist on-chain with the pinned fee tiers.
-        address hop1 = IUniswapV3Factory(UNIV3_FACTORY).getPool(EURE_V2, EURC, fwd.POOL_FEE_EURE_EURC());
-        address hop2 = IUniswapV3Factory(UNIV3_FACTORY).getPool(EURC, USDC, fwd.POOL_FEE_EURC_USDC());
+        // Both hops of the initial route must exist on-chain with the chosen fee tiers.
+        address hop1 = IUniswapV3Factory(UNIV3_FACTORY).getPool(EURE_V2, EURC, POOL_FEE_EURE_EURC);
+        address hop2 = IUniswapV3Factory(UNIV3_FACTORY).getPool(EURC, USDC, POOL_FEE_EURC_USDC);
         assertTrue(hop1 != address(0), "EURe/EURC pool missing at pinned fee tier");
         assertTrue(hop2 != address(0), "EURC/USDC pool missing at pinned fee tier");
         // The V2 pool must actually hold V2 tokens (stale-pool trap check).
@@ -106,7 +111,7 @@ contract VortexForwarderForkTest is Test {
         uint256 fair = (amountIn * uint256(answer)) / 1e20; // 6-dec USDC at oracle rate
 
         vm.prank(keeper);
-        fwd.swapAndForward();
+        fwd.swapAndForward(0);
 
         uint256 received = IERC20Meta(USDC).balanceOf(destination);
         assertGe(received, (fair * 9_900) / 10_000, "below oracle-bounded minOut");
@@ -118,7 +123,7 @@ contract VortexForwarderForkTest is Test {
     function test_fork_perSwapCapLeavesRemainder() public onlyForked {
         deal(EURE_V2, address(fwd), 12_000e18); // cap is 10k
         vm.prank(keeper);
-        fwd.swapAndForward();
+        fwd.swapAndForward(0);
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 2_000e18);
         assertGt(IERC20Meta(USDC).balanceOf(destination), 0);
     }

@@ -38,6 +38,7 @@ interface IVortexForwarderFactory {
     function MIN_SWAP_FLOOR() external view returns (uint256);
     function isForwarder(address account) external view returns (bool);
     function subsidyVault() external view returns (address);
+    function route(uint256 index) external view returns (bytes memory path, bool enabled);
 }
 
 /// @title VortexForwarder
@@ -46,7 +47,7 @@ interface IVortexForwarderFactory {
 ///         Deployed as an EIP-1167 clone by VortexForwarderFactory; the clone address is
 ///         linked to the client's Monerium profile, EURe mints land here, and the only
 ///         ways assets can ever leave are:
-///           1. the pinned EURe -> EURC -> USDC swap (oracle-checked minOut, output to self),
+///           1. a factory-whitelisted EURe -> USDC swap (oracle-checked minOut, output to self),
 ///           2. USDC to the client's `destination` (plus fee <= feeBps to FEE_RECIPIENT),
 ///           3. EURe to the client's `fallbackAddress` (delayed permissionless sweep),
 ///           4. anything, by the client's `fallbackAddress` itself (`sweep`).
@@ -80,8 +81,6 @@ contract VortexForwarder {
     uint16 public immutable MAX_FEE_BPS; // registry P2
     uint256 public immutable SWEEP_DELAY; // registry P3
     uint256 public immutable TRIGGER_DELAY; // registry P4
-    uint24 public immutable POOL_FEE_EURE_EURC; // registry P10
-    uint24 public immutable POOL_FEE_EURC_USDC; // registry P10
 
     /// @dev EIP-191 personal-message hash and raw keccak of LINK_MESSAGE. Monerium's
     ///      exact hashing scheme is a G0 spike output (task 4); accepting both is safe
@@ -107,8 +106,6 @@ contract VortexForwarder {
         uint16 maxFeeBps;
         uint256 sweepDelay;
         uint256 triggerDelay;
-        uint24 poolFeeEureEurc;
-        uint24 poolFeeEurcUsdc;
         bytes32 recoveryHash;
     }
 
@@ -142,7 +139,9 @@ contract VortexForwarder {
     event FeeBpsIncreaseApplied(uint16 previous, uint16 current);
     event FeeBpsIncreaseCancelled(uint16 pending);
     event Poked(uint64 strandedSince);
-    event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded);
+    event SwapExecuted(
+        address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded
+    );
     event StrandedEureSwept(address indexed caller, uint256 amount);
     event DestinationUpdated(address previous, address current);
     event FallbackAddressUpdated(address previous, address current);
@@ -171,6 +170,7 @@ contract VortexForwarder {
     error DelayNotElapsed();
     error TransferFailed();
     error Reentrancy();
+    error InvalidRoute();
 
     // ------------------------------------------------------------ constructor
 
@@ -189,8 +189,6 @@ contract VortexForwarder {
         MAX_FEE_BPS = cfg.maxFeeBps;
         SWEEP_DELAY = cfg.sweepDelay;
         TRIGGER_DELAY = cfg.triggerDelay;
-        POOL_FEE_EURE_EURC = cfg.poolFeeEureEurc;
-        POOL_FEE_EURC_USDC = cfg.poolFeeEurcUsdc;
         RECOVERY_HASH = cfg.recoveryHash;
 
         LINK_HASH_191 = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n45", LINK_MESSAGE));
@@ -298,8 +296,14 @@ contract VortexForwarder {
     /// @notice Convert EURe held by this contract to USDC and forward to `destination`.
     ///         Callable by guardian/keepers any time; by anyone once the stranding
     ///         marker is older than TRIGGER_DELAY (liveness fallback).
-    function swapAndForward() external nonReentrant {
+    /// @param routeIndex Which factory-whitelisted route to execute. The keeper quotes
+    ///        every enabled route off-chain and picks the best; a poor pick only ever
+    ///        costs Vortex (more subsidy, less fee), never the client, whose outcome is
+    ///        bounded by the oracle floor whichever route runs.
+    function swapAndForward(uint256 routeIndex) external nonReentrant {
         if (clientPaused || guardianPaused || FACTORY.globalPaused()) revert Paused();
+        (bytes memory path, bool routeEnabled) = FACTORY.route(routeIndex);
+        if (!routeEnabled) revert InvalidRoute();
 
         bool privileged = msg.sender == FACTORY.guardian() || FACTORY.isKeeper(msg.sender);
         if (!privileged) {
@@ -319,9 +323,7 @@ contract VortexForwarder {
         _approve(EURE, address(ROUTER), amountIn);
         ROUTER.exactInput(
             ISwapRouter02.ExactInputParams({
-                path: abi.encodePacked(
-                    address(EURE), POOL_FEE_EURE_EURC, address(EURC), POOL_FEE_EURC_USDC, address(USDC)
-                ),
+                path: path,
                 recipient: address(this),
                 amountIn: amountIn,
                 amountOutMinimum: minOut
@@ -347,7 +349,7 @@ contract VortexForwarder {
         // P2): otherwise the remainder's dead-man/permissionless timers would silently
         // restart from zero only after a fresh poke().
         strandedSince = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() ? uint64(block.timestamp) : 0;
-        emit SwapExecuted(msg.sender, amountIn, usdcReceived, fee, forwarded);
+        emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, fee, forwarded);
     }
 
     /// @dev minOut = amountIn * price * (1 - slippage), rescaled EURe(18) -> USDC(6).
