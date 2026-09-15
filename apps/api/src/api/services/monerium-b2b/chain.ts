@@ -10,7 +10,8 @@ import {
   parseAbi,
   parseAbiItem,
   Transport,
-  WalletClient
+  WalletClient,
+  zeroAddress
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../config/logger";
@@ -324,4 +325,64 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
   };
   forwarderImmutablesCache.set(key, immutables);
   return immutables;
+}
+
+// ------------------------------------------------------------------ routes + vault readers
+
+/** Enabled swap routes on the factory whitelist, by stable index. */
+export async function readEnabledRoutes(factory: Address): Promise<Array<{ index: number; path: Hex }>> {
+  const client = getPublicClient();
+  const count = Number(await client.readContract({ abi: factoryAbi, address: factory, functionName: "routeCount" }));
+  const routes = await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      client
+        .readContract({ abi: factoryAbi, address: factory, args: [BigInt(index)], functionName: "route" })
+        .then(([path, enabled]) => ({ enabled, index, path }))
+    )
+  );
+  return routes.filter(route => route.enabled).map(({ index, path }) => ({ index, path }));
+}
+
+/** Static QuoterV2 quote for `amountIn` over a packed path. Mainnet only (MAINNET_QUOTER_V2 pin). */
+export async function quoteRouteOutput(path: Hex, amountIn: bigint): Promise<bigint> {
+  const { result } = await getPublicClient().simulateContract({
+    abi: quoterV2Abi,
+    address: MAINNET_QUOTER_V2,
+    args: [path, amountIn],
+    functionName: "quoteExactInput"
+  });
+  return result[0];
+}
+
+export interface SubsidyVaultState {
+  balance: bigint;
+  dailyBudget: bigint;
+  maxSubsidyPpm: number;
+  paused: boolean;
+  /** Spent in the current UTC day; zero when the vault's day counter has rolled over. */
+  spentToday: bigint;
+}
+
+/** Live limits and balance of the factory's subsidy vault; null when none is configured. */
+export async function readSubsidyVaultState(vault: Address, usdc: Address): Promise<SubsidyVaultState | null> {
+  if (vault === zeroAddress) {
+    return null;
+  }
+  const client = getPublicClient();
+  const [balance, dailyBudget, maxSubsidyPpm, paused, spentToday, currentDay] = await Promise.all([
+    client.readContract({ abi: erc20Abi, address: usdc, args: [vault], functionName: "balanceOf" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "dailyBudget" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "maxSubsidyPpm" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "paused" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "spentToday" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "currentDay" })
+  ]);
+  const today = BigInt(Math.floor(Date.now() / 86_400_000));
+  return {
+    balance,
+    dailyBudget,
+    maxSubsidyPpm: Number(maxSubsidyPpm),
+    paused,
+    spentToday: currentDay === today ? spentToday : 0n
+  };
 }

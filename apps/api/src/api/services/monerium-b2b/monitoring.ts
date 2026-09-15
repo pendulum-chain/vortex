@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Address, encodePacked, Hex, parseAbi } from "viem";
+import { Address, Hex, parseAbi } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
@@ -11,25 +11,31 @@ import {
   getChainId,
   getForwarderImmutables,
   getPublicClient,
-  MAINNET_QUOTER_V2,
   moneriumChainForChainId,
-  quoterV2Abi
+  quoteRouteOutput,
+  readEnabledRoutes,
+  readSubsidyVaultState,
+  SubsidyVaultState
 } from "./chain";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 
 /**
  * Monitoring pass for the Monerium B2B onramp (implementation plan D3 / phase 3), run
- * from the keeper worker. Four read-only monitors, alerting via the standard logger:
+ * from the keeper worker. Five read-only monitors, alerting via the standard logger:
  *
- * 1. Executable-depth check (main PRD §7.4, T6 follow-up): QuoterV2 static quote on the
- *    pinned EURe->EURC->USDC path at perSwapCap and minSwapAmount sizes vs the
- *    Chainlink EUR/USD rate. Impact above SLIPPAGE_BPS at minSwapAmount size is the
- *    PAUSE THRESHOLD (error-level -> engage guardian pause per the incident runbook);
- *    at perSwapCap size it is an early warning. Mainnet-only (QuoterV2 pin).
+ * 1. Executable-depth check (main PRD §7.4, T6 follow-up): QuoterV2 static quotes on
+ *    every enabled factory route at perSwapCap and minSwapAmount sizes vs the Chainlink
+ *    EUR/USD rate. Impact of the best route above SLIPPAGE_BPS at minSwapAmount size is
+ *    the PAUSE THRESHOLD (error-level -> engage guardian pause per the incident
+ *    runbook); at perSwapCap size it is an early warning. Mainnet-only (QuoterV2 pin).
  * 2. Stranded-balance monitor: forwarders whose on-chain stranding marker (R03) has
  *    been armed for more than STRANDED_WARN_MS warn; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — the keeper should have
- *    converted long before either.
+ *    converted long before either — and within SWEEP_IMMINENT_MS of SWEEP_DELAY the
+ *    error says so: the dead-man sweep to the fallback is about to become possible.
+ * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
+ *    (docs/proposal-monerium-forwarder-fee-subsidy.md); a vault that cannot cover a
+ *    below-floor swap makes the keeper defer, so runway problems surface here first.
  * 3. Association monitor (S1 detective control, trust model in the b2b-variant doc):
  *    re-reads the linked-address and IBAN state from the Monerium API per active
  *    account and alerts on ANY divergence from the DB record (IBAN moved, new address
@@ -47,6 +53,9 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
 /** Stranding marker armed longer than this warns (the keeper converts within minutes normally). */
 export const STRANDED_WARN_MS = 12 * 60 * 60 * 1000;
 
+/** Inside this window before SWEEP_DELAY the stranding error names the imminent sweep. */
+export const SWEEP_IMMINENT_MS = 2 * 24 * 60 * 60 * 1000;
+
 /** Full monitoring pass at most this often (the worker cycles every minute). */
 const MONITORING_INTERVAL_MS = 30 * 60_000;
 
@@ -56,14 +65,8 @@ const forwarderMonitoringAbi = parseAbi([
   "function fallbackAddress() view returns (address)",
   "function targetPpm() view returns (uint32)",
   "function floorPpm() view returns (uint32)",
-  "function EURC() view returns (address)",
-  "function USDC() view returns (address)",
-  "function ORACLE() view returns (address)",
-  "function ORACLE_DECIMALS() view returns (uint8)",
-  "function SLIPPAGE_BPS() view returns (uint16)",
   "function TRIGGER_DELAY() view returns (uint256)",
-  "function POOL_FEE_EURE_EURC() view returns (uint24)",
-  "function POOL_FEE_EURC_USDC() view returns (uint24)"
+  "function SWEEP_DELAY() view returns (uint256)"
 ]);
 
 const factoryMonitoringAbi = parseAbi([
@@ -109,6 +112,32 @@ export function classifyStranding(strandedSinceSec: bigint, triggerDelaySec: big
     return "warn";
   }
   return "ok";
+}
+
+export type VaultRunwaySeverity = "error" | "ok" | "warn";
+
+/**
+ * Runway of the shared subsidy vault. Paused or empty is an error (every below-floor
+ * swap defers); less than one day of budget on hand, or today's budget already spent,
+ * is a warning worth a refill before clients notice.
+ */
+export function classifyVaultRunway(state: Pick<SubsidyVaultState, "balance" | "dailyBudget" | "paused" | "spentToday">): {
+  reason: string;
+  severity: VaultRunwaySeverity;
+} {
+  if (state.paused) {
+    return { reason: "vault is paused", severity: "error" };
+  }
+  if (state.balance === 0n) {
+    return { reason: "vault is empty", severity: "error" };
+  }
+  if (state.balance < state.dailyBudget) {
+    return { reason: "balance is below one day of budget", severity: "warn" };
+  }
+  if (state.spentToday >= state.dailyBudget) {
+    return { reason: "today's budget is exhausted", severity: "warn" };
+  }
+  return { reason: "ok", severity: "ok" };
 }
 
 export interface AssociationDbRecord {
@@ -215,8 +244,8 @@ async function monitoredAccounts(statuses: MoneriumAccountStatus[]): Promise<Mon
 
 /**
  * Executable-depth check (PRD §7.4): QuoterV2 static quotes at minSwapAmount and
- * perSwapCap on the pinned path vs Chainlink. Runs only against Ethereum mainnet —
- * MAINNET_QUOTER_V2 is a mainnet pin.
+ * perSwapCap on every enabled factory route vs Chainlink; the best route decides.
+ * Runs only against Ethereum mainnet — MAINNET_QUOTER_V2 is a mainnet pin.
  */
 export async function runExecutableDepthCheck(): Promise<void> {
   if ((await getChainId()) !== 1) {
@@ -227,20 +256,18 @@ export async function runExecutableDepthCheck(): Promise<void> {
     return;
   }
   const client = getPublicClient();
-  const forwarder = accounts[0].forwarderAddress as Address;
-  const { eure, factory } = await getForwarderImmutables(forwarder);
-  const [eurc, usdc, oracle, oracleDecimals, slippageBps, poolFeeEureEurc, poolFeeEurcUsdc, minSwapAmount, perSwapCap] =
-    await Promise.all([
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "EURC" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "USDC" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "ORACLE" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "ORACLE_DECIMALS" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "SLIPPAGE_BPS" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "POOL_FEE_EURE_EURC" }),
-      client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "POOL_FEE_EURC_USDC" }),
-      client.readContract({ abi: factoryAbi, address: factory, functionName: "minSwapAmount" }),
-      client.readContract({ abi: factoryAbi, address: factory, functionName: "perSwapCap" })
-    ]);
+  const { factory, oracle, oracleDecimals, slippageBps } = await getForwarderImmutables(
+    accounts[0].forwarderAddress as Address
+  );
+  const [minSwapAmount, perSwapCap, routes] = await Promise.all([
+    client.readContract({ abi: factoryAbi, address: factory, functionName: "minSwapAmount" }),
+    client.readContract({ abi: factoryAbi, address: factory, functionName: "perSwapCap" }),
+    readEnabledRoutes(factory)
+  ]);
+  if (routes.length === 0) {
+    logger.error("monerium-b2b: depth check aborted — the factory has no enabled swap route");
+    return;
+  }
 
   const [, answer, , updatedAt] = await client.readContract({
     abi: chainlinkAbi,
@@ -252,35 +279,39 @@ export async function runExecutableDepthCheck(): Promise<void> {
     return;
   }
 
-  const path = encodePacked(
-    ["address", "uint24", "address", "uint24", "address"],
-    [eure, poolFeeEureEurc, eurc, poolFeeEurcUsdc, usdc]
-  );
-  const quote = async (amountIn: bigint): Promise<bigint> => {
-    const { result } = await client.simulateContract({
-      abi: quoterV2Abi,
-      address: MAINNET_QUOTER_V2,
-      args: [path, amountIn],
-      functionName: "quoteExactInput"
-    });
-    return result[0];
-  };
-
-  const [minOut, capOut] = await Promise.all([quote(minSwapAmount), quote(perSwapCap)]);
-  const minImpactBps = computeQuoteImpactBps(minSwapAmount, minOut, answer, Number(oracleDecimals));
-  const capImpactBps = computeQuoteImpactBps(perSwapCap, capOut, answer, Number(oracleDecimals));
+  const quoted: Array<{ capImpactBps: number; index: number; minImpactBps: number }> = [];
+  for (const route of routes) {
+    try {
+      const [minOut, capOut] = await Promise.all([
+        quoteRouteOutput(route.path, minSwapAmount),
+        quoteRouteOutput(route.path, perSwapCap)
+      ]);
+      quoted.push({
+        capImpactBps: computeQuoteImpactBps(perSwapCap, capOut, answer, oracleDecimals),
+        index: route.index,
+        minImpactBps: computeQuoteImpactBps(minSwapAmount, minOut, answer, oracleDecimals)
+      });
+    } catch (error) {
+      logger.warn(`monerium-b2b: depth check could not quote route ${route.index}:`, error);
+    }
+  }
+  if (quoted.length === 0) {
+    logger.error("monerium-b2b: depth check aborted — no enabled swap route could be quoted");
+    return;
+  }
+  const best = quoted.reduce((leader, route) => (route.minImpactBps < leader.minImpactBps ? route : leader));
   const detail =
-    `oracle=${answer} (updatedAt=${updatedAt}), minSwapAmount=${minSwapAmount} -> ${minOut} (${minImpactBps} bps), ` +
-    `perSwapCap=${perSwapCap} -> ${capOut} (${capImpactBps} bps), SLIPPAGE_BPS=${slippageBps}`;
+    `oracle=${answer} (updatedAt=${updatedAt}), SLIPPAGE_BPS=${slippageBps}, best route ${best.index}; per route: ` +
+    quoted.map(route => `#${route.index} min=${route.minImpactBps}bps cap=${route.capImpactBps}bps`).join(", ");
 
-  if (minImpactBps > slippageBps) {
-    // PAUSE THRESHOLD (PRD §7.4): even minimum-size swaps would revert on minOut.
+  if (best.minImpactBps > slippageBps) {
+    // PAUSE THRESHOLD (PRD §7.4): even minimum-size swaps would land below the floor on every route.
     logger.error(
-      "monerium-b2b: PAUSE THRESHOLD — quote impact at minSwapAmount exceeds SLIPPAGE_BPS; engage guardian pause per " +
-        `docs/operations-monerium-b2b-runbook.md. ${detail}`
+      "monerium-b2b: PAUSE THRESHOLD — quote impact at minSwapAmount exceeds SLIPPAGE_BPS on every route; engage " +
+        `guardian pause per docs/operations-monerium-b2b-runbook.md. ${detail}`
     );
-  } else if (capImpactBps > slippageBps) {
-    logger.warn(`monerium-b2b: executable depth below perSwapCap — cap-sized swaps would revert on minOut. ${detail}`);
+  } else if (best.capImpactBps > slippageBps) {
+    logger.warn(`monerium-b2b: executable depth below perSwapCap — cap-sized swaps would land below the floor. ${detail}`);
   } else {
     logger.info(`monerium-b2b: depth check ok. ${detail}`);
   }
@@ -298,12 +329,17 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
   }
   const client = getPublicClient();
   const { factory } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
-  const [minSwapFloor, triggerDelay] = await Promise.all([
+  const [minSwapFloor, triggerDelay, sweepDelay] = await Promise.all([
     client.readContract({ abi: factoryAbi, address: factory, functionName: "MIN_SWAP_FLOOR" }),
     client.readContract({
       abi: forwarderMonitoringAbi,
       address: accounts[0].forwarderAddress as Address,
       functionName: "TRIGGER_DELAY"
+    }),
+    client.readContract({
+      abi: forwarderMonitoringAbi,
+      address: accounts[0].forwarderAddress as Address,
+      functionName: "SWEEP_DELAY"
     })
   ]);
 
@@ -322,10 +358,16 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
       if (severity === "ok") {
         continue;
       }
-      const hours = Math.floor((now - Number(strandedSince) * 1000) / 3_600_000);
+      const armedMs = now - Number(strandedSince) * 1000;
+      const hours = Math.floor(armedMs / 3_600_000);
+      const sweepInMs = Number(sweepDelay) * 1000 - armedMs;
+      const sweepNote =
+        sweepInMs <= SWEEP_IMMINENT_MS
+          ? `; dead-man sweep to the fallback ${sweepInMs <= 0 ? "is live" : `possible in ${Math.ceil(sweepInMs / 3_600_000)}h`}`
+          : "";
       const message =
         `monerium-b2b: stranded EURe on forwarder ${forwarder} (account ${account.id}): balance=${balance}, ` +
-        `marker armed ${hours}h ago${severity === "error" ? " — past TRIGGER_DELAY, permissionless trigger is live" : ""}`;
+        `marker armed ${hours}h ago${severity === "error" ? " — past TRIGGER_DELAY, permissionless trigger is live" : ""}${sweepNote}`;
       if (severity === "error") {
         logger.error(message);
       } else {
@@ -471,6 +513,32 @@ export async function runConfigReconciliation(): Promise<void> {
   }
 }
 
+/** Subsidy-vault monitor: runway of the shared vault every below-floor swap depends on. */
+export async function runSubsidyVaultMonitor(): Promise<void> {
+  const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
+  if (accounts.length === 0) {
+    return;
+  }
+  const { factory, usdc } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
+  const vault = await getPublicClient().readContract({ abi: factoryAbi, address: factory, functionName: "subsidyVault" });
+  const state = await readSubsidyVaultState(vault, usdc);
+  if (!state) {
+    logger.warn("monerium-b2b: no subsidy vault is configured on the factory — every below-floor swap will defer");
+    return;
+  }
+  const { reason, severity } = classifyVaultRunway(state);
+  const detail =
+    `vault=${vault}: balance=${state.balance}, dailyBudget=${state.dailyBudget}, spentToday=${state.spentToday}, ` +
+    `maxSubsidyPpm=${state.maxSubsidyPpm}, paused=${state.paused}`;
+  if (severity === "error") {
+    logger.error(`monerium-b2b: SUBSIDY VAULT — ${reason}; below-floor swaps are deferring. ${detail}`);
+  } else if (severity === "warn") {
+    logger.warn(`monerium-b2b: subsidy vault ${reason}; refill before below-floor swaps start deferring. ${detail}`);
+  } else {
+    logger.info(`monerium-b2b: subsidy vault ok. ${detail}`);
+  }
+}
+
 // ------------------------------------------------------------------ pass orchestration
 
 let lastPassAt = 0;
@@ -500,6 +568,7 @@ export async function runMonitoringPass(now: number = Date.now()): Promise<void>
   if (config.moneriumB2b.rpcUrl) {
     await guarded("executable-depth check", runExecutableDepthCheck);
     await guarded("stranded-balance monitor", () => runStrandedBalanceMonitor(now));
+    await guarded("subsidy-vault monitor", runSubsidyVaultMonitor);
     await guarded("config reconciliation", runConfigReconciliation);
   }
   if (isWhitelabelConfigured()) {

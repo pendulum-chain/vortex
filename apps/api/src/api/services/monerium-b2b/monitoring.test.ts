@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   classifyStranding,
+  classifyVaultRunway,
   computeQuoteImpactBps,
   detectConfigDrift,
   diffAssociation,
@@ -70,6 +71,24 @@ describe("classifyStranding", () => {
 
   it("errors past TRIGGER_DELAY", () => {
     expect(classifyStranding(armedAt(25 * 60 * 60 * 1000), TRIGGER_DELAY, now)).toBe("error");
+  });
+});
+
+describe("classifyVaultRunway", () => {
+  const healthy = { balance: 1_000n * USDC, dailyBudget: 200n * USDC, paused: false, spentToday: 0n };
+
+  it("is ok with a funded, unpaused vault and budget left today", () => {
+    expect(classifyVaultRunway(healthy).severity).toBe("ok");
+  });
+
+  it("errors when paused or empty, since every below-floor swap then defers", () => {
+    expect(classifyVaultRunway({ ...healthy, paused: true })).toMatchObject({ severity: "error" });
+    expect(classifyVaultRunway({ ...healthy, balance: 0n })).toMatchObject({ severity: "error" });
+  });
+
+  it("warns below one day of budget or once today's budget is spent", () => {
+    expect(classifyVaultRunway({ ...healthy, balance: 150n * USDC })).toMatchObject({ severity: "warn" });
+    expect(classifyVaultRunway({ ...healthy, spentToday: 200n * USDC })).toMatchObject({ severity: "warn" });
   });
 });
 

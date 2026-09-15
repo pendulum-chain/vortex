@@ -1,13 +1,5 @@
 import { Op, Transaction } from "sequelize";
-import {
-  Address,
-  encodeFunctionData,
-  Hex,
-  parseEventLogs,
-  TransactionReceipt,
-  TransactionReceiptNotFoundError,
-  zeroAddress
-} from "viem";
+import { Address, encodeFunctionData, Hex, parseEventLogs, TransactionReceipt, TransactionReceiptNotFoundError } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
@@ -27,9 +19,10 @@ import {
   getForwarderImmutables,
   getKeeperWalletClient,
   getPublicClient,
-  MAINNET_QUOTER_V2,
-  quoterV2Abi,
-  subsidyVaultAbi,
+  quoteRouteOutput,
+  readEnabledRoutes,
+  readSubsidyVaultState,
+  SubsidyVaultState,
   swapExecutedEvent
 } from "./chain";
 import { withForwarderLock } from "./deposit-processor";
@@ -132,15 +125,6 @@ export function conversionAmountsFromSwapEvent(event: { fee: bigint; subsidy: bi
 
 const PPM = 1_000_000n;
 const BPS = 10_000n;
-
-export interface SubsidyVaultState {
-  balance: bigint;
-  dailyBudget: bigint;
-  maxSubsidyPpm: number;
-  paused: boolean;
-  /** Spent in the current UTC day; the reader zeroes it when the vault's day has rolled over. */
-  spentToday: bigint;
-}
 
 export interface SwapProjectionInput {
   amountIn: bigint;
@@ -692,63 +676,20 @@ function deferSwap(reason: string): PlannedSwap {
   return { kind: "defer", reason };
 }
 
-async function readEnabledRoutes(factory: Address): Promise<Array<{ index: number; path: Hex }>> {
-  const client = getPublicClient();
-  const count = Number(await client.readContract({ abi: factoryAbi, address: factory, functionName: "routeCount" }));
-  const routes = await Promise.all(
-    Array.from({ length: count }, (_, index) =>
-      client
-        .readContract({ abi: factoryAbi, address: factory, args: [BigInt(index)], functionName: "route" })
-        .then(([path, enabled]) => ({ enabled, index, path }))
-    )
-  );
-  return routes.filter(route => route.enabled).map(({ index, path }) => ({ index, path }));
-}
-
 /** Quotes every enabled route on the mainnet QuoterV2; a route that cannot be quoted is skipped with a warning. */
 async function quoteRoutes(
   routes: Array<{ index: number; path: Hex }>,
   amountIn: bigint
 ): Promise<Array<{ index: number; quotedOut: bigint }>> {
-  const client = getPublicClient();
   const quotes: Array<{ index: number; quotedOut: bigint }> = [];
   for (const route of routes) {
     try {
-      const { result } = await client.simulateContract({
-        abi: quoterV2Abi,
-        address: MAINNET_QUOTER_V2,
-        args: [route.path, amountIn],
-        functionName: "quoteExactInput"
-      });
-      quotes.push({ index: route.index, quotedOut: result[0] });
+      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(route.path, amountIn) });
     } catch (error) {
       logger.warn(`monerium-b2b: route ${route.index} could not be quoted: ${errorText(error)}`);
     }
   }
   return quotes;
-}
-
-async function readSubsidyVaultState(vault: Address, usdc: Address): Promise<SubsidyVaultState | null> {
-  if (vault === zeroAddress) {
-    return null;
-  }
-  const client = getPublicClient();
-  const [balance, dailyBudget, maxSubsidyPpm, paused, spentToday, currentDay] = await Promise.all([
-    client.readContract({ abi: erc20Abi, address: usdc, args: [vault], functionName: "balanceOf" }),
-    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "dailyBudget" }),
-    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "maxSubsidyPpm" }),
-    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "paused" }),
-    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "spentToday" }),
-    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "currentDay" })
-  ]);
-  const today = BigInt(Math.floor(Date.now() / 86_400_000));
-  return {
-    balance,
-    dailyBudget,
-    maxSubsidyPpm: Number(maxSubsidyPpm),
-    paused,
-    spentToday: currentDay === today ? spentToday : 0n
-  };
 }
 
 /**
