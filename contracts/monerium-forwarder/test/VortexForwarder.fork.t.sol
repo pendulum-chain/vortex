@@ -2,8 +2,9 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {VortexForwarder} from "../src/VortexForwarder.sol";
+import {VortexForwarder, IERC20, IVortexForwarderFactory} from "../src/VortexForwarder.sol";
 import {VortexForwarderFactory} from "../src/VortexForwarderFactory.sol";
+import {VortexSubsidyVault} from "../src/VortexSubsidyVault.sol";
 
 interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address);
@@ -33,6 +34,7 @@ contract VortexForwarderForkTest is Test {
 
     VortexForwarderFactory factory;
     VortexForwarder fwd;
+    VortexSubsidyVault vault;
 
     address attestor = vm.addr(0xA11CE);
     address destination = makeAddr("destination");
@@ -57,8 +59,9 @@ contract VortexForwarderForkTest is Test {
                 attestor: attestor,
                 feeRecipient: makeAddr("feeRecipient"),
                 maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
-                slippageBps: 100,
-                maxFeeBps: 100,
+                slippageBps: 40,
+                maxFeePpm: 10_000,
+                maxReferenceDeviationBps: 100,
                 sweepDelay: 60 days,
                 triggerDelay: 24 hours,
                 recoveryHash: bytes32(0)
@@ -70,7 +73,18 @@ contract VortexForwarderForkTest is Test {
             abi.encodePacked(EURE_V2, POOL_FEE_EURE_EURC, EURC, POOL_FEE_EURC_USDC, USDC)
         );
         factory.setKeeper(keeper, true);
-        fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, 0, bytes32(uint256(1))));
+        vault = new VortexSubsidyVault(
+            IERC20(USDC), makeAddr("treasury"), IVortexForwarderFactory(address(factory)), 5_000, 200e6
+        );
+        deal(USDC, address(vault), 1_000e6);
+        factory.setSubsidyVault(address(vault));
+        fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, 1_250, 1_500, bytes32(uint256(1))));
+    }
+
+    /// The keeper's reference in these tests is Chainlink itself (trivially inside the band).
+    function _reference() internal view returns (uint256) {
+        (, int256 answer,,,) = fwd.ORACLE().latestRoundData();
+        return uint256(answer);
     }
 
     modifier onlyForked() {
@@ -111,10 +125,13 @@ contract VortexForwarderForkTest is Test {
         uint256 fair = (amountIn * uint256(answer)) / 1e20; // 6-dec USDC at oracle rate
 
         vm.prank(keeper);
-        fwd.swapAndForward(0);
+        fwd.swapAndForward(_reference(), 0);
 
+        // With the vault funded the client lands at or above the policy floor (15 bps),
+        // whether by fill, fee, or subsidy; the oracle floor is the hard lower bound.
         uint256 received = IERC20Meta(USDC).balanceOf(destination);
-        assertGe(received, (fair * 9_900) / 10_000, "below oracle-bounded minOut");
+        assertGe(received, (fair * 998_500) / 1_000_000, "below the policy floor");
+        assertGe(received, (fair * 9_960) / 10_000, "below the oracle floor");
         assertLe(received, (fair * 10_300) / 10_000, "implausibly above oracle rate");
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 0, "EURe left behind");
         assertEq(IERC20Meta(USDC).balanceOf(address(fwd)), 0, "USDC left behind");
@@ -123,7 +140,7 @@ contract VortexForwarderForkTest is Test {
     function test_fork_perSwapCapLeavesRemainder() public onlyForked {
         deal(EURE_V2, address(fwd), 12_000e18); // cap is 10k
         vm.prank(keeper);
-        fwd.swapAndForward(0);
+        fwd.swapAndForward(_reference(), 0);
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 2_000e18);
         assertGt(IERC20Meta(USDC).balanceOf(destination), 0);
     }
