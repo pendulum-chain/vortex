@@ -2,11 +2,12 @@ import { ApiManager } from "@vortexfi/shared";
 import { type FakeAlfredpay, type FakeBrla, type FakeMykobo, installFakeAnchors } from "./fake-anchors";
 import { installBackgroundWorkTracking } from "./fake-background-work";
 import { type FakeEvm, installFakeEvm } from "./fake-evm";
+import { type FakeMonerium, installFakeMonerium } from "./fake-monerium";
 import { type FakePrices, installFakePrices } from "./fake-prices";
 import { type FakeSquidRouter, installFakeSquidRouter } from "./fake-squidrouter";
 import { installFetchGuard, uninstallFetchGuard } from "./fetch-guard";
 
-export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMykobo, FakePrices, FakeSquidRouter };
+export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMonerium, FakeMykobo, FakePrices, FakeSquidRouter };
 export { installFetchGuard, uninstallFetchGuard };
 
 export interface FakeWorld {
@@ -14,6 +15,7 @@ export interface FakeWorld {
   mykobo: FakeMykobo;
   brla: FakeBrla;
   alfredpay: FakeAlfredpay;
+  monerium: FakeMonerium;
   prices: FakePrices;
   squidRouter: FakeSquidRouter;
   restore: () => void;
@@ -29,6 +31,7 @@ export function installFakeWorld(): FakeWorld {
   installFetchGuard();
   const { fakeEvm, restore: restoreEvm } = installFakeEvm();
   const { fakeAlfredpay, fakeBrla, fakeMykobo, restore: restoreAnchors } = installFakeAnchors();
+  const { fakeMonerium, restore: restoreMonerium } = installFakeMonerium();
   const { fakePrices, restore: restorePrices } = installFakePrices();
   const { fakeSquidRouter, restore: restoreSquidRouter } = installFakeSquidRouter();
   // Not an external boundary, but fire-and-forget app work (the ramp-completion email
@@ -102,6 +105,7 @@ export function installFakeWorld(): FakeWorld {
     alfredpay: fakeAlfredpay,
     brla: fakeBrla,
     evm: fakeEvm,
+    monerium: fakeMonerium,
     mykobo: fakeMykobo,
     prices: fakePrices,
     restore: () => {
@@ -109,6 +113,7 @@ export function installFakeWorld(): FakeWorld {
       restoreBackgroundWorkTracking();
       restoreSquidRouter();
       restorePrices();
+      restoreMonerium();
       restoreAnchors();
       restoreEvm();
       uninstallFetchGuard();
