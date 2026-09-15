@@ -136,6 +136,13 @@ export class MoneriumSelfTransferExecutor extends BasePhaseHandler {
     const persistedAllowance = this.getState(state).allowanceBeforeTransferRaw;
     const allowanceBeforeTransfer = persistedAllowance ? BigInt(persistedAllowance) : observedAllowance;
     if (allowanceBeforeTransfer < BigInt(expectation.amountRaw)) {
+      // An expired or consumed permit can never establish the allowance; retrying only loops.
+      const invalidation = this.getState(state).permitInvalidation;
+      if (invalidation) {
+        throw this.createReconciliationRequiredError(
+          `MoneriumSelfTransfer permit is ${invalidation.reason} (owner nonce ${invalidation.observedNonce}) and no allowance remains`
+        );
+      }
       throw this.createRecoverableError("MoneriumSelfTransfer permit did not establish the exact transfer allowance");
     }
     await this.broadcastTransfer(

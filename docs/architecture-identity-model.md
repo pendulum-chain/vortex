@@ -174,9 +174,10 @@ Alfredpay customer creation uses the child's immutable provider contact email, n
 manager's login email. Email-bound Mykobo operations and Monerium OAuth KYC/KYB onboarding remain
 unsupported for delegated profiles; these legacy routes ignore a managed selector and remain scoped
 to the authenticated manager, so managed clients must not send that header to them. Future Monerium
-import handling is TBD. This does not prevent a non-technical managed child whose Monerium binding
-and Polygon EOA/IBAN were provisioned out of band from using the active direct-API EUR BUY flow when
-manager corridor policy allows it.
+import handling is TBD. One `provider_customers` binding serves both Monerium applications;
+registration decides at runtime which app can read the profile. This does not prevent a
+non-technical managed child whose Monerium binding and Polygon EOA/IBAN were provisioned out of
+band from using the active EUR BUY flow when manager corridor policy allows it.
 
 Child-owned credentials authenticate directly as the child. Public and secret validation
 derive the unique active manager relationship on every request; corridor-bound route

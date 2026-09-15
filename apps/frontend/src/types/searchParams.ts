@@ -16,6 +16,9 @@ export const rampSearchSchema = z.object({
   code: z.string().optional(),
   countryCode: z.string().optional(),
   cryptoLocked: z.string().optional(),
+  // Monerium OAuth callback (`/widget?code&state`, or `?error&error_description` when the user cancels).
+  error: z.string().optional(),
+  error_description: z.string().optional(),
   externalSessionId: z.string().optional(),
   fiat: z.string().optional(),
   inputAmount: stringOrNumberParam,
@@ -30,6 +33,7 @@ export const rampSearchSchema = z.object({
   paymentMethod: z.string().optional(),
   quoteId: z.string().optional(),
   rampType: z.string().optional(),
+  state: z.string().optional(),
   walletAddressLocked: z.string().optional()
 });
 

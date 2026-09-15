@@ -121,8 +121,10 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
   const rampProcess = await RampService.registerRamp(quote.id, signingAccounts, additionalData);
   bindRampEphemerals(quote.id, rampProcess.id);
 
+  // Anything the connected wallet must sign itself (offramp permits, the Monerium onramp's
+  // owner permit) is excluded from ephemeral signing and returned as user-owned work.
   const ephemeralTxs = (rampProcess.unsignedTxs ?? []).filter(
-    tx => quote.rampType === RampDirection.BUY || tx.signer.toLowerCase() !== walletAddress
+    tx => !walletAddress || tx.signer.toLowerCase() !== walletAddress
   );
 
   const apiManager = ApiManager.getInstance();
@@ -158,10 +160,7 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
     depositQrCode: updateResponse.depositQrCode ?? rampProcess.depositQrCode,
     ibanPaymentData: updateResponse.ibanPaymentData ?? rampProcess.ibanPaymentData
   };
-  const userTxs =
-    quote.rampType === RampDirection.SELL
-      ? (updatedRamp.unsignedTxs ?? []).filter(tx => tx.signer.toLowerCase() === walletAddress)
-      : [];
+  const userTxs = walletAddress ? (updatedRamp.unsignedTxs ?? []).filter(tx => tx.signer.toLowerCase() === walletAddress) : [];
 
   return { ramp: updatedRamp, userTxs };
 }

@@ -1,4 +1,5 @@
 import { useSearch } from "@tanstack/react-router";
+import type { MoneriumOAuthCallback } from "@vortexfi/kyc";
 import {
   AssetHubToken,
   DestinationType,
@@ -50,6 +51,7 @@ interface RampUrlParams {
   invite?: string;
   region?: string;
   kybRegionLocked?: boolean;
+  moneriumCallback?: MoneriumOAuthCallback;
 }
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
@@ -207,6 +209,12 @@ export const useRampUrlParams = (): RampUrlParams => {
     const callbackUrlParam = searchParams.callbackUrl;
     const externalSessionIdParam = searchParams.externalSessionId;
     const inviteParam = searchParams.invite;
+    const moneriumCallback: MoneriumOAuthCallback | undefined =
+      searchParams.code && searchParams.state
+        ? { code: searchParams.code, state: searchParams.state }
+        : searchParams.error
+          ? { error: searchParams.error, errorDescription: searchParams.error_description }
+          : undefined;
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -229,6 +237,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       invite: inviteParam || undefined,
       kybMode,
       kybRegionLocked,
+      moneriumCallback,
       network,
       partnerId: partnerIdParam || undefined,
       paymentMethod: paymentMethodParam || undefined,
@@ -261,7 +270,8 @@ export const useSetRampUrlParams = () => {
     invite,
     kybMode,
     region,
-    kybRegionLocked
+    kybRegionLocked,
+    moneriumCallback
   } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
@@ -296,6 +306,15 @@ export const useSetRampUrlParams = () => {
     // effect to read params when at /widget path
     if (!isWidget) return;
     if (hasInitialized.current) return;
+
+    // Back from Monerium OAuth: the persisted ramp restores into the EUR KYC step; hand it the
+    // callback and drop the one-time params so a reload cannot replay the exchange.
+    if (moneriumCallback) {
+      rampActor.send({ callback: moneriumCallback, type: "MONERIUM_CALLBACK" });
+      window.history.replaceState({}, "", window.location.pathname);
+      hasInitialized.current = true;
+      return;
+    }
 
     // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
     // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.

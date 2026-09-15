@@ -12,6 +12,8 @@ import { RampLimitExceededError, validateKycActor } from "./actors/validateKyc.a
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
+import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { moneriumWalletMachine } from "./moneriumWallet.machine";
 import { mykoboKycMachine } from "./mykoboKyc.machine";
 import {
   acceptRecipientInviteActor,
@@ -106,6 +108,8 @@ export const rampMachine = setup({
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(loadQuoteActor),
+    moneriumKyc: moneriumKycMachine,
+    moneriumWallet: moneriumWalletMachine,
     mykoboKyc: mykoboKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       return createQuoteRefresher(input.context, sendBack);

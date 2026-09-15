@@ -170,6 +170,59 @@ describe("transferMachine", () => {
     actor.stop();
   });
 
+  it("signs the wallet-owned onramp transactions before showing payment instructions", async () => {
+    const eurRamp = { id: "ramp-eur", inputCurrency: "EUR", type: RampDirection.BUY } as RampProcess;
+    const permit = { nonce: 0, phase: "moneriumOnrampSelfTransfer", signer: "0x1111111111111111111111111111111111111111" } as UnsignedTx;
+    let signed = 0;
+    let startCalls = 0;
+    const machine = transferMachine.provide({
+      actors: {
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
+        registerTransfer: fromPromise(async () => ({ ramp: eurRamp, userTxs: [permit] })),
+        signUserTransactions: fromPromise(async ({ input }) => {
+          signed += input.userTxs.length;
+          return { ...eurRamp, ibanPaymentData: { bic: "MONEEE00", iban: "EE52", receiverName: "Monerium" } } as RampProcess;
+        }),
+        startRamp: fromPromise(async () => {
+          startCalls += 1;
+          return eurRamp;
+        })
+      }
+    });
+    const actor = createActor(machine).start();
+    actor.send({ ownerProfileId: "profile-1", recovery: null, type: "ACTIVATE_OWNER" });
+    actor.send({
+      additionalData: {
+        destinationAddress: "0x1111111111111111111111111111111111111111",
+        walletAddress: "0x1111111111111111111111111111111111111111"
+      },
+      meta: {
+        accountId: "account-1",
+        amountIn: "100",
+        amountInToken: "EUR",
+        corridorId: "EU" as const,
+        direction: RampDirection.BUY,
+        fiatPayoutAmount: "107",
+        ownerProfileId: "profile-1",
+        payinNetwork: "polygon",
+        payoutCurrency: "USDC",
+        recipientEmail: "Your wallet",
+        recipientId: "",
+        summary: "107 USDC to your wallet"
+      },
+      ownerProfileId: "profile-1",
+      quote: { ...quote, id: "quote-eur" } as QuoteResponse,
+      quoteRequest: { ...quoteRequest, params: { ...quoteRequest.params, corridorId: "EU" as const } },
+      type: "START"
+    });
+
+    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+    assert.equal(signed, 1);
+    assert.equal(startCalls, 0);
+    assert.equal(actor.getSnapshot().context.ramp?.ibanPaymentData?.iban, "EE52");
+    actor.stop();
+  });
+
   it("waits for payment confirmation before starting the ramp", async () => {
     let startCalls = 0;
     const machine = transferMachine.provide({

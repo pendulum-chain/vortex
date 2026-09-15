@@ -6,6 +6,7 @@ import {
   type SignedTypedData
 } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem";
+import { config } from "../../../../../../config/vars";
 import { requireAccount } from "../../core/accounts";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import { MONERIUM_ISSUE_NETWORKS } from "../monerium-issue/simulation";
@@ -55,7 +56,9 @@ export async function prepareMoneriumSelfTransferTxs(
       })();
   const chainId = getNetworkId(facts.chain);
   if (chainId === undefined) throw new Error(`MoneriumSelfTransfer requires the ${facts.chain} chain ID`);
-  const deadline = BigInt(Math.floor((dependencies.now?.() ?? Date.now()) / 1000) + 24 * 60 * 60);
+  // Same horizon as the downstream swap presign: the spender is this ramp's ephemeral and the
+  // value exact, so a longer window only lets standard SEPA (up to three business days) settle.
+  const deadline = BigInt(Math.floor((dependencies.now?.() ?? Date.now()) / 1000) + config.swap.deadlineMinutes * 60);
   const permit: SignedTypedData = {
     domain: { chainId, name: probe.tokenName, verifyingContract: tokenAddress, version: "1" },
     message: {

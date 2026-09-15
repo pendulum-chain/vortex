@@ -1,5 +1,11 @@
-import { getNetworkId, isEvmTransactionData, type SignedTypedData, type UnsignedTx } from "@vortexfi/shared";
-import { getAccount, sendTransaction, signTypedData, switchChain, waitForTransactionReceipt } from "wagmi/actions";
+import {
+  buildMoneriumWalletLinkMessage,
+  getNetworkId,
+  isEvmTransactionData,
+  type SignedTypedData,
+  type UnsignedTx
+} from "@vortexfi/shared";
+import { getAccount, sendTransaction, signMessage, signTypedData, switchChain, waitForTransactionReceipt } from "wagmi/actions";
 import { wagmiConfig } from "@/lib/wagmi";
 
 /**
@@ -84,4 +90,9 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
       await switchChain(wagmiConfig, { chainId: originalChainId }).catch(() => undefined);
     }
   }
+}
+
+/** Proves ownership of the connected wallet to Monerium with its fixed link message. */
+export async function signMoneriumWalletLinkMessage(): Promise<`0x${string}`> {
+  return signMessage(wagmiConfig, { message: buildMoneriumWalletLinkMessage() });
 }

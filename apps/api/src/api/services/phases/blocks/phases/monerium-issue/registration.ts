@@ -4,15 +4,16 @@ import {
   getEvmTokenBalance,
   type IbanPaymentData,
   type MoneriumAddress,
-  MoneriumApiService,
   type MoneriumIban
 } from "@vortexfi/shared";
 import crypto from "crypto";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
-import ProviderCustomer, { VerificationStatus } from "../../../../../../models/providerCustomer.model";
+import logger from "../../../../../../config/logger";
+import type { ProviderCustomerType } from "../../../../../../models/providerCustomer.model";
 import { APIError } from "../../../../../errors/api-error";
-import { getOrCreateCustomerEntityForProfile } from "../../../../customer-entity.service";
+import { findActiveMoneriumRampForOwner, lockMoneriumOwner, lockMoneriumProfile } from "../../../../monerium/active-ramp";
+import { type MoneriumIdentity, resolveMoneriumIdentity } from "../../../../monerium/identity";
 import type { RegisterCtx, RegistrationResult } from "../../core/types";
 import { MONERIUM_EURE, MONERIUM_ISSUE_NETWORKS, type MoneriumIssueMetadata, type MoneriumIssueNetwork } from "./simulation";
 
@@ -27,6 +28,7 @@ const CALLER_IDENTITY_FIELDS = [
 
 export interface MoneriumIssueRegistrationInput extends Record<string, unknown> {
   address?: string;
+  customerType?: ProviderCustomerType;
   iban?: string;
   moneriumAddress?: string;
   moneriumIban?: string;
@@ -52,44 +54,23 @@ export interface MoneriumIssueResponseArtifacts extends Record<string, unknown> 
 
 interface MoneriumIssueRegistrationDependencies {
   createReference: () => string;
-  getClient: () => Pick<MoneriumApiService, "getProfile" | "listAddresses" | "listIbans">;
+  findActiveRampForOwner?: typeof findActiveMoneriumRampForOwner;
   isContractAddress?: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
+  lockOwner?: typeof lockMoneriumOwner;
+  lockProfile?: typeof lockMoneriumProfile;
   readOwnerEureBalance: typeof getEvmTokenBalance;
-  resolveProfileId: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<string>;
-}
-
-async function resolveMoneriumProfileIdForUser(
-  userId: string,
-  transaction?: RegisterCtx<never>["transaction"]
-): Promise<string> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId, undefined, transaction);
-  const providerCustomer = await ProviderCustomer.findOne({
-    ...(transaction ? { transaction } : {}),
-    where: {
-      customerEntityId: entity.id,
-      customerType: entity.type,
-      provider: "monerium",
-      rail: "eur"
-    }
-  });
-  if (
-    !providerCustomer?.providerCustomerId ||
-    providerCustomer.status !== VerificationStatus.Approved ||
-    providerCustomer.statusExternal?.toLowerCase() !== "approved"
-  ) {
-    throw new APIError({
-      message: "The authenticated legal entity does not have an approved Monerium profile",
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-  return providerCustomer.providerCustomerId;
+  resolveIdentity: (
+    userId: string,
+    transaction?: RegisterCtx<never>["transaction"],
+    customerType?: ProviderCustomerType
+  ) => Promise<MoneriumIdentity>;
 }
 
 function createPaymentReference(): string {
   return `VTX${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`;
 }
 
-function matchingDestinations(
+export function matchingDestinations(
   profileId: string,
   chain: (typeof MONERIUM_ISSUE_NETWORKS)[MoneriumIssueNetwork]["chain"],
   addresses: readonly MoneriumAddress[],
@@ -112,9 +93,8 @@ function matchingDestinations(
 export function createRegisterMoneriumIssue(
   dependencies: MoneriumIssueRegistrationDependencies = {
     createReference: createPaymentReference,
-    getClient: () => MoneriumApiService.getInstance(),
     readOwnerEureBalance: getEvmTokenBalance,
-    resolveProfileId: resolveMoneriumProfileIdForUser
+    resolveIdentity: resolveMoneriumIdentity
   }
 ) {
   return async function registerMoneriumIssue(
@@ -128,12 +108,26 @@ export function createRegisterMoneriumIssue(
       });
     }
 
-    const profileId = await dependencies.resolveProfileId(ctx.authenticatedUser.id, ctx.transaction);
-    const client = dependencies.getClient();
-    const profile = await client.getProfile(profileId);
+    if (
+      ctx.input.customerType !== undefined &&
+      ctx.input.customerType !== "individual" &&
+      ctx.input.customerType !== "business"
+    ) {
+      throw new APIError({ message: "customerType must be individual or business", status: httpStatus.BAD_REQUEST });
+    }
+    const { client, profile, profileId, source } = await dependencies.resolveIdentity(
+      ctx.authenticatedUser.id,
+      ctx.transaction,
+      ctx.input.customerType
+    );
     if (profile.id !== profileId || profile.state !== "approved") {
       throw new APIError({ message: "The Monerium profile is not approved", status: httpStatus.BAD_REQUEST });
     }
+    logger.info(`MoneriumIssue: resolved the Monerium profile through the ${source} app`);
+
+    // Registration keeps this transaction open through the ramp insert. A concurrent registration
+    // or IBAN move for this profile must see the committed ramp/destination before proceeding.
+    if (ctx.transaction) await (dependencies.lockProfile ?? lockMoneriumProfile)(profileId, ctx.transaction);
 
     const moneriumChain = MONERIUM_ISSUE_NETWORKS[ctx.metadata.network].chain;
     const [addressResponse, ibanResponse] = await Promise.all([
@@ -151,6 +145,7 @@ export function createRegisterMoneriumIssue(
     const destination = destinations[0];
     const address = destination.address.address;
     const iban = destination.iban;
+    if (ctx.transaction) await (dependencies.lockOwner ?? lockMoneriumOwner)(address, ctx.transaction);
     const isContractAddress =
       dependencies.isContractAddress ??
       (async (network: MoneriumIssueNetwork, owner: `0x${string}`) =>
@@ -159,6 +154,19 @@ export function createRegisterMoneriumIssue(
       throw new APIError({
         message: "Monerium self-transfer requires a profile-linked EOA; contract wallet destinations are not supported",
         status: httpStatus.BAD_REQUEST
+      });
+    }
+    // Permits for one owner share a nonce and the mint executor attributes by balance delta, so a
+    // second live ramp could deliver this ramp's SEPA credit elsewhere and strand the loser.
+    const activeRampId = await (dependencies.findActiveRampForOwner ?? findActiveMoneriumRampForOwner)(
+      address,
+      ctx.transaction
+    );
+    if (activeRampId) {
+      throw new APIError({
+        isPublic: true,
+        message: `An EUR pay-in is already in progress for this wallet (${activeRampId}); wait for it to finish before starting another`,
+        status: httpStatus.CONFLICT
       });
     }
     const ownerEureBalanceBaseline = await dependencies.readOwnerEureBalance({

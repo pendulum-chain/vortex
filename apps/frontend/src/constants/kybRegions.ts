@@ -21,9 +21,8 @@ export interface KybRegion {
 /**
  * Regions offered in the KYB deep-link selector. Each maps to the fiat token
  * that determines the KYC/B provider (Brazil → Avenia, Mexico/Colombia/Argentina/USA → Alfredpay).
- * Europe/Mykobo is intentionally excluded: it is individual KYC only and requires a connected
- * wallet, so it cannot complete a quote-less KYB deep link (the backend's eur recipient rail is
- * Monerium, which onboards in the dashboard, not the widget). Add or remove entries here.
+ * Europe is intentionally excluded: the Monerium flow ends by linking a connected wallet and
+ * provisioning its IBAN, which a quote-less KYB deep link cannot do. Add or remove entries here.
  */
 export const KYB_REGIONS: KybRegion[] = [
   {

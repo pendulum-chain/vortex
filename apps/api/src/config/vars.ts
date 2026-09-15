@@ -217,6 +217,7 @@ interface Config {
     issueFeeEur: string | undefined;
     redirectUri: string;
     whiteLabelClientId: string;
+    widgetRedirectUri: string | undefined;
     whiteLabelClientSecret: string;
   };
   // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
@@ -334,7 +335,8 @@ export const config: Config = {
     issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
     whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
-    whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || ""
+    whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || "",
+    widgetRedirectUri: process.env.MONERIUM_WIDGET_REDIRECT_URI || undefined
   },
   moneriumB2b: {
     // Whitelabel API credentials and base URL live with the shared client

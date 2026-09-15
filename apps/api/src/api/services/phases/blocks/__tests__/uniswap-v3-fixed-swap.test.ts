@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import { EphemeralAccountType, type EvmTransactionData, EvmToken, Networks, type PresignedTx } from "@vortexfi/shared";
 import Big from "big.js";
-import { decodeFunctionData, erc20Abi } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256 } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
+import { ReconciliationRequiredPhaseError, RecoverablePhaseError } from "../../../../errors/phase-error";
 import * as financialOperationNamespace from "../core/financial-operation";
 import { allocateNonces } from "../core/prepare";
 import {
@@ -85,6 +86,54 @@ async function sign(unsigned: PresignedTx): Promise<PresignedTx> {
     value: BigInt(txData.value)
   });
   return { ...unsigned, txData: serialized };
+}
+
+type SwapParams = {
+  amountIn: bigint;
+  amountOutMinimum: bigint;
+  deadline: bigint;
+  fee: number;
+  recipient: `0x${string}`;
+  sqrtPriceLimitX96: bigint;
+  tokenIn: `0x${string}`;
+  tokenOut: `0x${string}`;
+};
+
+/** Prepares the fixed route for the shared ephemeral at `now`, returning blueprints and the persisted state. */
+async function prepared(now = Date.now()) {
+  const simulated = await simulation();
+  const result = await prepareUniswapV3FixedSwapTxs(
+    {
+      accounts: { EVM: { address: ephemeral.address, type: EphemeralAccountType.EVM } },
+      globals: { fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", total: "0", vortex: "0" } } } as never,
+      ownMetadata: simulated.metadata,
+      ownRegistrationFacts: undefined,
+      quote: {} as never
+    },
+    { now: () => now, probeFees: async () => ({ maxFeePerGas: 2_000_000_000n, maxPriorityFeePerGas: 1_000_000n }) }
+  );
+  const [approval, swap] = allocateNonces(result.intents);
+  const state = result.state as UniswapV3FixedSwapPreparation;
+  const expectation = {
+    amountInRaw: inputAmountRaw,
+    deadline: state.deadline,
+    hardMinimumOutputRaw: state.hardMinimumOutputRaw,
+    signer: ephemeral.address
+  };
+  return { approval, expectation, simulated, state, swap };
+}
+
+function withData(blueprint: PresignedTx, patch: Partial<EvmTransactionData>): PresignedTx {
+  return { ...blueprint, txData: { ...(blueprint.txData as EvmTransactionData), ...patch } };
+}
+
+function swapParamsOf(blueprint: PresignedTx): SwapParams {
+  const decoded = decodeFunctionData({ abi: uniswapV3RouterAbi, data: (blueprint.txData as EvmTransactionData).data as `0x${string}` });
+  return decoded.args[0] as SwapParams;
+}
+
+function encodeSwap(params: SwapParams): `0x${string}` {
+  return encodeFunctionData({ abi: uniswapV3RouterAbi, args: [params], functionName: "exactInputSingle" });
 }
 
 describe("fixed Polygon Uniswap V3 EURe/USDC swap", () => {
@@ -258,5 +307,226 @@ describe("fixed Polygon Uniswap V3 EURe/USDC swap", () => {
     expect(simulations).toBe(1);
     expect(allowance).toBe(0n);
     expect(outputBalance).toBe(116_000_000n);
+  });
+});
+
+describe("fixed Polygon Uniswap V3 route validation", () => {
+  const stranger = privateKeyToAccount(generatePrivateKey());
+  const OTHER_TOKEN = "0x1111111111111111111111111111111111111111" as const;
+
+  it.each<[string, (approval: PresignedTx) => PresignedTx | Promise<PresignedTx>]>([
+    ["a different spender", approval =>
+      withData(approval, {
+        data: encodeFunctionData({ abi: erc20Abi, args: [OTHER_TOKEN, BigInt(inputAmountRaw)], functionName: "approve" })
+      })],
+    ["an approval above the fixed input", approval =>
+      withData(approval, {
+        data: encodeFunctionData({ abi: erc20Abi, args: [POLYGON_UNISWAP_V3_ROUTER, BigInt(inputAmountRaw) + 1n], functionName: "approve" })
+      })],
+    ["a token other than EURe", approval => withData(approval, { to: OTHER_TOKEN })],
+    ["a transfer instead of an approval", approval =>
+      withData(approval, {
+        data: encodeFunctionData({ abi: erc20Abi, args: [POLYGON_UNISWAP_V3_ROUTER, BigInt(inputAmountRaw)], functionName: "transfer" })
+      })],
+    ["a native value attached", approval => withData(approval, { value: "1" })],
+    ["a signer other than the ephemeral", async approval => {
+      const txData = approval.txData as EvmTransactionData;
+      const serialized = await stranger.signTransaction({
+        chainId: 137,
+        data: txData.data as `0x${string}`,
+        gas: BigInt(txData.gas),
+        maxFeePerGas: BigInt(txData.maxFeePerGas as string),
+        maxPriorityFeePerGas: BigInt(txData.maxPriorityFeePerGas as string),
+        nonce: approval.nonce,
+        to: txData.to as `0x${string}`,
+        type: "eip1559",
+        value: 0n
+      });
+      return { ...approval, signer: stranger.address, txData: serialized };
+    }]
+  ])("rejects an approval with %s", async (_label, mutate) => {
+    const { approval, expectation } = await prepared();
+    const mutated = await mutate(approval);
+    const signed = typeof mutated.txData === "string" ? mutated : await sign(mutated);
+    await expect(validateUniswapApproval(signed, expectation)).rejects.toThrow();
+  });
+
+  it.each<[string, (params: SwapParams) => Partial<SwapParams>]>([
+    ["tokenIn", () => ({ tokenIn: OTHER_TOKEN })],
+    ["tokenOut", () => ({ tokenOut: OTHER_TOKEN })],
+    ["fee tier", () => ({ fee: 3000 })],
+    ["recipient", () => ({ recipient: OTHER_TOKEN })],
+    ["deadline", params => ({ deadline: params.deadline + 1n })],
+    ["amountIn", params => ({ amountIn: params.amountIn + 1n })],
+    ["amountOutMinimum", params => ({ amountOutMinimum: params.amountOutMinimum - 1n })],
+    ["sqrtPriceLimitX96", () => ({ sqrtPriceLimitX96: 1n })]
+  ])("rejects a swap whose %s differs from the fixed route", async (_label, mutate) => {
+    const { expectation, swap } = await prepared();
+    const params = swapParamsOf(swap);
+    const signed = await sign(withData(swap, { data: encodeSwap({ ...params, ...mutate(params) }) }));
+    await expect(validateUniswapSwap(signed, expectation)).rejects.toThrow("does not match the fixed Polygon EURe/USDC route");
+  });
+
+  it("rejects a swap sent to a router other than the pinned one", async () => {
+    const { expectation, swap } = await prepared();
+    const signed = await sign(withData(swap, { to: OTHER_TOKEN }));
+    await expect(validateUniswapSwap(signed, expectation)).rejects.toThrow("signer or router does not match");
+  });
+
+  it("rejects a swap that is not exactInputSingle", async () => {
+    const { expectation, swap } = await prepared();
+    const signed = await sign(
+      withData(swap, {
+        data: encodeFunctionData({ abi: erc20Abi, args: [POLYGON_UNISWAP_V3_ROUTER, 1n], functionName: "approve" })
+      })
+    );
+    await expect(validateUniswapSwap(signed, expectation)).rejects.toThrow();
+  });
+});
+
+describe("fixed Polygon Uniswap V3 execution failure branches", () => {
+  const originalFindByPk = QuoteTicket.findByPk;
+
+  function rampState(approval: PresignedTx, swap: PresignedTx, signedApproval: PresignedTx, signedSwap: PresignedTx, state: unknown) {
+    return {
+      currentPhase: "uniswapSwap",
+      errorLogs: [],
+      get() {
+        return this;
+      },
+      id: "ramp-uniswap-failure",
+      phaseHistory: [],
+      presignedTxs: [signedApproval, signedSwap],
+      quoteId: "quote-uniswap-failure",
+      state: {
+        blockState: { uniswapV3FixedSwap: state },
+        evmEphemeralAddress: ephemeral.address,
+        flow: { id: "test-flow", version: 1 }
+      },
+      unsignedTxs: [approval, swap],
+      async update(update: Record<string, unknown>) {
+        Object.assign(this, update);
+        return this;
+      }
+    } as never;
+  }
+
+  type Deps = ConstructorParameters<typeof UniswapSwapExecutor>[0];
+
+  function happyDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps> {
+    let allowance = BigInt(inputAmountRaw);
+    let outputBalance = 0n;
+    return {
+      getAllowance: async () => allowance,
+      getBalance: async token => (token === POLYGON_EURE ? BigInt(inputAmountRaw) : outputBalance),
+      getReceipt: async () => null,
+      quote: async () => 116_000_000n,
+      sendRawTransaction: async transaction => {
+        allowance = 0n;
+        outputBalance = 116_000_000n;
+        return keccak256(transaction);
+      },
+      simulateTransaction: async () => {},
+      verifyDeployment: async () => {},
+      waitForReceipt: async () => ({ status: "success" }),
+      ...overrides
+    };
+  }
+
+  async function runSwap(overrides: Partial<NonNullable<Deps>>, now = Date.now()) {
+    operationAttempts.length = 0;
+    const { approval, simulated, state, swap } = await prepared(now);
+    const signedApproval = await sign(approval);
+    const signedSwap = await sign(swap);
+    QuoteTicket.findByPk = mock(async () => ({
+      metadata: { blocks: { uniswapV3FixedSwap: simulated.metadata } }
+    })) as typeof QuoteTicket.findByPk;
+    try {
+      return await new UniswapSwapExecutor(happyDependencies(overrides))
+        .execute(rampState(approval, swap, signedApproval, signedSwap, state))
+        .then(() => null)
+        .catch((error: unknown) => error);
+    } finally {
+      QuoteTicket.findByPk = originalFindByPk;
+    }
+  }
+
+  it("retries later when the signed deadline has already passed", async () => {
+    const error = await runSwap({}, Date.now() - 8 * 24 * 60 * 60 * 1000);
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect((error as Error).message).toContain("expired");
+    expect(operationAttempts).toEqual([]);
+  });
+
+  it("retries later while the EURe has not reached the ephemeral", async () => {
+    const error = await runSwap({ getBalance: async () => 0n });
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect((error as Error).message).toContain("has not reached the ephemeral");
+    expect(operationAttempts).toEqual([]);
+  });
+
+  it("pauses when the router allowance does not match the exact input", async () => {
+    const error = await runSwap({ getAllowance: async () => BigInt(inputAmountRaw) - 1n });
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("allowance");
+    expect(operationAttempts).toEqual([]);
+  });
+
+  it("retries later when the live quote moved below the soft minimum", async () => {
+    const error = await runSwap({ quote: async () => 113_679_999n });
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect((error as Error).message).toContain("soft minimum");
+    expect(operationAttempts).toEqual([]);
+  });
+
+  it("pauses when the swap leaves an allowance behind", async () => {
+    let sent = false;
+    const error = await runSwap({
+      getAllowance: async () => (sent ? 1n : BigInt(inputAmountRaw)),
+      getBalance: async token => (token === POLYGON_EURE ? BigInt(inputAmountRaw) : 116_000_000n),
+      sendRawTransaction: async transaction => {
+        sent = true;
+        return keccak256(transaction);
+      }
+    });
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("left unexpected allowance");
+    expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
+  });
+
+  it("pauses when the swap produced less USDC than the hard minimum", async () => {
+    let sent = false;
+    const error = await runSwap({
+      getAllowance: async () => (sent ? 0n : BigInt(inputAmountRaw)),
+      getBalance: async token => (token === POLYGON_EURE ? BigInt(inputAmountRaw) : sent ? 110_199_999n : 0n),
+      sendRawTransaction: async transaction => {
+        sent = true;
+        return keccak256(transaction);
+      }
+    });
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("below");
+    expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
+  });
+
+  it("pauses when the approval established a different allowance", async () => {
+    operationAttempts.length = 0;
+    const { approval, simulated, state, swap } = await prepared();
+    const signedApproval = await sign(approval);
+    const signedSwap = await sign(swap);
+    QuoteTicket.findByPk = mock(async () => ({
+      metadata: { blocks: { uniswapV3FixedSwap: simulated.metadata } }
+    })) as typeof QuoteTicket.findByPk;
+    const state_ = rampState(approval, swap, signedApproval, signedSwap, state) as { currentPhase: string };
+    state_.currentPhase = "uniswapApprove";
+    try {
+      const error = await new UniswapApproveExecutor(happyDependencies({ getAllowance: async () => 1n }))
+        .execute(state_ as never)
+        .catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect((error as Error).message).toContain("established allowance 1");
+    } finally {
+      QuoteTicket.findByPk = originalFindByPk;
+    }
   });
 });

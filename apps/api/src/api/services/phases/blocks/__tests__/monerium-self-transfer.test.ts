@@ -9,6 +9,8 @@ import Big from "big.js";
 import { Signature as EvmSignature } from "ethers";
 import { decodeFunctionData, keccak256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../../config/vars";
+import { ReconciliationRequiredPhaseError } from "../../../../errors/phase-error";
 import * as financialOperationNamespace from "../core/financial-operation";
 import { allocateNonces } from "../core/prepare";
 import { MONERIUM_EURE, MONERIUM_ISSUE_NETWORKS } from "../phases/monerium-issue/simulation";
@@ -45,6 +47,84 @@ const facts = { amountRaw, chain: Networks.Base, owner: owner.address, token: MO
 
 function metadata() {
   return { amount: new Big("1.23"), amountRaw, chain: Networks.Base, token: MONERIUM_EURE } as const;
+}
+
+/** Signs the prepared permit and transferFrom for a ramp whose permit was prepared at `preparedAt`. */
+async function signedRamp(preparedAt: number) {
+  const prepared = await prepareMoneriumSelfTransferTxs(
+    {
+      accounts: { EVM: { address: ephemeral.address, type: EphemeralAccountType.EVM } },
+      globals: {} as never,
+      ownMetadata: metadata(),
+      ownRegistrationFacts: facts,
+      quote: {} as never
+    },
+    {
+      now: () => preparedAt,
+      probe: async () => ({
+        maxFeePerGas: 2_000_000_000n,
+        maxPriorityFeePerGas: 1_000_000n,
+        nonce: 7n,
+        tokenName: "EURe"
+      })
+    }
+  );
+  const [permitBlueprint, transferBlueprint] = allocateNonces(prepared.intents);
+  const unsignedPermit = permitBlueprint.txData as SignedTypedData;
+  const permitHex = await owner.signTypedData({
+    domain: unsignedPermit.domain,
+    message: unsignedPermit.message,
+    primaryType: unsignedPermit.primaryType,
+    types: unsignedPermit.types
+  });
+  const permitSignature = EvmSignature.from(permitHex);
+  const signedPermit: PresignedTx = {
+    ...permitBlueprint,
+    txData: [
+      {
+        ...unsignedPermit,
+        signature: {
+          deadline: Number(unsignedPermit.message.deadline),
+          r: permitSignature.r as `0x${string}`,
+          s: permitSignature.s as `0x${string}`,
+          v: permitSignature.v
+        }
+      }
+    ]
+  };
+  const rawTransfer = await ephemeral.signTransaction({
+    chainId: 8453,
+    data: (transferBlueprint.txData as { data: `0x${string}` }).data,
+    gas: 300_000n,
+    maxFeePerGas: 2_000_000_000n,
+    maxPriorityFeePerGas: 1_000_000n,
+    nonce: 0,
+    to: (transferBlueprint.txData as { to: `0x${string}` }).to,
+    type: "eip1559",
+    value: 0n
+  });
+  const signedTransfer: PresignedTx = { ...transferBlueprint, txData: rawTransfer };
+  const state = {
+    currentPhase: "moneriumOnrampSelfTransfer",
+    errorLogs: [],
+    get() {
+      return this;
+    },
+    id: "ramp-1",
+    phaseHistory: [],
+    presignedTxs: [signedPermit, signedTransfer],
+    state: {
+      accountAddresses: { EVM: ephemeral.address },
+      blockState: { [MoneriumSelfTransferContext.key]: facts },
+      flow: { id: "test-flow", version: 1 }
+    },
+    unsignedTxs: [permitBlueprint, transferBlueprint],
+    async update(update: Record<string, unknown>) {
+      Object.assign(this, update);
+      return this;
+    }
+  } as any;
+  return { rawTransfer, state };
 }
 
 describe("MoneriumSelfTransfer block", () => {
@@ -208,82 +288,12 @@ describe("MoneriumSelfTransfer block", () => {
 
   it("consumes a current permit even when allowance already covers the transfer", async () => {
     operationAttempts.length = 0;
-    const prepared = await prepareMoneriumSelfTransferTxs(
-      {
-        accounts: { EVM: { address: ephemeral.address, type: EphemeralAccountType.EVM } },
-        globals: {} as never,
-        ownMetadata: metadata(),
-        ownRegistrationFacts: facts,
-        quote: {} as never
-      },
-      {
-        now: () => Date.now(),
-        probe: async () => ({
-          maxFeePerGas: 2_000_000_000n,
-          maxPriorityFeePerGas: 1_000_000n,
-          nonce: 7n,
-          tokenName: "EURe"
-        })
-      }
-    );
-    const [permitBlueprint, transferBlueprint] = allocateNonces(prepared.intents);
-    const unsignedPermit = permitBlueprint.txData as SignedTypedData;
-    const permitHex = await owner.signTypedData({
-      domain: unsignedPermit.domain,
-      message: unsignedPermit.message,
-      primaryType: unsignedPermit.primaryType,
-      types: unsignedPermit.types
-    });
-    const permitSignature = EvmSignature.from(permitHex);
-    const signedPermit: PresignedTx = {
-      ...permitBlueprint,
-      txData: [{
-        ...unsignedPermit,
-        signature: {
-          deadline: Number(unsignedPermit.message.deadline),
-          r: permitSignature.r as `0x${string}`,
-          s: permitSignature.s as `0x${string}`,
-          v: permitSignature.v
-        }
-      }]
-    };
-    const rawTransfer = await ephemeral.signTransaction({
-      chainId: 8453,
-      data: (transferBlueprint.txData as { data: `0x${string}` }).data,
-      gas: 300_000n,
-      maxFeePerGas: 2_000_000_000n,
-      maxPriorityFeePerGas: 1_000_000n,
-      nonce: 0,
-      to: (transferBlueprint.txData as { to: `0x${string}` }).to,
-      type: "eip1559",
-      value: 0n
-    });
-    const signedTransfer: PresignedTx = { ...transferBlueprint, txData: rawTransfer };
+    const { rawTransfer, state } = await signedRamp(Date.now());
     const permitHash = `0x${"11".repeat(32)}` as `0x${string}`;
     const transferHash = keccak256(rawTransfer);
     let permitNonce = 7n;
     let transferSent = false;
     let permitCalls = 0;
-    const state = {
-      currentPhase: "moneriumOnrampSelfTransfer",
-      errorLogs: [],
-      get() {
-        return this;
-      },
-      id: "ramp-1",
-      phaseHistory: [],
-      presignedTxs: [signedPermit, signedTransfer],
-      state: {
-        accountAddresses: { EVM: ephemeral.address },
-        blockState: { [MoneriumSelfTransferContext.key]: facts },
-        flow: { id: "test-flow", version: 1 }
-      },
-      unsignedTxs: [permitBlueprint, transferBlueprint],
-      async update(update: Record<string, unknown>) {
-        Object.assign(this, update);
-        return this;
-      }
-    } as any;
     const executor = new MoneriumSelfTransferExecutor({
       getAllowance: async () => (transferSent ? 0n : BigInt(amountRaw)),
       getPermitNonce: async () => permitNonce,
@@ -308,5 +318,39 @@ describe("MoneriumSelfTransfer block", () => {
     expect(state.state.blockState.moneriumSelfTransfer).toMatchObject({ permitTxHash: permitHash, transferTxHash: transferHash });
     expect(state.state).not.toHaveProperty("permitTxHash");
     expect(state.state).not.toHaveProperty("moneriumOnrampSelfTransferHash");
+  });
+
+  it("gives the permit the swap deadline so standard SEPA can settle", async () => {
+    const preparedAt = 1_700_000_000_000;
+    const { state } = await signedRamp(preparedAt);
+    const permit = state.presignedTxs[0].txData[0] as SignedTypedData;
+
+    expect(Number(permit.message.deadline)).toBe(preparedAt / 1000 + config.swap.deadlineMinutes * 60);
+  });
+
+  it("pauses for reconciliation, not retry, when an expired permit left no allowance", async () => {
+    operationAttempts.length = 0;
+    const { state } = await signedRamp(Date.now() - (config.swap.deadlineMinutes + 1) * 60 * 1000);
+    let permitCalls = 0;
+    const executor = new MoneriumSelfTransferExecutor({
+      getAllowance: async () => 0n,
+      getPermitNonce: async () => 7n,
+      getReceipt: async () => null,
+      getTransactionCount: async () => 0,
+      sendPermit: async () => {
+        permitCalls++;
+        return `0x${"11".repeat(32)}`;
+      },
+      sendRawTransaction: async () => `0x${"22".repeat(32)}`,
+      waitForReceipt: async () => ({ status: "success" })
+    });
+
+    const error = await executor.execute(state).catch(caught => caught);
+
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(error.message).toContain("expired");
+    expect(permitCalls).toBe(0);
+    expect(operationAttempts).toEqual([]);
+    expect(state.state.blockState.moneriumSelfTransfer.permitInvalidation).toEqual({ observedNonce: "7", reason: "expired" });
   });
 });

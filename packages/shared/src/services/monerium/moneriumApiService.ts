@@ -94,6 +94,18 @@ export function buildMoneriumSepaRedemptionMessage(amount: string, iban: string,
   return `Send EUR ${amount} to ${iban} at ${minute}`;
 }
 
+export type MoneriumUserApiClient = Pick<
+  MoneriumApiService,
+  | "getAddress"
+  | "getIban"
+  | "getProfile"
+  | "linkAddress"
+  | "listAddresses"
+  | "listIbans"
+  | "requestIban"
+  | "updateIbanDestination"
+>;
+
 export class MoneriumApiService {
   private static instance: MoneriumApiService;
 
@@ -107,18 +119,27 @@ export class MoneriumApiService {
 
   private tokenPromise: Promise<CachedAccessToken> | undefined;
 
-  private constructor() {
+  private readonly userAccessToken: string | undefined;
+
+  private constructor(auth?: { accessToken: string }) {
     if (typeof window !== "undefined") {
       throw new Error("MoneriumApiService is server-only");
+    }
+    this.baseUrl = MONERIUM_API_URL.replace(/\/$/, "");
+    if (new URL(this.baseUrl).protocol !== "https:") {
+      throw new Error("MONERIUM_API_URL must use https://");
+    }
+    if (auth) {
+      // A user-token client never authenticates itself; the token's lifecycle belongs to the caller.
+      this.userAccessToken = auth.accessToken;
+      this.clientId = "";
+      this.clientSecret = "";
+      return;
     }
     const clientId = process.env.MONERIUM_WHITELABEL_CLIENT_ID;
     const clientSecret = process.env.MONERIUM_WHITELABEL_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
       throw new Error("MONERIUM_WHITELABEL_CLIENT_ID or MONERIUM_WHITELABEL_CLIENT_SECRET not defined");
-    }
-    this.baseUrl = MONERIUM_API_URL.replace(/\/$/, "");
-    if (new URL(this.baseUrl).protocol !== "https:") {
-      throw new Error("MONERIUM_API_URL must use https://");
     }
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -129,6 +150,15 @@ export class MoneriumApiService {
       MoneriumApiService.instance = new MoneriumApiService();
     }
     return MoneriumApiService.instance;
+  }
+
+  /**
+   * Client acting as an end user of the Monerium authorization-code (OAuth) app. Same transport,
+   * schemas, redaction, and timeouts as the white-label singleton, but authenticated with the
+   * supplied user access token. A `401` surfaces unchanged so the caller can require reauthentication.
+   */
+  public static forUserAccessToken(accessToken: string): MoneriumUserApiClient {
+    return new MoneriumApiService({ accessToken });
   }
 
   private async acquireToken(): Promise<CachedAccessToken> {
@@ -169,6 +199,7 @@ export class MoneriumApiService {
   }
 
   private async getAccessToken(): Promise<string> {
+    if (this.userAccessToken) return this.userAccessToken;
     if (this.cachedToken && this.cachedToken.expiresAt - TOKEN_EXPIRY_SKEW_MS > Date.now()) {
       return this.cachedToken.value;
     }
@@ -199,7 +230,7 @@ export class MoneriumApiService {
     const serializedBody = body === undefined || body instanceof FormData ? body : JSON.stringify(body);
     let token = await this.getAccessToken();
     let response = await this.performFetch(url, path, method, token, serializedBody);
-    if (response.status === 401) {
+    if (response.status === 401 && !this.userAccessToken) {
       if (this.cachedToken?.value === token) this.cachedToken = undefined;
       token = await this.getAccessToken();
       response = await this.performFetch(url, path, method, token, serializedBody);

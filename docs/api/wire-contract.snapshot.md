@@ -1342,7 +1342,7 @@ PriceResponseBase: {
   totalFee: number;
 }
 
-QuoteError: enum QuoteError { AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of", AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of", AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.", AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.", BelowLowerLimitBuy = "Input amount below minimum BUY limit of", BelowLowerLimitSell = "Output amount below minimum SELL limit of", FailedToCalculateFeeComponents = "Failed to calculate fee components", FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees", FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.", InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0", InputAmountTooLow = "Input amount too low. Please try a larger amount.", InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.", InputAmountTooLowToCoverFees = "Input amount too low to cover fees", InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers", InvalidRampType = "Invalid ramp type, must be \"BUY\" or \"SELL\"", LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.", MissingFromField = "BUY rampType requires 'from' parameter", MissingRequiredFields = "Missing required fields", MissingToField = "SELL rampType requires 'to' parameter", NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.", QuoteNotFound = "Quote not found", UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details", UnsupportedCurrency = "Currency not supported" }
+QuoteError: enum QuoteError { AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of", AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of", AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.", AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.", BelowLowerLimitBuy = "Input amount below minimum BUY limit of", BelowLowerLimitSell = "Output amount below minimum SELL limit of", EurOnrampNetworkUnsupported = "EUR pay-ins are not available on this network yet. Please select a different network.", FailedToCalculateFeeComponents = "Failed to calculate fee components", FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees", FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.", InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0", InputAmountTooLow = "Input amount too low. Please try a larger amount.", InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.", InputAmountTooLowToCoverFees = "Input amount too low to cover fees", InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers", InvalidRampType = "Invalid ramp type, must be \"BUY\" or \"SELL\"", LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.", MissingFromField = "BUY rampType requires 'from' parameter", MissingRequiredFields = "Missing required fields", MissingToField = "SELL rampType requires 'to' parameter", NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.", QuoteNotFound = "Quote not found", UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details", UnsupportedCurrency = "Currency not supported" }
 
 QuoteFeeStructure: {
   anchor: string;
@@ -1519,6 +1519,7 @@ RecipientInviteeType: "business" | "individual"
 RegisterRampRequest: {
   additionalData?: {
     [key: string]: unknown;
+    customerType?: "business" | "individual";
     destinationAddress?: string;
     email?: string;
     fiatAccountId?: string;
@@ -2994,14 +2995,16 @@ AmountExceedsLimitError: class AmountExceedsLimitError {
 }
 
 AnyAdditionalData: {
+  customerType?: "business" | "individual";
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
   walletAddress: string;
 } | {
   destinationAddress: string;
   email: string;
   ipAddress: string;
+  walletAddress: string;
 } | {
   destinationAddress: string;
   fiatAccountId?: string;
@@ -3645,9 +3648,20 @@ EurOfframpUpdateAdditionalData: {
 }
 
 EurOnrampAdditionalData: {
+  customerType?: "business" | "individual";
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
+}
+
+EurOnrampError: class EurOnrampError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
 }
 
 EurOnrampQuote: {
@@ -4290,6 +4304,35 @@ MissingDomesticOnrampParametersError: class MissingDomesticOnrampParametersError
   readonly status: number;
 }
 
+MissingEurOnrampParametersError: class MissingEurOnrampParametersError {
+  constructor();
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MissingMoneriumOfframpParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
+}
+
+MissingMoneriumOnrampParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
+}
+
 MissingMykoboOfframpParametersError: class MissingMykoboOfframpParametersError {
   constructor();
   readonly code?: string;
@@ -4310,6 +4353,34 @@ MissingMykoboOnrampParametersError: class MissingMykoboOnrampParametersError {
 
 MissingRequiredFieldsError: class MissingRequiredFieldsError {
   constructor(missingFields: Array<string>);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MoneriumError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
+}
+
+MoneriumOnboardingRequiredError: class MoneriumOnboardingRequiredError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MoneriumReauthenticationRequiredError: class MoneriumReauthenticationRequiredError {
+  constructor(message: string, status?: number);
   readonly code?: string;
   readonly errors?: Array<unknown>;
   readonly isPublic: boolean;
@@ -4714,9 +4785,11 @@ RegisterRampAdditionalData: <Q extends {
   from: EPaymentMethod.SEPA;
   rampType: RampDirection.BUY;
 } ? {
+  customerType?: "business" | "individual";
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
 } : Q extends {
   alfredpayInputLimits?: {
     max: string;
@@ -4843,14 +4916,16 @@ RegisterRampAdditionalData: <Q extends {
   ipAddress: string;
   walletAddress: string;
 } : {
+  customerType?: "business" | "individual";
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
   walletAddress: string;
 } | {
   destinationAddress: string;
   email: string;
   ipAddress: string;
+  walletAddress: string;
 } | {
   destinationAddress: string;
   fiatAccountId?: string;
@@ -6889,9 +6964,11 @@ VortexSdk: class VortexSdk {
     from: EPaymentMethod.SEPA;
     rampType: RampDirection.BUY;
   } ? {
+    customerType?: "business" | "individual";
     destinationAddress: string;
-    email: string;
-    ipAddress: string;
+    email?: string;
+    ipAddress?: string;
+    walletAddress: string;
   } : Q extends {
     alfredpayInputLimits?: {
       max: string;
@@ -7018,14 +7095,16 @@ VortexSdk: class VortexSdk {
     ipAddress: string;
     walletAddress: string;
   } : {
+    customerType?: "business" | "individual";
     destinationAddress: string;
-    email: string;
-    ipAddress: string;
+    email?: string;
+    ipAddress?: string;
     walletAddress: string;
   } | {
     destinationAddress: string;
     email: string;
     ipAddress: string;
+    walletAddress: string;
   } | {
     destinationAddress: string;
     fiatAccountId?: string;

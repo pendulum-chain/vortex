@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock 
 // Load this shared consumer before the module mocks below; Bun does not unregister mock.module
 // replacements, and the API suite may import transfer eligibility after this file.
 import "../recipients/transfer-eligibility.service";
+// Controller tests import the wallet route, which needs real Sequelize-backed ramp models.
+import "./wallet";
 // Value copies taken before the mock.module calls below; restored in afterAll because bun
 // module mocks are process-wide and would poison later test files (e.g. integration tests
 // that need the real sequelize instance and models).
@@ -58,6 +60,7 @@ let service: typeof import("./monerium.service");
 let controller: typeof import("../../controllers/monerium.controller");
 let cache: typeof import("../index").cache;
 let config: typeof import("../../../config/vars").config;
+let originalMoneriumConfig: typeof import("../../../config/vars").config.monerium;
 const originalFetch = globalThis.fetch;
 
 function jsonResponse(value: unknown): Response {
@@ -69,6 +72,8 @@ beforeAll(async () => {
   controller = await import("../../controllers/monerium.controller");
   ({ cache } = await import("../index"));
   ({ config } = await import("../../../config/vars"));
+  // Bun runs every test file in one process; the URL/client overrides below must not outlive this file.
+  originalMoneriumConfig = { ...config.monerium };
 });
 
 beforeEach(() => {
@@ -89,6 +94,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
+  Object.assign(config.monerium, originalMoneriumConfig);
   mock.module("../../../config/database", () => ({ ...databaseReal }));
   mock.module("../../../models/kycCase.model", () => ({ ...kycCaseReal }));
   mock.module("../../../models/providerCustomer.model", () => ({ ...providerCustomerReal }));
@@ -327,6 +333,71 @@ describe("Monerium OAuth", () => {
     expect(JSON.stringify(result)).not.toContain("rotated-refresh");
   });
 
+  it("evicts the session and asks for reauthentication when the refresh grant is rejected", async () => {
+    let tokenCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        tokenCalls += 1;
+        return tokenCalls === 1
+          ? jsonResponse({ access_token: "old-access", expires_in: 1, refresh_token: "old-refresh" })
+          : new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+      }
+      if (url.endsWith("/auth/context")) {
+        return jsonResponse({
+          email: "owner@example.com",
+          profiles: [{ id: "profile-a", kind: "personal" }],
+          userId: "monerium-user-a"
+        });
+      }
+      return jsonResponse({ id: "profile-a", kind: "personal", state: "pending" });
+    }) as unknown as typeof fetch;
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+    await service.completeMoneriumOAuth("owner", "authorization-code", state);
+
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      status: 404,
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+    // The stale credential is gone: the next call fails the same way without another refresh attempt.
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+    expect(tokenCalls).toBe(2);
+  });
+
+  it("asks for reauthentication when Monerium revokes an otherwise unexpired access token", async () => {
+    let profileReads = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        return jsonResponse({ access_token: "access", expires_in: 3600, refresh_token: "refresh" });
+      }
+      if (url.endsWith("/auth/context")) {
+        return profileReads > 0
+          ? new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 })
+          : jsonResponse({
+              email: "owner@example.com",
+              profiles: [{ id: "profile-a", kind: "personal" }],
+              userId: "monerium-user-a"
+            });
+      }
+      profileReads += 1;
+      return jsonResponse({ id: "profile-a", kind: "personal", state: "approved" });
+    }) as unknown as typeof fetch;
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+    await service.completeMoneriumOAuth("owner", "authorization-code", state);
+
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      status: 404,
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+  });
+
   it("returns the custom reauthentication error when credentials are unavailable", async () => {
     await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
       status: 404,
@@ -347,6 +418,22 @@ describe("Monerium OAuth", () => {
       status: "APPROVED",
       statusExternal: "approved"
     });
+  });
+
+  it("binds the widget callback from the allowlist and refuses it when unconfigured", async () => {
+    const previous = config.monerium.widgetRedirectUri;
+    try {
+      config.monerium.widgetRedirectUri = "https://widget.example.com/widget";
+      const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual", "widget");
+      expect(new URL(authorizationUrl).searchParams.get("redirect_uri")).toBe("https://widget.example.com/widget");
+
+      config.monerium.widgetRedirectUri = undefined;
+      await expect(service.startMoneriumOAuth("owner", "owner@example.com", "individual", "widget")).rejects.toMatchObject({
+        status: 503
+      });
+    } finally {
+      config.monerium.widgetRedirectUri = previous;
+    }
   });
 
   it("rejects a customer type that differs from the authenticated entity", async () => {

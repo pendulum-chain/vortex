@@ -1,5 +1,6 @@
 import {
   AssetHubToken,
+  doesNetworkSupportEurOnramp,
   EPaymentMethod,
   EvmToken,
   evmTokenConfig,
@@ -121,7 +122,7 @@ const flowDefinitions: FlowDefinition[] = [
     create(request) {
       const network = getNetworkFromDestination(request.to);
       const issueFeeEur = config.monerium.issueFeeEur;
-      if (!network || network === Networks.Polygon || !isNetworkEVM(network) || !isEvmToken(request.outputCurrency)) {
+      if (!network || !doesNetworkSupportEurOnramp(network) || !isEvmToken(request.outputCurrency)) {
         throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
       }
       if (issueFeeEur === undefined) {
@@ -142,8 +143,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.from === EPaymentMethod.SEPA &&
         request.inputCurrency === FiatToken.EURC &&
         network !== undefined &&
-        network !== Networks.Polygon &&
-        isNetworkEVM(network) &&
+        doesNetworkSupportEurOnramp(network) &&
         isEvmToken(request.outputCurrency) &&
         evmTokenConfig[network][request.outputCurrency] !== undefined
       );

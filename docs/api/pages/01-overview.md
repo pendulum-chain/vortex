@@ -21,7 +21,7 @@ Every Vortex ramp follows the same shape:
 5. **Start** — your application calls start once signatures and fiat payment are in place.
 6. **Track** — Vortex drives the on-chain phase machine. Your application listens via webhooks or polls the ramp status endpoint.
 
-The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integrations must implement them explicitly. In particular, EUR BUY currently requires the direct API path.
+The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integrations must implement them explicitly. EUR BUY additionally needs the Monerium-linked wallet's typed-data permit, which the SDK returns as a user-owned transaction.
 
 ## Recommended Integration Paths
 

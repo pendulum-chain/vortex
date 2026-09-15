@@ -45,13 +45,17 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
   const onboarding = account.onboardings[corridor.id];
   // Suppress every actionable state (start, continue, retry, re-authenticate) while the
   // corridor is disabled; purely informational buttons (awaiting review, complete) stay.
+  // An approved Monerium profile still needs the pay-in wallet linked and the IBAN pointed at it.
+  const walletLinkRequired =
+    corridor.provider === "monerium" && onboarding?.status === "approved" && onboarding.ramp?.iban !== "provisioned";
   const actionable =
     !onboarding ||
     onboarding.status === "not_started" ||
     onboarding.status === "pending" ||
     onboarding.status === "started" ||
     onboarding.status === "rejected" ||
-    (onboarding.status === "in_review" && onboarding.reauthenticationRequired === true);
+    (onboarding.status === "in_review" && onboarding.reauthenticationRequired === true) ||
+    (onboarding.status === "approved" && (walletLinkRequired || onboarding.reauthenticationRequired === true));
   const disabled = isCorridorOnboardingDisabled(corridor) && actionable;
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
   const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
@@ -79,11 +83,15 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
       <CardContent className="grid gap-2">
         <Progress
           aria-label={`${corridor.name} onboarding progress`}
-          indicatorClassName={payoutAccountMissing ? "bg-primary" : BAR_TONE[onboarding?.status ?? "not_started"]}
-          value={payoutAccountMissing ? 90 : (meta?.progress ?? 0)}
+          indicatorClassName={
+            payoutAccountMissing || walletLinkRequired ? "bg-primary" : BAR_TONE[onboarding?.status ?? "not_started"]
+          }
+          value={payoutAccountMissing || walletLinkRequired ? 90 : (meta?.progress ?? 0)}
         />
         {onboarding?.status === "rejected" ? (
           <p className="text-destructive text-xs">Verification was rejected — retry below or contact support.</p>
+        ) : walletLinkRequired ? (
+          <p className="text-muted-foreground text-xs">Link the wallet you will pay in with to finish EUR setup.</p>
         ) : hint ? (
           <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
             <hint.icon className="size-3.5" />
@@ -133,6 +141,7 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
             onStart={onStart}
             reauthenticationRequired={onboarding.reauthenticationRequired === true}
             status={onboarding.status}
+            walletLinkRequired={walletLinkRequired}
           />
         ) : (
           <Button className="w-full" onClick={onStart}>
@@ -149,12 +158,14 @@ function CorridorAction({
   status,
   kind,
   onStart,
-  reauthenticationRequired
+  reauthenticationRequired,
+  walletLinkRequired
 }: {
   status: OnboardingStatus;
   kind: "kyb" | "kyc";
   onStart: () => void;
   reauthenticationRequired: boolean;
+  walletLinkRequired: boolean;
 }) {
   if (status === "not_started") {
     return (
@@ -195,6 +206,21 @@ function CorridorAction({
     return (
       <Button className="w-full" disabled variant="outline">
         Awaiting provider review
+      </Button>
+    );
+  }
+  if (reauthenticationRequired) {
+    return (
+      <Button className="w-full" onClick={onStart} variant="outline">
+        Re-authenticate with Monerium
+      </Button>
+    );
+  }
+  if (walletLinkRequired) {
+    return (
+      <Button className="w-full" onClick={onStart}>
+        Link wallet for EUR pay-ins
+        <ArrowRight />
       </Button>
     );
   }
