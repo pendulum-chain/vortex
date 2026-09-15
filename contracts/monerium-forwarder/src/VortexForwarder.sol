@@ -36,6 +36,8 @@ interface IVortexForwarderFactory {
     function minSwapAmount() external view returns (uint256);
     function perSwapCap() external view returns (uint256);
     function MIN_SWAP_FLOOR() external view returns (uint256);
+    function isForwarder(address account) external view returns (bool);
+    function subsidyVault() external view returns (address);
 }
 
 /// @title VortexForwarder

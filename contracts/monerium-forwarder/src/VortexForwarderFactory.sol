@@ -25,6 +25,11 @@ contract VortexForwarderFactory {
 
     mapping(address => bool) public isForwarder;
 
+    /// @notice The VortexSubsidyVault clones draw from; address(0) disables subsidies.
+    ///         Guardian-settable without a timelock: the vault only ever pays Vortex
+    ///         money to a clone's fixed destination, so a swap cannot be harmed by it.
+    address public subsidyVault;
+
     event ForwarderDeployed(
         address indexed forwarder, address indexed destination, address fallbackAddress, uint16 feeBps, bytes32 salt
     );
@@ -32,6 +37,7 @@ contract VortexForwarderFactory {
     event GlobalPausedSet(bool paused);
     event MinSwapAmountSet(uint256 value);
     event PerSwapCapSet(uint256 value);
+    event SubsidyVaultSet(address indexed vault);
     event GuardianTransferStarted(address indexed current, address indexed pending);
     event GuardianTransferred(address indexed previous, address indexed current);
 
@@ -99,6 +105,11 @@ contract VortexForwarderFactory {
 
     function setPerSwapCap(uint256 value) external onlyGuardian {
         _setPerSwapCap(value);
+    }
+
+    function setSubsidyVault(address vault) external onlyGuardian {
+        subsidyVault = vault;
+        emit SubsidyVaultSet(vault);
     }
 
     /// @dev Two-step transfer: guardian is load-bearing for every clone's pause and
