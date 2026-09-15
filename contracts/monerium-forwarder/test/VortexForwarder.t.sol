@@ -249,7 +249,8 @@ contract VortexForwarderTest is Test {
             10_000e18,
             _route(500, 500)
         );
-        VortexForwarder fwd2 = VortexForwarder(f2.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(8))));
+        VortexForwarder fwd2 =
+            VortexForwarder(f2.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(8))));
         // Recovery hash validates with attestor binding; link still validates; others fail.
         bytes32 bound = keccak256(abi.encodePacked(block.chainid, address(fwd2), recoveryHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(attestorPk, bound);
@@ -283,8 +284,9 @@ contract VortexForwarderTest is Test {
     }
 
     function test_linkSignature_rejectsCrossCloneReplay() public {
-        VortexForwarder other =
-            VortexForwarder(factory.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(2))));
+        VortexForwarder other = VortexForwarder(
+            factory.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(2)))
+        );
         bytes32 h = fwd.LINK_HASH_191();
         // Signature bound to `fwd` must not validate on `other`.
         assertEq(other.isValidSignature(h, _attest(address(fwd), h)), bytes4(0xffffffff));
@@ -463,7 +465,8 @@ contract VortexForwarderTest is Test {
             _route(500, 500)
         );
         f2.setKeeper(keeper, true);
-        VortexForwarder fwd2 = VortexForwarder(f2.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(7))));
+        VortexForwarder fwd2 =
+            VortexForwarder(f2.deployForwarder(destination, fallbackAddr, TARGET_PPM, FLOOR_PPM, bytes32(uint256(7))));
         eure.mint(address(fwd2), 1_000e18);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.Reentrancy.selector);

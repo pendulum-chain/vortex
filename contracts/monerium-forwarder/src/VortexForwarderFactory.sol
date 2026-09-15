@@ -236,9 +236,8 @@ contract VortexForwarderFactory {
 
     /// @dev Standard EIP-1167 minimal proxy init code for `target`.
     function _cloneInitCode(address target) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73", target, hex"5af43d82803e903d91602b57fd5bf3"
-        );
+        return
+            abi.encodePacked(hex"3d602d80600a3d3981f3363d3d373d3d3d363d73", target, hex"5af43d82803e903d91602b57fd5bf3");
     }
 
     function _cloneDeterministic(address target, bytes32 salt) internal returns (address instance) {

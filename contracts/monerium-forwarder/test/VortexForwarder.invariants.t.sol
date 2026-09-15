@@ -78,7 +78,9 @@ contract ForwarderHandler is Test {
         usdc.mint(address(vault), VAULT_FUNDING);
         factory.setSubsidyVault(address(vault));
         fwd = VortexForwarder(
-            factory.deployForwarder(destination, fallbackAddr, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1)))
+            factory.deployForwarder(
+                destination, fallbackAddr, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1))
+            )
         );
         ghostExpectedTargetPpm = INITIAL_TARGET_PPM;
         ghostExpectedFloorPpm = INITIAL_FLOOR_PPM;

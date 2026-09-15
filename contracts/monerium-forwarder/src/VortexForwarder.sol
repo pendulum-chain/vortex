@@ -250,9 +250,7 @@ contract VortexForwarder {
     // ---------------------------------------------------------- initialization
 
     /// @notice Called by the factory in the same transaction as clone deployment.
-    function initialize(address destination_, address fallbackAddress_, uint32 targetPpm_, uint32 floorPpm_)
-        external
-    {
+    function initialize(address destination_, address fallbackAddress_, uint32 targetPpm_, uint32 floorPpm_) external {
         if (msg.sender != address(FACTORY)) revert NotFactory();
         if (initialized) revert AlreadyInitialized();
         _validateConfigAddress(destination_);
@@ -390,10 +388,7 @@ contract VortexForwarder {
         _approve(EURE, address(ROUTER), amountIn);
         ROUTER.exactInput(
             ISwapRouter02.ExactInputParams({
-                path: path,
-                recipient: address(this),
-                amountIn: amountIn,
-                amountOutMinimum: 0
+                path: path, recipient: address(this), amountIn: amountIn, amountOutMinimum: 0
             })
         );
         _approve(EURE, address(ROUTER), 0);
