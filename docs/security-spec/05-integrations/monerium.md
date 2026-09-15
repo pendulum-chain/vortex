@@ -45,24 +45,28 @@ native USDC `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`, the 500-fee pool
 
 ### Release Boundary
 
-The active product boundary is the backend EUR BUY flow for a pre-provisioned corridor-ready legal
-entity. Both individual and business entities are eligible when they have an approved local
-Monerium/`eur` provider-customer binding, the bound provider profile is still approved, exactly one
-existing Polygon EOA/IBAN destination resolves for that profile, and the API client can collect a
-permit from that EOA. The API neither selects identity from caller input nor creates the missing
-provider resources.
+The active product boundary is the EUR BUY flow for a legal entity whose Monerium profile is
+readable through either Monerium application ([adr-0006](../../adr-0006-monerium-dual-app.md)).
+Both individual and business entities are eligible when they have a `monerium`/`eur`
+provider-customer binding, the bound profile is approved, exactly one Polygon EOA/IBAN destination
+resolves for it, and the ramping client can collect a permit from that EOA. Profiles reach that
+state either by out-of-band provisioning into the white-label app or by Monerium OAuth onboarding
+in the dashboard or widget followed by the Vortex wallet-link step (`POST /v1/monerium/wallet`),
+which links the connected EOA and requests or moves the profile's IBAN. The API never selects
+identity from caller input. The SDK, dashboard, and widget all complete the owner-permit journey;
+direct API clients submit the permit themselves.
 
-The following are explicitly deferred and MUST NOT be inferred from the shared client's endpoint
-coverage: EUR SELL, profile creation/import, OAuth-to-white-label migration, KYC/KYB lifecycle
-orchestration, user-to-corridor binding, wallet linking, IBAN provisioning/movement, and first-party
-SDK/dashboard/widget execution of the owner-wallet signing journey. A direct API client can complete
-the active onramp; the first-party clients cannot yet do so.
+The following remain deferred and MUST NOT be inferred from the shared client's endpoint coverage:
+EUR SELL, profile creation through the white-label API, OAuth-to-white-label migration, external
+profile import, KYC/KYB lifecycle orchestration through the white-label API, and automatic permit
+recovery.
 
-### Deferred OAuth And Imported Profiles
+### OAuth Profiles And Imported Profiles
 
-- Vortex operates a sibling authorization-code/PKCE Monerium application for KYC/KYB onboarding.
-  Profiles onboarded there may later be migrated into the white-label application through a process
-  that is still to be defined.
+- Vortex operates a sibling authorization-code/PKCE Monerium application for KYC/KYB onboarding
+  (specified below). Its profiles are invisible to the white-label application and are read only
+  through the user's backend-held token; the identity resolver covers both apps at registration.
+  Migration of such profiles into the white-label application is still undefined.
 - Profiles may also be imported from other trusted external sources. Every source MUST associate the
   correct Monerium profile UUID with the correct Vortex legal entity; no caller-controlled profile
   adoption may be exposed while the import contract is undefined.
@@ -116,6 +120,9 @@ the active onramp; the first-party clients cannot yet do so.
 | Balance-delta misattribution | An unrelated or duplicate EURe credit increases the linked owner's balance enough to satisfy a ramp | Accepted under RISK-023: the executor advances on the persisted balance delta, then transfers only the quoted amount. No claim of deterministic SEPA-order correlation is made; excess remains with the owner. |
 | Permit becomes unusable before settlement | SEPA settlement arrives after the 24-hour permit deadline or after its nonce is consumed | Accepted under RISK-024: execution proves the permit unusable and stops rather than broadening authorization; manual resolution is required when no sufficient allowance remains. |
 | Polygon swap route substitution | A stale or malicious endpoint points the conversion at a different pool, token, fee tier, router, or recipient | Deployment checks pin the pool/factory/router/quoter relationships; quote metadata and signed calldata are validated against constants, exact amounts, the ephemeral recipient, and bounded fee fields before broadcast |
+| Forged wallet link | A caller links an address it does not control to a profile | The backend verifies the EOA signature over the fixed ownership message and rejects contract code before any provider call; Monerium verifies the signature again |
+| IBAN redirection | A link, status, or registration call moves the profile's IBAN to another wallet | Only `POST /v1/monerium/iban/move`, an explicit owner request naming an already-linked address, calls `PATCH /ibans`; reads never mutate provider state |
+| OAuth session loss | The backend restarts or Monerium revokes the refresh token, so an OAuth-onboarded profile cannot be read | Readiness and registration fail closed with `MONERIUM_REAUTHENTICATION_REQUIRED`; clients prompt a reconnect; tokens are never persisted (RISK-025) |
 
 ### Audit Checklist
 
@@ -135,8 +142,9 @@ the active onramp; the first-party clients cannot yet do so.
 - [x] Strict transaction completeness requires the user-signed typed-data permit as well as every ephemeral-signed transaction before payment instructions are released.
 - [x] Wallet linking verifies the owner signature and the EOA requirement server-side, links through the resolving app, and requests at most one IBAN; IBAN moves need an explicit owner request to an already-linked address; status reads never mutate provider state (`wallet.test.ts`).
 - [x] The OAuth callback is selected from the configured dashboard/widget allowlist and bound into the transaction.
-- [ ] OAuth-to-white-label migration, KYC/KYB lifecycle orchestration, user-to-corridor binding, wallet linking, and other import mechanisms are deferred; their trust boundary, persistence model, and status reconciliation remain TBD.
-- [ ] The first-party SDK, dashboard, and widget do not complete the profile-linked owner-wallet signing journey. The active release is direct-API only.
+- [ ] OAuth-to-white-label migration, KYC/KYB lifecycle orchestration through the white-label API, and external profile import are deferred; their trust boundary, persistence model, and status reconciliation remain TBD.
+- [x] The SDK returns the owner permit as a user-owned transaction; the dashboard and widget sign it with the connected Monerium-linked wallet, and SEPA instructions are released only after that update.
+- [ ] OAuth-onboarded users depend on a backend-memory Monerium session for readiness and registration; a restart forces a reconnect (RISK-025).
 - [ ] A permit collected before SEPA settlement can expire or become stale. If no sufficient allowance remains, the ramp stops for manual resolution; no automatic reauthorization path is implemented (RISK-024).
 - [x] The post-issue conversion route is fixed-pool Polygon EURe-to-USDC followed by the regular EVM fee, subsidy, Squid settlement, and destination-transfer blocks.
 - [ ] Provider-order correlation is not implemented. The active flow intentionally uses the accepted owner-balance-delta attribution model under RISK-023 instead.
@@ -147,9 +155,9 @@ the active onramp; the first-party clients cannot yet do so.
 
 The backend provides authenticated Monerium OAuth authorization-code endpoints for individual KYC and business KYB. It generates OAuth state and PKCE material server-side, exchanges codes directly with Monerium, keeps access and rotating refresh tokens only in backend memory, reads the authenticated Monerium context and API-v2 profile, and mirrors only normalized verification metadata into `provider_customers` and `kyc_cases`.
 
-The endpoints are `POST /v1/monerium/oauth/start`, `POST /v1/monerium/oauth/complete`, and `GET /v1/monerium/status`. They use the Supabase-authenticated user identity. `MONERIUM_REDIRECT_URI` is the exact dashboard callback URI registered with Monerium and is never derived from request input. After a successful callback exchange, the callback route restores any refreshed dashboard session and replace-navigates to the overview with the EU onboarding modal open; callback failures remain on the callback route so their error is preserved.
+The endpoints are `POST /v1/monerium/oauth/start`, `POST /v1/monerium/oauth/complete`, `GET /v1/monerium/status`, and the wallet-readiness routes `POST /v1/monerium/wallet` and `POST /v1/monerium/iban/move` specified above. They use the Supabase-authenticated user identity. `MONERIUM_REDIRECT_URI` (dashboard) and `MONERIUM_WIDGET_REDIRECT_URI` (widget) are the exact callback URIs registered with Monerium; the start request's `client` selector picks one and it is never derived from request input. After a successful callback exchange, the dashboard callback route restores any refreshed session and replace-navigates to the overview with the EU onboarding modal open, and the widget's persisted ramp hands the callback to its restored verification step; callback failures preserve their error.
 
-Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR recipient-eligibility provider. This change does not restore the historical Monerium EURe payment rail. EUR ramp registration remains disabled, and the dormant Mykobo settlement path must not be re-enabled until its separate Mykobo-profile gate is reconciled with Monerium identity.
+Monerium replaces Mykobo as the EU onboarding provider in the dashboard and widget and as the EUR recipient-eligibility provider. Profiles onboarded here are readable only through the user's backend-held token; the EUR onramp resolves them through the identity resolver (invariant 16 above) and the wallet-link step provisions their IBAN. The dormant Mykobo settlement path stays legacy-recovery-only.
 
 ### Security Invariants
 

@@ -90,7 +90,8 @@ cross-chain offramp scenarios.
 ³ Active Monerium coverage is split across focused block tests. The retained
 `corridors/eur-*.scenario.test.ts` files now seed identity-bearing Mykobo metadata directly and
 verify only persisted legacy recovery. Add a full Monerium fake-world quote→register→execute
-scenario before claiming end-to-end corridor coverage.
+scenario before claiming end-to-end corridor coverage. Monerium's sandbox mints on testnets while
+the flow is pinned to Polygon mainnet, so the pay-in is not sandbox-verifiable either.
 
 **Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
 SELL variant is untested (no-permit fallback is); the active EUR onramp lacks SDK, E2E, and full
@@ -243,9 +244,10 @@ Notes:
 ### EUR coverage
 
 SEPA/EUR BUY is cataloged through Monerium; SELL returns public `400`. Focused tests cover
-profile-derived registration, Polygon EURe baseline persistence, balance-delta execution,
-exact self-transfer, pinned Uniswap conversion, flow topology, quote selection, and SELL
-rejection. The old Mykobo corridor scenarios persist legacy metadata directly to exercise
+white-label/OAuth identity resolution, wallet-link and IBAN-move rules, profile-derived
+registration, Polygon EURe baseline persistence, balance-delta execution, exact self-transfer,
+pinned Uniswap conversion, flow topology, quote selection, and SELL rejection; the SDK suite
+covers EUR onramp registration and the returned owner permit. The old Mykobo corridor scenarios persist legacy metadata directly to exercise
 recovery without reconnecting Mykobo to quote creation. A complete Monerium fake-world corridor,
 SDK contract, and E2E journey remain open coverage gaps.
 
