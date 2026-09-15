@@ -157,8 +157,12 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                 code: MONERIUM_REAUTHENTICATION_REQUIRED,
                 message: error.message
               });
+              return;
             }
             // Status aggregation remains available if Monerium is unavailable or in-memory credentials were lost.
+            logger.warn(
+              `Monerium status refresh failed for provider customer ${customer.id}: ${error instanceof Error ? error.message : String(error)}`
+            );
           }
         })
     );

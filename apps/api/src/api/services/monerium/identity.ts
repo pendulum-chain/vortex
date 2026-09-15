@@ -3,7 +3,7 @@ import httpStatus from "http-status";
 import type { Transaction } from "sequelize";
 import ProviderCustomer, { type ProviderCustomerType } from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
-import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
+import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 import { getMoneriumUserAccessToken, MONERIUM_REAUTHENTICATION_REQUIRED } from "./monerium.service";
 
 export const MONERIUM_ONBOARDING_REQUIRED = "MONERIUM_ONBOARDING_REQUIRED";
@@ -34,13 +34,28 @@ export interface MoneriumIdentityDependencies {
   loadBinding: (userId: string, transaction?: Transaction) => Promise<MoneriumBinding | null>;
 }
 
-async function loadMoneriumBinding(userId: string, transaction?: Transaction): Promise<MoneriumBinding> {
+/**
+ * Ramp registration carries no customer type, so the binding is looked up across every entity the
+ * profile owns: the active entity's binding wins, otherwise the one bound entity. A business-active
+ * profile that onboarded through the widget (always `individual`) is therefore still registerable.
+ */
+export async function loadMoneriumBinding(userId: string, transaction?: Transaction): Promise<MoneriumBinding> {
   const entity = await getOrCreateCustomerEntityForProfile(userId, undefined, transaction);
-  const binding = await ProviderCustomer.findOne({
+  const bindings = await ProviderCustomer.findAll({
     ...(transaction ? { transaction } : {}),
-    where: { customerEntityId: entity.id, customerType: entity.type, provider: "monerium", rail: "eur" }
+    where: {
+      customerEntityId: await findCustomerEntityIdsForProfile(userId, transaction),
+      provider: "monerium",
+      rail: "eur"
+    }
   });
-  return { customerEntityId: entity.id, customerType: entity.type, profileId: binding?.providerCustomerId ?? null };
+  const binding = bindings.find(candidate => candidate.customerEntityId === entity.id) ?? bindings[0];
+  if (!binding) return { customerEntityId: entity.id, customerType: entity.type, profileId: null };
+  return {
+    customerEntityId: binding.customerEntityId,
+    customerType: binding.customerType,
+    profileId: binding.providerCustomerId
+  };
 }
 
 async function getUserClient(customerEntityId: string, customerType: ProviderCustomerType): Promise<MoneriumIdentityClient> {
