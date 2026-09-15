@@ -1,23 +1,73 @@
 import { describe, expect, it } from "bun:test";
 import {
-  COINBASE_EURC_TICKER_URL,
+  Candle,
+  COINBASE_EURC_CANDLES_URL,
   COINBASE_REFERENCE_SOURCE,
+  computeWindowVwap,
   fetchCoinbaseReference,
   isWithinReferenceBand,
-  toReferenceRateRaw
+  parseCandles,
+  REFERENCE_FALLBACK_WINDOW_SECONDS,
+  REFERENCE_WINDOW_SECONDS,
+  selectReferenceWindow
 } from "./reference-rate";
 
-describe("toReferenceRateRaw", () => {
-  it("scales a decimal price to the oracle's decimals", () => {
-    expect(toReferenceRateRaw("1.14", 8)).toBe(114_000_000n);
-    expect(toReferenceRateRaw("1", 8)).toBe(100_000_000n);
-    expect(toReferenceRateRaw("0.98765432", 8)).toBe(98_765_432n);
+const END = 1_800_000_000; // window end, a minute boundary
+const DECIMALS = 8;
+
+/** A flat candle: low = high = close, so its typical price is `price`. */
+function candle(bucketStart: number, price: number, volume: number): Candle {
+  return [bucketStart, price, price, price, price, volume];
+}
+
+describe("computeWindowVwap", () => {
+  it("weights each candle's typical price by its volume", () => {
+    const candles = [candle(END - 60, 1.14, 10), candle(END - 120, 1.16, 30)];
+    // (1.14 x 10 + 1.16 x 30) / 40 = 1.155
+    expect(computeWindowVwap(candles, END, REFERENCE_WINDOW_SECONDS, DECIMALS)).toBe(115_500_000n);
   });
 
-  it("rejects malformed or non-positive prices", () => {
-    for (const bad of ["", "abc", "-1.1", "1e5", "0", "0.0"]) {
-      expect(() => toReferenceRateRaw(bad, 8)).toThrow();
-    }
+  it("uses (low + high + close) / 3 as the candle price", () => {
+    const skewed: Candle = [END - 60, 1.14, 1.15, 1.2, 1.145, 5];
+    expect(computeWindowVwap([skewed], END, REFERENCE_WINDOW_SECONDS, DECIMALS)).toBe(114_500_000n);
+  });
+
+  it("ignores candles outside the window and returns null without volume", () => {
+    const candles = [candle(END - 360, 2.0, 100), candle(END, 3.0, 100), candle(END - 60, 1.14, 0)];
+    expect(computeWindowVwap(candles, END, REFERENCE_WINDOW_SECONDS, DECIMALS)).toBeNull();
+    expect(computeWindowVwap(candles, END, 3_600, DECIMALS)).toBe(200_000_000n);
+  });
+
+  it("rejects negative or non-finite candle values", () => {
+    expect(() => computeWindowVwap([candle(END - 60, -1, 1)], END, 300, DECIMALS)).toThrow();
+    expect(() => computeWindowVwap([candle(END - 60, Number.NaN, 1)], END, 300, DECIMALS)).toThrow();
+  });
+});
+
+describe("selectReferenceWindow", () => {
+  it("prefers the five-minute window and widens to an hour only when it has no volume", () => {
+    const busy = [candle(END - 60, 1.14, 10), candle(END - 1_800, 1.5, 100)];
+    expect(selectReferenceWindow(busy, END, DECIMALS)).toEqual({
+      rateRaw: 114_000_000n,
+      windowSeconds: REFERENCE_WINDOW_SECONDS
+    });
+
+    const quiet = [candle(END - 60, 1.14, 0), candle(END - 1_800, 1.5, 100)];
+    expect(selectReferenceWindow(quiet, END, DECIMALS)).toEqual({
+      rateRaw: 150_000_000n,
+      windowSeconds: REFERENCE_FALLBACK_WINDOW_SECONDS
+    });
+
+    expect(selectReferenceWindow([candle(END - 60, 1.14, 0)], END, DECIMALS)).toBeNull();
+  });
+});
+
+describe("parseCandles", () => {
+  it("accepts Coinbase's array-of-arrays shape and rejects anything else", () => {
+    expect(parseCandles([[END, 1, 2, 1.5, 1.8, 3]])).toEqual([[END, 1, 2, 1.5, 1.8, 3]]);
+    expect(() => parseCandles({ candles: [] })).toThrow("not an array");
+    expect(() => parseCandles([[END, 1, 2]])).toThrow("malformed");
+    expect(() => parseCandles([[END, "1", 2, 1.5, 1.8, 3]])).toThrow("malformed");
   });
 });
 
@@ -38,6 +88,8 @@ describe("isWithinReferenceBand", () => {
 });
 
 describe("fetchCoinbaseReference", () => {
+  const nowMs = (END - 30) * 1000; // half a minute into the bucket that ends at END
+
   function fakeFetch(status: number, body: unknown) {
     const calls: string[] = [];
     const fetchImpl = async (url: string) => {
@@ -47,25 +99,29 @@ describe("fetchCoinbaseReference", () => {
     return { calls, fetchImpl };
   }
 
-  it("parses the ticker into a scaled, timestamped, attributable quote", async () => {
-    const { calls, fetchImpl } = fakeFetch(200, { price: "1.1432", time: "2026-09-15T10:00:00.123456Z", trade_id: 4711 });
-    const quote = await fetchCoinbaseReference(8, fetchImpl);
-    expect(calls).toEqual([COINBASE_EURC_TICKER_URL]);
-    expect(quote).toMatchObject({
+  it("requests an hour of one-minute candles and returns the five-minute VWAP with its window", async () => {
+    const { calls, fetchImpl } = fakeFetch(200, [candle(END - 60, 1.1432, 10), candle(END - 120, 1.1432, 10)]);
+    const quote = await fetchCoinbaseReference(DECIMALS, fetchImpl, nowMs);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].startsWith(`${COINBASE_EURC_CANDLES_URL}?granularity=60&start=`)).toBe(true);
+    expect(calls[0]).toContain(`start=${new Date((END - REFERENCE_FALLBACK_WINDOW_SECONDS) * 1000).toISOString()}`);
+    expect(calls[0]).toContain(`end=${new Date(nowMs).toISOString()}`);
+    expect(quote).toEqual({
       price: "1.1432",
       rateRaw: 114_320_000n,
       source: COINBASE_REFERENCE_SOURCE,
-      tradeId: "4711"
+      time: new Date(nowMs),
+      windowSeconds: REFERENCE_WINDOW_SECONDS
     });
-    expect(quote.time.toISOString()).toBe("2026-09-15T10:00:00.123Z");
   });
 
-  it("fails on a non-2xx response or a body without a usable price", async () => {
-    await expect(fetchCoinbaseReference(8, fakeFetch(503, {}).fetchImpl)).rejects.toThrow("503");
-    await expect(fetchCoinbaseReference(8, fakeFetch(200, { price: 1.14 }).fetchImpl)).rejects.toThrow("no price");
-    await expect(fetchCoinbaseReference(8, fakeFetch(200, { price: "0" }).fetchImpl)).rejects.toThrow("positive");
-    await expect(fetchCoinbaseReference(8, fakeFetch(200, { price: "1.14", time: "soon" }).fetchImpl)).rejects.toThrow(
-      "timestamp"
+  it("fails on a non-2xx response, a malformed body, or an hour without volume", async () => {
+    await expect(fetchCoinbaseReference(DECIMALS, fakeFetch(503, []).fetchImpl, nowMs)).rejects.toThrow("503");
+    await expect(fetchCoinbaseReference(DECIMALS, fakeFetch(200, { price: "1.14" }).fetchImpl, nowMs)).rejects.toThrow(
+      "not an array"
     );
+    await expect(
+      fetchCoinbaseReference(DECIMALS, fakeFetch(200, [candle(END - 60, 1.14, 0)]).fetchImpl, nowMs)
+    ).rejects.toThrow("no EURC-USD volume");
   });
 });
