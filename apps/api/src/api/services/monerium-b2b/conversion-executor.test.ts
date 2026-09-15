@@ -12,7 +12,9 @@ import {
   broadcastSwapSequence,
   classifyHashlessPending,
   conversionAmountsFromSwapEvent,
+  expectedSwapCalldata,
   isExpectedSwapTransaction,
+  projectSwap,
   recoveryBlockRanges,
   runConversionExecutor,
   selectDepositsForExecution
@@ -125,14 +127,99 @@ describe("allocateUsdcProRata", () => {
 });
 
 describe("conversionAmountsFromSwapEvent", () => {
-  it("excludes unsolicited USDC swept alongside this swap", () => {
-    expect(
-      conversionAmountsFromSwapEvent({ fee: 8n * USDC, forwarded: 208n * USDC, usdcOut: 108n * USDC })
-    ).toEqual({ feeRaw: "8000000", usdcGrossRaw: "108000000", usdcNetRaw: "100000000" });
+  it("nets the fee out of this swap's output regardless of what was forwarded", () => {
+    expect(conversionAmountsFromSwapEvent({ fee: 8n * USDC, subsidy: 0n, usdcOut: 108n * USDC })).toEqual({
+      feeRaw: "8000000",
+      subsidyRaw: "0",
+      usdcGrossRaw: "108000000",
+      usdcNetRaw: "100000000"
+    });
+  });
+
+  it("adds the vault subsidy to the client's net", () => {
+    expect(conversionAmountsFromSwapEvent({ fee: 0n, subsidy: 2n * USDC, usdcOut: 106n * USDC })).toEqual({
+      feeRaw: "0",
+      subsidyRaw: "2000000",
+      usdcGrossRaw: "106000000",
+      usdcNetRaw: "108000000"
+    });
   });
 
   it("refuses an impossible event whose fee exceeds this swap's output", () => {
-    expect(() => conversionAmountsFromSwapEvent({ fee: 2n, forwarded: 0n, usdcOut: 1n })).toThrow("fee exceeds");
+    expect(() => conversionAmountsFromSwapEvent({ fee: 2n, subsidy: 0n, usdcOut: 1n })).toThrow("fee exceeds");
+  });
+});
+
+// Off-chain mirror of the contract's settlement: same numbers as the Foundry suite
+// (1000 EURe at 1.14: reference 1140 USDC, target 1138.575, floor 1138.29, oracle floor 1135.44).
+describe("projectSwap", () => {
+  const vault = { balance: 1_000n * USDC, dailyBudget: 200n * USDC, maxSubsidyPpm: 5_000, paused: false, spentToday: 0n };
+  const base = {
+    amountIn: 1_000n * EUR,
+    floorPpm: 1_500,
+    maxFeePpm: 10_000,
+    oracleDecimals: 8,
+    oracleRaw: 114_000_000n,
+    referenceRaw: 114_000_000n,
+    slippageBps: 40,
+    targetPpm: 1_250,
+    vault
+  };
+
+  it("takes the surplus above the target as fee, capped at MAX_FEE_PPM", () => {
+    expect(projectSwap({ ...base, quotedOut: 1_145n * USDC })).toEqual({
+      defer: null,
+      fee: 1_145n * USDC - 1_138_575_000n,
+      net: 1_138_575_000n,
+      subsidy: 0n
+    });
+    expect(projectSwap({ ...base, quotedOut: 1_200n * USDC }).fee).toBe(12n * USDC);
+  });
+
+  it("leaves a fill between the floor and the target untouched", () => {
+    expect(projectSwap({ ...base, quotedOut: 1_138_400_000n })).toEqual({
+      defer: null,
+      fee: 0n,
+      net: 1_138_400_000n,
+      subsidy: 0n
+    });
+  });
+
+  it("tops a fill below the floor up from the vault", () => {
+    expect(projectSwap({ ...base, quotedOut: 1_136n * USDC })).toEqual({
+      defer: null,
+      fee: 0n,
+      net: 1_138_290_000n,
+      subsidy: 2_290_000n
+    });
+  });
+
+  it("defers when the vault cannot cover the subsidy", () => {
+    expect(projectSwap({ ...base, quotedOut: 1_130n * USDC }).defer).toContain("per-swap cap");
+    expect(projectSwap({ ...base, quotedOut: 1_136n * USDC, vault: null }).defer).toContain("no subsidy vault");
+    expect(projectSwap({ ...base, quotedOut: 1_136n * USDC, vault: { ...vault, paused: true } }).defer).toContain("paused");
+    expect(
+      projectSwap({ ...base, quotedOut: 1_136n * USDC, vault: { ...vault, spentToday: 199n * USDC } }).defer
+    ).toContain("daily budget");
+    expect(projectSwap({ ...base, quotedOut: 1_136n * USDC, vault: { ...vault, balance: 1n * USDC } }).defer).toContain(
+      "vault balance"
+    );
+  });
+
+  it("defers when even the subsidized net sits below the oracle floor (depegged reference)", () => {
+    const projection = projectSwap({ ...base, quotedOut: 1_127n * USDC, referenceRaw: (114_000_000n * 9_910n) / 10_000n });
+    expect(projection.subsidy).toBeGreaterThan(0n);
+    expect(projection.defer).toContain("oracle floor");
+  });
+});
+
+describe("expectedSwapCalldata", () => {
+  it("rebuilds the exact calldata from the persisted reference and route, or nothing", () => {
+    expect(expectedSwapCalldata({ referenceRateRaw: null, routeIndex: 0 })).toBeNull();
+    expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: null })).toBeNull();
+    expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: 1 })).toBe(
+      encodeFunctionData({ abi: forwarderAbi, args: [114_000_000n, 1n], functionName: "swapAndForward" })
+    );
   });
 });
 
@@ -193,19 +280,21 @@ describe("classifyHashlessPending", () => {
 describe("isExpectedSwapTransaction", () => {
   const keeper = "0x1111111111111111111111111111111111111111";
   const forwarder = "0x2222222222222222222222222222222222222222";
-  const expected = {
-    from: keeper,
-    input: encodeFunctionData({ abi: forwarderAbi, functionName: "swapAndForward" }),
-    nonce: 7,
-    to: forwarder
-  };
+  const input = encodeFunctionData({ abi: forwarderAbi, args: [114_000_000n, 0n], functionName: "swapAndForward" });
+  const expected = { from: keeper, input, nonce: 7, to: forwarder };
 
-  it("requires the exact keeper, nonce, forwarder, and no-arg calldata", () => {
-    expect(isExpectedSwapTransaction(expected, keeper, forwarder, 7)).toBe(true);
-    expect(isExpectedSwapTransaction({ ...expected, from: forwarder }, keeper, forwarder, 7)).toBe(false);
-    expect(isExpectedSwapTransaction({ ...expected, nonce: 8 }, keeper, forwarder, 7)).toBe(false);
-    expect(isExpectedSwapTransaction({ ...expected, to: keeper }, keeper, forwarder, 7)).toBe(false);
-    expect(isExpectedSwapTransaction({ ...expected, input: "0x" }, keeper, forwarder, 7)).toBe(false);
+  it("requires the exact keeper, nonce, forwarder, and priced calldata", () => {
+    expect(isExpectedSwapTransaction(expected, keeper, forwarder, 7, input)).toBe(true);
+    expect(isExpectedSwapTransaction({ ...expected, from: forwarder }, keeper, forwarder, 7, input)).toBe(false);
+    expect(isExpectedSwapTransaction({ ...expected, nonce: 8 }, keeper, forwarder, 7, input)).toBe(false);
+    expect(isExpectedSwapTransaction({ ...expected, to: keeper }, keeper, forwarder, 7, input)).toBe(false);
+    expect(isExpectedSwapTransaction({ ...expected, input: "0x" }, keeper, forwarder, 7, input)).toBe(false);
+    const otherReference = encodeFunctionData({
+      abi: forwarderAbi,
+      args: [114_100_000n, 0n],
+      functionName: "swapAndForward"
+    });
+    expect(isExpectedSwapTransaction({ ...expected, input: otherReference }, keeper, forwarder, 7, input)).toBe(false);
   });
 });
 

@@ -1,0 +1,41 @@
+import { DataTypes, QueryInterface } from "sequelize";
+
+// Every swap is priced against a partner reference rate and may draw a subsidy from the
+// vault (docs/proposal-monerium-forwarder-fee-subsidy.md). The reference and the chosen
+// route are persisted before broadcast (crash-recovery calldata identity + audit
+// trail); the subsidy is recorded from the SwapExecuted event on confirmation.
+export async function up(queryInterface: QueryInterface): Promise<void> {
+  await queryInterface.addColumn("monerium_conversion_executions", "reference_rate_raw", {
+    allowNull: true,
+    type: DataTypes.DECIMAL(38, 0)
+  });
+  await queryInterface.addColumn("monerium_conversion_executions", "reference_source", {
+    allowNull: true,
+    type: DataTypes.STRING(64)
+  });
+  await queryInterface.addColumn("monerium_conversion_executions", "reference_trade_id", {
+    allowNull: true,
+    type: DataTypes.STRING(32)
+  });
+  await queryInterface.addColumn("monerium_conversion_executions", "reference_at", {
+    allowNull: true,
+    type: DataTypes.DATE
+  });
+  await queryInterface.addColumn("monerium_conversion_executions", "route_index", {
+    allowNull: true,
+    type: DataTypes.INTEGER
+  });
+  await queryInterface.addColumn("monerium_conversion_executions", "subsidy_raw", {
+    allowNull: true,
+    type: DataTypes.DECIMAL(38, 0)
+  });
+}
+
+export async function down(queryInterface: QueryInterface): Promise<void> {
+  await queryInterface.removeColumn("monerium_conversion_executions", "subsidy_raw");
+  await queryInterface.removeColumn("monerium_conversion_executions", "route_index");
+  await queryInterface.removeColumn("monerium_conversion_executions", "reference_at");
+  await queryInterface.removeColumn("monerium_conversion_executions", "reference_trade_id");
+  await queryInterface.removeColumn("monerium_conversion_executions", "reference_source");
+  await queryInterface.removeColumn("monerium_conversion_executions", "reference_rate_raw");
+}

@@ -4,13 +4,16 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import {
+  chainlinkAbi,
   erc20Abi,
   factoryAbi,
   forwarderAbi,
   getChainId,
   getForwarderImmutables,
   getPublicClient,
-  moneriumChainForChainId
+  MAINNET_QUOTER_V2,
+  moneriumChainForChainId,
+  quoterV2Abi
 } from "./chain";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 
@@ -41,22 +44,11 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
  * None of these monitors hold keys or send transactions; they are detection-only.
  */
 
-/** Uniswap V3 QuoterV2 on Ethereum mainnet (the pinned quoting contract, PRD §7.4). */
-export const MAINNET_QUOTER_V2: Address = "0x61fFE014bA17989E743c5F6cB21bF9697530B21e";
-
 /** Stranding marker armed longer than this warns (the keeper converts within minutes normally). */
 export const STRANDED_WARN_MS = 12 * 60 * 60 * 1000;
 
 /** Full monitoring pass at most this often (the worker cycles every minute). */
 const MONITORING_INTERVAL_MS = 30 * 60_000;
-
-const quoterV2Abi = parseAbi([
-  "function quoteExactInput(bytes path, uint256 amountIn) returns (uint256 amountOut, uint160[] sqrtPriceX96AfterList, uint32[] initializedTicksCrossedList, uint256 gasEstimate)"
-]);
-
-const chainlinkAbi = parseAbi([
-  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)"
-]);
 
 // Read-only getters beyond the keeper ABI surface in ./chain.ts.
 const forwarderMonitoringAbi = parseAbi([

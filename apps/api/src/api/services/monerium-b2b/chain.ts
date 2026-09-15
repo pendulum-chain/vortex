@@ -7,6 +7,7 @@ import {
   Hex,
   http,
   PublicClient,
+  parseAbi,
   parseAbiItem,
   Transport,
   WalletClient
@@ -55,7 +56,7 @@ export const eureTransferEvent = parseAbiItem("event Transfer(address indexed fr
 // SwapExecuted as a standalone event item for getLogs-based crash recovery (must stay
 // in sync with the entry in forwarderAbi below).
 export const swapExecutedEvent = parseAbiItem(
-  "event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded)"
+  "event SwapExecuted(address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 referenceRate, uint256 fee, uint256 subsidy, uint256 forwarded)"
 );
 
 export const erc20Abi = [
@@ -70,7 +71,16 @@ export const erc20Abi = [
 
 export const forwarderAbi = [
   { inputs: [], name: "poke", outputs: [], stateMutability: "nonpayable", type: "function" },
-  { inputs: [], name: "swapAndForward", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [
+      { name: "referenceRate", type: "uint256" },
+      { name: "routeIndex", type: "uint256" }
+    ],
+    name: "swapAndForward",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
   {
     inputs: [{ name: "paused", type: "bool" }],
     name: "setGuardianPaused",
@@ -82,6 +92,20 @@ export const forwarderAbi = [
   { inputs: [], name: "guardianPaused", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "EURE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "FACTORY", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "USDC", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ORACLE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ORACLE_DECIMALS", outputs: [{ name: "", type: "uint8" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "SLIPPAGE_BPS", outputs: [{ name: "", type: "uint16" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "MAX_FEE_PPM", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [],
+    name: "MAX_REFERENCE_DEVIATION_BPS",
+    outputs: [{ name: "", type: "uint16" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  { inputs: [], name: "targetPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
   {
     anonymous: false,
     inputs: [{ indexed: false, name: "strandedSince", type: "uint64" }],
@@ -92,9 +116,12 @@ export const forwarderAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "routeIndex", type: "uint256" },
       { indexed: false, name: "eureIn", type: "uint256" },
       { indexed: false, name: "usdcOut", type: "uint256" },
+      { indexed: false, name: "referenceRate", type: "uint256" },
       { indexed: false, name: "fee", type: "uint256" },
+      { indexed: false, name: "subsidy", type: "uint256" },
       { indexed: false, name: "forwarded", type: "uint256" }
     ],
     name: "SwapExecuted",
@@ -111,8 +138,40 @@ export const forwarderAbi = [
 export const factoryAbi = [
   { inputs: [], name: "minSwapAmount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "perSwapCap", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "MIN_SWAP_FLOOR", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }
+  { inputs: [], name: "MIN_SWAP_FLOOR", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "subsidyVault", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "routeCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [{ name: "index", type: "uint256" }],
+    name: "route",
+    outputs: [
+      { name: "path", type: "bytes" },
+      { name: "enabled", type: "bool" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
 ] as const;
+
+// VortexSubsidyVault: the guardian-tunable limits the keeper projects a swap against.
+export const subsidyVaultAbi = parseAbi([
+  "function maxSubsidyPpm() view returns (uint32)",
+  "function dailyBudget() view returns (uint256)",
+  "function spentToday() view returns (uint256)",
+  "function currentDay() view returns (uint256)",
+  "function paused() view returns (bool)"
+]);
+
+export const chainlinkAbi = parseAbi([
+  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)"
+]);
+
+/** Uniswap V3 QuoterV2 on Ethereum mainnet (the pinned quoting contract, PRD §7.4). */
+export const MAINNET_QUOTER_V2: Address = "0x61fFE014bA17989E743c5F6cB21bF9697530B21e";
+
+export const quoterV2Abi = parseAbi([
+  "function quoteExactInput(bytes path, uint256 amountIn) returns (uint256 amountOut, uint160[] sqrtPriceX96AfterList, uint32[] initializedTicksCrossedList, uint256 gasEstimate)"
+]);
 
 // ------------------------------------------------------------------ clients
 
@@ -208,13 +267,19 @@ export async function getChainId(): Promise<number> {
   return chainIdCache;
 }
 
-interface ForwarderImmutables {
+export interface ForwarderImmutables {
   eure: Address;
   factory: Address;
+  maxFeePpm: number;
+  maxReferenceDeviationBps: number;
+  oracle: Address;
+  oracleDecimals: number;
+  slippageBps: number;
+  usdc: Address;
 }
 
-// EURE/FACTORY are implementation-level immutables shared by every clone, so one
-// lookup per forwarder address is enough for the process lifetime.
+// Implementation-level immutables shared by every clone, so one lookup per forwarder
+// address is enough for the process lifetime.
 const forwarderImmutablesCache = new Map<string, ForwarderImmutables>();
 
 export async function getForwarderImmutables(forwarderAddress: Address): Promise<ForwarderImmutables> {
@@ -224,11 +289,39 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     return cached;
   }
   const client = getPublicClient();
-  const [eure, factory] = await Promise.all([
-    client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName: "EURE" }),
-    client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName: "FACTORY" })
+  const read = <
+    T extends
+      | "EURE"
+      | "FACTORY"
+      | "USDC"
+      | "ORACLE"
+      | "ORACLE_DECIMALS"
+      | "SLIPPAGE_BPS"
+      | "MAX_FEE_PPM"
+      | "MAX_REFERENCE_DEVIATION_BPS"
+  >(
+    functionName: T
+  ) => client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName });
+  const [eure, factory, usdc, oracle, oracleDecimals, slippageBps, maxFeePpm, maxReferenceDeviationBps] = await Promise.all([
+    read("EURE"),
+    read("FACTORY"),
+    read("USDC"),
+    read("ORACLE"),
+    read("ORACLE_DECIMALS"),
+    read("SLIPPAGE_BPS"),
+    read("MAX_FEE_PPM"),
+    read("MAX_REFERENCE_DEVIATION_BPS")
   ]);
-  const immutables = { eure, factory };
+  const immutables: ForwarderImmutables = {
+    eure,
+    factory,
+    maxFeePpm: Number(maxFeePpm),
+    maxReferenceDeviationBps: Number(maxReferenceDeviationBps),
+    oracle,
+    oracleDecimals: Number(oracleDecimals),
+    slippageBps: Number(slippageBps),
+    usdc
+  };
   forwarderImmutablesCache.set(key, immutables);
   return immutables;
 }
