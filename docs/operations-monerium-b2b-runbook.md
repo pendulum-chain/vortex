@@ -90,7 +90,8 @@ POST /v1/admin/monerium-b2b/accounts        (Authorization: Bearer $ADMIN_SECRET
   "forwarderAddress":  "<deployed clone>",
   "destination":       "<client payout address>",
   "fallbackAddress":   "<client self-custody recovery>",
-  "feeBps":            0
+  "targetPpm":         1250,
+  "floorPpm":          1500
 }
 ```
 

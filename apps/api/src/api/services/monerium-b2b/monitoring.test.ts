@@ -134,7 +134,8 @@ describe("detectConfigDrift", () => {
   const base = {
     destination: "0x1111111111111111111111111111111111111111",
     fallbackAddress: "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1",
-    feeBps: 0
+    floorPpm: 1500,
+    targetPpm: 1250
   };
 
   it("reports nothing when the chain matches the db (case-insensitively)", () => {
@@ -156,10 +157,10 @@ describe("detectConfigDrift", () => {
     });
   });
 
-  it("classifies a feeBps change as a guardian-authorized reconciliation (P11)", () => {
-    const drift = detectConfigDrift(base, { ...base, feeBps: 50 });
+  it("classifies a fee-policy change as a guardian-authorized reconciliation (P11)", () => {
+    const drift = detectConfigDrift(base, { ...base, floorPpm: 3000, targetPpm: 2500 });
     expect(drift.errors).toEqual([]);
-    expect(drift.ownerAuthorizedUpdates.feeBps).toBe(50);
+    expect(drift.ownerAuthorizedUpdates).toEqual({ floorPpm: 3000, targetPpm: 2500 });
   });
 });
 

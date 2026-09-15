@@ -98,10 +98,11 @@ export const getMoneriumB2bAccount = async (req: Request, res: Response, next: N
         destination: account.destination,
         dormantSince: account.dormantSince,
         fallbackAddress: account.fallbackAddress,
-        feeBps: account.feeBps,
+        floorPpm: account.floorPpm,
         forwarderAddress: account.forwarderAddress,
         iban: account.iban,
-        status: account.status
+        status: account.status,
+        targetPpm: account.targetPpm
       }
     });
   } catch (error) {

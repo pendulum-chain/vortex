@@ -79,7 +79,7 @@ describe("monerium b2b account read surface", () => {
       accountId: mapped.accountId,
       destination: DESTINATION,
       fallbackAddress: FALLBACK,
-      feeBps: 0,
+      floorPpm: 1500,
       forwarderAddress: FORWARDER,
       iban: null,
       status: "onboarding"

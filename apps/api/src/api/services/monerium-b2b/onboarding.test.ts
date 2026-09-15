@@ -77,7 +77,6 @@ async function createMappedAccount(overrides: Partial<Parameters<typeof Monerium
   return MoneriumAccount.create({
     destination: DESTINATION,
     fallbackAddress: FALLBACK,
-    feeBps: 0,
     forwarderAddress: FORWARDER,
     profileId: MONERIUM_PROFILE,
     vortexProfileId: child.profileId,
@@ -160,7 +159,6 @@ describe("monerium b2b onboarding automation", () => {
     await MoneriumAccount.create({
       destination: DESTINATION,
       fallbackAddress: FALLBACK,
-      feeBps: 0,
       forwarderAddress: "0x9999999999999999999999999999999999999999",
       profileId: crypto.randomUUID()
       // no vortexProfileId: pre-mapping row stays operator-managed

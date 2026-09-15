@@ -2836,13 +2836,16 @@ export interface components {
             dormantSince: string | null;
             /** @description The client's self-custodied recovery address. */
             fallbackAddress: string;
-            feeBps: number;
+            /** @description Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap. */
+            floorPpm: number;
             /** @description The account's on-chain forwarding contract. */
             forwarderAddress: string;
             /** @description The account's dedicated IBAN; null until issuance completes. */
             iban: string | null;
             /** @enum {string} */
             status: "onboarding" | "active" | "suspended" | "closed";
+            /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
+            targetPpm: number;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];

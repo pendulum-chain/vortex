@@ -35,7 +35,8 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
  * 4. Config reconciliation (manifest re-verification, R07): re-reads per-clone config
  *    and clone bytecode. destination/fallbackAddress changes are owner-authorized by
  *    construction (`onlyFallback` in the contract) — they are reconciled into the DB
- *    and logged, not alarmed. feeBps/bytecode/registration drift is an incident.
+ *    and logged, not alarmed, as are guardian fee-policy changes (P11); bytecode or
+ *    registration drift is an incident.
  *
  * None of these monitors hold keys or send transactions; they are detection-only.
  */
@@ -61,7 +62,8 @@ const chainlinkAbi = parseAbi([
 const forwarderMonitoringAbi = parseAbi([
   "function destination() view returns (address)",
   "function fallbackAddress() view returns (address)",
-  "function feeBps() view returns (uint16)",
+  "function targetPpm() view returns (uint32)",
+  "function floorPpm() view returns (uint32)",
   "function EURC() view returns (address)",
   "function USDC() view returns (address)",
   "function ORACLE() view returns (address)",
@@ -171,29 +173,33 @@ export function diffAssociation(db: AssociationDbRecord, live: LiveAssociationSt
 export interface ForwarderConfigRecord {
   destination: string;
   fallbackAddress: string;
-  feeBps: number;
+  floorPpm: number;
+  targetPpm: number;
 }
 
 export interface ConfigDriftResult {
   /** Immutable-config violations — should be impossible; alarm, never reconcile. */
   errors: string[];
   /** Authorized on-chain transitions — reconcile the DB: destination/fallbackAddress
-   *  change only via the client's own key (R07), feeBps only via the guardian's
+   *  change only via the client's own key (R07), the fee policy only via the guardian's
    *  timelocked setter (P11); both leave an on-chain event trail. */
-  ownerAuthorizedUpdates: Partial<Pick<ForwarderConfigRecord, "destination" | "fallbackAddress" | "feeBps">>;
+  ownerAuthorizedUpdates: Partial<ForwarderConfigRecord>;
 }
 
 /**
  * Classifies drift between the DB config record and on-chain clone state.
  * destination/fallbackAddress are mutable ONLY by the client's fallbackAddress
- * (`onlyFallback`) and feeBps ONLY by the guardian's timelocked setter (P11), so any
+ * (`onlyFallback`) and the fee policy ONLY by the guardian's timelocked setter (P11), so any
  * change in those is an expected authorized transition to reconcile; everything else
  * (bytecode, registration) is immutable and a change there is an incident.
  */
 export function detectConfigDrift(db: ForwarderConfigRecord, onchain: ForwarderConfigRecord): ConfigDriftResult {
   const result: ConfigDriftResult = { errors: [], ownerAuthorizedUpdates: {} };
-  if (db.feeBps !== onchain.feeBps) {
-    result.ownerAuthorizedUpdates.feeBps = onchain.feeBps;
+  if (db.targetPpm !== onchain.targetPpm) {
+    result.ownerAuthorizedUpdates.targetPpm = onchain.targetPpm;
+  }
+  if (db.floorPpm !== onchain.floorPpm) {
+    result.ownerAuthorizedUpdates.floorPpm = onchain.floorPpm;
   }
   if (db.destination.toLowerCase() !== onchain.destination.toLowerCase()) {
     result.ownerAuthorizedUpdates.destination = onchain.destination;
@@ -420,10 +426,11 @@ export async function runConfigReconciliation(): Promise<void> {
         implementationByFactory.set(trustedFactory.toLowerCase(), implementation);
       }
 
-      const [destination, fallbackAddress, feeBps, isForwarder, code] = await Promise.all([
+      const [destination, fallbackAddress, targetPpm, floorPpm, isForwarder, code] = await Promise.all([
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "destination" }),
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "fallbackAddress" }),
-        client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "feeBps" }),
+        client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "targetPpm" }),
+        client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "floorPpm" }),
         client.readContract({
           abi: factoryMonitoringAbi,
           address: trustedFactoryAddress,
@@ -445,15 +452,20 @@ export async function runConfigReconciliation(): Promise<void> {
       }
 
       const drift = detectConfigDrift(
-        { destination: account.destination, fallbackAddress: account.fallbackAddress, feeBps: account.feeBps },
-        { destination, fallbackAddress, feeBps: Number(feeBps) }
+        {
+          destination: account.destination,
+          fallbackAddress: account.fallbackAddress,
+          floorPpm: account.floorPpm,
+          targetPpm: account.targetPpm
+        },
+        { destination, fallbackAddress, floorPpm: Number(floorPpm), targetPpm: Number(targetPpm) }
       );
       for (const error of drift.errors) {
         logger.error(`monerium-b2b: config violation on forwarder ${forwarder} (account ${account.id}): ${error}`);
       }
       if (Object.keys(drift.ownerAuthorizedUpdates).length > 0) {
         // Authorized transition: destination/fallback change only via the client's
-        // fallbackAddress (R07), feeBps only via the guardian's timelocked setter
+        // fallbackAddress (R07), the fee policy only via the guardian's timelocked setter
         // (P11) — reconcile, do not alarm.
         await account.update({ ...drift.ownerAuthorizedUpdates, configVersion: account.configVersion + 1 });
         logger.warn(

@@ -21,7 +21,8 @@ export interface MoneriumAccountAttributes {
   forwarderAddress: string;
   destination: string;
   fallbackAddress: string;
-  feeBps: number;
+  targetPpm: number;
+  floorPpm: number;
   configVersion: number;
   status: MoneriumAccountStatus;
   dormantSince: Date | null;
@@ -31,7 +32,16 @@ export interface MoneriumAccountAttributes {
 
 type MoneriumAccountCreationAttributes = Optional<
   MoneriumAccountAttributes,
-  "id" | "vortexProfileId" | "iban" | "configVersion" | "status" | "dormantSince" | "createdAt" | "updatedAt"
+  | "id"
+  | "vortexProfileId"
+  | "iban"
+  | "targetPpm"
+  | "floorPpm"
+  | "configVersion"
+  | "status"
+  | "dormantSince"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 class MoneriumAccount
@@ -45,7 +55,8 @@ class MoneriumAccount
   declare forwarderAddress: string;
   declare destination: string;
   declare fallbackAddress: string;
-  declare feeBps: number;
+  declare targetPpm: number;
+  declare floorPpm: number;
   declare configVersion: number;
   declare status: MoneriumAccountStatus;
   declare dormantSince: Date | null;
@@ -81,10 +92,12 @@ MoneriumAccount.init(
       field: "fallback_address",
       type: DataTypes.STRING(42)
     },
-    feeBps: {
+    // Fee policy mirror (ppm below the reference rate) for accounting and drift
+    // detection only; the clone's values are authoritative (P11 reconciliation).
+    floorPpm: {
       allowNull: false,
-      defaultValue: 0,
-      field: "fee_bps",
+      defaultValue: 1500,
+      field: "floor_ppm",
       type: DataTypes.INTEGER
     },
     forwarderAddress: {
@@ -112,6 +125,12 @@ MoneriumAccount.init(
       allowNull: false,
       defaultValue: MoneriumAccountStatus.Onboarding,
       type: DataTypes.ENUM(...Object.values(MoneriumAccountStatus))
+    },
+    targetPpm: {
+      allowNull: false,
+      defaultValue: 1250,
+      field: "target_ppm",
+      type: DataTypes.INTEGER
     },
     updatedAt: {
       allowNull: false,

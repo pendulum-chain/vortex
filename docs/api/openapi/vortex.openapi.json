@@ -2421,7 +2421,8 @@
             "description": "The client's self-custodied recovery address.",
             "type": "string"
           },
-          "feeBps": {
+          "floorPpm": {
+            "description": "Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap.",
             "type": "integer"
           },
           "forwarderAddress": {
@@ -2435,6 +2436,10 @@
           "status": {
             "enum": ["onboarding", "active", "suspended", "closed"],
             "type": "string"
+          },
+          "targetPpm": {
+            "description": "Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it.",
+            "type": "integer"
           }
         },
         "required": [
@@ -2443,10 +2448,11 @@
           "destination",
           "dormantSince",
           "fallbackAddress",
-          "feeBps",
+          "floorPpm",
           "forwarderAddress",
           "iban",
-          "status"
+          "status",
+          "targetPpm"
         ],
         "type": "object"
       },
