@@ -17,8 +17,18 @@ export interface MoneriumConversionExecutionAttributes {
   eureInRaw: string; // 18-decimal base units
   usdcGrossRaw: string | null; // 6-decimal base units
   feeRaw: string | null;
+  /** USDC the subsidy vault paid straight to the destination for this swap (6 decimals). */
+  subsidyRaw: string | null;
   usdcNetRaw: string | null;
   destination: string;
+  /** Partner reference the swap was priced against, ORACLE_DECIMALS; persisted before broadcast. */
+  referenceRateRaw: string | null;
+  referenceSource: string | null;
+  /** Averaging window (seconds) the reference was computed over. */
+  referenceWindowSeconds: number | null;
+  referenceAt: Date | null;
+  /** Factory route index the swap executed. */
+  routeIndex: number | null;
   txHash: string | null;
   /** The swap's transaction nonce, persisted BEFORE broadcast (crash-recovery identity). */
   nonce: number | null;
@@ -38,7 +48,13 @@ type MoneriumConversionExecutionCreationAttributes = Optional<
   | "id"
   | "usdcGrossRaw"
   | "feeRaw"
+  | "subsidyRaw"
   | "usdcNetRaw"
+  | "referenceRateRaw"
+  | "referenceSource"
+  | "referenceWindowSeconds"
+  | "referenceAt"
+  | "routeIndex"
   | "txHash"
   | "nonce"
   | "broadcastBlockNumber"
@@ -59,8 +75,14 @@ class MoneriumConversionExecution
   declare eureInRaw: string;
   declare usdcGrossRaw: string | null;
   declare feeRaw: string | null;
+  declare subsidyRaw: string | null;
   declare usdcNetRaw: string | null;
   declare destination: string;
+  declare referenceRateRaw: string | null;
+  declare referenceSource: string | null;
+  declare referenceWindowSeconds: number | null;
+  declare referenceAt: Date | null;
+  declare routeIndex: number | null;
   declare txHash: string | null;
   declare nonce: number | null;
   declare broadcastBlockNumber: number | null;
@@ -122,10 +144,40 @@ MoneriumConversionExecution.init(
       allowNull: true,
       type: DataTypes.INTEGER
     },
+    referenceAt: {
+      allowNull: true,
+      field: "reference_at",
+      type: DataTypes.DATE
+    },
+    referenceRateRaw: {
+      allowNull: true,
+      field: "reference_rate_raw",
+      type: DataTypes.DECIMAL(38, 0)
+    },
+    referenceSource: {
+      allowNull: true,
+      field: "reference_source",
+      type: DataTypes.STRING(64)
+    },
+    referenceWindowSeconds: {
+      allowNull: true,
+      field: "reference_window_seconds",
+      type: DataTypes.INTEGER
+    },
+    routeIndex: {
+      allowNull: true,
+      field: "route_index",
+      type: DataTypes.INTEGER
+    },
     status: {
       allowNull: false,
       defaultValue: MoneriumConversionExecutionStatus.Pending,
       type: DataTypes.ENUM(...Object.values(MoneriumConversionExecutionStatus))
+    },
+    subsidyRaw: {
+      allowNull: true,
+      field: "subsidy_raw",
+      type: DataTypes.DECIMAL(38, 0)
     },
     swapLogIndex: {
       allowNull: true,

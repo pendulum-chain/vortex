@@ -1,7 +1,9 @@
 # ADR 0005: Monerium B2B Zero-Touch Onramp
 
 **Status:** Accepted (selected 2026-07-17; parameters finalized and documents consolidated
-2026-08-26). This ADR is the single source of truth for the *decisions and risk
+2026-08-26; amended 2026-09-15 with reference-priced fee bands, the subsidy vault, the
+route whitelist and the 7 day sweep — see the amendment section). This ADR is the
+single source of truth for the *decisions and risk
 acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
 invariants and the threat model in
@@ -39,15 +41,19 @@ a fiat theft path and unambiguous custody. The whole design follows from closing
 
 Supporting decisions, all in force:
 
-- **Conversion policy** (unchanged from the consumer design): pinned EURe→EURC→USDC
-  Uniswap v3 route, contract-constructed calldata (never caller-supplied — the swap is
-  permissionless after the trigger delay), Chainlink EUR/USD minimum-output bound with
-  staleness ceiling, exact approvals, atomic delta checks, fee skim to an immutable
+- **Conversion policy** (amended 2026-09-15): the swap runs over one of the factory's
+  whitelisted Uniswap v3 routes — validated on chain to touch only EURe, EURC and USDC
+  on the immutable router — chosen by the caller through a route index; the caller also
+  supplies the partner reference rate, which the contract bounds to a band around
+  Chainlink EUR/USD (staleness ceiling kept). The fill is settled into fee bands
+  (amendment) and the Chainlink floor is enforced on the client's net after fee and
+  subsidy; exact approvals and atomic delta checks stay; the fee goes to an immutable
   treasury.
-- **No upgradeability, ever.** Immutable-and-migratable: evolution (new pools, new
-  routes, contract fixes) happens by deploying a new implementation + factory and
+- **No upgradeability, ever.** Immutable-and-migratable: evolution (new tokens, a new
+  router, contract fixes) happens by deploying a new implementation + factory and
   migrating clients clone-by-clone — never by mutating deployed code. The custody
-  argument depends on it.
+  argument depends on it. Routes, the fee policy and the vault limits are bounded
+  *data* the guardian may change within immutable validation, not code.
 - **Mandatory self-custodied `fallbackAddress`** for every client (Tier C "no fallback"
   dropped 2026-07-17 — condition of Monerium's acceptance; Tier B "partner-held
   recovery key" rejected 2026-07-14 — the partner declines custody-like powers). All
@@ -55,8 +61,18 @@ Supporting decisions, all in force:
   dead-man sweep.
 - **Never send raw EURe to a CEX destination** — EURe recovery targets are the
   fallback address only.
-- **No on-contract redeem validator.** Redemption = withdraw to fallback, then redeem
-  normally; Monerium's issuer recovery is the break-glass backstop (see T1 below).
+- **No on-contract redeem validator, and no payment bouncing** (reaffirmed 2026-09-15).
+  Redemption = withdraw to fallback, then redeem normally; Monerium's issuer recovery is
+  the break-glass backstop (see T1 below). Returning a deposit to its sender would be a
+  redeem order the forwarder must approve via EIP-1271; any such path hands whoever
+  holds the whitelabel credentials plus the signing key a fiat drain to an arbitrary
+  IBAN, and the safe variant (a return IBAN pinned per clone) still buys nothing for the
+  liquidity case it was asked for — swaps stop at the floor and funds wait safely.
+- **No Vortex-triggered sweep to the fallback address** (decided 2026-09-15). Only the
+  client (`sweep`) and the permissionless dead-man sweep move EURe to the fallback; a
+  guardian shortcut would weaken "Vortex keys cannot move client funds". Instead the
+  dead-man delay is short (P3, 7 days), and because the sweep ignores pauses that is
+  also the longest hold Vortex can impose — token-level freezes are Monerium's lever.
 - **EIP-191 hash only, chainid-bound** (the raw-keccak variant was removed after the G0
   sandbox validation; chainid binding closes cross-chain replay — review r1).
 - **Three distinct Vortex keys** (attestor / keeper / guardian), none able to move or
@@ -73,27 +89,78 @@ Supporting decisions, all in force:
   `DEPOSIT_CONVERTED` after all portions settle, with `conversions[]` and aggregate
   attributed USDC rather than a misleading event per chunk.
 
+## Amendment 2026-09-15: reference-priced fee bands and the subsidy vault
+
+The partner agreement fixes the client's rate against a reference: the client receives
+the Coinbase EURC-USD reference minus 12.5 bps, and never worse than 15 bps below it.
+A flat skim on whatever the DEX returns cannot express that, so the contract now settles
+every fill into bands against a reference rate (decided with the partner; contracts were
+not yet deployed, so this replaced the flat fee before launch with no migration):
+
+- **Reference rate.** Before each swap the keeper computes a five-minute
+  volume-weighted average of Coinbase Exchange EURC-USD one-minute candles (typical
+  price × volume), widened to an hour when the five minutes carry no volume, so a
+  single thin print on a weekend or outside business hours never becomes the reference
+  (suggested in review, 2026-09-15). It records price, window and time on the
+  execution row and passes the rate into `swapAndForward`. The contract rejects a reference outside
+  `MAX_REFERENCE_DEVIATION_BPS` of Chainlink; on the permissionless path the argument is
+  ignored and Chainlink is the reference. Reading the price from Vortex's own oracle on
+  Base was rejected: it blends a forex rate on weekdays and lives on another chain.
+- **Fee bands** (per clone, ppm below the reference, `targetPpm` ≤ `floorPpm` ≤
+  `MAX_FEE_PPM`, increases timelocked as before): a fill above `reference × (1 −
+  target)` gives the surplus to the treasury as fee, capped at `MAX_FEE_PPM`; a fill
+  between floor and target is passed through untouched; a fill below `reference × (1 −
+  floor)` is topped up to the floor from the vault. The 2.5 bps dead band is intended.
+- **Subsidy vault.** One `VortexSubsidyVault` shared by every clone, treasury-funded,
+  pays only when called by a factory-registered clone and only to that clone's fixed
+  destination, within a guardian-settable per-swap cap and UTC-daily budget, can be
+  paused, and withdraws only to the treasury. A vault that cannot cover reverts the whole
+  swap — a swap is never partially subsidized. The vault holds Vortex money only, so its
+  limits bound Vortex's exposure, never the client's.
+- **Floor on the net.** `SLIPPAGE_BPS` (now 40 bps) is enforced on fill − fee + subsidy,
+  not on the raw fill; the router minimum is zero and the forwarder's post-condition is
+  the guard, so a subsidy can never paper over a depegged reference.
+- **Route whitelist.** The factory holds guardian-managed routes, validated on chain to
+  EURe/EURC/USDC only, Uniswap's four tiers, at most two hops, the immutable router;
+  entries are disabled, never removed. The keeper quotes every enabled route and passes
+  the best index; a poor pick costs Vortex fee or subsidy, never the client, because the
+  floor applies whichever route runs. On-chain best-of was rejected (quoter gas).
+- **Keeper deferral.** The keeper mirrors the settlement off-chain and, when the vault
+  could not cover, the net would breach the floor, the reference is unavailable or out
+  of band, or no route quotes, it defers: no execution row, funds wait, marker armed.
+- **Accepted limitation.** After the 24 h trigger anyone may execute the swap, priced
+  against Chainlink and unsubsidized, so a forced swap after a deliberate deferral can
+  land below the 15 bps floor. Accepted: the trigger exists so no Vortex outage can trap
+  funds; the rate guarantee applies to keeper-executed swaps and the terms say so.
+  Pausing instead of deferring was rejected as turning every market dip into an
+  operator incident.
+- **Accepted exposure.** The subsidy widens the sandwich-exploitable band from the
+  floor to floor plus the per-swap cap, paid by the vault; private orderflow and a
+  modest cap are the mitigation, and the permissionless path keeps the plain floor.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
 |---|---|---|
-| B1 | Service fee | **0 bps pilot / 15 bps GA starting point** (per client, guardian-adjustable) |
+| B1 | Fee policy | **target 1250 ppm (12.5 bps), floor 1500 ppm (15 bps) below the reference**, per client, guardian-adjustable (amended 2026-09-15; replaces the flat 0 / 15 bps skim) |
 | B2 | Penny-test amount | 5 USDC |
 | B3 | Processing SLA wording | **Same business day**; weekend mints execute within the 52 h oracle window at possibly wider spreads |
 | B4 | Pilot volume limits | **€50k/client/day, paper/contractual only** (no backend enforcement in the pilot; GA revisit) |
 | B5 | Partner liability | Tier A defaults: partner warrants destination correctness; rotation loss borne by the client; dormancy re-activation on written partner confirmation |
 | B6 | Redemption-limitation disclosure | Mandatory in client terms (committed to Monerium); draft in the rollout doc |
-| P1 | `SLIPPAGE_BPS` | 100 (1%) |
-| P2 | `MAX_FEE_BPS` | 100 (1%), immutable |
-| P3 | Dead-man sweep delay | 60 days |
+| P1 | `SLIPPAGE_BPS` | **40 bps on the client's net after fee and subsidy** (amended 2026-09-15; was 100 on the raw fill) |
+| P2 | `MAX_FEE_PPM` | 10000 ppm (1%), immutable; caps both the fee and the floor policy (amended 2026-09-15; was `MAX_FEE_BPS` 100) |
+| P3 | Dead-man sweep delay | **7 days** (amended 2026-09-15; was 60) — also the longest hold Vortex can impose |
 | P4 | Permissionless trigger delay | 24 h |
 | P5 | Dormancy window | 60 days |
 | P6 | `minSwapAmount` | floor €25 (immutable) / operational **€250** |
 | P7 | `perSwapCap` | operational **€25k** / ceiling €50k (re-measure liquidity at the deploy block before raising) |
 | P8 | `MAX_ORACLE_AGE` | **52 h** (observed Chainlink EUR/USD weekend gaps up to 48 h; applied to configs 2026-08-26) |
 | P9 | Notification confirmation depth | 32 blocks (implemented) |
-| P10 | Router pin | SwapRouter02, 5 bps fee tiers; re-verify pools at the deploy block |
-| P11 | Fee adjustability | Guardian `setFeeBps` within `MAX_FEE_BPS`; increases behind a 24 h announced timelock, decreases immediate (implemented) |
+| P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route EURe→EURC→USDC at the 5 bps tiers, re-verify at the deploy block (amended 2026-09-15) |
+| P11 | Fee adjustability | Guardian `setFeePolicy(target, floor)` within `MAX_FEE_PPM`; raising either value is announced and applies after 24 h, lowering is immediate (amended 2026-09-15) |
+| P12 | Reference rate | Five-minute VWAP over Coinbase Exchange EURC-USD one-minute candles (widened to 60 min when the five minutes have no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15) |
+| P13 | Subsidy vault limits | One shared vault; **50 bps of the reference value per swap, 200 USDC per UTC day** at launch, guardian-settable; withdraw to treasury only (2026-09-15) |
 | T2 | Whitelabel MSA terms | Open — G1 negotiation (rollout doc), includes the per-IBAN suspension ask |
 | T3 | KYB submission mechanism | Open, deliberately unbuilt — pilot corporates are approved by Monerium under partner KYC reliance and imported via the admin mapping; no identity-data submission path may exist until this settles (security-spec invariant 11) |
 | T4 | Sandbox wire-format verifications | Webhook digest encoding, delivery id field, order-state vocabulary, and the EIP-191 link-hash variant were confirmed against the sandbox during G0; re-verify against production before first mainnet deposit |
@@ -135,8 +202,15 @@ example (oversized-deposit allocation).
   the custody definition, but exchange/transfer-service scoping is a separate G2
   question. Never present "no custody" as "no licence needed".
 - **Stuck-state table** (route death, feed retirement, depeg beyond bound, blacklisted
-  destination): all fail-safe — swaps revert, funds accumulate as EURe, client exits
-  keep working; recovery is client-side sweep plus the issuer backstop. Accepted.
+  destination, reference feed outage, exhausted subsidy budget): all fail-safe — swaps
+  revert or the keeper defers, funds accumulate as EURe, client exits keep working;
+  recovery is client-side sweep plus the issuer backstop. Accepted.
+- **Bounded keeper pricing power.** A compromised keeper can pick any whitelisted route
+  and any reference inside the Chainlink band: worst case the fee reaches `MAX_FEE_PPM`
+  or the vault pays up to its caps. Bounded by the band, the fee cap, the vault limits
+  and the floor on the net; it can still never redirect funds. Accepted.
+- **Subsidy exposure.** Up to the per-swap cap per swap and the daily budget per day,
+  plus the widened sandwich band (amendment). Accepted; both limits are live-tunable.
 - **Operational residuals:** reorgs deeper than the watcher's 12-block lag;
   financial-operation claim-crash windows require manual reconciliation; deposit
   batching is intra-client only and pro-rata attribution never changes a client's
@@ -147,6 +221,8 @@ example (oversized-deposit allocation).
 Zero-touch onboarding works end to end (validated against the Monerium sandbox: link
 accepted, IBAN issued, no client interaction). Clients keep unilateral exits that no
 Vortex failure can block. The cost: every rescue path must be designed in upfront
-(no universal owner key), fee/venue changes are governed by timelocks and migrations
-rather than admin switches, and Vortex accepts elevated provisioning trust plus a
-control-plane risk at Monerium that only contract terms and monitoring can bound.
+(no universal owner key), fee-policy increases are timelocked and venue changes are
+bounded by on-chain route validation rather than admin switches, the partner's rate
+guarantee is enforced by the contract at the cost of a treasury-funded subsidy budget,
+and Vortex accepts elevated provisioning trust plus a control-plane risk at Monerium
+that only contract terms and monitoring can bound.

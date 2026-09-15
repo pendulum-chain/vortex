@@ -26,10 +26,12 @@ export interface ProvisionMoneriumB2bAccountInput {
   destination: string;
   externalSubjectId: string;
   fallbackAddress: string;
-  feeBps?: number;
+  /** Fee policy in ppm below the reference rate; defaults to the agreed launch policy. */
+  floorPpm?: number;
   forwarderAddress: string;
   managerProfileId: string;
   moneriumProfileId: string;
+  targetPpm?: number;
 }
 
 export interface ProvisionMoneriumB2bAccountResult {
@@ -49,18 +51,43 @@ function normalizeAddress(value: string, name: string): string {
   return value.trim().toLowerCase();
 }
 
+/** Launch fee policy (docs/adr-0005-monerium-b2b-onramp.md, B1): 12.5 bps target, 15 bps floor. */
+export const DEFAULT_TARGET_PPM = 1_250;
+export const DEFAULT_FLOOR_PPM = 1_500;
+const MAX_FEE_PPM = 10_000;
+
+/** Mirrors the contract's _validateFeePolicy: both in [0, MAX_FEE_PPM], target never above floor. */
+export function isValidFeePolicy(targetPpm: number, floorPpm: number): boolean {
+  return (
+    Number.isInteger(targetPpm) &&
+    Number.isInteger(floorPpm) &&
+    targetPpm >= 0 &&
+    floorPpm <= MAX_FEE_PPM &&
+    targetPpm <= floorPpm
+  );
+}
+
 const forwarderConfigAbi = parseAbi([
   "function destination() view returns (address)",
   "function fallbackAddress() view returns (address)",
-  "function feeBps() view returns (uint16)",
+  "function targetPpm() view returns (uint32)",
+  "function floorPpm() view returns (uint32)",
   "function FACTORY() view returns (address)"
 ]);
 const factoryRegistryAbi = parseAbi(["function isForwarder(address forwarder) view returns (bool)"]);
 
 /** Pure comparison of the submitted account data against the deployed clone's config. */
+export interface ForwarderPolicyConfig {
+  destination: string;
+  factory: string;
+  fallbackAddress: string;
+  floorPpm: number;
+  targetPpm: number;
+}
+
 export function forwarderConfigMismatch(
-  expected: { destination: string; factory: string; fallbackAddress: string; feeBps: number },
-  onchain: { destination: string; factory: string; fallbackAddress: string; feeBps: number; isForwarder: boolean }
+  expected: ForwarderPolicyConfig,
+  onchain: ForwarderPolicyConfig & { isForwarder: boolean }
 ): string | null {
   if (onchain.factory.toLowerCase() !== expected.factory.toLowerCase()) {
     return `on-chain factory ${onchain.factory} differs from the trusted factory`;
@@ -74,8 +101,11 @@ export function forwarderConfigMismatch(
   if (onchain.fallbackAddress.toLowerCase() !== expected.fallbackAddress) {
     return `on-chain fallbackAddress ${onchain.fallbackAddress} differs from the submitted value`;
   }
-  if (onchain.feeBps !== expected.feeBps) {
-    return `on-chain feeBps ${onchain.feeBps} differs from the submitted ${expected.feeBps}`;
+  if (onchain.targetPpm !== expected.targetPpm) {
+    return `on-chain targetPpm ${onchain.targetPpm} differs from the submitted ${expected.targetPpm}`;
+  }
+  if (onchain.floorPpm !== expected.floorPpm) {
+    return `on-chain floorPpm ${onchain.floorPpm} differs from the submitted ${expected.floorPpm}`;
   }
   return null;
 }
@@ -92,7 +122,8 @@ async function verifyForwarderOnChain(
   forwarderAddress: string,
   destination: string,
   fallbackAddress: string,
-  feeBps: number
+  targetPpm: number,
+  floorPpm: number
 ): Promise<void> {
   if (!config.moneriumB2b.rpcUrl) {
     return;
@@ -106,12 +137,13 @@ async function verifyForwarderOnChain(
   }
   const client = getPublicClient();
   const address = forwarderAddress as Address;
-  let onchain: { destination: string; factory: string; fallbackAddress: string; feeBps: number; isForwarder: boolean };
+  let onchain: ForwarderPolicyConfig & { isForwarder: boolean };
   try {
-    const [onchainDestination, onchainFallback, onchainFeeBps, factory] = await Promise.all([
+    const [onchainDestination, onchainFallback, onchainTargetPpm, onchainFloorPpm, factory] = await Promise.all([
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "destination" }),
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "fallbackAddress" }),
-      client.readContract({ abi: forwarderConfigAbi, address, functionName: "feeBps" }),
+      client.readContract({ abi: forwarderConfigAbi, address, functionName: "targetPpm" }),
+      client.readContract({ abi: forwarderConfigAbi, address, functionName: "floorPpm" }),
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "FACTORY" })
     ]);
     const isForwarder = await client.readContract({
@@ -124,8 +156,9 @@ async function verifyForwarderOnChain(
       destination: onchainDestination,
       factory,
       fallbackAddress: onchainFallback,
-      feeBps: onchainFeeBps,
-      isForwarder
+      floorPpm: onchainFloorPpm,
+      isForwarder,
+      targetPpm: onchainTargetPpm
     };
   } catch (error) {
     throw new MoneriumB2bProvisioningError(
@@ -135,7 +168,10 @@ async function verifyForwarderOnChain(
       }`
     );
   }
-  const mismatch = forwarderConfigMismatch({ destination, factory: trustedFactory, fallbackAddress, feeBps }, onchain);
+  const mismatch = forwarderConfigMismatch(
+    { destination, factory: trustedFactory, fallbackAddress, floorPpm, targetPpm },
+    onchain
+  );
   if (mismatch) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
@@ -224,13 +260,15 @@ function accountMatchesInput(
   forwarderAddress: string,
   destination: string,
   fallbackAddress: string,
-  feeBps: number
+  targetPpm: number,
+  floorPpm: number
 ): boolean {
   return (
     account.forwarderAddress.toLowerCase() === forwarderAddress &&
     account.destination.toLowerCase() === destination &&
     account.fallbackAddress.toLowerCase() === fallbackAddress &&
-    account.feeBps === feeBps &&
+    account.targetPpm === targetPpm &&
+    account.floorPpm === floorPpm &&
     (account.vortexProfileId === null || account.vortexProfileId === childProfileId)
   );
 }
@@ -252,14 +290,18 @@ export async function provisionMoneriumB2bAccount(
   const forwarderAddress = normalizeAddress(input.forwarderAddress, "forwarderAddress");
   const destination = normalizeAddress(input.destination, "destination");
   const fallbackAddress = normalizeAddress(input.fallbackAddress, "fallbackAddress");
-  const feeBps = input.feeBps ?? 0;
-  if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 10000) {
-    throw new MoneriumB2bProvisioningError("MONERIUM_B2B_INVALID_INPUT", "feeBps must be an integer between 0 and 10000");
+  const targetPpm = input.targetPpm ?? DEFAULT_TARGET_PPM;
+  const floorPpm = input.floorPpm ?? DEFAULT_FLOOR_PPM;
+  if (!isValidFeePolicy(targetPpm, floorPpm)) {
+    throw new MoneriumB2bProvisioningError(
+      "MONERIUM_B2B_INVALID_INPUT",
+      "targetPpm and floorPpm must be integers between 0 and 10000 with targetPpm <= floorPpm"
+    );
   }
 
   // Before any persistence: a wrong clone address must fail here, not become a mapped
   // account whose config the monitors later legitimize.
-  await verifyForwarderOnChain(forwarderAddress, destination, fallbackAddress, feeBps);
+  await verifyForwarderOnChain(forwarderAddress, destination, fallbackAddress, targetPpm, floorPpm);
 
   let result: { account: { created: boolean; row: MoneriumAccount }; managedProfile: ProvisionManagedProfileResult };
   try {
@@ -282,7 +324,17 @@ export async function provisionMoneriumB2bAccount(
 
       const existing = await MoneriumAccount.findOne({ transaction, where: { profileId: moneriumProfileId } });
       if (existing) {
-        if (!accountMatchesInput(existing, managedProfile.profileId, forwarderAddress, destination, fallbackAddress, feeBps)) {
+        if (
+          !accountMatchesInput(
+            existing,
+            managedProfile.profileId,
+            forwarderAddress,
+            destination,
+            fallbackAddress,
+            targetPpm,
+            floorPpm
+          )
+        ) {
           throw new MoneriumB2bProvisioningError(
             "MONERIUM_B2B_ACCOUNT_CONFLICT",
             "The Monerium profile is already mapped with different account data"
@@ -316,10 +368,11 @@ export async function provisionMoneriumB2bAccount(
         {
           destination,
           fallbackAddress,
-          feeBps,
+          floorPpm,
           forwarderAddress,
           profileId: moneriumProfileId,
           status: MoneriumAccountStatus.Onboarding,
+          targetPpm,
           vortexProfileId: managedProfile.profileId
         },
         { transaction }

@@ -17,7 +17,6 @@ describe("confirmed Monerium conversion allocation", () => {
     const account = await MoneriumAccount.create({
       destination: "0x2222222222222222222222222222222222222222",
       fallbackAddress: "0x3333333333333333333333333333333333333333",
-      feeBps: 0,
       forwarderAddress: "0x1111111111111111111111111111111111111111",
       profileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
     });

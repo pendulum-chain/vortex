@@ -181,7 +181,6 @@ describe("order-event inbox processing (end to end)", () => {
     return MoneriumAccount.create({
       destination: "0x2222222222222222222222222222222222222222",
       fallbackAddress: "0x3333333333333333333333333333333333333333",
-      feeBps: 0,
       forwarderAddress: FORWARDER,
       profileId: PROFILE_ID
     });

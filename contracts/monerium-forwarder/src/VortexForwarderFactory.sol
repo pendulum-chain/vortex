@@ -10,6 +10,11 @@ import {VortexForwarder} from "./VortexForwarder.sol";
 contract VortexForwarderFactory {
     address public immutable implementation;
 
+    /// @dev Route validation only ever admits paths between these three tokens.
+    address public immutable EURE;
+    address public immutable EURC;
+    address public immutable USDC;
+
     /// @dev Immutable bounds for the operational parameters (R10): the guardian can
     ///      tune values only inside [floor, ceiling]; the bounds themselves never move.
     uint256 public immutable MIN_SWAP_FLOOR;
@@ -25,13 +30,38 @@ contract VortexForwarderFactory {
 
     mapping(address => bool) public isForwarder;
 
+    /// @notice Swap routes clones may execute (Uniswap V3 packed paths). Guardian-managed
+    ///         without a timelock: every entry is validated to run only between EURe, EURC
+    ///         and USDC on the implementation's immutable router, and the client's outcome
+    ///         is bounded by the oracle floor whichever route is chosen. Entries are never
+    ///         removed, only disabled, so an index stays stable for the keeper.
+    struct Route {
+        bytes path;
+        bool enabled;
+    }
+
+    Route[] private _routes;
+
+    /// @notice The VortexSubsidyVault clones draw from; address(0) disables subsidies.
+    ///         Guardian-settable without a timelock: the vault only ever pays Vortex
+    ///         money to a clone's fixed destination, so a swap cannot be harmed by it.
+    address public subsidyVault;
+
     event ForwarderDeployed(
-        address indexed forwarder, address indexed destination, address fallbackAddress, uint16 feeBps, bytes32 salt
+        address indexed forwarder,
+        address indexed destination,
+        address fallbackAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
     );
     event KeeperSet(address indexed keeper, bool enabled);
     event GlobalPausedSet(bool paused);
     event MinSwapAmountSet(uint256 value);
     event PerSwapCapSet(uint256 value);
+    event SubsidyVaultSet(address indexed vault);
+    event RouteAdded(uint256 indexed index, bytes path);
+    event RouteEnabledSet(uint256 indexed index, bool enabled);
     event GuardianTransferStarted(address indexed current, address indexed pending);
     event GuardianTransferred(address indexed previous, address indexed current);
 
@@ -39,6 +69,7 @@ contract VortexForwarderFactory {
     error NotPendingGuardian();
     error OutOfBounds();
     error CloneFailed();
+    error InvalidRoute();
 
     modifier onlyGuardian() {
         if (msg.sender != guardian) revert NotGuardian();
@@ -50,14 +81,19 @@ contract VortexForwarderFactory {
         uint256 minSwapFloor,
         uint256 capCeiling,
         uint256 initialMinSwapAmount,
-        uint256 initialPerSwapCap
+        uint256 initialPerSwapCap,
+        bytes memory initialRoute
     ) {
         guardian = msg.sender;
         implementation = address(new VortexForwarder(cfg));
+        EURE = cfg.eure;
+        EURC = cfg.eurc;
+        USDC = cfg.usdc;
         MIN_SWAP_FLOOR = minSwapFloor;
         CAP_CEILING = capCeiling;
         _setMinSwapAmount(initialMinSwapAmount);
         _setPerSwapCap(initialPerSwapCap);
+        _addRoute(initialRoute);
     }
 
     // ------------------------------------------------------------- deployment
@@ -65,15 +101,17 @@ contract VortexForwarderFactory {
     /// @notice Deploy and initialize a client forwarder in one transaction. The clone
     ///         address is deterministic (CREATE2) so it can be communicated/linked
     ///         reliably; predict it with `predictAddress` before deploying.
-    function deployForwarder(address destination, address fallbackAddress, uint16 feeBps, bytes32 salt)
-        external
-        onlyGuardian
-        returns (address forwarder)
-    {
+    function deployForwarder(
+        address destination,
+        address fallbackAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
+    ) external onlyGuardian returns (address forwarder) {
         forwarder = _cloneDeterministic(implementation, salt);
-        VortexForwarder(forwarder).initialize(destination, fallbackAddress, feeBps);
+        VortexForwarder(forwarder).initialize(destination, fallbackAddress, targetPpm, floorPpm);
         isForwarder[forwarder] = true;
-        emit ForwarderDeployed(forwarder, destination, fallbackAddress, feeBps, salt);
+        emit ForwarderDeployed(forwarder, destination, fallbackAddress, targetPpm, floorPpm, salt);
     }
 
     function predictAddress(bytes32 salt) external view returns (address) {
@@ -99,6 +137,33 @@ contract VortexForwarderFactory {
 
     function setPerSwapCap(uint256 value) external onlyGuardian {
         _setPerSwapCap(value);
+    }
+
+    function setSubsidyVault(address vault) external onlyGuardian {
+        subsidyVault = vault;
+        emit SubsidyVaultSet(vault);
+    }
+
+    // ------------------------------------------------------------------ routes
+
+    function addRoute(bytes calldata path) external onlyGuardian returns (uint256 index) {
+        return _addRoute(path);
+    }
+
+    function setRouteEnabled(uint256 index, bool enabled) external onlyGuardian {
+        if (index >= _routes.length) revert InvalidRoute();
+        _routes[index].enabled = enabled;
+        emit RouteEnabledSet(index, enabled);
+    }
+
+    function routeCount() external view returns (uint256) {
+        return _routes.length;
+    }
+
+    function route(uint256 index) external view returns (bytes memory path, bool enabled) {
+        if (index >= _routes.length) revert InvalidRoute();
+        Route storage entry = _routes[index];
+        return (entry.path, entry.enabled);
     }
 
     /// @dev Two-step transfer: guardian is load-bearing for every clone's pause and
@@ -129,11 +194,50 @@ contract VortexForwarderFactory {
         emit PerSwapCapSet(value);
     }
 
+    /// @dev Admits only EURe -> USDC or EURe -> EURC -> USDC over Uniswap V3's four fee
+    ///      tiers (packed path: token, fee, token[, fee, token]). Anything else, including
+    ///      any other intermediate token, is rejected so a route can never introduce a
+    ///      token the forwarder does not already trust.
+    function _addRoute(bytes memory path) internal returns (uint256 index) {
+        uint256 hops;
+        if (path.length == 43) hops = 1;
+        else if (path.length == 66) hops = 2;
+        else revert InvalidRoute();
+
+        if (_addressAt(path, 0) != EURE) revert InvalidRoute();
+        if (_addressAt(path, path.length - 20) != USDC) revert InvalidRoute();
+        if (hops == 2 && _addressAt(path, 23) != EURC) revert InvalidRoute();
+        for (uint256 i = 0; i < hops; i++) {
+            if (!_isKnownFeeTier(_feeAt(path, 20 + i * 23))) revert InvalidRoute();
+        }
+
+        index = _routes.length;
+        _routes.push(Route({path: path, enabled: true}));
+        emit RouteAdded(index, path);
+    }
+
+    function _isKnownFeeTier(uint24 fee) internal pure returns (bool) {
+        return fee == 100 || fee == 500 || fee == 3000 || fee == 10000;
+    }
+
+    function _addressAt(bytes memory data, uint256 offset) internal pure returns (address value) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            value := shr(96, mload(add(add(data, 32), offset)))
+        }
+    }
+
+    function _feeAt(bytes memory data, uint256 offset) internal pure returns (uint24 value) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            value := shr(232, mload(add(add(data, 32), offset)))
+        }
+    }
+
     /// @dev Standard EIP-1167 minimal proxy init code for `target`.
     function _cloneInitCode(address target) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73", target, hex"5af43d82803e903d91602b57fd5bf3"
-        );
+        return
+            abi.encodePacked(hex"3d602d80600a3d3981f3363d3d373d3d3d363d73", target, hex"5af43d82803e903d91602b57fd5bf3");
     }
 
     function _cloneDeterministic(address target, bytes32 salt) internal returns (address instance) {

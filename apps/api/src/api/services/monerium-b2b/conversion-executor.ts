@@ -11,6 +11,7 @@ import MoneriumConversionExecution, {
 import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import {
+  chainlinkAbi,
   erc20Abi,
   factoryAbi,
   forwarderAbi,
@@ -18,9 +19,14 @@ import {
   getForwarderImmutables,
   getKeeperWalletClient,
   getPublicClient,
+  quoteRouteOutput,
+  readEnabledRoutes,
+  readSubsidyVaultState,
+  SubsidyVaultState,
   swapExecutedEvent
 } from "./chain";
 import { withForwarderLock } from "./deposit-processor";
+import { fetchCoinbaseReference, isWithinReferenceBand, ReferenceQuote } from "./reference-rate";
 
 /**
  * Per-account conversion executor (plan §3, "Keeper" + "Attribution (R04)"):
@@ -93,9 +99,14 @@ export async function broadcastSwapSequence(input: SwapBroadcastSequence): Promi
   return input.sendSwap(swapNonce);
 }
 
-/** Maps SwapExecuted into accounting values; `forwarded` may include pre-existing USDC. */
-export function conversionAmountsFromSwapEvent(event: { fee: bigint; forwarded: bigint; usdcOut: bigint }): {
+/**
+ * Maps SwapExecuted into accounting values. The client's net for this swap is the fill
+ * minus the fee plus the vault subsidy paid straight to the destination; `forwarded` is
+ * deliberately ignored because it may include pre-existing (unsolicited) USDC.
+ */
+export function conversionAmountsFromSwapEvent(event: { fee: bigint; subsidy: bigint; usdcOut: bigint }): {
   feeRaw: string;
+  subsidyRaw: string;
   usdcGrossRaw: string;
   usdcNetRaw: string;
 } {
@@ -104,9 +115,82 @@ export function conversionAmountsFromSwapEvent(event: { fee: bigint; forwarded: 
   }
   return {
     feeRaw: event.fee.toString(),
+    subsidyRaw: event.subsidy.toString(),
     usdcGrossRaw: event.usdcOut.toString(),
-    usdcNetRaw: (event.usdcOut - event.fee).toString()
+    usdcNetRaw: (event.usdcOut - event.fee + event.subsidy).toString()
   };
+}
+
+// ------------------------------------------------------------------ pricing projection
+
+const PPM = 1_000_000n;
+const BPS = 10_000n;
+
+export interface SwapProjectionInput {
+  amountIn: bigint;
+  floorPpm: number;
+  maxFeePpm: number;
+  oracleDecimals: number;
+  oracleRaw: bigint;
+  quotedOut: bigint;
+  referenceRaw: bigint;
+  slippageBps: number;
+  targetPpm: number;
+  /** null when the factory has no subsidy vault configured. */
+  vault: SubsidyVaultState | null;
+}
+
+export interface SwapProjection {
+  /** Why the keeper must not send this swap now, or null when it may proceed. */
+  defer: string | null;
+  fee: bigint;
+  net: bigint;
+  subsidy: bigint;
+}
+
+/**
+ * Off-chain mirror of VortexForwarder's settlement for a quoted fill: the fee band, the
+ * subsidy band and the oracle floor on the client's net. The keeper defers — funds wait,
+ * nothing is sent, no execution row is burnt — whenever the contract would revert or the
+ * vault could not cover the projected subsidy.
+ */
+export function projectSwap(input: SwapProjectionInput): SwapProjection {
+  const scale = 10n ** BigInt(12 + input.oracleDecimals);
+  const referenceOut = (input.amountIn * input.referenceRaw) / scale;
+  const targetOut = (referenceOut * (PPM - BigInt(input.targetPpm))) / PPM;
+  const floorOut = (referenceOut * (PPM - BigInt(input.floorPpm))) / PPM;
+
+  let fee = 0n;
+  let subsidy = 0n;
+  if (input.quotedOut > targetOut) {
+    fee = input.quotedOut - targetOut;
+    const maxFee = (input.quotedOut * BigInt(input.maxFeePpm)) / PPM;
+    if (fee > maxFee) fee = maxFee;
+  } else if (input.quotedOut < floorOut) {
+    subsidy = floorOut - input.quotedOut;
+  }
+  const net = input.quotedOut - fee + subsidy;
+
+  let defer: string | null = null;
+  if (subsidy > 0n) {
+    const vault = input.vault;
+    if (!vault) {
+      defer = `a subsidy of ${subsidy} is needed but no subsidy vault is configured`;
+    } else if (vault.paused) {
+      defer = `a subsidy of ${subsidy} is needed but the subsidy vault is paused`;
+    } else if (subsidy > (referenceOut * BigInt(vault.maxSubsidyPpm)) / PPM) {
+      defer = `projected subsidy ${subsidy} exceeds the vault's per-swap cap`;
+    } else if (subsidy > vault.dailyBudget - vault.spentToday) {
+      defer = `projected subsidy ${subsidy} exceeds the vault's remaining daily budget`;
+    } else if (subsidy > vault.balance) {
+      defer = `projected subsidy ${subsidy} exceeds the vault balance ${vault.balance}`;
+    }
+  }
+  const oracleFloor = (((input.amountIn * input.oracleRaw) / scale) * (BPS - BigInt(input.slippageBps))) / BPS;
+  if (defer === null && net < oracleFloor) {
+    defer = `projected net ${net} is below the oracle floor ${oracleFloor}`;
+  }
+  return { defer, fee, net, subsidy };
 }
 
 // ------------------------------------------------------------------ R04 allocation math
@@ -322,14 +406,17 @@ async function finalizeExecution(
     return;
   }
   const swapEvent = swapEvents[0];
-  const { eureIn } = swapEvent.args;
+  const { eureIn, referenceRate, routeIndex } = swapEvent.args;
   const conversionAmounts = conversionAmountsFromSwapEvent(swapEvent.args);
   await execution.update(
     {
       blockNumber: Number(receipt.blockNumber),
       error: null,
-      // The event's amountIn is authoritative (min(balance, cap) at execution time).
+      // The event's amountIn, reference and route are authoritative: what the contract
+      // actually priced and executed, whoever triggered it.
       eureInRaw: eureIn.toString(),
+      referenceRateRaw: referenceRate.toString(),
+      routeIndex: Number(routeIndex),
       ...conversionAmounts,
       status: MoneriumConversionExecutionStatus.Confirmed,
       swapLogIndex: swapEvent.logIndex,
@@ -355,20 +442,34 @@ export interface RecoveryTransactionIdentity {
   to: string | null;
 }
 
-const SWAP_AND_FORWARD_CALLDATA = encodeFunctionData({ abi: forwarderAbi, functionName: "swapAndForward" });
+/**
+ * The exact swapAndForward calldata a row would have broadcast, rebuilt from the
+ * reference and route persisted before the send. Null for a row that never got priced.
+ */
+export function expectedSwapCalldata(execution: { referenceRateRaw: string | null; routeIndex: number | null }): Hex | null {
+  if (execution.referenceRateRaw === null || execution.routeIndex === null) {
+    return null;
+  }
+  return encodeFunctionData({
+    abi: forwarderAbi,
+    args: [BigInt(execution.referenceRateRaw), BigInt(execution.routeIndex)],
+    functionName: "swapAndForward"
+  });
+}
 
 /** Exact transaction identity required before a lost hash may be adopted. */
 export function isExpectedSwapTransaction(
   transaction: RecoveryTransactionIdentity,
   keeperAddress: string,
   forwarderAddress: string,
-  nonce: number
+  nonce: number,
+  expectedInput: Hex
 ): boolean {
   return (
     transaction.from.toLowerCase() === keeperAddress.toLowerCase() &&
     transaction.nonce === nonce &&
     transaction.to?.toLowerCase() === forwarderAddress.toLowerCase() &&
-    transaction.input.toLowerCase() === SWAP_AND_FORWARD_CALLDATA.toLowerCase()
+    transaction.input.toLowerCase() === expectedInput.toLowerCase()
   );
 }
 
@@ -423,7 +524,8 @@ async function findMatchingSwapTxHashes(
   account: MoneriumAccount,
   transaction: Transaction
 ): Promise<{ matchingSwapTxHashes: string[]; scanComplete: boolean }> {
-  if (pending.nonce === null || pending.broadcastBlockNumber === null) {
+  const expectedInput = expectedSwapCalldata(pending);
+  if (pending.nonce === null || pending.broadcastBlockNumber === null || expectedInput === null) {
     return { matchingSwapTxHashes: [], scanComplete: false };
   }
   const client = getPublicClient();
@@ -454,7 +556,7 @@ async function findMatchingSwapTxHashes(
   let claimedExactMatch = false;
   for (const hash of hashes) {
     const candidate = await client.getTransaction({ hash });
-    if (!isExpectedSwapTransaction(candidate, keeperAddress, account.forwarderAddress, pending.nonce)) {
+    if (!isExpectedSwapTransaction(candidate, keeperAddress, account.forwarderAddress, pending.nonce, expectedInput)) {
       continue;
     }
     if (claimed.has(hash.toLowerCase())) {
@@ -564,6 +666,99 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
   return { attempt: failedSince.length + 1, kind: "proceed" };
 }
 
+// ------------------------------------------------------------------ pricing
+
+type PlannedSwap =
+  | { kind: "defer"; reason: string }
+  | { kind: "ready"; projection: SwapProjection | null; reference: ReferenceQuote; routeIndex: number };
+
+function deferSwap(reason: string): PlannedSwap {
+  return { kind: "defer", reason };
+}
+
+/** Quotes every enabled route on the mainnet QuoterV2; a route that cannot be quoted is skipped with a warning. */
+async function quoteRoutes(
+  routes: Array<{ index: number; path: Hex }>,
+  amountIn: bigint
+): Promise<Array<{ index: number; quotedOut: bigint }>> {
+  const quotes: Array<{ index: number; quotedOut: bigint }> = [];
+  for (const route of routes) {
+    try {
+      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(route.path, amountIn) });
+    } catch (error) {
+      logger.warn(`monerium-b2b: route ${route.index} could not be quoted: ${errorText(error)}`);
+    }
+  }
+  return quotes;
+}
+
+/**
+ * Reference, route and projection for a swap of `amountIn`
+ * (docs/architecture-monerium-b2b-onramp.md, fees section). Outside Ethereum mainnet
+ * there is no quoter pin: the first enabled route is used unprojected and the
+ * contract's own checks remain the only gate.
+ */
+async function pricePlannedSwap(forwarder: Address, factory: Address, amountIn: bigint): Promise<PlannedSwap> {
+  const client = getPublicClient();
+  const immutables = await getForwarderImmutables(forwarder);
+  const [targetPpm, floorPpm, roundData, vaultAddress] = await Promise.all([
+    client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "targetPpm" }),
+    client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "floorPpm" }),
+    client.readContract({ abi: chainlinkAbi, address: immutables.oracle, functionName: "latestRoundData" }),
+    client.readContract({ abi: factoryAbi, address: factory, functionName: "subsidyVault" })
+  ]);
+  const oracleRaw = roundData[1];
+  if (oracleRaw <= 0n) {
+    return deferSwap(`Chainlink EUR/USD answered ${oracleRaw}`);
+  }
+
+  let reference: ReferenceQuote;
+  try {
+    reference = await fetchCoinbaseReference(immutables.oracleDecimals);
+  } catch (error) {
+    return deferSwap(`reference rate unavailable: ${errorText(error)}`);
+  }
+  if (!isWithinReferenceBand(reference.rateRaw, oracleRaw, immutables.maxReferenceDeviationBps)) {
+    return deferSwap(
+      `reference ${reference.price} is outside the ${immutables.maxReferenceDeviationBps} bps band around Chainlink ${oracleRaw}`
+    );
+  }
+
+  const routes = await readEnabledRoutes(factory);
+  if (routes.length === 0) {
+    return deferSwap("the factory has no enabled swap route");
+  }
+  if ((await getChainId()) !== 1) {
+    return { kind: "ready", projection: null, reference, routeIndex: routes[0].index };
+  }
+  const quotes = await quoteRoutes(routes, amountIn);
+  if (quotes.length === 0) {
+    return deferSwap("no enabled swap route could be quoted");
+  }
+  const best = quotes.reduce((leader, quote) => (quote.quotedOut > leader.quotedOut ? quote : leader));
+  const vault = await readSubsidyVaultState(vaultAddress, immutables.usdc);
+  const projection = projectSwap({
+    amountIn,
+    floorPpm: Number(floorPpm),
+    maxFeePpm: immutables.maxFeePpm,
+    oracleDecimals: immutables.oracleDecimals,
+    oracleRaw,
+    quotedOut: best.quotedOut,
+    referenceRaw: reference.rateRaw,
+    slippageBps: immutables.slippageBps,
+    targetPpm: Number(targetPpm),
+    vault
+  });
+  if (projection.defer) {
+    return deferSwap(`${projection.defer} (route ${best.index} quoted ${best.quotedOut})`);
+  }
+  logger.info(
+    `monerium-b2b: priced swap of ${amountIn} on route ${best.index}: quoted ${best.quotedOut}, ` +
+      `reference ${reference.price}, fee ${projection.fee}, subsidy ${projection.subsidy}`
+  );
+  return { kind: "ready", projection, reference, routeIndex: best.index };
+}
+
 // ------------------------------------------------------------------ executor
 
 /**
@@ -630,6 +825,20 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     return;
   }
 
+  // Price the planned swap before anything is reserved: reference, route and the
+  // projected fee/subsidy. A deferral leaves the funds waiting (marker still armed)
+  // and never creates an execution row.
+  const amountIn = balance > perSwapCap ? perSwapCap : balance;
+  const plan = await pricePlannedSwap(forwarder, factory, amountIn);
+  if (plan.kind === "defer") {
+    logger.warn(`monerium-b2b: deferring conversion for account ${account.id}: ${plan.reason}`);
+    if (pokeNeeded) {
+      await sendPoke(forwarder);
+    }
+    return;
+  }
+  const swapArgs: readonly [bigint, bigint] = [plan.reference.rateRaw, BigInt(plan.routeIndex)];
+
   // Pending-check and execution-row create under ONE lock acquisition: split across two
   // transactions, two concurrent executors could both pass the check and both broadcast.
   const slot = await withForwarderLock(account.forwarderAddress, async transaction => {
@@ -643,7 +852,12 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       {
         accountId: account.id,
         destination: account.destination,
-        eureInRaw: (balance > perSwapCap ? perSwapCap : balance).toString()
+        eureInRaw: amountIn.toString(),
+        referenceAt: plan.reference.time,
+        referenceRateRaw: plan.reference.rateRaw.toString(),
+        referenceSource: plan.reference.source,
+        referenceWindowSeconds: plan.reference.windowSeconds,
+        routeIndex: plan.routeIndex
       },
       { transaction }
     );
@@ -667,6 +881,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       abi: forwarderAbi,
       account: keeper.account,
       address: forwarder,
+      args: swapArgs,
       functionName: "swapAndForward"
     });
 
@@ -710,6 +925,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
             abi: forwarderAbi,
             account: keeper.account,
             address: forwarder,
+            args: swapArgs,
             chain: null,
             functionName: "swapAndForward",
             nonce

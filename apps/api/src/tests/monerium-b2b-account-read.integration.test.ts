@@ -79,13 +79,16 @@ describe("monerium b2b account read surface", () => {
       accountId: mapped.accountId,
       destination: DESTINATION,
       fallbackAddress: FALLBACK,
-      feeBps: 0,
+      floorPpm: 1500,
       forwarderAddress: FORWARDER,
       iban: null,
       status: "onboarding"
     });
 
     const execution = await MoneriumConversionExecution.create({
+      feeRaw: "8000000",
+      referenceRateRaw: "114000000",
+      subsidyRaw: "0",
       accountId: mapped.accountId,
       destination: DESTINATION,
       eureInRaw: "100000000000000000000",
@@ -133,6 +136,7 @@ describe("monerium b2b account read surface", () => {
       conversions: [
         {
           eureInRaw: "100000000000000000000",
+          execution: { feeRaw: "8000000", referenceRateRaw: "114000000", subsidyRaw: "0" },
           executionId: execution.id,
           status: "confirmed",
           txHash: "0xswap",

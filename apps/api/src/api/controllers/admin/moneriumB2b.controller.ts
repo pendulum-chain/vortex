@@ -14,10 +14,11 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       destination,
       externalSubjectId,
       fallbackAddress,
-      feeBps,
+      floorPpm,
       forwarderAddress,
       managerProfileId,
-      moneriumProfileId
+      moneriumProfileId,
+      targetPpm
     } = req.body ?? {};
     if (
       typeof managerProfileId !== "string" ||
@@ -30,13 +31,14 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       typeof forwarderAddress !== "string" ||
       typeof destination !== "string" ||
       typeof fallbackAddress !== "string" ||
-      (feeBps !== undefined && typeof feeBps !== "number")
+      (targetPpm !== undefined && typeof targetPpm !== "number") ||
+      (floorPpm !== undefined && typeof floorPpm !== "number")
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
           code: "MONERIUM_B2B_INVALID_INPUT",
           message:
-            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, destination, and fallbackAddress are required; feeBps must be a number when present",
+            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, destination, and fallbackAddress are required; targetPpm and floorPpm must be numbers when present",
           status: httpStatus.BAD_REQUEST
         }
       });
@@ -48,10 +50,11 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       destination,
       externalSubjectId,
       fallbackAddress,
-      feeBps,
+      floorPpm,
       forwarderAddress,
       managerProfileId,
-      moneriumProfileId
+      moneriumProfileId,
+      targetPpm
     });
     res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ account: result });
   } catch (error) {

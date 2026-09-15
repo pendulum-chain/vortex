@@ -123,8 +123,9 @@ describe("monerium b2b account mapping admin route", () => {
     expect(row).toMatchObject({
       destination: DESTINATION,
       fallbackAddress: FALLBACK,
-      feeBps: 0,
+      floorPpm: 1500,
       forwarderAddress: FORWARDER,
+      targetPpm: 1250,
       vortexProfileId: account.profileId
     });
   });
@@ -150,7 +151,6 @@ describe("monerium b2b account mapping admin route", () => {
     await MoneriumAccount.create({
       destination: DESTINATION,
       fallbackAddress: FALLBACK,
-      feeBps: 0,
       forwarderAddress: FORWARDER,
       profileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
     });
@@ -191,8 +191,8 @@ describe("monerium b2b account mapping admin route", () => {
     );
     expect(differentSubject.status).toBe(409);
 
-    // Same everything, different feeBps: divergence, not a silent idempotent replay.
-    const differentFee = await post(validBody(managerProfileId, { feeBps: 25 }));
+    // Same everything, different fee policy: divergence, not a silent idempotent replay.
+    const differentFee = await post(validBody(managerProfileId, { targetPpm: 1_000 }));
     expect(differentFee.status).toBe(409);
 
     expect(await MoneriumAccount.count()).toBe(1);
@@ -207,16 +207,25 @@ describe("monerium b2b account mapping admin route", () => {
       destination: DESTINATION.toLowerCase(),
       factory: FACTORY.toLowerCase(),
       fallbackAddress: FALLBACK.toLowerCase(),
-      feeBps: 0
+      floorPpm: 1500,
+      targetPpm: 1250
     };
-    const matching = { destination: DESTINATION, factory: FACTORY, fallbackAddress: FALLBACK, feeBps: 0, isForwarder: true };
+    const matching = {
+      destination: DESTINATION,
+      factory: FACTORY,
+      fallbackAddress: FALLBACK,
+      floorPpm: 1500,
+      isForwarder: true,
+      targetPpm: 1250
+    };
 
     expect(forwarderConfigMismatch(expected, matching)).toBeNull();
     expect(forwarderConfigMismatch(expected, { ...matching, factory: FORWARDER })).toContain("trusted factory");
     expect(forwarderConfigMismatch(expected, { ...matching, isForwarder: false })).toContain("not a clone");
     expect(forwarderConfigMismatch(expected, { ...matching, destination: FALLBACK })).toContain("destination");
     expect(forwarderConfigMismatch(expected, { ...matching, fallbackAddress: DESTINATION })).toContain("fallbackAddress");
-    expect(forwarderConfigMismatch(expected, { ...matching, feeBps: 30 })).toContain("feeBps");
+    expect(forwarderConfigMismatch(expected, { ...matching, targetPpm: 1_000 })).toContain("targetPpm");
+    expect(forwarderConfigMismatch(expected, { ...matching, floorPpm: 2_000 })).toContain("floorPpm");
   });
 
   it("rejects invalid input and unknown managers", async () => {
@@ -227,8 +236,10 @@ describe("monerium b2b account mapping admin route", () => {
       { destination: "0x12345" },
       { fallbackAddress: "" },
       { moneriumProfileId: "not-a-uuid" },
-      { feeBps: 3.5 },
-      { feeBps: -1 },
+      { targetPpm: 3.5 },
+      { floorPpm: -1 },
+      { floorPpm: 10_001 },
+      { floorPpm: 1_000, targetPpm: 1_200 },
       { externalSubjectId: "" },
       { contactEmail: "not-an-email" }
     ]) {

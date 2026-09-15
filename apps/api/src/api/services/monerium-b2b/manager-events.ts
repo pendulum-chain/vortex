@@ -1,4 +1,10 @@
-import { DepositStatus, type DepositWebhookPayloadBase, WebhookEventType, type WebhookPayload } from "@vortexfi/shared";
+import {
+  type ConversionExecutionPricing,
+  DepositStatus,
+  type DepositWebhookPayloadBase,
+  WebhookEventType,
+  type WebhookPayload
+} from "@vortexfi/shared";
 import { Op } from "sequelize";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
@@ -28,6 +34,15 @@ const defaultDeps: ManagerEventDeps = {
     return getPublicClient().getBlockNumber();
   }
 };
+
+/** Execution-level pricing facts, identical on every deposit portion the execution consumed. */
+export function executionPricing(execution: MoneriumConversionExecution): ConversionExecutionPricing {
+  return {
+    feeRaw: execution.feeRaw,
+    referenceRateRaw: execution.referenceRateRaw,
+    subsidyRaw: execution.subsidyRaw
+  };
+}
 
 function depositPayloadBase(deposit: MoneriumFiatDeposit, account: MoneriumAccount): DepositWebhookPayloadBase {
   return {
@@ -166,6 +181,7 @@ async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: 
         const execution = executionById.get(allocation.executionId) as MoneriumConversionExecution;
         return {
           eureInRaw: allocation.eureInRaw,
+          execution: executionPricing(execution),
           executionId: execution.id,
           txHash: execution.txHash,
           usdcNetRaw: allocation.usdcNetRaw

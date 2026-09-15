@@ -36,6 +36,13 @@ interface IVortexForwarderFactory {
     function minSwapAmount() external view returns (uint256);
     function perSwapCap() external view returns (uint256);
     function MIN_SWAP_FLOOR() external view returns (uint256);
+    function isForwarder(address account) external view returns (bool);
+    function subsidyVault() external view returns (address);
+    function route(uint256 index) external view returns (bytes memory path, bool enabled);
+}
+
+interface IVortexSubsidyVault {
+    function pay(address to, uint256 amount, uint256 referenceOut) external;
 }
 
 /// @title VortexForwarder
@@ -44,8 +51,8 @@ interface IVortexForwarderFactory {
 ///         Deployed as an EIP-1167 clone by VortexForwarderFactory; the clone address is
 ///         linked to the client's Monerium profile, EURe mints land here, and the only
 ///         ways assets can ever leave are:
-///           1. the pinned EURe -> EURC -> USDC swap (oracle-checked minOut, output to self),
-///           2. USDC to the client's `destination` (plus fee <= feeBps to FEE_RECIPIENT),
+///           1. a factory-whitelisted EURe -> USDC swap (oracle-floored, output to self),
+///           2. USDC to the client's `destination` (plus a fee <= MAX_FEE_PPM to FEE_RECIPIENT),
 ///           3. EURe to the client's `fallbackAddress` (delayed permissionless sweep),
 ///           4. anything, by the client's `fallbackAddress` itself (`sweep`).
 ///         Vortex (guardian/keeper) can execute the policy, pause it, and nothing else.
@@ -58,6 +65,7 @@ contract VortexForwarder {
     bytes4 private constant EIP1271_MAGIC = 0x1626ba7e;
     bytes4 private constant EIP1271_FAIL = 0xffffffff;
     uint16 private constant BPS = 10_000;
+    uint32 private constant PPM = 1_000_000;
 
     string public constant LINK_MESSAGE = "I hereby declare that I am the address owner.";
 
@@ -74,12 +82,14 @@ contract VortexForwarder {
     address public immutable ATTESTOR; // signs the Monerium link attestation
     address public immutable FEE_RECIPIENT;
     uint256 public immutable MAX_ORACLE_AGE; // registry P8
-    uint16 public immutable SLIPPAGE_BPS; // registry P1
-    uint16 public immutable MAX_FEE_BPS; // registry P2
+    uint16 public immutable SLIPPAGE_BPS; // registry P1: floor on the client's NET, after fee and subsidy
+    uint32 public immutable MAX_FEE_PPM; // registry P2: caps both the fee and the floor policy
+    /// @dev How far a keeper-supplied reference may sit from Chainlink. Bounds the keeper's
+    ///      pricing power: a wrong reference can move fee/subsidy only inside this band, and
+    ///      MAX_FEE_PPM plus the vault's caps bound it further.
+    uint16 public immutable MAX_REFERENCE_DEVIATION_BPS;
     uint256 public immutable SWEEP_DELAY; // registry P3
     uint256 public immutable TRIGGER_DELAY; // registry P4
-    uint24 public immutable POOL_FEE_EURE_EURC; // registry P10
-    uint24 public immutable POOL_FEE_EURC_USDC; // registry P10
 
     /// @dev EIP-191 personal-message hash and raw keccak of LINK_MESSAGE. Monerium's
     ///      exact hashing scheme is a G0 spike output (task 4); accepting both is safe
@@ -102,11 +112,10 @@ contract VortexForwarder {
         address feeRecipient;
         uint256 maxOracleAge;
         uint16 slippageBps;
-        uint16 maxFeeBps;
+        uint32 maxFeePpm;
+        uint16 maxReferenceDeviationBps;
         uint256 sweepDelay;
         uint256 triggerDelay;
-        uint24 poolFeeEureEurc;
-        uint24 poolFeeEurcUsdc;
         bytes32 recoveryHash;
     }
 
@@ -116,12 +125,18 @@ contract VortexForwarder {
     bool public initialized;
     address public destination; // client's payout address (may be a CEX deposit address)
     address public fallbackAddress; // client's self-custodied recovery address (mandatory)
-    uint16 public feeBps; // guardian-adjustable within MAX_FEE_BPS; increases timelocked (P11)
+    /// @dev Fee policy, in ppm below the reference rate. The client is targeted at
+    ///      reference x (1 - targetPpm): any fill above that becomes fee (<= MAX_FEE_PPM);
+    ///      a fill below reference x (1 - floorPpm) is topped up from the subsidy vault.
+    ///      Guardian-adjustable; increases (worse for the client) are timelocked (P11).
+    uint32 public targetPpm;
+    uint32 public floorPpm;
 
-    /// @dev P11 fee timelock state: a pending increase and when it may be applied.
+    /// @dev P11 timelock state: a pending increase and when it may be applied.
     ///      effectiveAt == 0 means no increase is pending. Decreases never pend.
-    uint16 public pendingFeeBps;
-    uint64 public pendingFeeBpsEffectiveAt;
+    uint32 public pendingTargetPpm;
+    uint32 public pendingFloorPpm;
+    uint64 public pendingFeePolicyEffectiveAt;
 
     bool public clientPaused; // set by fallbackAddress only
     bool public guardianPaused; // set by guardian only (protective-only; cannot block fallback paths)
@@ -134,13 +149,27 @@ contract VortexForwarder {
 
     // ----------------------------------------------------------------- events
 
-    event Initialized(address destination, address fallbackAddress, uint16 feeBps);
-    event FeeBpsDecreased(uint16 previous, uint16 current);
-    event FeeBpsIncreaseAnnounced(uint16 current, uint16 pending, uint64 effectiveAt);
-    event FeeBpsIncreaseApplied(uint16 previous, uint16 current);
-    event FeeBpsIncreaseCancelled(uint16 pending);
+    event Initialized(address destination, address fallbackAddress, uint32 targetPpm, uint32 floorPpm);
+    event FeePolicyDecreased(uint32 previousTarget, uint32 previousFloor, uint32 target, uint32 floor);
+    event FeePolicyIncreaseAnnounced(
+        uint32 currentTarget, uint32 currentFloor, uint32 pendingTarget, uint32 pendingFloor, uint64 effectiveAt
+    );
+    event FeePolicyIncreaseApplied(uint32 previousTarget, uint32 previousFloor, uint32 target, uint32 floor);
+    event FeePolicyIncreaseCancelled(uint32 pendingTarget, uint32 pendingFloor);
     event Poked(uint64 strandedSince);
-    event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded);
+    /// @param referenceRate The rate the fee bands were computed against (keeper-supplied
+    ///        for privileged swaps, Chainlink for permissionless ones), ORACLE_DECIMALS.
+    /// @param subsidy USDC paid by the vault straight to `destination` on top of `forwarded`.
+    event SwapExecuted(
+        address indexed caller,
+        uint256 routeIndex,
+        uint256 eureIn,
+        uint256 usdcOut,
+        uint256 referenceRate,
+        uint256 fee,
+        uint256 subsidy,
+        uint256 forwarded
+    );
     event StrandedEureSwept(address indexed caller, uint256 amount);
     event DestinationUpdated(address previous, address current);
     event FallbackAddressUpdated(address previous, address current);
@@ -158,17 +187,20 @@ contract VortexForwarder {
     error Paused();
     error ZeroAddress();
     error InvalidConfigAddress();
-    error FeeTooHigh();
+    error InvalidFeePolicy();
     error BelowMinimum();
     error StalePrice();
     error InvalidPrice();
     error InsufficientOutput();
     error Overspend();
     error NotStranded();
-    error NoPendingFee();
+    error NoPendingFeePolicy();
+    error ReferenceOutOfBand();
+    error SubsidyUnavailable();
     error DelayNotElapsed();
     error TransferFailed();
     error Reentrancy();
+    error InvalidRoute();
 
     // ------------------------------------------------------------ constructor
 
@@ -184,11 +216,10 @@ contract VortexForwarder {
         FEE_RECIPIENT = cfg.feeRecipient;
         MAX_ORACLE_AGE = cfg.maxOracleAge;
         SLIPPAGE_BPS = cfg.slippageBps;
-        MAX_FEE_BPS = cfg.maxFeeBps;
+        MAX_FEE_PPM = cfg.maxFeePpm;
+        MAX_REFERENCE_DEVIATION_BPS = cfg.maxReferenceDeviationBps;
         SWEEP_DELAY = cfg.sweepDelay;
         TRIGGER_DELAY = cfg.triggerDelay;
-        POOL_FEE_EURE_EURC = cfg.poolFeeEureEurc;
-        POOL_FEE_EURC_USDC = cfg.poolFeeEurcUsdc;
         RECOVERY_HASH = cfg.recoveryHash;
 
         LINK_HASH_191 = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n45", LINK_MESSAGE));
@@ -219,18 +250,19 @@ contract VortexForwarder {
     // ---------------------------------------------------------- initialization
 
     /// @notice Called by the factory in the same transaction as clone deployment.
-    function initialize(address destination_, address fallbackAddress_, uint16 feeBps_) external {
+    function initialize(address destination_, address fallbackAddress_, uint32 targetPpm_, uint32 floorPpm_) external {
         if (msg.sender != address(FACTORY)) revert NotFactory();
         if (initialized) revert AlreadyInitialized();
         _validateConfigAddress(destination_);
         _validateConfigAddress(fallbackAddress_);
-        if (feeBps_ > MAX_FEE_BPS) revert FeeTooHigh();
+        _validateFeePolicy(targetPpm_, floorPpm_);
 
         initialized = true;
         destination = destination_;
         fallbackAddress = fallbackAddress_;
-        feeBps = feeBps_;
-        emit Initialized(destination_, fallbackAddress_, feeBps_);
+        targetPpm = targetPpm_;
+        floorPpm = floorPpm_;
+        emit Initialized(destination_, fallbackAddress_, targetPpm_, floorPpm_);
     }
 
     // -------------------------------------------------------------- EIP-1271
@@ -296,7 +328,16 @@ contract VortexForwarder {
     /// @notice Convert EURe held by this contract to USDC and forward to `destination`.
     ///         Callable by guardian/keepers any time; by anyone once the stranding
     ///         marker is older than TRIGGER_DELAY (liveness fallback).
-    function swapAndForward() external nonReentrant {
+    /// @param referenceRate The partner-agreed reference (EUR/USD, ORACLE_DECIMALS) the
+    ///        fee bands are priced against. A privileged caller must supply one within
+    ///        MAX_REFERENCE_DEVIATION_BPS of Chainlink; a permissionless caller's value is
+    ///        ignored and Chainlink is used, and no subsidy is paid on that path — the
+    ///        rate guarantee applies to keeper-executed swaps.
+    /// @param routeIndex Which factory-whitelisted route to execute. The keeper quotes
+    ///        every enabled route off-chain and picks the best; a poor pick only ever
+    ///        costs Vortex (more subsidy, less fee), never the client, whose outcome is
+    ///        bounded by the oracle floor whichever route runs.
+    function swapAndForward(uint256 referenceRate, uint256 routeIndex) external nonReentrant {
         if (clientPaused || guardianPaused || FACTORY.globalPaused()) revert Paused();
 
         bool privileged = msg.sender == FACTORY.guardian() || FACTORY.isKeeper(msg.sender);
@@ -305,37 +346,22 @@ contract VortexForwarder {
             if (block.timestamp - strandedSince < TRIGGER_DELAY) revert NotAuthorizedYet();
         }
 
-        uint256 eureBefore = EURE.balanceOf(address(this));
-        if (eureBefore < FACTORY.minSwapAmount()) revert BelowMinimum();
-        uint256 amountIn = eureBefore;
+        uint256 amountIn = EURE.balanceOf(address(this));
+        if (amountIn < FACTORY.minSwapAmount()) revert BelowMinimum();
         uint256 cap = FACTORY.perSwapCap();
         if (amountIn > cap) amountIn = cap;
 
-        uint256 minOut = _minOut(amountIn);
-        uint256 usdcBefore = USDC.balanceOf(address(this));
+        uint256 oraclePrice = _oraclePrice();
+        uint256 referenceUsed = privileged ? _checkedReference(referenceRate, oraclePrice) : oraclePrice;
 
-        _approve(EURE, address(ROUTER), amountIn);
-        ROUTER.exactInput(
-            ISwapRouter02.ExactInputParams({
-                path: abi.encodePacked(
-                    address(EURE), POOL_FEE_EURE_EURC, address(EURC), POOL_FEE_EURC_USDC, address(USDC)
-                ),
-                recipient: address(this),
-                amountIn: amountIn,
-                amountOutMinimum: minOut
-            })
-        );
-        _approve(EURE, address(ROUTER), 0);
+        uint256 usdcReceived = _swap(routeIndex, amountIn);
+        (uint256 fee, uint256 subsidy) = _settle(amountIn, usdcReceived, referenceUsed, privileged);
 
-        uint256 usdcReceived = USDC.balanceOf(address(this)) - usdcBefore;
-        if (usdcReceived < minOut) revert InsufficientOutput();
-        if (eureBefore - EURE.balanceOf(address(this)) > amountIn) revert Overspend();
-
-        uint256 fee = 0;
-        if (feeBps > 0) {
-            fee = (usdcReceived * feeBps) / BPS;
-            if (fee > 0) _transfer(USDC, FEE_RECIPIENT, fee);
-        }
+        // The oracle floor is enforced on the client's NET (fill - fee + subsidy), not on
+        // the raw fill: a subsidized fill may sit below it, and a subsidy must never
+        // paper over a depegged reference. Reverting here undoes the swap and the
+        // subsidy transfer alike.
+        if (usdcReceived - fee + subsidy < _floorOut(amountIn, oraclePrice)) revert InsufficientOutput();
 
         // Full-balance sweep: unsolicited USDC goes to the client's destination too (R09).
         uint256 forwarded = USDC.balanceOf(address(this));
@@ -345,18 +371,87 @@ contract VortexForwarder {
         // P2): otherwise the remainder's dead-man/permissionless timers would silently
         // restart from zero only after a fresh poke().
         strandedSince = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() ? uint64(block.timestamp) : 0;
-        emit SwapExecuted(msg.sender, amountIn, usdcReceived, fee, forwarded);
+        emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy, forwarded);
     }
 
-    /// @dev minOut = amountIn * price * (1 - slippage), rescaled EURe(18) -> USDC(6).
-    ///      Scale denominator: 10^(18 + oracleDecimals - 6). Floor rounding: conservative
-    ///      direction; error < 1 unit of USDC. Assumes USDC/USD = 1 within SLIPPAGE_BPS
-    ///      (documented assumption A4; PRD v2 §7.3).
-    function _minOut(uint256 amountIn) internal view returns (uint256) {
+    /// @dev Executes the whitelisted route and returns the USDC received. The router
+    ///      minimum is deliberately 0: the router cannot see the fee and subsidy that
+    ///      determine the client's net, so the floor is enforced by swapAndForward after
+    ///      settlement instead, and a failing floor reverts the whole call.
+    function _swap(uint256 routeIndex, uint256 amountIn) internal returns (uint256 usdcReceived) {
+        (bytes memory path, bool routeEnabled) = FACTORY.route(routeIndex);
+        if (!routeEnabled) revert InvalidRoute();
+
+        uint256 eureBefore = EURE.balanceOf(address(this));
+        uint256 usdcBefore = USDC.balanceOf(address(this));
+
+        _approve(EURE, address(ROUTER), amountIn);
+        ROUTER.exactInput(
+            ISwapRouter02.ExactInputParams({
+                path: path, recipient: address(this), amountIn: amountIn, amountOutMinimum: 0
+            })
+        );
+        _approve(EURE, address(ROUTER), 0);
+
+        usdcReceived = USDC.balanceOf(address(this)) - usdcBefore;
+        if (eureBefore - EURE.balanceOf(address(this)) > amountIn) revert Overspend();
+    }
+
+    /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"):
+    ///      - fill above reference x (1 - targetPpm): the surplus is the fee, <= MAX_FEE_PPM;
+    ///      - fill between the floor and the target: no fee, no subsidy;
+    ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall
+    ///        from the vault straight to `destination`; a permissionless swap pays nothing.
+    ///      The vault reverts (and so does the swap) when its cap, budget, pause or
+    ///      balance cannot cover the shortfall — a swap is never partially subsidized.
+    function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged)
+        internal
+        returns (uint256 fee, uint256 subsidy)
+    {
+        uint256 referenceOut = _usdcValue(amountIn, referenceUsed);
+        uint256 targetOut = (referenceOut * (PPM - targetPpm)) / PPM;
+        if (usdcReceived > targetOut) {
+            fee = usdcReceived - targetOut;
+            uint256 maxFee = (usdcReceived * MAX_FEE_PPM) / PPM;
+            if (fee > maxFee) fee = maxFee;
+            _transfer(USDC, FEE_RECIPIENT, fee);
+            return (fee, 0);
+        }
+        uint256 floorOut = (referenceOut * (PPM - floorPpm)) / PPM;
+        if (usdcReceived >= floorOut || !privileged) return (0, 0);
+
+        subsidy = floorOut - usdcReceived;
+        address vault = FACTORY.subsidyVault();
+        if (vault == address(0)) revert SubsidyUnavailable();
+        IVortexSubsidyVault(vault).pay(destination, subsidy, referenceOut);
+        return (0, subsidy);
+    }
+
+    /// @dev Validated Chainlink EUR/USD price (registry P8 staleness ceiling).
+    function _oraclePrice() internal view returns (uint256) {
         (, int256 answer,, uint256 updatedAt,) = ORACLE.latestRoundData();
         if (answer <= 0) revert InvalidPrice();
         if (updatedAt == 0 || block.timestamp - updatedAt > MAX_ORACLE_AGE) revert StalePrice();
-        return (amountIn * uint256(answer) * (BPS - SLIPPAGE_BPS)) / (10 ** (12 + uint256(ORACLE_DECIMALS))) / BPS;
+        return uint256(answer);
+    }
+
+    /// @dev A keeper-supplied reference must lie within MAX_REFERENCE_DEVIATION_BPS of Chainlink.
+    function _checkedReference(uint256 supplied, uint256 oraclePrice) internal view returns (uint256) {
+        uint256 tolerance = (oraclePrice * MAX_REFERENCE_DEVIATION_BPS) / BPS;
+        if (supplied + tolerance < oraclePrice || supplied > oraclePrice + tolerance) revert ReferenceOutOfBand();
+        return supplied;
+    }
+
+    /// @dev amountIn (EURe, 18 dec) x price (ORACLE_DECIMALS) rescaled to USDC (6 dec).
+    ///      Scale denominator: 10^(18 + oracleDecimals - 6). Floor rounding: error < 1
+    ///      unit of USDC. Assumes USDC/USD = 1 within SLIPPAGE_BPS (assumption A4).
+    function _usdcValue(uint256 amountIn, uint256 price) internal view returns (uint256) {
+        return (amountIn * price) / (10 ** (12 + uint256(ORACLE_DECIMALS)));
+    }
+
+    /// @dev The least the client may end up with: Chainlink value x (1 - SLIPPAGE_BPS).
+    function _floorOut(uint256 amountIn, uint256 oraclePrice) internal view returns (uint256) {
+        return (_usdcValue(amountIn, oraclePrice) * (BPS - SLIPPAGE_BPS)) / BPS;
     }
 
     // -------------------------------------------------------------- recovery
@@ -415,49 +510,61 @@ contract VortexForwarder {
         emit GuardianPausedSet(paused);
     }
 
-    /// @dev P11: fee increases take effect only this long after their on-chain
+    /// @dev P11: fee policy increases take effect only this long after their on-chain
     ///      announcement, so a client whose SEPA transfer is already in flight under
-    ///      the current fee cannot be minted-and-swapped under a silently higher one.
+    ///      the current policy cannot be swapped under a silently worse one.
     ///      Decreases are immediate — they only ever favor the client.
     uint256 public constant FEE_INCREASE_TIMELOCK = 24 hours;
 
-    /// @notice Guardian fee adjustment (P11), always bounded by the immutable
-    ///         MAX_FEE_BPS. A decrease (or re-stating the current value) applies
-    ///         immediately and cancels any pending increase; an increase is announced
-    ///         and becomes applicable only after FEE_INCREASE_TIMELOCK. Announcing
-    ///         again replaces the pending increase and restarts its clock.
-    function setFeeBps(uint16 newFeeBps) external onlyGuardian {
-        if (newFeeBps > MAX_FEE_BPS) revert FeeTooHigh();
-        if (newFeeBps <= feeBps) {
-            if (pendingFeeBpsEffectiveAt != 0) {
-                emit FeeBpsIncreaseCancelled(pendingFeeBps);
-                pendingFeeBps = 0;
-                pendingFeeBpsEffectiveAt = 0;
+    /// @notice Guardian fee-policy adjustment (P11), always bounded by the immutable
+    ///         MAX_FEE_PPM. A change that raises neither value (or re-states the current
+    ///         ones) applies immediately and cancels any pending increase; a change that
+    ///         raises either value is announced and becomes applicable only after
+    ///         FEE_INCREASE_TIMELOCK. Announcing again replaces the pending pair and
+    ///         restarts its clock.
+    function setFeePolicy(uint32 newTargetPpm, uint32 newFloorPpm) external onlyGuardian {
+        _validateFeePolicy(newTargetPpm, newFloorPpm);
+        if (newTargetPpm <= targetPpm && newFloorPpm <= floorPpm) {
+            if (pendingFeePolicyEffectiveAt != 0) {
+                emit FeePolicyIncreaseCancelled(pendingTargetPpm, pendingFloorPpm);
+                pendingTargetPpm = 0;
+                pendingFloorPpm = 0;
+                pendingFeePolicyEffectiveAt = 0;
             }
-            if (newFeeBps != feeBps) {
-                emit FeeBpsDecreased(feeBps, newFeeBps);
-                feeBps = newFeeBps;
+            if (newTargetPpm != targetPpm || newFloorPpm != floorPpm) {
+                emit FeePolicyDecreased(targetPpm, floorPpm, newTargetPpm, newFloorPpm);
+                targetPpm = newTargetPpm;
+                floorPpm = newFloorPpm;
             }
         } else {
-            pendingFeeBps = newFeeBps;
-            pendingFeeBpsEffectiveAt = uint64(block.timestamp + FEE_INCREASE_TIMELOCK);
-            emit FeeBpsIncreaseAnnounced(feeBps, newFeeBps, pendingFeeBpsEffectiveAt);
+            pendingTargetPpm = newTargetPpm;
+            pendingFloorPpm = newFloorPpm;
+            pendingFeePolicyEffectiveAt = uint64(block.timestamp + FEE_INCREASE_TIMELOCK);
+            emit FeePolicyIncreaseAnnounced(targetPpm, floorPpm, newTargetPpm, newFloorPpm, pendingFeePolicyEffectiveAt);
         }
     }
 
-    /// @notice Applies an announced fee increase once its timelock has elapsed.
+    /// @notice Applies an announced fee-policy increase once its timelock has elapsed.
     ///         Permissionless: the announcement is the authorization; anyone may
     ///         finalize it (the keeper does so as part of its cycle if needed).
-    function applyFeeBps() external {
-        if (pendingFeeBpsEffectiveAt == 0) revert NoPendingFee();
-        if (block.timestamp < pendingFeeBpsEffectiveAt) revert DelayNotElapsed();
-        emit FeeBpsIncreaseApplied(feeBps, pendingFeeBps);
-        feeBps = pendingFeeBps;
-        pendingFeeBps = 0;
-        pendingFeeBpsEffectiveAt = 0;
+    function applyFeePolicy() external {
+        if (pendingFeePolicyEffectiveAt == 0) revert NoPendingFeePolicy();
+        if (block.timestamp < pendingFeePolicyEffectiveAt) revert DelayNotElapsed();
+        emit FeePolicyIncreaseApplied(targetPpm, floorPpm, pendingTargetPpm, pendingFloorPpm);
+        targetPpm = pendingTargetPpm;
+        floorPpm = pendingFloorPpm;
+        pendingTargetPpm = 0;
+        pendingFloorPpm = 0;
+        pendingFeePolicyEffectiveAt = 0;
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /// @dev The floor is the worse-for-the-client bound, so it may never sit above the
+    ///      target, and both are capped by the immutable MAX_FEE_PPM.
+    function _validateFeePolicy(uint32 targetPpm_, uint32 floorPpm_) internal view {
+        if (targetPpm_ > floorPpm_ || floorPpm_ > MAX_FEE_PPM) revert InvalidFeePolicy();
+    }
 
     function _validateConfigAddress(address account) internal view {
         if (account == address(0)) revert ZeroAddress();

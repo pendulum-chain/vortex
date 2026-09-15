@@ -2836,13 +2836,16 @@ export interface components {
             dormantSince: string | null;
             /** @description The client's self-custodied recovery address. */
             fallbackAddress: string;
-            feeBps: number;
+            /** @description Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap. */
+            floorPpm: number;
             /** @description The account's on-chain forwarding contract. */
             forwarderAddress: string;
             /** @description The account's dedicated IBAN; null until issuance completes. */
             iban: string | null;
             /** @enum {string} */
             status: "onboarding" | "active" | "suspended" | "closed";
+            /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
+            targetPpm: number;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];
@@ -2854,6 +2857,15 @@ export interface components {
             conversions: {
                 /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
                 eureInRaw: string;
+                /** @description Execution-level pricing, identical on every deposit portion the execution consumed: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the execution is not yet confirmed. */
+                execution: {
+                    /** @description Fee taken on the whole execution in 6-decimal base units. */
+                    feeRaw: string | null;
+                    /** @description Reference EUR/USD rate the execution was priced against: a five-minute volume-weighted average of the Coinbase Exchange EURC-USD market computed immediately before the swap, in the oracle's decimals (8). */
+                    referenceRateRaw: string | null;
+                    /** @description Subsidy paid by the vault straight to the destination for the whole execution in 6-decimal base units. */
+                    subsidyRaw: string | null;
+                };
                 executionId: string;
                 /**
                  * @description Execution status.

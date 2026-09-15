@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   classifyStranding,
+  classifyVaultRunway,
   computeQuoteImpactBps,
   detectConfigDrift,
   diffAssociation,
@@ -73,6 +74,24 @@ describe("classifyStranding", () => {
   });
 });
 
+describe("classifyVaultRunway", () => {
+  const healthy = { balance: 1_000n * USDC, dailyBudget: 200n * USDC, paused: false, spentToday: 0n };
+
+  it("is ok with a funded, unpaused vault and budget left today", () => {
+    expect(classifyVaultRunway(healthy).severity).toBe("ok");
+  });
+
+  it("errors when paused or empty, since every below-floor swap then defers", () => {
+    expect(classifyVaultRunway({ ...healthy, paused: true })).toMatchObject({ severity: "error" });
+    expect(classifyVaultRunway({ ...healthy, balance: 0n })).toMatchObject({ severity: "error" });
+  });
+
+  it("warns below one day of budget or once today's budget is spent", () => {
+    expect(classifyVaultRunway({ ...healthy, balance: 150n * USDC })).toMatchObject({ severity: "warn" });
+    expect(classifyVaultRunway({ ...healthy, spentToday: 200n * USDC })).toMatchObject({ severity: "warn" });
+  });
+});
+
 describe("diffAssociation", () => {
   const FORWARDER = "0xD7444AB7270A142227Fe659D63873ABdc8AF9b72";
   const IBAN = "EE08 7224 5745 6244 9516";
@@ -134,7 +153,8 @@ describe("detectConfigDrift", () => {
   const base = {
     destination: "0x1111111111111111111111111111111111111111",
     fallbackAddress: "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1",
-    feeBps: 0
+    floorPpm: 1500,
+    targetPpm: 1250
   };
 
   it("reports nothing when the chain matches the db (case-insensitively)", () => {
@@ -156,10 +176,10 @@ describe("detectConfigDrift", () => {
     });
   });
 
-  it("classifies a feeBps change as a guardian-authorized reconciliation (P11)", () => {
-    const drift = detectConfigDrift(base, { ...base, feeBps: 50 });
+  it("classifies a fee-policy change as a guardian-authorized reconciliation (P11)", () => {
+    const drift = detectConfigDrift(base, { ...base, floorPpm: 3000, targetPpm: 2500 });
     expect(drift.errors).toEqual([]);
-    expect(drift.ownerAuthorizedUpdates.feeBps).toBe(50);
+    expect(drift.ownerAuthorizedUpdates).toEqual({ floorPpm: 3000, targetPpm: 2500 });
   });
 });
 
