@@ -4310,6 +4310,26 @@ MissingEurOnrampParametersError: class MissingEurOnrampParametersError {
   readonly status: number;
 }
 
+MissingMoneriumOfframpParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
+}
+
+MissingMoneriumOnrampParametersError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
+}
+
 MissingMykoboOfframpParametersError: class MissingMykoboOfframpParametersError {
   constructor();
   readonly code?: string;
@@ -4335,6 +4355,16 @@ MissingRequiredFieldsError: class MissingRequiredFieldsError {
   readonly isPublic: boolean;
   readonly originalError?: Error;
   readonly status: number;
+}
+
+MoneriumError: {
+  prototype: {
+    readonly code?: string;
+    readonly errors?: Array<unknown>;
+    readonly isPublic: boolean;
+    readonly originalError?: Error;
+    readonly status: number;
+  };
 }
 
 MoneriumOnboardingRequiredError: class MoneriumOnboardingRequiredError {

@@ -24,7 +24,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712.js";
-import { TransactionSigningError } from "./errors.js";
+import { EurOnrampError, TransactionSigningError } from "./errors.js";
 import { BrlHandler } from "./handlers/BrlHandler.js";
 import { DomesticHandler } from "./handlers/DomesticHandler.js";
 import { EurHandler } from "./handlers/EurHandler.js";
@@ -161,6 +161,13 @@ export class VortexSdk {
         rampProcess = await this.eurHandler.registerEurOnramp(quote.id, eurData);
         // The Monerium owner permit is signed by the linked wallet, not by an ephemeral.
         unsignedTransactions = await this.getUserTransactions(rampProcess, eurData.walletAddress);
+        if (unsignedTransactions.length === 0) {
+          // The backend addresses the permit to the wallet linked to the Monerium profile; a
+          // different walletAddress would silently leave the ramp without its permit.
+          throw new EurOnrampError(
+            `walletAddress ${eurData.walletAddress} is not the wallet linked to the Monerium profile; no owner permit was returned for it`
+          );
+        }
       } else {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }

@@ -1,6 +1,12 @@
 import {describe, expect, test} from "bun:test";
 import {
   DomesticOnrampKycRequiredError,
+  EurOnrampError,
+  MissingEurOnrampParametersError,
+  MissingMoneriumOfframpParametersError,
+  MissingMoneriumOnrampParametersError,
+  MissingMykoboOfframpParametersError,
+  MoneriumError,
   MoneriumOnboardingRequiredError,
   MoneriumReauthenticationRequiredError,
   BrlKycStatusError,
@@ -144,5 +150,13 @@ describe("parseAPIError", () => {
     const missingTaxId = parseAPIError({ code: 400, message: "Missing taxId" });
     expect(missingTaxId).toBeInstanceOf(BrlKycStatusError);
     expect(missingTaxId.message).toBe("Tax ID is required");
+  });
+});
+
+describe("deprecated 0.9.0 error names", () => {
+  test("keep resolving to their renamed classes", () => {
+    expect(MoneriumError).toBe(EurOnrampError);
+    expect(MissingMoneriumOnrampParametersError).toBe(MissingEurOnrampParametersError);
+    expect(MissingMoneriumOfframpParametersError).toBe(MissingMykoboOfframpParametersError);
   });
 });

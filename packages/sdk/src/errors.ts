@@ -285,6 +285,14 @@ export class MissingMykoboOfframpParametersError extends MykoboError {
   }
 }
 
+// Names published by @vortexfi/sdk@0.9.0; kept as aliases so existing imports keep resolving.
+/** @deprecated Renamed to {@link EurOnrampError}. */
+export const MoneriumError = EurOnrampError;
+/** @deprecated Renamed to {@link MissingEurOnrampParametersError}. */
+export const MissingMoneriumOnrampParametersError = MissingEurOnrampParametersError;
+/** @deprecated EUR offramps are not supported; see {@link MissingMykoboOfframpParametersError}. */
+export const MissingMoneriumOfframpParametersError = MissingMykoboOfframpParametersError;
+
 /**
  * The effective user's Mykobo KYC is missing/not approved, or the supplied email does not
  * match the profile bound to the authenticated user. Complete Mykobo KYC before EUR ramps.

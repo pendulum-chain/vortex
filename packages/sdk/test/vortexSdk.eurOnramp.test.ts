@@ -53,6 +53,20 @@ describe("VortexSdk.registerRamp for EUR/SEPA BUY", () => {
     expect(sdk.getUserTransactionType(unsignedTransactions[0])).toBe("evm-typed-data");
   });
 
+  test("rejects a walletAddress that is not the Monerium-linked owner instead of returning no permit", async () => {
+    const sdk = new VortexSdk({ apiBaseUrl: "http://127.0.0.1:1", secretKey: "sk_test_eur", storeEphemeralKeys: false });
+    (sdk as unknown as { eurHandler: { registerEurOnramp: unknown } }).eurHandler = {
+      registerEurOnramp: async (): Promise<RampProcess> => ({ id: "ramp_eur", unsignedTxs: [permitTx, ephemeralTx] } as RampProcess)
+    };
+
+    await expect(
+      sdk.registerRamp(quote, {
+        destinationAddress: "0x0000000000000000000000000000000000000002",
+        walletAddress: "0x0000000000000000000000000000000000000003"
+      })
+    ).rejects.toThrow("not the wallet linked to the Monerium profile");
+  });
+
   test("updateRamp points EUR BUY integrators at the permit submission helpers", async () => {
     const sdk = new VortexSdk({ apiBaseUrl: "http://127.0.0.1:1", secretKey: "sk_test_eur", storeEphemeralKeys: false });
     await expect(sdk.updateRamp(quote, "ramp_eur", undefined as never)).rejects.toThrow("submitUserTransactions");
