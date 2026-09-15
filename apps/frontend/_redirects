@@ -13,6 +13,13 @@
 # Support the lowercase widget alias without turning unknown localized paths into soft 404s.
 /pt-br/widget                  /_shell.html  200
 
+# Gold lives as plain files under dist/client/gold/ (see netlify.toml), so /gold/ needs no rule.
+# The locale-first alias mirrors /pt-BR/widget; Gold's canonical link still points at /gold/.
+/pt-BR/gold                    /gold/index.html  200
+/pt-BR/gold/*                  /gold/:splat      200
+/pt-br/gold                    /gold/index.html  200
+/pt-br/gold/*                  /gold/:splat      200
+
 # Everything else is a real 404
 /*                             /404.html    404
 

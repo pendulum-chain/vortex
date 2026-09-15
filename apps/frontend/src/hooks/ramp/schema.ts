@@ -39,7 +39,7 @@ export const createRampFormSchema = (
 ) => {
   return z
     .object({
-      fiatToken: z.string().optional() as z.ZodType<FiatToken | undefined>,
+      fiatToken: z.string().optional() as z.ZodOptional<z.ZodType<FiatToken>>,
       pixId: z.string().optional(),
       taxId: z.string().optional(),
       walletAddress: z.string().optional()
