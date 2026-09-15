@@ -265,9 +265,9 @@ triggers:
 ```
 
 ## When to use
-The user wants to buy crypto with EUR and has already been provisioned as corridor-ready: an approved Vortex EUR provider binding, a live approved provider profile, exactly one existing Polygon EOA/IBAN destination, and access to that EOA for typed-data signing. Both individual and business legal entities may qualify. The active route delivers only to supported non-Polygon EVM destinations.
+The user wants to buy crypto with EUR and is already corridor-ready: an approved Vortex EUR provider binding, a live approved provider profile, exactly one existing Polygon EOA/IBAN destination, and access to that EOA for typed-data signing. Both individual and business legal entities may qualify. The active route delivers only to supported non-Polygon EVM destinations.
 
-Do not use this flow for onboarding, wallet linking, IBAN provisioning, or EUR SELL. Those operations are unavailable in the active product integration.
+Users become corridor-ready by completing Monerium OAuth onboarding in the Dashboard or Widget and linking the wallet they will pay in with (`POST /v1/monerium/wallet`); this flow does not cover onboarding, wallet linking, or IBAN provisioning. EUR SELL is unavailable.
 
 ## Prerequisites
 - Quote with TypeScript member `inputCurrency: FiatToken.EURC` (raw JSON value `"EUR"`), `from: "sepa"`, and a supported non-Polygon EVM destination.
@@ -275,10 +275,27 @@ Do not use this flow for onboarding, wallet linking, IBAN provisioning, or EUR S
 - `additionalData.destinationAddress`; do not submit profile, Monerium address, or IBAN identity.
 - A fresh EVM ephemeral key and a wallet-signing channel for the profile-linked Polygon owner.
 
+## SDK recipe
+```js
+// walletAddress must be the wallet linked to the Monerium profile; a mismatch throws EurOnrampError.
+const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
+  destinationAddress: "0xDestinationWallet",
+  walletAddress: "0xMoneriumLinkedWallet"
+});
+
+// unsignedTransactions holds the owner's EIP-712 permit; the ephemeral txs are signed by the SDK.
+const updated = await vortex.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload)
+});
+
+// updated.ibanPaymentData (IBAN, BIC, receiver name, reference) is released once every signature
+// validates; show it verbatim, have the user pay by SEPA, then start before the deadline.
+await vortex.startRamp(rampProcess.id);
+```
+
 ## Direct API sequence
 
-The current `@vortexfi/sdk` EUR handler is not compatible with this flow because it drops the
-owner-wallet permit. Use the raw API:
+Raw API clients perform the same steps themselves:
 
 1. Create the EUR BUY quote.
 2. Call `POST /v1/ramp/register` with the quote ID, fresh EVM signing account, and destination address.
@@ -290,8 +307,8 @@ owner-wallet permit. Use the raw API:
    initiate the SEPA transfer, then call `POST /v1/ramp/start` before the start deadline.
 6. Poll status or use Vortex webhooks for the ramp lifecycle.
 
-The permit expires 24 hours after preparation. If SEPA settlement arrives after expiry or the owner
-consumes its nonce, automatic execution can stop for manual resolution.
+The permit expires one week after preparation. If SEPA settlement arrives after expiry or the owner
+consumes its nonce, automatic execution stops for manual resolution.
 
 ## Common failures
 - `400` approved-profile error: the effective legal entity has no approved local Monerium/EUR binding or the live provider profile is not approved.
@@ -675,7 +692,7 @@ try {
 
 ## Current corridor reality (August 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
-- **EUR via SEPA**: BUY is active through the direct backend API (`FiatToken.EURC`, rail `"sepa"`) for an already-bound approved user with one Polygon EOA/IBAN destination. It requires the linked owner's typed-data permit. The SDK, Widget, and Dashboard do not yet implement that journey. SELL is unavailable.
+- **EUR via SEPA**: BUY is active (`FiatToken.EURC`, rail `"sepa"`) for an approved Monerium user with one Polygon EOA/IBAN destination, through the SDK (`walletAddress` + `submitUserTransactions` for the owner permit), the Widget, the Dashboard, and the direct API. Onboarding and wallet linking happen in the Dashboard or Widget. Destinations: EVM networks except Polygon. SELL is unavailable.
 - **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; registration requires an authenticated user identity. Route resolver determines availability per-combination.
 - Live corridors deliver to EVM networks; AssetHub ramp execution is currently disabled.
 

@@ -47,6 +47,16 @@ submit them through `POST /v1/ramp/update`, show the released SEPA instructions,
 reported on `GET /v1/monerium/status` (`ramp`) and on the Monerium account of
 `GET /v1/onboarding/status`.
 
+Configuration (`apps/api/src/config/vars.ts`, samples in `apps/api/.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `MONERIUM_API_URL` | Monerium API base (`https://api.monerium.dev` sandbox, `https://api.monerium.app` production). |
+| `MONERIUM_CLIENT_ID` | OAuth authorization-code app used by the dashboard and widget onboarding. |
+| `MONERIUM_REDIRECT_URI` / `MONERIUM_WIDGET_REDIRECT_URI` | Exact callback URIs registered with Monerium for the dashboard and the widget (`/widget` on the frontend origin); a mismatch renders Monerium's authorization page blank. The widget URI is optional and disables widget OAuth when unset. |
+| `MONERIUM_WHITELABEL_CLIENT_ID` / `MONERIUM_WHITELABEL_CLIENT_SECRET` | White-label client credentials (also the B2B onramp). |
+| `MONERIUM_ISSUE_FEE_EUR` | Flat EUR fee subtracted from each issue quote; required in production and must not default silently. |
+
 This release does not create profiles through the white-label API, import external profiles,
 migrate OAuth profiles into the white-label application, orchestrate KYC/KYB lifecycle state
 through the white-label API, or support EUR SELL. Those capabilities remain deferred even where the
