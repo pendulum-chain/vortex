@@ -9,7 +9,10 @@ const requiredProductionEnv = {
   FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   MONERIUM_CLIENT_ID: "test-monerium-client-id",
+  MONERIUM_ISSUE_FEE_EUR: "0",
   MONERIUM_REDIRECT_URI: "https://dashboard.example.com/monerium/callback",
+  MONERIUM_WHITELABEL_CLIENT_ID: "test-monerium-whitelabel-client-id",
+  MONERIUM_WHITELABEL_CLIENT_SECRET: "test-monerium-whitelabel-client-secret",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
   SUPABASE_URL: "https://example.supabase.co",
@@ -121,6 +124,46 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
+  });
+
+  it("requires the Monerium white-label credentials in production", async () => {
+    const missingClientId = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_WHITELABEL_CLIENT_ID: "",
+      NODE_ENV: "production"
+    });
+    const missingClientSecret = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_WHITELABEL_CLIENT_SECRET: "",
+      NODE_ENV: "production"
+    });
+
+    expect(missingClientId.exitCode).toBe(1);
+    expect(missingClientId.stderr).toContain("MONERIUM_WHITELABEL_CLIENT_ID");
+    expect(missingClientSecret.exitCode).toBe(1);
+    expect(missingClientSecret.stderr).toContain("MONERIUM_WHITELABEL_CLIENT_SECRET");
+  });
+
+  it("requires an explicit Monerium issue fee in production", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_ISSUE_FEE_EUR: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_ISSUE_FEE_EUR");
+  });
+
+  it("rejects an invalid Monerium issue fee", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_ISSUE_FEE_EUR: "-1",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_ISSUE_FEE_EUR must be a non-negative number");
   });
 
   it("keeps Monerium B2B disabled unless its flag is exactly true", async () => {

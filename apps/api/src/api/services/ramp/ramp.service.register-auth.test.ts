@@ -93,11 +93,10 @@ describe("RampService.registerRamp user gating", () => {
       await service.registerRamp({ additionalData: {}, quoteId: "quote-1", signingAccounts: [], userId: "user-a" } as never);
       throw new Error("registerRamp did not reject");
     } catch (error) {
-      // The EUR kill switch runs after the user guards and before flow preparation, so this
-      // proves the anonymous quote was claimable without requiring unrelated flow metadata.
-      expect(error).toBeInstanceOf(APIError);
-      expect((error as APIError).status).toBe(httpStatus.SERVICE_UNAVAILABLE);
-      expect((error as APIError).message).not.toContain("Invalid quote");
+      // The user guards run before flow preparation, so failing on the quote stub's missing
+      // block-flow metadata proves the anonymous quote was claimable.
+      expect(error).not.toBeInstanceOf(APIError);
+      expect((error as Error).message).toBe("Quote does not contain block flow metadata");
     }
   });
 

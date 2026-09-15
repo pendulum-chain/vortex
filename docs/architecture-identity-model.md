@@ -171,9 +171,12 @@ The derived request context retains `actorProfileId`, `subjectProfileId`,
 `controllingManagerProfileId`, `customerEntityId`, and the manager-child relationship ID.
 It never overwrites `req.userId`, and a public API key cannot authenticate a manager.
 Alfredpay customer creation uses the child's immutable provider contact email, never the
-manager's login email. Email-bound Mykobo and Monerium routes remain unsupported. These legacy
-routes ignore a managed selector and remain scoped to the authenticated manager, so managed clients
-must not send that header to them.
+manager's login email. Email-bound Mykobo operations and Monerium OAuth KYC/KYB onboarding remain
+unsupported for delegated profiles; these legacy routes ignore a managed selector and remain scoped
+to the authenticated manager, so managed clients must not send that header to them. Future Monerium
+import handling is TBD. This does not prevent a non-technical managed child whose Monerium binding
+and Polygon EOA/IBAN were provisioned out of band from using the active direct-API EUR BUY flow when
+manager corridor policy allows it.
 
 Child-owned credentials authenticate directly as the child. Public and secret validation
 derive the unique active manager relationship on every request; corridor-bound route

@@ -107,11 +107,17 @@ const EUR_OFFRAMP = {
 const EUR_ONRAMP_BASE = {
   from: "sepa",
   inputCurrency: FiatToken.EURC,
+  metadata: { flow: { id: "MoneriumOnrampPolygonCrossChain" } },
   outputCurrency: "USDC",
   rampType: RampDirection.BUY,
   to: Networks.Base
 };
 const EUR_ONRAMP_TO_ARBITRUM = { ...EUR_ONRAMP_BASE, to: Networks.Arbitrum };
+const LEGACY_EUR_ONRAMP = { ...EUR_ONRAMP_BASE, metadata: { globals: {} } };
+const IDENTITY_BEARING_LEGACY_EUR_ONRAMP = {
+  ...EUR_ONRAMP_BASE,
+  metadata: { flow: { id: "EurOnrampBaseDirect" } }
+};
 
 describe("quoteToSigningNetworks", () => {
   it("BRL off-ramp from an EVM chain signs on Base only", () => {
@@ -166,15 +172,23 @@ describe("quoteToSigningNetworks", () => {
     expect(quoteToSigningNetworks(EUR_OFFRAMP)).toEqual({ evm: [Networks.Base], substrate: [] });
   });
 
-  it("EUR on-ramp to Base signs on Base only (destination deduped)", () => {
-    expect(quoteToSigningNetworks(EUR_ONRAMP_BASE)).toEqual({ evm: [Networks.Base], substrate: [] });
+  it("EUR on-ramp to Base signs on Polygon plus the destination", () => {
+    expect(quoteToSigningNetworks(EUR_ONRAMP_BASE)).toEqual({ evm: [Networks.Polygon, Networks.Base], substrate: [] });
   });
 
-  it("EUR on-ramp to a different EVM chain signs on Base plus the destination", () => {
+  it("EUR on-ramp to a different EVM chain signs on Polygon plus the destination", () => {
     expect(quoteToSigningNetworks(EUR_ONRAMP_TO_ARBITRUM)).toEqual({
-      evm: [Networks.Base, Networks.Arbitrum],
+      evm: [Networks.Polygon, Networks.Arbitrum],
       substrate: []
     });
+  });
+
+  it("persisted identity-less Mykobo EUR onramps continue to sign on Base", () => {
+    expect(quoteToSigningNetworks(LEGACY_EUR_ONRAMP)).toEqual({ evm: [Networks.Base], substrate: [] });
+  });
+
+  it("persisted identity-bearing Mykobo EUR onramps continue to sign on Base", () => {
+    expect(quoteToSigningNetworks(IDENTITY_BEARING_LEGACY_EUR_ONRAMP)).toEqual({ evm: [Networks.Base], substrate: [] });
   });
 
   it("covers every branch of the mapping", () => {
@@ -194,7 +208,9 @@ describe("quoteToSigningNetworks", () => {
         ALFREDPAY_ONRAMP,
         ALFREDPAY_ONRAMP_TO_BASE,
         EUR_ONRAMP_BASE,
-        EUR_ONRAMP_TO_ARBITRUM
+        EUR_ONRAMP_TO_ARBITRUM,
+        LEGACY_EUR_ONRAMP,
+        IDENTITY_BEARING_LEGACY_EUR_ONRAMP
       ].flatMap(quote => {
         const { evm, substrate } = quoteToSigningNetworks(quote);
         return [...evm, ...substrate];

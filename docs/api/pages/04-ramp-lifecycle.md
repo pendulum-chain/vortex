@@ -24,13 +24,13 @@ Only public addresses are sent to Vortex. The matching ephemeral secret keys mus
 
 Use `POST /v1/ramp/update` to submit signed transactions and route-specific transaction hashes.
 
-The SDK performs this automatically for supported flows. On buy flows, the SDK calls `POST /v1/ramp/update` inside `registerRamp` to submit presigned transactions. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase.
+The SDK performs this automatically for the buy flows it supports. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase. EUR BUY is direct-API only and requires both the profile-linked owner's typed-data permit and the ephemeral-owned signatures returned at registration.
 
-On buys, the fiat payment instructions (`depositQrCode` for BRL, `ibanPaymentData` for EUR) are withheld until the presigned transactions pass validation: they are released on the update response and on `GET /v1/ramp/{id}`, not on the register response. SDK integrations receive them directly from `registerRamp`, which performs the update internally.
+On buys, the fiat payment instructions (`depositQrCode` for BRL, `ibanPaymentData` for EUR) are withheld until the presigned transactions pass validation: they are released on the update response and on `GET /v1/ramp/{id}`, not on the register response. SDK integrations receive supported-corridor instructions directly from `registerRamp`, which performs the update internally. For EUR, the direct API client must submit the owner permit and ephemeral signatures itself before `ibanPaymentData` is released.
 
 ## 4. Start The Ramp
 
-Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fiat payment steps are complete. For BRL buys, call start after the user completes the PIX payment; for EUR buys, after the SEPA transfer. For USD, MXN, COP, and ARS buys the order is inverted: call start first — the start response's `achPaymentData` contains the bank transfer instructions the user must pay.
+Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fiat payment steps are complete. For BRL buys, call start after the user completes the PIX payment. For direct-API EUR buys, submit all signatures, display the released IBAN instructions, and call start after the user initiates the SEPA transfer. For USD, MXN, COP, and ARS buys the order is inverted: call start first — the start response's `achPaymentData` contains the bank transfer instructions the user must pay.
 
 If a BRL PIX payment is confirmed by the payment partner but the client cannot call start (for example because the managed profile was deleted or its corridor policy changed after registration), Vortex automatically starts the already-signed persisted ramp. This recovery is tied to the exact provider ticket issued at registration; it does not authorize new ramps or bypass payment verification.
 

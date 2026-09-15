@@ -21,6 +21,8 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   hydrationSwap: 30,
   hydrationToAssethubXcm: 30,
   initial: 0,
+  moneriumOnrampMint: 5 * 60,
+  moneriumOnrampSelfTransfer: 30,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   mykoboOnrampDeposit: 5 * 60,
@@ -40,7 +42,9 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   squidRouterSwap: 10,
   subsidizePostSwap: 24,
   subsidizePreSwap: 24,
-  timedOut: 0
+  timedOut: 0,
+  uniswapApprove: 24,
+  uniswapSwap: 24
 };
 
 export const PHASE_FLOWS = {

@@ -28,6 +28,7 @@ export interface FreshnessQuote {
   inputCurrency: string;
   outputCurrency: string;
   from: string;
+  metadata?: unknown;
   to: string;
 }
 
@@ -83,8 +84,12 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
   const toNetwork = getNetworkFromDestination(quote.to as DestinationType);
 
   if (quote.inputCurrency === FiatToken.EURC) {
-    // Mykobo (currently kill-switched, but mapped for completeness): Base + destination.
-    evm.add(Networks.Base);
+    const flowId =
+      quote.metadata && typeof quote.metadata === "object" && "flow" in quote.metadata
+        ? (quote.metadata.flow as { id?: unknown } | undefined)?.id
+        : undefined;
+    // Persisted Mykobo quotes sign on Base; active Monerium quotes sign on Polygon.
+    evm.add(quote.metadata === undefined || flowId === "MoneriumOnrampPolygonCrossChain" ? Networks.Polygon : Networks.Base);
     addIfEvm(toNetwork);
   } else if (isDomesticToken(quote.inputCurrency as FiatToken)) {
     evm.add(Networks.Polygon); // mint chain

@@ -35,8 +35,11 @@ the transactions the ephemerals/user must sign all live in one place.
    phase's *own* simulated metadata key (e.g. `NablaSwap` reads
    `quote.metadata.nablaSwapEvm`, `SquidRouterSwap` reads
    `quote.metadata.evmToEvm`) plus corridor-level `PrepareCtx` data, never
-   another phase's output. This is what makes phases removable,
-   reorderable, and swappable.
+   another phase's output. Registration has one ordered exception: a register
+   hook may inspect read-only, namespaced facts already returned by earlier
+   hooks and copy required values into its own facts. It never receives facts
+   from itself or later hooks. This is what makes phases removable,
+   reorderable, and swappable while keeping preparation phase-owned.
 3. **Adjacency mismatches fail at compile time — where the types can carry
    it.** `FlowBuilder.pipe` rejects a token- or chain-brand mismatch as a
    hard type error. `Phase.simulate` is declared as a *property function*
@@ -48,10 +51,15 @@ the transactions the ephemerals/user must sign all live in one place.
 
 **Scope:** block flows are the production source of truth for quote simulation,
 transaction preparation, phase ordering, and executor registration. The catalog
- currently maps the direct, Base-destination, and cross-chain BRL/Avenia and
- EUR/Mykobo onramps, their Base offramps, plus the AlfredPay flows,
+ currently maps the direct, Base-destination, and cross-chain BRL/Avenia flows,
+ the Polygon Monerium EUR onramp, plus the AlfredPay flows,
  expressed as flow *families* parameterized by destination chain and token
-where needed.
+ where needed.
+The Monerium issue, owner-to-ephemeral self-transfer, and fixed Polygon Uniswap V3
+EURe-to-USDC blocks compose the active SEPA/EUR BUY flow. Issue execution uses a
+persisted owner-balance baseline and waits for the quoted post-fee EURe delta.
+SEPA/EUR SELL requests are rejected. Mykobo flow definitions remain executor-registered
+only for persisted quote/ramp recovery and are excluded from new quote resolution.
 Unmapped corridors are rejected during quote creation until their flows are
 ported. `BrlOnrampAssethubUsdc` and `BrlOfframpAssethubUsdc` are cataloged for
 deterministic persisted-quote preparation and recovery, but an explicit
@@ -102,7 +110,9 @@ apps/api/src/api/services/phases/blocks/
     alfredpay-{mint,offramp}/                  # provider lifecycle and execution
     avenia-{direct-mint,mint,moonbeam-mint}/   # BRL onramp variants
     avenia-{offramp-fee,offramp-payout,pendulum-offramp}/
-    mykobo-{mint,offramp-fee,offramp-payout}/  # EUR provider phases
+    mykobo-{mint,offramp-fee,offramp-payout}/  # legacy EUR recovery phases
+    monerium-{issue,self-transfer}/            # active EUR issue/custody phases
+    uniswap-v3-fixed-swap/                     # pinned Polygon EURe/USDC conversion
     {evm,assethub}-offramp-source/             # source validation and tx plans
     fund-ephemeral/                            # EVM/Substrate funding and source-hash checks
     nabla-swap/                                # EVM Nabla simulation, txs, and executors
@@ -124,10 +134,11 @@ apps/api/src/api/services/phases/blocks/
     brl-onramp-assethub-usdc.ts                # disabled public corridor, retained for recovery
     brl-offramp-base.ts                        # supported EVM source -> BRL on Base
     brl-offramp-assethub-usdc.ts               # disabled public corridor, retained for recovery
-    eur-onramp-base-direct.ts                  # EUR -> EURC on Base
-    eur-onramp-base-same-chain.ts              # Base USDC passthrough and routed Base outputs
-    eur-onramp-base-cross-chain.ts             # makeEurOnrampBaseCrossChainFlow(toChain, toToken)
-    eur-offramp-base.ts                        # supported EVM source -> EUR on Base
+    eur-onramp-base-direct.ts                  # legacy Mykobo recovery
+    eur-onramp-base-same-chain.ts              # legacy Mykobo recovery
+    eur-onramp-base-cross-chain.ts             # legacy Mykobo recovery
+    eur-offramp-base.ts                        # legacy Mykobo recovery
+    monerium-onramp-polygon-cross-chain.ts     # active Polygon EURe -> destination EVM factory
   __tests__/
     brl-onramp-base-same-chain.flow.test.ts         # Base variant topology, executors, and simulation
     brl-onramp-base-same-chain.transactions.test.ts # Base variant tx/state/nonce expectations
@@ -293,7 +304,11 @@ route.
 - Registration is optional and phase-owned. `Flow.register` namespaces facts
   and response artifacts by context key, and a phase may refresh only its own
   metadata. Registration receives a read-only quote, authenticated user,
-  normalized input, signing accounts, and optional DB transaction/IP context.
+  normalized input, signing accounts, optional DB transaction/IP context, and
+  an isolated `priorRegistrationFacts` snapshot containing only facts from
+  earlier register hooks. A hook that needs an earlier fact during preparation
+  copies it into its own result; `prepareTxs` still receives only
+  `ownRegistrationFacts`.
 - Preparation account capabilities are keyed by `EphemeralAccountType`.
   EVM phases explicitly require EVM; destination address is optional in core.
 - Phases whose executors sign live (funding-account subsidies, Avenia
@@ -325,6 +340,7 @@ route.
 | Presigned tx | Lane | Owning phase | Rationale |
 |--------------|------|--------------|-----------|
 | `nablaApprove`, `nablaSwap` | main | `NablaSwap` | its executors broadcast them; amounts from `nablaSwapEvm` |
+| `uniswapApprove`, `uniswapSwap` | main | `PolygonEureUsdcUniswapSwap` | exact EURe approval and pinned-pool `exactInputSingle` conversion |
 | `distributeFees` | main | `DistributeFees` | fee amounts from `quote.metadata.fees` |
 | `squidRouterApprove`, `squidRouterSwap` | main | `SquidRouterSwap` | bridge input from `evmToEvm` |
 | `destinationTransfer` | main | `DestinationTransfer` | delivers `quote.outputAmount` to the user |
@@ -379,7 +395,10 @@ same contract under `phases/`.
 |-------|--------------|----------|
 | `AlfredpayMint` | `alfredpayMint` | `["alfredpayOnrampMint"]` |
 | `AveniaMint` | `aveniaMint` | `["brlaOnrampMint"]` |
-| `MykoboMint` | `mykoboMint` | `["mykoboOnrampDeposit"]` |
+| `MykoboMint` | `mykoboMint` | `["mykoboOnrampDeposit"]` (legacy recovery) |
+| `MoneriumIssue(chain, fee)` | `moneriumIssue` | `["moneriumOnrampMint"]` |
+| `MoneriumSelfTransfer<Chain>()` | `moneriumSelfTransfer` | `["moneriumOnrampSelfTransfer"]` |
+| `PolygonEureUsdcUniswapSwap` | `uniswapV3FixedSwap` | `["uniswapApprove", "uniswapSwap"]` |
 | `FundEphemeral(token, chain)` | `fundEphemeral` | `["fundEphemeral"]` |
 | `SubsidizePre<Token, Chain>()` | `subsidizePreSwap` | `["subsidizePreSwap"]` |
 | `NablaSwap(chain, in, out)` | `nablaSwap` | `["nablaApprove", "nablaSwap"]` |
@@ -393,7 +412,7 @@ same contract under `phases/`.
 `toChain` args (not from `ctx.request.outputCurrency`) — the phase carries
 its complete contract in its signature.
 
-`MykoboMint.register` derives the approved Mykobo customer from the authenticated
+For persisted legacy flows, `MykoboMint.register` derives the approved Mykobo customer from the authenticated
 user, creates the provider deposit intent against the Base EVM ephemeral, and
 returns IBAN response artifacts plus facts namespaced under `mykoboMint`.
 `MykoboMint.prepareTxs` receives only those own registration facts, persists them
@@ -563,7 +582,7 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
 
 1. **Generic BRL/EUR onramp discounts.** `SubsidizePost` resolves the active
    corridor pricing config, applies the dynamic partner difference, and converts the
-   oracle target into pre-bridge Base USDC using SquidRouter. Its typed input follows
+   oracle target into pre-bridge source-chain USDC using SquidRouter. Its typed input follows
    `DistributeFees`, so the actual amount already has network, vortex, and partner
    markup fees deducted without reading another block's metadata. AlfredPay retains
    its specialized pre-bridge subsidy path.
@@ -586,12 +605,10 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
    `BRL_ONRAMP_BASE_SAME_CHAIN_SWAP`. The latter emits source approve/swap
    transactions only, with destination transfer at the next nonce and no
    Squid pay, backup bridge, or final-settlement work.
-8. **EUR Base variants use the same static split.** Base EURC is owned only by
-   `EurOnrampBaseDirect`; Base USDC uses `EUR_ONRAMP_BASE_SAME_CHAIN` without
-   Squid; Base USDT, ETH, AXLUSDC, and BRLA use
-   `EUR_ONRAMP_BASE_SAME_CHAIN_SWAP` with one Base-built same-chain Squid swap
-   immediately before destination transfer. No same-chain variant includes
-   Squid pay, backups, or final settlement.
+8. **EUR selection is Monerium-only.** Supported non-Polygon EVM destinations use
+   `MoneriumOnrampPolygonCrossChain`. Mykobo Base variants are excluded from new
+   quote resolution but retained for persisted compatibility. EUR SELL has no
+   active definition and is rejected by `QuoteService`.
 9. **AlfredPay SELL reconciliation stays block-owned.** `AlfredpayOfframp`
    derives the fiat target from the exact Vortex reference snapshot, requests
    AlfredPay's executable exact-output terms, and caps the raw settlement top-up.

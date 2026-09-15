@@ -13,6 +13,10 @@ export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadlin
 
 export type RampPhase =
   | "initial"
+  | "moneriumOnrampMint"
+  | "moneriumOnrampSelfTransfer"
+  | "uniswapApprove"
+  | "uniswapSwap"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"

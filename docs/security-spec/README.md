@@ -59,8 +59,8 @@ documents win.
 | Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
-| Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
-| Monerium | `05-integrations/monerium.md` | Server-to-server white-label API client plus the legacy OAuth KYC/KYB and verification status mirroring |
+| Mykobo | `05-integrations/mykobo.md` | Legacy persisted EUR on/off-ramp recovery and standalone profile API |
+| Monerium | `05-integrations/monerium.md` | Server-to-server white-label API client, the active direct-API Polygon EUR onramp, and the legacy OAuth KYC/KYB onboarding |
 | Monerium B2B | `05-integrations/monerium-b2b.md` | Whitelabel onramp: attestor address linking, HMAC webhook + durable inbox, forward-only deposits |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
@@ -108,8 +108,8 @@ Most module specifications use these sections:
 | **Nabla** | DEX on Pendulum used for token swaps |
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
-| **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
-| **Monerium** | European e-money provider integrated through the white-label API for KYC/KYB, IBANs, and EUR payments. |
+| **Mykobo** | Legacy persisted EUR flow recovery and standalone profile/KYC endpoints; excluded from new quotes. |
+| **Monerium** | European e-money provider integrated through the white-label API. Active direct-API SEPA/EUR BUY provider using Polygon EURe for already provisioned approved users, and the B2B onramp; onboarding/linking/import and EUR SELL are deferred. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
 | **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |

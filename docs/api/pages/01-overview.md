@@ -6,7 +6,7 @@ These docs are written for partner developers integrating Vortex into a backend,
 
 ## Supported Corridors
 
-The current SDK release supports BRL/PIX flows, EUR/SEPA flows, and bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU) through Vortex's local payment partners, where enabled by country and route configuration. The EUR and bank-transfer corridors support buys and sells on EVM networks; AssetHub is not available for them. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
+The current SDK release supports BRL/PIX and bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU), where enabled by country and route configuration. The backend API also supports EUR/SEPA buys for pre-provisioned approved users through a direct integration that collects a typed-data signature from the user's linked owner wallet. The current SDK, Widget, and Dashboard do not implement that EUR signing journey, and EUR sells are unavailable. AssetHub is not available for these corridors. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
 
 For crypto, Vortex supports USDC and USDT across the listed EVM networks plus USDC on AssetHub. Stablecoin pegs and routes are subject to liquidity on the Nabla AMM and the wider Pendulum/Hydration corridor.
 
@@ -17,11 +17,11 @@ Every Vortex ramp follows the same shape:
 1. **Quote** — your application requests pricing for a route.
 2. **Register** — your application creates per-chain ephemeral accounts and submits their public addresses with the quote ID. Vortex returns one or more **unsigned** transactions that move funds through the ramp.
 3. **Sign and update** — your application signs each unsigned transaction with the correct key (ephemeral key for SDK-controlled accounts, user wallet for the user's funds) and submits the signed payloads back to Vortex.
-4. **Settle fiat** — on buys, the user pays on the corridor's rail (a PIX QR for BRL, a SEPA transfer for EUR, bank transfer instructions for USD/MXN/COP/ARS); on sells, Vortex pays out on that rail after settlement.
+4. **Settle fiat** — on buys, the user pays on the corridor's rail (a PIX QR for BRL, a SEPA transfer for the direct-API EUR flow, bank transfer instructions for USD/MXN/COP/ARS); on supported sells, Vortex pays out on that rail after settlement.
 5. **Start** — your application calls start once signatures and fiat payment are in place.
 6. **Track** — Vortex drives the on-chain phase machine. Your application listens via webhooks or polls the ramp status endpoint.
 
-The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integrations must implement them explicitly.
+The SDK wraps steps 2, 3, and parts of 5 for supported flows. Direct API integrations must implement them explicitly. In particular, EUR BUY currently requires the direct API path.
 
 ## Recommended Integration Paths
 
