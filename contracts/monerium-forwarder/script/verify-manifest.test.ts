@@ -2,8 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { severityFor } from "./verify-manifest";
 
 describe("manifest diff severity", () => {
-  it("treats guardian fee changes as notices", () => {
-    expect(severityFor("forwarders.0x123.guardianMutable.feeBps")).toBe("NOTICE");
+  it("treats guardian fee policy, vault and route changes as notices", () => {
+    expect(severityFor("forwarders.0x123.guardianMutable.targetPpm")).toBe("NOTICE");
+    expect(severityFor("forwarders.0x123.guardianMutable.floorPpm")).toBe("NOTICE");
+    expect(severityFor("factory.operational.subsidyVault")).toBe("NOTICE");
+    expect(severityFor("factory.operational.routes.0.enabled")).toBe("NOTICE");
   });
 
   it("keeps client changes expected and immutable changes fatal", () => {

@@ -11,7 +11,7 @@ import { Address, getAddress, Hex, keccak256, PublicClient, parseAbi, parseAbiIt
  * source on a block explorer.
  */
 
-export const MANIFEST_VERSION = 2;
+export const MANIFEST_VERSION = 3;
 
 export const MANIFEST_PURPOSE =
   "Consistency evidence for a VortexForwarder deployment (Monerium B2B onramp). " +
@@ -30,17 +30,21 @@ export const factoryAbi = parseAbi([
   "function globalPaused() view returns (bool)",
   "function minSwapAmount() view returns (uint256)",
   "function perSwapCap() view returns (uint256)",
-  "function isForwarder(address forwarder) view returns (bool)"
+  "function isForwarder(address forwarder) view returns (bool)",
+  "function subsidyVault() view returns (address)",
+  "function routeCount() view returns (uint256)",
+  "function route(uint256 index) view returns (bytes path, bool enabled)"
 ]);
 
 export const forwarderDeployedEvent = parseAbiItem(
-  "event ForwarderDeployed(address indexed forwarder, address indexed destination, address fallbackAddress, uint16 feeBps, bytes32 salt)"
+  "event ForwarderDeployed(address indexed forwarder, address indexed destination, address fallbackAddress, uint32 targetPpm, uint32 floorPpm, bytes32 salt)"
 );
 
 export const forwarderConfigAbi = parseAbi([
   "function destination() view returns (address)",
   "function fallbackAddress() view returns (address)",
-  "function feeBps() view returns (uint16)"
+  "function targetPpm() view returns (uint32)",
+  "function floorPpm() view returns (uint32)"
 ]);
 
 export const implementationAbi = parseAbi([
@@ -55,11 +59,10 @@ export const implementationAbi = parseAbi([
   "function FEE_RECIPIENT() view returns (address)",
   "function MAX_ORACLE_AGE() view returns (uint256)",
   "function SLIPPAGE_BPS() view returns (uint16)",
-  "function MAX_FEE_BPS() view returns (uint16)",
+  "function MAX_FEE_PPM() view returns (uint32)",
+  "function MAX_REFERENCE_DEVIATION_BPS() view returns (uint16)",
   "function SWEEP_DELAY() view returns (uint256)",
   "function TRIGGER_DELAY() view returns (uint256)",
-  "function POOL_FEE_EURE_EURC() view returns (uint24)",
-  "function POOL_FEE_EURC_USDC() view returns (uint24)",
   "function LINK_HASH_191() view returns (bytes32)",
   "function RECOVERY_HASH() view returns (bytes32)",
   "function LINK_MESSAGE() view returns (string)"
@@ -76,12 +79,11 @@ export interface ImplementationImmutables {
   FEE_RECIPIENT: string;
   LINK_HASH_191: Hex;
   LINK_MESSAGE: string;
-  MAX_FEE_BPS: number;
+  MAX_FEE_PPM: number;
   MAX_ORACLE_AGE: string;
+  MAX_REFERENCE_DEVIATION_BPS: number;
   ORACLE: string;
   ORACLE_DECIMALS: number;
-  POOL_FEE_EURC_USDC: number;
-  POOL_FEE_EURE_EURC: number;
   RECOVERY_HASH: Hex;
   ROUTER: string;
   SLIPPAGE_BPS: number;
@@ -106,9 +108,10 @@ export interface ForwarderManifestEntry {
     salt: Hex;
     txHash: Hex;
   };
-  /** Guardian-adjustable under the contract's bounded, timelocked fee policy. */
+  /** Guardian-adjustable under the contract's bounded, timelocked fee policy (ppm below the reference). */
   guardianMutable: {
-    feeBps: number;
+    floorPpm: number;
+    targetPpm: number;
   };
   /** Factory registration is fixed for the lifetime of the clone. Mismatch = incident. */
   immutables: {
@@ -129,14 +132,16 @@ export interface CoreState {
     };
     /**
      * Guardian-tunable within the immutable bounds (registry P6/P7) plus role/pause
-     * state. Drift here is legitimate operation: the verifier reports NOTICE, not
-     * failure.
+     * state, the subsidy vault and the on-chain validated route whitelist. Drift here
+     * is legitimate operation: the verifier reports NOTICE, not failure.
      */
     operational: {
       globalPaused: boolean;
       guardian: string;
       minSwapAmount: string;
       perSwapCap: string;
+      routes: { enabled: boolean; path: Hex }[];
+      subsidyVault: string;
     };
     runtimeBytecodeHash: Hex;
   };
@@ -286,15 +291,35 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
   const factory = getAddress(factoryAddress);
   const chainId = await client.getChainId();
 
-  const [implementation, minSwapFloor, capCeiling, guardian, globalPaused, minSwapAmount, perSwapCap] = await Promise.all([
+  const [
+    implementation,
+    minSwapFloor,
+    capCeiling,
+    guardian,
+    globalPaused,
+    minSwapAmount,
+    perSwapCap,
+    subsidyVault,
+    routeCount
+  ] = await Promise.all([
     read<Address>(client, factoryAbi, factory, "implementation"),
     read<bigint>(client, factoryAbi, factory, "MIN_SWAP_FLOOR"),
     read<bigint>(client, factoryAbi, factory, "CAP_CEILING"),
     read<Address>(client, factoryAbi, factory, "guardian"),
     read<boolean>(client, factoryAbi, factory, "globalPaused"),
     read<bigint>(client, factoryAbi, factory, "minSwapAmount"),
-    read<bigint>(client, factoryAbi, factory, "perSwapCap")
+    read<bigint>(client, factoryAbi, factory, "perSwapCap"),
+    read<Address>(client, factoryAbi, factory, "subsidyVault"),
+    read<bigint>(client, factoryAbi, factory, "routeCount")
   ]);
+  const routes = await Promise.all(
+    Array.from({ length: Number(routeCount) }, (_, index) =>
+      read<[Hex, boolean]>(client, factoryAbi, factory, "route", [BigInt(index)]).then(([path, enabled]) => ({
+        enabled,
+        path
+      }))
+    )
+  );
 
   const [
     eure,
@@ -308,11 +333,10 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
     feeRecipient,
     maxOracleAge,
     slippageBps,
-    maxFeeBps,
+    maxFeePpm,
+    maxReferenceDeviationBps,
     sweepDelay,
     triggerDelay,
-    poolFeeEureEurc,
-    poolFeeEurcUsdc,
     linkHash191,
     recoveryHash,
     linkMessage
@@ -328,11 +352,10 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
     read<Address>(client, implementationAbi, implementation, "FEE_RECIPIENT"),
     read<bigint>(client, implementationAbi, implementation, "MAX_ORACLE_AGE"),
     read<number>(client, implementationAbi, implementation, "SLIPPAGE_BPS"),
-    read<number>(client, implementationAbi, implementation, "MAX_FEE_BPS"),
+    read<number>(client, implementationAbi, implementation, "MAX_FEE_PPM"),
+    read<number>(client, implementationAbi, implementation, "MAX_REFERENCE_DEVIATION_BPS"),
     read<bigint>(client, implementationAbi, implementation, "SWEEP_DELAY"),
     read<bigint>(client, implementationAbi, implementation, "TRIGGER_DELAY"),
-    read<number>(client, implementationAbi, implementation, "POOL_FEE_EURE_EURC"),
-    read<number>(client, implementationAbi, implementation, "POOL_FEE_EURC_USDC"),
     read<Hex>(client, implementationAbi, implementation, "LINK_HASH_191"),
     read<Hex>(client, implementationAbi, implementation, "RECOVERY_HASH"),
     read<string>(client, implementationAbi, implementation, "LINK_MESSAGE")
@@ -351,7 +374,9 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
         globalPaused,
         guardian: getAddress(guardian),
         minSwapAmount: minSwapAmount.toString(),
-        perSwapCap: perSwapCap.toString()
+        perSwapCap: perSwapCap.toString(),
+        routes,
+        subsidyVault: subsidyVault === "0x0000000000000000000000000000000000000000" ? subsidyVault : getAddress(subsidyVault)
       },
       runtimeBytecodeHash: await codeHash(client, factory)
     },
@@ -365,12 +390,11 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
         FEE_RECIPIENT: getAddress(feeRecipient),
         LINK_HASH_191: linkHash191,
         LINK_MESSAGE: linkMessage,
-        MAX_FEE_BPS: Number(maxFeeBps),
+        MAX_FEE_PPM: Number(maxFeePpm),
         MAX_ORACLE_AGE: maxOracleAge.toString(),
+        MAX_REFERENCE_DEVIATION_BPS: Number(maxReferenceDeviationBps),
         ORACLE: getAddress(oracle),
         ORACLE_DECIMALS: Number(oracleDecimals),
-        POOL_FEE_EURC_USDC: Number(poolFeeEurcUsdc),
-        POOL_FEE_EURE_EURC: Number(poolFeeEureEurc),
         RECOVERY_HASH: recoveryHash,
         ROUTER: getAddress(router),
         SLIPPAGE_BPS: Number(slippageBps),
@@ -392,10 +416,11 @@ export async function readForwarderEntry(
 ): Promise<ForwarderManifestEntry> {
   const factory = getAddress(factoryAddress);
   const forwarder = getAddress(forwarderAddress);
-  const [destination, fallbackAddress, feeBps, isForwarder, forwarderCodeHash] = await Promise.all([
+  const [destination, fallbackAddress, targetPpm, floorPpm, isForwarder, forwarderCodeHash] = await Promise.all([
     read<Address>(client, forwarderConfigAbi, forwarder, "destination"),
     read<Address>(client, forwarderConfigAbi, forwarder, "fallbackAddress"),
-    read<number>(client, forwarderConfigAbi, forwarder, "feeBps"),
+    read<number>(client, forwarderConfigAbi, forwarder, "targetPpm"),
+    read<number>(client, forwarderConfigAbi, forwarder, "floorPpm"),
     read<boolean>(client, factoryAbi, factory, "isForwarder", [forwarder]),
     codeHash(client, forwarder)
   ]);
@@ -411,7 +436,8 @@ export async function readForwarderEntry(
       txHash: deploy.txHash
     },
     guardianMutable: {
-      feeBps: Number(feeBps)
+      floorPpm: Number(floorPpm),
+      targetPpm: Number(targetPpm)
     },
     immutables: {
       isForwarder
