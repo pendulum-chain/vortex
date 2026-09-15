@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock 
 // Load this shared consumer before the module mocks below; Bun does not unregister mock.module
 // replacements, and the API suite may import transfer eligibility after this file.
 import "../recipients/transfer-eligibility.service";
+// Controller tests import the wallet route, which needs real Sequelize-backed ramp models.
+import "./wallet";
 // Value copies taken before the mock.module calls below; restored in afterAll because bun
 // module mocks are process-wide and would poison later test files (e.g. integration tests
 // that need the real sequelize instance and models).
@@ -364,6 +366,36 @@ describe("Monerium OAuth", () => {
       type: service.MONERIUM_REAUTHENTICATION_REQUIRED
     });
     expect(tokenCalls).toBe(2);
+  });
+
+  it("asks for reauthentication when Monerium revokes an otherwise unexpired access token", async () => {
+    let profileReads = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        return jsonResponse({ access_token: "access", expires_in: 3600, refresh_token: "refresh" });
+      }
+      if (url.endsWith("/auth/context")) {
+        return profileReads > 0
+          ? new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 })
+          : jsonResponse({
+              email: "owner@example.com",
+              profiles: [{ id: "profile-a", kind: "personal" }],
+              userId: "monerium-user-a"
+            });
+      }
+      profileReads += 1;
+      return jsonResponse({ id: "profile-a", kind: "personal", state: "approved" });
+    }) as unknown as typeof fetch;
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+    await service.completeMoneriumOAuth("owner", "authorization-code", state);
+
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      status: 404,
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
   });
 
   it("returns the custom reauthentication error when credentials are unavailable", async () => {

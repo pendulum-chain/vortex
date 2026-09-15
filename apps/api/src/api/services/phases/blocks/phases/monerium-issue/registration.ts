@@ -10,8 +10,9 @@ import crypto from "crypto";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
 import logger from "../../../../../../config/logger";
+import type { ProviderCustomerType } from "../../../../../../models/providerCustomer.model";
 import { APIError } from "../../../../../errors/api-error";
-import { findActiveMoneriumRampForOwner } from "../../../../monerium/active-ramp";
+import { findActiveMoneriumRampForOwner, lockMoneriumOwner, lockMoneriumProfile } from "../../../../monerium/active-ramp";
 import { type MoneriumIdentity, resolveMoneriumIdentity } from "../../../../monerium/identity";
 import type { RegisterCtx, RegistrationResult } from "../../core/types";
 import { MONERIUM_EURE, MONERIUM_ISSUE_NETWORKS, type MoneriumIssueMetadata, type MoneriumIssueNetwork } from "./simulation";
@@ -27,6 +28,7 @@ const CALLER_IDENTITY_FIELDS = [
 
 export interface MoneriumIssueRegistrationInput extends Record<string, unknown> {
   address?: string;
+  customerType?: ProviderCustomerType;
   iban?: string;
   moneriumAddress?: string;
   moneriumIban?: string;
@@ -54,8 +56,14 @@ interface MoneriumIssueRegistrationDependencies {
   createReference: () => string;
   findActiveRampForOwner?: typeof findActiveMoneriumRampForOwner;
   isContractAddress?: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
+  lockOwner?: typeof lockMoneriumOwner;
+  lockProfile?: typeof lockMoneriumProfile;
   readOwnerEureBalance: typeof getEvmTokenBalance;
-  resolveIdentity: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<MoneriumIdentity>;
+  resolveIdentity: (
+    userId: string,
+    transaction?: RegisterCtx<never>["transaction"],
+    customerType?: ProviderCustomerType
+  ) => Promise<MoneriumIdentity>;
 }
 
 function createPaymentReference(): string {
@@ -100,14 +108,26 @@ export function createRegisterMoneriumIssue(
       });
     }
 
+    if (
+      ctx.input.customerType !== undefined &&
+      ctx.input.customerType !== "individual" &&
+      ctx.input.customerType !== "business"
+    ) {
+      throw new APIError({ message: "customerType must be individual or business", status: httpStatus.BAD_REQUEST });
+    }
     const { client, profile, profileId, source } = await dependencies.resolveIdentity(
       ctx.authenticatedUser.id,
-      ctx.transaction
+      ctx.transaction,
+      ctx.input.customerType
     );
     if (profile.id !== profileId || profile.state !== "approved") {
       throw new APIError({ message: "The Monerium profile is not approved", status: httpStatus.BAD_REQUEST });
     }
     logger.info(`MoneriumIssue: resolved the Monerium profile through the ${source} app`);
+
+    // Registration keeps this transaction open through the ramp insert. A concurrent registration
+    // or IBAN move for this profile must see the committed ramp/destination before proceeding.
+    if (ctx.transaction) await (dependencies.lockProfile ?? lockMoneriumProfile)(profileId, ctx.transaction);
 
     const moneriumChain = MONERIUM_ISSUE_NETWORKS[ctx.metadata.network].chain;
     const [addressResponse, ibanResponse] = await Promise.all([
@@ -125,6 +145,7 @@ export function createRegisterMoneriumIssue(
     const destination = destinations[0];
     const address = destination.address.address;
     const iban = destination.iban;
+    if (ctx.transaction) await (dependencies.lockOwner ?? lockMoneriumOwner)(address, ctx.transaction);
     const isContractAddress =
       dependencies.isContractAddress ??
       (async (network: MoneriumIssueNetwork, owner: `0x${string}`) =>

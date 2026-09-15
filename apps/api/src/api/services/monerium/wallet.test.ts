@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import { MONERIUM_ADDRESS_OWNERSHIP_MESSAGE, MoneriumApiError, Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
+import type { Transaction } from "sequelize";
 import { APIError } from "../../errors/api-error";
 import type { MoneriumIdentity } from "./identity";
 import { getMoneriumRampReadiness, linkMoneriumWallet, moveMoneriumIban, verifyMoneriumWalletOwnership } from "./wallet";
@@ -34,7 +35,10 @@ function deps(monerium: ReturnType<typeof client>, overrides: Partial<Parameters
   return {
     findActiveRampForOwner: async () => null,
     isContractAddress: async () => false,
+    lockOwner: async () => undefined,
     resolveIdentity: async () => identity,
+    runWithProfileLock: async <T>(_profileId: string, work: (transaction: Transaction) => Promise<T>): Promise<T> =>
+      work(undefined as unknown as Transaction),
     verifyOwnership: async () => true,
     ...overrides
   };
@@ -45,9 +49,15 @@ async function ownerSignature(): Promise<`0x${string}`> {
 }
 
 describe("getMoneriumRampReadiness", () => {
+  it("reads the profile matching the requested legal type", async () => {
+    const monerium = client({ addresses: [OWNER.address], ibans: [iban(OWNER.address)] });
+    const resolveIdentity = mock(async () => deps(monerium).resolveIdentity("user-1"));
+    await getMoneriumRampReadiness("user-1", "individual", deps(monerium, { resolveIdentity }));
+    expect(resolveIdentity).toHaveBeenCalledWith("user-1", undefined, "individual");
+  });
   it("reports provisioned when the IBAN points to a linked address on the ramp chain", async () => {
     const monerium = client({ addresses: [OWNER.address], ibans: [iban(OWNER.address)] });
-    await expect(getMoneriumRampReadiness("user-1", deps(monerium))).resolves.toEqual({
+    await expect(getMoneriumRampReadiness("user-1", undefined, deps(monerium))).resolves.toEqual({
       chain: "polygon",
       iban: "provisioned",
       linkedAddress: OWNER.address,
@@ -58,14 +68,14 @@ describe("getMoneriumRampReadiness", () => {
 
   it("reports elsewhere when the profile's IBAN sits on another chain or address", async () => {
     const monerium = client({ addresses: [OWNER.address], ibans: [iban(OTHER, "ethereum")] });
-    await expect(getMoneriumRampReadiness("user-1", deps(monerium))).resolves.toMatchObject({
+    await expect(getMoneriumRampReadiness("user-1", undefined, deps(monerium))).resolves.toMatchObject({
       iban: "elsewhere",
       linkedAddress: OWNER.address
     });
   });
 
   it("reports missing with no linked address when nothing is provisioned", async () => {
-    await expect(getMoneriumRampReadiness("user-1", deps(client()))).resolves.toMatchObject({ iban: "missing", linkedAddress: null });
+    await expect(getMoneriumRampReadiness("user-1", undefined, deps(client()))).resolves.toMatchObject({ iban: "missing", linkedAddress: null });
   });
 });
 
@@ -183,8 +193,23 @@ describe("moveMoneriumIban", () => {
     await expect(
       moveMoneriumIban("user-1", { address: OWNER.address, chain: "polygon" }, deps(monerium, { findActiveRampForOwner }))
     ).rejects.toMatchObject({ isPublic: true, status: 409 });
-    expect(findActiveRampForOwner).toHaveBeenCalledWith(OTHER);
+    expect(findActiveRampForOwner).toHaveBeenCalledWith(OTHER, undefined);
     expect(monerium.updateIbanDestination).not.toHaveBeenCalled();
+  });
+
+  it("locks the IBAN's current owner before checking for a live ramp and moving it", async () => {
+    const monerium = client({ addresses: [OWNER.address], ibans: [iban(OTHER, "ethereum")] });
+    const lockOwner = mock(async () => undefined);
+    const findActiveRampForOwner = mock(async () => null);
+    await moveMoneriumIban(
+      "user-1",
+      { address: OWNER.address, chain: "polygon" },
+      deps(monerium, { lockOwner, findActiveRampForOwner })
+    );
+    expect(lockOwner).toHaveBeenCalledWith(OTHER, undefined);
+    expect(lockOwner).toHaveBeenCalledTimes(1);
+    expect(findActiveRampForOwner).toHaveBeenCalledWith(OTHER, undefined);
+    expect(monerium.updateIbanDestination).toHaveBeenCalledTimes(1);
   });
 
   it("requires exactly one IBAN", async () => {

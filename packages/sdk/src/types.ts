@@ -149,6 +149,8 @@ export interface BrlOnrampAdditionalData {
 }
 
 export interface EurOnrampAdditionalData {
+  /** Required when the authenticated user owns both individual and business Monerium profiles. */
+  customerType?: "individual" | "business";
   destinationAddress: string;
   /**
    * The wallet linked to the user's Monerium profile. The backend mints EURe there and returns

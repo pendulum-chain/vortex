@@ -15,7 +15,7 @@ import Big from "big.js";
 import { Signature as EvmSignature } from "ethers";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { getOrCreateCustomerEntityForProfile } from "../../api/services/customer-entity.service";
+import { getOrCreateCustomerEntityForProfile, selectActiveCustomerEntity } from "../../api/services/customer-entity.service";
 import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { MoneriumIssueContext, MONERIUM_ISSUE_NETWORKS } from "../../api/services/phases/blocks/phases/monerium-issue/simulation";
 import { moneriumPermitAbi } from "../../api/services/phases/blocks/phases/monerium-self-transfer/contract";
@@ -235,11 +235,12 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
     userId: string,
     ephemeral: PrivateKeyAccount,
     owner: PrivateKeyAccount,
-    destination: `0x${string}`
+    destination: `0x${string}`,
+    customerType?: "individual" | "business"
   ): Promise<Response> {
     return app.request("/v1/ramp/register", {
       body: JSON.stringify({
-        additionalData: { destinationAddress: destination, walletAddress: owner.address },
+        additionalData: { ...(customerType ? { customerType } : {}), destinationAddress: destination, walletAddress: owner.address },
         quoteId,
         signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
       }),
@@ -559,5 +560,41 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
     expect(contractWallet.status).toBe(400);
     expect((await QuoteTicket.findByPk(quote.id))?.status).toBe("pending");
     expect(await FinancialOperation.count()).toBe(0);
+  });
+
+  it("registers the individual profile even when a different approved business profile is active", async () => {
+    const user = await createTestUser();
+    const individual = await getOrCreateCustomerEntityForProfile(user.id, "individual");
+    const business = await selectActiveCustomerEntity(user.id, "business");
+    const individualOwner = privateKeyToAccount(generatePrivateKey());
+    const businessOwner = privateKeyToAccount(generatePrivateKey());
+    const businessProfileId = "3e26276e-330e-4058-a81c-5b543cd8f78e";
+    for (const [entity, profileId] of [[individual, PROFILE_ID], [business, businessProfileId]] as const) {
+      await ProviderCustomer.create({
+        customerEntityId: entity.id,
+        customerType: entity.type,
+        provider: "monerium",
+        providerCustomerId: profileId,
+        rail: "eur",
+        status: VerificationStatus.Approved,
+        statusExternal: "approved"
+      });
+    }
+    world.monerium.provisionApprovedProfile(PROFILE_ID, individualOwner.address, "polygon");
+    world.monerium.provisionApprovedProfile(businessProfileId, businessOwner.address, "polygon", "DE12500105170648489890");
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+
+    const omitted = await registerViaApi((await createQuoteViaApi()).id, user.id, ephemeral, individualOwner, destination);
+    expect(omitted.status).toBe(409);
+    expect(await omitted.json()).toMatchObject({ type: "MONERIUM_CUSTOMER_TYPE_REQUIRED" });
+
+    const response = await registerViaApi((await createQuoteViaApi()).id, user.id, ephemeral, individualOwner, destination, "individual");
+    expect(response.status, await response.clone().text()).toBe(201);
+    const registered = (await response.json()) as { id: string };
+    const ramp = await RampState.findByPk(registered.id);
+    const issue = ramp?.state.blockState?.moneriumIssue as { moneriumProfileId?: string; owner?: string } | undefined;
+    expect(issue?.moneriumProfileId).toBe(PROFILE_ID);
+    expect(issue?.owner?.toLowerCase()).toBe(individualOwner.address.toLowerCase());
   });
 });

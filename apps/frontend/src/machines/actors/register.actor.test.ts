@@ -58,9 +58,13 @@ describe("buildRegisterRampAdditionalData", () => {
       executionInput: { ...baseContext.executionInput, quote: { id: "quote-1", rampType: RampDirection.BUY } }
     } as unknown as RampContext;
     expect(buildRegisterRampAdditionalData(buyContext, baseContext.connectedWalletAddress as string)).toEqual({
+      customerType: "individual",
       destinationAddress: "0x2222222222222222222222222222222222222222",
       sessionId: "session-1",
       walletAddress: "0x1111111111111111111111111111111111111111"
+    });
+    expect(buildRegisterRampAdditionalData({ ...buyContext, kybLink: { customerType: "business" } } as RampContext, baseContext.connectedWalletAddress as string)).toMatchObject({
+      customerType: "business"
     });
   });
 

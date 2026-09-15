@@ -37,6 +37,7 @@ export function buildRegisterRampAdditionalData(
     // The Monerium onramp mints to the connected wallet linked to the profile and needs its permit;
     // identity is derived server-side from the authenticated user.
     return {
+      customerType: input.kybLink?.customerType === "business" ? "business" : "individual",
       destinationAddress: executionInput.sourceOrDestinationAddress,
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress

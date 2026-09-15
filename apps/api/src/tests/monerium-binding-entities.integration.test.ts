@@ -15,9 +15,8 @@ beforeEach(async () => {
   await resetTestDatabase();
 });
 
-// The widget always onboards EUR as `individual`, while the dashboard switcher and managed
-// profiles can make a business entity active. Registration carries no customer type, so the
-// binding must be found on whichever entity holds it.
+// The widget onboards EUR as `individual`, while the dashboard can select `business`.
+// Once both are bound, every mutating path must select the same legal profile as its status read.
 describe("loadMoneriumBinding", () => {
   it("finds the Monerium binding on a non-active entity", async () => {
     const user = await createTestUser();
@@ -41,7 +40,7 @@ describe("loadMoneriumBinding", () => {
     expect(business.type).toBe("business");
   });
 
-  it("prefers the active entity's binding when several entities are bound", async () => {
+  it("requires a type when both entities are bound and selects the requested profile", async () => {
     const user = await createTestUser();
     const individual = await getOrCreateCustomerEntityForProfile(user.id, "individual");
     const business = await selectActiveCustomerEntity(user.id, "business");
@@ -57,10 +56,49 @@ describe("loadMoneriumBinding", () => {
       });
     }
 
-    await expect(loadMoneriumBinding(user.id)).resolves.toEqual({
+    await expect(loadMoneriumBinding(user.id)).rejects.toMatchObject({
+      status: 409,
+      type: "MONERIUM_CUSTOMER_TYPE_REQUIRED"
+    });
+    await expect(loadMoneriumBinding(user.id, undefined, "business")).resolves.toEqual({
       customerEntityId: business.id,
       customerType: "business",
       profileId: "business-profile"
+    });
+    await expect(loadMoneriumBinding(user.id, undefined, "individual")).resolves.toEqual({
+      customerEntityId: individual.id,
+      customerType: "individual",
+      profileId: "individual-profile"
+    });
+  });
+
+  it("does not let an unbound active entity hide another approved profile", async () => {
+    const user = await createTestUser();
+    const individual = await getOrCreateCustomerEntityForProfile(user.id, "individual");
+    await ProviderCustomer.create({
+      customerEntityId: individual.id,
+      customerType: "individual",
+      provider: "monerium",
+      providerCustomerId: PROFILE_ID,
+      rail: "eur",
+      status: VerificationStatus.Approved,
+      statusExternal: "approved"
+    });
+    const business = await selectActiveCustomerEntity(user.id, "business");
+    await ProviderCustomer.create({
+      customerEntityId: business.id,
+      customerType: "business",
+      provider: "monerium",
+      providerCustomerId: null,
+      rail: "eur",
+      status: VerificationStatus.Started,
+      statusExternal: "authorization_started"
+    });
+
+    await expect(loadMoneriumBinding(user.id)).resolves.toEqual({
+      customerEntityId: individual.id,
+      customerType: "individual",
+      profileId: PROFILE_ID
     });
   });
 

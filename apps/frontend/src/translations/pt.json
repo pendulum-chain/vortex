@@ -628,9 +628,9 @@
       "moving": "Movendo seu IBAN para esta carteira...",
       "needsMove": {
         "cancel": "Cancelar",
-        "confirm": "Mover IBAN",
-        "description": "Seu IBAN Monerium aponta para outra carteira ou rede no momento. Os depósitos em EUR são emitidos na carteira para a qual o IBAN aponta, então ele precisa ser movido para {{address}} para continuar.",
-        "title": "Mover seu IBAN para esta carteira"
+        "confirm": "Sim, mover meu IBAN",
+        "description": "Mover seu IBAN Monerium para {{address}} muda a carteira que recebe todos os depósitos futuros em EUR nesse IBAN. Outros serviços que usam o mesmo IBAN, como o Gnosis Pay, podem depender da carteira atual. Verifique esses serviços antes de confirmar.",
+        "title": "Quer mudar a carteira do seu IBAN?"
       },
       "retry": "Tentar novamente",
       "waiting": "A Monerium está provisionando seu IBAN. Isso normalmente leva um momento..."

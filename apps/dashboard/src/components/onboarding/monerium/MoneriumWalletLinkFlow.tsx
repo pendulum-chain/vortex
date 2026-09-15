@@ -11,6 +11,7 @@ import type { OnboardingStatus } from "@/domain/types";
 import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { apiClient } from "@/services/api/api-client";
 import { signMoneriumWalletLinkMessage } from "@/services/transactions/userSigning";
+import { moneriumWalletStep } from "./walletStep";
 
 const api = createMoneriumKycApi(apiClient);
 export const MONERIUM_STATUS_QUERY_KEY = ["monerium-status"] as const;
@@ -33,18 +34,17 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
   const status = useQuery({
     queryFn: () => api.getStatus(customerType),
     queryKey: [...MONERIUM_STATUS_QUERY_KEY, customerType],
-    refetchInterval: query => (query.state.data?.ramp?.iban === "provisioned" || query.state.error ? false : 5_000),
+    refetchInterval: query => {
+      const current = query.state.data?.ramp;
+      return query.state.error ||
+        !address ||
+        (current?.iban === "provisioned" && current.linkedAddress?.toLowerCase() === address.toLowerCase())
+        ? false
+        : 5_000;
+    },
     retry: false
   });
   const ramp = status.data?.ramp;
-  const reported = useRef(false);
-
-  useEffect(() => {
-    if (ramp?.iban === "provisioned" && !reported.current) {
-      reported.current = true;
-      onSettled("approved");
-    }
-  }, [onSettled, ramp?.iban]);
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: MONERIUM_STATUS_QUERY_KEY });
@@ -55,14 +55,14 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
     mutationFn: async () => {
       if (!address || !ramp) throw new Error("Connect a wallet first");
       const signature = await signMoneriumWalletLinkMessage();
-      return api.linkWallet({ address, chain: ramp.chain, signature });
+      return api.linkWallet({ address, chain: ramp.chain, customerType, signature });
     },
     onSuccess: refresh
   });
   const move = useMutation({
     mutationFn: async () => {
       if (!address || !ramp) throw new Error("Connect a wallet first");
-      return api.moveIban({ address, chain: ramp.chain });
+      return api.moveIban({ address, chain: ramp.chain, customerType });
     },
     onSuccess: refresh
   });
@@ -70,6 +70,15 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
     mutationFn: () => api.startOAuth(customerType),
     onSuccess: ({ authorizationUrl }) => requestAnimationFrame(() => window.location.assign(authorizationUrl))
   });
+  const step = ramp ? moneriumWalletStep(ramp, address, link.data) : "link";
+  const reported = useRef(false);
+
+  useEffect(() => {
+    if (step === "ready" && !reported.current) {
+      reported.current = true;
+      onSettled("approved");
+    }
+  }, [onSettled, step]);
 
   if (status.isPending) {
     return (
@@ -124,7 +133,7 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
     );
   }
 
-  if (ramp.iban === "provisioned" && ramp.linkedAddress) {
+  if (step === "ready" && ramp.linkedAddress) {
     return (
       <>
         <Centered>
@@ -144,11 +153,14 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
     );
   }
 
-  const isLinked = !!address && ramp.linkedAddress?.toLowerCase() === address.toLowerCase();
-  const needsMove = ramp.iban === "elsewhere" && isLinked;
+  const isLinked =
+    !!address &&
+    (ramp.linkedAddress?.toLowerCase() === address.toLowerCase() || link.data?.address.toLowerCase() === address.toLowerCase());
+  const needsMove = step === "move";
   const busy = link.isPending || move.isPending;
   const failure = link.error ?? move.error;
   const requested = link.data?.iban === "pending";
+  const moveSubmitted = !!address && move.data?.address.toLowerCase() === address.toLowerCase();
 
   return (
     <>
@@ -160,16 +172,23 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
             Your EUR arrives as EURe in this wallet and is swapped from there, so it must be a regular wallet you control (no
             smart-contract wallet). Signing proves ownership; it costs no gas.
           </p>
-          {needsMove && (
-            <p className="max-w-sm text-sm">
-              Your Monerium IBAN currently points to another wallet or chain. Move it to {shortenAddress(address)} so EUR
-              pay-ins mint here.
-            </p>
+          {needsMove && address && (
+            <div className="max-w-sm rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
+              <p className="font-medium">Do you want to change where your Monerium IBAN sends EUR?</p>
+              <p className="mt-1">
+                Moving it to {shortenAddress(address)} changes the wallet that receives future deposits to this IBAN. Other
+                services using the same IBAN, such as Gnosis Pay, may depend on its current wallet. Check those services before
+                you confirm.
+              </p>
+            </div>
           )}
           {requested && !needsMove && (
             <p className="max-w-sm text-muted-foreground text-sm">
               IBAN requested. Monerium is provisioning it; this usually takes a moment.
             </p>
+          )}
+          {moveSubmitted && needsMove && (
+            <p className="max-w-sm text-muted-foreground text-sm">Waiting for Monerium to update this IBAN’s destination…</p>
           )}
           {failure && <p className="max-w-sm text-destructive text-sm">{failure.message}</p>}
         </div>
@@ -181,8 +200,8 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
         {!address ? (
           <ConnectWalletButton />
         ) : needsMove ? (
-          <Button disabled={busy} onClick={() => move.mutate()}>
-            {move.isPending ? "Moving IBAN…" : "Move IBAN to this wallet"}
+          <Button disabled={busy || moveSubmitted} onClick={() => move.mutate()}>
+            {move.isPending ? "Moving IBAN…" : moveSubmitted ? "Waiting for Monerium…" : "Yes, move IBAN to this wallet"}
           </Button>
         ) : (
           <Button disabled={busy || (requested && isLinked)} onClick={() => link.mutate()}>

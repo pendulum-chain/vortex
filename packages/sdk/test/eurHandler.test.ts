@@ -115,6 +115,19 @@ describe("EurHandler onramp", () => {
     expect(upd.additionalData).toEqual({});
   });
 
+  test("passes the selected legal profile to the EUR registration request", async () => {
+    const { calls, handler } = setup();
+
+    await handler.registerEurOnramp("quote_eur", {
+      customerType: "business",
+      destinationAddress: DESTINATION,
+      walletAddress: OWNER
+    });
+
+    const reg = calls[0].payload as RegisterRampRequest;
+    expect(reg.additionalData).toEqual({ customerType: "business", destinationAddress: DESTINATION, walletAddress: OWNER });
+  });
+
   test("rejects registration without the linked wallet before calling the API", async () => {
     const { calls, handler } = setup();
     await expect(handler.registerEurOnramp("quote_eur", { destinationAddress: DESTINATION, walletAddress: "" })).rejects.toBeInstanceOf(

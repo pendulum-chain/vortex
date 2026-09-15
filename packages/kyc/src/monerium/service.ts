@@ -39,7 +39,11 @@ export function createMoneriumKycApi(apiClient: MoneriumKycApiClient): MoneriumK
     linkWallet(input: MoneriumWalletLinkInput): Promise<MoneriumWalletLinkResult> {
       return apiClient.post<MoneriumWalletLinkResult>("/monerium/wallet", input);
     },
-    moveIban(input: { address: string; chain: string }): Promise<MoneriumWalletLinkResult> {
+    moveIban(input: {
+      address: string;
+      chain: string;
+      customerType?: MoneriumCustomerType;
+    }): Promise<MoneriumWalletLinkResult> {
       return apiClient.post<MoneriumWalletLinkResult>("/monerium/iban/move", input);
     },
     startOAuth(customerType: MoneriumCustomerType, client?: MoneriumOAuthClient): Promise<{ authorizationUrl: string }> {

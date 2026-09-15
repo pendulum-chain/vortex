@@ -84,6 +84,7 @@ export class EurHandler implements RampHandler {
     // Monerium-linked owner whose permit comes back as a user-owned transaction.
     const registerRequest: RegisterRampRequest = {
       additionalData: {
+        ...(additionalData.customerType ? { customerType: additionalData.customerType } : {}),
         destinationAddress: additionalData.destinationAddress,
         walletAddress: additionalData.walletAddress
       },

@@ -625,9 +625,9 @@
       "moving": "Moving your IBAN to this wallet...",
       "needsMove": {
         "cancel": "Cancel",
-        "confirm": "Move IBAN",
-        "description": "Your Monerium IBAN currently points to another wallet or chain. EUR pay-ins are minted to the wallet the IBAN points to, so it must be moved to {{address}} to continue.",
-        "title": "Move your IBAN to this wallet"
+        "confirm": "Yes, move my IBAN",
+        "description": "Moving your Monerium IBAN to {{address}} changes the wallet that receives all future EUR deposits to this IBAN. Other services using the same IBAN, such as Gnosis Pay, may depend on its current wallet. Check those services before you confirm.",
+        "title": "Do you want to change your IBAN's wallet?"
       },
       "retry": "Try again",
       "waiting": "Monerium is provisioning your IBAN. This usually takes a moment..."

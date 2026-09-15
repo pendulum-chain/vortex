@@ -83,6 +83,7 @@ function normalizePath(path: string): string {
 const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
   alfredpay: SentryDomain.Kyc,
   brla: SentryDomain.Kyc,
+  monerium: SentryDomain.Kyc,
   mykobo: SentryDomain.Kyc,
   quotes: SentryDomain.Quote,
   ramp: SentryDomain.Ramp,

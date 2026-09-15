@@ -31,3 +31,19 @@ export async function findActiveMoneriumRampForOwner(owner: string, transaction?
   });
   return ramp?.id ?? null;
 }
+
+/** Hold this through registration's ramp insert or an IBAN move's provider mutation. */
+export async function lockMoneriumProfile(profileId: string, transaction: Transaction): Promise<void> {
+  await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+    replacements: { key: `monerium:profile:${profileId}` },
+    transaction
+  });
+}
+
+/** Serialize ramps sharing the EOA's balance baseline and permit nonce, even across profiles. */
+export async function lockMoneriumOwner(owner: string, transaction: Transaction): Promise<void> {
+  await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+    replacements: { key: `monerium:owner:${owner.toLowerCase()}` },
+    transaction
+  });
+}

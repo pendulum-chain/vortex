@@ -15,7 +15,7 @@ export interface MoneriumKycApi {
 /** Wallet and IBAN readiness operations for an approved profile (POST /v1/monerium/wallet, /iban/move). */
 export interface MoneriumWalletApi {
   linkWallet(input: MoneriumWalletLinkInput): Promise<MoneriumWalletLinkResult>;
-  moveIban(input: { address: string; chain: string }): Promise<MoneriumWalletLinkResult>;
+  moveIban(input: { address: string; chain: string; customerType?: MoneriumCustomerType }): Promise<MoneriumWalletLinkResult>;
 }
 
 export interface MoneriumKycDeps {
@@ -23,4 +23,6 @@ export interface MoneriumKycDeps {
   /** Which registered callback the backend binds; defaults to the dashboard callback. */
   client?: MoneriumOAuthClient;
   openAuthorizationUrl: (url: string) => void;
+  /** The host reports unexpected actor failures through its own error monitor. */
+  reportError?: (error: Error) => void;
 }

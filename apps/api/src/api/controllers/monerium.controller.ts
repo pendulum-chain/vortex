@@ -20,6 +20,10 @@ function customerType(value: unknown): CustomerType {
   return value;
 }
 
+function optionalCustomerType(value: unknown): CustomerType | undefined {
+  return value === undefined ? undefined : customerType(value);
+}
+
 function oauthClient(value: unknown): MoneriumOAuthClient {
   if (value === undefined) return "dashboard";
   if (!MONERIUM_OAUTH_CLIENTS.includes(value as MoneriumOAuthClient)) {
@@ -85,7 +89,7 @@ export async function status(req: Request, res: Response, next: NextFunction): P
     }
     // Readiness needs a live read; a persisted approval stays readable when the OAuth session is gone.
     try {
-      res.status(httpStatus.OK).json({ ...result, ramp: await getMoneriumRampReadiness(user.userId) });
+      res.status(httpStatus.OK).json({ ...result, ramp: await getMoneriumRampReadiness(user.userId, result.customerType) });
     } catch (error) {
       if (!(error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED)) throw error;
       res.status(httpStatus.OK).json({ ...result, rampError: { code: error.type, message: error.message } });
@@ -99,9 +103,14 @@ export async function linkWallet(req: Request, res: Response, next: NextFunction
   try {
     const user = authenticatedUser(req);
     const body = (req.body ?? {}) as Record<string, unknown>;
-    res
-      .status(httpStatus.OK)
-      .json(await linkMoneriumWallet(user.userId, { address: body.address, chain: body.chain, signature: body.signature }));
+    res.status(httpStatus.OK).json(
+      await linkMoneriumWallet(user.userId, {
+        address: body.address,
+        chain: body.chain,
+        customerType: optionalCustomerType(body.customerType),
+        signature: body.signature
+      })
+    );
   } catch (error) {
     next(error);
   }
@@ -111,7 +120,13 @@ export async function moveIban(req: Request, res: Response, next: NextFunction):
   try {
     const user = authenticatedUser(req);
     const body = (req.body ?? {}) as Record<string, unknown>;
-    res.status(httpStatus.OK).json(await moveMoneriumIban(user.userId, { address: body.address, chain: body.chain }));
+    res.status(httpStatus.OK).json(
+      await moveMoneriumIban(user.userId, {
+        address: body.address,
+        chain: body.chain,
+        customerType: optionalCustomerType(body.customerType)
+      })
+    );
   } catch (error) {
     next(error);
   }

@@ -149,7 +149,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             );
             customer.set("statusExternal", refreshed.statusExternal);
             if (refreshed.status === "APPROVED") {
-              rampReadiness.set(customer.id, await getMoneriumRampReadiness(userId));
+              rampReadiness.set(customer.id, await getMoneriumRampReadiness(userId, customer.customerType));
             }
           } catch (error) {
             if (error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED) {

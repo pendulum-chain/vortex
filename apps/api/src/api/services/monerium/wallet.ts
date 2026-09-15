@@ -6,12 +6,15 @@ import {
   Networks
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
+import type { Transaction } from "sequelize";
 import { isAddress, isHex, verifyMessage } from "viem";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
+import type { ProviderCustomerType } from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
 import { matchingDestinations } from "../phases/blocks/phases/monerium-issue/registration";
 import { MONERIUM_ISSUE_NETWORKS, type MoneriumIssueNetwork } from "../phases/blocks/phases/monerium-issue/simulation";
-import { findActiveMoneriumRampForOwner } from "./active-ramp";
+import { findActiveMoneriumRampForOwner, lockMoneriumOwner, lockMoneriumProfile } from "./active-ramp";
 import { type MoneriumIdentity, type MoneriumIdentitySource, resolveMoneriumIdentity } from "./identity";
 
 /** Chain the active EUR onramp mints on; readiness is measured against it. */
@@ -43,8 +46,21 @@ export interface MoneriumWalletLinkResult extends MoneriumWalletDestination {
 export interface MoneriumWalletDependencies {
   findActiveRampForOwner?: typeof findActiveMoneriumRampForOwner;
   isContractAddress: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
-  resolveIdentity: (userId: string) => Promise<MoneriumIdentity>;
+  resolveIdentity: (
+    userId: string,
+    transaction?: Transaction,
+    customerType?: ProviderCustomerType
+  ) => Promise<MoneriumIdentity>;
+  lockOwner?: typeof lockMoneriumOwner;
+  runWithProfileLock?: <T>(profileId: string, work: (transaction: Transaction) => Promise<T>) => Promise<T>;
   verifyOwnership: (address: `0x${string}`, signature: `0x${string}`) => Promise<boolean>;
+}
+
+async function runWithProfileLock<T>(profileId: string, work: (transaction: Transaction) => Promise<T>): Promise<T> {
+  return sequelize.transaction(async transaction => {
+    await lockMoneriumProfile(profileId, transaction);
+    return work(transaction);
+  });
 }
 
 /** EOA signature over Monerium's fixed ownership message; malformed signatures count as not owned. */
@@ -94,9 +110,10 @@ async function readDestinations(identity: MoneriumIdentity, chain: MoneriumChain
 /** Whether the profile can register the EUR onramp today, from the same reads registration uses. */
 export async function getMoneriumRampReadiness(
   userId: string,
+  customerType?: ProviderCustomerType,
   dependencies: MoneriumWalletDependencies = defaultDependencies
 ): Promise<MoneriumRampReadiness> {
-  const identity = await dependencies.resolveIdentity(userId);
+  const identity = await dependencies.resolveIdentity(userId, undefined, customerType);
   const chain = MONERIUM_RAMP_CHAIN;
   const { addresses, ibans } = await readDestinations(identity, chain);
   const matches = matchingDestinations(identity.profileId, chain, addresses, ibans);
@@ -112,7 +129,7 @@ export async function getMoneriumRampReadiness(
  */
 export async function linkMoneriumWallet(
   userId: string,
-  input: { address?: unknown; chain?: unknown; signature?: unknown },
+  input: { address?: unknown; chain?: unknown; customerType?: ProviderCustomerType; signature?: unknown },
   dependencies: MoneriumWalletDependencies = defaultDependencies
 ): Promise<MoneriumWalletLinkResult> {
   const { address, chain } = parseDestination(input);
@@ -129,7 +146,7 @@ export async function linkMoneriumWallet(
     });
   }
 
-  const identity = await dependencies.resolveIdentity(userId);
+  const identity = await dependencies.resolveIdentity(userId, undefined, input.customerType);
   const before = await readDestinations(identity, chain);
   if (!before.addresses.some(entry => sameAddress(entry.address, address))) {
     await identity.client.linkAddress({
@@ -161,34 +178,40 @@ export async function linkMoneriumWallet(
 /** Moves the profile's single IBAN to an already-linked address. Only ever called on the owner's explicit request. */
 export async function moveMoneriumIban(
   userId: string,
-  input: { address?: unknown; chain?: unknown },
+  input: { address?: unknown; chain?: unknown; customerType?: ProviderCustomerType },
   dependencies: MoneriumWalletDependencies = defaultDependencies
 ): Promise<MoneriumWalletLinkResult> {
   const { address, chain } = parseDestination(input);
-  const identity = await dependencies.resolveIdentity(userId);
-  const { addresses, ibans } = await readDestinations(identity, chain);
-  if (!addresses.some(entry => sameAddress(entry.address, address))) {
-    throw new APIError({
-      message: `address is not linked to the Monerium profile on ${chain}`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-  if (ibans.length !== 1) {
-    throw new APIError({ message: `Expected exactly one Monerium IBAN, found ${ibans.length}`, status: httpStatus.CONFLICT });
-  }
-  const current = ibans[0];
-  if (current.chain !== chain || !sameAddress(current.address, address)) {
-    // A live ramp waits for the mint on the IBAN's current wallet; moving it now would strand that ramp.
-    const activeRampId = await (dependencies.findActiveRampForOwner ?? findActiveMoneriumRampForOwner)(current.address);
-    if (activeRampId) {
+  const identity = await dependencies.resolveIdentity(userId, undefined, input.customerType);
+  return (dependencies.runWithProfileLock ?? runWithProfileLock)(identity.profileId, async transaction => {
+    const { addresses, ibans } = await readDestinations(identity, chain);
+    if (!addresses.some(entry => sameAddress(entry.address, address))) {
       throw new APIError({
-        isPublic: true,
-        message: `An EUR pay-in is still in progress for the wallet the IBAN points to (${activeRampId}); wait for it to finish before moving the IBAN`,
-        status: httpStatus.CONFLICT
+        message: `address is not linked to the Monerium profile on ${chain}`,
+        status: httpStatus.BAD_REQUEST
       });
     }
-    await identity.client.updateIbanDestination(current.iban, { address, chain });
-    logger.info(`MoneriumWallet: moved the IBAN destination to ${address} on ${chain} through the ${identity.source} app`);
-  }
-  return { address, chain, iban: "provisioned" };
+    if (ibans.length !== 1) {
+      throw new APIError({ message: `Expected exactly one Monerium IBAN, found ${ibans.length}`, status: httpStatus.CONFLICT });
+    }
+    const current = ibans[0];
+    if (current.chain !== chain || !sameAddress(current.address, address)) {
+      await (dependencies.lockOwner ?? lockMoneriumOwner)(current.address, transaction);
+      // A live ramp waits for the mint on the IBAN's current wallet; moving it now would strand that ramp.
+      const activeRampId = await (dependencies.findActiveRampForOwner ?? findActiveMoneriumRampForOwner)(
+        current.address,
+        transaction
+      );
+      if (activeRampId) {
+        throw new APIError({
+          isPublic: true,
+          message: `An EUR pay-in is still in progress for the wallet the IBAN points to (${activeRampId}); wait for it to finish before moving the IBAN`,
+          status: httpStatus.CONFLICT
+        });
+      }
+      await identity.client.updateIbanDestination(current.iban, { address, chain });
+      logger.info(`MoneriumWallet: moved the IBAN destination to ${address} on ${chain} through the ${identity.source} app`);
+    }
+    return { address, chain, iban: "provisioned" };
+  });
 }

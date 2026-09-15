@@ -1,4 +1,12 @@
-import type { MoneriumCustomerType, MoneriumKycApi, MoneriumRampReadiness, MoneriumWalletApi } from "@vortexfi/kyc";
+import * as Sentry from "@sentry/react";
+import {
+  MONERIUM_REAUTHENTICATION_REQUIRED,
+  MoneriumAuthorizationRequiredError,
+  type MoneriumCustomerType,
+  type MoneriumKycApi,
+  type MoneriumRampReadiness,
+  type MoneriumWalletApi
+} from "@vortexfi/kyc";
 import { buildMoneriumWalletLinkMessage } from "@vortexfi/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { moneriumKycApi } from "./moneriumKyc.machine";
@@ -55,9 +63,16 @@ function errorOf(event: unknown, fallback: string): string {
  * on another wallet or chain is moved only after the user confirms, because that redirects their
  * future SEPA deposits.
  */
-export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moneriumKycApi) {
+export function createMoneriumWalletMachine(
+  api: MoneriumWalletApiClient = moneriumKycApi,
+  reportError: (error: Error) => void = error => Sentry.captureException(error)
+) {
   return setup({
     actions: {
+      reportUnexpectedError: ({ event }) => {
+        const error = (event as { error?: unknown }).error;
+        if (error instanceof Error && !(error instanceof MoneriumAuthorizationRequiredError)) reportError(error);
+      },
       storeReadiness: assign({ error: () => undefined, readiness: ({ event }) => readinessOf(event) })
     },
     actors: {
@@ -65,15 +80,24 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
         if (!input.address || !input.signMessage || !input.readiness)
           throw new Error("Connect a wallet to link it to Monerium");
         const signature = await input.signMessage(buildMoneriumWalletLinkMessage());
-        return api.linkWallet({ address: input.address, chain: input.readiness.chain, signature });
+        return api.linkWallet({
+          address: input.address,
+          chain: input.readiness.chain,
+          customerType: input.customerType,
+          signature
+        });
       }),
       moveIban: fromPromise(async ({ input }: { input: MoneriumWalletContext }) => {
         if (!input.address || !input.readiness) throw new Error("Connect a wallet to move the IBAN to it");
-        return api.moveIban({ address: input.address, chain: input.readiness.chain });
+        return api.moveIban({ address: input.address, chain: input.readiness.chain, customerType: input.customerType });
       }),
       readReadiness: fromPromise(async ({ input }: { input: MoneriumWalletContext }): Promise<MoneriumRampReadiness> => {
         const status = await api.getStatus(input.customerType);
-        if (status.rampError) throw new Error(status.rampError.message);
+        if (status.rampError) {
+          if (status.rampError.code === MONERIUM_REAUTHENTICATION_REQUIRED)
+            throw new MoneriumAuthorizationRequiredError(status.rampError.message);
+          throw new Error(status.rampError.message);
+        }
         if (!status.ramp) throw new Error("Monerium has not approved your verification yet");
         return status.ramp;
       }),
@@ -128,7 +152,10 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
             { actions: "storeReadiness", target: "Linking" }
           ],
           onError: {
-            actions: assign({ error: ({ event }) => errorOf(event, "Could not read your Monerium status") }),
+            actions: [
+              "reportUnexpectedError",
+              assign({ error: ({ event }) => errorOf(event, "Could not read your Monerium status") })
+            ],
             target: "Failure"
           },
           src: "readReadiness"
@@ -151,7 +178,10 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
           input: ({ context }) => context,
           onDone: { actions: assign({ linked: () => true }), target: "Checking" },
           onError: {
-            actions: assign({ error: ({ event }) => errorOf(event, "Could not link your wallet to Monerium") }),
+            actions: [
+              "reportUnexpectedError",
+              assign({ error: ({ event }) => errorOf(event, "Could not link your wallet to Monerium") })
+            ],
             target: "Failure"
           },
           src: "linkWallet"
@@ -162,7 +192,7 @@ export function createMoneriumWalletMachine(api: MoneriumWalletApiClient = moner
           input: ({ context }) => context,
           onDone: { target: "Checking" },
           onError: {
-            actions: assign({ error: ({ event }) => errorOf(event, "Could not move your IBAN") }),
+            actions: ["reportUnexpectedError", assign({ error: ({ event }) => errorOf(event, "Could not move your IBAN") })],
             target: "Failure"
           },
           src: "moveIban"

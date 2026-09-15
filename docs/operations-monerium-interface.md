@@ -41,7 +41,9 @@ Users reach that state in one of two ways: operations provisions them into the w
 application out of band, or they complete Monerium OAuth onboarding in the dashboard or widget and
 then link the wallet they will pay in with (`POST /v1/monerium/wallet`), which lets Vortex link the
 EOA and request or move the profile's single IBAN. Both individual and business legal entities are
-eligible. The SDK, dashboard, and widget sign the owner permit and the ephemeral-owned transactions,
+eligible. Status, wallet linking, IBAN moves, and registration select the same `customerType`;
+when both types are bound, callers must supply it rather than relying on the active account. The
+SDK, dashboard, and widget sign the owner permit and the ephemeral-owned transactions,
 submit them through `POST /v1/ramp/update`, show the released SEPA instructions, and call
 `POST /v1/ramp/start` after the transfer; a direct API client does the same itself. Readiness is
 reported on `GET /v1/monerium/status` (`ramp`) and on the Monerium account of
@@ -103,7 +105,7 @@ imported-profile handling remain deferred.
 Vortex uses the write operations below on the user's behalf through `POST /v1/monerium/wallet`
 (link the connected EOA after verifying its signature over the fixed message, then request the
 profile's single IBAN when none exists) and `POST /v1/monerium/iban/move` (move the IBAN to an
-already-linked address on the owner's explicit request), each through the app that can read the
+already-linked address after the owner's explicit, informed confirmation), each through the app that can read the
 profile. Ramp registration and status reads use only the list/read operations and fail closed
 unless the required Polygon destination already exists. The B2B onramp links its forwarder
 addresses and requests their IBANs under its own orchestration
@@ -140,12 +142,15 @@ client preserves both documented response semantics.
 ## Active On-Ramp: SEPA To EURe
 
 1. Quote simulation selects the fixed Polygon EURe route without reading Monerium identity.
-2. Registration derives the profile UUID from the authenticated legal entity's local binding and
+2. Registration derives the profile UUID from the authenticated legal entity's local binding selected
+   by `additionalData.customerType` (or the sole bound profile when omitted) and
    reads it through the white-label app or, when that app cannot see it, the user's OAuth token;
    caller-supplied profile, address, or IBAN identity is rejected.
 3. Vortex requires the live profile to be `approved` and resolves exactly one existing Polygon EOA
    and IBAN with the same mint destination. Registration creates or moves no provider resource;
    the wallet-link step did that earlier.
+   The transaction holds profile and owner locks through the active-ramp check and insert; an IBAN
+   move holds the same locks through its active-ramp check and provider update.
 4. Vortex snapshots the owner's EURe balance and prepares the owner permit, the ephemeral
    `transferFrom`, and all downstream route transactions.
 5. `POST /v1/ramp/update` validates the complete signature set before releasing

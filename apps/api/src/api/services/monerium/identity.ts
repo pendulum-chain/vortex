@@ -31,25 +31,44 @@ export interface MoneriumIdentity {
 export interface MoneriumIdentityDependencies {
   getUserClient: (customerEntityId: string, customerType: ProviderCustomerType) => Promise<MoneriumIdentityClient>;
   getWhiteLabelClient: () => MoneriumIdentityClient;
-  loadBinding: (userId: string, transaction?: Transaction) => Promise<MoneriumBinding | null>;
+  loadBinding: (
+    userId: string,
+    transaction?: Transaction,
+    customerType?: ProviderCustomerType
+  ) => Promise<MoneriumBinding | null>;
 }
 
 /**
- * Ramp registration carries no customer type, so the binding is looked up across every entity the
- * profile owns: the active entity's binding wins, otherwise the one bound entity. A business-active
- * profile that onboarded through the widget (always `individual`) is therefore still registerable.
+ * Without a customer type, a single bound legal profile is unambiguous. With two bound profiles,
+ * callers must name the intended legal type rather than silently operating on the active entity.
  */
-export async function loadMoneriumBinding(userId: string, transaction?: Transaction): Promise<MoneriumBinding> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId, undefined, transaction);
+export async function loadMoneriumBinding(
+  userId: string,
+  transaction?: Transaction,
+  customerType?: ProviderCustomerType
+): Promise<MoneriumBinding> {
+  const entity = await getOrCreateCustomerEntityForProfile(userId, customerType, transaction);
   const bindings = await ProviderCustomer.findAll({
     ...(transaction ? { transaction } : {}),
     where: {
       customerEntityId: await findCustomerEntityIdsForProfile(userId, transaction),
+      ...(customerType ? { customerType } : {}),
       provider: "monerium",
       rail: "eur"
     }
   });
-  const binding = bindings.find(candidate => candidate.customerEntityId === entity.id) ?? bindings[0];
+  const bound = bindings.filter(candidate => candidate.providerCustomerId);
+  if (bound.length > 1) {
+    throw new APIError({
+      isPublic: true,
+      message: customerType
+        ? "Multiple Monerium profiles are bound for this customer type"
+        : "Specify customerType to select the Monerium legal profile",
+      status: httpStatus.CONFLICT,
+      type: customerType ? "MONERIUM_BINDING_AMBIGUOUS" : "MONERIUM_CUSTOMER_TYPE_REQUIRED"
+    });
+  }
+  const binding = bound[0] ?? bindings.find(candidate => candidate.customerEntityId === entity.id) ?? bindings[0];
   if (!binding) return { customerEntityId: entity.id, customerType: entity.type, profileId: null };
   return {
     customerEntityId: binding.customerEntityId,
@@ -66,6 +85,35 @@ function isInvisibleToApp(error: unknown): boolean {
   return error instanceof MoneriumApiError && (error.status === 403 || error.status === 404);
 }
 
+function reauthenticationRequired(): APIError {
+  return new APIError({
+    isPublic: true,
+    message: "Monerium reauthentication is required",
+    status: httpStatus.NOT_FOUND,
+    type: MONERIUM_REAUTHENTICATION_REQUIRED
+  });
+}
+
+/** The access token can be revoked between the profile read and any later Monerium call. */
+function withReauthenticationErrors(user: MoneriumIdentityClient): MoneriumIdentityClient {
+  async function call<T>(request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      if (error instanceof MoneriumApiError && error.status === 401) throw reauthenticationRequired();
+      throw error;
+    }
+  }
+  return {
+    getProfile: (...args) => call(() => user.getProfile(...args)),
+    linkAddress: (...args) => call(() => user.linkAddress(...args)),
+    listAddresses: (...args) => call(() => user.listAddresses(...args)),
+    listIbans: (...args) => call(() => user.listIbans(...args)),
+    requestIban: (...args) => call(() => user.requestIban(...args)),
+    updateIbanDestination: (...args) => call(() => user.updateIbanDestination(...args))
+  };
+}
+
 /**
  * Resolves which Monerium application can read the authenticated user's profile: the white-label
  * app first (client credentials), then the OAuth app through the user's backend-held token. Both
@@ -79,8 +127,12 @@ export function createResolveMoneriumIdentity(
     loadBinding: loadMoneriumBinding
   }
 ) {
-  return async function resolveMoneriumIdentity(userId: string, transaction?: Transaction): Promise<MoneriumIdentity> {
-    const binding = await dependencies.loadBinding(userId, transaction);
+  return async function resolveMoneriumIdentity(
+    userId: string,
+    transaction?: Transaction,
+    customerType?: ProviderCustomerType
+  ): Promise<MoneriumIdentity> {
+    const binding = await dependencies.loadBinding(userId, transaction, customerType);
     if (!binding?.profileId) {
       throw new APIError({
         isPublic: true,
@@ -99,21 +151,9 @@ export function createResolveMoneriumIdentity(
       if (!isInvisibleToApp(error)) throw error;
     }
 
-    const user = await dependencies.getUserClient(binding.customerEntityId, binding.customerType);
-    try {
-      const profile = await user.getProfile(profileId);
-      return { client: user, profile, profileId, source: "oauth" };
-    } catch (error) {
-      if (error instanceof MoneriumApiError && error.status === 401) {
-        throw new APIError({
-          isPublic: true,
-          message: "Monerium reauthentication is required",
-          status: httpStatus.NOT_FOUND,
-          type: MONERIUM_REAUTHENTICATION_REQUIRED
-        });
-      }
-      throw error;
-    }
+    const user = withReauthenticationErrors(await dependencies.getUserClient(binding.customerEntityId, binding.customerType));
+    const profile = await user.getProfile(profileId);
+    return { client: user, profile, profileId, source: "oauth" };
   };
 }
 

@@ -62,8 +62,22 @@ describe("resolveMoneriumIdentity", () => {
 
     const identity = await resolve("user-1");
 
-    expect(identity).toMatchObject({ client: user, profileId: PROFILE_ID, source: "oauth" });
+    expect(identity).toMatchObject({ profileId: PROFILE_ID, source: "oauth" });
+    await identity.client.listAddresses({ chain: "polygon", profile: PROFILE_ID });
+    expect(user.listAddresses).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
     expect(getUserClient).toHaveBeenCalledWith("entity-1", "individual");
+  });
+
+  it("passes an explicit legal type through binding resolution", async () => {
+    const loadBinding = mock(async () => binding);
+    const resolve = createResolveMoneriumIdentity({
+      getUserClient: async () => client(async () => profile()),
+      getWhiteLabelClient: () => client(async () => profile()),
+      loadBinding
+    });
+
+    await resolve("user-1", undefined, "individual");
+    expect(loadBinding).toHaveBeenCalledWith("user-1", undefined, "individual");
   });
 
   it("propagates white-label failures other than invisibility instead of switching apps", async () => {
@@ -111,5 +125,22 @@ describe("resolveMoneriumIdentity", () => {
     const error = await resolve("user-1").catch(caught => caught);
     expect(error).toBeInstanceOf(APIError);
     expect(error).toMatchObject({ isPublic: true, status: 404, type: MONERIUM_REAUTHENTICATION_REQUIRED });
+  });
+
+  it("maps a rejected user token after the profile read to reauthentication required", async () => {
+    const user = client(async () => profile());
+    user.listAddresses.mockImplementation(async () => Promise.reject(apiError(401)));
+    const resolve = createResolveMoneriumIdentity({
+      getUserClient: async () => user,
+      getWhiteLabelClient: () => client(async () => Promise.reject(apiError(403))),
+      loadBinding: async () => binding
+    });
+
+    const identity = await resolve("user-1");
+    await expect(identity.client.listAddresses({ chain: "polygon", profile: PROFILE_ID })).rejects.toMatchObject({
+      isPublic: true,
+      status: 404,
+      type: MONERIUM_REAUTHENTICATION_REQUIRED
+    });
   });
 });

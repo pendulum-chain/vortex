@@ -59,7 +59,7 @@ describe("moneriumWalletMachine", () => {
       const actor = createActor(createMoneriumWalletMachine(client), { input: input() }).start();
       await waitFor(actor, snapshot => snapshot.matches("Waiting"));
       expect(calls.link).toBe(1);
-      expect(client.linkWallet).toHaveBeenCalledWith({ address: ADDRESS, chain: "polygon", signature: "0xsig" });
+      expect(client.linkWallet).toHaveBeenCalledWith({ address: ADDRESS, chain: "polygon", customerType: "individual", signature: "0xsig" });
       await vi.advanceTimersByTimeAsync(5_000);
       await waitFor(actor, snapshot => snapshot.status === "done");
       expect(actor.getSnapshot().output?.ready).toBe(true);
@@ -123,6 +123,26 @@ describe("moneriumWalletMachine", () => {
     actor.send({ type: "CANCEL" });
     await waitFor(actor, snapshot => snapshot.status === "done");
     expect(actor.getSnapshot().output?.ready).toBe(false);
+  });
+
+  it("reports an unexpected wallet-link failure once with its original error", async () => {
+    const failure = new Error("Monerium wallet HTTP 500");
+    const client = api([status({ iban: "missing" })]).api;
+    client.linkWallet.mockRejectedValue(failure);
+    const reportError = vi.fn();
+    const actor = createActor(createMoneriumWalletMachine(client, reportError), { input: input() }).start();
+
+    await waitFor(actor, snapshot => snapshot.matches("Failure"));
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(actor.getSnapshot().context.error).toBe(failure.message);
+  });
+
+  it("does not report a reconnect request as an unexpected failure", async () => {
+    const client = api([status(null, { code: "MONERIUM_REAUTHENTICATION_REQUIRED", message: "Reconnect Monerium" })]).api;
+    const reportError = vi.fn();
+    const actor = createActor(createMoneriumWalletMachine(client, reportError), { input: input() }).start();
+    await waitFor(actor, snapshot => snapshot.matches("Failure"));
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it("refuses a substrate wallet without calling Monerium", async () => {

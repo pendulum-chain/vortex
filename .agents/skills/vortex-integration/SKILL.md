@@ -24,7 +24,7 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Presigned counts**: this is **per ephemeral-signed transaction, not per ramp**. Each transaction an ephemeral key signs must be submitted as 5 presigned variants — 1 primary plus exactly 4 backups with consecutive nonces in `meta.additionalTxs` (`NUMBER_OF_PRESIGNED_TXS = 5`); the API rejects any other backup count. A ramp can contain several ephemeral-signed transactions across its phases. (The SDK builds these for you; only raw-API integrations need to construct them.)
-- **Currently implemented SDK corridors**: BRL via PIX, USD via ACH, MXN via SPEI, COP via ACH, and ARS via CBU support BUY and SELL; EUR via SEPA (Monerium) supports BUY only. EUR BUY needs `walletAddress` (the user's Monerium-linked wallet, linked in the Dashboard or Widget) and the returned owner permit signed through `submitUserTransactions`; `MONERIUM_ONBOARDING_REQUIRED` / `MONERIUM_REAUTHENTICATION_REQUIRED` mean the user must (re)connect Monerium first. These corridors deliver to EVM networks only (no AssetHub).
+- **Currently implemented SDK corridors**: BRL via PIX, USD via ACH, MXN via SPEI, COP via ACH, and ARS via CBU support BUY and SELL; EUR via SEPA (Monerium) supports BUY only. EUR BUY needs `walletAddress` (the user's Monerium-linked wallet, linked in the Dashboard or Widget) and the returned owner permit signed through `submitUserTransactions`. Supply `customerType` to select the same individual or business Monerium profile used at onboarding; it is required when both types are bound (`MONERIUM_CUSTOMER_TYPE_REQUIRED` otherwise). `MONERIUM_ONBOARDING_REQUIRED` / `MONERIUM_REAUTHENTICATION_REQUIRED` mean the user must (re)connect Monerium first. These corridors deliver to EVM networks only (no AssetHub).
 - **EUR currency value**: TypeScript uses the member `FiatToken.EURC`, which serializes to the wire value `"EUR"`. Raw JSON clients must send `"EUR"`, with `"sepa"` as the rail identifier.
 - **taxId is deprecated for BRL**: the user's tax ID is derived server-side from the authenticated profile. Sending a `taxId` that mismatches the derived one is rejected; stop sending it in new integrations.
 - **Deferred offramp funding**: the SDK checks the source wallet balance at `registerRamp` by default. Server integrations that register before funding a temporary wallet may configure `offrampFundingMode: "deferred"`. This skips only the SDK pre-flight; fund the exact `walletAddress` before signing/submitting user transactions, then update and start before the registration window expires. Backend execution-time balance checks remain authoritative.
@@ -273,12 +273,14 @@ Users become corridor-ready by completing Monerium OAuth onboarding in the Dashb
 - Quote with TypeScript member `inputCurrency: FiatToken.EURC` (raw JSON value `"EUR"`), `from: "sepa"`, and a supported non-Polygon EVM destination.
 - A secret credential or Supabase session for the corridor-ready legal entity.
 - `additionalData.destinationAddress`; do not submit profile, Monerium address, or IBAN identity.
+- `additionalData.customerType` (`"individual"` or `"business"`) when the user owns both legal profiles; use the same type as onboarding and wallet linking.
 - A fresh EVM ephemeral key and a wallet-signing channel for the profile-linked Polygon owner.
 
 ## SDK recipe
 ```js
 // walletAddress must be the wallet linked to the Monerium profile; a mismatch throws EurOnrampError.
 const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
+  customerType: "individual",
   destinationAddress: "0xDestinationWallet",
   walletAddress: "0xMoneriumLinkedWallet"
 });
@@ -298,7 +300,7 @@ await vortex.startRamp(rampProcess.id);
 Raw API clients perform the same steps themselves:
 
 1. Create the EUR BUY quote.
-2. Call `POST /v1/ramp/register` with the quote ID, fresh EVM signing account, and destination address.
+2. Call `POST /v1/ramp/register` with the quote ID, fresh EVM signing account, destination address, and `additionalData.customerType` when needed.
 3. Partition every returned `unsignedTx` by `signer`. Sign ephemeral-owned raw transactions with the
    ephemeral key. Send the EIP-712 `moneriumOnrampSelfTransfer` permit to the linked owner wallet.
 4. Submit the complete signed set to `POST /v1/ramp/update`. Partial updates are accepted, but
@@ -312,6 +314,7 @@ consumes its nonce, automatic execution stops for manual resolution.
 
 ## Common failures
 - `400` approved-profile error: the effective legal entity has no approved local Monerium/EUR binding or the live provider profile is not approved.
+- `409 MONERIUM_CUSTOMER_TYPE_REQUIRED`: both legal types are bound; repeat registration with the type used for wallet linking.
 - `409` expected-one-destination error: the profile does not have exactly one matching Polygon EOA/IBAN destination. Vortex does not create, select, or move one in this release.
 - Contract-wallet error: the linked mint destination must be an EOA for the ERC-2612 handoff.
 - Missing payment instructions after register: expected; submit every owner and ephemeral signature through update first.

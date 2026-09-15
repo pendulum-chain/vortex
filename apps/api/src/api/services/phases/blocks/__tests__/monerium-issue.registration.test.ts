@@ -55,6 +55,28 @@ function context(input: Record<string, unknown> = {}, network: MoneriumIssueNetw
 }
 
 describe("MoneriumIssue registration", () => {
+  it("locks the profile before reading the IBAN in the registration transaction", async () => {
+    const monerium = client();
+    const transaction = {} as never;
+    const lockProfile = mock(async () => {
+      expect(monerium.listIbans).not.toHaveBeenCalled();
+    });
+    const lockOwner = mock(async () => undefined);
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000001",
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
+      lockOwner,
+      lockProfile,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(monerium)
+    });
+
+    await register({ ...context(), transaction });
+    expect(lockProfile).toHaveBeenCalledWith(PROFILE_ID, transaction);
+    expect(lockOwner).toHaveBeenCalledWith(ADDRESS, transaction);
+  });
+
   it("derives the Polygon owner and persists its EURe balance baseline", async () => {
     const monerium = client({ chain: "polygon" });
     const resolveIdentity = mock(async () => identity(monerium));
@@ -69,7 +91,7 @@ describe("MoneriumIssue registration", () => {
 
     const result = await register(context({}, Networks.Polygon));
 
-    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined);
+    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined, undefined);
     expect(monerium.getProfile).not.toHaveBeenCalled();
     expect(monerium.listAddresses).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
     expect(monerium.listIbans).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
@@ -118,6 +140,22 @@ describe("MoneriumIssue registration", () => {
     expect(monerium.listIbans).toHaveBeenCalledWith({ chain: "amoy", profile: PROFILE_ID });
     expect(isContractAddress).toHaveBeenCalledWith(Networks.PolygonAmoy, ADDRESS);
     expect(result.facts).toMatchObject({ chain: Networks.PolygonAmoy, owner: ADDRESS });
+  });
+
+  it("registers against the requested legal profile type", async () => {
+    const resolveIdentity = mock(async () => identity(client()));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000002",
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity
+    });
+
+    await register(context({ customerType: "individual" }));
+    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined, "individual");
+    await expect(register(context({ customerType: "wrong" }))).rejects.toMatchObject({ status: 400 });
+    expect(resolveIdentity).toHaveBeenCalledTimes(1);
   });
 
   it("rejects caller-controlled identity before resolving any provider customer", async () => {

@@ -68,7 +68,9 @@ lifecycle reconciliation and external-profile import remain deferred.
   in review only after Monerium reports that all required information was submitted.
 - As an approved EU sender, the corridor card asks me to link the wallet I will pay in with: I
   connect it, sign Monerium's ownership message (no gas), and Vortex requests the IBAN or offers
-  to move an existing one to that wallet. EUR pay-ins stay blocked until the IBAN points to it.
+  to move an existing one to that wallet. Before a move, I see that future EUR deposits to the
+  same IBAN will reach a new wallet and other services using it may be affected; I must confirm.
+  EUR pay-ins stay blocked until the IBAN points to the connected wallet.
 - As a sender whose Monerium onboarding is in review, I see status derived from the onboarding
   profile. Post-migration status ownership remains part of the TBD migration design.
 - As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
@@ -334,7 +336,8 @@ provider-shaped rather than UI-shaped.
     authorization (top-level in a standalone widget, a new tab when embedded) and returns to
     `/widget` with the callback, which the persisted ramp hands to the restored verification step.
     Once approved, the connected EVM wallet signs Monerium's ownership message, Vortex links it and
-    provisions or moves the IBAN, and the EUR pay-in continues with that wallet's permit. The legacy
+    provisions or, after explicit informed confirmation, moves the IBAN, and the EUR pay-in continues
+    with that wallet's permit. All those steps use the widget's individual legal profile. The legacy
     Mykobo form stays in the codebase but no longer routes new EUR flows.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,

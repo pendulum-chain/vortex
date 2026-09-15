@@ -1519,6 +1519,7 @@ RecipientInviteeType: "business" | "individual"
 RegisterRampRequest: {
   additionalData?: {
     [key: string]: unknown;
+    customerType?: "business" | "individual";
     destinationAddress?: string;
     email?: string;
     fiatAccountId?: string;
@@ -2994,14 +2995,15 @@ AmountExceedsLimitError: class AmountExceedsLimitError {
 }
 
 AnyAdditionalData: {
-  destinationAddress: string;
-  email: string;
-  ipAddress: string;
-  walletAddress: string;
-} | {
+  customerType?: "business" | "individual";
   destinationAddress: string;
   email?: string;
   ipAddress?: string;
+  walletAddress: string;
+} | {
+  destinationAddress: string;
+  email: string;
+  ipAddress: string;
   walletAddress: string;
 } | {
   destinationAddress: string;
@@ -3646,6 +3648,7 @@ EurOfframpUpdateAdditionalData: {
 }
 
 EurOnrampAdditionalData: {
+  customerType?: "business" | "individual";
   destinationAddress: string;
   email?: string;
   ipAddress?: string;
@@ -4782,6 +4785,7 @@ RegisterRampAdditionalData: <Q extends {
   from: EPaymentMethod.SEPA;
   rampType: RampDirection.BUY;
 } ? {
+  customerType?: "business" | "individual";
   destinationAddress: string;
   email?: string;
   ipAddress?: string;
@@ -4912,14 +4916,15 @@ RegisterRampAdditionalData: <Q extends {
   ipAddress: string;
   walletAddress: string;
 } : {
-  destinationAddress: string;
-  email: string;
-  ipAddress: string;
-  walletAddress: string;
-} | {
+  customerType?: "business" | "individual";
   destinationAddress: string;
   email?: string;
   ipAddress?: string;
+  walletAddress: string;
+} | {
+  destinationAddress: string;
+  email: string;
+  ipAddress: string;
   walletAddress: string;
 } | {
   destinationAddress: string;
@@ -6959,6 +6964,7 @@ VortexSdk: class VortexSdk {
     from: EPaymentMethod.SEPA;
     rampType: RampDirection.BUY;
   } ? {
+    customerType?: "business" | "individual";
     destinationAddress: string;
     email?: string;
     ipAddress?: string;
@@ -7089,14 +7095,15 @@ VortexSdk: class VortexSdk {
     ipAddress: string;
     walletAddress: string;
   } : {
-    destinationAddress: string;
-    email: string;
-    ipAddress: string;
-    walletAddress: string;
-  } | {
+    customerType?: "business" | "individual";
     destinationAddress: string;
     email?: string;
     ipAddress?: string;
+    walletAddress: string;
+  } | {
+    destinationAddress: string;
+    email: string;
+    ipAddress: string;
     walletAddress: string;
   } | {
     destinationAddress: string;

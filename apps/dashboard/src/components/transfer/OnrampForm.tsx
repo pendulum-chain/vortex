@@ -159,7 +159,11 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
       // signs the permit that moves the minted EURe on.
       additionalData:
         values.corridorId === "EU" && address
-          ? { destinationAddress: values.destinationAddress, walletAddress: address }
+          ? {
+              customerType: account.type === "company" ? "business" : "individual",
+              destinationAddress: values.destinationAddress,
+              walletAddress: address
+            }
           : { destinationAddress: values.destinationAddress },
       meta: {
         accountId: account.id,

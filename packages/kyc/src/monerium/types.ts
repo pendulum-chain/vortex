@@ -28,6 +28,8 @@ export interface MoneriumStatusResponse {
 export interface MoneriumWalletLinkInput {
   address: string;
   chain: string;
+  /** Selects the approved personal or corporate profile owned by this user. */
+  customerType?: MoneriumCustomerType;
   /** EOA signature over Monerium's fixed wallet-ownership message. */
   signature: string;
 }
@@ -58,8 +60,8 @@ export interface MoneriumKycContext extends MoneriumKycInput {
 export type MoneriumKycOutput = MoneriumKycContext;
 
 export class MoneriumAuthorizationRequiredError extends Error {
-  constructor() {
-    super("Monerium authorization is required");
+  constructor(message = "Monerium authorization is required") {
+    super(message);
     this.name = "MoneriumAuthorizationRequiredError";
   }
 }

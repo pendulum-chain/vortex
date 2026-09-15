@@ -473,8 +473,21 @@ export async function getMoneriumStatus(userId: string, customerType: ProviderCu
     }
   }
   const credentials = await getValidCredentials(entity.id, customerType);
-  const { profile } = await readProfile(credentials, customerType);
-  return mirrorProfile(entity.id, customerType, profile);
+  try {
+    const { profile } = await readProfile(credentials, customerType);
+    return mirrorProfile(entity.id, customerType, profile);
+  } catch (error) {
+    if (error instanceof MoneriumUpstreamError && error.upstreamStatus === 401) {
+      credentialCache.del(credentialsCacheKey(entity.id, customerType));
+      throw new APIError({
+        isPublic: true,
+        message: "Monerium reauthentication is required",
+        status: httpStatus.NOT_FOUND,
+        type: MONERIUM_REAUTHENTICATION_REQUIRED
+      });
+    }
+    throw error;
+  }
 }
 
 export function resetMoneriumMemoryForTests(): void {

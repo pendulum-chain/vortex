@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { createMoneriumKycApi, createMoneriumKycMachine } from "@vortexfi/kyc";
 import { apiClient } from "../services/api";
 
@@ -20,5 +21,6 @@ export function openMoneriumAuthorization(url: string): void {
 export const moneriumKycMachine = createMoneriumKycMachine({
   api: moneriumKycApi,
   client: "widget",
-  openAuthorizationUrl: openMoneriumAuthorization
+  openAuthorizationUrl: openMoneriumAuthorization,
+  reportError: error => Sentry.captureException(error)
 });

@@ -11,11 +11,14 @@ function statusOutput(event: unknown): MoneriumStatusResponse {
   return (event as DoneActorEvent<MoneriumStatusResponse>).output;
 }
 
-export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: MoneriumKycDeps) {
+export function createMoneriumKycMachine({ api, client, openAuthorizationUrl, reportError }: MoneriumKycDeps) {
   return setup({
     actions: {
       openAuthorization: ({ context }) => {
         if (context.authorizationUrl) openAuthorizationUrl(context.authorizationUrl);
+      },
+      reportUnexpectedError: ({ context }) => {
+        if (context.error && !(context.callback && "error" in context.callback)) reportError?.(context.error);
       },
       storeStatus: assign({
         customerType: ({ event }) => statusOutput(event).customerType,
@@ -122,6 +125,7 @@ export function createMoneriumKycMachine({ api, client, openAuthorizationUrl }: 
       },
       Done: { type: "final" },
       Failure: {
+        entry: "reportUnexpectedError",
         on: { CLOSE: { target: "Done" }, RETRY: { target: "Ready" } }
       },
       InReview: {

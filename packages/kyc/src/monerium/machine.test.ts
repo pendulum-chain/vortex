@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { createActor, waitFor } from "xstate";
 import type { MoneriumKycApi } from "./api";
 import { createMoneriumKycMachine } from "./machine";
@@ -71,7 +71,8 @@ describe("moneriumKycMachine", () => {
   });
 
   it("surfaces a provider callback error without calling the API", async () => {
-    const machine = machineWith({} as MoneriumKycApi);
+    const reportError = mock(() => undefined);
+    const machine = createMoneriumKycMachine({ api: {} as MoneriumKycApi, openAuthorizationUrl: () => undefined, reportError });
     const actor = createActor(machine, {
       input: {
         callback: { error: "access_denied", errorDescription: "The user declined access" },
@@ -81,6 +82,26 @@ describe("moneriumKycMachine", () => {
 
     await waitFor(actor, snapshot => snapshot.matches("Failure"));
     expect(actor.getSnapshot().context.error?.message).toBe("The user declined access");
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("reports an unexpected status failure with the original error once", async () => {
+    const failure = new Error("Monerium status HTTP 500");
+    const reportError = mock(() => undefined);
+    const machine = createMoneriumKycMachine({
+      api: {
+        completeOAuth: async () => approved,
+        getStatus: async () => { throw failure; },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      openAuthorizationUrl: () => undefined,
+      reportError
+    });
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+
+    await waitFor(actor, snapshot => snapshot.matches("Failure"));
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(failure);
   });
 
   it("refreshes a pending profile to approved", async () => {
