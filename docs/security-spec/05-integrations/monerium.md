@@ -193,6 +193,7 @@ Monerium replaces Mykobo as the EU onboarding provider in the dashboard and widg
 | Email substitution | A client starts verification for another email | Backend derives email from authenticated identity and treats a supplied email only as an equality assertion |
 | Token disclosure | Tokens leak through API responses, database records, or logs | Tokens are backend-memory-only; persisted mirrors contain profile identifiers and status metadata only |
 | Refresh replay/race | Concurrent status reads use the same rotating refresh token | Refreshes are coalesced per entity/customer type and the rotated token replaces the prior in-memory value |
+| Revoked refresh token | Monerium rejects the refresh grant (4xx), so the cached credential can never be renewed | The stale credential is evicted and the call fails with `MONERIUM_REAUTHENTICATION_REQUIRED` so clients prompt a reconnect instead of a generic 502; a 5xx keeps the credential and surfaces as an upstream error |
 | Provider hangs | Monerium does not respond | Every provider fetch has an explicit 10-second abort timeout |
 | Wrong profile association | A context contains multiple legal profiles | Requested customer type is enforced, the matching default is preferred, and ambiguous matches are rejected |
 | Different Monerium login | A user ignores the prefilled email and authorizes a different Monerium account or profile | The callback matches `/auth/context.email` to the authenticated Vortex email and rejects replacement of an existing Monerium profile ID |

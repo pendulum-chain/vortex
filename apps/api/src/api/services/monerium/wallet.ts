@@ -152,6 +152,7 @@ export async function linkMoneriumWallet(
   } catch (error) {
     // Monerium keeps one IBAN per profile and answers 400 when one is already requested.
     if (!(error instanceof MoneriumApiError && error.status === 400)) throw error;
+    logger.warn(`MoneriumWallet: POST /ibans answered 400 for ${address} on ${chain}; assuming an IBAN is already requested`);
   }
   logger.info(`MoneriumWallet: requested an IBAN for ${address} on ${chain}`);
   return { address, chain, iban: "pending" };

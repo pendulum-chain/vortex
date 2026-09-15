@@ -327,6 +327,41 @@ describe("Monerium OAuth", () => {
     expect(JSON.stringify(result)).not.toContain("rotated-refresh");
   });
 
+  it("evicts the session and asks for reauthentication when the refresh grant is rejected", async () => {
+    let tokenCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        tokenCalls += 1;
+        return tokenCalls === 1
+          ? jsonResponse({ access_token: "old-access", expires_in: 1, refresh_token: "old-refresh" })
+          : new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+      }
+      if (url.endsWith("/auth/context")) {
+        return jsonResponse({
+          email: "owner@example.com",
+          profiles: [{ id: "profile-a", kind: "personal" }],
+          userId: "monerium-user-a"
+        });
+      }
+      return jsonResponse({ id: "profile-a", kind: "personal", state: "pending" });
+    }) as unknown as typeof fetch;
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+    await service.completeMoneriumOAuth("owner", "authorization-code", state);
+
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      status: 404,
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+    // The stale credential is gone: the next call fails the same way without another refresh attempt.
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+    expect(tokenCalls).toBe(2);
+  });
+
   it("returns the custom reauthentication error when credentials are unavailable", async () => {
     await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
       status: 404,

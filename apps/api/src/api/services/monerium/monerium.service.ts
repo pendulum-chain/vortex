@@ -136,8 +136,17 @@ export function selectMoneriumProfile(
   return matches[0];
 }
 
-function upstreamError(_internalMessage: string): APIError {
-  return new APIError({ message: "Monerium request failed", status: httpStatus.BAD_GATEWAY });
+class MoneriumUpstreamError extends APIError {
+  constructor(
+    _internalMessage: string,
+    readonly upstreamStatus?: number
+  ) {
+    super({ message: "Monerium request failed", status: httpStatus.BAD_GATEWAY });
+  }
+}
+
+function upstreamError(internalMessage: string, upstreamStatus?: number): APIError {
+  return new MoneriumUpstreamError(internalMessage, upstreamStatus);
 }
 
 async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
@@ -148,7 +157,7 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
     throw upstreamError("Monerium request timed out or failed");
   }
   if (!response.ok) {
-    throw upstreamError(`Monerium returned HTTP ${response.status}`);
+    throw upstreamError(`Monerium returned HTTP ${response.status}`, response.status);
   }
   try {
     return await response.json();
@@ -209,10 +218,25 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
       grant_type: "refresh_token",
       refresh_token: credentials.refreshToken
     })
-  ).then(rotated => {
-    credentialCache.set(key, rotated);
-    return rotated;
-  });
+  ).then(
+    rotated => {
+      credentialCache.set(key, rotated);
+      return rotated;
+    },
+    (error: unknown) => {
+      // A rejected refresh grant (revoked or expired token) cannot heal; keeping the stale
+      // credential would answer every later call with a generic 502 instead of a reconnect prompt.
+      if (error instanceof MoneriumUpstreamError && error.upstreamStatus !== undefined && error.upstreamStatus < 500) {
+        credentialCache.del(key);
+        throw new APIError({
+          message: "Monerium reauthentication is required",
+          status: httpStatus.NOT_FOUND,
+          type: MONERIUM_REAUTHENTICATION_REQUIRED
+        });
+      }
+      throw error;
+    }
+  );
   refreshes.set(key, refresh);
   try {
     return await refresh;
