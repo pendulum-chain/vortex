@@ -172,7 +172,7 @@ Quotes can be requested without any key (anonymous rate discovery). Registering 
 
 The SDK cannot mint credentials or run KYC. Onboard the real user through the Vortex app or Widget, or use Vortex's managed-profile workflow, then use a credential bound to that profile. The secret is shown only once at creation; see [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys). This applies to buys and sells in all four bank-transfer corridors.
 
-EUR/SEPA BUY is currently a direct-API integration rather than an SDK flow because it requires a typed-data permit from the already-linked Monerium owner wallet. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). EUR SELL is unavailable.
+EUR/SEPA BUY works through the SDK once the user is onboarded with Monerium and has linked the paying wallet (dashboard or widget): pass that wallet as `walletAddress`, then sign the returned owner permit with `submitUserTransactions` before the SEPA instructions are released. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). EUR SELL is unavailable.
 
 ### Offramp (Sell)
 

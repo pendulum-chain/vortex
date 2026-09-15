@@ -204,11 +204,15 @@ Managed children, quote simulation, execution, and the B2B onramp are unchanged.
 
 ## Phase 5: SDK and direct API
 
-- `VortexSdk.registerRamp` returns user-owned `unsignedTransactions` for SEPA BUY instead
-  of forcing an empty list; the EUR handler keeps owner-signed transactions and
-  `updateRamp` accepts the permit signature through `submitUserSignature`.
-- README and `ARCHITECTURE.md` drop the "direct API only" caveat and document the
-  onboarding prerequisite (dashboard or widget) plus the two new error types.
+- `EurHandler` (renamed from `MykoboHandler`) registers the Monerium onramp with
+  `{ destinationAddress, walletAddress }`, signs only the ephemeral-owned transactions, and
+  `VortexSdk.registerRamp` returns the owner permit in `unsignedTransactions` for the linked
+  wallet to sign through `submitUserTransactions`; `updateRamp` explains that for SEPA BUY.
+  The legacy Mykobo SELL adapter stays for persisted flows.
+- `MONERIUM_ONBOARDING_REQUIRED` and `MONERIUM_REAUTHENTICATION_REQUIRED` map to
+  `MoneriumOnboardingRequiredError` and `MoneriumReauthenticationRequiredError`.
+- README, `ARCHITECTURE.md`, the API pages, and the integration skill drop the
+  "direct API only" caveat and document the onboarding prerequisite (dashboard or widget).
 
 ## Phase 6: documentation and security spec
 
