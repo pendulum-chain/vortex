@@ -1,7 +1,7 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
 // The forwarder prices swaps against a reference rate with a per-clone target and floor
-// in parts per million (docs/proposal-monerium-forwarder-fee-subsidy.md). The flat
+// in parts per million (docs/adr-0005-monerium-b2b-onramp.md, B1/P11). The flat
 // fee_bps mirror is replaced by both policy values; defaults are the agreed launch policy.
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addColumn("monerium_accounts", "target_ppm", {

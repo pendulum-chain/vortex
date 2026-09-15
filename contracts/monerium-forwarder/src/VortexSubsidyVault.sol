@@ -5,7 +5,7 @@ import {IERC20, IVortexForwarderFactory} from "./VortexForwarder.sol";
 
 /// @title VortexSubsidyVault
 /// @notice Treasury-funded USDC pool that tops a forwarder swap up to the client's floor
-///         rate (docs/proposal-monerium-forwarder-fee-subsidy.md). Only factory-registered
+///         rate (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"). Only factory-registered
 ///         clones can draw; every draw is bounded by a per-swap cap (ppm of the swap's
 ///         reference value) and a daily budget; withdrawals can only go back to the
 ///         treasury. The vault never holds client funds — it only ever pushes Vortex

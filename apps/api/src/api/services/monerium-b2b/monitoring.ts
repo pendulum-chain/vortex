@@ -34,7 +34,7 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
  *    converted long before either — and within SWEEP_IMMINENT_MS of SWEEP_DELAY the
  *    error says so: the dead-man sweep to the fallback is about to become possible.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
- *    (docs/proposal-monerium-forwarder-fee-subsidy.md); a vault that cannot cover a
+ *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
  * 3. Association monitor (S1 detective control, trust model in the b2b-variant doc):
  *    re-reads the linked-address and IBAN state from the Monerium API per active

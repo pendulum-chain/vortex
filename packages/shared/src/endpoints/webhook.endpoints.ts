@@ -101,7 +101,7 @@ export interface DepositReceivedWebhookPayload {
 }
 
 /**
- * How a whole execution was priced (docs/proposal-monerium-forwarder-fee-subsidy.md):
+ * How a whole execution was priced (docs/architecture-monerium-b2b-onramp.md, fees section):
  * the partner reference it was settled against, the fee Vortex took above the target
  * band, and the subsidy the vault paid to reach the floor. Totals for the execution,
  * not per deposit; a deposit's own share is its `usdcNetRaw`.

@@ -694,7 +694,7 @@ async function quoteRoutes(
 
 /**
  * Reference, route and projection for a swap of `amountIn`
- * (docs/proposal-monerium-forwarder-fee-subsidy.md, phase 2). Outside Ethereum mainnet
+ * (docs/architecture-monerium-b2b-onramp.md, fees section). Outside Ethereum mainnet
  * there is no quoter pin: the first enabled route is used unprojected and the
  * contract's own checks remain the only gate.
  */

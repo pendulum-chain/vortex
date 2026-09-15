@@ -2,7 +2,7 @@ import { parseUnits } from "viem";
 
 /**
  * Partner reference rate for the forwarder fee bands
- * (docs/proposal-monerium-forwarder-fee-subsidy.md): the Coinbase Exchange EURC-USD
+ * (docs/adr-0005-monerium-b2b-onramp.md, P12): the Coinbase Exchange EURC-USD
  * ticker, fetched fresh before every swap and recorded on the execution row so the
  * partner can audit each swap against the public trade history. The keeper passes the
  * rate into swapAndForward; the contract rejects it outside its Chainlink band.

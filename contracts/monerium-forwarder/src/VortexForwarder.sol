@@ -397,7 +397,7 @@ contract VortexForwarder {
         if (eureBefore - EURE.balanceOf(address(this)) > amountIn) revert Overspend();
     }
 
-    /// @dev Applies the fee bands (docs/proposal-monerium-forwarder-fee-subsidy.md):
+    /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"):
     ///      - fill above reference x (1 - targetPpm): the surplus is the fee, <= MAX_FEE_PPM;
     ///      - fill between the floor and the target: no fee, no subsidy;
     ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall

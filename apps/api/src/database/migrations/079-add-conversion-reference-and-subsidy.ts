@@ -1,7 +1,7 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
 // Every swap is priced against a partner reference rate and may draw a subsidy from the
-// vault (docs/proposal-monerium-forwarder-fee-subsidy.md). The reference and the chosen
+// vault (docs/architecture-monerium-b2b-onramp.md, fees section). The reference and the chosen
 // route are persisted before broadcast (crash-recovery calldata identity + audit
 // trail); the subsidy is recorded from the SwapExecuted event on confirmation.
 export async function up(queryInterface: QueryInterface): Promise<void> {

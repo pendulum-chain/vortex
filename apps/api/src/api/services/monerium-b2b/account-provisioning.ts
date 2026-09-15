@@ -51,7 +51,7 @@ function normalizeAddress(value: string, name: string): string {
   return value.trim().toLowerCase();
 }
 
-/** Launch fee policy (docs/proposal-monerium-forwarder-fee-subsidy.md): 12.5 bps target, 15 bps floor. */
+/** Launch fee policy (docs/adr-0005-monerium-b2b-onramp.md, B1): 12.5 bps target, 15 bps floor. */
 export const DEFAULT_TARGET_PPM = 1_250;
 export const DEFAULT_FLOOR_PPM = 1_500;
 const MAX_FEE_PPM = 10_000;

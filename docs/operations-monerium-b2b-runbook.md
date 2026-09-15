@@ -509,7 +509,8 @@ managed-profile manager:
   "forwarderAddress": "<deployed-clone>",
   "destination": "<destination>",
   "fallbackAddress": "<fallback-address>",
-  "feeBps": 0
+  "targetPpm": 1250,
+  "floorPpm": 1500
 }
 ```
 
