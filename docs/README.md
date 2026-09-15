@@ -33,6 +33,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
+| [`proposal-monerium-forwarder-fee-subsidy.md`](proposal-monerium-forwarder-fee-subsidy.md) | Implementation plan for reference-priced fee bands, the subsidy vault, configurable swap routes and the 7 day sweep in the B2B forwarder |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
 | [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 
