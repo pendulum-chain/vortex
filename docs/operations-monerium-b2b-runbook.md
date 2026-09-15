@@ -491,8 +491,9 @@ a below-floor fill makes the keeper defer, which is also a valid outcome to obse
 Deploy a client clone with the launch policy (1250 / 1500) as in §1.2. Use a fresh salt
 and record the predicted address and receipt. Read back `destination()`,
 `fallbackAddress()`, `targetPpm()`, `floorPpm()`, and `FACTORY()`, then require
-`factory.isForwarder(forwarder) == true` before continuing. The keeper fetches the live
-Coinbase ticker before each swap, so the backend needs outbound HTTPS during the run.
+`factory.isForwarder(forwarder) == true` before continuing. The keeper computes its
+reference from live Coinbase candles before each swap, so the backend needs outbound
+HTTPS during the run.
 
 ### 7.4 Create the local account fixture
 
@@ -589,7 +590,7 @@ FROM monerium_fiat_deposits
 WHERE account_id = '<account-id>';
 
 SELECT eure_in_raw, usdc_gross_raw, fee_raw, subsidy_raw, usdc_net_raw, destination,
-       reference_rate_raw, reference_source, reference_trade_id, route_index,
+       reference_rate_raw, reference_source, reference_window_seconds, route_index,
        tx_hash, nonce, broadcast_block_number, block_number, swap_log_index, status, error
 FROM monerium_conversion_executions
 WHERE account_id = '<account-id>';
@@ -607,7 +608,7 @@ Required results:
 - One allocation joining that deposit and execution with the 25 EURe input and the
   attributed net USDC.
 - One `confirmed` execution with the 25 EURe input, a recorded reference (rate, source,
-  trade id) and route index 0, a fee or subsidy consistent with the fill's position
+  averaging window) and route index 0, a fee or subsidy consistent with the fill's position
   against the reference bands (`usdc_net_raw = usdc_gross_raw - fee_raw +
   subsidy_raw`), non-null nonce/hash/block/swap-log-index, destination matching the
   clone, and `error IS NULL`. If the vault was left empty and the fill sat below the

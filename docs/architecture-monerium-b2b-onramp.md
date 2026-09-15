@@ -57,7 +57,7 @@ flowchart LR
     end
 
     subgraph Reference["Reference rate"]
-        CB[Coinbase Exchange\nEURC-USD ticker]
+        CB[Coinbase Exchange\nEURC-USD 1-min candles]
     end
 
     subgraph Vortex["Vortex API (keeper backend)"]
@@ -155,7 +155,7 @@ sequenceDiagram
     M-->>V: order.created / order.updated webhook -> inbox -> deposit row
     V->>F: (watcher) sees the Transfer log -> stamps chain identity
     V->>V: DEPOSIT_RECEIVED -> outbox -> partner webhook
-    V->>CB: EURC-USD ticker (reference, recorded on the execution row)
+    V->>CB: last hour of 1-min candles -> 5-min VWAP (reference, recorded on the execution row)
     V->>V: quote every whitelisted route, project fee/subsidy, defer if the vault cannot cover
     V->>F: swapAndForward(reference, bestRoute)  [execution row committed first]
     F->>F: swap min(balance, perSwapCap) on the route; fee above target, floor on the net
@@ -304,9 +304,12 @@ The partner agreement fixes the client's rate against a reference: the reference
 settles every fill into three bands against that reference (decisions:
 [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md), amendment).
 
-- **Reference rate.** Before each swap the keeper fetches the Coinbase Exchange EURC-USD
-  ticker (`reference-rate.ts`), stores price, time and trade id on the execution row,
-  and passes the rate into `swapAndForward`. The contract rejects a reference outside
+- **Reference rate.** Before each swap the keeper computes a five-minute volume-weighted
+  average of Coinbase Exchange EURC-USD one-minute candles (`reference-rate.ts`: typical
+  price `(low + high + close) / 3` weighted by volume; widened to an hour when the five
+  minutes carry no volume, so a single thin weekend print never becomes the reference),
+  stores price, window and time on the execution row, and passes the rate into
+  `swapAndForward`. The contract rejects a reference outside
   `MAX_REFERENCE_DEVIATION_BPS` of Chainlink EUR/USD; a permissionless caller's value is
   ignored and Chainlink is the reference. No reference means the keeper defers.
 - **Fee policy (`targetPpm`, `floorPpm`)**: per clone, in ppm below the reference,
@@ -433,7 +436,7 @@ erDiagram
 |---|---|
 | `monerium_accounts` (069, 071, 078) | One row per client account: Monerium profile UUID, IBAN, forwarder/destination/fallback addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status, on-chain mint identity, and two webhook-emission markers |
-| `monerium_conversion_executions` (069, 074, 075, 077, 079) | One row per `swapAndForward()`, created before broadcast with the reference (rate, source, trade id, time) and route it will send: EURe in, USDC gross + fee + subsidy from the event, conversion net (`usdcOut - fee + subsidy`, excluding unrelated USDC swept by `forwarded`), tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and `SwapExecuted` log index (allocation boundary), status |
+| `monerium_conversion_executions` (069, 074, 075, 077, 079) | One row per `swapAndForward()`, created before broadcast with the reference (rate, source, averaging window, time) and route it will send: EURe in, USDC gross + fee + subsidy from the event, conversion net (`usdcOut - fee + subsidy`, excluding unrelated USDC swept by `forwarded`), tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and `SwapExecuted` log index (allocation boundary), status |
 | `monerium_deposit_allocations` (076) | N:M accounting join: the EURe portion and attributed net USDC for each deposit/execution pair |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |

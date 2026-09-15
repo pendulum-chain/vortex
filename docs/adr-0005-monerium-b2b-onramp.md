@@ -97,9 +97,12 @@ A flat skim on whatever the DEX returns cannot express that, so the contract now
 every fill into bands against a reference rate (decided with the partner; contracts were
 not yet deployed, so this replaced the flat fee before launch with no migration):
 
-- **Reference rate.** The keeper fetches the Coinbase Exchange EURC-USD ticker before
-  each swap, records price, time and trade id on the execution row, and passes the rate
-  into `swapAndForward`. The contract rejects a reference outside
+- **Reference rate.** Before each swap the keeper computes a five-minute
+  volume-weighted average of Coinbase Exchange EURC-USD one-minute candles (typical
+  price × volume), widened to an hour when the five minutes carry no volume, so a
+  single thin print on a weekend or outside business hours never becomes the reference
+  (suggested in review, 2026-09-15). It records price, window and time on the
+  execution row and passes the rate into `swapAndForward`. The contract rejects a reference outside
   `MAX_REFERENCE_DEVIATION_BPS` of Chainlink; on the permissionless path the argument is
   ignored and Chainlink is the reference. Reading the price from Vortex's own oracle on
   Base was rejected: it blends a forex rate on weekdays and lives on another chain.
@@ -156,7 +159,7 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 | P9 | Notification confirmation depth | 32 blocks (implemented) |
 | P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route EURe→EURC→USDC at the 5 bps tiers, re-verify at the deploy block (amended 2026-09-15) |
 | P11 | Fee adjustability | Guardian `setFeePolicy(target, floor)` within `MAX_FEE_PPM`; raising either value is announced and applies after 24 h, lowering is immediate (amended 2026-09-15) |
-| P12 | Reference rate | Coinbase Exchange EURC-USD ticker, keeper-fetched per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15) |
+| P12 | Reference rate | Five-minute VWAP over Coinbase Exchange EURC-USD one-minute candles (widened to 60 min when the five minutes have no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15) |
 | P13 | Subsidy vault limits | One shared vault; **50 bps of the reference value per swap, 200 USDC per UTC day** at launch, guardian-settable; withdraw to treasury only (2026-09-15) |
 | T2 | Whitelabel MSA terms | Open — G1 negotiation (rollout doc), includes the per-IBAN suspension ask |
 | T3 | KYB submission mechanism | Open, deliberately unbuilt — pilot corporates are approved by Monerium under partner KYC reliance and imported via the admin mapping; no identity-data submission path may exist until this settles (security-spec invariant 11) |
