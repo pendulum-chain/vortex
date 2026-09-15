@@ -1601,6 +1601,7 @@
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",
         "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "eurOnrampNetworkUnsupported": "Pagamentos em EUR ainda não estão disponíveis nesta rede. Selecione outra rede.",
         "feeComponents": "Falha ao calcular as taxas. Por favor, tente novamente com um valor diferente.",
         "fetchingQuote": "Falha ao obter cotação",
         "gasWarning": "Escolha um valor menor para garantir que você consiga pagar o custo do gás da transação.",

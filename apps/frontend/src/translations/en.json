@@ -1597,6 +1597,7 @@
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "COP_tokenUnavailable": "Building your COP rail - available soon!",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "eurOnrampNetworkUnsupported": "EUR pay-ins are not available on this network yet. Please select a different network.",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
         "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",
