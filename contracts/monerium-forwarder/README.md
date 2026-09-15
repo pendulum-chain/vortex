@@ -2,11 +2,14 @@
 
 Foundry project for the attestor-linked forwarder (Monerium B2B zero-touch onramp):
 per-client EIP-1167 clones whose EIP-1271 `isValidSignature` accepts only the fixed
-Monerium link message from the Vortex attestor, with an immutable EURe→EURC→USDC
-conversion policy and client-controlled recovery.
+Monerium link message from the Vortex attestor, a conversion policy that swaps over a
+factory-whitelisted Uniswap v3 route and settles the fill against a partner reference
+rate (fee above the target, top-up from the shared `VortexSubsidyVault` below the floor,
+Chainlink floor on the client's net), and client-controlled recovery.
 
 - Spec: [docs/architecture-monerium-b2b-onramp.md](../../docs/architecture-monerium-b2b-onramp.md) §2
-- Parameter values (slippage, delays, caps, fee) are decided in
+  and its "Fees, reference rate and subsidy" section
+- Parameter values (floor, delays, caps, fee policy, reference band, vault limits) are decided in
   [docs/adr-0005-monerium-b2b-onramp.md](../../docs/adr-0005-monerium-b2b-onramp.md) —
   that table, not values hardcoded in tests or scripts, is authoritative.
 
