@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, type RampPhase } from "@vortexfi/shared";
+import { config } from "../../../../../config/vars";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import { getBlockExecutorFlows, resolveBlockFlow } from "../flows/catalog";
 import { makeMoneriumOnrampPolygonCrossChainFlow } from "../flows/monerium-onramp-polygon-cross-chain";
@@ -54,5 +55,26 @@ describe("Polygon Monerium cross-chain flow", () => {
     expect(() => resolveBlockFlow({ ...request, network: Networks.Polygon, to: Networks.Polygon })).toThrow(
       "No block flow mapped"
     );
+  });
+
+  it("refuses to quote with a public 503 while the issue fee is unconfigured", () => {
+    const request = {
+      from: EPaymentMethod.SEPA,
+      inputAmount: "100",
+      inputCurrency: FiatToken.EURC,
+      network: Networks.Arbitrum,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.BUY,
+      to: Networks.Arbitrum
+    };
+    const originalIssueFee = config.monerium.issueFeeEur;
+    config.monerium.issueFeeEur = undefined;
+    try {
+      expect(() => resolveBlockFlow(request)).toThrow(
+        expect.objectContaining({ isPublic: true, message: "Monerium issue fee is not configured", status: 503 })
+      );
+    } finally {
+      config.monerium.issueFeeEur = originalIssueFee;
+    }
   });
 });

@@ -58,6 +58,7 @@ let service: typeof import("./monerium.service");
 let controller: typeof import("../../controllers/monerium.controller");
 let cache: typeof import("../index").cache;
 let config: typeof import("../../../config/vars").config;
+let originalMoneriumConfig: typeof import("../../../config/vars").config.monerium;
 const originalFetch = globalThis.fetch;
 
 function jsonResponse(value: unknown): Response {
@@ -69,6 +70,8 @@ beforeAll(async () => {
   controller = await import("../../controllers/monerium.controller");
   ({ cache } = await import("../index"));
   ({ config } = await import("../../../config/vars"));
+  // Bun runs every test file in one process; the URL/client overrides below must not outlive this file.
+  originalMoneriumConfig = { ...config.monerium };
 });
 
 beforeEach(() => {
@@ -89,6 +92,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
+  Object.assign(config.monerium, originalMoneriumConfig);
   mock.module("../../../config/database", () => ({ ...databaseReal }));
   mock.module("../../../models/kycCase.model", () => ({ ...kycCaseReal }));
   mock.module("../../../models/providerCustomer.model", () => ({ ...providerCustomerReal }));
