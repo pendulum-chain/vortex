@@ -1,4 +1,5 @@
-import { RampPhase } from "@vortexfi/shared";
+import { FiatToken, isDomesticToken, RampDirection, RampPhase } from "@vortexfi/shared";
+import { RampState } from "../../types/phases";
 
 export const PHASE_DURATIONS: Record<RampPhase, number> = {
   alfredOnrampMintFallback: 0,
@@ -114,5 +115,54 @@ export const PHASE_FLOWS = {
     "distributeFees",
     "destinationTransfer",
     "complete"
+  ] as RampPhase[],
+
+  // Mirrors the API's MoneriumOnrampPolygonCrossChain flow (monerium-onramp-polygon-cross-chain.ts).
+  onramp_eur_monerium: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "uniswapApprove",
+    "uniswapSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "finalSettlementSubsidy",
+    "destinationTransfer",
+    "complete"
   ] as RampPhase[]
 };
+
+export function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS | null {
+  if (!rampState || !rampState.ramp) {
+    return null;
+  }
+
+  const { type } = rampState.ramp;
+
+  if (type === RampDirection.BUY) {
+    if (rampState.quote?.inputCurrency === FiatToken.BRL) {
+      return "onramp_brl";
+    }
+    if (rampState.quote?.inputCurrency === FiatToken.EURC) {
+      return "onramp_eur_monerium";
+    }
+    return "onramp_eur_evm";
+  }
+
+  if (rampState.quote?.outputCurrency === FiatToken.BRL) {
+    return "offramp_brl";
+  }
+
+  if (rampState.quote?.outputCurrency === FiatToken.EURC) {
+    return "offramp_eur_evm";
+  }
+
+  if (rampState.quote && isDomesticToken(rampState.quote.outputCurrency)) {
+    return "offramp_alfredpay";
+  }
+
+  return null;
+}
