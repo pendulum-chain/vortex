@@ -32,6 +32,7 @@ function client(options: { addresses?: string[]; ibans?: ReturnType<typeof iban>
 function deps(monerium: ReturnType<typeof client>, overrides: Partial<Parameters<typeof linkMoneriumWallet>[2]> = {}) {
   const identity = { client: monerium, profile: { state: "approved" }, profileId: PROFILE_ID, source: "oauth" } as unknown as MoneriumIdentity;
   return {
+    findActiveRampForOwner: async () => null,
     isContractAddress: async () => false,
     resolveIdentity: async () => identity,
     verifyOwnership: async () => true,
@@ -173,6 +174,16 @@ describe("moveMoneriumIban", () => {
   it("requires the destination to be linked first", async () => {
     const monerium = client({ ibans: [iban(OTHER, "ethereum")] });
     await expect(moveMoneriumIban("user-1", { address: OWNER.address, chain: "polygon" }, deps(monerium))).rejects.toThrow("is not linked");
+    expect(monerium.updateIbanDestination).not.toHaveBeenCalled();
+  });
+
+  it("refuses to move the IBAN away from a wallet with a live ramp", async () => {
+    const monerium = client({ addresses: [OWNER.address], ibans: [iban(OTHER, "ethereum")] });
+    const findActiveRampForOwner = mock(async () => "ramp-live");
+    await expect(
+      moveMoneriumIban("user-1", { address: OWNER.address, chain: "polygon" }, deps(monerium, { findActiveRampForOwner }))
+    ).rejects.toMatchObject({ isPublic: true, status: 409 });
+    expect(findActiveRampForOwner).toHaveBeenCalledWith(OTHER);
     expect(monerium.updateIbanDestination).not.toHaveBeenCalled();
   });
 

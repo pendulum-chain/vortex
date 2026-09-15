@@ -11,6 +11,7 @@ import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 import { matchingDestinations } from "../phases/blocks/phases/monerium-issue/registration";
 import { MONERIUM_ISSUE_NETWORKS, type MoneriumIssueNetwork } from "../phases/blocks/phases/monerium-issue/simulation";
+import { findActiveMoneriumRampForOwner } from "./active-ramp";
 import { type MoneriumIdentity, type MoneriumIdentitySource, resolveMoneriumIdentity } from "./identity";
 
 /** Chain the active EUR onramp mints on; readiness is measured against it. */
@@ -40,6 +41,7 @@ export interface MoneriumWalletLinkResult extends MoneriumWalletDestination {
 }
 
 export interface MoneriumWalletDependencies {
+  findActiveRampForOwner?: typeof findActiveMoneriumRampForOwner;
   isContractAddress: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
   resolveIdentity: (userId: string) => Promise<MoneriumIdentity>;
   verifyOwnership: (address: `0x${string}`, signature: `0x${string}`) => Promise<boolean>;
@@ -175,6 +177,15 @@ export async function moveMoneriumIban(
   }
   const current = ibans[0];
   if (current.chain !== chain || !sameAddress(current.address, address)) {
+    // A live ramp waits for the mint on the IBAN's current wallet; moving it now would strand that ramp.
+    const activeRampId = await (dependencies.findActiveRampForOwner ?? findActiveMoneriumRampForOwner)(current.address);
+    if (activeRampId) {
+      throw new APIError({
+        isPublic: true,
+        message: `An EUR pay-in is still in progress for the wallet the IBAN points to (${activeRampId}); wait for it to finish before moving the IBAN`,
+        status: httpStatus.CONFLICT
+      });
+    }
     await identity.client.updateIbanDestination(current.iban, { address, chain });
     logger.info(`MoneriumWallet: moved the IBAN destination to ${address} on ${chain} through the ${identity.source} app`);
   }

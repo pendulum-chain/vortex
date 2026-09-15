@@ -11,6 +11,7 @@ import httpStatus from "http-status";
 import { isAddress } from "viem";
 import logger from "../../../../../../config/logger";
 import { APIError } from "../../../../../errors/api-error";
+import { findActiveMoneriumRampForOwner } from "../../../../monerium/active-ramp";
 import { type MoneriumIdentity, resolveMoneriumIdentity } from "../../../../monerium/identity";
 import type { RegisterCtx, RegistrationResult } from "../../core/types";
 import { MONERIUM_EURE, MONERIUM_ISSUE_NETWORKS, type MoneriumIssueMetadata, type MoneriumIssueNetwork } from "./simulation";
@@ -51,6 +52,7 @@ export interface MoneriumIssueResponseArtifacts extends Record<string, unknown> 
 
 interface MoneriumIssueRegistrationDependencies {
   createReference: () => string;
+  findActiveRampForOwner?: typeof findActiveMoneriumRampForOwner;
   isContractAddress?: (network: MoneriumIssueNetwork, address: `0x${string}`) => Promise<boolean>;
   readOwnerEureBalance: typeof getEvmTokenBalance;
   resolveIdentity: (userId: string, transaction?: RegisterCtx<never>["transaction"]) => Promise<MoneriumIdentity>;
@@ -131,6 +133,19 @@ export function createRegisterMoneriumIssue(
       throw new APIError({
         message: "Monerium self-transfer requires a profile-linked EOA; contract wallet destinations are not supported",
         status: httpStatus.BAD_REQUEST
+      });
+    }
+    // Permits for one owner share a nonce and the mint executor attributes by balance delta, so a
+    // second live ramp could deliver this ramp's SEPA credit elsewhere and strand the loser.
+    const activeRampId = await (dependencies.findActiveRampForOwner ?? findActiveMoneriumRampForOwner)(
+      address,
+      ctx.transaction
+    );
+    if (activeRampId) {
+      throw new APIError({
+        isPublic: true,
+        message: `An EUR pay-in is already in progress for this wallet (${activeRampId}); wait for it to finish before starting another`,
+        status: httpStatus.CONFLICT
       });
     }
     const ownerEureBalanceBaseline = await dependencies.readOwnerEureBalance({

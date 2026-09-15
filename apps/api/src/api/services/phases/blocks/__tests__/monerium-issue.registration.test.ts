@@ -61,7 +61,8 @@ describe("MoneriumIssue registration", () => {
     const readOwnerEureBalance = mock(async () => new Big("5000000000000000000"));
     const register = createRegisterMoneriumIssue({
       createReference: () => "VTX00000000000000000000000000000001",
-            isContractAddress: async () => false,
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
       readOwnerEureBalance,
       resolveIdentity
     });
@@ -105,6 +106,7 @@ describe("MoneriumIssue registration", () => {
     const isContractAddress = mock(async () => false);
     const register = createRegisterMoneriumIssue({
       createReference: () => "VTX00000000000000000000000000000002",
+      findActiveRampForOwner: async () => null,
             isContractAddress,
       readOwnerEureBalance: async () => new Big(0),
       resolveIdentity: async () => identity(monerium)
@@ -122,6 +124,7 @@ describe("MoneriumIssue registration", () => {
     const resolveIdentity = mock(async () => identity(client()));
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
             isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
       resolveIdentity
@@ -136,6 +139,7 @@ describe("MoneriumIssue registration", () => {
   it("requires the live profile to remain approved", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
             isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
       resolveIdentity: async () => identity(client({ state: "pending" }), "pending")
@@ -147,6 +151,7 @@ describe("MoneriumIssue registration", () => {
   it("rejects a profile-linked contract wallet that cannot sign the EOA permit", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
             isContractAddress: async () => true,
       readOwnerEureBalance: async () => new Big(0),
       resolveIdentity: async () => identity(client())
@@ -167,6 +172,7 @@ describe("MoneriumIssue registration", () => {
   ])("rejects a %s provider-chain IBAN/address match", async (_label, ibans) => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
             isContractAddress: async () => false,
       readOwnerEureBalance: async () => new Big(0),
       resolveIdentity: async () => identity(client({ ibans }))
@@ -175,9 +181,30 @@ describe("MoneriumIssue registration", () => {
     await expect(register(context())).rejects.toThrow("Expected exactly one Monerium base IBAN/address match");
   });
 
+  it("rejects a second ramp while one is still live for the same owner", async () => {
+    const findActiveRampForOwner = mock(async () => "ramp-live");
+    const readOwnerEureBalance = mock(async () => new Big(0));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner,
+      isContractAddress: async () => false,
+      readOwnerEureBalance,
+      resolveIdentity: async () => identity(client({ chain: "polygon" }))
+    });
+
+    await expect(register(context({}, Networks.Polygon))).rejects.toMatchObject({
+      isPublic: true,
+      message: expect.stringContaining("ramp-live"),
+      status: 409
+    });
+    expect(findActiveRampForOwner).toHaveBeenCalledWith(ADDRESS, undefined);
+    expect(readOwnerEureBalance).not.toHaveBeenCalled();
+  });
+
   it("fails registration when the owner baseline cannot be read", async () => {
     const register = createRegisterMoneriumIssue({
       createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
             isContractAddress: async () => false,
       readOwnerEureBalance: async () => {
         throw new Error("RPC unavailable");
