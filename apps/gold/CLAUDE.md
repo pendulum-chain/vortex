@@ -6,8 +6,8 @@ imported as a snapshot from `pendulum-chain/vortexperiments`, which keeps the pi
 
 - It is served by the frontend Netlify site at `https://www.vortexfinance.co/gold/`:
   `apps/frontend/netlify.toml` builds it with Vite `base: "/gold/"` and copies `dist/client`
-  into the frontend's `dist/client/gold/`, so no redirect rule exists. Like `/widget`, the
-  path is unprefixed; locale-prefixed variants can be added if other markets launch.
+  into the frontend's `dist/client/gold/`. Like `/widget`, the canonical path is unprefixed
+  and `/pt-BR/gold` is a rewrite alias in `apps/frontend/_redirects`.
   Reference public assets through `import.meta.env.BASE_URL`, never as root-relative
   `/brand/...` paths.
 - The API base comes from `VITE_SIGNING_SERVICE_PATH`, like the frontend: a path such as
