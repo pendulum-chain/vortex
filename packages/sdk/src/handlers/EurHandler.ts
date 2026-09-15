@@ -8,7 +8,7 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { MissingMykoboOfframpParametersError, MissingMykoboOnrampParametersError } from "../errors.js";
+import { MissingEurOnrampParametersError, MissingMykoboOfframpParametersError } from "../errors.js";
 import type { ApiService } from "../services/ApiService.js";
 import type {
   EurOfframpAdditionalData,
@@ -18,7 +18,13 @@ import type {
   VortexSdkContext
 } from "../types.js";
 
-export class MykoboHandler implements RampHandler {
+/**
+ * EUR/SEPA corridor adapter. BUY runs the Monerium onramp: the backend mints EURe to the wallet
+ * linked to the user's Monerium profile and returns that wallet's ERC-2612 permit as a user-owned
+ * transaction, which the integrator signs through `submitUserTransactions`. SELL keeps the legacy
+ * Mykobo adapter for persisted flows; new EUR SELL quotes are rejected by the backend.
+ */
+export class EurHandler implements RampHandler {
   private apiService: ApiService;
   private context: VortexSdkContext;
   private generateEphemerals: () => Promise<{
@@ -67,18 +73,19 @@ export class MykoboHandler implements RampHandler {
     return unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
   }
 
-  async registerMykoboOnramp(quoteId: string, additionalData: EurOnrampAdditionalData): Promise<RampProcess> {
-    if (!additionalData.destinationAddress || !additionalData.email || !additionalData.ipAddress) {
-      throw new MissingMykoboOnrampParametersError();
+  async registerEurOnramp(quoteId: string, additionalData: EurOnrampAdditionalData): Promise<RampProcess> {
+    if (!additionalData.destinationAddress || !additionalData.walletAddress) {
+      throw new MissingEurOnrampParametersError();
     }
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
+    // Identity (profile, linked address, IBAN) is derived server-side; walletAddress names the
+    // Monerium-linked owner whose permit comes back as a user-owned transaction.
     const registerRequest: RegisterRampRequest = {
       additionalData: {
         destinationAddress: additionalData.destinationAddress,
-        email: additionalData.email,
-        ipAddress: additionalData.ipAddress
+        walletAddress: additionalData.walletAddress
       },
       quoteId,
       signingAccounts: accountMetas
@@ -103,7 +110,7 @@ export class MykoboHandler implements RampHandler {
     return this.apiService.updateRamp(updateRequest);
   }
 
-  async registerMykoboOfframp(quoteId: string, additionalData: EurOfframpAdditionalData): Promise<RampProcess> {
+  async registerEurOfframp(quoteId: string, additionalData: EurOfframpAdditionalData): Promise<RampProcess> {
     if (
       !additionalData.walletAddress ||
       !additionalData.email ||
@@ -145,7 +152,7 @@ export class MykoboHandler implements RampHandler {
     return this.apiService.updateRamp(updateRequest);
   }
 
-  async updateMykoboOfframp(rampId: string, additionalData: EurOfframpUpdateAdditionalData): Promise<RampProcess> {
+  async updateEurOfframp(rampId: string, additionalData: EurOfframpUpdateAdditionalData): Promise<RampProcess> {
     const rampProcess = await this.apiService.getRampStatus(rampId);
     if (rampProcess.currentPhase !== "initial") {
       throw new Error(

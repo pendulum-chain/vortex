@@ -239,10 +239,42 @@ export class MykoboError extends RegisterRampError {
   }
 }
 
+/** @deprecated The Monerium onramp replaced the Mykobo onramp; see {@link MissingEurOnrampParametersError}. */
 export class MissingMykoboOnrampParametersError extends MykoboError {
   constructor() {
     super("Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp", 400);
     this.name = "MissingMykoboOnrampParametersError";
+  }
+}
+
+// EUR (Monerium) onramp specific errors
+export class EurOnrampError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "EurOnrampError";
+  }
+}
+
+export class MissingEurOnrampParametersError extends EurOnrampError {
+  constructor() {
+    super("Parameters destinationAddress and walletAddress are required for the EUR onramp", 400);
+    this.name = "MissingEurOnrampParametersError";
+  }
+}
+
+/** The authenticated user has no Monerium profile bound yet; complete Monerium onboarding first. */
+export class MoneriumOnboardingRequiredError extends EurOnrampError {
+  constructor(message: string, status = 403) {
+    super(message, status);
+    this.name = "MoneriumOnboardingRequiredError";
+  }
+}
+
+/** The backend's Monerium session for this user is gone; the user must reconnect Monerium. */
+export class MoneriumReauthenticationRequiredError extends EurOnrampError {
+  constructor(message: string, status = 404) {
+    super(message, status);
+    this.name = "MoneriumReauthenticationRequiredError";
   }
 }
 
@@ -450,6 +482,16 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
         errorCode = candidate;
         break;
       }
+    }
+
+    if (errorCode === "MONERIUM_ONBOARDING_REQUIRED") {
+      return new MoneriumOnboardingRequiredError(errorMessage ?? "Monerium onboarding is required", normalizedStatus);
+    }
+    if (errorCode === "MONERIUM_REAUTHENTICATION_REQUIRED") {
+      return new MoneriumReauthenticationRequiredError(
+        errorMessage ?? "Monerium reauthentication is required",
+        normalizedStatus
+      );
     }
 
     if (errorMessage) {

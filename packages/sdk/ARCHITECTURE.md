@@ -13,10 +13,10 @@ state or a user's wallet.
 - `services/NetworkManager.ts` owns the RPC connections needed for ephemeral signing and
   initializes only the networks required for ephemeral signing. Quote and registration
   HTTP calls do not wait for chain WebSockets.
-- `handlers/BrlHandler.ts`, `AlfredpayHandler.ts`, and `MykoboHandler.ts` adapt
-  corridor-specific registration and update data to the common lifecycle. `MykoboHandler`
-  remains the SDK's legacy SEPA adapter and is not compatible with the active backend
-  Monerium owner-permit flow.
+- `handlers/BrlHandler.ts`, `DomesticHandler.ts`, and `EurHandler.ts` adapt
+  corridor-specific registration and update data to the common lifecycle. `EurHandler`
+  registers the Monerium onramp with the user's linked wallet and keeps the legacy Mykobo
+  SELL adapter for persisted flows.
 - `eip712.ts` classifies and attaches signatures for user-owned typed-data operations.
 - `storage.ts` optionally persists ephemeral recovery material for the caller.
 
@@ -39,9 +39,8 @@ The SDK does not mint keys or complete KYC/KYB.
 transactions. The SDK signs only the ephemeral-owned set. For user-owned entries, the
 integrator supplies wallet callbacks to `submitUserTransactions`, or handles each entry
 through `getUserTransactionType`, `getTypedDataToSign`, and
-`getTransactionToBroadcast`. The current EUR BUY handler is an explicit exception: it
-drops the Monerium owner permit, so EUR BUY must use the direct API until that handler is
-replaced.
+`getTransactionToBroadcast`. EUR BUY follows the same rule: the Monerium owner permit is
+returned as a user-owned typed-data transaction for the linked wallet to sign.
 
 ## State and custody
 

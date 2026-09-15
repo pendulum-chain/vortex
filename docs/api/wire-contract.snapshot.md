@@ -3000,8 +3000,9 @@ AnyAdditionalData: {
   walletAddress: string;
 } | {
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
 } | {
   destinationAddress: string;
   fiatAccountId?: string;
@@ -3646,8 +3647,18 @@ EurOfframpUpdateAdditionalData: {
 
 EurOnrampAdditionalData: {
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
+}
+
+EurOnrampError: class EurOnrampError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
 }
 
 EurOnrampQuote: {
@@ -4290,6 +4301,15 @@ MissingDomesticOnrampParametersError: class MissingDomesticOnrampParametersError
   readonly status: number;
 }
 
+MissingEurOnrampParametersError: class MissingEurOnrampParametersError {
+  constructor();
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
 MissingMykoboOfframpParametersError: class MissingMykoboOfframpParametersError {
   constructor();
   readonly code?: string;
@@ -4310,6 +4330,24 @@ MissingMykoboOnrampParametersError: class MissingMykoboOnrampParametersError {
 
 MissingRequiredFieldsError: class MissingRequiredFieldsError {
   constructor(missingFields: Array<string>);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MoneriumOnboardingRequiredError: class MoneriumOnboardingRequiredError {
+  constructor(message: string, status?: number);
+  readonly code?: string;
+  readonly errors?: Array<unknown>;
+  readonly isPublic: boolean;
+  readonly originalError?: Error;
+  readonly status: number;
+}
+
+MoneriumReauthenticationRequiredError: class MoneriumReauthenticationRequiredError {
+  constructor(message: string, status?: number);
   readonly code?: string;
   readonly errors?: Array<unknown>;
   readonly isPublic: boolean;
@@ -4715,8 +4753,9 @@ RegisterRampAdditionalData: <Q extends {
   rampType: RampDirection.BUY;
 } ? {
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
 } : Q extends {
   alfredpayInputLimits?: {
     max: string;
@@ -4849,8 +4888,9 @@ RegisterRampAdditionalData: <Q extends {
   walletAddress: string;
 } | {
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  email?: string;
+  ipAddress?: string;
+  walletAddress: string;
 } | {
   destinationAddress: string;
   fiatAccountId?: string;
@@ -6890,8 +6930,9 @@ VortexSdk: class VortexSdk {
     rampType: RampDirection.BUY;
   } ? {
     destinationAddress: string;
-    email: string;
-    ipAddress: string;
+    email?: string;
+    ipAddress?: string;
+    walletAddress: string;
   } : Q extends {
     alfredpayInputLimits?: {
       max: string;
@@ -7024,8 +7065,9 @@ VortexSdk: class VortexSdk {
     walletAddress: string;
   } | {
     destinationAddress: string;
-    email: string;
-    ipAddress: string;
+    email?: string;
+    ipAddress?: string;
+    walletAddress: string;
   } | {
     destinationAddress: string;
     fiatAccountId?: string;
