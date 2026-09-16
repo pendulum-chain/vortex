@@ -11,12 +11,14 @@ const redirects = readFileSync(new URL("../../_redirects", import.meta.url), "ut
   });
 
 describe("Netlify redirects", () => {
-  it("routes only the widget shell and the gold alias through lowercase Portuguese paths", () => {
+  it("routes only the lowercase Portuguese widget path through the SPA shell", () => {
     expect(redirects.filter(rule => rule.from.startsWith("/pt-br"))).toEqual([
-      { from: "/pt-br/widget", status: "200", to: "/_shell.html" },
-      { from: "/pt-br/gold", status: "200", to: "/gold/index.html" },
-      { from: "/pt-br/gold/*", status: "200", to: "/gold/:splat" }
+      { from: "/pt-br/widget", status: "200", to: "/_shell.html" }
     ]);
+  });
+
+  it("redirects the unprefixed gold path to its Brazilian edition", () => {
+    expect(redirects).toContainEqual({ from: "/gold/*", status: "301", to: "/pt-br/gold/:splat" });
   });
 
   it("keeps unknown paths on the real 404 fallback", () => {
