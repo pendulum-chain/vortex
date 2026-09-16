@@ -753,6 +753,19 @@ contract VortexForwarderTest is Test {
         assertEq(usdc.balanceOf(address(vault)), 1_000e6, "subsidy transfer must be undone");
     }
 
+    function test_swap_depeggedReference_feeBranchStillEnforcesOracleFloor() public {
+        _fund(1_000e18);
+        uint256 lowReference = (REF * 9_900) / 10_000; // 100 bps below Chainlink: the band's edge
+        // Above that reference's target (1_127_189_250): fee branch, fee 0.81 USDC, and the
+        // net 1_127_189_250 still sits below Chainlink - 40 bps (1_135_440_000).
+        router.setNextOut(1_128e6);
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
+        fwd.swapAndForward(lowReference, 0);
+        assertEq(usdc.balanceOf(feeRecipient), 0, "fee transfer must be undone");
+        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
+    }
+
     function test_swap_referenceOutsideTheBandReverts() public {
         _fund(1_000e18);
         router.setNextOut(1_150e6);

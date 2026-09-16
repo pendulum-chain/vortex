@@ -215,6 +215,16 @@ describe("projectSwap", () => {
 
 describe("expectedSwapCalldata", () => {
   it("rebuilds the exact calldata from the persisted reference and route, or nothing", () => {
+
+  it("defers when a fee-band net sits below the oracle floor (depegged reference, fee side)", () => {
+    // Mirrors test_swap_depeggedReference_feeBranchStillEnforcesOracleFloor: reference 100 bps
+    // under Chainlink, fill above its target -> fee 0.81 USDC, net 1_127_189_250 < 1_135_440_000.
+    const projection = projectSwap({ ...base, quotedOut: 1_128n * USDC, referenceRaw: (114_000_000n * 9_900n) / 10_000n });
+    expect(projection.fee).toBe(810_750n);
+    expect(projection.subsidy).toBe(0n);
+    expect(projection.net).toBe(1_127_189_250n);
+    expect(projection.defer).toContain("oracle floor");
+  });
     expect(expectedSwapCalldata({ referenceRateRaw: null, routeIndex: 0 })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: null })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: 1 })).toBe(
