@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: "/gold/",
+  base: "/pt-br/gold/",
   build: {
     outDir: "dist/client",
   },
