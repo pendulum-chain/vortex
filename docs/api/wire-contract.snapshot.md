@@ -382,6 +382,12 @@ BundledPriceResult: {
 
 CleanupPhase: "assetHubCleanup" | "baseCleanupAxlUsdc" | "baseCleanupBrla" | "baseCleanupEurc" | "baseCleanupUsdc" | "ethereumCleanupUsdc" | "hydrationCleanup" | "moonbeamCleanup" | "pendulumCleanup" | "polygonCleanup" | "polygonCleanupAxlUsdc"
 
+ConversionExecutionPricing: {
+  feeRaw: null | string;
+  referenceRateRaw: null | string;
+  subsidyRaw: null | string;
+}
+
 CreateBestQuoteRequest: {
   api?: boolean;
   apiKey?: string;
@@ -447,6 +453,11 @@ DepositConvertedWebhookPayload: {
   } & {
     conversions: Array<{
       eureInRaw: string;
+      execution: {
+        feeRaw: null | string;
+        referenceRateRaw: null | string;
+        subsidyRaw: null | string;
+      };
       executionId: string;
       txHash: null | string;
       usdcNetRaw: string;
@@ -2435,6 +2446,11 @@ WebhookDeliveryAttempt: {
     } & {
       conversions: Array<{
         eureInRaw: string;
+        execution: {
+          feeRaw: null | string;
+          referenceRateRaw: null | string;
+          subsidyRaw: null | string;
+        };
         executionId: string;
         txHash: null | string;
         usdcNetRaw: string;
@@ -2498,6 +2514,11 @@ WebhookPayload: {
   } & {
     conversions: Array<{
       eureInRaw: string;
+      execution: {
+        feeRaw: null | string;
+        referenceRateRaw: null | string;
+        subsidyRaw: null | string;
+      };
       executionId: string;
       txHash: null | string;
       usdcNetRaw: string;
