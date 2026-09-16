@@ -17,6 +17,10 @@ describe("Netlify redirects", () => {
     ]);
   });
 
+  it("redirects the unprefixed gold path to its Brazilian edition", () => {
+    expect(redirects).toContainEqual({ from: "/gold/*", status: "301", to: "/pt-br/gold/:splat" });
+  });
+
   it("keeps unknown paths on the real 404 fallback", () => {
     expect(redirects).toContainEqual({ from: "/*", status: "404", to: "/404.html" });
   });

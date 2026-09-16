@@ -1,0 +1,26 @@
+{
+  "name": "@vortexfi/gold",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@privy-io/react-auth": "^3.39.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@vortexfi/sdk": "workspace:*",
+    "qrcode.react": "^4.2.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "recharts": "^3.10.1",
+    "viem": "catalog:",
+    "vite": "^6.4.2"
+  }
+}
