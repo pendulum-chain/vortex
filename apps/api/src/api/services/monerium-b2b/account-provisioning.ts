@@ -54,6 +54,7 @@ function normalizeAddress(value: string, name: string): string {
 /** Launch fee policy (docs/adr-0005-monerium-b2b-onramp.md, B1): 12.5 bps target, 15 bps floor. */
 export const DEFAULT_TARGET_PPM = 1_250;
 export const DEFAULT_FLOOR_PPM = 1_500;
+// Mirrors the implementation's immutable MAX_FEE_PPM (ADR-0005 table); the contract re-validates at deploy.
 const MAX_FEE_PPM = 10_000;
 
 /** Mirrors the contract's _validateFeePolicy: both in [0, MAX_FEE_PPM], target never above floor. */

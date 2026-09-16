@@ -49,7 +49,11 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    concurrently. Migrations 076/077 install allocation accounting and its exact
    same-block boundary. Treat 076 as forward-only after activation: its `down` migration
    refuses to discard any existing allocation rows, so restore from backup instead of
-   forcing a rollback once conversions have been attributed.
+   forcing a rollback once conversions have been attributed. Migrations 078/079 add the
+   ppm fee policy and the pricing columns: before applying them, confirm no `Pending`
+   `monerium_conversion_executions` row has a NULL `reference_rate_raw` or `route_index`
+   (it would stay in flight forever and block its account) and no deposit-converted
+   outbox delivery is still pending (it would replay without the `execution` block).
 2. **Treasury first (O2):** create the dedicated fee Safe multisig — `FEE_RECIPIENT` is
    immutable in the implementation. Confirm guardian key custody plan (EOA acceptable
    for pilot; hardware/multisig at GA).
