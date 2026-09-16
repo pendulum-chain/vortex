@@ -373,7 +373,7 @@ export async function reconcileConfirmedExecutionAllocations(
 }
 
 /** Applies a mined receipt to a pending execution: confirmed + event amounts, or failed on revert. */
-async function finalizeExecution(
+export async function finalizeExecution(
   execution: MoneriumConversionExecution,
   receipt: TransactionReceipt,
   forwarderAddress: string,
@@ -668,7 +668,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
 
 // ------------------------------------------------------------------ pricing
 
-type PlannedSwap =
+export type PlannedSwap =
   | { kind: "defer"; reason: string }
   | { kind: "ready"; projection: SwapProjection | null; reference: ReferenceQuote; routeIndex: number };
 
@@ -698,7 +698,7 @@ async function quoteRoutes(
  * there is no quoter pin: the first enabled route is used unprojected and the
  * contract's own checks remain the only gate.
  */
-async function pricePlannedSwap(forwarder: Address, factory: Address, amountIn: bigint): Promise<PlannedSwap> {
+export async function pricePlannedSwap(forwarder: Address, factory: Address, amountIn: bigint): Promise<PlannedSwap> {
   const client = getPublicClient();
   const immutables = await getForwarderImmutables(forwarder);
   const [targetPpm, floorPpm, roundData, vaultAddress] = await Promise.all([

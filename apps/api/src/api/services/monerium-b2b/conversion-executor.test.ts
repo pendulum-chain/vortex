@@ -1,6 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { FindOptions, Transaction } from "sequelize";
-import { encodeFunctionData } from "viem";
+import { Address, encodeAbiParameters, encodeEventTopics, encodeFunctionData, Hex, TransactionReceipt } from "viem";
 import sequelize from "../../../config/database";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import MoneriumConversionExecution, {
@@ -13,13 +13,17 @@ import {
   classifyHashlessPending,
   conversionAmountsFromSwapEvent,
   expectedSwapCalldata,
+  finalizeExecution,
   isExpectedSwapTransaction,
+  pricePlannedSwap,
   projectSwap,
   recoveryBlockRanges,
   runConversionExecutor,
   selectDepositsForExecution
 } from "./conversion-executor";
-import { forwarderAbi } from "./chain";
+import * as chain from "./chain";
+import * as referenceRate from "./reference-rate";
+import { ReferenceQuote } from "./reference-rate";
 
 // R04 attribution (docs/architecture-monerium-b2b-onramp.md §3): pro-rata by
 // amount_raw against eureInRaw, floor division, remainder to the largest deposit.
@@ -211,10 +215,6 @@ describe("projectSwap", () => {
     expect(projection.subsidy).toBeGreaterThan(0n);
     expect(projection.defer).toContain("oracle floor");
   });
-});
-
-describe("expectedSwapCalldata", () => {
-  it("rebuilds the exact calldata from the persisted reference and route, or nothing", () => {
 
   it("defers when a fee-band net sits below the oracle floor (depegged reference, fee side)", () => {
     // Mirrors test_swap_depeggedReference_feeBranchStillEnforcesOracleFloor: reference 100 bps
@@ -245,7 +245,7 @@ describe("expectedSwapCalldata", () => {
     expect(expectedSwapCalldata({ referenceRateRaw: null, routeIndex: 0 })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: null })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: 1 })).toBe(
-      encodeFunctionData({ abi: forwarderAbi, args: [114_000_000n, 1n], functionName: "swapAndForward" })
+      encodeFunctionData({ abi: chain.forwarderAbi, args: [114_000_000n, 1n], functionName: "swapAndForward" })
     );
   });
 });
@@ -307,7 +307,7 @@ describe("classifyHashlessPending", () => {
 describe("isExpectedSwapTransaction", () => {
   const keeper = "0x1111111111111111111111111111111111111111";
   const forwarder = "0x2222222222222222222222222222222222222222";
-  const input = encodeFunctionData({ abi: forwarderAbi, args: [114_000_000n, 0n], functionName: "swapAndForward" });
+  const input = encodeFunctionData({ abi: chain.forwarderAbi, args: [114_000_000n, 0n], functionName: "swapAndForward" });
   const expected = { from: keeper, input, nonce: 7, to: forwarder };
 
   it("requires the exact keeper, nonce, forwarder, and priced calldata", () => {
@@ -317,7 +317,7 @@ describe("isExpectedSwapTransaction", () => {
     expect(isExpectedSwapTransaction({ ...expected, to: keeper }, keeper, forwarder, 7, input)).toBe(false);
     expect(isExpectedSwapTransaction({ ...expected, input: "0x" }, keeper, forwarder, 7, input)).toBe(false);
     const otherReference = encodeFunctionData({
-      abi: forwarderAbi,
+      abi: chain.forwarderAbi,
       args: [114_100_000n, 0n],
       functionName: "swapAndForward"
     });
@@ -441,5 +441,225 @@ describe("runConversionExecutor recovery ordering", () => {
       MoneriumConversionExecution.findOne = originalFindExecution;
       MoneriumConversionExecution.findAll = originalFindExecutions;
     }
+  });
+});
+
+describe("pricePlannedSwap", () => {
+  afterEach(() => mock.restore());
+
+  const FORWARDER = "0x1111111111111111111111111111111111111111" as Address;
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const VAULT = "0x3333333333333333333333333333333333333333" as Address;
+  const immutables: chain.ForwarderImmutables = {
+    eure: "0x4444444444444444444444444444444444444444",
+    factory: FACTORY,
+    maxFeePpm: 10_000,
+    maxReferenceDeviationBps: 100,
+    oracle: "0x5555555555555555555555555555555555555555",
+    oracleDecimals: 8,
+    slippageBps: 40,
+    usdc: "0x6666666666666666666666666666666666666666"
+  };
+  const reference: ReferenceQuote = {
+    price: "1.14000000",
+    rateRaw: 114_000_000n,
+    source: "test",
+    time: new Date(0),
+    windowSeconds: 300
+  };
+  const vault: chain.SubsidyVaultState = {
+    balance: 1_000n * USDC,
+    dailyBudget: 200n * USDC,
+    maxSubsidyPpm: 5_000,
+    paused: false,
+    spentToday: 0n
+  };
+  const routes = [
+    { index: 0, path: "0xaa" as Hex },
+    { index: 1, path: "0xbb" as Hex }
+  ];
+
+  function arrange(
+    overrides: {
+      chainId?: number;
+      oracleAnswer?: bigint;
+      quotes?: Record<string, bigint | Error>;
+      reference?: ReferenceQuote | Error;
+      routes?: typeof routes;
+    } = {}
+  ) {
+    const reads: Record<string, unknown> = {
+      floorPpm: 1_500,
+      latestRoundData: [1n, overrides.oracleAnswer ?? 114_000_000n, 0n, 0n, 1n],
+      subsidyVault: VAULT,
+      targetPpm: 1_250
+    };
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ functionName }: { functionName: string }) => reads[functionName]
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue(immutables);
+    spyOn(chain, "getChainId").mockResolvedValue(overrides.chainId ?? 1);
+    spyOn(chain, "readEnabledRoutes").mockResolvedValue(overrides.routes ?? routes);
+    spyOn(chain, "readSubsidyVaultState").mockResolvedValue(vault);
+    const quotes = overrides.quotes ?? { "0xaa": 1_138_400_000n, "0xbb": 1_139_000_000n };
+    spyOn(chain, "quoteRouteOutput").mockImplementation(async path => {
+      const quote = quotes[path];
+      if (quote instanceof Error) throw quote;
+      return quote;
+    });
+    const fetched = overrides.reference ?? reference;
+    const fetchSpy = spyOn(referenceRate, "fetchCoinbaseReference");
+    if (fetched instanceof Error) {
+      fetchSpy.mockRejectedValue(fetched);
+    } else {
+      fetchSpy.mockResolvedValue(fetched);
+    }
+  }
+
+  const price = () => pricePlannedSwap(FORWARDER, FACTORY, 1_000n * EUR);
+
+  it("defers on a non-positive Chainlink answer", async () => {
+    arrange({ oracleAnswer: 0n });
+    expect(await price()).toEqual({ kind: "defer", reason: "Chainlink EUR/USD answered 0" });
+  });
+
+  it("defers when the reference cannot be fetched", async () => {
+    arrange({ reference: new Error("coinbase down") });
+    expect(await price()).toMatchObject({ kind: "defer", reason: expect.stringContaining("reference rate unavailable") });
+  });
+
+  it("defers on a reference outside the Chainlink band", async () => {
+    arrange({ reference: { ...reference, price: "1.12000000", rateRaw: 112_000_000n } }); // 175 bps below
+    expect(await price()).toMatchObject({ kind: "defer", reason: expect.stringContaining("outside the 100 bps band") });
+  });
+
+  it("defers when the factory has no enabled route", async () => {
+    arrange({ routes: [] });
+    expect(await price()).toEqual({ kind: "defer", reason: "the factory has no enabled swap route" });
+  });
+
+  it("uses the first enabled route unprojected off mainnet", async () => {
+    arrange({ chainId: 11_155_111 });
+    expect(await price()).toEqual({ kind: "ready", projection: null, reference, routeIndex: 0 });
+  });
+
+  it("defers when no route can be quoted", async () => {
+    arrange({ quotes: { "0xaa": new Error("no pool"), "0xbb": new Error("no pool") } });
+    expect(await price()).toEqual({ kind: "defer", reason: "no enabled swap route could be quoted" });
+  });
+
+  it("picks the route with the highest quote and projects its settlement", async () => {
+    arrange();
+    expect(await price()).toEqual({
+      kind: "ready",
+      projection: { defer: null, fee: 425_000n, net: 1_138_575_000n, subsidy: 0n },
+      reference,
+      routeIndex: 1
+    });
+  });
+
+  it("defers with the route and quote when the projection defers", async () => {
+    arrange({ quotes: { "0xaa": 1_130n * USDC, "0xbb": new Error("no pool") } }); // needs 8.29 USDC, cap is 5.7
+    expect(await price()).toMatchObject({
+      kind: "defer",
+      reason: expect.stringMatching(/per-swap cap.*\(route 0 quoted 1130000000\)/)
+    });
+  });
+});
+
+describe("finalizeExecution", () => {
+  const FORWARDER = "0x1111111111111111111111111111111111111111" as Address;
+  const KEEPER = "0x7777777777777777777777777777777777777777" as Address;
+  const TX = `0x${"ab".repeat(32)}` as Hex;
+
+  function swapLog(
+    address: Address,
+    args: Record<"eureIn" | "fee" | "forwarded" | "referenceRate" | "routeIndex" | "subsidy" | "usdcOut", bigint>
+  ) {
+    const inputs = chain.swapExecutedEvent.inputs;
+    return {
+      address,
+      blockNumber: 100n,
+      data: encodeAbiParameters(
+        inputs.filter(input => !("indexed" in input)),
+        [args.routeIndex, args.eureIn, args.usdcOut, args.referenceRate, args.fee, args.subsidy, args.forwarded]
+      ),
+      logIndex: 7,
+      topics: encodeEventTopics({ abi: [chain.swapExecutedEvent], args: { caller: KEEPER }, eventName: "SwapExecuted" }),
+      transactionHash: TX
+    };
+  }
+
+  function receipt(status: "reverted" | "success", logs: ReturnType<typeof swapLog>[] = []): TransactionReceipt {
+    return { blockNumber: 100n, logs, status, transactionHash: TX } as unknown as TransactionReceipt;
+  }
+
+  function pendingExecution() {
+    const updates: Record<string, unknown>[] = [];
+    const execution = {
+      async update(values: Record<string, unknown>) {
+        updates.push(values);
+      }
+    } as unknown as MoneriumConversionExecution;
+    return { execution, updates };
+  }
+
+  it("fails the execution on a reverted receipt", async () => {
+    const { execution, updates } = pendingExecution();
+    await finalizeExecution(execution, receipt("reverted"), FORWARDER, {} as Transaction);
+    expect(updates).toEqual([
+      { blockNumber: 100, error: "swapAndForward reverted", status: MoneriumConversionExecutionStatus.Failed }
+    ]);
+  });
+
+  it("fails a successful receipt that carries no SwapExecuted from the forwarder itself", async () => {
+    const { execution, updates } = pendingExecution();
+    const foreign = swapLog("0x9999999999999999999999999999999999999999", {
+      eureIn: 1_000n * EUR,
+      fee: 0n,
+      forwarded: 1_138n * USDC,
+      referenceRate: 114_000_000n,
+      routeIndex: 0n,
+      subsidy: 0n,
+      usdcOut: 1_138n * USDC
+    });
+    await finalizeExecution(execution, receipt("success", [foreign]), FORWARDER, {} as Transaction);
+    expect(updates).toEqual([
+      {
+        blockNumber: 100,
+        error: "receipt succeeded but no SwapExecuted event was emitted by the forwarder",
+        status: MoneriumConversionExecutionStatus.Failed
+      }
+    ]);
+  });
+
+  it("confirms from the forwarder's SwapExecuted and records the event's pricing as authoritative", async () => {
+    const { execution, updates } = pendingExecution();
+    const log = swapLog(FORWARDER, {
+      eureIn: 1_000n * EUR,
+      fee: 425_000n,
+      forwarded: 1_140n * USDC, // includes unsolicited USDC: must not leak into the amounts
+      referenceRate: 114_000_000n,
+      routeIndex: 1n,
+      subsidy: 0n,
+      usdcOut: 1_139n * USDC
+    });
+    await finalizeExecution(execution, receipt("success", [log]), FORWARDER, {} as Transaction);
+    expect(updates).toEqual([
+      {
+        blockNumber: 100,
+        error: null,
+        eureInRaw: (1_000n * EUR).toString(),
+        feeRaw: "425000",
+        referenceRateRaw: "114000000",
+        routeIndex: 1,
+        status: MoneriumConversionExecutionStatus.Confirmed,
+        subsidyRaw: "0",
+        swapLogIndex: 7,
+        txHash: TX,
+        usdcGrossRaw: "1139000000",
+        usdcNetRaw: "1138575000"
+      }
+    ]);
   });
 });
