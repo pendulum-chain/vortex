@@ -44,7 +44,8 @@ contract VortexForwarderFactory {
 
     /// @notice The VortexSubsidyVault clones draw from; address(0) disables subsidies.
     ///         Guardian-settable without a timelock: the vault only ever pays Vortex
-    ///         money to a clone's fixed destination, so a swap cannot be harmed by it.
+    ///         money, and a clone counts a subsidy only after verifying that exactly the
+    ///         shortfall reached its own destination, so a swap cannot be harmed by it.
     address public subsidyVault;
 
     event ForwarderDeployed(

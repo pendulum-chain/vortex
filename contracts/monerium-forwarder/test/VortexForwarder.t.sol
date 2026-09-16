@@ -93,6 +93,12 @@ contract MockReentrantRouter {
     }
 }
 
+/// Vault that accepts pay() and transfers nothing: what a misconfigured or hostile
+/// guardian-set vault looks like from the forwarder's side.
+contract NoopVault {
+    function pay(address, uint256, uint256) external {}
+}
+
 contract VortexForwarderTest is Test {
     MockERC20 eure;
     MockERC20 eurc;
@@ -696,6 +702,17 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_130e6); // needs 8.29 USDC; the cap is 50 bps of 1140 = 5.7 USDC
         vm.prank(keeper);
         vm.expectRevert(VortexSubsidyVault.SubsidyCapExceeded.selector);
+        fwd.swapAndForward(REF, 0);
+        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
+        assertEq(usdc.balanceOf(destination), 0);
+    }
+
+    function test_swap_subsidyNotDelivered_revertsTheWholeSwap() public {
+        factory.setSubsidyVault(address(new NoopVault()));
+        _fund(1_000e18);
+        router.setNextOut(1_130e6); // below both floors; the 8.29 USDC top-up the vault "pays" never arrives
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.SubsidyUnavailable.selector);
         fwd.swapAndForward(REF, 0);
         assertEq(eure.balanceOf(address(fwd)), 1_000e18);
         assertEq(usdc.balanceOf(destination), 0);

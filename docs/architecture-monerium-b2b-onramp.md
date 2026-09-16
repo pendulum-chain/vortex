@@ -321,11 +321,13 @@ settles every fill into three bands against that reference (decisions:
   SEPA transfer is already in flight cannot be swapped under a silently worse policy;
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
-  from the treasury. It pays only when called by a factory-registered clone, only to
-  that clone's fixed destination, within a guardian-settable per-swap cap (ppm of the
-  swap's reference value) and a UTC-daily budget; it can be paused and withdraws only
-  to the treasury. A vault that cannot cover the shortfall reverts the whole swap — a
-  swap is never partially subsidized. The vault holds Vortex money only.
+  from the treasury. It pays only when called by a factory-registered clone, to the
+  destination the clone passes (its own immutable one), within a guardian-settable
+  per-swap cap (ppm of the swap's reference value) and a UTC-daily budget; it can be
+  paused and withdraws only to the treasury. A vault that cannot cover the shortfall
+  reverts the whole swap, and the clone reverts unless exactly the shortfall arrived at
+  its destination — a swap is never partially subsidized, and the guardian cannot harm
+  a swap by pointing the factory at a bad vault. The vault holds Vortex money only.
 - **Floor on the net**: `SLIPPAGE_BPS` bounds fill − fee + subsidy against Chainlink,
   not the raw fill. The router minimum is zero and the forwarder's post-condition is the
   guard, so a subsidy can never paper over a depegged reference and the whole call,

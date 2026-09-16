@@ -403,7 +403,8 @@ contract VortexForwarder {
     ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall
     ///        from the vault straight to `destination`; a permissionless swap pays nothing.
     ///      The vault reverts (and so does the swap) when its cap, budget, pause or
-    ///      balance cannot cover the shortfall — a swap is never partially subsidized.
+    ///      balance cannot cover the shortfall, and the forwarder reverts unless exactly
+    ///      the shortfall arrived at `destination` — a swap is never partially subsidized.
     function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged)
         internal
         returns (uint256 fee, uint256 subsidy)
@@ -423,7 +424,11 @@ contract VortexForwarder {
         subsidy = floorOut - usdcReceived;
         address vault = FACTORY.subsidyVault();
         if (vault == address(0)) revert SubsidyUnavailable();
+        // The vault is guardian-settable without a timelock, so its word is not enough:
+        // count the subsidy only once exactly that amount has landed at `destination`.
+        uint256 destinationBefore = USDC.balanceOf(destination);
         IVortexSubsidyVault(vault).pay(destination, subsidy, referenceOut);
+        if (USDC.balanceOf(destination) - destinationBefore != subsidy) revert SubsidyUnavailable();
         return (0, subsidy);
     }
 
