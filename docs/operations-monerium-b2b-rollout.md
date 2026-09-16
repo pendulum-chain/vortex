@@ -174,6 +174,6 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
 | Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses a five-minute VWAP of Coinbase Exchange EURC-USD candles — confirm that is what was meant |
-| Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable) |
+| Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 25 bps, not the band: a market more than ~25 bps under a stale Chainlink round defers every swap until the round updates — decide whether that is acceptable or whether `SLIPPAGE_BPS`/`floorPpm` move before the deploy |
 | Subsidy vault funding and refill cadence | Ops | Before first activation; runbook §2.6 |
 | GA items | Engineering | Backend volume-limit enforcement (revisit), guardian key to hardware/multisig, O1 migration endpoint when first needed |

@@ -225,6 +225,23 @@ describe("expectedSwapCalldata", () => {
     expect(projection.net).toBe(1_127_189_250n);
     expect(projection.defer).toContain("oracle floor");
   });
+
+  it("tolerates a reference only SLIPPAGE_BPS - floorPpm (~25 bps) below Chainlink before the floor binds", () => {
+    // A fill exactly at the client's floor: no fee, no subsidy, net = reference x (1 - floorPpm).
+    const floorFill = (referenceRaw: bigint) => (((base.amountIn * referenceRaw) / 10n ** 20n) * 998_500n) / 1_000_000n;
+    const tooLow = (114_000_000n * 9_973n) / 10_000n; // 27 bps below
+    const fine = (114_000_000n * 9_976n) / 10_000n; // 24 bps below
+    expect(projectSwap({ ...base, quotedOut: floorFill(tooLow), referenceRaw: tooLow }).defer).toContain("oracle floor");
+    expect(projectSwap({ ...base, quotedOut: floorFill(fine), referenceRaw: fine })).toMatchObject({
+      defer: null,
+      fee: 0n,
+      subsidy: 0n
+    });
+  });
+});
+
+describe("expectedSwapCalldata", () => {
+  it("rebuilds the exact calldata from the persisted reference and route, or nothing", () => {
     expect(expectedSwapCalldata({ referenceRateRaw: null, routeIndex: 0 })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: null })).toBeNull();
     expect(expectedSwapCalldata({ referenceRateRaw: "114000000", routeIndex: 1 })).toBe(

@@ -331,7 +331,10 @@ settles every fill into three bands against that reference (decisions:
 - **Floor on the net**: `SLIPPAGE_BPS` bounds fill − fee + subsidy against Chainlink,
   not the raw fill. The router minimum is zero and the forwarder's post-condition is the
   guard, so a subsidy can never paper over a depegged reference and the whole call,
-  subsidy transfer included, reverts when the floor fails.
+  subsidy transfer included, reverts when the floor fails. Because the client's floor is
+  15 bps under the reference and the oracle floor 40 bps under Chainlink, a reference
+  more than ~25 bps below Chainlink fails the floor for every normal fill: that margin,
+  not the 100 bps band, is the operating tolerance against a stale Chainlink round.
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
   validated on chain to touch only EURe, EURC and USDC on the immutable router, with at
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
