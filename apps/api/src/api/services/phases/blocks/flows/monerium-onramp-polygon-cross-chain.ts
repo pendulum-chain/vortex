@@ -13,11 +13,8 @@ import { SquidRouterSwap } from "../phases/squid-router-swap";
 import { SubsidizePost } from "../phases/subsidize-post";
 import { PolygonEureUsdcUniswapSwap } from "../phases/uniswap-v3-fixed-swap";
 
-export function makeMoneriumOnrampPolygonCrossChainFlow<ToChain extends ChainBrand, ToToken extends TokenBrand>(
-  toChain: ToChain,
-  toToken: ToToken,
-  issueFeeEur: string
-) {
+/** Shared prefix: SEPA credit mints EURe to the owner on Polygon, ends as fee-settled Polygon USDC on the ephemeral. */
+export function moneriumOnrampPolygonUsdcFlow(issueFeeEur: string) {
   return FlowBuilder.start(fiatRequestIO(FiatToken.EURC), MoneriumIssue(Networks.Polygon, issueFeeEur))
     .pipe(FundEphemeral(MONERIUM_EURE, Networks.Polygon))
     .pipe(MoneriumSelfTransfer<typeof Networks.Polygon>())
@@ -28,7 +25,15 @@ export function makeMoneriumOnrampPolygonCrossChainFlow<ToChain extends ChainBra
         network: Networks.Polygon
       })
     )
-    .pipe(SubsidizePost<typeof EvmToken.USDC, typeof Networks.Polygon>())
+    .pipe(SubsidizePost<typeof EvmToken.USDC, typeof Networks.Polygon>());
+}
+
+export function makeMoneriumOnrampPolygonCrossChainFlow<ToChain extends ChainBrand, ToToken extends TokenBrand>(
+  toChain: ToChain,
+  toToken: ToToken,
+  issueFeeEur: string
+) {
+  return moneriumOnrampPolygonUsdcFlow(issueFeeEur)
     .pipe(SquidRouterSwap(Networks.Polygon, toChain, EvmToken.USDC, toToken))
     .pipe(FinalSettlementSubsidy<ToToken, ToChain>())
     .pipe(DestinationTransfer<ToToken, ToChain>())

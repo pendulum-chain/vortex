@@ -39,7 +39,7 @@ describe("Polygon Monerium cross-chain flow", () => {
     ]);
   });
 
-  it("is the production SEPA EUR onramp and rejects same-chain Polygon settlement", () => {
+  it("is the production SEPA EUR onramp for non-Polygon destinations", () => {
     const request = {
       from: EPaymentMethod.SEPA,
       inputAmount: "100",
@@ -52,8 +52,8 @@ describe("Polygon Monerium cross-chain flow", () => {
 
     expect(resolveBlockFlow(request).name).toBe("MoneriumOnrampPolygonCrossChain");
     expect(getBlockExecutorFlows().map(flow => flow.identity.id)).toContain("MoneriumOnrampPolygonCrossChain");
-    expect(() => resolveBlockFlow({ ...request, network: Networks.Polygon, to: Networks.Polygon })).toThrow(
-      "No block flow mapped"
+    expect(resolveBlockFlow({ ...request, network: Networks.Polygon, to: Networks.Polygon }).name).toBe(
+      "MoneriumOnrampPolygonSameChain"
     );
   });
 

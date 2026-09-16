@@ -89,7 +89,13 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
         ? (quote.metadata.flow as { id?: unknown } | undefined)?.id
         : undefined;
     // Persisted Mykobo quotes sign on Base; active Monerium quotes sign on Polygon.
-    evm.add(quote.metadata === undefined || flowId === "MoneriumOnrampPolygonCrossChain" ? Networks.Polygon : Networks.Base);
+    evm.add(
+      quote.metadata === undefined ||
+        flowId === "MoneriumOnrampPolygonCrossChain" ||
+        flowId === "MoneriumOnrampPolygonSameChain"
+        ? Networks.Polygon
+        : Networks.Base
+    );
     addIfEvm(toNetwork);
   } else if (isDomesticToken(quote.inputCurrency as FiatToken)) {
     evm.add(Networks.Polygon); // mint chain

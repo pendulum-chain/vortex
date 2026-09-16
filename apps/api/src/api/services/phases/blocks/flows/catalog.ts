@@ -2,6 +2,7 @@ import {
   AssetHubToken,
   doesNetworkSupportEurOnramp,
   EPaymentMethod,
+  type EvmNetworks,
   EvmToken,
   evmTokenConfig,
   FiatToken,
@@ -44,6 +45,7 @@ import {
   makeEurOnrampBaseSameChainSwapFlow
 } from "./eur-onramp-base-same-chain";
 import { makeMoneriumOnrampPolygonCrossChainFlow } from "./monerium-onramp-polygon-cross-chain";
+import { makeMoneriumOnrampPolygonSameChainFlow } from "./monerium-onramp-polygon-same-chain";
 
 type FlowRequest = FlowMetadata["globals"]["request"];
 
@@ -57,6 +59,30 @@ interface FlowDefinition {
 
 function isDormantMoneriumEure(currency: unknown): boolean {
   return currency === "EURE";
+}
+
+function isMoneriumOnrampRequest(request: FlowRequest, network: Networks | undefined): network is EvmNetworks {
+  return (
+    request.rampType === RampDirection.BUY &&
+    request.from === EPaymentMethod.SEPA &&
+    request.inputCurrency === FiatToken.EURC &&
+    network !== undefined &&
+    doesNetworkSupportEurOnramp(network) &&
+    isEvmToken(request.outputCurrency) &&
+    evmTokenConfig[network][request.outputCurrency] !== undefined
+  );
+}
+
+function requireMoneriumIssueFee(): string {
+  const issueFeeEur = config.monerium.issueFeeEur;
+  if (issueFeeEur === undefined) {
+    throw new APIError({
+      isPublic: true,
+      message: "Monerium issue fee is not configured",
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
+  return issueFeeEur;
 }
 
 const flowDefinitions: FlowDefinition[] = [
@@ -121,32 +147,35 @@ const flowDefinitions: FlowDefinition[] = [
   {
     create(request) {
       const network = getNetworkFromDestination(request.to);
-      const issueFeeEur = config.monerium.issueFeeEur;
-      if (!network || !doesNetworkSupportEurOnramp(network) || !isEvmToken(request.outputCurrency)) {
+      if (
+        !network ||
+        network === Networks.Polygon ||
+        !doesNetworkSupportEurOnramp(network) ||
+        !isEvmToken(request.outputCurrency)
+      ) {
         throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
       }
-      if (issueFeeEur === undefined) {
-        throw new APIError({
-          isPublic: true,
-          message: "Monerium issue fee is not configured",
-          status: httpStatus.SERVICE_UNAVAILABLE
-        });
-      }
-      return makeMoneriumOnrampPolygonCrossChainFlow(network, request.outputCurrency, issueFeeEur);
+      return makeMoneriumOnrampPolygonCrossChainFlow(network, request.outputCurrency, requireMoneriumIssueFee());
     },
     executorFlow: makeMoneriumOnrampPolygonCrossChainFlow(Networks.Arbitrum, EvmToken.USDC, config.monerium.issueFeeEur ?? "0"),
     legacyCompatible: false,
     matches(request) {
       const network = getNetworkFromDestination(request.to);
-      return (
-        request.rampType === RampDirection.BUY &&
-        request.from === EPaymentMethod.SEPA &&
-        request.inputCurrency === FiatToken.EURC &&
-        network !== undefined &&
-        doesNetworkSupportEurOnramp(network) &&
-        isEvmToken(request.outputCurrency) &&
-        evmTokenConfig[network][request.outputCurrency] !== undefined
-      );
+      return isMoneriumOnrampRequest(request, network) && network !== Networks.Polygon;
+    }
+  },
+  {
+    create(request) {
+      if (!isEvmToken(request.outputCurrency)) {
+        throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
+      }
+      return makeMoneriumOnrampPolygonSameChainFlow(request.outputCurrency, requireMoneriumIssueFee());
+    },
+    executorFlow: makeMoneriumOnrampPolygonSameChainFlow(EvmToken.USDC, config.monerium.issueFeeEur ?? "0"),
+    legacyCompatible: false,
+    matches(request) {
+      const network = getNetworkFromDestination(request.to);
+      return isMoneriumOnrampRequest(request, network) && network === Networks.Polygon;
     }
   },
   {

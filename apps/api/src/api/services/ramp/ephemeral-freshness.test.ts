@@ -113,6 +113,11 @@ const EUR_ONRAMP_BASE = {
   to: Networks.Base
 };
 const EUR_ONRAMP_TO_ARBITRUM = { ...EUR_ONRAMP_BASE, to: Networks.Arbitrum };
+const EUR_ONRAMP_TO_POLYGON = {
+  ...EUR_ONRAMP_BASE,
+  metadata: { flow: { id: "MoneriumOnrampPolygonSameChain" } },
+  to: Networks.Polygon
+};
 const LEGACY_EUR_ONRAMP = { ...EUR_ONRAMP_BASE, metadata: { globals: {} } };
 const IDENTITY_BEARING_LEGACY_EUR_ONRAMP = {
   ...EUR_ONRAMP_BASE,
@@ -181,6 +186,10 @@ describe("quoteToSigningNetworks", () => {
       evm: [Networks.Polygon, Networks.Arbitrum],
       substrate: []
     });
+  });
+
+  it("same-chain EUR on-ramp signs on Polygon only", () => {
+    expect(quoteToSigningNetworks(EUR_ONRAMP_TO_POLYGON)).toEqual({ evm: [Networks.Polygon], substrate: [] });
   });
 
   it("persisted identity-less Mykobo EUR onramps continue to sign on Base", () => {

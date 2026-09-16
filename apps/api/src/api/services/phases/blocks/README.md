@@ -605,8 +605,10 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
    `BRL_ONRAMP_BASE_SAME_CHAIN_SWAP`. The latter emits source approve/swap
    transactions only, with destination transfer at the next nonce and no
    Squid pay, backup bridge, or final-settlement work.
-8. **EUR selection is Monerium-only.** Supported non-Polygon EVM destinations use
-   `MoneriumOnrampPolygonCrossChain`. Mykobo Base variants are excluded from new
+8. **EUR selection is Monerium-only.** Non-Polygon EVM destinations use
+   `MoneriumOnrampPolygonCrossChain`; Polygon destinations use
+   `MoneriumOnrampPolygonSameChain` (direct USDC transfer, or one same-chain
+   Squid swap for other tokens). Mykobo Base variants are excluded from new
    quote resolution but retained for persisted compatibility. EUR SELL has no
    active definition and is rejected by `QuoteService`.
 9. **AlfredPay SELL reconciliation stays block-owned.** `AlfredpayOfframp`
