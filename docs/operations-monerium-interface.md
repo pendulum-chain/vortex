@@ -159,7 +159,7 @@ client preserves both documented response semantics.
    No Vortex or Monerium API call starts the incoming payment. ([Whitelabel: Incoming payments](https://docs.monerium.com/whitelabel#incoming-payments))
 7. The current executor advances when the owner's EURe balance reaches the persisted baseline plus
    the quoted post-fee amount. It transfers only that quoted amount to the ephemeral, converts it to
-   Polygon USDC, distributes fees, and uses Squid for the supported non-Polygon EVM destination.
+   Polygon USDC, distributes fees, and settles on Polygon directly or uses Squid for other EVM destinations.
 
 The current executor does not correlate a Monerium issue order or webhook to the ramp. Balance-delta
 attribution and permit expiry are accepted release limitations recorded in the security risk register.

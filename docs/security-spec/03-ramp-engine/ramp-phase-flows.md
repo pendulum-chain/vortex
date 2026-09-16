@@ -17,12 +17,13 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 
 **EUR Off-ramp:** Unavailable for new quotes. `QuoteService` returns public `400 Bad Request` before direct or best-quote calculation. `EurOfframpBase` and its Mykobo executors remain only for exact persisted identity and identity-less legacy recovery.
 
-**EUR On-ramp (Monerium SEPA on Polygon):** SEPA payment → EURe increase on the profile-linked Polygon owner → exact owner-to-ephemeral transfer → pinned Uniswap V3 EURe→USDC → fees/subsidy → Squid → user destination
-- Runtime phases: `initial` → `moneriumOnrampMint` → `fundEphemeral` → `moneriumOnrampSelfTransfer` → `uniswapApprove` → `uniswapSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` → `complete`.
+**EUR On-ramp (Monerium SEPA on Polygon):** SEPA payment → EURe increase on the profile-linked Polygon owner → exact owner-to-ephemeral transfer → pinned Uniswap V3 EURe→USDC → fees/subsidy → Squid (other EVM destinations only) → user destination
+- Runtime phases (`MoneriumOnrampPolygonCrossChain`): `initial` → `moneriumOnrampMint` → `fundEphemeral` → `moneriumOnrampSelfTransfer` → `uniswapApprove` → `uniswapSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` → `complete`.
+- Polygon destinations (`MoneriumOnrampPolygonSameChain`) end the same prefix at `subsidizePostSwap` → `destinationTransfer` for USDC, with one same-chain `squidRouterSwap` before the transfer for other Polygon tokens; no bridge, no `squidRouterPay`, no `finalSettlementSubsidy`.
 - Registration resolves the profile through the white-label app or the user's backend-held OAuth token (`05-integrations/monerium.md`), derives one approved profile-linked Polygon EOA/IBAN pair, and persists the owner's EURe baseline. The SEPA artifact uses the full quote input amount; issue execution waits for `baseline + quoted post-fee EURe` and treats balance-check timeout/read failure as recoverable.
 - Self-transfer moves exactly the quoted post-fee EURe from the owner to the ephemeral using the owner permit and ephemeral `transferFrom`; excess or duplicate EURe remains with the owner.
 - The fixed Polygon Uniswap block converts EURe to native USDC through the pinned 500-fee pool. Fees and post-swap subsidy run on Polygon USDC before Squid destination settlement.
-- Polygon destinations are not selected because this topology contains the cross-chain Squid pay phase. Supported non-Polygon EVM destination tokens must exist in `evmTokenConfig`.
+- Supported EVM destination tokens must exist in `evmTokenConfig`.
 - `EurOnrampBase*` and `EurOfframpBase` Mykobo flows remain executable only for persisted recovery and are never candidates for new quotes. See `05-integrations/monerium.md` and `05-integrations/mykobo.md`.
 
 **BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC (user-signed, client-side) → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
@@ -75,7 +76,7 @@ The following diagrams retain the intended phase transitions for corridors as th
 
 #### On-Ramp Phase Flow
 
-The active EUR onramp uses a Polygon-specific Monerium and Uniswap prefix before joining the normal EVM Squid destination path.
+The active EUR onramp uses a Polygon-specific Monerium and Uniswap prefix before joining the normal EVM Squid destination path; Polygon destinations settle directly from that prefix.
 
 ```mermaid
 graph TD
@@ -105,7 +106,11 @@ graph TD
     UniApprove --> UniSwap[uniswapSwap EURe to USDC]
     UniSwap --> MonDist[distributeFees on Polygon]
     MonDist --> MonSub[subsidizePostSwap on Polygon]
-    MonSub --> SquidSwap
+    MonSub --> MonDest{Destination = Polygon?}
+    MonDest -->|No| SquidSwap
+    MonDest -->|Yes, USDC| DestTransfer
+    MonDest -->|Yes, other token| MonSameChain[squidRouterSwap same-chain]
+    MonSameChain --> DestTransfer
 
     %% --- Destination routing (shared) ---
     SquidSwap --> Dest{Destination = Base USDC?}
@@ -241,7 +246,7 @@ graph TD
 - [x] Backup presigned intents (`backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove`) are contingency payloads owned by `SquidRouterSwap`, not executable phases; executor-bijection validation correctly excludes them. **PASS**
 - [ ] No aggregate cross-ramp subsidy rate limiting — **ACCEPTED RISK RISK-001**; many concurrent ramps could drain the funding account.
 - [x] Active BRL corridors are end-to-end on Base. **PASS** — BRL↔AssetHub flow identities remain cataloged only for persisted schema/history compatibility; quote registration, start, and phase execution guard against their Moonbeam/Pendulum/XCM executors.
-- [x] The active EUR BUY backend topology is cataloged and block-tested on Polygon plus the destination EVM chain, with no Pendulum involvement. **PASS** — the catalog maps SEPA/EUR BUY to `MoneriumOnrampPolygonCrossChain`; EUR SELL is rejected and Mykobo is persisted-recovery-only. Full fake-world corridor, SDK, and UI journeys remain missing and MUST NOT be described as end-to-end coverage. See `05-integrations/monerium.md` and `operations-testing.md`.
+- [x] The active EUR BUY backend topology is cataloged and block-tested on Polygon plus the destination EVM chain, with no Pendulum involvement. **PASS** — the catalog maps SEPA/EUR BUY to `MoneriumOnrampPolygonCrossChain` or, for Polygon destinations, `MoneriumOnrampPolygonSameChain`; EUR SELL is rejected and Mykobo is persisted-recovery-only. Full fake-world corridor, SDK, and UI journeys remain missing and MUST NOT be described as end-to-end coverage. See `05-integrations/monerium.md` and `operations-testing.md`.
 - [x] Active Monerium EUR distributes fees after Polygon Uniswap produces USDC. Persisted Mykobo onramps/offramps retain their historical post-/pre-Nabla Base ordering.
 - [x] On the BRL/Base corridor, `distributeFees` is positioned **before** `nablaSwap` on offramp (USDC fees deducted pre-BRL-swap) and **after** `nablaSwap` on onramp (USDC fees deducted post-BRL→USDC swap). **PASS** — derived by `BrlOfframpBase` and the catalog-backed BRL onramp flows.
 - [x] EVM subsidy phases enforce USD-equivalent caps. **PASS** — the pre-swap subsidy and the post-swap actual-vs-quoted swap-output discrepancy component are each clamped to the greater of $1.00 and `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` (default `0.05`) × quote output; the $1.00 floor keeps small quotes from being stuck below a workable subsidy allowance. `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` defaults to `0.05` and separately clamps the post-swap discount-derived component (no floor). Both fractions are env-overridable. Over-cap cases are intentionally recoverable retries: no transfer is submitted, and the ramp waits for operator intervention instead of moving to `failed`.

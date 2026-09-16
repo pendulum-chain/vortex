@@ -181,7 +181,7 @@ Authenticated clients can request account limits with `POST /v1/limits`, passing
 
 ## EUR (SEPA)
 
-EUR uses the `"sepa"` rail identifier. New EUR BUY quotes use a Polygon source route and deliver to supported non-Polygon EVM destinations. Polygon and AssetHub are not available as destinations for this flow. New EUR SELL quotes are rejected.
+EUR uses the `"sepa"` rail identifier. New EUR BUY quotes use a Polygon source route and deliver to supported EVM destinations, Polygon included. AssetHub is not available as a destination for this flow. New EUR SELL quotes are rejected.
 
 EUR BUY is supported through the SDK, the direct API, the Dashboard, and the Widget. Registration requires the normal quote ID, a fresh EVM signing account, `additionalData.destinationAddress`, and (for the SDK) `walletAddress`, the wallet linked to the user's Monerium profile. Supply `additionalData.customerType` (`"individual"` or `"business"`) to select the same legal profile used for onboarding and wallet linking. The SDK exposes this as optional `EurOnrampAdditionalData.customerType`; it becomes required when both legal types have Monerium profiles, otherwise the API returns `409 MONERIUM_CUSTOMER_TYPE_REQUIRED`. Profile UUID, address, and IBAN are still derived server-side and caller-supplied identity fields are rejected. A user without a Monerium binding gets `MONERIUM_ONBOARDING_REQUIRED`; a user whose backend Monerium session expired gets `MONERIUM_REAUTHENTICATION_REQUIRED` and must reconnect Monerium in the Dashboard or Widget.
 
