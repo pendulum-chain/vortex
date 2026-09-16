@@ -180,7 +180,7 @@ Fired once per deposit after the full deposit has been converted and every contr
 
 Each `conversions[]` entry contains the EURe portion consumed and the net USDC attributed to this deposit by that execution. The payload-level `usdcNetRaw` is their aggregate. When one execution consumes several deposits, its output is divided proportionally by allocated EURe; floor dust goes to the largest allocation.
 
-The nested `execution` object carries the pricing of the whole execution, identical on every deposit it consumed: `referenceRateRaw` is the EUR/USD reference the swap was settled against, a five-minute volume-weighted average of the Coinbase Exchange EURC-USD market computed immediately before the swap (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). A deposit's own net already includes its share of both.
+The nested `execution` object carries the pricing of the whole execution, identical on every deposit it consumed: `referenceRateRaw` is the EUR/USD reference the swap was settled against, a volume-weighted average of the Coinbase Exchange EURC-USD market over the five minutes before the swap, widened to sixty minutes when those five carry no trades (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). A deposit's own net already includes its share of both.
 
 ### Delivery Semantics
 
