@@ -25,9 +25,10 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
  *
  * 1. Executable-depth check (main PRD §7.4, T6 follow-up): QuoterV2 static quotes on
  *    every enabled factory route at perSwapCap and minSwapAmount sizes vs the Chainlink
- *    EUR/USD rate. Impact of the best route above SLIPPAGE_BPS at minSwapAmount size is
- *    the PAUSE THRESHOLD (error-level -> engage guardian pause per the incident
- *    runbook); at perSwapCap size it is an early warning. Mainnet-only (QuoterV2 pin).
+ *    EUR/USD rate. Raw impact of the best route above SLIPPAGE_BPS at minSwapAmount size
+ *    means every keeper swap draws a subsidy and the permissionless path would revert
+ *    (error-level DEPTH BELOW FLOOR line, triage per the runbook); at perSwapCap size it
+ *    is an early warning. Mainnet-only (QuoterV2 pin).
  * 2. Stranded-balance monitor: forwarders whose on-chain stranding marker (R03) has
  *    been armed for more than STRANDED_WARN_MS warn; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — the keeper should have
@@ -78,7 +79,7 @@ const factoryMonitoringAbi = parseAbi([
 
 /**
  * Price impact of an executable quote vs the Chainlink EUR/USD rate, in bps (floored;
- * negative when the quote beats the oracle). Same scaling as VortexForwarder._minOut
+ * negative when the quote beats the oracle). Same scaling as VortexForwarder._floorOut
  * without the slippage haircut: EURe 18 dp in, USDC 6 dp out.
  */
 export function computeQuoteImpactBps(
@@ -92,6 +93,39 @@ export function computeQuoteImpactBps(
     return 0;
   }
   return Number(((expectedOut - quotedOutRaw) * 10_000n) / expectedOut);
+}
+
+export type DepthSeverity = "error" | "ok" | "warn";
+
+/**
+ * Verdict of the executable-depth check from the raw quote impact vs Chainlink at the
+ * two swap sizes. Settlement enforces SLIPPAGE_BPS on the client's NET, so a raw impact
+ * above it does not by itself revert a keeper swap: the vault covers the shortfall
+ * below the floor band up to its per-swap cap and the keeper defers beyond that
+ * (`projectSwap`). It does mean every keeper swap of that size draws a subsidy and the
+ * unsubsidized permissionless path would revert — a market condition to investigate,
+ * not a pause trigger on its own.
+ */
+export function classifyExecutableDepth(
+  minImpactBps: number,
+  capImpactBps: number,
+  slippageBps: number
+): { reason: string; severity: DepthSeverity } {
+  if (minImpactBps > slippageBps) {
+    return {
+      reason:
+        "raw quote impact at minSwapAmount exceeds SLIPPAGE_BPS on every route: every keeper swap needs a vault " +
+        "subsidy (deferring once the shortfall exceeds the per-swap cap) and the permissionless path would revert",
+      severity: "error"
+    };
+  }
+  if (capImpactBps > slippageBps) {
+    return {
+      reason: "raw quote impact at perSwapCap exceeds SLIPPAGE_BPS on the best route: cap-sized swaps need a vault subsidy",
+      severity: "warn"
+    };
+  }
+  return { reason: "ok", severity: "ok" };
 }
 
 export type StrandingSeverity = "error" | "ok" | "warn";
@@ -304,14 +338,13 @@ export async function runExecutableDepthCheck(): Promise<void> {
     `oracle=${answer} (updatedAt=${updatedAt}), SLIPPAGE_BPS=${slippageBps}, best route ${best.index}; per route: ` +
     quoted.map(route => `#${route.index} min=${route.minImpactBps}bps cap=${route.capImpactBps}bps`).join(", ");
 
-  if (best.minImpactBps > slippageBps) {
-    // PAUSE THRESHOLD (PRD §7.4): even minimum-size swaps would land below the floor on every route.
+  const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
+  if (verdict.severity === "error") {
     logger.error(
-      "monerium-b2b: PAUSE THRESHOLD — quote impact at minSwapAmount exceeds SLIPPAGE_BPS on every route; engage " +
-        `guardian pause per docs/operations-monerium-b2b-runbook.md. ${detail}`
+      `monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per docs/operations-monerium-b2b-runbook.md §3. ${detail}`
     );
-  } else if (best.capImpactBps > slippageBps) {
-    logger.warn(`monerium-b2b: executable depth below perSwapCap — cap-sized swaps would land below the floor. ${detail}`);
+  } else if (verdict.severity === "warn") {
+    logger.warn(`monerium-b2b: ${verdict.reason}. ${detail}`);
   } else {
     logger.info(`monerium-b2b: depth check ok. ${detail}`);
   }

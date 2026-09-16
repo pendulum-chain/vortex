@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  classifyExecutableDepth,
   classifyStranding,
   classifyVaultRunway,
   computeQuoteImpactBps,
@@ -48,6 +49,29 @@ describe("computeQuoteImpactBps", () => {
 
   it("handles a zero-ish expected output without dividing by zero", () => {
     expect(computeQuoteImpactBps(0n, 0n, CHAINLINK_EUR_USD, 8)).toBe(0);
+  });
+});
+
+describe("classifyExecutableDepth", () => {
+  const SLIPPAGE_BPS = 40;
+
+  it("is ok when the best route clears SLIPPAGE_BPS at both sizes", () => {
+    expect(classifyExecutableDepth(11, 30, SLIPPAGE_BPS).severity).toBe("ok");
+  });
+
+  it("warns when only cap-sized fills would need a subsidy", () => {
+    const verdict = classifyExecutableDepth(11, 55, SLIPPAGE_BPS);
+    expect(verdict.severity).toBe("warn");
+    expect(verdict.reason).toContain("perSwapCap");
+  });
+
+  it("errors on a subsidizable min-size impact but names the subsidy, not a pause", () => {
+    // 50 bps raw impact: the vault (50 bps cap) still covers it and the keeper executes.
+    const verdict = classifyExecutableDepth(50, 80, SLIPPAGE_BPS);
+    expect(verdict.severity).toBe("error");
+    expect(verdict.reason).toContain("subsidy");
+    expect(verdict.reason).toContain("permissionless path would revert");
+    expect(verdict.reason).not.toMatch(/pause/i);
   });
 });
 
