@@ -1,4 +1,14 @@
 import type { MoneriumRampReadiness, MoneriumWalletLinkResult } from "@vortexfi/kyc";
+import type { Onboarding } from "@/domain/types";
+
+/** An approved profile still needs its pay-in wallet linked; a lost OAuth session must be reconnected first. */
+export function moneriumWalletLinkRequired(
+  onboarding: Pick<Onboarding, "ramp" | "reauthenticationRequired" | "status"> | undefined
+): boolean {
+  return (
+    onboarding?.status === "approved" && onboarding.reauthenticationRequired !== true && onboarding.ramp?.iban !== "provisioned"
+  );
+}
 
 export function moneriumWalletStep(
   ramp: MoneriumRampReadiness,

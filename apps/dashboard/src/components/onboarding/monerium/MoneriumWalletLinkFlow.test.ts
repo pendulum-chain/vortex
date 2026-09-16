@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { MoneriumRampReadiness, MoneriumWalletLinkResult } from "@vortexfi/kyc";
-import { moneriumWalletStep } from "./walletStep";
+import { moneriumWalletLinkRequired, moneriumWalletStep } from "./walletStep";
 
 const OLD = "0x1111111111111111111111111111111111111111";
 const NEW = "0x2222222222222222222222222222222222222222";
@@ -21,5 +21,14 @@ describe("Monerium wallet step", () => {
   it("shows ready only when the connected wallet receives the IBAN's deposits", () => {
     assert.equal(moneriumWalletStep(ramp, OLD, undefined), "ready");
     assert.equal(moneriumWalletStep({ ...ramp, linkedAddress: NEW }, NEW, undefined), "ready");
+  });
+});
+
+describe("Monerium wallet link requirement", () => {
+  it("yields to reauthentication when readiness could not be read", () => {
+    assert.equal(moneriumWalletLinkRequired({ ramp: null, reauthenticationRequired: true, status: "approved" }), false);
+    assert.equal(moneriumWalletLinkRequired({ ramp: null, reauthenticationRequired: false, status: "approved" }), true);
+    assert.equal(moneriumWalletLinkRequired({ ramp, reauthenticationRequired: false, status: "approved" }), false);
+    assert.equal(moneriumWalletLinkRequired({ ramp: null, reauthenticationRequired: false, status: "in_review" }), false);
   });
 });

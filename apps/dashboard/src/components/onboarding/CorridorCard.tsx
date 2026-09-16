@@ -13,6 +13,7 @@ import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
 import { STATUS_META } from "@/domain/status";
 import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { useFiatAccounts } from "@/hooks/useFiatAccounts";
+import { moneriumWalletLinkRequired } from "./monerium/walletStep";
 import { PayoutAccountsSection } from "./PayoutAccountsSection";
 import { StatusBadge } from "./StatusBadge";
 
@@ -46,8 +47,7 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
   // Suppress every actionable state (start, continue, retry, re-authenticate) while the
   // corridor is disabled; purely informational buttons (awaiting review, complete) stay.
   // An approved Monerium profile still needs the pay-in wallet linked and the IBAN pointed at it.
-  const walletLinkRequired =
-    corridor.provider === "monerium" && onboarding?.status === "approved" && onboarding.ramp?.iban !== "provisioned";
+  const walletLinkRequired = corridor.provider === "monerium" && moneriumWalletLinkRequired(onboarding);
   const actionable =
     !onboarding ||
     onboarding.status === "not_started" ||
