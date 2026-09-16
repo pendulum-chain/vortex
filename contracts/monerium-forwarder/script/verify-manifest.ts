@@ -46,7 +46,7 @@ import {
 
 export type Severity = "FAIL" | "EXPECTED-TRANSITION" | "NOTICE";
 
-interface Diff {
+export interface Diff {
   actual: string;
   expected: string;
   path: string;
@@ -54,7 +54,13 @@ interface Diff {
 }
 
 function flatten(value: unknown, prefix: string, out: Map<string, string>): void {
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+  if (Array.isArray(value)) {
+    // Arrays (the route whitelist) are walked by index: String([...]) would collapse
+    // every entry to "[object Object]" and hide a same-length content change.
+    value.forEach((child, index) => flatten(child, `${prefix}.${index}`, out));
+    return;
+  }
+  if (value !== null && typeof value === "object") {
     for (const [key, child] of Object.entries(value)) {
       flatten(child, prefix ? `${prefix}.${key}` : key, out);
     }
@@ -70,7 +76,7 @@ export function severityFor(path: string): Severity {
   return "FAIL";
 }
 
-function diffSection(path: string, expected: unknown, actual: unknown, diffs: Diff[]): void {
+export function diffSection(path: string, expected: unknown, actual: unknown, diffs: Diff[]): void {
   const expectedFlat = new Map<string, string>();
   const actualFlat = new Map<string, string>();
   flatten(expected, path, expectedFlat);
