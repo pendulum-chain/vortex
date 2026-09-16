@@ -71,7 +71,7 @@ export function QuoteExplorer() {
   // token. The corridor needs no reconciliation — every corridor quotes in both directions.
   const corridor = CORRIDORS[corridorId];
 
-  const networkOptions = getNetworkOptions(tokenOptions, isBuy ? corridorId : undefined);
+  const networkOptions = getNetworkOptions(tokenOptions);
   // Before the token list loads there are no options, and the requested network still labels the chip.
   const activeNetwork = networkOptions.find(option => option.id === requestedNetwork) ??
     networkOptions[0] ?? { id: requestedNetwork, label: requestedNetwork };

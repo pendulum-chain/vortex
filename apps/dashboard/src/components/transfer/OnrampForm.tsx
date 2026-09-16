@@ -54,6 +54,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getRampTokenOptions(RampDirection.BUY);
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
+  const networkOptions = getNetworkOptions(tokenOptions);
   // Prefilled values are trusted only while the token list and onboarding status are still
   // loading, when the option lists they'd be validated against are empty; the reconciliation
   // effects below snap them to a valid option once those lists resolve.
@@ -62,7 +63,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
       amount: prefill?.amount ?? "",
       corridorId: prefill?.corridorId ?? corridors[0] ?? "",
       destinationAddress: address ?? "",
-      network: prefill?.network ?? getNetworkOptions(tokenOptions, prefill?.corridorId)[0]?.id ?? "polygon",
+      network: prefill?.network ?? networkOptions[0]?.id ?? "polygon",
       // Left empty on purpose — the reconciliation effect below is the single place that resolves it.
       outputCurrency: ""
     },
@@ -73,7 +74,6 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   const corridorId = form.watch("corridorId") as CorridorId;
   const amount = form.watch("amount");
   const outputCurrency = form.watch("outputCurrency");
-  const networkOptions = getNetworkOptions(tokenOptions, corridorId);
   const networkTokens = tokenOptions.filter(option => option.network === network);
 
   useEffect(() => {
@@ -90,13 +90,6 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
       form.setValue("corridorId", corridors[0]);
     }
   }, [corridors, form, isLoadingApprovals]);
-
-  useEffect(() => {
-    const fallback = networkOptions[0];
-    if (fallback && !networkOptions.some(option => option.id === network)) {
-      form.setValue("network", fallback.id);
-    }
-  }, [form, network, networkOptions]);
 
   useEffect(() => {
     if (!networkTokens.some(option => option.currency === outputCurrency)) {

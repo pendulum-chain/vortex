@@ -117,7 +117,8 @@ export const PHASE_FLOWS = {
     "complete"
   ] as RampPhase[],
 
-  // Mirrors the API's MoneriumOnrampPolygonCrossChain flow (monerium-onramp-polygon-cross-chain.ts).
+  // Mirrors the API's MoneriumOnrampPolygonCrossChain flow (monerium-onramp-polygon-cross-chain.ts);
+  // the same-chain Polygon variant skips the Squid pay and final-settlement phases.
   onramp_eur_monerium: [
     "initial",
     "moneriumOnrampMint",

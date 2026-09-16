@@ -1,6 +1,5 @@
 import type { MoneriumRampReadiness } from "@vortexfi/kyc";
 import {
-  doesNetworkSupportEurOnramp,
   doesNetworkSupportRamp,
   type EvmNetworks,
   EvmToken,
@@ -46,16 +45,10 @@ export interface NetworkOption {
   label: string;
 }
 
-/**
- * The distinct networks the given tokens live on, alphabetical by display name. A pay-in corridor
- * narrows them to the destinations its flow can serve (EUR mints on Polygon and bridges onward).
- */
-export function getNetworkOptions(options: RampTokenOption[], corridorId?: CorridorId): NetworkOption[] {
+/** The distinct networks the given tokens live on, alphabetical by display name. */
+export function getNetworkOptions(options: RampTokenOption[]): NetworkOption[] {
   const labelByNetwork = new Map(options.map(option => [option.network, option.networkLabel]));
-  return [...labelByNetwork]
-    .filter(([id]) => corridorId !== "EU" || doesNetworkSupportEurOnramp(id))
-    .map(([id, label]) => ({ id, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return [...labelByNetwork].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function sortRampTokenOptions(options: RampTokenOption[]): RampTokenOption[] {

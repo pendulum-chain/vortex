@@ -183,7 +183,7 @@ function getAllSupportedTokenDefinitions(
     return getFiatTokens();
   }
   const onChainTokens = getAllOnChainTokens();
-  // The EUR onramp mints on Polygon and bridges onward, so Polygon is not a destination it can serve.
+  // The EUR onramp settles on EVM networks only.
   if (direction === RampDirection.BUY && fiatToken === FiatToken.EURC) {
     return onChainTokens.filter(token => doesNetworkSupportEurOnramp(token.network));
   }

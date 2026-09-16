@@ -87,16 +87,6 @@ describe("getNetworkOptions", () => {
   it("returns nothing while the token list is still empty", () => {
     assert.deepEqual(getNetworkOptions([]), []);
   });
-
-  it("drops Polygon for the EU corridor, whose onramp mints there and bridges onward", () => {
-    const tokens = [option("USDC", "Polygon", true), option("USDC", "Base", true, Networks.Base)];
-
-    assert.deepEqual(getNetworkOptions(tokens, "EU"), [{ id: Networks.Base, label: "Base" }]);
-    assert.deepEqual(getNetworkOptions(tokens, "BR"), [
-      { id: Networks.Base, label: "Base" },
-      { id: Networks.Polygon, label: "Polygon" }
-    ]);
-  });
 });
 
 describe("eurOnrampBlocker", () => {
