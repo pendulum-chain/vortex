@@ -82,7 +82,8 @@ Supporting decisions, all in force:
   read-level projection is the path if unified history is ever wanted. Tables stay
   `monerium_*` (the legacy OAuth integration owns no tables; no collision).
 - **Deposit webhooks as a generic event family** (`DEPOSIT_RECEIVED` /
-  `DEPOSIT_CONVERTED`) on the public webhook contract, delivered durably (outbox,
+  `DEPOSIT_CONVERTED` / `DEPOSIT_RETURNED`, the last added 2026-09-17 for the refund
+  path) on the public webhook contract, delivered durably (outbox,
   at-least-once) to the partner manager. A cap-split deposit emits one final
   `DEPOSIT_CONVERTED` after all portions settle, with `conversions[]` and aggregate
   attributed USDC rather than a misleading event per chunk.

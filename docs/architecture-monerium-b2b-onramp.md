@@ -95,7 +95,7 @@ flowchart LR
     FWD -- "stuck payment" --> RECOV
     ONB -- "link address + request IBAN" --> MAPI
     MONI -- "association / config reads" --> MAPI
-    OUTBOX -- "DEPOSIT_RECEIVED / DEPOSIT_CONVERTED" --> PAPI
+    OUTBOX -- "DEPOSIT_RECEIVED / CONVERTED / RETURNED" --> PAPI
     PAPI -- "poll (delegation)" --> READ
 ```
 
@@ -327,7 +327,9 @@ and sends at most one transaction per account per cycle:
   wallet up to exactly the issue amount (or a surplus is swept back to the float), and a
   Monerium redeem order from the recovery wallet returns the exact amount to the payer's
   IBAN (`payer_iban` / `payer_name`, captured from the issue order's counterpart). The
-  deposit becomes `refunded` when Monerium processes the order. One refund runs at a
+  deposit becomes `refunded` when Monerium processes the order, and the partner receives
+  one `DEPOSIT_RETURNED` (refunded amount, masked payer IBAN, redeem order, recover
+  transaction). One refund runs at a
   time: every step re-derives what is left to do from the dedicated recovery wallet's
   balances (so a lost transaction hash never repeats a send), and the keeper refuses a
   second `recover` while one is in flight. A step that fails beyond its retries, a
