@@ -149,10 +149,11 @@ describe("monerium b2b account read surface", () => {
         }
       ],
       forwardTxHash: "0xforward",
+      refund: null,
       txHash: "0xmint",
       usdcNetRaw: "108000000"
     });
-    expect(rows[0]).toMatchObject({ conversions: [], forwardTxHash: null, usdcNetRaw: "0" });
+    expect(rows[0]).toMatchObject({ conversions: [], forwardTxHash: null, refund: null, usdcNetRaw: "0" });
     expect(deposits.body.pagination).toMatchObject({ total: 2 });
   });
 
@@ -197,7 +198,7 @@ describe("monerium b2b account read surface", () => {
 
     const response = await app.request("/v1/webhook", {
       body: JSON.stringify({
-        events: ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"],
+        events: ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED"],
         url: "https://manager.example.com/vortex/deposits"
       }),
       headers: { "Content-Type": "application/json", ...managerHeaders },
@@ -205,7 +206,7 @@ describe("monerium b2b account read surface", () => {
     });
     expect(response.status).toBe(201);
     const body = (await response.json()) as { id: string; events: string[]; quoteId: string | null };
-    expect(body.events).toEqual(["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"]);
+    expect(body.events).toEqual(["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED"]);
     expect(body.quoteId).toBeNull();
 
     // The transaction-family requirement still holds at the same HTTP surface.

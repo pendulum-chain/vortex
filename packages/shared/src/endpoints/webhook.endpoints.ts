@@ -4,7 +4,8 @@ export enum WebhookEventType {
   TRANSACTION_CREATED = "TRANSACTION_CREATED",
   STATUS_CHANGE = "STATUS_CHANGE",
   DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED",
-  DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED"
+  DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED",
+  DEPOSIT_RETURNED = "DEPOSIT_RETURNED"
 }
 
 /**
@@ -13,7 +14,11 @@ export enum WebhookEventType {
  * transaction events in one webhook, and are delivered durably (at-least-once with
  * backoff) to the account's controlling manager.
  */
-export const ACCOUNT_WEBHOOK_EVENT_TYPES = [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED] as const;
+export const ACCOUNT_WEBHOOK_EVENT_TYPES = [
+  WebhookEventType.DEPOSIT_RECEIVED,
+  WebhookEventType.DEPOSIT_CONVERTED,
+  WebhookEventType.DEPOSIT_RETURNED
+] as const;
 
 export enum DepositStatus {
   /** Provider order placed, EURe not minted yet. */
@@ -154,11 +159,32 @@ export interface DepositConvertedWebhookPayload {
   };
 }
 
+/** A deposit that could not be converted inside the promised window was refunded to the payer's bank account. */
+export interface DepositReturnedWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RETURNED;
+  timestamp: string;
+  payload: DepositWebhookPayloadBase & {
+    refund: {
+      /** The EUR amount refunded, to the cent ("1234.56"): always the full issue amount. */
+      amount: string;
+      /** The payer's IBAN the refund went to, masked to its first and last four characters. */
+      payerIbanMasked: string;
+      /** Monerium's redeem order id for the refund, when known. */
+      redeemOrderId: string | null;
+      /** The on-chain transaction that moved the deposit off the forwarding contract for the refund. */
+      recoverTxHash: string | null;
+    };
+  };
+}
+
 export type WebhookPayload =
   | TransactionCreatedWebhookPayload
   | StatusChangeWebhookPayload
   | DepositReceivedWebhookPayload
-  | DepositConvertedWebhookPayload;
+  | DepositConvertedWebhookPayload
+  | DepositReturnedWebhookPayload;
 
 export interface WebhookDeliveryAttempt {
   webhookId: string;

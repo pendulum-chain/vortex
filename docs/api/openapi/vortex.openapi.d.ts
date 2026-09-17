@@ -2911,6 +2911,13 @@ export interface components {
             depositId: string;
             /** @description The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded. */
             forwardTxHash: string | null;
+            /** @description Present once the deposit entered the refund path (it could not be converted within the promised window): the EUR amount refunded to the payer once known, Monerium's redeem order id, and the transaction that moved the deposit off the forwarding contract. Null otherwise. */
+            refund: {
+                /** @description The EUR amount refunded, to the cent; null until the refund order is placed. */
+                amount: string | null;
+                recoverTxHash: string | null;
+                redeemOrderId: string | null;
+            } | null;
             /**
              * @description Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.
              * @enum {string}

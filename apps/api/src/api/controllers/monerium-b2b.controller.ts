@@ -9,6 +9,7 @@ import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
+import MoneriumRecovery from "../../models/moneriumRecovery.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
@@ -147,6 +148,8 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
           where: { depositId: rows.map(row => row.id), status: { [Op.ne]: MoneriumConversionExecutionStatus.Failed } }
         })
       : [];
+    const recoveries = rows.length ? await MoneriumRecovery.findAll({ where: { depositId: rows.map(row => row.id) } }) : [];
+    const recoveryByDeposit = new Map(recoveries.map(recovery => [recovery.depositId, recovery]));
     const executionsByDeposit = new Map<string, MoneriumConversionExecution[]>();
     for (const execution of executions) {
       const grouped = executionsByDeposit.get(execution.depositId as string) ?? [];
@@ -163,6 +166,12 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
             execution.kind === MoneriumConversionExecutionKind.Forward &&
             execution.status === MoneriumConversionExecutionStatus.Confirmed
         );
+        const recover = depositExecutions.find(
+          execution =>
+            execution.kind === MoneriumConversionExecutionKind.Recover &&
+            execution.status === MoneriumConversionExecutionStatus.Confirmed
+        );
+        const recovery = recoveryByDeposit.get(row.id);
         return {
           amountRaw: row.amountRaw,
           conversions: swaps.map(execution => ({
@@ -177,6 +186,15 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
           currency: row.currency,
           depositId: row.id,
           forwardTxHash: forward?.txHash ?? null,
+          // Present once the deposit entered the refund path: what was (or is being) refunded.
+          refund:
+            recovery || recover
+              ? {
+                  amount: recovery?.refundAmount ?? null,
+                  recoverTxHash: recover?.txHash ?? null,
+                  redeemOrderId: recovery?.redeemOrderId ?? null
+                }
+              : null,
           status: row.status,
           txHash: row.txHash,
           usdcNetRaw: swaps

@@ -2629,6 +2629,23 @@
             "description": "The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded.",
             "type": ["string", "null"]
           },
+          "refund": {
+            "description": "Present once the deposit entered the refund path (it could not be converted within the promised window): the EUR amount refunded to the payer once known, Monerium's redeem order id, and the transaction that moved the deposit off the forwarding contract. Null otherwise.",
+            "properties": {
+              "amount": {
+                "description": "The EUR amount refunded, to the cent; null until the refund order is placed.",
+                "type": ["string", "null"]
+              },
+              "recoverTxHash": {
+                "type": ["string", "null"]
+              },
+              "redeemOrderId": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["amount", "recoverTxHash", "redeemOrderId"],
+            "type": ["object", "null"]
+          },
           "status": {
             "description": "Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.",
             "enum": [
@@ -2660,6 +2677,7 @@
           "currency",
           "depositId",
           "forwardTxHash",
+          "refund",
           "status",
           "txHash",
           "usdcNetRaw"
@@ -11062,7 +11080,7 @@
                 "properties": {
                   "events": {
                     "items": {
-                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
+                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\", \"DEPOSIT_RETURNED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
                       "type": "string"
                     },
                     "type": "array"

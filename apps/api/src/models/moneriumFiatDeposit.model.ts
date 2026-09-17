@@ -46,6 +46,7 @@ export interface MoneriumFiatDepositAttributes {
   payerName: string | null;
   receivedEventAt: Date | null;
   convertedEventAt: Date | null;
+  returnedEventAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +65,7 @@ type MoneriumFiatDepositCreationAttributes = Optional<
   | "payerName"
   | "receivedEventAt"
   | "convertedEventAt"
+  | "returnedEventAt"
   | "createdAt"
   | "updatedAt"
 >;
@@ -88,6 +90,7 @@ class MoneriumFiatDeposit
   declare payerName: string | null;
   declare receivedEventAt: Date | null;
   declare convertedEventAt: Date | null;
+  declare returnedEventAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -171,6 +174,11 @@ MoneriumFiatDeposit.init(
     receivedEventAt: {
       allowNull: true,
       field: "received_event_at",
+      type: DataTypes.DATE
+    },
+    returnedEventAt: {
+      allowNull: true,
+      field: "returned_event_at",
       type: DataTypes.DATE
     },
     status: {
