@@ -104,6 +104,9 @@ interface ParsedOrderEvent {
   profileId: string;
   state: string;
   txHash: string | null;
+  /** The payer's IBAN and name from the order's counterpart (Monerium "Issue orders" details), when present. */
+  payerIban: string | null;
+  payerName: string | null;
 }
 
 export interface ParsedIbanEvent {
@@ -177,12 +180,19 @@ export function parseOrderEvent(payload: unknown): ParsedOrderEvent | null {
   if (!event || (event.type !== "order.created" && event.type !== "order.updated")) return null;
   const data = event.data;
   if (data.kind !== "issue" || data.currency !== "eur") return null;
+  const identifier = data.counterpart.identifier as { iban?: unknown; standard: string };
+  const details = (data.counterpart.details ?? {}) as { name?: unknown };
   return {
     amount: data.amount,
     chain: data.chain,
     currency: data.currency,
     forwarderAddress: data.address,
     orderId: data.id,
+    payerIban:
+      identifier.standard === "iban" && typeof identifier.iban === "string"
+        ? identifier.iban.replace(/\s+/g, "").toUpperCase()
+        : null,
+    payerName: typeof details.name === "string" && details.name.trim() ? details.name.trim().slice(0, 140) : null,
     profileId: data.profile,
     state: data.state,
     txHash: data.meta.txHashes?.length === 1 ? data.meta.txHashes[0] : null
@@ -353,13 +363,18 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
           amountRaw,
           currency: event.currency,
           moneriumOrderId: event.orderId,
+          payerIban: event.payerIban,
+          payerName: event.payerName,
           status: targetStatus ?? MoneriumFiatDepositStatus.Pending,
           txHash: event.txHash
         },
         { transaction }
       );
     } else {
-      const updates: { status?: MoneriumFiatDepositStatus; txHash?: string } = {};
+      const updates: { payerIban?: string; payerName?: string; status?: MoneriumFiatDepositStatus; txHash?: string } = {};
+      // The refund target: filled once, never overwritten by a later delivery.
+      if (event.payerIban && !existing.payerIban) updates.payerIban = event.payerIban;
+      if (event.payerName && !existing.payerName) updates.payerName = event.payerName;
       const alreadyPastMint = targetStatus === MoneriumFiatDepositStatus.Minted && PAST_MINT_STATUSES.includes(existing.status);
       if (targetStatus && targetStatus !== existing.status && !alreadyPastMint) {
         if (isForwardTransition(existing.status, targetStatus)) {

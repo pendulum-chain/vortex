@@ -116,8 +116,24 @@ describe("parseOrderEvent", () => {
       orderId: ORDER_ID,
       profileId: PROFILE_ID,
       state: "processed",
+      payerIban: null,
+      payerName: null,
       txHash: "0xabc"
     });
+  });
+
+  it("captures the payer's IBAN and name from an IBAN counterpart as the refund target", () => {
+    const payload = {
+      ...validPayload,
+      data: {
+        ...validPayload.data,
+        counterpart: {
+          details: { name: "  Payer GmbH  " },
+          identifier: { iban: "de89 3704 0044 0532 0130 00", standard: "iban" }
+        }
+      }
+    };
+    expect(parseOrderEvent(payload)).toMatchObject({ payerIban: "DE89370400440532013000", payerName: "Payer GmbH" });
   });
 
   it("ignores redeem orders, non-order events, and malformed payloads", () => {

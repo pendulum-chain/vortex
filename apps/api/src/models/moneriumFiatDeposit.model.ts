@@ -39,6 +39,11 @@ export interface MoneriumFiatDepositAttributes {
   logIndex: number | null;
   blockHash: string | null;
   blockNumber: number | null;
+  /** Timestamp of the mint block: the promised conversion window counts from here. */
+  mintedAt: Date | null;
+  /** The payer's bank account and name from the issue order's counterpart: the refund target. */
+  payerIban: string | null;
+  payerName: string | null;
   receivedEventAt: Date | null;
   convertedEventAt: Date | null;
   createdAt: Date;
@@ -54,6 +59,9 @@ type MoneriumFiatDepositCreationAttributes = Optional<
   | "logIndex"
   | "blockHash"
   | "blockNumber"
+  | "mintedAt"
+  | "payerIban"
+  | "payerName"
   | "receivedEventAt"
   | "convertedEventAt"
   | "createdAt"
@@ -75,6 +83,9 @@ class MoneriumFiatDeposit
   declare logIndex: number | null;
   declare blockHash: string | null;
   declare blockNumber: number | null;
+  declare mintedAt: Date | null;
+  declare payerIban: string | null;
+  declare payerName: string | null;
   declare receivedEventAt: Date | null;
   declare convertedEventAt: Date | null;
   declare createdAt: Date;
@@ -136,11 +147,26 @@ MoneriumFiatDeposit.init(
       field: "log_index",
       type: DataTypes.INTEGER
     },
+    mintedAt: {
+      allowNull: true,
+      field: "minted_at",
+      type: DataTypes.DATE
+    },
     moneriumOrderId: {
       allowNull: false,
       field: "monerium_order_id",
       type: DataTypes.STRING(64),
       unique: true
+    },
+    payerIban: {
+      allowNull: true,
+      field: "payer_iban",
+      type: DataTypes.STRING(34)
+    },
+    payerName: {
+      allowNull: true,
+      field: "payer_name",
+      type: DataTypes.STRING(140)
     },
     receivedEventAt: {
       allowNull: true,
