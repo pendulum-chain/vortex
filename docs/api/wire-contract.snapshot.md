@@ -448,7 +448,7 @@ DepositConvertedWebhookPayload: {
     currency: string;
     depositId: string;
     profileId: string;
-    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
     txHash: null | string;
   } & {
     conversions: Array<{
@@ -462,6 +462,7 @@ DepositConvertedWebhookPayload: {
       txHash: null | string;
       usdcNetRaw: string;
     }>;
+    forwardTxHash: null | string;
     usdcNetRaw: string;
   };
   timestamp: string;
@@ -476,13 +477,13 @@ DepositReceivedWebhookPayload: {
     currency: string;
     depositId: string;
     profileId: string;
-    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
     txHash: null | string;
   };
   timestamp: string;
 }
 
-DepositStatus: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" }
+DepositStatus: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" }
 
 DepositWebhookPayloadBase: {
   accountId: string;
@@ -490,7 +491,7 @@ DepositWebhookPayloadBase: {
   currency: string;
   depositId: string;
   profileId: string;
-  status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+  status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
   txHash: null | string;
 }
 
@@ -2442,7 +2443,7 @@ WebhookDeliveryAttempt: {
       currency: string;
       depositId: string;
       profileId: string;
-      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
       txHash: null | string;
     } & {
       conversions: Array<{
@@ -2456,6 +2457,7 @@ WebhookDeliveryAttempt: {
         txHash: null | string;
         usdcNetRaw: string;
       }>;
+      forwardTxHash: null | string;
       usdcNetRaw: string;
     };
     timestamp: string;
@@ -2468,7 +2470,7 @@ WebhookDeliveryAttempt: {
       currency: string;
       depositId: string;
       profileId: string;
-      status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+      status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
       txHash: null | string;
     };
     timestamp: string;
@@ -2510,7 +2512,7 @@ WebhookPayload: {
     currency: string;
     depositId: string;
     profileId: string;
-    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
     txHash: null | string;
   } & {
     conversions: Array<{
@@ -2524,6 +2526,7 @@ WebhookPayload: {
       txHash: null | string;
       usdcNetRaw: string;
     }>;
+    forwardTxHash: null | string;
     usdcNetRaw: string;
   };
   timestamp: string;
@@ -2536,7 +2539,7 @@ WebhookPayload: {
     currency: string;
     depositId: string;
     profileId: string;
-    status: enum DepositStatus { HELD = "held", MINTED = "minted", PENDING = "pending", RETURNED = "returned" };
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
     txHash: null | string;
   };
   timestamp: string;

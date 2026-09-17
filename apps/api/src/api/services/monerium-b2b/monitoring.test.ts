@@ -7,8 +7,7 @@ import {
   detectConfigDrift,
   diffAssociation,
   eip1167RuntimeCode,
-  normalizeIban,
-  STRANDED_WARN_MS
+  normalizeIban
 } from "./monitoring";
 
 // Pure monitoring logic (implementation plan D3): quote-impact math against the T6
@@ -53,21 +52,22 @@ describe("computeQuoteImpactBps", () => {
 });
 
 describe("classifyExecutableDepth", () => {
-  const SLIPPAGE_BPS = 40;
+  const SLIPPAGE_BPS = 60;
 
   it("is ok when the best route clears SLIPPAGE_BPS at both sizes", () => {
     expect(classifyExecutableDepth(11, 30, SLIPPAGE_BPS).severity).toBe("ok");
   });
 
   it("warns when only cap-sized fills would need a subsidy", () => {
-    const verdict = classifyExecutableDepth(11, 55, SLIPPAGE_BPS);
+    const verdict = classifyExecutableDepth(11, 75, SLIPPAGE_BPS);
     expect(verdict.severity).toBe("warn");
     expect(verdict.reason).toContain("perSwapCap");
   });
 
   it("errors on a subsidizable min-size impact but names the subsidy, not a pause", () => {
-    // 50 bps raw impact: the vault (50 bps cap) still covers it and the keeper executes.
-    const verdict = classifyExecutableDepth(50, 80, SLIPPAGE_BPS);
+    // 70 bps raw impact: the vault (50 bps cap) still covers the shortfall below the
+    // policy floor and the keeper executes.
+    const verdict = classifyExecutableDepth(70, 90, SLIPPAGE_BPS);
     expect(verdict.severity).toBe("error");
     expect(verdict.reason).toContain("subsidy");
     expect(verdict.reason).toContain("permissionless path would revert");
@@ -76,25 +76,26 @@ describe("classifyExecutableDepth", () => {
 });
 
 describe("classifyStranding", () => {
-  const TRIGGER_DELAY = 86_400n; // 24h, registry P4 placeholder
+  const RECOVERY_DELAY = 7_200n; // 2h, registry P3
+  const TRIGGER_DELAY = 86_400n; // 24h, registry P4
   const now = 1_800_000_000_000; // fixed epoch ms
 
-  const armedAt = (msAgo: number): bigint => BigInt(Math.floor((now - msAgo) / 1000));
+  const openedAt = (msAgo: number): bigint => BigInt(Math.floor((now - msAgo) / 1000));
 
-  it("is ok when the marker is not armed", () => {
-    expect(classifyStranding(0n, TRIGGER_DELAY, now)).toBe("ok");
+  it("is ok when no batch is open", () => {
+    expect(classifyStranding(0n, RECOVERY_DELAY, TRIGGER_DELAY, now)).toBe("ok");
   });
 
-  it("is ok within the warn window", () => {
-    expect(classifyStranding(armedAt(60 * 60 * 1000), TRIGGER_DELAY, now)).toBe("ok");
+  it("is ok inside the promised window", () => {
+    expect(classifyStranding(openedAt(60 * 60 * 1000), RECOVERY_DELAY, TRIGGER_DELAY, now)).toBe("ok");
   });
 
-  it("warns after 12h", () => {
-    expect(classifyStranding(armedAt(STRANDED_WARN_MS + 60_000), TRIGGER_DELAY, now)).toBe("warn");
+  it("warns once the promised window (RECOVERY_DELAY) is missed", () => {
+    expect(classifyStranding(openedAt(2 * 60 * 60 * 1000 + 60_000), RECOVERY_DELAY, TRIGGER_DELAY, now)).toBe("warn");
   });
 
   it("errors past TRIGGER_DELAY", () => {
-    expect(classifyStranding(armedAt(25 * 60 * 60 * 1000), TRIGGER_DELAY, now)).toBe("error");
+    expect(classifyStranding(openedAt(25 * 60 * 60 * 1000), RECOVERY_DELAY, TRIGGER_DELAY, now)).toBe("error");
   });
 });
 
@@ -176,7 +177,6 @@ describe("normalizeIban", () => {
 describe("detectConfigDrift", () => {
   const base = {
     destination: "0x1111111111111111111111111111111111111111",
-    fallbackAddress: "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1",
     floorPpm: 1500,
     targetPpm: 1250
   };
@@ -186,18 +186,12 @@ describe("detectConfigDrift", () => {
     expect(detectConfigDrift(base, onchain)).toEqual({ errors: [], ownerAuthorizedUpdates: {} });
   });
 
-  it("classifies destination/fallback changes as owner-authorized updates (R07)", () => {
-    const onchain = {
-      ...base,
-      destination: "0x4444444444444444444444444444444444444444",
-      fallbackAddress: "0x5555555555555555555555555555555555555555"
-    };
-    const drift = detectConfigDrift(base, onchain);
-    expect(drift.errors).toEqual([]);
-    expect(drift.ownerAuthorizedUpdates).toEqual({
-      destination: onchain.destination,
-      fallbackAddress: onchain.fallbackAddress
-    });
+  it("alarms on a destination change: the clone has no setter for it", () => {
+    const drift = detectConfigDrift(base, { ...base, destination: "0x4444444444444444444444444444444444444444" });
+    expect(drift.ownerAuthorizedUpdates).toEqual({});
+    expect(drift.errors).toEqual([
+      "destination changed on chain to 0x4444444444444444444444444444444444444444 (recorded 0x1111111111111111111111111111111111111111)"
+    ]);
   });
 
   it("classifies a fee-policy change as a guardian-authorized reconciliation (P11)", () => {

@@ -30,11 +30,10 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  *    means every keeper swap draws a subsidy and the permissionless path would revert
  *    (error-level DEPTH BELOW FLOOR line, triage per the runbook); at perSwapCap size it
  *    is an early warning. Mainnet-only (QuoterV2 pin).
- * 2. Stranded-balance monitor: forwarders whose on-chain stranding marker (R03) has
- *    been armed for more than STRANDED_WARN_MS warn; past TRIGGER_DELAY (the
- *    permissionless-trigger delay, registry P4) they error — the keeper should have
- *    converted long before either — and within SWEEP_IMMINENT_MS of SWEEP_DELAY the
- *    error says so: the dead-man sweep to the fallback is about to become possible.
+ * 2. Stranded-balance monitor: forwarders whose on-chain batch marker has been open
+ *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
+ *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
+ *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -44,10 +43,9 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  *    linked). Vortex holds the whitelabel credentials, so association changes cannot
  *    be prevented client-side — only detected.
  * 4. Config reconciliation (manifest re-verification, R07): re-reads per-clone config
- *    and clone bytecode. destination/fallbackAddress changes are owner-authorized by
- *    construction (`onlyFallback` in the contract) — they are reconciled into the DB
- *    and logged, not alarmed, as are guardian fee-policy changes (P11); bytecode or
- *    registration drift is an incident.
+ *    and clone bytecode. Guardian fee-policy changes (P11) are reconciled into the DB
+ *    and logged, not alarmed; the destination has no setter, so a change there, like
+ *    bytecode or registration drift, is an incident.
  * 6. Reference-venue monitor: the Coinbase product the reference VWAP reads. A delisted
  *    or halted product keeps answering the candles endpoint with stale data, so every
  *    keeper swap would defer silently; its status is probed instead of assumed.
@@ -55,23 +53,16 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  * None of these monitors hold keys or send transactions; they are detection-only.
  */
 
-/** Stranding marker armed longer than this warns (the keeper converts within minutes normally). */
-export const STRANDED_WARN_MS = 12 * 60 * 60 * 1000;
-
-/** Inside this window before SWEEP_DELAY the stranding error names the imminent sweep. */
-export const SWEEP_IMMINENT_MS = 2 * 24 * 60 * 60 * 1000;
-
 /** Full monitoring pass at most this often (the worker cycles every minute). */
 const MONITORING_INTERVAL_MS = 30 * 60_000;
 
 // Read-only getters beyond the keeper ABI surface in ./chain.ts.
 const forwarderMonitoringAbi = parseAbi([
   "function destination() view returns (address)",
-  "function fallbackAddress() view returns (address)",
   "function targetPpm() view returns (uint32)",
   "function floorPpm() view returns (uint32)",
   "function TRIGGER_DELAY() view returns (uint256)",
-  "function SWEEP_DELAY() view returns (uint256)"
+  "function RECOVERY_DELAY() view returns (uint256)"
 ]);
 
 const factoryMonitoringAbi = parseAbi([
@@ -135,18 +126,23 @@ export function classifyExecutableDepth(
 export type StrandingSeverity = "error" | "ok" | "warn";
 
 /**
- * Severity of an armed stranding marker (R03): older than TRIGGER_DELAY (the
- * permissionless-trigger delay) is an error; older than STRANDED_WARN_MS a warning.
+ * Severity of an open batch marker: older than TRIGGER_DELAY (the permissionless-trigger
+ * delay) is an error; older than RECOVERY_DELAY (the promised window) a warning.
  */
-export function classifyStranding(strandedSinceSec: bigint, triggerDelaySec: bigint, nowMs: number): StrandingSeverity {
-  if (strandedSinceSec === 0n) {
+export function classifyStranding(
+  batchOpenedAtSec: bigint,
+  recoveryDelaySec: bigint,
+  triggerDelaySec: bigint,
+  nowMs: number
+): StrandingSeverity {
+  if (batchOpenedAtSec === 0n) {
     return "ok";
   }
-  const armedMs = nowMs - Number(strandedSinceSec) * 1000;
-  if (armedMs >= Number(triggerDelaySec) * 1000) {
+  const openMs = nowMs - Number(batchOpenedAtSec) * 1000;
+  if (openMs >= Number(triggerDelaySec) * 1000) {
     return "error";
   }
-  if (armedMs >= STRANDED_WARN_MS) {
+  if (openMs >= Number(recoveryDelaySec) * 1000) {
     return "warn";
   }
   return "ok";
@@ -231,7 +227,6 @@ export function diffAssociation(db: AssociationDbRecord, live: LiveAssociationSt
 
 export interface ForwarderConfigRecord {
   destination: string;
-  fallbackAddress: string;
   floorPpm: number;
   targetPpm: number;
 }
@@ -239,18 +234,16 @@ export interface ForwarderConfigRecord {
 export interface ConfigDriftResult {
   /** Immutable-config violations — should be impossible; alarm, never reconcile. */
   errors: string[];
-  /** Authorized on-chain transitions — reconcile the DB: destination/fallbackAddress
-   *  change only via the client's own key (R07), the fee policy only via the guardian's
-   *  timelocked setter (P11); both leave an on-chain event trail. */
-  ownerAuthorizedUpdates: Partial<ForwarderConfigRecord>;
+  /** Authorized on-chain transitions — reconcile the DB: the fee policy changes only via
+   *  the guardian's timelocked setter (P11), which leaves an on-chain event trail. */
+  ownerAuthorizedUpdates: Partial<Pick<ForwarderConfigRecord, "floorPpm" | "targetPpm">>;
 }
 
 /**
- * Classifies drift between the DB config record and on-chain clone state.
- * destination/fallbackAddress are mutable ONLY by the client's fallbackAddress
- * (`onlyFallback`) and the fee policy ONLY by the guardian's timelocked setter (P11), so any
- * change in those is an expected authorized transition to reconcile; everything else
- * (bytecode, registration) is immutable and a change there is an incident.
+ * Classifies drift between the DB config record and on-chain clone state. The fee
+ * policy is mutable ONLY by the guardian's timelocked setter (P11), so a change there is
+ * an expected authorized transition to reconcile; the destination has no setter at all,
+ * so a change there (like bytecode or registration drift) is an incident.
  */
 export function detectConfigDrift(db: ForwarderConfigRecord, onchain: ForwarderConfigRecord): ConfigDriftResult {
   const result: ConfigDriftResult = { errors: [], ownerAuthorizedUpdates: {} };
@@ -261,10 +254,7 @@ export function detectConfigDrift(db: ForwarderConfigRecord, onchain: ForwarderC
     result.ownerAuthorizedUpdates.floorPpm = onchain.floorPpm;
   }
   if (db.destination.toLowerCase() !== onchain.destination.toLowerCase()) {
-    result.ownerAuthorizedUpdates.destination = onchain.destination;
-  }
-  if (db.fallbackAddress.toLowerCase() !== onchain.fallbackAddress.toLowerCase()) {
-    result.ownerAuthorizedUpdates.fallbackAddress = onchain.fallbackAddress;
+    result.errors.push(`destination changed on chain to ${onchain.destination} (recorded ${db.destination})`);
   }
   return result;
 }
@@ -354,7 +344,7 @@ export async function runExecutableDepthCheck(): Promise<void> {
   }
 }
 
-/** Stranded-balance monitor: armed R03 markers older than 12h warn, older than TRIGGER_DELAY error. */
+/** Stranded-balance monitor: batches open longer than RECOVERY_DELAY warn, longer than TRIGGER_DELAY error. */
 export async function runStrandedBalanceMonitor(now: number = Date.now()): Promise<void> {
   const accounts = await monitoredAccounts([
     MoneriumAccountStatus.Onboarding,
@@ -365,46 +355,41 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
     return;
   }
   const client = getPublicClient();
-  const { factory } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
-  const [minSwapFloor, triggerDelay, sweepDelay] = await Promise.all([
+  const { factory, recoveryDelaySeconds } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
+  const [minSwapFloor, triggerDelay] = await Promise.all([
     client.readContract({ abi: factoryAbi, address: factory, functionName: "MIN_SWAP_FLOOR" }),
     client.readContract({
       abi: forwarderMonitoringAbi,
       address: accounts[0].forwarderAddress as Address,
       functionName: "TRIGGER_DELAY"
-    }),
-    client.readContract({
-      abi: forwarderMonitoringAbi,
-      address: accounts[0].forwarderAddress as Address,
-      functionName: "SWEEP_DELAY"
     })
   ]);
 
   for (const account of accounts) {
     try {
       const forwarder = account.forwarderAddress as Address;
-      const { eure } = await getForwarderImmutables(forwarder);
-      const [balance, strandedSince] = await Promise.all([
+      const { eure, usdc } = await getForwarderImmutables(forwarder);
+      const [eureBalance, usdcBalance, batchOpenedAt] = await Promise.all([
         client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
-        client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "strandedSince" })
+        client.readContract({ abi: erc20Abi, address: usdc, args: [forwarder], functionName: "balanceOf" }),
+        client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" })
       ]);
-      if (balance < minSwapFloor) {
+      if (eureBalance < minSwapFloor && usdcBalance === 0n) {
         continue;
       }
-      const severity = classifyStranding(strandedSince, triggerDelay, now);
+      const severity = classifyStranding(batchOpenedAt, BigInt(recoveryDelaySeconds), triggerDelay, now);
       if (severity === "ok") {
         continue;
       }
-      const armedMs = now - Number(strandedSince) * 1000;
-      const hours = Math.floor(armedMs / 3_600_000);
-      const sweepInMs = Number(sweepDelay) * 1000 - armedMs;
-      const sweepNote =
-        sweepInMs <= SWEEP_IMMINENT_MS
-          ? `; dead-man sweep to the fallback ${sweepInMs <= 0 ? "is live" : `possible in ${Math.ceil(sweepInMs / 3_600_000)}h`}`
-          : "";
+      const openMs = now - Number(batchOpenedAt) * 1000;
+      const hours = Math.floor(openMs / 3_600_000);
       const message =
-        `monerium-b2b: stranded EURe on forwarder ${forwarder} (account ${account.id}): balance=${balance}, ` +
-        `marker armed ${hours}h ago${severity === "error" ? " — past TRIGGER_DELAY, permissionless trigger is live" : ""}${sweepNote}`;
+        `monerium-b2b: stranded funds on forwarder ${forwarder} (account ${account.id}): eure=${eureBalance}, usdc=${usdcBalance}, ` +
+        `batch open for ${hours}h${
+          severity === "error"
+            ? " — past TRIGGER_DELAY, permissionless trigger is live"
+            : " — past RECOVERY_DELAY, the promised window was missed: forward or recover (runbook §2.7)"
+        }`;
       if (severity === "error") {
         logger.error(message);
       } else {
@@ -459,8 +444,8 @@ export async function runAssociationMonitor(): Promise<void> {
 
 /**
  * Config reconciliation (manifest re-verification pass, R07): re-checks per-clone
- * state against the DB. Owner-authorized destination/fallback changes are reconciled
- * (DB update + configVersion bump), immutable violations are alarmed.
+ * state against the DB. Guardian fee-policy changes are reconciled (DB update +
+ * configVersion bump), immutable violations are alarmed.
  */
 export async function runConfigReconciliation(): Promise<void> {
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
@@ -497,9 +482,8 @@ export async function runConfigReconciliation(): Promise<void> {
         implementationByFactory.set(trustedFactory.toLowerCase(), implementation);
       }
 
-      const [destination, fallbackAddress, targetPpm, floorPpm, isForwarder, code] = await Promise.all([
+      const [destination, targetPpm, floorPpm, isForwarder, code] = await Promise.all([
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "destination" }),
-        client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "fallbackAddress" }),
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "targetPpm" }),
         client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "floorPpm" }),
         client.readContract({
@@ -523,21 +507,15 @@ export async function runConfigReconciliation(): Promise<void> {
       }
 
       const drift = detectConfigDrift(
-        {
-          destination: account.destination,
-          fallbackAddress: account.fallbackAddress,
-          floorPpm: account.floorPpm,
-          targetPpm: account.targetPpm
-        },
-        { destination, fallbackAddress, floorPpm: Number(floorPpm), targetPpm: Number(targetPpm) }
+        { destination: account.destination, floorPpm: account.floorPpm, targetPpm: account.targetPpm },
+        { destination, floorPpm: Number(floorPpm), targetPpm: Number(targetPpm) }
       );
       for (const error of drift.errors) {
         logger.error(`monerium-b2b: config violation on forwarder ${forwarder} (account ${account.id}): ${error}`);
       }
       if (Object.keys(drift.ownerAuthorizedUpdates).length > 0) {
-        // Authorized transition: destination/fallback change only via the client's
-        // fallbackAddress (R07), the fee policy only via the guardian's timelocked setter
-        // (P11) — reconcile, do not alarm.
+        // Authorized transition: the fee policy changes only via the guardian's
+        // timelocked setter (P11) — reconcile, do not alarm.
         await account.update({ ...drift.ownerAuthorizedUpdates, configVersion: account.configVersion + 1 });
         logger.warn(
           `monerium-b2b: reconciled owner-authorized config change on forwarder ${forwarder} (account ${account.id}): ` +

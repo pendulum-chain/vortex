@@ -12,7 +12,6 @@ import { advanceOnboardingAccounts, type OnboardingDeps } from "./onboarding";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
-const FALLBACK = "0x3333333333333333333333333333333333333333";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 const IBAN = "EE08 7224 5745 6244 9516";
 const ETHEREUM_CHAIN = { getChainId: async () => 1 };
@@ -76,7 +75,6 @@ async function createMappedAccount(overrides: Partial<Parameters<typeof Monerium
   });
   return MoneriumAccount.create({
     destination: DESTINATION,
-    fallbackAddress: FALLBACK,
     forwarderAddress: FORWARDER,
     profileId: MONERIUM_PROFILE,
     vortexProfileId: child.profileId,
@@ -158,7 +156,6 @@ describe("monerium b2b onboarding automation", () => {
     await createMappedAccount({ status: MoneriumAccountStatus.Active });
     await MoneriumAccount.create({
       destination: DESTINATION,
-      fallbackAddress: FALLBACK,
       forwarderAddress: "0x9999999999999999999999999999999999999999",
       profileId: crypto.randomUUID()
       // no vortexProfileId: pre-mapping row stays operator-managed

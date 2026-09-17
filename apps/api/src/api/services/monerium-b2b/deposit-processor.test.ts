@@ -3,7 +3,6 @@ import MoneriumAccount from "../../../models/moneriumAccount.model";
 import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
@@ -15,7 +14,8 @@ import {
   processMoneriumWebhookInbox
 } from "./deposit-processor";
 
-const { Held, Minted, Pending, Returned } = MoneriumFiatDepositStatus;
+const { Converting, Forwarded, Held, Minted, Pending, Recovering, RecoveryFailed, Refunded, Returned } =
+  MoneriumFiatDepositStatus;
 const PROFILE_ID = "11111111-1111-4111-8111-111111111111";
 const ORDER_ID = "22222222-2222-4222-8222-222222222222";
 const PROCESSOR_DEPS = { getChainId: async () => 11155111 };
@@ -33,17 +33,34 @@ describe("forward-only deposit status transitions", () => {
     expect(isForwardTransition(Held, Pending)).toBe(false);
   });
 
-  it("treats minted and returned as terminal", () => {
-    for (const to of [Pending, Held, Returned]) {
+  it("lets a minted deposit convert or enter the refund path, never regress", () => {
+    expect(isForwardTransition(Minted, Converting)).toBe(true);
+    expect(isForwardTransition(Minted, Recovering)).toBe(true);
+    for (const to of [Pending, Held, Returned, Forwarded, Refunded]) {
       expect(isForwardTransition(Minted, to)).toBe(false);
     }
-    for (const to of [Pending, Held, Minted]) {
-      expect(isForwardTransition(Returned, to)).toBe(false);
+  });
+
+  it("settles a converting deposit by forward or by recovery", () => {
+    expect(isForwardTransition(Converting, Forwarded)).toBe(true);
+    expect(isForwardTransition(Converting, Recovering)).toBe(true);
+    expect(isForwardTransition(Converting, Minted)).toBe(false);
+    expect(isForwardTransition(Recovering, Refunded)).toBe(true);
+    expect(isForwardTransition(Recovering, RecoveryFailed)).toBe(true);
+    expect(isForwardTransition(RecoveryFailed, Recovering)).toBe(true); // operator retry
+    expect(isForwardTransition(Recovering, Forwarded)).toBe(false);
+  });
+
+  it("treats forwarded, returned and refunded as terminal", () => {
+    for (const terminal of [Forwarded, Returned, Refunded]) {
+      for (const to of Object.values(MoneriumFiatDepositStatus)) {
+        expect(isForwardTransition(terminal, to)).toBe(false);
+      }
     }
   });
 
   it("never allows a self-transition write", () => {
-    for (const status of [Pending, Held, Minted, Returned]) {
+    for (const status of Object.values(MoneriumFiatDepositStatus)) {
       expect(isForwardTransition(status, status)).toBe(false);
     }
   });
@@ -180,7 +197,6 @@ describe("order-event inbox processing (end to end)", () => {
   async function createAccount(): Promise<MoneriumAccount> {
     return MoneriumAccount.create({
       destination: "0x2222222222222222222222222222222222222222",
-      fallbackAddress: "0x3333333333333333333333333333333333333333",
       forwarderAddress: FORWARDER,
       profileId: PROFILE_ID
     });
@@ -263,12 +279,7 @@ describe("order-event inbox processing (end to end)", () => {
       status: MoneriumFiatDepositStatus.Minted,
       txHash: "0xmint"
     });
-    const allocation = await MoneriumDepositAllocation.create({
-      depositId: unattributed.id,
-      eureInRaw: unattributed.amountRaw,
-      executionId: execution.id,
-      usdcNetRaw: execution.usdcNetRaw as string
-    });
+    await execution.update({ depositId: unattributed.id });
     await MoneriumWebhookEvent.create({
       eventId: "evt-late-order",
       payload: orderEvent("processed", { meta: { placedAt: "2026-08-26T00:00:00Z", txHashes: ["0xmint"] } })
@@ -277,7 +288,7 @@ describe("order-event inbox processing (end to end)", () => {
     expect(await processMoneriumWebhookInbox(PROCESSOR_DEPS)).toBe(1);
     expect(await MoneriumFiatDeposit.count()).toBe(1);
     await unattributed.reload();
-    await allocation.reload();
+    await execution.reload();
     expect(unattributed).toMatchObject({
       blockHash: "0xblock",
       blockNumber: 100,
@@ -286,7 +297,7 @@ describe("order-event inbox processing (end to end)", () => {
       moneriumOrderId: ORDER_ID,
       txHash: "0xmint"
     });
-    expect(allocation.depositId).toBe(unattributed.id);
+    expect(execution.depositId).toBe(unattributed.id);
   });
 
   it("merges an unattributed mint when a tx hash resolves equal-amount order ambiguity", async () => {
@@ -325,12 +336,7 @@ describe("order-event inbox processing (end to end)", () => {
       status: MoneriumFiatDepositStatus.Minted,
       txHash: "0xmint"
     });
-    const allocation = await MoneriumDepositAllocation.create({
-      depositId: unattributed.id,
-      eureInRaw: unattributed.amountRaw,
-      executionId: execution.id,
-      usdcNetRaw: execution.usdcNetRaw as string
-    });
+    await execution.update({ depositId: unattributed.id });
     await MoneriumWebhookEvent.create({
       eventId: "evt-ambiguous-order-resolved",
       payload: orderEvent("processed", { meta: { placedAt: "2026-08-26T00:00:00Z", txHashes: ["0xmint"] } })
@@ -339,7 +345,7 @@ describe("order-event inbox processing (end to end)", () => {
     await processMoneriumWebhookInbox(PROCESSOR_DEPS);
     await providerDeposit.reload();
     await otherDeposit.reload();
-    await allocation.reload();
+    await execution.reload();
     expect(await MoneriumFiatDeposit.count()).toBe(2);
     expect(providerDeposit).toMatchObject({
       blockHash: "0xblock",
@@ -350,7 +356,7 @@ describe("order-event inbox processing (end to end)", () => {
       txHash: "0xmint"
     });
     expect(otherDeposit).toMatchObject({ blockNumber: null, status: MoneriumFiatDepositStatus.Pending, txHash: null });
-    expect(allocation.depositId).toBe(providerDeposit.id);
+    expect(execution.depositId).toBe(providerDeposit.id);
   });
 
   it("never merges a quarantined mint into a terminal returned order", async () => {
@@ -385,12 +391,7 @@ describe("order-event inbox processing (end to end)", () => {
       txHash: "0xswap",
       usdcNetRaw: "108000000"
     });
-    const allocation = await MoneriumDepositAllocation.create({
-      depositId: unattributed.id,
-      eureInRaw: amountRaw,
-      executionId: execution.id,
-      usdcNetRaw: execution.usdcNetRaw as string
-    });
+    await execution.update({ depositId: unattributed.id });
     await MoneriumWebhookEvent.create({
       eventId: "evt-returned-order-mint",
       payload: orderEvent("processed", { meta: { placedAt: "2026-08-26T00:00:00Z", txHashes: ["0xmint"] } })
@@ -399,7 +400,7 @@ describe("order-event inbox processing (end to end)", () => {
     await processMoneriumWebhookInbox(PROCESSOR_DEPS);
     await providerDeposit.reload();
     await unattributed.reload();
-    await allocation.reload();
+    await execution.reload();
     expect(providerDeposit).toMatchObject({
       blockHash: null,
       blockNumber: null,
@@ -409,7 +410,7 @@ describe("order-event inbox processing (end to end)", () => {
       txHash: null
     });
     expect(unattributed.txHash).toBe("0xmint");
-    expect(allocation.depositId).toBe(unattributed.id);
+    expect(execution.depositId).toBe(unattributed.id);
   });
 
   it("does not adopt an unattributed mint for a first-seen returned order", async () => {
@@ -437,12 +438,7 @@ describe("order-event inbox processing (end to end)", () => {
       txHash: "0xswap",
       usdcNetRaw: "108000000"
     });
-    const allocation = await MoneriumDepositAllocation.create({
-      depositId: unattributed.id,
-      eureInRaw: amountRaw,
-      executionId: execution.id,
-      usdcNetRaw: execution.usdcNetRaw as string
-    });
+    await execution.update({ depositId: unattributed.id });
     await MoneriumWebhookEvent.create({
       eventId: "evt-first-seen-returned",
       payload: orderEvent("rejected", { meta: { placedAt: "2026-08-26T00:00:00Z", txHashes: ["0xmint"] } })
@@ -451,7 +447,7 @@ describe("order-event inbox processing (end to end)", () => {
     await processMoneriumWebhookInbox(PROCESSOR_DEPS);
     const providerDeposit = await MoneriumFiatDeposit.findOne({ where: { moneriumOrderId: ORDER_ID } });
     await unattributed.reload();
-    await allocation.reload();
+    await execution.reload();
     expect(await MoneriumFiatDeposit.count()).toBe(2);
     expect(providerDeposit).toMatchObject({
       blockNumber: null,
@@ -459,7 +455,7 @@ describe("order-event inbox processing (end to end)", () => {
       txHash: "0xmint"
     });
     expect(unattributed.moneriumOrderId).toBe("unattr:first-seen-returned");
-    expect(allocation.depositId).toBe(unattributed.id);
+    expect(execution.depositId).toBe(unattributed.id);
   });
 
   it("discards wrong-currency, wrong-chain, and foreign-profile orders", async () => {

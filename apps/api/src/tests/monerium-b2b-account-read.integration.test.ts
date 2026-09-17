@@ -2,8 +2,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import type { CorridorCountry } from "@vortexfi/shared";
 import { config } from "../config/vars";
 import ManagedProfileManager from "../models/managedProfileManager.model";
-import MoneriumConversionExecution, { MoneriumConversionExecutionStatus } from "../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../models/moneriumDepositAllocation.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../models/moneriumFiatDeposit.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestUser } from "../test-utils/factories";
@@ -13,7 +15,6 @@ import { provisionMoneriumB2bAccount } from "../api/services/monerium-b2b/accoun
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
-const FALLBACK = "0x3333333333333333333333333333333333333333";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 
 describe("monerium b2b account read surface", () => {
@@ -58,7 +59,6 @@ describe("monerium b2b account read surface", () => {
       contactEmail: "ops@client.example.com",
       destination: DESTINATION,
       externalSubjectId: "client-1",
-      fallbackAddress: FALLBACK,
       forwarderAddress: FORWARDER,
       managerProfileId: manager.id,
       moneriumProfileId: MONERIUM_PROFILE
@@ -78,36 +78,41 @@ describe("monerium b2b account read surface", () => {
     expect(account.body.account).toMatchObject({
       accountId: mapped.accountId,
       destination: DESTINATION,
-      fallbackAddress: FALLBACK,
       floorPpm: 1500,
       forwarderAddress: FORWARDER,
       iban: null,
       status: "onboarding"
     });
+    expect(account.body.account).not.toHaveProperty("fallbackAddress");
 
+    const convertedDeposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      currency: "eur",
+      amountRaw: "100000000000000000000",
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Forwarded,
+      txHash: "0xmint"
+    });
     const execution = await MoneriumConversionExecution.create({
       feeRaw: "8000000",
       referenceRateRaw: "114000000",
       subsidyRaw: "0",
       accountId: mapped.accountId,
+      depositId: convertedDeposit.id,
       destination: DESTINATION,
       eureInRaw: "100000000000000000000",
       status: MoneriumConversionExecutionStatus.Confirmed,
       txHash: "0xswap",
       usdcNetRaw: "108000000"
     });
-    const convertedDeposit = await MoneriumFiatDeposit.create({
+    await MoneriumConversionExecution.create({
       accountId: mapped.accountId,
-      currency: "eur",
-      amountRaw: "100000000000000000000",
-      moneriumOrderId: "order-1",
-      status: MoneriumFiatDepositStatus.Minted,
-      txHash: "0xmint"
-    });
-    await MoneriumDepositAllocation.create({
       depositId: convertedDeposit.id,
+      destination: DESTINATION,
       eureInRaw: "100000000000000000000",
-      executionId: execution.id,
+      kind: MoneriumConversionExecutionKind.Forward,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xforward",
       usdcNetRaw: "108000000"
     });
     await MoneriumFiatDeposit.create({
@@ -130,7 +135,7 @@ describe("monerium b2b account read surface", () => {
     expect(deposits.status).toBe(200);
     const rows = deposits.body.deposits as Array<Record<string, unknown>>;
     expect(rows).toHaveLength(2);
-    expect(rows.map(row => row.status)).toEqual(["pending", "minted"]);
+    expect(rows.map(row => row.status)).toEqual(["pending", "forwarded"]);
     expect(rows[1]).toMatchObject({
       amountRaw: "100000000000000000000",
       conversions: [
@@ -143,10 +148,11 @@ describe("monerium b2b account read surface", () => {
           usdcNetRaw: "108000000"
         }
       ],
+      forwardTxHash: "0xforward",
       txHash: "0xmint",
       usdcNetRaw: "108000000"
     });
-    expect(rows[0]).toMatchObject({ conversions: [], usdcNetRaw: "0" });
+    expect(rows[0]).toMatchObject({ conversions: [], forwardTxHash: null, usdcNetRaw: "0" });
     expect(deposits.body.pagination).toMatchObject({ total: 2 });
   });
 

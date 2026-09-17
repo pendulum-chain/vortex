@@ -4,8 +4,10 @@ import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import MoneriumAccount from "../../models/moneriumAccount.model";
-import MoneriumConversionExecution from "../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../models/moneriumDepositAllocation.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
@@ -98,7 +100,6 @@ export const getMoneriumB2bAccount = async (req: Request, res: Response, next: N
         createdAt: account.createdAt,
         destination: account.destination,
         dormantSince: account.dormantSince,
-        fallbackAddress: account.fallbackAddress,
         floorPpm: account.floorPpm,
         forwarderAddress: account.forwarderAddress,
         iban: account.iban,
@@ -115,8 +116,8 @@ const DEPOSIT_LIST_MAX_LIMIT = 100;
 
 /**
  * GET /v1/monerium-b2b/deposits — the acting profile's EUR deposits, newest first,
- * each with its allocated conversion execution once the swap has run. This is the
- * polling surface for "payment received / converted".
+ * each with its chunk conversions and, once the whole deposit reached the destination,
+ * the forward transaction. This is the polling surface for "payment received / converted".
  */
 export const listMoneriumB2bDeposits = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -140,44 +141,48 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
       where: { accountId: account.id, moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` } }
     });
 
-    const allocations = rows.length
-      ? await MoneriumDepositAllocation.findAll({
+    const executions = rows.length
+      ? await MoneriumConversionExecution.findAll({
           order: [["created_at", "ASC"]],
-          where: { depositId: rows.map(row => row.id) }
+          where: { depositId: rows.map(row => row.id), status: { [Op.ne]: MoneriumConversionExecutionStatus.Failed } }
         })
       : [];
-    const executionIds = [...new Set(allocations.map(allocation => allocation.executionId))];
-    const executions = executionIds.length ? await MoneriumConversionExecution.findAll({ where: { id: executionIds } }) : [];
-    const executionById = new Map(executions.map(execution => [execution.id, execution]));
-    const allocationsByDeposit = new Map<string, MoneriumDepositAllocation[]>();
-    for (const allocation of allocations) {
-      const grouped = allocationsByDeposit.get(allocation.depositId) ?? [];
-      grouped.push(allocation);
-      allocationsByDeposit.set(allocation.depositId, grouped);
+    const executionsByDeposit = new Map<string, MoneriumConversionExecution[]>();
+    for (const execution of executions) {
+      const grouped = executionsByDeposit.get(execution.depositId as string) ?? [];
+      grouped.push(execution);
+      executionsByDeposit.set(execution.depositId as string, grouped);
     }
 
     res.status(httpStatus.OK).json({
       deposits: rows.map(row => {
-        const depositAllocations = allocationsByDeposit.get(row.id) ?? [];
+        const depositExecutions = executionsByDeposit.get(row.id) ?? [];
+        const swaps = depositExecutions.filter(execution => execution.kind === MoneriumConversionExecutionKind.Swap);
+        const forward = depositExecutions.find(
+          execution =>
+            execution.kind === MoneriumConversionExecutionKind.Forward &&
+            execution.status === MoneriumConversionExecutionStatus.Confirmed
+        );
         return {
           amountRaw: row.amountRaw,
-          conversions: depositAllocations.map(allocation => {
-            const execution = executionById.get(allocation.executionId);
-            return {
-              eureInRaw: allocation.eureInRaw,
-              execution: execution ? executionPricing(execution) : { feeRaw: null, referenceRateRaw: null, subsidyRaw: null },
-              executionId: allocation.executionId,
-              status: execution?.status ?? "pending",
-              txHash: execution?.txHash ?? null,
-              usdcNetRaw: allocation.usdcNetRaw
-            };
-          }),
+          conversions: swaps.map(execution => ({
+            eureInRaw: execution.eureInRaw,
+            execution: executionPricing(execution),
+            executionId: execution.id,
+            status: execution.status,
+            txHash: execution.txHash,
+            usdcNetRaw: execution.usdcNetRaw ?? "0"
+          })),
           createdAt: row.createdAt,
           currency: row.currency,
           depositId: row.id,
+          forwardTxHash: forward?.txHash ?? null,
           status: row.status,
           txHash: row.txHash,
-          usdcNetRaw: depositAllocations.reduce((sum, allocation) => sum + BigInt(allocation.usdcNetRaw), 0n).toString()
+          usdcNetRaw: swaps
+            .filter(execution => execution.status === MoneriumConversionExecutionStatus.Confirmed)
+            .reduce((sum, execution) => sum + BigInt(execution.usdcNetRaw ?? "0"), 0n)
+            .toString()
         };
       }),
       pagination: { limit, offset, total: count }

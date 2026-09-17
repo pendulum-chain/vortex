@@ -16,10 +16,24 @@ export enum WebhookEventType {
 export const ACCOUNT_WEBHOOK_EVENT_TYPES = [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED] as const;
 
 export enum DepositStatus {
+  /** Provider order placed, EURe not minted yet. */
   PENDING = "pending",
+  /** EURe minted to the forwarder. */
   MINTED = "minted",
+  /** Provider compliance hold before the mint. */
   HELD = "held",
-  RETURNED = "returned"
+  /** The provider returned the payment before the mint. Terminal. */
+  RETURNED = "returned",
+  /** Conversion started; chunks accumulate on the forwarder until the whole deposit is converted. */
+  CONVERTING = "converting",
+  /** The whole converted deposit reached the destination in one transfer. Terminal. */
+  FORWARDED = "forwarded",
+  /** The deposit could not be converted inside the promised window; Vortex is refunding the payer. */
+  RECOVERING = "recovering",
+  /** The exact EUR amount was refunded to the payer's bank account. Terminal. */
+  REFUNDED = "refunded",
+  /** The refund needs operator intervention. */
+  RECOVERY_FAILED = "recovery_failed"
 }
 
 export enum TransactionStatus {
@@ -133,7 +147,9 @@ export interface DepositConvertedWebhookPayload {
       /** Net USDC from this execution attributed to this deposit (6-decimal base units). */
       usdcNetRaw: string;
     }>;
-    /** Aggregate net USDC attributed to the complete deposit (6-decimal base units). */
+    /** The single transaction that pushed the whole converted deposit to the destination. */
+    forwardTxHash: string | null;
+    /** Aggregate net USDC forwarded for the complete deposit (6-decimal base units). */
     usdcNetRaw: string;
   };
 }

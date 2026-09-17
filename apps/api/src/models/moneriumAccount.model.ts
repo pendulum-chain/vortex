@@ -20,7 +20,6 @@ export interface MoneriumAccountAttributes {
   iban: string | null;
   forwarderAddress: string;
   destination: string;
-  fallbackAddress: string;
   targetPpm: number;
   floorPpm: number;
   configVersion: number;
@@ -54,7 +53,6 @@ class MoneriumAccount
   declare iban: string | null;
   declare forwarderAddress: string;
   declare destination: string;
-  declare fallbackAddress: string;
   declare targetPpm: number;
   declare floorPpm: number;
   declare configVersion: number;
@@ -86,11 +84,6 @@ MoneriumAccount.init(
       allowNull: true,
       field: "dormant_since",
       type: DataTypes.DATE
-    },
-    fallbackAddress: {
-      allowNull: false,
-      field: "fallback_address",
-      type: DataTypes.STRING(42)
     },
     // Fee policy mirror (ppm below the reference rate) for accounting and drift
     // detection only; the clone's values are authoritative (P11 reconciliation).

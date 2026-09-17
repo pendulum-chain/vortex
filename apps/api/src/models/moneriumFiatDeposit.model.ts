@@ -2,15 +2,31 @@ import { DataTypes, Model, Op, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export enum MoneriumFiatDepositStatus {
+  /** Provider order placed, EURe not minted yet. */
   Pending = "pending",
+  /** EURe minted to the forwarder; convertible once chain-indexed. */
   Minted = "minted",
+  /** Provider compliance hold before the mint. */
   Held = "held",
-  Returned = "returned"
+  /** Provider returned the payment before the mint. Terminal. */
+  Returned = "returned",
+  /** At least one chunk swap was sent; USDC accumulates on the forwarder. */
+  Converting = "converting",
+  /** The whole converted deposit reached the client's destination. Terminal. */
+  Forwarded = "forwarded",
+  /** The promised window was missed (or an operator intervened): funds go to the recovery wallet for a bank refund. */
+  Recovering = "recovering",
+  /** The exact EUR amount was redeemed to the payer's bank account. Terminal. */
+  Refunded = "refunded",
+  /** A recovery step failed beyond retry; operator runbook. Terminal until reset by an operator. */
+  RecoveryFailed = "recovery_failed"
 }
 
 // One row per Monerium issue order (SEPA deposit → EURe mint). Identity/idempotency:
 // monerium_order_id for accounting, (chain_id, tx_hash, log_index) for the on-chain
-// mint. Status transitions are forward-only (plan §3, R06/R13).
+// mint. Status transitions are forward-only (plan §3, R06/R13): the provider states
+// first, then the settlement (converting → forwarded) or refund (recovering → refunded)
+// branch; executions bound to the deposit carry the chain evidence for each step.
 export interface MoneriumFiatDepositAttributes {
   id: string;
   accountId: string;

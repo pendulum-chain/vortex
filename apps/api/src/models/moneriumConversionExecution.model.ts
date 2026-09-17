@@ -7,13 +7,26 @@ export enum MoneriumConversionExecutionStatus {
   Failed = "failed"
 }
 
-// One row per swapAndForward execution (or intentional batch). Allocation to deposits
-// is cursor-gated and snapshot-based (plan §3, R04): included deposits precede the
-// execution's exact block/log position and are not yet allocated; pro-rata by amount,
-// remainder to largest.
+/** Which keeper transaction the row records (docs/architecture-monerium-b2b-onramp.md, keeper). */
+export enum MoneriumConversionExecutionKind {
+  /** `swap(reference, route, amountIn)`: one chunk of one deposit, USDC kept on the clone. */
+  Swap = "swap",
+  /** `forward(amount)`: the whole converted deposit to the client's destination. */
+  Forward = "forward",
+  /** `recover(eure, usdc)`: the deposit's unconverted EURe and converted USDC to the recovery wallet. */
+  Recover = "recover"
+}
+
+// One row per keeper transaction on a forwarder, bound to the deposit it serves
+// (1 deposit : N executions). For a swap, eureInRaw is the chunk and usdcNetRaw the
+// client's net for it; for a forward, usdcNetRaw is the amount pushed to the
+// destination; for a recovery, eureInRaw and usdcNetRaw are the two amounts moved.
 export interface MoneriumConversionExecutionAttributes {
   id: string;
   accountId: string;
+  kind: MoneriumConversionExecutionKind;
+  /** The deposit this transaction serves; null only for rows that predate the 1:N model. */
+  depositId: string | null;
   eureInRaw: string; // 18-decimal base units
   usdcGrossRaw: string | null; // 6-decimal base units
   feeRaw: string | null;
@@ -46,6 +59,8 @@ export interface MoneriumConversionExecutionAttributes {
 type MoneriumConversionExecutionCreationAttributes = Optional<
   MoneriumConversionExecutionAttributes,
   | "id"
+  | "kind"
+  | "depositId"
   | "usdcGrossRaw"
   | "feeRaw"
   | "subsidyRaw"
@@ -72,6 +87,8 @@ class MoneriumConversionExecution
 {
   declare id: string;
   declare accountId: string;
+  declare kind: MoneriumConversionExecutionKind;
+  declare depositId: string | null;
   declare eureInRaw: string;
   declare usdcGrossRaw: string | null;
   declare feeRaw: string | null;
@@ -117,6 +134,11 @@ MoneriumConversionExecution.init(
       field: "created_at",
       type: DataTypes.DATE
     },
+    depositId: {
+      allowNull: true,
+      field: "deposit_id",
+      type: DataTypes.UUID
+    },
     destination: {
       allowNull: false,
       type: DataTypes.STRING(42)
@@ -139,6 +161,11 @@ MoneriumConversionExecution.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       type: DataTypes.UUID
+    },
+    kind: {
+      allowNull: false,
+      defaultValue: MoneriumConversionExecutionKind.Swap,
+      type: DataTypes.ENUM(...Object.values(MoneriumConversionExecutionKind))
     },
     nonce: {
       allowNull: true,
@@ -207,7 +234,7 @@ MoneriumConversionExecution.init(
     }
   },
   {
-    indexes: [{ fields: ["account_id", "status"] }],
+    indexes: [{ fields: ["account_id", "status"] }, { fields: ["deposit_id"] }],
     modelName: "MoneriumConversionExecution",
     sequelize,
     tableName: "monerium_conversion_executions"

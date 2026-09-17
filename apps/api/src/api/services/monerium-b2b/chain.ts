@@ -54,11 +54,13 @@ export const NOTIFY_CONFIRMATION_DEPTH = 32;
 
 export const eureTransferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
-// SwapExecuted as a standalone event item for getLogs-based crash recovery (must stay
-// in sync with the entry in forwarderAbi below).
+// Standalone event items for getLogs-based crash recovery, one per keeper transaction
+// kind (must stay in sync with the entries in forwarderAbi below).
 export const swapExecutedEvent = parseAbiItem(
-  "event SwapExecuted(address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 referenceRate, uint256 fee, uint256 subsidy, uint256 forwarded)"
+  "event SwapExecuted(address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 referenceRate, uint256 fee, uint256 subsidy)"
 );
+export const forwardedEvent = parseAbiItem("event Forwarded(address indexed caller, uint256 amount)");
+export const recoveredEvent = parseAbiItem("event Recovered(address indexed caller, uint256 eureAmount, uint256 usdcAmount)");
 
 export const erc20Abi = [
   {
@@ -75,9 +77,28 @@ export const forwarderAbi = [
   {
     inputs: [
       { name: "referenceRate", type: "uint256" },
-      { name: "routeIndex", type: "uint256" }
+      { name: "routeIndex", type: "uint256" },
+      { name: "amountIn", type: "uint256" }
     ],
-    name: "swapAndForward",
+    name: "swap",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "forward",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  { inputs: [], name: "forwardAll", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [
+      { name: "eureAmount", type: "uint256" },
+      { name: "usdcAmount", type: "uint256" }
+    ],
+    name: "recover",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function"
@@ -89,7 +110,9 @@ export const forwarderAbi = [
     stateMutability: "nonpayable",
     type: "function"
   },
-  { inputs: [], name: "strandedSince", outputs: [{ name: "", type: "uint64" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "batchOpenedAt", outputs: [{ name: "", type: "uint64" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "RECOVERY_DELAY", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "RECOVERY_WALLET", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "guardianPaused", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "EURE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "FACTORY", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
@@ -109,7 +132,7 @@ export const forwarderAbi = [
   { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
   {
     anonymous: false,
-    inputs: [{ indexed: false, name: "strandedSince", type: "uint64" }],
+    inputs: [{ indexed: false, name: "batchOpenedAt", type: "uint64" }],
     name: "Poked",
     type: "event"
   },
@@ -122,10 +145,28 @@ export const forwarderAbi = [
       { indexed: false, name: "usdcOut", type: "uint256" },
       { indexed: false, name: "referenceRate", type: "uint256" },
       { indexed: false, name: "fee", type: "uint256" },
-      { indexed: false, name: "subsidy", type: "uint256" },
-      { indexed: false, name: "forwarded", type: "uint256" }
+      { indexed: false, name: "subsidy", type: "uint256" }
     ],
     name: "SwapExecuted",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" }
+    ],
+    name: "Forwarded",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "eureAmount", type: "uint256" },
+      { indexed: false, name: "usdcAmount", type: "uint256" }
+    ],
+    name: "Recovered",
     type: "event"
   },
   {
@@ -275,6 +316,9 @@ export interface ForwarderImmutables {
   maxReferenceDeviationBps: number;
   oracle: Address;
   oracleDecimals: number;
+  /** Seconds a batch must have been open before the clone accepts `recover` (registry P3). */
+  recoveryDelaySeconds: number;
+  recoveryWallet: Address;
   slippageBps: number;
   usdc: Address;
 }
@@ -300,10 +344,23 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
       | "SLIPPAGE_BPS"
       | "MAX_FEE_PPM"
       | "MAX_REFERENCE_DEVIATION_BPS"
+      | "RECOVERY_DELAY"
+      | "RECOVERY_WALLET"
   >(
     functionName: T
   ) => client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName });
-  const [eure, factory, usdc, oracle, oracleDecimals, slippageBps, maxFeePpm, maxReferenceDeviationBps] = await Promise.all([
+  const [
+    eure,
+    factory,
+    usdc,
+    oracle,
+    oracleDecimals,
+    slippageBps,
+    maxFeePpm,
+    maxReferenceDeviationBps,
+    recoveryDelay,
+    recoveryWallet
+  ] = await Promise.all([
     read("EURE"),
     read("FACTORY"),
     read("USDC"),
@@ -311,7 +368,9 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     read("ORACLE_DECIMALS"),
     read("SLIPPAGE_BPS"),
     read("MAX_FEE_PPM"),
-    read("MAX_REFERENCE_DEVIATION_BPS")
+    read("MAX_REFERENCE_DEVIATION_BPS"),
+    read("RECOVERY_DELAY"),
+    read("RECOVERY_WALLET")
   ]);
   const immutables: ForwarderImmutables = {
     eure,
@@ -320,6 +379,8 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     maxReferenceDeviationBps: Number(maxReferenceDeviationBps),
     oracle,
     oracleDecimals: Number(oracleDecimals),
+    recoveryDelaySeconds: Number(recoveryDelay),
+    recoveryWallet,
     slippageBps: Number(slippageBps),
     usdc
   };
