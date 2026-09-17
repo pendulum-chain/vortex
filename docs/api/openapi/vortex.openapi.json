@@ -2587,7 +2587,7 @@
                       "type": ["string", "null"]
                     },
                     "referenceRateRaw": {
-                      "description": "Reference EUR/USD rate the execution was priced against: a volume-weighted average of the Coinbase Exchange EURC-USD market over the five minutes before the swap (widened to sixty minutes when those five carry no trades), in the oracle's decimals (8).",
+                      "description": "Reference EUR/USD rate the execution was priced against: a volume-weighted average of the Coinbase Exchange EURC-USDC market over the five minutes before the swap (widened to sixty minutes when those five carry no trades), in the oracle's decimals (8).",
                       "type": ["string", "null"]
                     },
                     "subsidyRaw": {

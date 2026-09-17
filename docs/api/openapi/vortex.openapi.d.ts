@@ -2891,7 +2891,7 @@ export interface components {
                 execution: {
                     /** @description Fee taken on the whole execution in 6-decimal base units. */
                     feeRaw: string | null;
-                    /** @description Reference EUR/USD rate the execution was priced against: a volume-weighted average of the Coinbase Exchange EURC-USD market over the five minutes before the swap (widened to sixty minutes when those five carry no trades), in the oracle's decimals (8). */
+                    /** @description Reference EUR/USD rate the execution was priced against: a volume-weighted average of the Coinbase Exchange EURC-USDC market over the five minutes before the swap (widened to sixty minutes when those five carry no trades), in the oracle's decimals (8). */
                     referenceRateRaw: string | null;
                     /** @description Subsidy paid by the vault straight to the destination for the whole execution in 6-decimal base units. */
                     subsidyRaw: string | null;

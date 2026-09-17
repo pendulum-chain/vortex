@@ -57,7 +57,7 @@ flowchart LR
     end
 
     subgraph Reference["Reference rate"]
-        CB[Coinbase Exchange\nEURC-USD 1-min candles]
+        CB[Coinbase Exchange\nEURC-USDC 1-min candles]
     end
 
     subgraph Vortex["Vortex API (keeper backend)"]
@@ -305,7 +305,7 @@ settles every fill into three bands against that reference (decisions:
 [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md), amendment).
 
 - **Reference rate.** Before each swap the keeper computes a five-minute volume-weighted
-  average of Coinbase Exchange EURC-USD one-minute candles (`reference-rate.ts`: typical
+  average of Coinbase Exchange EURC-USDC one-minute candles (`reference-rate.ts`: typical
   price `(low + high + close) / 3` weighted by volume; widened to an hour when the five
   minutes carry no volume, so a single thin weekend print never becomes the reference),
   stores price, window and time on the execution row, and passes the rate into

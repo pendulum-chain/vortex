@@ -122,6 +122,30 @@ describe("fetchCoinbaseReference", () => {
     );
     await expect(
       fetchCoinbaseReference(DECIMALS, fakeFetch(200, [candle(END - 60, 1.14, 0)]).fetchImpl, nowMs)
-    ).rejects.toThrow("no EURC-USD volume");
+    ).rejects.toThrow("no EURC-USDC volume");
+  });
+});
+
+import { classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
+
+describe("reference venue status", () => {
+  it("accepts only an online product with trading enabled", () => {
+    expect(classifyReferenceVenue({ status: "online", tradingDisabled: false })).toBeNull();
+    expect(classifyReferenceVenue({ status: "delisted", tradingDisabled: true })).toContain("is delisted");
+    expect(classifyReferenceVenue({ status: "online", tradingDisabled: true })).toContain("trading disabled");
+  });
+
+  it("reads the product status from Coinbase and rejects malformed answers", async () => {
+    const fetchImpl = async (url: string) => {
+      expect(url).toBe("https://api.exchange.coinbase.com/products/EURC-USDC");
+      return { json: async () => ({ id: "EURC-USDC", status: "online", trading_disabled: false }), ok: true, status: 200 };
+    };
+    expect(await fetchCoinbaseProductStatus(fetchImpl)).toEqual({ status: "online", tradingDisabled: false });
+    await expect(
+      fetchCoinbaseProductStatus(async () => ({ json: async () => ({ status: "online" }), ok: true, status: 200 }))
+    ).rejects.toThrow("malformed");
+    await expect(fetchCoinbaseProductStatus(async () => ({ json: async () => null, ok: false, status: 503 }))).rejects.toThrow(
+      "503"
+    );
   });
 });

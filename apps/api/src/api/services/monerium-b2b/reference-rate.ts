@@ -3,7 +3,7 @@ import { formatUnits, parseUnits } from "viem";
 /**
  * Partner reference rate for the forwarder fee bands (docs/adr-0005-monerium-b2b-onramp.md, P12):
  * a volume-weighted average price over the last five minutes of Coinbase Exchange
- * EURC-USD one-minute candles, computed fresh before every swap and recorded on the
+ * EURC-USDC one-minute candles, computed fresh before every swap and recorded on the
  * execution row (rate, window, time) so the partner can recompute it from Coinbase's
  * public candle history. Averaging instead of taking the last tick keeps a single thin
  * print — common on weekends and outside business hours — from becoming the reference.
@@ -12,8 +12,15 @@ import { formatUnits, parseUnits } from "viem";
  * rate into swapAndForward; the contract rejects it outside its Chainlink band.
  */
 
-export const COINBASE_EURC_CANDLES_URL = "https://api.exchange.coinbase.com/products/EURC-USD/candles";
-export const COINBASE_REFERENCE_SOURCE = "coinbase-exchange:EURC-USD:vwap";
+/**
+ * The Coinbase Exchange product the reference is read from. EURC-USD and EURC-EUR were
+ * delisted on 2024-08-29 and still answer the candles endpoint with two-year-old data,
+ * so the product's status is monitored (`fetchCoinbaseProductStatus`), not assumed.
+ */
+export const COINBASE_REFERENCE_PRODUCT = "EURC-USDC";
+export const COINBASE_EURC_PRODUCT_URL = `https://api.exchange.coinbase.com/products/${COINBASE_REFERENCE_PRODUCT}`;
+export const COINBASE_EURC_CANDLES_URL = `${COINBASE_EURC_PRODUCT_URL}/candles`;
+export const COINBASE_REFERENCE_SOURCE = `coinbase-exchange:${COINBASE_REFERENCE_PRODUCT}:vwap`;
 export const REFERENCE_WINDOW_SECONDS = 5 * 60;
 export const REFERENCE_FALLBACK_WINDOW_SECONDS = 60 * 60;
 const CANDLE_GRANULARITY_SECONDS = 60;
@@ -123,7 +130,9 @@ export async function fetchCoinbaseReference(
   }
   const window = selectReferenceWindow(parseCandles(await response.json()), windowEndSec, decimals);
   if (!window) {
-    throw new Error(`no EURC-USD volume on Coinbase in the last ${REFERENCE_FALLBACK_WINDOW_SECONDS / 60} minutes`);
+    throw new Error(
+      `no ${COINBASE_REFERENCE_PRODUCT} volume on Coinbase in the last ${REFERENCE_FALLBACK_WINDOW_SECONDS / 60} minutes`
+    );
   }
   return {
     price: formatUnits(window.rateRaw, decimals),
@@ -132,4 +141,35 @@ export async function fetchCoinbaseReference(
     time: new Date(nowMs),
     windowSeconds: window.windowSeconds
   };
+}
+
+// ------------------------------------------------------------------ venue status
+
+export interface CoinbaseProductStatus {
+  status: string;
+  tradingDisabled: boolean;
+}
+
+/** Why the reference product cannot serve as the venue right now, or null when it can. */
+export function classifyReferenceVenue(product: CoinbaseProductStatus): string | null {
+  if (product.status !== "online") {
+    return `Coinbase product ${COINBASE_REFERENCE_PRODUCT} is ${product.status}`;
+  }
+  if (product.tradingDisabled) {
+    return `Coinbase product ${COINBASE_REFERENCE_PRODUCT} has trading disabled`;
+  }
+  return null;
+}
+
+/** Live status of the reference product. Any failure throws; the monitor reports it. */
+export async function fetchCoinbaseProductStatus(fetchImpl: FetchLike = fetch): Promise<CoinbaseProductStatus> {
+  const response = await fetchImpl(COINBASE_EURC_PRODUCT_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  if (!response.ok) {
+    throw new Error(`Coinbase product responded ${response.status}`);
+  }
+  const body = (await response.json()) as { status?: unknown; trading_disabled?: unknown } | null;
+  if (typeof body?.status !== "string" || typeof body.trading_disabled !== "boolean") {
+    throw new Error("Coinbase product response is malformed");
+  }
+  return { status: body.status, tradingDisabled: body.trading_disabled };
 }

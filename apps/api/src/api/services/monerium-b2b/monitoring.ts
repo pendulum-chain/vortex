@@ -18,6 +18,7 @@ import {
   SubsidyVaultState
 } from "./chain";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
+import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 
 /**
  * Monitoring pass for the Monerium B2B onramp (implementation plan D3 / phase 3), run
@@ -47,6 +48,9 @@ import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./moneri
  *    construction (`onlyFallback` in the contract) — they are reconciled into the DB
  *    and logged, not alarmed, as are guardian fee-policy changes (P11); bytecode or
  *    registration drift is an incident.
+ * 6. Reference-venue monitor: the Coinbase product the reference VWAP reads. A delisted
+ *    or halted product keeps answering the candles endpoint with stale data, so every
+ *    keeper swap would defer silently; its status is probed instead of assumed.
  *
  * None of these monitors hold keys or send transactions; they are detection-only.
  */
@@ -572,6 +576,17 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
   }
 }
 
+/** Reference-venue monitor: a product that is not online makes every keeper swap defer. */
+export async function runReferenceVenueMonitor(): Promise<void> {
+  const product = await fetchCoinbaseProductStatus();
+  const reason = classifyReferenceVenue(product);
+  if (reason) {
+    logger.error(`monerium-b2b: REFERENCE VENUE — ${reason}; every keeper swap defers until the reference source is changed`);
+  } else {
+    logger.info(`monerium-b2b: reference venue ok (${COINBASE_REFERENCE_PRODUCT} ${product.status})`);
+  }
+}
+
 // ------------------------------------------------------------------ pass orchestration
 
 let lastPassAt = 0;
@@ -598,6 +613,7 @@ export async function runMonitoringPass(now: number = Date.now()): Promise<void>
     return;
   }
   lastPassAt = now;
+  await guarded("reference-venue monitor", runReferenceVenueMonitor);
   if (config.moneriumB2b.rpcUrl) {
     await guarded("executable-depth check", runExecutableDepthCheck);
     await guarded("stranded-balance monitor", () => runStrandedBalanceMonitor(now));

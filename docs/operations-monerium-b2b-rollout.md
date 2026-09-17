@@ -123,7 +123,7 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 4. **Rate, fee and subsidy (B1/P1/P2/P12/P13)** — disclose the guarantee, the fee and
    the hard bound separately:
    - Reference rate: a five-minute volume-weighted average of the Coinbase Exchange
-     EURC-USD market, computed immediately before each conversion from public
+     EURC-USDC market, computed immediately before each conversion from public
      one-minute candles and recorded with the conversion (widened to a one-hour
      average when the five minutes carry no trades). The agreement's "Coinbase EURC
      oracle" — align the wording; the source is the exchange market, weekdays and
@@ -177,7 +177,7 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 | SulPayments agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
-| Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses a five-minute VWAP of Coinbase Exchange EURC-USD candles — confirm that is what was meant |
+| Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses a five-minute VWAP of Coinbase Exchange EURC-USDC candles — confirm that is what was meant |
 | Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 25 bps, not the band: a market more than ~25 bps under a stale Chainlink round defers every swap until the round updates — decide whether that is acceptable or whether `SLIPPAGE_BPS`/`floorPpm` move before the deploy |
 | Subsidy vault funding and refill cadence | Ops | Before first activation; runbook §2.6 |
 | GA items | Engineering | Backend volume-limit enforcement (revisit), guardian key to hardware/multisig, O1 migration endpoint when first needed |
