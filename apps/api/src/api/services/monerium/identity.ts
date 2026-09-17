@@ -1,6 +1,7 @@
 import { MoneriumApiError, MoneriumApiService, type MoneriumProfile } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import type { Transaction } from "sequelize";
+import { config } from "../../../config/vars";
 import ProviderCustomer, { type ProviderCustomerType } from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
@@ -30,7 +31,8 @@ export interface MoneriumIdentity {
 
 export interface MoneriumIdentityDependencies {
   getUserClient: (customerEntityId: string, customerType: ProviderCustomerType) => Promise<MoneriumIdentityClient>;
-  getWhiteLabelClient: () => MoneriumIdentityClient;
+  /** `null` when no white-label credentials are configured; every read then uses the user's OAuth token. */
+  getWhiteLabelClient: () => MoneriumIdentityClient | null;
   loadBinding: (
     userId: string,
     transaction?: Transaction,
@@ -123,7 +125,8 @@ function withReauthenticationErrors(user: MoneriumIdentityClient): MoneriumIdent
 export function createResolveMoneriumIdentity(
   dependencies: MoneriumIdentityDependencies = {
     getUserClient,
-    getWhiteLabelClient: () => MoneriumApiService.getInstance(),
+    getWhiteLabelClient: () =>
+      config.monerium.whiteLabelClientId && config.monerium.whiteLabelClientSecret ? MoneriumApiService.getInstance() : null,
     loadBinding: loadMoneriumBinding
   }
 ) {
@@ -144,11 +147,13 @@ export function createResolveMoneriumIdentity(
     const profileId = binding.profileId;
 
     const whiteLabel = dependencies.getWhiteLabelClient();
-    try {
-      const profile = await whiteLabel.getProfile(profileId);
-      return { client: whiteLabel, profile, profileId, source: "whitelabel" };
-    } catch (error) {
-      if (!isInvisibleToApp(error)) throw error;
+    if (whiteLabel) {
+      try {
+        const profile = await whiteLabel.getProfile(profileId);
+        return { client: whiteLabel, profile, profileId, source: "whitelabel" };
+      } catch (error) {
+        if (!isInvisibleToApp(error)) throw error;
+      }
     }
 
     const user = withReauthenticationErrors(await dependencies.getUserClient(binding.customerEntityId, binding.customerType));

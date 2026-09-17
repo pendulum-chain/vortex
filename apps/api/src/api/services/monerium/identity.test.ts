@@ -68,6 +68,17 @@ describe("resolveMoneriumIdentity", () => {
     expect(getUserClient).toHaveBeenCalledWith("entity-1", "individual");
   });
 
+  it("goes straight to the user's OAuth token when no white-label credentials are configured", async () => {
+    const user = client(async () => profile());
+    const resolve = createResolveMoneriumIdentity({
+      getUserClient: async () => user,
+      getWhiteLabelClient: () => null,
+      loadBinding: async () => binding
+    });
+
+    expect(await resolve("user-1")).toMatchObject({ profileId: PROFILE_ID, source: "oauth" });
+  });
+
   it("passes an explicit legal type through binding resolution", async () => {
     const loadBinding = mock(async () => binding);
     const resolve = createResolveMoneriumIdentity({

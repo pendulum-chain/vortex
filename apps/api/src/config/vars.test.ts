@@ -126,22 +126,15 @@ describe("vars deployment environment validation", () => {
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
   });
 
-  it("requires the Monerium white-label credentials in production", async () => {
-    const missingClientId = await importVarsWithEnv({
+  it("boots in production without the Monerium white-label credentials", async () => {
+    const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "production",
       MONERIUM_WHITELABEL_CLIENT_ID: "",
-      NODE_ENV: "production"
-    });
-    const missingClientSecret = await importVarsWithEnv({
-      DEPLOYMENT_ENV: "production",
       MONERIUM_WHITELABEL_CLIENT_SECRET: "",
       NODE_ENV: "production"
     });
 
-    expect(missingClientId.exitCode).toBe(1);
-    expect(missingClientId.stderr).toContain("MONERIUM_WHITELABEL_CLIENT_ID");
-    expect(missingClientSecret.exitCode).toBe(1);
-    expect(missingClientSecret.stderr).toContain("MONERIUM_WHITELABEL_CLIENT_SECRET");
+    expect(result.exitCode).toBe(0);
   });
 
   it("requires an explicit Monerium issue fee in production", async () => {

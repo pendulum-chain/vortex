@@ -214,6 +214,7 @@ interface Config {
   monerium: {
     apiUrl: string;
     clientId: string;
+    eurOnrampEnabled: boolean;
     issueFeeEur: string | undefined;
     redirectUri: string;
     whiteLabelClientId: string;
@@ -332,6 +333,8 @@ export const config: Config = {
       process.env.MONERIUM_API_URL ||
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
+    // Kill switch for new EUR pay-in quotes; ramps already registered keep executing.
+    eurOnrampEnabled: process.env.EUR_ONRAMP_ENABLED !== "false",
     issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
     whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
@@ -519,8 +522,7 @@ if (config.env === "production") {
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
   if (!config.monerium.issueFeeEur) missing.push("MONERIUM_ISSUE_FEE_EUR");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
-  if (!config.monerium.whiteLabelClientId) missing.push("MONERIUM_WHITELABEL_CLIENT_ID");
-  if (!config.monerium.whiteLabelClientSecret) missing.push("MONERIUM_WHITELABEL_CLIENT_SECRET");
+  // The white-label pair is optional: without it every Monerium read uses the user's OAuth token.
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);
