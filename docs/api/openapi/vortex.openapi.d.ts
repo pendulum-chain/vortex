@@ -1236,8 +1236,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            anchorFeeFiat: string;
-                            anchorFeeUSD: string;
+                            anchorFeeFiat?: string;
+                            anchorFeeUSD?: string;
                             countryCode?: components["schemas"]["CountryCode"];
                             /**
                              * Format: date-time
@@ -1247,23 +1247,23 @@ export interface paths {
                             currentPhase?: components["schemas"]["RampPhase"];
                             /** @description BR Code for PIX payment, if applicable. */
                             depositQrCode?: string | null;
-                            feeCurrency: components["schemas"]["RampCurrency"];
+                            feeCurrency?: components["schemas"]["RampCurrency"];
                             /** @description The source network or payment method. */
                             from?: components["schemas"]["DestinationType"];
                             /** @description Unique identifier for the ramp process. */
                             id?: string;
-                            inputAmount: string;
-                            inputCurrency: string;
+                            inputAmount?: string;
+                            inputCurrency?: string;
                             network?: components["schemas"]["Networks"];
-                            networkFeeFiat: string;
-                            networkFeeUSD: string;
-                            outputAmount: string;
-                            outputCurrency: string;
-                            partnerFeeFiat: string;
-                            partnerFeeUSD: string;
-                            paymentMethod: components["schemas"]["PaymentMethod"];
-                            processingFeeFiat: string;
-                            processingFeeUSD: string;
+                            networkFeeFiat?: string;
+                            networkFeeUSD?: string;
+                            outputAmount?: string;
+                            outputCurrency?: string;
+                            partnerFeeFiat?: string;
+                            partnerFeeUSD?: string;
+                            paymentMethod?: components["schemas"]["PaymentMethod"];
+                            processingFeeFiat?: string;
+                            processingFeeUSD?: string;
                             /**
                              * Format: uuid
                              * @description The quote ID associated with this ramp process.
@@ -1274,8 +1274,8 @@ export interface paths {
                             status?: components["schemas"]["SimpleStatus"];
                             /** @description The destination network or payment method. */
                             to?: components["schemas"]["DestinationType"];
-                            totalFeeFiat: string;
-                            totalFeeUSD: string;
+                            totalFeeFiat?: string;
+                            totalFeeUSD?: string;
                             /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
                             transactionExplorerLink?: string;
                             /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
@@ -1289,11 +1289,11 @@ export interface paths {
                              * @description Timestamp of the last update to the ramp process.
                              */
                             updatedAt?: string;
-                            vortexFeeFiat: string;
-                            vortexFeeUSD: string;
+                            vortexFeeFiat?: string;
+                            vortexFeeUSD?: string;
                             /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
                             walletAddress?: string;
-                        };
+                        } & components["schemas"]["RampProcess"];
                     };
                 };
                 /** @description The managed-profile selector is invalid. */
@@ -1504,9 +1504,7 @@ export interface paths {
         put?: never;
         /**
          * Start ramp process
-         * @description Starts a ramp process.
-         *
-         *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
+         * @description Starts a ramp process after all required signatures and corridor-specific client steps are complete. For EUR BUY, call this after the user initiates the SEPA transfer; do not wait for provider settlement.
          */
         post: operations["startRamp"];
         delete?: never;
@@ -1532,12 +1530,12 @@ export interface paths {
          *     Note: For both pre-signed transactions and `additionalData`, existing properties will be overridden by new values.
          *
          *     ### Required data for ramps.
-         *     The signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.
+         *     The signed counterpart of every required initial `unsignedTxs` entry must be provided for all ramps. Ephemeral-signed entries include exactly four signed backups in `meta.additionalTxs`.
          *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the initial transaction in which the user sends the funds.
          *     If the originating chain is `AssetHub`, then `assethubToPendulumHash` must be provided.
          *     If the originating chain is any EVM chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. No-permit flows use the corresponding `squidRouterNoPermit*Hash` fields.
          *
-         *     For onramps, no additional data is required after registering the ramp.
+         *     Onramps do not require transaction hashes in `additionalData`, but they still require all returned signatures. EUR payment instructions remain hidden until the linked-owner permit and every ephemeral signature validate.
          */
         post: operations["updateRamp"];
         delete?: never;
@@ -2074,6 +2072,23 @@ export interface components {
              */
             type: "EVM" | "Substrate";
         };
+        /** @description Provider-neutral bank transfer instructions returned for domestic fiat rails such as ACH, SPEI, and CBU. Display the fields verbatim because the available details vary by corridor. */
+        AchPaymentData: {
+            accountHolderName?: string;
+            bankAccountNumber?: string;
+            bankBeneficiaryAddress?: string;
+            bankBeneficiaryName?: string;
+            bankName?: string;
+            bankRoutingNumber?: string;
+            clabe?: string;
+            expirationDate?: string;
+            externalId?: string;
+            paymentDescription?: string;
+            paymentType: string;
+            reference?: string;
+        } & {
+            [key: string]: unknown;
+        };
         ApiCredential: {
             /** Format: date-time */
             createdAt: string;
@@ -2270,10 +2285,8 @@ export interface components {
         BrValidatePixKeyResponse: {
             valid: boolean;
         };
-        CleanupPhase: {
-            /** @enum {string} */
-            string?: "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
-        };
+        /** @enum {string} */
+        CleanupPhase: "moonbeamCleanup" | "pendulumCleanup" | "polygonCleanup" | "polygonCleanupAxlUsdc" | "hydrationCleanup" | "assetHubCleanup" | "baseCleanupUsdc" | "baseCleanupBrla" | "baseCleanupEurc" | "baseCleanupAxlUsdc" | "ethereumCleanupUsdc";
         /** @description Allowed values: `AR`, `BR`, `EU` */
         CountryCode: string;
         CreateApiCredentialRequest: {
@@ -2597,6 +2610,16 @@ export interface components {
             /** @description Provider-style error category, when available. */
             type?: string;
         };
+        EvmTransactionData: {
+            /** @description Hex-encoded EVM calldata. */
+            data: string;
+            gas: string;
+            maxFeePerGas?: string;
+            maxPriorityFeePerGas?: string;
+            nonce?: number;
+            to: string;
+            value: string;
+        };
         /** @enum {string} */
         FiatToken: "EUR" | "ARS" | "BRL" | "USD" | "MXN" | "COP";
         FlatErrorResponse: {
@@ -2697,6 +2720,13 @@ export interface components {
             rampType: components["schemas"]["RampDirection"];
             /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
             walletAddressLocked?: string;
+        };
+        /** @description SEPA payment instructions released only after all required ramp signatures validate. */
+        IbanPaymentData: {
+            bic: string;
+            iban: string;
+            receiverName: string;
+            reference?: string;
         };
         KYCDataUploadFileFiles: {
             /** Format: url */
@@ -3029,6 +3059,15 @@ export interface components {
                     /** @enum {string} */
                     provider: "alfredpay" | "avenia" | "monerium" | "mykobo";
                     rail: string | null;
+                    /** @description EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
+                    ramp: Record<string, never> & (null | {
+                        chain: string;
+                        /** @enum {string} */
+                        iban: "provisioned" | "elsewhere" | "missing";
+                        linkedAddress: string | null;
+                        /** @enum {string} */
+                        source: "whitelabel" | "oauth";
+                    });
                     /** @enum {string} */
                     state: "pending" | "started" | "in_review" | "approved" | "rejected";
                     /** @enum {string} */
@@ -3084,32 +3123,8 @@ export interface components {
         };
         /** @description `PIX`, `SEPA`, `CBU` */
         PaymentMethod: string;
-        /** @description Represents a transaction that has been presigned. Based on UnsignedTx structure. */
-        PresignedTx: {
-            /** @description Any additional metadata associated with the transaction. Can be an empty object. */
-            meta?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Format: int64
-             * @description Nonce for the transaction, if applicable.
-             */
-            nonce?: number;
-            /**
-             * @description The phase this transaction belongs to within the ramp logic.
-             * @enum {string}
-             */
-            phase?: "RampPhase" | "CleanupPhase";
-            /** @description Address of the account that signed/will sign this transaction. */
-            signer?: string;
-            /**
-             * @description The presigned transaction payload or relevant data.
-             * @example AAAAAKg...
-             */
-            txData?: string;
-        } & {
-            [key: string]: unknown;
-        };
+        /** @description A transaction envelope from registration with its raw transaction or typed-data signature attached. */
+        PresignedTx: components["schemas"]["UnsignedTx"];
         QuoteResponse: {
             anchorFeeFiat: string;
             anchorFeeUSD: string;
@@ -3176,63 +3191,70 @@ export interface components {
          * @description The current phase of the ramp process.
          * @enum {string}
          */
-        RampPhase: "initial" | "timedOut" | "stellarCreateAccount" | "squidrouterApprove" | "squidrouterSwap" | "fundEphemeral" | "nablaApprove" | "nablaSwap" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "pendulumToMoonbeam" | "assethubToPendulum" | "pendulumToAssethub" | "spacewalkRedeem" | "stellarPayment" | "subsidizePreSwap" | "subsidizePostSwap" | "brlaTeleport" | "onHoldForComplianceCheck" | "brlaPayoutOnMoonbeam" | "failed";
+        RampPhase: "initial" | "timedOut" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "uniswapApprove" | "uniswapSwap" | "squidRouterPermitExecute" | "squidRouterNoPermitTransfer" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterApprove" | "squidRouterSwap" | "squidRouterPay" | "fundEphemeral" | "destinationTransfer" | "nablaApprove" | "nablaSwap" | "hydrationSwap" | "hydrationToAssethubXcm" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "pendulumToMoonbeamXcm" | "pendulumToHydrationXcm" | "assethubToPendulum" | "pendulumToAssethubXcm" | "subsidizePreSwap" | "subsidizePostSwap" | "distributeFees" | "alfredpayOnrampMint" | "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "brlaOnrampMint" | "onHoldForComplianceCheck" | "brlaPayoutOnBase" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "baseTransfer" | "finalSettlementSubsidy" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "backupApprove" | "failed" | "complete";
         RampProcess: {
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
+            achPaymentData?: components["schemas"]["AchPaymentData"];
+            anchorFeeFiat?: string;
+            anchorFeeUSD?: string;
             countryCode?: components["schemas"]["CountryCode"];
             /**
              * Format: date-time
              * @description Timestamp of when the ramp process was created.
              */
-            createdAt?: string;
-            currentPhase?: components["schemas"]["RampPhase"];
+            createdAt: string;
+            currentPhase: components["schemas"]["RampPhase"];
             /** @description BR Code for PIX payment, if applicable. */
             depositQrCode?: string | null;
-            feeCurrency: components["schemas"]["RampCurrency"];
+            /**
+             * Format: date-time
+             * @description Deadline for calling the start endpoint.
+             */
+            expiresAt?: string;
+            feeCurrency?: components["schemas"]["RampCurrency"];
             /** @description The source network or payment method. */
-            from?: components["schemas"]["DestinationType"];
+            from: components["schemas"]["DestinationType"];
+            ibanPaymentData?: components["schemas"]["IbanPaymentData"];
             /** @description Unique identifier for the ramp process. */
-            id?: string;
+            id: string;
             inputAmount: string;
             inputCurrency: string;
             network?: components["schemas"]["Networks"];
-            networkFeeFiat: string;
-            networkFeeUSD: string;
+            networkFeeFiat?: string;
+            networkFeeUSD?: string;
             outputAmount: string;
             outputCurrency: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
+            partnerFeeFiat?: string;
+            partnerFeeUSD?: string;
             paymentMethod: components["schemas"]["PaymentMethod"];
-            processingFeeFiat: string;
-            processingFeeUSD: string;
+            processingFeeFiat?: string;
+            processingFeeUSD?: string;
             /**
              * Format: uuid
              * @description The quote ID associated with this ramp process.
              */
-            quoteId?: string;
+            quoteId: string;
             /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
             sessionId?: string;
             status?: components["schemas"]["SimpleStatus"];
             /** @description The destination network or payment method. */
-            to?: components["schemas"]["DestinationType"];
-            totalFeeFiat: string;
-            totalFeeUSD: string;
+            to: components["schemas"]["DestinationType"];
+            totalFeeFiat?: string;
+            totalFeeUSD?: string;
             /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
             transactionExplorerLink?: string;
             /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
             transactionHash?: string;
             /** @description Type of ramp process. */
-            type?: components["schemas"]["RampDirection"];
+            type: components["schemas"]["RampDirection"];
             /** @description Array of unsigned transactions that need to be signed by the user. */
             unsignedTxs?: components["schemas"]["UnsignedTx"][];
             /**
              * Format: date-time
              * @description Timestamp of the last update to the ramp process.
              */
-            updatedAt?: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
+            updatedAt: string;
+            vortexFeeFiat?: string;
+            vortexFeeUSD?: string;
             /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
             walletAddress?: string;
         };
@@ -3242,18 +3264,10 @@ export interface components {
             taxId: string;
         };
         RegisterRampRequest: {
-            /**
-             * @description Optional additional data for the ramp process.
-             *
-             *     For Brazil onramps, destinationAddress is required.
-             *
-             *     For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.
-             */
+            /** @description Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied. */
             additionalData?: {
                 /** @description Destination address, used for onramp. */
                 destinationAddress?: string;
-                /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-                moneriumAuthToken: string;
                 paymentData?: components["schemas"]["PaymentData"];
                 /** @description PIX key for the destination account in an onramp. */
                 pixDestination?: string;
@@ -3262,7 +3276,7 @@ export interface components {
                 /** @description Tax ID of the user. */
                 taxId?: string;
                 /** @description Wallet address initiating the offramp. */
-                walletAddress: string;
+                walletAddress?: string;
             } & {
                 [key: string]: unknown;
             };
@@ -3271,7 +3285,7 @@ export interface components {
              * @description The unique identifier for the quote.
              */
             quoteId: string;
-            /** @description Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account. */
+            /** @description Fresh ephemeral public accounts used to sign route transactions. Supply the account types required by the quote's route. EUR BUY requires an EVM account; its separate profile-linked owner permit is returned in unsignedTxs. */
             signingAccounts: {
                 /** @description The account address. */
                 address: string;
@@ -3290,6 +3304,29 @@ export interface components {
             activeEntityId: string;
             /** @enum {string} */
             type: "individual" | "business";
+        };
+        Signature: {
+            deadline: number;
+            r: string;
+            s: string;
+            v: number;
+        };
+        /** @description EIP-712 typed data. Registration omits signature; update attaches the collected signature object or objects. */
+        SignedTypedData: {
+            domain: {
+                [key: string]: unknown;
+            };
+            message: {
+                [key: string]: unknown;
+            };
+            primaryType: string;
+            signature?: components["schemas"]["Signature"] | components["schemas"]["Signature"][];
+            types: {
+                [key: string]: {
+                    name: string;
+                    type: string;
+                }[];
+            };
         };
         /** @description `PENDING`, `FAILED`, `COMPLETED` */
         SimpleStatus: string;
@@ -3394,16 +3431,19 @@ export interface components {
         };
         /** @description Represents an unsigned transaction that requires user signature. Actual properties will depend on the transaction type and network. */
         UnsignedTx: {
-            meta?: Record<string, never>;
-            nonce?: number;
-            /** @enum {string} */
-            phase?: "RampPhase" | "CleanupPhase";
-            signer?: string;
-            /**
-             * @description The unsigned transaction payload or relevant data.
-             * @example AAAAAKu...
-             */
-            txData?: string;
+            meta: {
+                /** @description Backup signed transactions keyed by client-defined identifiers. Ephemeral-signed primaries require exactly four consecutive-nonce backups. */
+                additionalTxs?: {
+                    [key: string]: components["schemas"]["PresignedTx"];
+                };
+                expectedSequenceNumber?: string;
+            };
+            network: components["schemas"]["Networks"];
+            nonce: number;
+            phase: components["schemas"]["RampPhase"] | components["schemas"]["CleanupPhase"];
+            signer: string;
+            /** @description A chain payload, EVM transaction blueprint, or EIP-712 typed-data envelope. */
+            txData: string | components["schemas"]["EvmTransactionData"] | components["schemas"]["SignedTypedData"] | components["schemas"]["SignedTypedData"][];
         } & {
             [key: string]: unknown;
         };
@@ -7176,36 +7216,22 @@ export interface operations {
                 /**
                  * @example {
                  *       "additionalData": {
-                 *         "pixDestination": "711.711.011-11",
-                 *         "receiverTaxId": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
-                 *         "taxId": "711.711.011-11"
+                 *         "destinationAddress": "0x1234567890123456789012345678901234567890"
                  *       },
                  *       "quoteId": "8e4bca04-aa22-4f86-9ce5-80aaef58ef83",
                  *       "signingAccounts": [
                  *         {
                  *           "address": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
-                 *           "network": "moonbeam"
-                 *         },
-                 *         {
-                 *           "address": "6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv",
-                 *           "network": "pendulum"
+                 *           "type": "EVM"
                  *         }
                  *       ]
                  *     }
                  */
                 "application/json": {
-                    /**
-                     * @description Optional additional data for the ramp process.
-                     *
-                     *     For Brazil onramps, destinationAddress is required.
-                     *
-                     *     For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.
-                     */
+                    /** @description Optional route data. EUR BUY requires destinationAddress; provider profile, owner address, and IBAN are derived server-side. */
                     additionalData?: {
                         /** @description Destination address, used for onramp. */
                         destinationAddress?: string;
-                        /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-                        moneriumAuthToken: string;
                         paymentData?: components["schemas"]["PaymentData"];
                         /** @description PIX key for the destination account in an onramp. */
                         pixDestination?: string;
@@ -7215,7 +7241,7 @@ export interface operations {
                         /** @description Tax ID of the user. */
                         taxId?: string;
                         /** @description Wallet address initiating the offramp. */
-                        walletAddress: string;
+                        walletAddress?: string;
                     } & {
                         [key: string]: unknown;
                     };
@@ -7224,7 +7250,7 @@ export interface operations {
                      * @description The unique identifier for the quote.
                      */
                     quoteId: string;
-                    /** @description Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account. */
+                    /** @description Fresh ephemeral public accounts required by the quote's route. EUR BUY requires one EVM account. */
                     signingAccounts: {
                         /** @description The account address. */
                         address: string;
@@ -7234,7 +7260,7 @@ export interface operations {
                          */
                         type: "EVM" | "Substrate";
                     }[];
-                };
+                } & WithRequired<components["schemas"]["RegisterRampRequest"], "quoteId" | "signingAccounts">;
             };
         };
         responses: {
@@ -7244,28 +7270,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "brCode": "00020126...",
-                     *       "createdAt": "2024-05-16T10:00:00Z",
-                     *       "currentPhase": "pending_signature",
-                     *       "from": "stellar",
-                     *       "id": "proc_12345",
-                     *       "quoteId": "41a756dc-04e4-4e4b-b243-9c8f977c24d6",
-                     *       "to": "pix",
-                     *       "type": "off",
-                     *       "unsignedTxs": [
-                     *         {
-                     *           "data": "AAAA...",
-                     *           "type": "stellar_payment"
-                     *         }
-                     *       ],
-                     *       "updatedAt": "2024-05-16T10:00:00Z"
-                     *     }
-                     */
                     "application/json": {
-                        anchorFeeFiat: string;
-                        anchorFeeUSD: string;
+                        anchorFeeFiat?: string;
+                        anchorFeeUSD?: string;
                         countryCode?: components["schemas"]["CountryCode"];
                         /**
                          * Format: date-time
@@ -7275,23 +7282,23 @@ export interface operations {
                         currentPhase?: components["schemas"]["RampPhase"];
                         /** @description BR Code for PIX payment, if applicable. */
                         depositQrCode?: string | null;
-                        feeCurrency: components["schemas"]["RampCurrency"];
+                        feeCurrency?: components["schemas"]["RampCurrency"];
                         /** @description The source network or payment method. */
                         from?: components["schemas"]["DestinationType"];
                         /** @description Unique identifier for the ramp process. */
                         id?: string;
-                        inputAmount: string;
-                        inputCurrency: string;
+                        inputAmount?: string;
+                        inputCurrency?: string;
                         network?: components["schemas"]["Networks"];
-                        networkFeeFiat: string;
-                        networkFeeUSD: string;
-                        outputAmount: string;
-                        outputCurrency: string;
-                        partnerFeeFiat: string;
-                        partnerFeeUSD: string;
-                        paymentMethod: components["schemas"]["PaymentMethod"];
-                        processingFeeFiat: string;
-                        processingFeeUSD: string;
+                        networkFeeFiat?: string;
+                        networkFeeUSD?: string;
+                        outputAmount?: string;
+                        outputCurrency?: string;
+                        partnerFeeFiat?: string;
+                        partnerFeeUSD?: string;
+                        paymentMethod?: components["schemas"]["PaymentMethod"];
+                        processingFeeFiat?: string;
+                        processingFeeUSD?: string;
                         /**
                          * Format: uuid
                          * @description The quote ID associated with this ramp process.
@@ -7302,8 +7309,8 @@ export interface operations {
                         status?: components["schemas"]["SimpleStatus"];
                         /** @description The destination network or payment method. */
                         to?: components["schemas"]["DestinationType"];
-                        totalFeeFiat: string;
-                        totalFeeUSD: string;
+                        totalFeeFiat?: string;
+                        totalFeeUSD?: string;
                         /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
                         transactionExplorerLink?: string;
                         /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
@@ -7317,11 +7324,11 @@ export interface operations {
                          * @description Timestamp of the last update to the ramp process.
                          */
                         updatedAt?: string;
-                        vortexFeeFiat: string;
-                        vortexFeeUSD: string;
+                        vortexFeeFiat?: string;
+                        vortexFeeUSD?: string;
                         /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
                         walletAddress?: string;
-                    };
+                    } & components["schemas"]["RampProcess"];
                 };
             };
             /** @description Bad Request - Invalid input, missing required fields, or validation error. */
@@ -7391,23 +7398,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "createdAt": "2024-05-16T10:00:00Z",
-                     *       "currentPhase": "processing",
-                     *       "depositQrCode": "00020126...",
-                     *       "from": "stellar",
-                     *       "id": "proc_12345",
-                     *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-                     *       "to": "pix",
-                     *       "type": "sell",
-                     *       "unsignedTxs": [],
-                     *       "updatedAt": "2024-05-16T12:30:00Z"
-                     *     }
-                     */
                     "application/json": {
-                        anchorFeeFiat: string;
-                        anchorFeeUSD: string;
+                        anchorFeeFiat?: string;
+                        anchorFeeUSD?: string;
                         countryCode?: components["schemas"]["CountryCode"];
                         /**
                          * Format: date-time
@@ -7417,23 +7410,23 @@ export interface operations {
                         currentPhase?: components["schemas"]["RampPhase"];
                         /** @description BR Code for PIX payment, if applicable. */
                         depositQrCode?: string | null;
-                        feeCurrency: components["schemas"]["RampCurrency"];
+                        feeCurrency?: components["schemas"]["RampCurrency"];
                         /** @description The source network or payment method. */
                         from?: components["schemas"]["DestinationType"];
                         /** @description Unique identifier for the ramp process. */
                         id?: string;
-                        inputAmount: string;
-                        inputCurrency: string;
+                        inputAmount?: string;
+                        inputCurrency?: string;
                         network?: components["schemas"]["Networks"];
-                        networkFeeFiat: string;
-                        networkFeeUSD: string;
-                        outputAmount: string;
-                        outputCurrency: string;
-                        partnerFeeFiat: string;
-                        partnerFeeUSD: string;
-                        paymentMethod: components["schemas"]["PaymentMethod"];
-                        processingFeeFiat: string;
-                        processingFeeUSD: string;
+                        networkFeeFiat?: string;
+                        networkFeeUSD?: string;
+                        outputAmount?: string;
+                        outputCurrency?: string;
+                        partnerFeeFiat?: string;
+                        partnerFeeUSD?: string;
+                        paymentMethod?: components["schemas"]["PaymentMethod"];
+                        processingFeeFiat?: string;
+                        processingFeeUSD?: string;
                         /**
                          * Format: uuid
                          * @description The quote ID associated with this ramp process.
@@ -7444,8 +7437,8 @@ export interface operations {
                         status?: components["schemas"]["SimpleStatus"];
                         /** @description The destination network or payment method. */
                         to?: components["schemas"]["DestinationType"];
-                        totalFeeFiat: string;
-                        totalFeeUSD: string;
+                        totalFeeFiat?: string;
+                        totalFeeUSD?: string;
                         /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
                         transactionExplorerLink?: string;
                         /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
@@ -7459,18 +7452,14 @@ export interface operations {
                          * @description Timestamp of the last update to the ramp process.
                          */
                         updatedAt?: string;
-                        vortexFeeFiat: string;
-                        vortexFeeUSD: string;
+                        vortexFeeFiat?: string;
+                        vortexFeeUSD?: string;
                         /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
                         walletAddress?: string;
-                    };
+                    } & components["schemas"]["RampProcess"];
                 };
             };
-            /**
-             * @description Bad Request. Possible reasons:
-             *     - Missing required fields (rampId, presignedTxs)
-             *     - Invalid additional data format (if provided, must be an object)
-             */
+            /** @description Bad Request - missing or invalid rampId, incomplete signatures, or an expired start deadline. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7525,24 +7514,6 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                /**
-                 * @example {
-                 *       "additionalData": {
-                 *         "squidRouterApproveHash": "0x123...",
-                 *         "squidRouterSwapHash": "0x456..."
-                 *       },
-                 *       "presignedTxs": [
-                 *         {
-                 *           "meta": {},
-                 *           "nonce": 1,
-                 *           "phase": "RampPhase",
-                 *           "signer": "GB2TP24WCY6BPGFX4SOGDHT7IGJRR7HCDQT2VL2MVCZJTJCGKMVGQGQB",
-                 *           "txData": "AAAAAKu..."
-                 *         }
-                 *       ],
-                 *       "rampId": "proc_12345"
-                 *     }
-                 */
                 "application/json": components["schemas"]["UpdateRampRequest"];
             };
         };
@@ -7553,23 +7524,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "createdAt": "2024-05-16T10:00:00Z",
-                     *       "currentPhase": "processing",
-                     *       "depositQrCode": "00020126...",
-                     *       "from": "stellar",
-                     *       "id": "proc_12345",
-                     *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-                     *       "to": "pix",
-                     *       "type": "off",
-                     *       "unsignedTxs": [],
-                     *       "updatedAt": "2024-05-16T12:30:00Z"
-                     *     }
-                     */
                     "application/json": {
-                        anchorFeeFiat: string;
-                        anchorFeeUSD: string;
+                        anchorFeeFiat?: string;
+                        anchorFeeUSD?: string;
                         countryCode?: components["schemas"]["CountryCode"];
                         /**
                          * Format: date-time
@@ -7579,23 +7536,23 @@ export interface operations {
                         currentPhase?: components["schemas"]["RampPhase"];
                         /** @description BR Code for PIX payment, if applicable. */
                         depositQrCode?: string | null;
-                        feeCurrency: components["schemas"]["RampCurrency"];
+                        feeCurrency?: components["schemas"]["RampCurrency"];
                         /** @description The source network or payment method. */
                         from?: components["schemas"]["DestinationType"];
                         /** @description Unique identifier for the ramp process. */
                         id?: string;
-                        inputAmount: string;
-                        inputCurrency: string;
+                        inputAmount?: string;
+                        inputCurrency?: string;
                         network?: components["schemas"]["Networks"];
-                        networkFeeFiat: string;
-                        networkFeeUSD: string;
-                        outputAmount: string;
-                        outputCurrency: string;
-                        partnerFeeFiat: string;
-                        partnerFeeUSD: string;
-                        paymentMethod: components["schemas"]["PaymentMethod"];
-                        processingFeeFiat: string;
-                        processingFeeUSD: string;
+                        networkFeeFiat?: string;
+                        networkFeeUSD?: string;
+                        outputAmount?: string;
+                        outputCurrency?: string;
+                        partnerFeeFiat?: string;
+                        partnerFeeUSD?: string;
+                        paymentMethod?: components["schemas"]["PaymentMethod"];
+                        processingFeeFiat?: string;
+                        processingFeeUSD?: string;
                         /**
                          * Format: uuid
                          * @description The quote ID associated with this ramp process.
@@ -7606,8 +7563,8 @@ export interface operations {
                         status?: components["schemas"]["SimpleStatus"];
                         /** @description The destination network or payment method. */
                         to?: components["schemas"]["DestinationType"];
-                        totalFeeFiat: string;
-                        totalFeeUSD: string;
+                        totalFeeFiat?: string;
+                        totalFeeUSD?: string;
                         /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
                         transactionExplorerLink?: string;
                         /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
@@ -7621,11 +7578,11 @@ export interface operations {
                          * @description Timestamp of the last update to the ramp process.
                          */
                         updatedAt?: string;
-                        vortexFeeFiat: string;
-                        vortexFeeUSD: string;
+                        vortexFeeFiat?: string;
+                        vortexFeeUSD?: string;
                         /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
                         walletAddress?: string;
-                    };
+                    } & components["schemas"]["RampProcess"];
                 };
             };
             /**
@@ -7676,3 +7633,6 @@ export interface operations {
         };
     };
 }
+type WithRequired<T, K extends keyof T> = T & {
+    [P in K]-?: T[P];
+};

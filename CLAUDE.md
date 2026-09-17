@@ -18,7 +18,7 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 
 - **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
 - **apps/demo** — minimal browser SDK integration → [`apps/demo/CLAUDE.md`](apps/demo/CLAUDE.md)
-- **apps/gold** — "ouro. by Vortex" gold app served at /gold → [`apps/gold/CLAUDE.md`](apps/gold/CLAUDE.md)
+- **apps/gold** — "ouro. by Vortex" gold app served at /pt-br/gold → [`apps/gold/CLAUDE.md`](apps/gold/CLAUDE.md)
 - **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
 - **apps/dashboard** — authenticated React dashboard → [`apps/dashboard/CLAUDE.md`](apps/dashboard/CLAUDE.md)
 - **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)

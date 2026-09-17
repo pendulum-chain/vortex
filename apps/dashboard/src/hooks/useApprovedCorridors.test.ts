@@ -13,6 +13,7 @@ function account(country: string, state: "approved" | "pending") {
     kycCase: null,
     provider: "alfredpay",
     rail: null,
+    ramp: null,
     state,
     status: state,
     statusExternal: null,

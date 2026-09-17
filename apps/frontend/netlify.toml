@@ -7,8 +7,9 @@
 # Redirect rules live in `_redirects` (copied into dist/client by the build), not here.
 # Marketing routes are prerendered to static HTML by TanStack Start, so they are plain files
 # under `dist/client`; only the SSR-disabled widget route needs a rewrite.
-# Gold (apps/gold) is a separate Vite app built with base /gold/ and copied into the
-# published tree, so Netlify serves it as plain files before any redirect rule applies.
+# Gold (apps/gold) is a separate Vite app built with base /pt-br/gold/ and copied into the
+# published tree next to the prerendered locale pages (the pt-BR directory; Netlify matches
+# files case-insensitively), so it is served as plain files before any redirect rule applies.
 # Gold's build reads these site variables (set in the Netlify UI for all contexts):
 #   VITE_PRIVY_APP_ID   – the Privy app id (without it Gold renders a config error); the
 #                         original gold.satoshipay.io release used cmtiwhqgf01uu0el8lx3ejr35
@@ -18,7 +19,7 @@
 # own domain; this build does not include it.
 
 [build]
-  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:gold && mkdir -p apps/frontend/dist/client/gold && cp -R apps/gold/dist/client/. apps/frontend/dist/client/gold/"
+  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:gold && mkdir -p apps/frontend/dist/client/pt-BR/gold && cp -R apps/gold/dist/client/. apps/frontend/dist/client/pt-BR/gold/"
   publish = "dist/client"
   # Netlify's default ignore check only diffs the base directory, so a commit touching only
   # apps/gold or the shared/sdk packages would be skipped as "no content change". Build when

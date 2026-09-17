@@ -9,5 +9,7 @@ router.use(requireAuth);
 router.post("/oauth/start", rejectImpersonation, moneriumController.start);
 router.post("/oauth/complete", rejectImpersonation, moneriumController.complete);
 router.get("/status", moneriumController.status);
+router.post("/wallet", rejectImpersonation, moneriumController.linkWallet);
+router.post("/iban/move", rejectImpersonation, moneriumController.moveIban);
 
 export default router;

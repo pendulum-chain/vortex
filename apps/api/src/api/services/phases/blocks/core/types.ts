@@ -111,6 +111,7 @@ export interface RegisterCtx<Metadata, RegistrationInput extends Record<string, 
   input: Readonly<RegistrationInput>;
   ipAddress?: string;
   metadata: Readonly<Metadata>;
+  readonly priorRegistrationFacts?: Readonly<Record<string, unknown>>;
   quote: Readonly<QuoteFields>;
   signingAccounts: readonly AccountMeta[];
   transaction?: Transaction;

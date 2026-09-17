@@ -28,8 +28,6 @@ The complete corridor examples also import the published `@vortexfi/sdk` package
 ```bash
 bun run example:brl-onramp
 bun run example:brl-offramp
-bun run example:eur-onramp
-bun run example:eur-offramp
 bun run example:mxn-onramp
 bun run example:mxn-offramp
 ```

@@ -10,7 +10,7 @@ workspace; use [`docs/README.md`](docs/README.md) to locate durable project cont
 | `apps/api` | Express API, PostgreSQL/Sequelize models and migrations, block-flow ramp engine, provider integrations, webhooks, and workers. |
 | `apps/frontend` | React widget and public web surface. XState ramp/KYC flows, wallets, and partner embedding. |
 | `apps/demo` | Minimal browser-only React example for a BRL/PIX to BSC USDC onramp through `@vortexfi/sdk`. |
-| `apps/gold` | "ouro. by Vortex" consumer app for BRL/PIX to PAXG through `@vortexfi/sdk`, served by the frontend site at `/gold`. |
+| `apps/gold` | "ouro. by Vortex" consumer app for BRL/PIX to PAXG through `@vortexfi/sdk`, served by the frontend site at `/pt-br/gold`. |
 | `apps/dashboard` | React account dashboard. Auth, customer entities, onboarding, recipients, history, and self-ramp flows. |
 | `apps/rebalancer` | Standalone service for cross-chain liquidity correction and profitability-aware rebalancing. |
 

@@ -1,6 +1,14 @@
 import {describe, expect, test} from "bun:test";
 import {
   DomesticOnrampKycRequiredError,
+  EurOnrampError,
+  MissingEurOnrampParametersError,
+  MissingMoneriumOfframpParametersError,
+  MissingMoneriumOnrampParametersError,
+  MissingMykoboOfframpParametersError,
+  MoneriumError,
+  MoneriumOnboardingRequiredError,
+  MoneriumReauthenticationRequiredError,
   BrlKycStatusError,
   MissingDomesticOfframpParametersError,
   MissingBrlOfframpParametersError,
@@ -33,6 +41,26 @@ describe("parseAPIError", () => {
 
     expect(error.code).toBe("CREDENTIAL_MISMATCH");
     expect(error.status).toBe(403);
+  });
+
+  test("maps the Monerium onboarding and reauthentication types to dedicated errors", () => {
+    const onboarding = parseAPIError({
+      code: 403,
+      message: "Monerium onboarding is required before an EUR ramp can be registered",
+      statusCode: 403,
+      type: "MONERIUM_ONBOARDING_REQUIRED"
+    });
+    expect(onboarding).toBeInstanceOf(MoneriumOnboardingRequiredError);
+    expect(onboarding.status).toBe(403);
+
+    const reauth = parseAPIError({
+      code: 404,
+      message: "Monerium reauthentication is required",
+      statusCode: 404,
+      type: "MONERIUM_REAUTHENTICATION_REQUIRED"
+    });
+    expect(reauth).toBeInstanceOf(MoneriumReauthenticationRequiredError);
+    expect(reauth.status).toBe(404);
   });
 
   test("preserves provider limit error types as stable codes", () => {
@@ -122,5 +150,13 @@ describe("parseAPIError", () => {
     const missingTaxId = parseAPIError({ code: 400, message: "Missing taxId" });
     expect(missingTaxId).toBeInstanceOf(BrlKycStatusError);
     expect(missingTaxId.message).toBe("Tax ID is required");
+  });
+});
+
+describe("deprecated 0.9.0 error names", () => {
+  test("keep resolving to their renamed classes", () => {
+    expect(MoneriumError).toBe(EurOnrampError);
+    expect(MissingMoneriumOnrampParametersError).toBe(MissingEurOnrampParametersError);
+    expect(MissingMoneriumOfframpParametersError).toBe(MissingMykoboOfframpParametersError);
   });
 });

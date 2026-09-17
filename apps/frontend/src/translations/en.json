@@ -587,6 +587,51 @@
       },
       "button": "Maintenance Mode"
     },
+    "moneriumKycFlow": {
+      "checkingStatus": "Connecting to Monerium...",
+      "failure": "Could not continue with Monerium.",
+      "inReview": {
+        "description": "Monerium is reviewing your information. You can come back later.",
+        "later": "Continue later",
+        "refresh": "Refresh status",
+        "title": "Verification in review"
+      },
+      "ready": {
+        "cancel": "Cancel",
+        "continue": "Continue to Monerium",
+        "description": "Monerium securely collects the information required for your EUR verification. You will return here when finished.",
+        "title": "Verify with Monerium"
+      },
+      "reconnect": {
+        "description": "Your Monerium session has expired. Reconnect to continue with your EUR pay-in.",
+        "title": "Reconnect Monerium"
+      },
+      "redirecting": {
+        "cancel": "Cancel",
+        "description": "Complete the verification in the Monerium tab, then come back here.",
+        "open": "Open Monerium in a new tab if it did not open automatically",
+        "refresh": "I have finished",
+        "title": "Finish with Monerium"
+      },
+      "rejected": "Your verification was not approved.",
+      "retry": "Try again",
+      "startOver": "Start over"
+    },
+    "moneriumWalletFlow": {
+      "cancel": "Cancel",
+      "checking": "Checking your Monerium wallet...",
+      "failure": "Could not link your wallet to Monerium.",
+      "linking": "Confirm the signature in your wallet to link it to Monerium. This costs no gas.",
+      "moving": "Moving your IBAN to this wallet...",
+      "needsMove": {
+        "cancel": "Cancel",
+        "confirm": "Yes, move my IBAN",
+        "description": "Moving your Monerium IBAN to {{address}} changes the wallet that receives all future EUR deposits to this IBAN. Other services using the same IBAN, such as Gnosis Pay, may depend on its current wallet. Check those services before you confirm.",
+        "title": "Do you want to change your IBAN's wallet?"
+      },
+      "retry": "Try again",
+      "waiting": "Monerium is provisioning your IBAN. This usually takes a moment..."
+    },
     "mxnDocumentUpload": {
       "backLabel": "Back of Document",
       "fileHint": "Accepted formats: JPG, PNG, PDF — max 5 MB each",
@@ -1557,6 +1602,7 @@
         "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "COP_tokenUnavailable": "Building your COP rail - available soon!",
         "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "eurOnrampNetworkUnsupported": "EUR pay-ins are not available on this network yet. Please select a different network.",
         "feeComponents": "Failed to calculate the fees. Please try again with a different amount.",
         "fetchingQuote": "Failed to get quote",
         "gasWarning": "Please choose a smaller amount to ensure you can pay the gas cost of the transaction.",

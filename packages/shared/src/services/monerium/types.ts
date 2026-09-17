@@ -39,6 +39,9 @@ export const MONERIUM_CHAINS = [
 ] as const;
 export type MoneriumChain = (typeof MONERIUM_CHAINS)[number];
 
+export const MONERIUM_TOKEN_CHAINS = [...MONERIUM_CHAINS, "scrollsepolia"] as const;
+export type MoneriumTokenChain = (typeof MONERIUM_TOKEN_CHAINS)[number];
+
 export const MONERIUM_ORDER_STATES = ["placed", "pending", "processed", "rejected"] as const;
 export type MoneriumOrderState = (typeof MONERIUM_ORDER_STATES)[number];
 

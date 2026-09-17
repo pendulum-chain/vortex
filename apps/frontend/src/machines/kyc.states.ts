@@ -1,14 +1,23 @@
-import { AlfredpayKycContext, AlfredpayKycOutput, type AveniaKycContext, KycStatus } from "@vortexfi/kyc";
+import {
+  AlfredpayKycContext,
+  AlfredpayKycOutput,
+  type AveniaKycContext,
+  KycStatus,
+  type MoneriumKycInput,
+  type MoneriumKycOutput
+} from "@vortexfi/kyc";
 import { FiatToken } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
+import type { MoneriumWalletInput, MoneriumWalletOutput } from "./moneriumWallet.machine";
 import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
 import { RampContext } from "./types";
 
-type KycChildId = "aveniaKyc" | "alfredpayKyc" | "mykoboKyc";
+type KycChildId = "aveniaKyc" | "alfredpayKyc" | "moneriumKyc" | "mykoboKyc";
 
 const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
-  [FiatToken.EURC]: "mykoboKyc",
+  // EUR onboards through Monerium OAuth; the Mykobo child stays only for persisted legacy flows.
+  [FiatToken.EURC]: "moneriumKyc",
   [FiatToken.BRL]: "aveniaKyc",
   [FiatToken.ARS]: "alfredpayKyc",
   [FiatToken.USD]: "alfredpayKyc",
@@ -29,6 +38,9 @@ export interface MykoboKycContext extends RampContext {
 }
 
 type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
+
+const moneriumCustomerType = (context: RampContext) =>
+  context.kybLink?.customerType === "business" ? "business" : "individual";
 
 const clearSigningPhase = assign({
   rampSigningPhase: undefined,
@@ -151,6 +163,13 @@ export const kycStateNode = {
         {
           guard: ({ context }: { context: RampContext }) => {
             const fiatToken = resolveKycFiatToken(context);
+            return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "moneriumKyc";
+          },
+          target: "Monerium"
+        },
+        {
+          guard: ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
             return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "mykoboKyc";
           },
           target: "Mykobo"
@@ -159,6 +178,89 @@ export const kycStateNode = {
           target: "Avenia"
         }
       ]
+    },
+    Monerium: {
+      invoke: {
+        id: "moneriumKyc",
+        input: ({ context }: { context: RampContext }): MoneriumKycInput => ({
+          callback: context.moneriumCallback,
+          customerType: moneriumCustomerType(context)
+        }),
+        onDone: [
+          {
+            actions: assign({ moneriumCallback: undefined }),
+            guard: ({ event }: { event: DoneActorEvent<MoneriumKycOutput> }) => event.output.status === "APPROVED",
+            target: "MoneriumWallet"
+          },
+          {
+            // Closed before approval (in review, rejected, cancelled): keep the quote, explain, and let the user retry.
+            actions: [
+              clearSigningPhase,
+              assign({
+                initializeFailedMessage: ({ event }: { event: DoneActorEvent<MoneriumKycOutput> }) =>
+                  event.output.error?.message ||
+                  (event.output.status ? "Monerium has not approved your verification yet." : undefined),
+                moneriumCallback: undefined
+              })
+            ],
+            target: "#ramp.QuoteReady"
+          }
+        ],
+        onError: {
+          actions: assign({
+            initializeFailedMessage: "Monerium verification failed. Please retry.",
+            moneriumCallback: undefined
+          }),
+          target: "#ramp.KycFailure"
+        },
+        src: "moneriumKyc"
+      },
+      on: {
+        // The OAuth round trip restores the ramp here; restart the child with the callback so it completes the exchange.
+        MONERIUM_CALLBACK: {
+          actions: assign({
+            moneriumCallback: ({ event }: { event: { callback: RampContext["moneriumCallback"] } }) => event.callback
+          }),
+          reenter: true,
+          target: "Monerium"
+        },
+        MONERIUM_REFRESH: {
+          actions: sendTo("moneriumKyc", { type: "REFRESH" })
+        }
+      }
+    },
+    MoneriumWallet: {
+      invoke: {
+        id: "moneriumWallet",
+        input: ({ context }: { context: RampContext }): MoneriumWalletInput => ({
+          address: context.connectedWalletAddress,
+          customerType: moneriumCustomerType(context),
+          // Substrate wallets report a negative chain id; the permit needs an EOA on an EVM chain.
+          isEvmWallet: context.chainId !== undefined && context.chainId > 0,
+          signMessage: context.getMessageSignature
+        }),
+        onDone: [
+          {
+            guard: ({ event }: { event: DoneActorEvent<MoneriumWalletOutput> }) => event.output.ready,
+            target: "VerificationComplete"
+          },
+          {
+            actions: [
+              clearSigningPhase,
+              assign({
+                initializeFailedMessage: ({ event }: { event: DoneActorEvent<MoneriumWalletOutput> }) =>
+                  event.output.error || "Your wallet is not linked to Monerium yet."
+              })
+            ],
+            target: "#ramp.QuoteReady"
+          }
+        ],
+        onError: {
+          actions: assign({ initializeFailedMessage: "Could not link your wallet to Monerium. Please retry." }),
+          target: "#ramp.KycFailure"
+        },
+        src: "moneriumWallet"
+      }
     },
     Mykobo: {
       invoke: {

@@ -1,11 +1,14 @@
 import {
   AssetHubToken,
+  doesNetworkSupportEurOnramp,
   EPaymentMethod,
+  type EvmNetworks,
   EvmToken,
   evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
   isDomesticToken,
+  isEvmToken,
   isNetworkEVM,
   isOnChainToken,
   mapFiatToDestination,
@@ -13,6 +16,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
+import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
 import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
@@ -40,13 +44,45 @@ import {
   eurOnrampBaseSameChainSwapFlow,
   makeEurOnrampBaseSameChainSwapFlow
 } from "./eur-onramp-base-same-chain";
+import { makeMoneriumOnrampPolygonCrossChainFlow } from "./monerium-onramp-polygon-cross-chain";
+import { makeMoneriumOnrampPolygonSameChainFlow } from "./monerium-onramp-polygon-same-chain";
 
 type FlowRequest = FlowMetadata["globals"]["request"];
 
 interface FlowDefinition {
   create(request: FlowRequest): Flow;
   executorFlow: Flow;
+  legacyCompatible?: false;
   matches(request: FlowRequest): boolean;
+  newQuotes?: false;
+}
+
+function isDormantMoneriumEure(currency: unknown): boolean {
+  return currency === "EURE";
+}
+
+function isMoneriumOnrampRequest(request: FlowRequest, network: Networks | undefined): network is EvmNetworks {
+  return (
+    request.rampType === RampDirection.BUY &&
+    request.from === EPaymentMethod.SEPA &&
+    request.inputCurrency === FiatToken.EURC &&
+    network !== undefined &&
+    doesNetworkSupportEurOnramp(network) &&
+    isEvmToken(request.outputCurrency) &&
+    evmTokenConfig[network][request.outputCurrency] !== undefined
+  );
+}
+
+function requireMoneriumIssueFee(): string {
+  const issueFeeEur = config.monerium.issueFeeEur;
+  if (issueFeeEur === undefined) {
+    throw new APIError({
+      isPublic: true,
+      message: "Monerium issue fee is not configured",
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
+  return issueFeeEur;
 }
 
 const flowDefinitions: FlowDefinition[] = [
@@ -101,9 +137,45 @@ const flowDefinitions: FlowDefinition[] = [
         // Structural only: the flow input resolver rejects symbols unknown to the merged token
         // catalog at quote time. Matching must not depend on live token discovery, because
         // persisted flows are re-resolved at startup, when discovery may have fallen back to
-        // the static config.
-        isOnChainToken(request.inputCurrency)
+        // the static config. Dormant EURe deployments stay excluded regardless of discovery.
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
+    },
+    newQuotes: false
+  },
+  {
+    create(request) {
+      const network = getNetworkFromDestination(request.to);
+      if (
+        !network ||
+        network === Networks.Polygon ||
+        !doesNetworkSupportEurOnramp(network) ||
+        !isEvmToken(request.outputCurrency)
+      ) {
+        throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
+      }
+      return makeMoneriumOnrampPolygonCrossChainFlow(network, request.outputCurrency, requireMoneriumIssueFee());
+    },
+    executorFlow: makeMoneriumOnrampPolygonCrossChainFlow(Networks.Arbitrum, EvmToken.USDC, config.monerium.issueFeeEur ?? "0"),
+    legacyCompatible: false,
+    matches(request) {
+      const network = getNetworkFromDestination(request.to);
+      return isMoneriumOnrampRequest(request, network) && network !== Networks.Polygon;
+    }
+  },
+  {
+    create(request) {
+      if (!isEvmToken(request.outputCurrency)) {
+        throw new APIError({ message: "Unsupported Monerium destination", status: httpStatus.BAD_REQUEST });
+      }
+      return makeMoneriumOnrampPolygonSameChainFlow(request.outputCurrency, requireMoneriumIssueFee());
+    },
+    executorFlow: makeMoneriumOnrampPolygonSameChainFlow(EvmToken.USDC, config.monerium.issueFeeEur ?? "0"),
+    legacyCompatible: false,
+    matches(request) {
+      const network = getNetworkFromDestination(request.to);
+      return isMoneriumOnrampRequest(request, network) && network === Networks.Polygon;
     }
   },
   {
@@ -125,8 +197,9 @@ const flowDefinitions: FlowDefinition[] = [
         // Structural only: the flow input resolver rejects symbols unknown to the merged token
         // catalog at quote time. Matching must not depend on live token discovery, because
         // persisted flows are re-resolved at startup, when discovery may have fallen back to
-        // the static config.
-        isOnChainToken(request.inputCurrency)
+        // the static config. Dormant EURe deployments stay excluded regardless of discovery.
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
     }
   },
@@ -147,7 +220,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
         isNetworkEVM(network) &&
-        isOnChainToken(request.inputCurrency)
+        isOnChainToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.inputCurrency)
       );
     }
   },
@@ -164,7 +238,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === EvmToken.EURC &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create() {
@@ -179,7 +254,8 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === EvmToken.USDC &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -193,10 +269,12 @@ const flowDefinitions: FlowDefinition[] = [
         request.inputCurrency === FiatToken.EURC &&
         request.outputCurrency !== EvmToken.EURC &&
         request.outputCurrency !== EvmToken.USDC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         evmTokenConfig[Networks.Base][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -213,11 +291,13 @@ const flowDefinitions: FlowDefinition[] = [
         request.rampType === RampDirection.BUY &&
         request.from === EPaymentMethod.SEPA &&
         request.inputCurrency === FiatToken.EURC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
         isNetworkEVM(network)
       );
-    }
+    },
+    newQuotes: false
   },
   {
     create(request) {
@@ -261,6 +341,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.from === mapFiatToDestination(FiatToken.BRL) &&
         request.outputCurrency !== EvmToken.BRLA &&
         request.outputCurrency !== EvmToken.USDC &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         evmTokenConfig[Networks.Base][request.outputCurrency as EvmToken] !== undefined &&
         getNetworkFromDestination(request.to) === Networks.Base
       );
@@ -295,6 +376,7 @@ const flowDefinitions: FlowDefinition[] = [
       return (
         request.rampType === RampDirection.BUY &&
         isDomesticToken(request.inputCurrency) &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Polygon &&
         isNetworkEVM(network)
@@ -315,6 +397,7 @@ const flowDefinitions: FlowDefinition[] = [
       return (
         request.rampType === RampDirection.BUY &&
         request.inputCurrency === FiatToken.BRL &&
+        !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
         isNetworkEVM(network)
@@ -323,8 +406,8 @@ const flowDefinitions: FlowDefinition[] = [
   }
 ];
 
-export function resolveBlockFlow(request: FlowRequest): Flow {
-  const definitions = flowDefinitions.filter(candidate => candidate.matches(request));
+function resolveFlowDefinition(request: FlowRequest, candidates: FlowDefinition[]): Flow {
+  const definitions = candidates.filter(candidate => candidate.matches(request));
   if (definitions.length === 0) {
     throw new APIError({
       message: `No block flow mapped for ${request.rampType} ${request.from}/${request.inputCurrency} -> ${request.to}/${request.outputCurrency}`,
@@ -342,10 +425,20 @@ export function resolveBlockFlow(request: FlowRequest): Flow {
   return definitions[0].create(request);
 }
 
+export function resolveBlockFlow(request: FlowRequest): Flow {
+  return resolveFlowDefinition(
+    request,
+    flowDefinitions.filter(definition => definition.newQuotes !== false)
+  );
+}
+
 export function resolvePersistedBlockFlow(metadataValue: unknown): Flow {
   const metadata = getFlowMetadata(metadataValue);
   if (!metadata.flow) {
-    const legacyFlow = resolveBlockFlow(metadata.globals.request);
+    const legacyFlow = resolveFlowDefinition(
+      metadata.globals.request,
+      flowDefinitions.filter(definition => definition.legacyCompatible !== false)
+    );
     legacyFlow.assertMetadata(metadata, { allowLegacy: true });
     return legacyFlow;
   }

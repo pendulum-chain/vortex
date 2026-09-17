@@ -60,11 +60,7 @@ interface MykoboFeeFallback {
   withdrawFee: string | undefined;
 }
 
-// Display-only fallback so EUR quotes still render when the Mykobo /fees endpoint is
-// down. Never prices a ramp execution: EUR ramp start is currently blocked entirely by
-// the register-time kill-switch (registerRamp rejects EURC quotes with 503). When EUR is
-// re-enabled, ramp start must re-validate the live Mykobo fee before executing — no such
-// check exists today. Both fees are flat EUR amounts and are required when enabled.
+// Retained for legacy Mykobo flow simulation tests. New quotes no longer select Mykobo.
 function readMykoboFeeFallback(): MykoboFeeFallback {
   const enabled = process.env.MYKOBO_FEE_FALLBACK_ENABLED === "true";
   if (!enabled) {
@@ -80,7 +76,7 @@ function readMykoboFeeFallback(): MykoboFeeFallback {
 function readNonNegativeDecimalEnv(name: string): string {
   const rawValue = process.env[name]?.trim();
   if (!rawValue) {
-    throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
+    throw new Error(`${name} is required`);
   }
   const value = Number(rawValue);
   if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
@@ -218,7 +214,12 @@ interface Config {
   monerium: {
     apiUrl: string;
     clientId: string;
+    eurOnrampEnabled: boolean;
+    issueFeeEur: string | undefined;
     redirectUri: string;
+    whiteLabelClientId: string;
+    widgetRedirectUri: string | undefined;
+    whiteLabelClientSecret: string;
   };
   // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
   // Separate credential set from the legacy consumer OAuth integration above.
@@ -332,7 +333,13 @@ export const config: Config = {
       process.env.MONERIUM_API_URL ||
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
-    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+    // Kill switch for new EUR pay-in quotes; ramps already registered keep executing.
+    eurOnrampEnabled: process.env.EUR_ONRAMP_ENABLED !== "false",
+    issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
+    whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
+    whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || "",
+    widgetRedirectUri: process.env.MONERIUM_WIDGET_REDIRECT_URI || undefined
   },
   moneriumB2b: {
     // Whitelabel API credentials and base URL live with the shared client
@@ -513,7 +520,9 @@ if (config.env === "production") {
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!config.monerium.issueFeeEur) missing.push("MONERIUM_ISSUE_FEE_EUR");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
+  // The white-label pair is optional: without it every Monerium read uses the user's OAuth token.
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);
