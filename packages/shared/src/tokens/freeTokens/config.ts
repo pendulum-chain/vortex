@@ -113,11 +113,10 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
       name: "Euro",
       symbol: "EUR"
     },
-    // EUR pay-ins swap EURe to USDC in one pinned Polygon Uniswap v3 pool whose in-range liquidity
-    // ran out at roughly 960 EUR on 2026-09-17 (0.09% price impact at 500 EUR, 90% at 10,000).
-    // The cap keeps two in-flight ramps inside that range and under the 5% execution slippage guard;
-    // raise it once the pool is seeded or the swap is routed elsewhere.
-    maxBuyAmountRaw: "500000000",
+    // EUR pay-ins swap EURe -> USDC.e -> USDC through two pinned Polygon Uniswap v3 pools that
+    // quoted 5,000 EUR at ~0.3% price impact and 10,000 at ~0.8% on 2026-09-17. The cap keeps a
+    // ramp well under the 5% execution slippage guard even with another one in flight.
+    maxBuyAmountRaw: "5000000000",
     maxSellAmountRaw: "10000000000",
     minBuyAmountRaw: "500000",
     minSellAmountRaw: "500000",
