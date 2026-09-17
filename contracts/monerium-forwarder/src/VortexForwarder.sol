@@ -51,11 +51,15 @@ interface IVortexSubsidyVault {
 ///         Deployed as an EIP-1167 clone by VortexForwarderFactory; the clone address is
 ///         linked to the client's Monerium profile, EURe mints land here, and the only
 ///         ways assets can ever leave are:
-///           1. a factory-whitelisted EURe -> USDC swap (oracle-floored, output to self),
+///           1. a factory-whitelisted EURe -> USDC swap (oracle-floored, output kept here),
 ///           2. USDC to the client's `destination` (plus a fee <= MAX_FEE_PPM to FEE_RECIPIENT),
-///           3. EURe to the client's `fallbackAddress` (delayed permissionless sweep),
-///           4. anything, by the client's `fallbackAddress` itself (`sweep`).
-///         Vortex (guardian/keeper) can execute the policy, pause it, and nothing else.
+///           3. EURe and USDC to the immutable Vortex RECOVERY_WALLET, only by the keeper and
+///              only once a batch has been open for RECOVERY_DELAY (the refund path).
+///         The keeper converts a bank payment in `swap` chunks that accumulate as USDC on
+///         the clone and pushes the whole payment to `destination` with one `forward`, so
+///         the client sees one USDC transfer per pay-in. Vortex (guardian/keeper) can
+///         execute that policy, pause it, recover a stuck payment to its own wallet for a
+///         bank refund, and nothing else.
 /// @dev EIP-1271 is deliberately constrained to the fixed Monerium link message hash
 ///      signed by ATTESTOR and bound to this clone's address — it must never validate
 ///      redeem orders (that would hand Vortex fiat-payout power; see variant doc §3.2).
@@ -81,6 +85,9 @@ contract VortexForwarder {
     IVortexForwarderFactory public immutable FACTORY;
     address public immutable ATTESTOR; // signs the Monerium link attestation
     address public immutable FEE_RECIPIENT;
+    /// @dev The only address a recovery can move funds to: a Vortex wallet linked to a
+    ///      Vortex company profile at Monerium, from which the bank refund is redeemed.
+    address public immutable RECOVERY_WALLET;
     uint256 public immutable MAX_ORACLE_AGE; // registry P8
     uint16 public immutable SLIPPAGE_BPS; // registry P1: floor on the client's NET, after fee and subsidy
     uint32 public immutable MAX_FEE_PPM; // registry P2: caps both the fee and the floor policy
@@ -88,12 +95,13 @@ contract VortexForwarder {
     ///      pricing power: a wrong reference can move fee/subsidy only inside this band, and
     ///      MAX_FEE_PPM plus the vault's caps bound it further.
     uint16 public immutable MAX_REFERENCE_DEVIATION_BPS;
-    uint256 public immutable SWEEP_DELAY; // registry P3
+    /// @dev Registry P3: how long a batch must have been open before the keeper may move
+    ///      it to RECOVERY_WALLET — the promised conversion window, enforced on chain.
+    uint256 public immutable RECOVERY_DELAY;
     uint256 public immutable TRIGGER_DELAY; // registry P4
 
-    /// @dev EIP-191 personal-message hash and raw keccak of LINK_MESSAGE. Monerium's
-    ///      exact hashing scheme is a G0 spike output (task 4); accepting both is safe
-    ///      because both encode only the fixed link message.
+    /// @dev EIP-191 personal-message hash of LINK_MESSAGE, the only hash the attestor's
+    ///      signature is accepted for (G0 sandbox validation confirmed Monerium presents it).
     bytes32 public immutable LINK_HASH_191;
 
     /// @dev Monerium issuer-recovery message hash (registry T1). bytes32(0) = disabled.
@@ -110,11 +118,12 @@ contract VortexForwarder {
         address oracle;
         address attestor;
         address feeRecipient;
+        address recoveryWallet;
         uint256 maxOracleAge;
         uint16 slippageBps;
         uint32 maxFeePpm;
         uint16 maxReferenceDeviationBps;
-        uint256 sweepDelay;
+        uint256 recoveryDelay;
         uint256 triggerDelay;
         bytes32 recoveryHash;
     }
@@ -124,7 +133,6 @@ contract VortexForwarder {
 
     bool public initialized;
     address public destination; // client's payout address (may be a CEX deposit address)
-    address public fallbackAddress; // client's self-custodied recovery address (mandatory)
     /// @dev Fee policy, in ppm below the reference rate. The client is targeted at
     ///      reference x (1 - targetPpm): any fill above that becomes fee (<= MAX_FEE_PPM);
     ///      a fill below reference x (1 - floorPpm) is topped up from the subsidy vault.
@@ -138,28 +146,29 @@ contract VortexForwarder {
     uint32 public pendingFloorPpm;
     uint64 public pendingFeePolicyEffectiveAt;
 
-    bool public clientPaused; // set by fallbackAddress only
-    bool public guardianPaused; // set by guardian only (protective-only; cannot block fallback paths)
+    bool public guardianPaused; // set by guardian only (protective-only; never blocks recovery)
 
-    /// @dev R03 marker: when the EURe balance first crossed minSwapAmount with no
-    ///      successful swap since. Start time for TRIGGER_DELAY and SWEEP_DELAY.
-    uint64 public strandedSince;
+    /// @dev When the current batch opened: the first time funds (EURe >= MIN_SWAP_FLOOR
+    ///      or any USDC) were seen on the clone since it was last emptied by a forward or
+    ///      a recovery. Start time for RECOVERY_DELAY and TRIGGER_DELAY. A partial swap
+    ///      never re-times it, so chunking cannot restart the recovery clock.
+    uint64 public batchOpenedAt;
 
     uint256 private _reentrancyGuard;
 
     // ----------------------------------------------------------------- events
 
-    event Initialized(address destination, address fallbackAddress, uint32 targetPpm, uint32 floorPpm);
+    event Initialized(address destination, uint32 targetPpm, uint32 floorPpm);
     event FeePolicyDecreased(uint32 previousTarget, uint32 previousFloor, uint32 target, uint32 floor);
     event FeePolicyIncreaseAnnounced(
         uint32 currentTarget, uint32 currentFloor, uint32 pendingTarget, uint32 pendingFloor, uint64 effectiveAt
     );
     event FeePolicyIncreaseApplied(uint32 previousTarget, uint32 previousFloor, uint32 target, uint32 floor);
     event FeePolicyIncreaseCancelled(uint32 pendingTarget, uint32 pendingFloor);
-    event Poked(uint64 strandedSince);
+    event Poked(uint64 batchOpenedAt);
     /// @param referenceRate The rate the fee bands were computed against (keeper-supplied
     ///        for privileged swaps, Chainlink for permissionless ones), ORACLE_DECIMALS.
-    /// @param subsidy USDC paid by the vault straight to `destination` on top of `forwarded`.
+    /// @param subsidy USDC the vault paid to this clone on top of `usdcOut`.
     event SwapExecuted(
         address indexed caller,
         uint256 routeIndex,
@@ -167,33 +176,29 @@ contract VortexForwarder {
         uint256 usdcOut,
         uint256 referenceRate,
         uint256 fee,
-        uint256 subsidy,
-        uint256 forwarded
+        uint256 subsidy
     );
-    event StrandedEureSwept(address indexed caller, uint256 amount);
-    event DestinationUpdated(address previous, address current);
-    event FallbackAddressUpdated(address previous, address current);
-    event ClientPausedSet(bool paused);
+    event Forwarded(address indexed caller, uint256 amount);
+    event Recovered(address indexed caller, uint256 eureAmount, uint256 usdcAmount);
     event GuardianPausedSet(bool paused);
-    event TokenSwept(address indexed token, address indexed to, uint256 amount);
 
     // ----------------------------------------------------------------- errors
 
     error AlreadyInitialized();
     error NotFactory();
-    error NotFallbackAddress();
     error NotGuardian();
+    error NotKeeper();
     error NotAuthorizedYet();
     error Paused();
     error ZeroAddress();
     error InvalidConfigAddress();
     error InvalidFeePolicy();
     error BelowMinimum();
+    error InvalidAmount();
     error StalePrice();
     error InvalidPrice();
     error InsufficientOutput();
     error Overspend();
-    error NotStranded();
     error NoPendingFeePolicy();
     error ReferenceOutOfBand();
     error SubsidyUnavailable();
@@ -205,6 +210,8 @@ contract VortexForwarder {
     // ------------------------------------------------------------ constructor
 
     constructor(ImmutableConfig memory cfg) {
+        // A zero recovery wallet would make `recover` burn client funds.
+        if (cfg.recoveryWallet == address(0)) revert ZeroAddress();
         EURE = IERC20(cfg.eure);
         EURC = IERC20(cfg.eurc);
         USDC = IERC20(cfg.usdc);
@@ -214,11 +221,12 @@ contract VortexForwarder {
         FACTORY = IVortexForwarderFactory(msg.sender);
         ATTESTOR = cfg.attestor;
         FEE_RECIPIENT = cfg.feeRecipient;
+        RECOVERY_WALLET = cfg.recoveryWallet;
         MAX_ORACLE_AGE = cfg.maxOracleAge;
         SLIPPAGE_BPS = cfg.slippageBps;
         MAX_FEE_PPM = cfg.maxFeePpm;
         MAX_REFERENCE_DEVIATION_BPS = cfg.maxReferenceDeviationBps;
-        SWEEP_DELAY = cfg.sweepDelay;
+        RECOVERY_DELAY = cfg.recoveryDelay;
         TRIGGER_DELAY = cfg.triggerDelay;
         RECOVERY_HASH = cfg.recoveryHash;
 
@@ -237,32 +245,35 @@ contract VortexForwarder {
         _reentrancyGuard = 0;
     }
 
-    modifier onlyFallback() {
-        if (msg.sender != fallbackAddress) revert NotFallbackAddress();
+    modifier onlyGuardian() {
+        if (msg.sender != FACTORY.guardian()) revert NotGuardian();
         _;
     }
 
-    modifier onlyGuardian() {
-        if (msg.sender != FACTORY.guardian()) revert NotGuardian();
+    modifier onlyKeeper() {
+        if (!_privileged()) revert NotKeeper();
+        _;
+    }
+
+    modifier whenNotPaused() {
+        if (guardianPaused || FACTORY.globalPaused()) revert Paused();
         _;
     }
 
     // ---------------------------------------------------------- initialization
 
     /// @notice Called by the factory in the same transaction as clone deployment.
-    function initialize(address destination_, address fallbackAddress_, uint32 targetPpm_, uint32 floorPpm_) external {
+    function initialize(address destination_, uint32 targetPpm_, uint32 floorPpm_) external {
         if (msg.sender != address(FACTORY)) revert NotFactory();
         if (initialized) revert AlreadyInitialized();
         _validateConfigAddress(destination_);
-        _validateConfigAddress(fallbackAddress_);
         _validateFeePolicy(targetPpm_, floorPpm_);
 
         initialized = true;
         destination = destination_;
-        fallbackAddress = fallbackAddress_;
         targetPpm = targetPpm_;
         floorPpm = floorPpm_;
-        emit Initialized(destination_, fallbackAddress_, targetPpm_, floorPpm_);
+        emit Initialized(destination_, targetPpm_, floorPpm_);
     }
 
     // -------------------------------------------------------------- EIP-1271
@@ -301,33 +312,37 @@ contract VortexForwarder {
         return EIP1271_MAGIC;
     }
 
-    // ------------------------------------------------------------ stranding marker (R03)
+    // ------------------------------------------------------------ batch marker
 
-    /// @notice Permissionless. Records when the EURe balance first crossed the swap
-    ///         threshold (start time for TRIGGER_DELAY / SWEEP_DELAY), and clears the
-    ///         marker if the balance dropped back below it.
+    /// @notice Permissionless. Opens the batch marker when funds are present and it is
+    ///         not armed yet (start time for RECOVERY_DELAY / TRIGGER_DELAY); clears it
+    ///         when the clone is empty. Never re-times an armed marker.
     function poke() external {
-        // Armed against the IMMUTABLE floor, not the guardian-tunable minSwapAmount:
-        // otherwise the guardian could raise minSwapAmount above a client's balance and
-        // a poke() would clear the marker, permanently disabling the un-pausable
-        // dead-man sweep (review r1, finding F1 — breach of plan invariant §2.3.5).
-        uint256 balance = EURE.balanceOf(address(this));
-        if (balance >= FACTORY.MIN_SWAP_FLOOR()) {
-            if (strandedSince == 0) {
-                strandedSince = uint64(block.timestamp);
-                emit Poked(strandedSince);
-            }
-        } else if (strandedSince != 0) {
-            strandedSince = 0;
-            emit Poked(0);
+        _syncBatch(false);
+    }
+
+    /// @dev Armed against the IMMUTABLE swap floor, not the guardian-tunable minSwapAmount,
+    ///      so no guardian action can keep a funded batch from being timed (review r1 F1).
+    ///      `reset` re-times the marker for whatever remains after a forward or a
+    ///      recovery closed the previous batch; otherwise an armed marker is left alone so
+    ///      a partial swap can never restart the recovery clock.
+    function _syncBatch(bool reset) internal {
+        bool funded = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() || USDC.balanceOf(address(this)) > 0;
+        uint64 next = 0;
+        if (funded) {
+            next = (reset || batchOpenedAt == 0) ? uint64(block.timestamp) : batchOpenedAt;
+        }
+        if (next != batchOpenedAt) {
+            batchOpenedAt = next;
+            emit Poked(next);
         }
     }
 
     // ------------------------------------------------------------------ swap
 
-    /// @notice Convert EURe held by this contract to USDC and forward to `destination`.
-    ///         Callable by guardian/keepers any time; by anyone once the stranding
-    ///         marker is older than TRIGGER_DELAY (liveness fallback).
+    /// @notice Convert `amountIn` EURe held by this contract to USDC, which stays on the
+    ///         clone until `forward`. Callable by guardian/keepers any time; by anyone once
+    ///         the batch marker is older than TRIGGER_DELAY (liveness fallback).
     /// @param referenceRate The partner-agreed reference (EUR/USD, ORACLE_DECIMALS) the
     ///        fee bands are priced against. A privileged caller must supply one within
     ///        MAX_REFERENCE_DEVIATION_BPS of Chainlink; a permissionless caller's value is
@@ -337,19 +352,15 @@ contract VortexForwarder {
     ///        every enabled route off-chain and picks the best; a poor pick only ever
     ///        costs Vortex (more subsidy, less fee), never the client, whose outcome is
     ///        bounded by the oracle floor whichever route runs.
-    function swapAndForward(uint256 referenceRate, uint256 routeIndex) external nonReentrant {
-        if (clientPaused || guardianPaused || FACTORY.globalPaused()) revert Paused();
+    /// @param amountIn Exactly how much EURe to convert: at least minSwapAmount, at most
+    ///        perSwapCap and the balance. Explicit so the keeper's chunking maps every
+    ///        swap to one bank payment.
+    function swap(uint256 referenceRate, uint256 routeIndex, uint256 amountIn) external nonReentrant whenNotPaused {
+        bool privileged = _privileged();
+        if (!privileged) _requireBatchAge(TRIGGER_DELAY, NotAuthorizedYet.selector);
 
-        bool privileged = msg.sender == FACTORY.guardian() || FACTORY.isKeeper(msg.sender);
-        if (!privileged) {
-            if (strandedSince == 0) revert NotAuthorizedYet();
-            if (block.timestamp - strandedSince < TRIGGER_DELAY) revert NotAuthorizedYet();
-        }
-
-        uint256 amountIn = EURE.balanceOf(address(this));
         if (amountIn < FACTORY.minSwapAmount()) revert BelowMinimum();
-        uint256 cap = FACTORY.perSwapCap();
-        if (amountIn > cap) amountIn = cap;
+        if (amountIn > FACTORY.perSwapCap() || amountIn > EURE.balanceOf(address(this))) revert InvalidAmount();
 
         uint256 oraclePrice = _oraclePrice();
         uint256 referenceUsed = privileged ? _checkedReference(referenceRate, oraclePrice) : oraclePrice;
@@ -363,20 +374,13 @@ contract VortexForwarder {
         // subsidy transfer alike.
         if (usdcReceived - fee + subsidy < _floorOut(amountIn, oraclePrice)) revert InsufficientOutput();
 
-        // Full-balance sweep: unsolicited USDC goes to the client's destination too (R09).
-        uint256 forwarded = USDC.balanceOf(address(this));
-        _transfer(USDC, destination, forwarded);
-
-        // Re-arm instead of clearing when a perSwapCap remainder stays behind (review r1
-        // P2): otherwise the remainder's dead-man/permissionless timers would silently
-        // restart from zero only after a fresh poke().
-        strandedSince = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() ? uint64(block.timestamp) : 0;
-        emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy, forwarded);
+        _syncBatch(false);
+        emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy);
     }
 
     /// @dev Executes the whitelisted route and returns the USDC received. The router
     ///      minimum is deliberately 0: the router cannot see the fee and subsidy that
-    ///      determine the client's net, so the floor is enforced by swapAndForward after
+    ///      determine the client's net, so the floor is enforced by `swap` after
     ///      settlement instead, and a failing floor reverts the whole call.
     function _swap(uint256 routeIndex, uint256 amountIn) internal returns (uint256 usdcReceived) {
         (bytes memory path, bool routeEnabled) = FACTORY.route(routeIndex);
@@ -401,10 +405,10 @@ contract VortexForwarder {
     ///      - fill above reference x (1 - targetPpm): the surplus is the fee, <= MAX_FEE_PPM;
     ///      - fill between the floor and the target: no fee, no subsidy;
     ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall
-    ///        from the vault straight to `destination`; a permissionless swap pays nothing.
+    ///        from the vault onto this clone; a permissionless swap pays nothing.
     ///      The vault reverts (and so does the swap) when its cap, budget, pause or
     ///      balance cannot cover the shortfall, and the forwarder reverts unless exactly
-    ///      the shortfall arrived at `destination` — a swap is never partially subsidized.
+    ///      the shortfall arrived here — a swap is never partially subsidized.
     function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged)
         internal
         returns (uint256 fee, uint256 subsidy)
@@ -425,10 +429,10 @@ contract VortexForwarder {
         address vault = FACTORY.subsidyVault();
         if (vault == address(0)) revert SubsidyUnavailable();
         // The vault is guardian-settable without a timelock, so its word is not enough:
-        // count the subsidy only once exactly that amount has landed at `destination`.
-        uint256 destinationBefore = USDC.balanceOf(destination);
-        IVortexSubsidyVault(vault).pay(destination, subsidy, referenceOut);
-        if (USDC.balanceOf(destination) - destinationBefore != subsidy) revert SubsidyUnavailable();
+        // count the subsidy only once exactly that amount has landed here.
+        uint256 before = USDC.balanceOf(address(this));
+        IVortexSubsidyVault(vault).pay(address(this), subsidy, referenceOut);
+        if (USDC.balanceOf(address(this)) - before != subsidy) revert SubsidyUnavailable();
         return (0, subsidy);
     }
 
@@ -459,57 +463,56 @@ contract VortexForwarder {
         return (_usdcValue(amountIn, oraclePrice) * (BPS - SLIPPAGE_BPS)) / BPS;
     }
 
+    // --------------------------------------------------------------- forward
+
+    /// @notice Pushes `amount` of the accumulated USDC to `destination`: the keeper calls
+    ///         this once with the whole converted bank payment, so the client sees one
+    ///         transfer per pay-in. Closes the batch marker when nothing remains.
+    function forward(uint256 amount) external nonReentrant whenNotPaused onlyKeeper {
+        if (amount == 0 || amount > USDC.balanceOf(address(this))) revert InvalidAmount();
+        _transfer(USDC, destination, amount);
+        _syncBatch(true);
+        emit Forwarded(msg.sender, amount);
+    }
+
+    /// @notice Pushes the whole USDC balance to `destination`. Keeper any time (also the
+    ///         home for unsolicited USDC, R09); anyone once the batch marker is older than
+    ///         TRIGGER_DELAY, so a Vortex outage can never trap converted funds on chain.
+    ///         Batches may merge on that path — the per-payment mapping is the keeper's.
+    function forwardAll() external nonReentrant whenNotPaused {
+        if (!_privileged()) _requireBatchAge(TRIGGER_DELAY, NotAuthorizedYet.selector);
+        uint256 amount = USDC.balanceOf(address(this));
+        if (amount == 0) revert InvalidAmount();
+        _transfer(USDC, destination, amount);
+        _syncBatch(true);
+        emit Forwarded(msg.sender, amount);
+    }
+
     // -------------------------------------------------------------- recovery
 
-    /// @notice Permissionless dead-man sweep: after SWEEP_DELAY of stranding, anyone may
-    ///         move the full EURe balance to the client's fallbackAddress. Deliberately
-    ///         NOT gated on pause flags: recovery must work during incidents. Never
-    ///         targets `destination` (CEX rule — variant doc §6).
-    function sweepStrandedEure() external nonReentrant {
-        if (strandedSince == 0) revert NotStranded();
-        if (block.timestamp - strandedSince < SWEEP_DELAY) revert DelayNotElapsed();
-        uint256 balance = EURE.balanceOf(address(this));
-        _transfer(EURE, fallbackAddress, balance);
-        strandedSince = 0;
-        emit StrandedEureSwept(msg.sender, balance);
-    }
-
-    // ------------------------------------------------------- client (fallback) authority
-
-    function setDestination(address destination_) external onlyFallback {
-        _validateConfigAddress(destination_);
-        emit DestinationUpdated(destination, destination_);
-        destination = destination_;
-    }
-
-    function setFallbackAddress(address fallbackAddress_) external onlyFallback {
-        _validateConfigAddress(fallbackAddress_);
-        emit FallbackAddressUpdated(fallbackAddress, fallbackAddress_);
-        fallbackAddress = fallbackAddress_;
-    }
-
-    function setClientPaused(bool paused) external onlyFallback {
-        clientPaused = paused;
-        emit ClientPausedSet(paused);
-    }
-
-    /// @notice Client exit hatch: move any token (incl. EURe/USDC/unsolicited) anywhere.
-    ///         Works while paused — guardian pause must never trap client funds.
-    function sweep(address token, address to) external onlyFallback nonReentrant {
-        if (to == address(0)) revert ZeroAddress();
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        _transfer(IERC20(token), to, balance);
-        if (token == address(EURE) && strandedSince != 0) {
-            strandedSince = 0;
-            emit Poked(0);
+    /// @notice Moves a stuck bank payment — its unconverted EURe and its chunk-swapped
+    ///         USDC — to RECOVERY_WALLET so Vortex can refund the exact EUR amount to the
+    ///         payer's bank account (docs/architecture-monerium-b2b-onramp.md, recovery).
+    ///         Keeper/guardian only, and only once the batch has been open for
+    ///         RECOVERY_DELAY: the contract, not the keeper, enforces the promised window.
+    ///         Deliberately NOT gated on pause flags: pause-then-recover is the incident
+    ///         sequence. Amounts are explicit because a younger payment may share the clone.
+    function recover(uint256 eureAmount, uint256 usdcAmount) external nonReentrant onlyKeeper {
+        _requireBatchAge(RECOVERY_DELAY, DelayNotElapsed.selector);
+        if (eureAmount == 0 && usdcAmount == 0) revert InvalidAmount();
+        if (eureAmount > EURE.balanceOf(address(this)) || usdcAmount > USDC.balanceOf(address(this))) {
+            revert InvalidAmount();
         }
-        emit TokenSwept(token, to, balance);
+        _transfer(EURE, RECOVERY_WALLET, eureAmount);
+        _transfer(USDC, RECOVERY_WALLET, usdcAmount);
+        _syncBatch(true);
+        emit Recovered(msg.sender, eureAmount, usdcAmount);
     }
 
     // ----------------------------------------------------------- guardian authority
 
-    /// @notice Protective-only: blocks swaps (compliance holds, dormancy gate — R05).
-    ///         Cannot move funds, change config, or block fallback paths.
+    /// @notice Protective-only: blocks swaps and forwards (compliance holds, dormancy gate —
+    ///         R05). Cannot move funds, change config, or block a recovery.
     function setGuardianPaused(bool paused) external onlyGuardian {
         guardianPaused = paused;
         emit GuardianPausedSet(paused);
@@ -565,6 +568,21 @@ contract VortexForwarder {
 
     // ---------------------------------------------------------------- helpers
 
+    function _privileged() internal view returns (bool) {
+        return msg.sender == FACTORY.guardian() || FACTORY.isKeeper(msg.sender);
+    }
+
+    /// @dev Reverts with `err` unless the batch marker is armed and older than `delay`.
+    function _requireBatchAge(uint256 delay, bytes4 err) internal view {
+        if (batchOpenedAt == 0 || block.timestamp - batchOpenedAt < delay) {
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                mstore(0, err)
+                revert(0, 4)
+            }
+        }
+    }
+
     /// @dev The floor is the worse-for-the-client bound, so it may never sit above the
     ///      target, and both are capped by the immutable MAX_FEE_PPM.
     function _validateFeePolicy(uint32 targetPpm_, uint32 floorPpm_) internal view {
@@ -575,7 +593,7 @@ contract VortexForwarder {
         if (account == address(0)) revert ZeroAddress();
         if (
             account == address(EURE) || account == address(EURC) || account == address(USDC)
-                || account == address(ROUTER) || account == address(this)
+                || account == address(ROUTER) || account == address(this) || account == RECOVERY_WALLET
         ) revert InvalidConfigAddress();
     }
 

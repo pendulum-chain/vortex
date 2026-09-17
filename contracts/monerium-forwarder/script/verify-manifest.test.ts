@@ -9,8 +9,8 @@ describe("manifest diff severity", () => {
     expect(severityFor("factory.operational.routes.0.enabled")).toBe("NOTICE");
   });
 
-  it("keeps client changes expected and immutable changes fatal", () => {
-    expect(severityFor("forwarders.0x123.clientMutable.destination")).toBe("EXPECTED-TRANSITION");
+  it("treats the per-clone destination and registration as immutable", () => {
+    expect(severityFor("forwarders.0x123.immutables.destination")).toBe("FAIL");
     expect(severityFor("forwarders.0x123.immutables.isForwarder")).toBe("FAIL");
     expect(severityFor("forwarders.0x123.runtimeBytecodeHash")).toBe("FAIL");
   });

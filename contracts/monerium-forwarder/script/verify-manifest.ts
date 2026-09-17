@@ -34,17 +34,13 @@ import {
  * contract source on a block explorer.
  *
  * Severity classes:
- *   FAIL                 immutable/bytecode/deploy-provenance mismatch -> exit 1
- *   EXPECTED-TRANSITION  clientMutable fields (destination/fallbackAddress) changed by
- *                        the client's own fallbackAddress (`onlyFallback` in the
- *                        contract). Owner-authorized, not an incident (re-review R07);
- *                        regenerate + republish the manifest. exit 0
- *   NOTICE               guardian-tunable forwarder/factory parameters, a stale
- *                        forwarder list (new deployments since publication), or a
- *                        skipped completeness check. exit 0
+ *   FAIL     immutable/bytecode/deploy-provenance mismatch (the per-clone destination
+ *            is immutable too: it has no setter) -> exit 1
+ *   NOTICE   guardian-tunable forwarder/factory parameters, a stale forwarder list
+ *            (new deployments since publication), or a skipped completeness check. exit 0
  */
 
-export type Severity = "FAIL" | "EXPECTED-TRANSITION" | "NOTICE";
+export type Severity = "FAIL" | "NOTICE";
 
 export interface Diff {
   actual: string;
@@ -70,7 +66,6 @@ function flatten(value: unknown, prefix: string, out: Map<string, string>): void
 }
 
 export function severityFor(path: string): Severity {
-  if (path.includes(".clientMutable.")) return "EXPECTED-TRANSITION";
   if (path.includes(".guardianMutable.")) return "NOTICE";
   if (path.includes(".operational.")) return "NOTICE";
   return "FAIL";
@@ -192,16 +187,15 @@ async function main(): Promise<void> {
   }
 
   const failures = diffs.filter(diff => diff.severity === "FAIL").length;
-  const transitions = diffs.filter(diff => diff.severity === "EXPECTED-TRANSITION").length;
   const notices = diffs.filter(diff => diff.severity === "NOTICE").length;
 
   if (failures > 0) {
-    console.log(`VERIFICATION FAILED: ${failures} mismatch(es), ${transitions} expected transition(s), ${notices} notice(s)`);
+    console.log(`VERIFICATION FAILED: ${failures} mismatch(es), ${notices} notice(s)`);
     process.exit(1);
   }
-  if (transitions > 0 || notices > 0) {
+  if (notices > 0) {
     console.log(
-      `VERIFICATION PASSED with ${transitions} owner-authorized transition(s) and ${notices} notice(s) — ` +
+      `VERIFICATION PASSED with ${notices} notice(s) — ` +
         "regenerate and republish the manifest to fold them in (consistency evidence only, NOT a trust root — R01)"
     );
     return;

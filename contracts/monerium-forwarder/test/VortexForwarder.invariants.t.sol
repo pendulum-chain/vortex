@@ -9,9 +9,11 @@ import {MockERC20, MockOracle, MockRouter} from "./VortexForwarder.t.sol";
 
 /// Randomized action handler. Ghost variables track every token unit entering the
 /// system so the invariants below can assert exit-path exhaustiveness (plan §2.3.1):
-/// EURe may sit in the forwarder, be consumed by the router, or reach the client's
-/// fallback; USDC may only reach destination + feeRecipient (plus vault subsidies that
-/// reach destination); nothing else, ever.
+/// EURe may sit in the forwarder, be consumed by the router, or reach the Vortex
+/// recovery wallet; USDC may sit on the forwarder or reach destination, feeRecipient
+/// or the recovery wallet (plus vault subsidies, which land on the forwarder first);
+/// nothing else, ever. A recovery is only ever possible RECOVERY_DELAY after a batch
+/// opened, and a chunk swap never re-times an open batch.
 contract ForwarderHandler is Test {
     VortexForwarderFactory public factory;
     VortexForwarder public fwd;
@@ -23,7 +25,7 @@ contract ForwarderHandler is Test {
     MockRouter public router;
 
     address public destination = makeAddr("destination");
-    address public fallbackAddr = makeAddr("fallbackAddr");
+    address public recoveryWallet = makeAddr("recoveryWallet");
     address public keeper = makeAddr("keeper");
     address public rando = makeAddr("rando");
     address public feeRecipient = makeAddr("feeRecipient");
@@ -32,13 +34,17 @@ contract ForwarderHandler is Test {
     uint256 public ghostEureMinted;
     uint256 public ghostUsdcPaidByRouter;
     uint256 public ghostSubsidyPaid;
-    uint256 public fallbackSweepFailures;
     /// Successful swaps whose client net landed below the oracle floor, or keeper swaps
     /// below the policy floor, or fees above MAX_FEE_PPM. Must stay zero.
     uint256 public pricingViolations;
+    /// Recoveries that succeeded less than RECOVERY_DELAY after their batch opened. Must stay zero.
+    uint256 public earlyRecoveries;
+    /// Swaps that changed an already-armed batch marker. Must stay zero.
+    uint256 public markerRetimes;
     uint32 public immutable INITIAL_TARGET_PPM = 1_250;
     uint32 public immutable INITIAL_FLOOR_PPM = 1_500;
     uint256 public constant VAULT_FUNDING = 10_000e6;
+    uint256 public constant RECOVERY_DELAY = 2 hours;
     uint256 constant REFERENCE = 1.14e8;
 
     constructor() {
@@ -57,11 +63,12 @@ contract ForwarderHandler is Test {
                 oracle: address(oracle),
                 attestor: vm.addr(0xA11CE),
                 feeRecipient: feeRecipient,
+                recoveryWallet: recoveryWallet,
                 maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
-                slippageBps: 40,
+                slippageBps: 60,
                 maxFeePpm: 10_000,
                 maxReferenceDeviationBps: 100,
-                sweepDelay: 7 days, // registry P3
+                recoveryDelay: RECOVERY_DELAY, // registry P3
                 triggerDelay: 24 hours,
                 recoveryHash: bytes32(0)
             }),
@@ -78,9 +85,7 @@ contract ForwarderHandler is Test {
         usdc.mint(address(vault), VAULT_FUNDING);
         factory.setSubsidyVault(address(vault));
         fwd = VortexForwarder(
-            factory.deployForwarder(
-                destination, fallbackAddr, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1))
-            )
+            factory.deployForwarder(destination, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1)))
         );
         ghostExpectedTargetPpm = INITIAL_TARGET_PPM;
         ghostExpectedFloorPpm = INITIAL_FLOOR_PPM;
@@ -104,40 +109,61 @@ contract ForwarderHandler is Test {
 
     /// Router pays a randomized amount around the fair oracle value: far below exercises
     /// the floor/cap reverts, slightly below the subsidy path, above the fee path.
-    function keeperSwap(uint96 raw) external {
-        _swapAs(keeper, raw);
+    function keeperSwap(uint96 raw, uint96 rawAmount) external {
+        _swapAs(keeper, raw, rawAmount);
     }
 
-    function randoSwap(uint96 raw) external {
-        _swapAs(rando, raw);
+    function randoSwap(uint96 raw, uint96 rawAmount) external {
+        _swapAs(rando, raw, rawAmount);
     }
 
-    function _swapAs(address caller, uint96 raw) internal {
+    function _swapAs(address caller, uint96 raw, uint96 rawAmount) internal {
         oracle.set(1.14e8, block.timestamp);
         uint256 balance = eure.balanceOf(address(fwd));
-        uint256 amountIn = balance > 10_000e18 ? 10_000e18 : balance;
+        uint256 ceiling = balance > 10_000e18 ? 10_000e18 : balance;
+        // Mostly legal amounts; occasionally out of bounds to exercise the reverts.
+        uint256 amountIn = bound(uint256(rawAmount), 0, ceiling + 30e18);
         uint256 fair = (amountIn * REFERENCE) / 1e20;
         uint256 payout = bound(uint256(raw), (fair * 95) / 100, (fair * 105) / 100);
         router.setNextOut(payout);
 
         uint256 routerUsdcBefore = usdc.totalMinted();
         uint256 vaultBefore = usdc.balanceOf(address(vault));
-        uint256 destinationBefore = usdc.balanceOf(destination);
+        uint256 cloneBefore = usdc.balanceOf(address(fwd));
         uint256 feeBefore = usdc.balanceOf(feeRecipient);
+        uint64 markerBefore = fwd.batchOpenedAt();
         vm.prank(caller);
-        try fwd.swapAndForward(REFERENCE, 0) {
+        try fwd.swap(REFERENCE, 0, amountIn) {
             uint256 paid = usdc.totalMinted() - routerUsdcBefore;
             ghostUsdcPaidByRouter += paid;
             ghostSubsidyPaid += vaultBefore - usdc.balanceOf(address(vault));
-            uint256 net = usdc.balanceOf(destination) - destinationBefore;
-            if (net < (fair * 9_960) / 10_000) pricingViolations++; // Chainlink - 40 bps
+            uint256 net = usdc.balanceOf(address(fwd)) - cloneBefore; // fill - fee + subsidy
+            if (net < (fair * 9_940) / 10_000) pricingViolations++; // Chainlink - 60 bps
             if (caller == keeper && net < (fair * (1_000_000 - fwd.floorPpm())) / 1_000_000) pricingViolations++;
             if (usdc.balanceOf(feeRecipient) - feeBefore > paid / 100) pricingViolations++; // MAX_FEE_PPM
+            if (markerBefore != 0 && fwd.batchOpenedAt() != markerBefore) markerRetimes++;
         } catch {}
     }
 
-    function sweepStranded() external {
-        try fwd.sweepStrandedEure() {} catch {}
+    function keeperForward(uint96 raw) external {
+        uint256 amount = bound(uint256(raw), 0, usdc.balanceOf(address(fwd)) + 1e6);
+        vm.prank(keeper);
+        try fwd.forward(amount) {} catch {}
+    }
+
+    function forwardAllAs(bool asKeeper) external {
+        vm.prank(asKeeper ? keeper : rando);
+        try fwd.forwardAll() {} catch {}
+    }
+
+    function keeperRecover(uint96 rawEure, uint96 rawUsdc) external {
+        uint256 eureAmount = bound(uint256(rawEure), 0, eure.balanceOf(address(fwd)) + 1e18);
+        uint256 usdcAmount = bound(uint256(rawUsdc), 0, usdc.balanceOf(address(fwd)) + 1e6);
+        uint64 opened = fwd.batchOpenedAt();
+        vm.prank(keeper);
+        try fwd.recover(eureAmount, usdcAmount) {
+            if (opened == 0 || block.timestamp - opened < RECOVERY_DELAY) earlyRecoveries++;
+        } catch {}
     }
 
     function guardianPause(bool paused) external {
@@ -169,28 +195,13 @@ contract ForwarderHandler is Test {
         } catch {}
     }
 
-    function clientPause(bool paused) external {
-        vm.prank(fallbackAddr);
-        fwd.setClientPaused(paused);
-    }
-
-    /// The client exit hatch must NEVER fail, including while paused (plan §2.3.4).
-    function clientSweepEure() external {
-        vm.prank(fallbackAddr);
-        try fwd.sweep(address(eure), fallbackAddr) {}
-        catch {
-            fallbackSweepFailures++;
-        }
-    }
-
     function randoTriesPrivilegedCalls(uint8 selector) external {
         vm.startPrank(rando);
-        if (selector % 6 == 0) try fwd.setDestination(rando) {} catch {}
-        if (selector % 6 == 1) try fwd.setGuardianPaused(true) {} catch {}
-        if (selector % 6 == 2) try fwd.setFallbackAddress(rando) {} catch {}
-        if (selector % 6 == 3) try fwd.sweep(address(eure), rando) {} catch {}
-        if (selector % 6 == 4) try fwd.setFeePolicy(99, 99) {} catch {}
-        if (selector % 6 == 5) try vault.setDailyBudget(type(uint256).max) {} catch {}
+        if (selector % 5 == 0) try fwd.setGuardianPaused(true) {} catch {}
+        if (selector % 5 == 1) try fwd.forward(usdc.balanceOf(address(fwd))) {} catch {}
+        if (selector % 5 == 2) try fwd.recover(eure.balanceOf(address(fwd)), usdc.balanceOf(address(fwd))) {} catch {}
+        if (selector % 5 == 3) try fwd.setFeePolicy(99, 99) {} catch {}
+        if (selector % 5 == 4) try vault.setDailyBudget(type(uint256).max) {} catch {}
         vm.stopPrank();
     }
 }
@@ -204,25 +215,26 @@ contract VortexForwarderInvariantTest is Test {
     }
 
     /// Exit-path exhaustiveness for EURe: every unit ever minted into the forwarder is
-    /// either still there, consumed by the router (swap), or at the client's fallback.
+    /// either still there, consumed by the router (swap), or at the recovery wallet.
     function invariant_eureConservation() public view {
         uint256 accounted = handler.eure().balanceOf(address(handler.fwd()))
-            + handler.eure().balanceOf(address(handler.router())) + handler.eure().balanceOf(handler.fallbackAddr());
+            + handler.eure().balanceOf(address(handler.router())) + handler.eure().balanceOf(handler.recoveryWallet());
         assertEq(accounted, handler.ghostEureMinted(), "EURe leaked to an unexpected address");
     }
 
     /// Exit-path exhaustiveness for USDC: everything the router ever paid plus every
-    /// subsidy the vault ever paid ends up split between destination and feeRecipient;
-    /// the forwarder retains nothing and the vault only ever shrinks by what it paid.
-    function invariant_usdcOnlyReachesDestinationAndFee() public view {
-        uint256 accounted =
-            handler.usdc().balanceOf(handler.destination()) + handler.usdc().balanceOf(handler.feeRecipient());
+    /// subsidy the vault ever paid is either still on the forwarder or split between
+    /// destination, feeRecipient and the recovery wallet; the vault only ever shrinks
+    /// by what it paid.
+    function invariant_usdcOnlyReachesDestinationFeeOrRecovery() public view {
+        uint256 accounted = handler.usdc().balanceOf(address(handler.fwd()))
+            + handler.usdc().balanceOf(handler.destination()) + handler.usdc().balanceOf(handler.feeRecipient())
+            + handler.usdc().balanceOf(handler.recoveryWallet());
         assertEq(
             accounted,
             handler.ghostUsdcPaidByRouter() + handler.ghostSubsidyPaid(),
             "USDC leaked to an unexpected address"
         );
-        assertEq(handler.usdc().balanceOf(address(handler.fwd())), 0, "forwarder retained USDC");
         assertEq(
             handler.usdc().balanceOf(address(handler.vault())),
             handler.VAULT_FUNDING() - handler.ghostSubsidyPaid(),
@@ -237,26 +249,31 @@ contract VortexForwarderInvariantTest is Test {
         assertEq(handler.pricingViolations(), 0, "a swap violated a pricing bound");
     }
 
+    /// A recovery can only ever happen RECOVERY_DELAY after the batch opened: the
+    /// contract, not the keeper, enforces the promised window.
+    function invariant_recoveryNeverEarly() public view {
+        assertEq(handler.earlyRecoveries(), 0, "a recovery ran before RECOVERY_DELAY");
+    }
+
+    /// Chunking a payment never restarts its recovery clock.
+    function invariant_swapNeverRetimesTheBatch() public view {
+        assertEq(handler.markerRetimes(), 0, "a swap re-timed an open batch");
+    }
+
     /// Config changes only through their authorized paths: the fee policy moves
     /// exclusively via the guardian's timelocked setter (P11 ghost model tracks every
     /// legal transition — a rando call or an early apply can never move it), stays
-    /// ordered and capped; destination/fallback never change without their owner.
+    /// ordered and capped; the destination never changes at all.
     function invariant_configIntegrity() public view {
         assertEq(handler.fwd().targetPpm(), handler.ghostExpectedTargetPpm(), "target moved outside the timelock path");
         assertEq(handler.fwd().floorPpm(), handler.ghostExpectedFloorPpm(), "floor moved outside the timelock path");
         assertLe(handler.fwd().targetPpm(), handler.fwd().floorPpm(), "target above floor");
         assertLe(handler.fwd().floorPpm(), 10_000, "floor exceeded MAX_FEE_PPM");
         assertEq(handler.fwd().destination(), handler.destination());
-        assertEq(handler.fwd().fallbackAddress(), handler.fallbackAddr());
     }
 
-    /// Guardian/global pause must never block the client's exit hatch.
-    function invariant_fallbackSweepNeverBlocked() public view {
-        assertEq(handler.fallbackSweepFailures(), 0, "client exit hatch was blocked");
-    }
-
-    /// The stranding marker never points into the future.
-    function invariant_strandedSinceNotInFuture() public view {
-        assertLe(handler.fwd().strandedSince(), block.timestamp);
+    /// The batch marker never points into the future.
+    function invariant_batchMarkerNotInFuture() public view {
+        assertLe(handler.fwd().batchOpenedAt(), block.timestamp);
     }
 }

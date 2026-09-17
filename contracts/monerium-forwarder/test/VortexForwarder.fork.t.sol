@@ -38,7 +38,7 @@ contract VortexForwarderForkTest is Test {
 
     address attestor = vm.addr(0xA11CE);
     address destination = makeAddr("destination");
-    address fallbackAddr = makeAddr("fallbackAddr");
+    address recoveryWallet = makeAddr("recoveryWallet");
     address keeper = makeAddr("keeper");
 
     bool forked;
@@ -58,11 +58,12 @@ contract VortexForwarderForkTest is Test {
                 oracle: CHAINLINK_EUR_USD,
                 attestor: attestor,
                 feeRecipient: makeAddr("feeRecipient"),
+                recoveryWallet: recoveryWallet,
                 maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
-                slippageBps: 40,
+                slippageBps: 60,
                 maxFeePpm: 10_000,
                 maxReferenceDeviationBps: 100,
-                sweepDelay: 7 days, // registry P3
+                recoveryDelay: 2 hours, // registry P3
                 triggerDelay: 24 hours,
                 recoveryHash: bytes32(0)
             }),
@@ -78,7 +79,7 @@ contract VortexForwarderForkTest is Test {
         );
         deal(USDC, address(vault), 1_000e6);
         factory.setSubsidyVault(address(vault));
-        fwd = VortexForwarder(factory.deployForwarder(destination, fallbackAddr, 1_250, 1_500, bytes32(uint256(1))));
+        fwd = VortexForwarder(factory.deployForwarder(destination, 1_250, 1_500, bytes32(uint256(1))));
     }
 
     /// The keeper's reference in these tests is Chainlink itself (trivially inside the band).
@@ -117,7 +118,7 @@ contract VortexForwarderForkTest is Test {
         assertGt(IERC20Meta(EURE_V2).balanceOf(hop1), 0, "pinned hop1 pool holds no V2 EURe");
     }
 
-    function test_fork_swapAndForward_executesWithinOracleBounds() public onlyForked {
+    function test_fork_swapThenForward_executesWithinOracleBounds() public onlyForked {
         uint256 amountIn = 1_000e18;
         deal(EURE_V2, address(fwd), amountIn); // stdStorage balance override
 
@@ -125,23 +126,38 @@ contract VortexForwarderForkTest is Test {
         uint256 fair = (amountIn * uint256(answer)) / 1e20; // 6-dec USDC at oracle rate
 
         vm.prank(keeper);
-        fwd.swapAndForward(_reference(), 0);
+        fwd.swap(_reference(), 0, amountIn);
+        assertEq(IERC20Meta(USDC).balanceOf(destination), 0, "USDC must wait on the clone until forward");
 
         // With the vault funded the client lands at or above the policy floor (15 bps),
         // whether by fill, fee, or subsidy; the oracle floor is the hard lower bound.
-        uint256 received = IERC20Meta(USDC).balanceOf(destination);
-        assertGe(received, (fair * 998_500) / 1_000_000, "below the policy floor");
-        assertGe(received, (fair * 9_960) / 10_000, "below the oracle floor");
-        assertLe(received, (fair * 10_300) / 10_000, "implausibly above oracle rate");
+        uint256 converted = IERC20Meta(USDC).balanceOf(address(fwd));
+        assertGe(converted, (fair * 998_500) / 1_000_000, "below the policy floor");
+        assertGe(converted, (fair * 9_940) / 10_000, "below the oracle floor");
+        assertLe(converted, (fair * 10_300) / 10_000, "implausibly above oracle rate");
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 0, "EURe left behind");
+
+        vm.prank(keeper);
+        fwd.forward(converted);
+        assertEq(IERC20Meta(USDC).balanceOf(destination), converted);
         assertEq(IERC20Meta(USDC).balanceOf(address(fwd)), 0, "USDC left behind");
     }
 
-    function test_fork_perSwapCapLeavesRemainder() public onlyForked {
+    function test_fork_chunkedPayment_accumulatesThenRecovers() public onlyForked {
         deal(EURE_V2, address(fwd), 12_000e18); // cap is 10k
         vm.prank(keeper);
-        fwd.swapAndForward(_reference(), 0);
+        fwd.swap(_reference(), 0, 10_000e18);
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 2_000e18);
-        assertGt(IERC20Meta(USDC).balanceOf(destination), 0);
+        uint256 converted = IERC20Meta(USDC).balanceOf(address(fwd));
+        assertGt(converted, 0);
+
+        // The promised window passes with the remainder unconverted: recover the whole
+        // payment (unconverted EURe + converted USDC) to the recovery wallet.
+        vm.warp(block.timestamp + fwd.RECOVERY_DELAY());
+        vm.prank(keeper);
+        fwd.recover(2_000e18, converted);
+        assertEq(IERC20Meta(EURE_V2).balanceOf(recoveryWallet), 2_000e18);
+        assertEq(IERC20Meta(USDC).balanceOf(recoveryWallet), converted);
+        assertEq(IERC20Meta(USDC).balanceOf(destination), 0);
     }
 }
