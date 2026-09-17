@@ -318,11 +318,24 @@ and sends at most one transaction per account per cycle:
   re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
   recovery, so a younger payment sharing the clone gets its own clock. The keeper
   recovers before it converts anything else, and still does so on suspended or dormant
-  accounts (`recover` ignores the guardian pause). Off the clone the refund is manual for
-  now (runbook §2.7): the USDC is swapped back to EURe, a float wallet covers the
-  slippage residue, and a Monerium redeem order from the recovery wallet's company
-  profile returns the exact issue amount to the payer's IBAN; the operator then marks the
-  deposit `refunded`.
+  accounts (`recover` ignores the guardian pause). Off the clone, `recovery.ts` drives
+  the refund when `MONERIUM_B2B_AUTO_RECOVERY=auto` (`alert` only reports deposits past
+  the window; `off` leaves everything to runbook §2.7): once the `recover` is confirmed
+  a `monerium_recoveries` row walks `moved → swapping → swapped → topping_up →
+  topped_up → redeeming → redeemed` — the USDC is swapped back to EURe on the reversed
+  whitelisted route with a Chainlink-derived minimum, the EURe float tops the recovery
+  wallet up to exactly the issue amount (or a surplus is swept back to the float), and a
+  Monerium redeem order from the recovery wallet returns the exact amount to the payer's
+  IBAN (`payer_iban` / `payer_name`, captured from the issue order's counterpart). The
+  deposit becomes `refunded` when Monerium processes the order. One refund runs at a
+  time: every step re-derives what is left to do from the dedicated recovery wallet's
+  balances (so a lost transaction hash never repeats a send), and the keeper refuses a
+  second `recover` while one is in flight. A step that fails beyond its retries, a
+  missing payer, or an amount that needs a supporting document (EUR 15,000 and above)
+  parks the deposit in `recovery_failed` with the phase preserved; an operator retry
+  (deposit back to `recovering`) resumes there. The promised window is
+  `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (120) counted from the mint block
+  (`minted_at`); the on-chain `RECOVERY_DELAY` is its floor.
 - **Liveness without Vortex.** Past `TRIGGER_DELAY` (24 h) anyone may `swap` (Chainlink
   reference, no subsidy) and `forwardAll` the clone's USDC to the destination; payments
   may merge on that path, and the keeper reconciles what it did not send by hand.
@@ -419,6 +432,9 @@ read-only — no keys, no transactions:
    a delisted or halted product keeps answering the candles endpoint with stale data
    and would make every keeper swap defer silently, so its status is an error line
    rather than an assumption.
+7. **Refund monitor** (automated refunds only). The one active recovery must not
+   linger (warn after an hour, error after four or on a failed step) and the EURe float
+   must not run dry.
 
 ## Data model — the Monerium B2B tables
 
@@ -470,7 +486,8 @@ erDiagram
 | Table | Purpose |
 |---|---|
 | `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
-| `monerium_fiat_deposits` (069, 070, 073, 076, 080) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity, and two webhook-emission markers |
+| `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
+| `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, attempts and the last error |
 | `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, averaging window, time) and route, then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |
