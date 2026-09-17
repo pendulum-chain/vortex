@@ -1,5 +1,6 @@
 import {
   assetHubTokenConfig,
+  doesNetworkSupportEurOnramp,
   doesNetworkSupportRamp,
   EvmNetworks,
   FiatToken,
@@ -19,6 +20,7 @@ import {
 import { useMemo } from "react";
 import { isFrontendNetworkEnabled } from "../../../config/networkAvailability";
 import { getEvmTokenConfig } from "../../../services/tokens";
+import { useFiatToken } from "../../../stores/quote/useQuoteFormStore";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
 import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
@@ -26,10 +28,11 @@ import { ExtendedTokenDefinition } from "./hooks/useTokenSelection";
 export function useTokenDefinitions(filter: string, selectedNetworkFilter: Networks | "all") {
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
+  const fiatToken = useFiatToken();
 
   const allDefinitions = useMemo(
-    () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection),
-    [tokenSelectModalType, rampDirection]
+    () => getAllSupportedTokenDefinitions(tokenSelectModalType, rampDirection, fiatToken),
+    [tokenSelectModalType, rampDirection, fiatToken]
   );
 
   const availableNetworks = useMemo(() => {
@@ -171,10 +174,18 @@ function isFiatDirection(type: "from" | "to", direction: RampDirection) {
   return (isBuy && type === "from") || (!isBuy && type === "to");
 }
 
-function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
+function getAllSupportedTokenDefinitions(
+  type: "from" | "to",
+  direction: RampDirection,
+  fiatToken: FiatToken
+): ExtendedTokenDefinition[] {
   if (isFiatDirection(type, direction)) {
     return getFiatTokens();
-  } else {
-    return getAllOnChainTokens();
   }
+  const onChainTokens = getAllOnChainTokens();
+  // The EUR onramp settles on EVM networks only.
+  if (direction === RampDirection.BUY && fiatToken === FiatToken.EURC) {
+    return onChainTokens.filter(token => doesNetworkSupportEurOnramp(token.network));
+  }
+  return onChainTokens;
 }

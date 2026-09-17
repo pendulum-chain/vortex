@@ -16,8 +16,8 @@ describe("isCorridorAvailableForAccountType", () => {
 });
 
 describe("isCorridorOnboardingDisabled", () => {
-  it("disables EU onboarding only, leaving every other corridor untouched", () => {
-    assert.equal(isCorridorOnboardingDisabled(CORRIDORS.EU), true);
+  it("disables no corridor now that EU onboarding runs through Monerium again", () => {
+    assert.equal(isCorridorOnboardingDisabled(CORRIDORS.EU), false);
     for (const corridor of [CORRIDORS.AR, CORRIDORS.BR, CORRIDORS.CO, CORRIDORS.MX, CORRIDORS.US]) {
       assert.equal(isCorridorOnboardingDisabled(corridor), false);
     }

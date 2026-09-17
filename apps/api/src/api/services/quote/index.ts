@@ -3,6 +3,7 @@ import {
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
+  doesNetworkSupportEurOnramp,
   EvmToken,
   FiatToken,
   getNetworkFromDestination,
@@ -54,6 +55,9 @@ export class QuoteService extends BaseRampService {
       userId?: string;
     }
   ): Promise<QuoteResponse> {
+    assertEurOfframpSupported(request);
+    assertEurOnrampEnabled(request);
+    assertEurOnrampNetworkSupported(request);
     return this.executeQuoteCalculation(request);
   }
 
@@ -84,6 +88,8 @@ export class QuoteService extends BaseRampService {
       userId?: string;
     }
   ): Promise<QuoteResponse> {
+    assertEurOfframpSupported(request);
+    assertEurOnrampEnabled(request);
     const { rampType, from, to, networks } = request;
 
     // Determine eligible networks based on the corridor
@@ -244,11 +250,6 @@ export class QuoteService extends BaseRampService {
         throw createLowLiquidityQuoteError();
       }
 
-      // Surface an anchor (Mykobo) outage distinctly instead of the generic quote failure
-      if (error instanceof MykoboFeeUnavailableError) {
-        throw new APIError({ message: QuoteError.AnchorTemporarilyUnavailable, status: httpStatus.SERVICE_UNAVAILABLE });
-      }
-
       // Detect Alfredpay trade limit error and surface it as a user-facing limit error
       if (error instanceof AlfredpayTradeLimitError) {
         throw mapAlfredpayLimitErrorToApiError(error, ctx.request.rampType === RampDirection.BUY);
@@ -290,6 +291,43 @@ export class QuoteService extends BaseRampService {
       // Return all supported 'from' networks that are actually Networks
       return supportedChains.from.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
     }
+  }
+}
+
+function assertEurOfframpSupported(request: Pick<CreateQuoteRequest, "outputCurrency" | "rampType">): void {
+  if (request.rampType === RampDirection.SELL && request.outputCurrency === FiatToken.EURC) {
+    throw new APIError({
+      isPublic: true,
+      message: "EUR offramps are not supported",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+/** Operational kill switch (`EUR_ONRAMP_ENABLED=false`): new EUR pay-in quotes stop, registered ramps keep executing. */
+function assertEurOnrampEnabled(request: Pick<CreateQuoteRequest, "inputCurrency" | "rampType">): void {
+  if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && !config.monerium.eurOnrampEnabled) {
+    throw new APIError({
+      isPublic: true,
+      message: QuoteError.AnchorTemporarilyUnavailable,
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
+}
+
+/**
+ * Best-quote aggregation skips unsupported networks on its own; only a direct quote needs the
+ * public rejection so clients can tell an unsupported destination from a pricing failure.
+ */
+function assertEurOnrampNetworkSupported(request: Pick<CreateQuoteRequest, "inputCurrency" | "rampType" | "to">): void {
+  const network = getNetworkFromDestination(request.to);
+  if (
+    request.rampType === RampDirection.BUY &&
+    request.inputCurrency === FiatToken.EURC &&
+    network !== undefined &&
+    !doesNetworkSupportEurOnramp(network)
+  ) {
+    throw new APIError({ isPublic: true, message: QuoteError.EurOnrampNetworkUnsupported, status: httpStatus.BAD_REQUEST });
   }
 }
 

@@ -119,4 +119,10 @@ describe("getSupportedCryptocurrencies", () => {
       "Invalid network: 'pendulum'. Supported networks are:"
     );
   });
+
+  it("does not expose dormant EURe deployments", () => {
+    for (const network of [Networks.Base, Networks.Polygon]) {
+      expect(getSupportedCryptocurrencies(network).some(token => token.assetSymbol === "EURe")).toBe(false);
+    }
+  });
 });

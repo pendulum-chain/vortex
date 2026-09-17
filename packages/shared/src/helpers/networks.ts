@@ -155,6 +155,11 @@ export function isNetworkEVM(network: Networks): network is EvmNetworks {
   return getNetworkMetadata(network)?.isEVM ?? false;
 }
 
+/** The EUR onramp mints EURe on Polygon and settles there or bridges onward, so it delivers to every EVM network. */
+export function doesNetworkSupportEurOnramp(network: Networks): network is EvmNetworks {
+  return isNetworkEVM(network);
+}
+
 export function isNetworkAssetHub(network: Networks): network is Networks.AssetHub {
   return getNetworkMetadata(network)?.id === ASSETHUB_CHAIN_ID;
 }

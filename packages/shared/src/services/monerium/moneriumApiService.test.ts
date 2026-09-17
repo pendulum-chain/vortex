@@ -331,3 +331,31 @@ describe("MoneriumApiService resource mappings", () => {
     expect((fetchMock.mock.calls[2][1] as RequestInit).body).toBe(JSON.stringify({ state: "inactive" }));
   });
 });
+
+describe("MoneriumApiService.forUserAccessToken", () => {
+  test("sends the user token, never requests a client token, and does not retry a 401", async () => {
+    const calls: Array<{ auth: string | null; url: string }> = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ auth: new Headers(init?.headers).get("Authorization"), url: String(input) });
+      if (calls.length === 1) {
+        return Response.json({
+          details: { state: "approved" },
+          form: { state: "approved" },
+          id: PROFILE_ID,
+          kind: "personal",
+          name: "Jane Doe",
+          state: "approved",
+          verifications: []
+        });
+      }
+      return new Response("", { status: 401 });
+    }) as unknown as typeof fetch;
+
+    const client = MoneriumApiService.forUserAccessToken("user-token");
+    await expect(client.getProfile(PROFILE_ID)).resolves.toMatchObject({ id: PROFILE_ID, state: "approved" });
+    await expect(client.getProfile(PROFILE_ID)).rejects.toMatchObject({ status: 401 });
+
+    expect(calls).toHaveLength(2);
+    expect(calls.every(call => call.auth === "Bearer user-token" && !call.url.endsWith("/auth/token"))).toBe(true);
+  });
+});

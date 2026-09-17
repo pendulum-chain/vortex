@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "@tanstack/react-router";
 import { getEvmTokensLoadedSnapshot, RampDirection, subscribeEvmTokensLoaded } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
@@ -13,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CORRIDORS } from "@/domain/corridors";
-import { getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
+import { eurOnrampBlocker, getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
+import { shortenAddress } from "@/domain/transfer";
 import type { CorridorId, SenderAccount } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { formatCurrencyAmount } from "@/lib/amount";
@@ -108,6 +110,8 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         }
       : null;
   const { data: quote, error, isFetching } = useQuote(quoteParams);
+  const eurRamp = account.onboardings.EU?.ramp ?? null;
+  const eurBlocker = corridorId === "EU" ? eurOnrampBlocker(eurRamp, address) : null;
   const transferState = useSelector(transferActor, snapshot => snapshot);
   const activeOwnerProfileId = transferState.context.activeOwnerProfileId;
   const belongsToActiveOwner =
@@ -140,11 +144,20 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   }
 
   function submit(values: OnrampFormValues) {
-    if (!quote || !quoteParams || !activeOwnerProfileId || activeTransfer) {
+    if (!quote || !quoteParams || !activeOwnerProfileId || activeTransfer || eurBlocker) {
       return;
     }
     transferActor.send({
-      additionalData: { destinationAddress: values.destinationAddress },
+      // A EUR pay-in also names the connected wallet: it owns the Monerium-linked address and
+      // signs the permit that moves the minted EURe on.
+      additionalData:
+        values.corridorId === "EU" && address
+          ? {
+              customerType: account.type === "company" ? "business" : "individual",
+              destinationAddress: values.destinationAddress,
+              walletAddress: address
+            }
+          : { destinationAddress: values.destinationAddress },
       meta: {
         accountId: account.id,
         amountIn: quote.inputAmount,
@@ -187,7 +200,11 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
               <FormControl>
                 <Input autoComplete="off" placeholder="0x…" {...field} />
               </FormControl>
-              <FormDescription>Tokens will be sent here. A wallet connection is not required.</FormDescription>
+              <FormDescription>
+                {corridorId === "EU"
+                  ? "Tokens will be sent here. Your connected Monerium-linked wallet signs the pay-in."
+                  : "Tokens will be sent here. A wallet connection is not required."}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -287,6 +304,26 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
             </div>
           )}
 
+        {eurBlocker && (
+          <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm" role="status">
+            <TriangleAlert className="mt-px size-4 shrink-0 text-warning" />
+            <p>
+              {eurBlocker === "link_wallet" ? (
+                <>
+                  Link the wallet you will pay in with to your Monerium profile first.{" "}
+                  <Link className="underline" search={{ onboarding: "EU" }} to="/overview">
+                    Finish EUR setup
+                  </Link>
+                </>
+              ) : eurBlocker === "connect_wallet" ? (
+                `Connect the wallet linked to Monerium (${shortenAddress(eurRamp?.linkedAddress ?? "")}) to sign the pay-in.`
+              ) : (
+                `Switch to the wallet linked to Monerium (${shortenAddress(eurRamp?.linkedAddress ?? "")}) to sign the pay-in.`
+              )}
+            </p>
+          </div>
+        )}
+
         {error ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm">
             <TriangleAlert className="mt-px size-4 shrink-0" />
@@ -305,8 +342,12 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
               </span>
             </div>
             <QuoteSummary isFetching={isFetching} quote={quote} />
-            <Button disabled={activeTransfer || isFetching} size="lg" type="submit">
-              {transferState.matches("Registering") ? "Preparing payment…" : "Continue to payment"}
+            <Button disabled={activeTransfer || isFetching || !!eurBlocker} size="lg" type="submit">
+              {transferState.matches("Registering")
+                ? "Preparing payment…"
+                : transferState.matches("SigningUserTxs")
+                  ? "Confirm in your wallet…"
+                  : "Continue to payment"}
             </Button>
           </>
         ) : (

@@ -13,6 +13,10 @@ export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadlin
 
 export type RampPhase =
   | "initial"
+  | "moneriumOnrampMint"
+  | "moneriumOnrampSelfTransfer"
+  | "uniswapApprove"
+  | "uniswapSwap"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
@@ -175,6 +179,8 @@ export interface RegisterRampRequest {
   signingAccounts: AccountMeta[];
   userId?: string;
   additionalData?: {
+    /** Selects the user's own individual or business Monerium profile for EUR BUY. */
+    customerType?: "individual" | "business";
     fiatAccountId?: string; // For determine the correct payment method for AlfredPay flows
     walletAddress?: string;
     destinationAddress?: string;

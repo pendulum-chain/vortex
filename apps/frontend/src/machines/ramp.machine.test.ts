@@ -21,7 +21,8 @@ import { RampLimitExceededError } from "./actors/validateKyc.actor";
 import { AlfredpayKycMachineError, AlfredpayKycMachineErrorType } from "@vortexfi/kyc";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
-import { MykoboKycMachineError, MykoboKycMachineErrorType, mykoboKycMachine } from "./mykoboKyc.machine";
+import type { moneriumKycMachine } from "./moneriumKyc.machine";
+import type { moneriumWalletMachine } from "./moneriumWallet.machine";
 import { RampContext, RampMachineEvents, RampState } from "./types";
 import { rampMachine } from "./ramp.machine";
 
@@ -106,14 +107,20 @@ function createRampActor(actors?: ProvideArg["actors"], actions?: ProvideArg["ac
   return createActor(rampMachine.provide(buildImplementations(actors, actions)));
 }
 
-/** Minimal final child machine standing in for the Mykobo KYC machine. It finishes on FINISH. */
-function stubMykoboMachine(output: { profileApproved?: boolean; error?: MykoboKycMachineError }) {
+/** Minimal child machine standing in for a Monerium step. It finishes with the given output on FINISH. */
+function stubFinalMachine<T>(output: unknown) {
   return setup({}).createMachine({
     initial: "Waiting",
     output: () => output,
     states: { Done: { type: "final" }, Waiting: { on: { FINISH: "Done" } } }
-  }) as unknown as typeof mykoboKycMachine;
+  }) as unknown as T;
 }
+
+const approvedMonerium = { customerType: "individual", status: "APPROVED" };
+const stubMoneriumKyc = (output: unknown = approvedMonerium) => stubFinalMachine<typeof moneriumKycMachine>(output);
+const stubMoneriumWallet = (output: unknown = { ready: true }) => stubFinalMachine<typeof moneriumWalletMachine>(output);
+const finishChild = (actor: ReturnType<typeof createRampActor>, id: string) =>
+  (actor.getSnapshot().children[id] as AnyActorRef).send({ type: "FINISH" });
 
 /** Minimal child machine standing in for an approved Avenia KYC machine. */
 const stubAveniaMachine = setup({}).createMachine({
@@ -463,53 +470,87 @@ describe("rampMachine", () => {
   });
 
   describe("KYC routing", () => {
-    it("routes EURC ramps with kycNeeded to the Mykobo child and advances to KycComplete on approval", async () => {
+    it("routes EURC ramps through Monerium verification and wallet linking before KycComplete", async () => {
       const actor = createRampActor({
-        mykoboKyc: stubMykoboMachine({ profileApproved: true }),
+        moneriumKyc: stubMoneriumKyc(),
+        moneriumWallet: stubMoneriumWallet(),
         validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
       });
       actor.start();
       await goToQuoteReady(actor);
       await confirmRamp(actor);
 
-      await waitFor(actor, s => s.matches({ KYC: "Mykobo" }));
-
-      (actor.getSnapshot().children.mykoboKyc as AnyActorRef).send({ type: "FINISH" });
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
+      finishChild(actor, "moneriumKyc");
+      await waitFor(actor, s => s.matches({ KYC: "MoneriumWallet" }));
+      finishChild(actor, "moneriumWallet");
       await waitFor(actor, s => s.matches("KycComplete"));
     });
 
-    it("returns to QuoteReady when the user cancels Mykobo KYC", async () => {
+    it("restarts the Monerium step with the OAuth callback that brought the user back", async () => {
       const actor = createRampActor({
-        mykoboKyc: stubMykoboMachine({
-          error: new MykoboKycMachineError("Cancelled by the user", MykoboKycMachineErrorType.UserRejected)
-        }),
+        moneriumKyc: stubMoneriumKyc(),
         validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
       });
       actor.start();
       await goToQuoteReady(actor);
       await confirmRamp(actor);
-      await waitFor(actor, s => s.matches({ KYC: "Mykobo" }));
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
+      const before = actor.getSnapshot().children.moneriumKyc;
 
-      (actor.getSnapshot().children.mykoboKyc as AnyActorRef).send({ type: "FINISH" });
-      await waitFor(actor, s => s.matches("QuoteReady"));
+      actor.send({ callback: { code: "code-1", state: "state-1" }, type: "MONERIUM_CALLBACK" });
+
+      expect(actor.getSnapshot().matches({ KYC: "Monerium" })).toBe(true);
+      expect(actor.getSnapshot().children.moneriumKyc).not.toBe(before);
+      expect(actor.getSnapshot().context.moneriumCallback).toEqual({ code: "code-1", state: "state-1" });
     });
 
-    it("a KYC rejection resets the ramp but keeps the failure message", async () => {
+    it("returns to QuoteReady without a message when the user closes Monerium before approval", async () => {
       const actor = createRampActor({
-        mykoboKyc: stubMykoboMachine({
-          error: new MykoboKycMachineError("KYC was rejected", MykoboKycMachineErrorType.KycRejected)
-        }),
+        moneriumKyc: stubMoneriumKyc({ customerType: "individual" }),
         validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
       });
       actor.start();
       await goToQuoteReady(actor);
       await confirmRamp(actor);
-      await waitFor(actor, s => s.matches({ KYC: "Mykobo" }));
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
 
-      (actor.getSnapshot().children.mykoboKyc as AnyActorRef).send({ type: "FINISH" });
-      // KycFailure immediately resets; the reset preserves initializeFailedMessage for the UI.
-      await waitFor(actor, s => s.matches("Idle"));
-      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("KYC was rejected");
+      finishChild(actor, "moneriumKyc");
+      await waitFor(actor, s => s.matches("QuoteReady"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBeUndefined();
+    });
+
+    it("a Monerium rejection returns to QuoteReady and keeps the failure message", async () => {
+      const actor = createRampActor({
+        moneriumKyc: stubMoneriumKyc({ customerType: "individual", status: "REJECTED" }),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor);
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
+
+      finishChild(actor, "moneriumKyc");
+      await waitFor(actor, s => s.matches("QuoteReady"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("Monerium has not approved your verification yet.");
+    });
+
+    it("an unlinked wallet returns to QuoteReady with the wallet step's message", async () => {
+      const actor = createRampActor({
+        moneriumKyc: stubMoneriumKyc(),
+        moneriumWallet: stubMoneriumWallet({ error: "Connect an EVM wallet to receive EUR", ready: false }),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor);
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
+      finishChild(actor, "moneriumKyc");
+      await waitFor(actor, s => s.matches({ KYC: "MoneriumWallet" }));
+
+      finishChild(actor, "moneriumWallet");
+      await waitFor(actor, s => s.matches("QuoteReady"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("Connect an EVM wallet to receive EUR");
     });
 
     it("BRL ramps with a valid KYC go straight to KycComplete", async () => {

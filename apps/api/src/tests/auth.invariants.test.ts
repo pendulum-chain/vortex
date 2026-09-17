@@ -186,19 +186,6 @@ describe("auth and ownership invariants", () => {
       expect(response.status).toBe(403);
     });
 
-    it("rejects EUR ramps while the EUR kill-switch is active", async () => {
-      // Current production behavior (ramp.service.ts): EURC quotes cannot be
-      // registered. Remove/adjust this test when EUR ramps are re-enabled.
-      const user = await createTestUser();
-      const quote = await createTestQuote({ inputCurrency: FiatToken.EURC, userId: user.id });
-
-      const response = await register(
-        { quoteId: quote.id, signingAccounts: SIGNING_ACCOUNTS },
-        { Authorization: `Bearer ${testUserToken(user.id)}` }
-      );
-      expect(response.status).toBe(503);
-    });
-
     it("rejects registration of a quote from the other flow variant", async () => {
       const user = await createTestUser();
       const quote = await createTestQuote({

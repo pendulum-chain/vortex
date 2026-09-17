@@ -15,6 +15,7 @@ import { notifyOnboardingStatus } from "@/lib/notify";
 import { AlfredpayKycFlow } from "./alfredpay/AlfredpayKycFlow";
 import { AveniaKycFlow } from "./avenia/AveniaKycFlow";
 import { MoneriumKycFlow } from "./monerium/MoneriumKycFlow";
+import { MoneriumWalletLinkFlow } from "./monerium/MoneriumWalletLinkFlow";
 
 interface OnboardingWizardProps {
   account: SenderAccount;
@@ -85,6 +86,12 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
             onClose={onClose}
             onSettled={onSettled}
             resume={aveniaResume}
+          />
+        ) : isLiveMoneriumKyc && onboarding?.status === "approved" ? (
+          <MoneriumWalletLinkFlow
+            customerType={account.type === "company" ? "business" : "individual"}
+            onClose={onClose}
+            onSettled={onSettled}
           />
         ) : isLiveMoneriumKyc ? (
           <MoneriumKycFlow

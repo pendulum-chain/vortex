@@ -1,7 +1,7 @@
 import { assign, type DoneActorEvent, fromPromise, setup } from "xstate";
 import type { MoneriumKycDeps } from "./api";
 import type { MoneriumKycContext, MoneriumKycInput, MoneriumKycOutput, MoneriumStatusResponse } from "./types";
-import { MoneriumAuthorizationRequiredError } from "./types";
+import { MONERIUM_REAUTHENTICATION_REQUIRED, MoneriumAuthorizationRequiredError } from "./types";
 
 function errorFrom(value: unknown): Error {
   return value instanceof Error ? value : new Error("Monerium onboarding failed");
@@ -11,16 +11,21 @@ function statusOutput(event: unknown): MoneriumStatusResponse {
   return (event as DoneActorEvent<MoneriumStatusResponse>).output;
 }
 
-export function createMoneriumKycMachine({ api, openAuthorizationUrl }: MoneriumKycDeps) {
+export function createMoneriumKycMachine({ api, client, openAuthorizationUrl, reportError }: MoneriumKycDeps) {
   return setup({
     actions: {
       openAuthorization: ({ context }) => {
         if (context.authorizationUrl) openAuthorizationUrl(context.authorizationUrl);
       },
+      reportUnexpectedError: ({ context }) => {
+        if (context.error && !(context.callback && "error" in context.callback)) reportError?.(context.error);
+      },
       storeStatus: assign({
         customerType: ({ event }) => statusOutput(event).customerType,
         error: () => undefined,
         profileId: ({ event }) => statusOutput(event).profileId,
+        ramp: ({ event }) => statusOutput(event).ramp,
+        rampError: ({ event }) => statusOutput(event).rampError,
         status: ({ event }) => statusOutput(event).status,
         statusExternal: ({ event }) => statusOutput(event).statusExternal
       })
@@ -30,13 +35,16 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
       completeOAuth: fromPromise(({ input }: { input: { code: string; state: string } }) =>
         api.completeOAuth(input.code, input.state)
       ),
-      startOAuth: fromPromise(({ input }: { input: MoneriumKycInput }) => api.startOAuth(input.customerType))
+      startOAuth: fromPromise(({ input }: { input: MoneriumKycInput }) => api.startOAuth(input.customerType, client))
     },
     guards: {
       callbackHasCode: ({ context }) => !!context.callback && "code" in context.callback,
       callbackHasError: ({ context }) => !!context.callback && "error" in context.callback,
       isApproved: ({ event }) => statusOutput(event).status === "APPROVED",
       isRejected: ({ event }) => statusOutput(event).status === "REJECTED",
+      // A persisted approval stays readable after the backend's OAuth session is gone; the ramp
+      // readiness read then needs a fresh authorization, so route back to the OAuth start.
+      needsReauthentication: ({ event }) => statusOutput(event).rampError?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
       needsUserAction: ({ event }) => ["created", "incomplete"].includes(statusOutput(event).statusExternal.toLowerCase())
     },
     types: {
@@ -58,6 +66,11 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
         invoke: {
           input: ({ context }) => ({ customerType: context.customerType }),
           onDone: [
+            {
+              actions: "storeStatus",
+              guard: "needsReauthentication",
+              target: "Ready"
+            },
             {
               actions: "storeStatus",
               guard: "isApproved",
@@ -112,6 +125,7 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
       },
       Done: { type: "final" },
       Failure: {
+        entry: "reportUnexpectedError",
         on: { CLOSE: { target: "Done" }, RETRY: { target: "Ready" } }
       },
       InReview: {
@@ -121,7 +135,9 @@ export function createMoneriumKycMachine({ api, openAuthorizationUrl }: Monerium
         on: { CLOSE: { target: "Done" }, START_OAUTH: { target: "StartingAuthorization" } }
       },
       Redirecting: {
-        entry: "openAuthorization"
+        entry: "openAuthorization",
+        // A client that could only open the authorization in another tab re-checks on request.
+        on: { CLOSE: { target: "Done" }, REFRESH: { target: "CheckingStatus" } }
       },
       Rejected: {
         on: { CLOSE: { target: "Done" }, RETRY: { target: "Ready" } }

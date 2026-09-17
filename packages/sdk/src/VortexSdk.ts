@@ -24,10 +24,10 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712.js";
-import { TransactionSigningError } from "./errors.js";
+import { EurOnrampError, TransactionSigningError } from "./errors.js";
 import { BrlHandler } from "./handlers/BrlHandler.js";
 import { DomesticHandler } from "./handlers/DomesticHandler.js";
-import { MykoboHandler } from "./handlers/MykoboHandler.js";
+import { EurHandler } from "./handlers/EurHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
 import { NetworkManager } from "./services/NetworkManager.js";
@@ -58,7 +58,7 @@ export class VortexSdk {
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private domesticHandler: DomesticHandler;
-  private mykoboHandler: MykoboHandler;
+  private eurHandler: EurHandler;
   private storeEphemeralKeys: boolean;
   private storeEphemeralKeysCallback: VortexSdkConfig["storeEphemeralKeysCallback"];
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
@@ -91,7 +91,7 @@ export class VortexSdk {
       this.signTransactions.bind(this)
     );
 
-    this.mykoboHandler = new MykoboHandler(
+    this.eurHandler = new EurHandler(
       this.apiService,
       this,
       this.generateEphemerals.bind(this),
@@ -128,7 +128,8 @@ export class VortexSdk {
       return [];
     }
 
-    return rampProcess.unsignedTxs.filter(tx => tx.signer === userAddress);
+    const wanted = userAddress.toLowerCase();
+    return rampProcess.unsignedTxs.filter(tx => tx.signer.toLowerCase() === wanted);
   }
 
   async registerRamp<Q extends QuoteResponse>(
@@ -156,8 +157,17 @@ export class VortexSdk {
         rampProcess = await this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
         unsignedTransactions = [];
       } else if (quote.from === "sepa") {
-        rampProcess = await this.mykoboHandler.registerMykoboOnramp(quote.id, additionalData as EurOnrampAdditionalData);
-        unsignedTransactions = [];
+        const eurData = additionalData as EurOnrampAdditionalData;
+        rampProcess = await this.eurHandler.registerEurOnramp(quote.id, eurData);
+        // The Monerium owner permit is signed by the linked wallet, not by an ephemeral.
+        unsignedTransactions = await this.getUserTransactions(rampProcess, eurData.walletAddress);
+        if (unsignedTransactions.length === 0) {
+          // The backend addresses the permit to the wallet linked to the Monerium profile; a
+          // different walletAddress would silently leave the ramp without its permit.
+          throw new EurOnrampError(
+            `walletAddress ${eurData.walletAddress} is not the wallet linked to the Monerium profile; no owner permit was returned for it`
+          );
+        }
       } else {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
@@ -178,7 +188,7 @@ export class VortexSdk {
         const userAddress = (additionalData as BrlOfframpAdditionalData).walletAddress;
         unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
       } else if (quote.to === "sepa") {
-        rampProcess = await this.mykoboHandler.registerMykoboOfframp(quote.id, additionalData as EurOfframpAdditionalData);
+        rampProcess = await this.eurHandler.registerEurOfframp(quote.id, additionalData as EurOfframpAdditionalData);
         const userAddress = (additionalData as EurOfframpAdditionalData).walletAddress;
         unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
       } else {
@@ -202,7 +212,9 @@ export class VortexSdk {
       } else if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
-        throw new Error("Euro onramp does not require any further data");
+        throw new Error(
+          "The EUR onramp's owner permit is submitted through submitUserTransactions or submitUserSignature, not updateRamp"
+        );
       }
     } else if (quote.rampType === RampDirection.SELL) {
       if (isDomesticToken(quote.outputCurrency)) {
@@ -210,7 +222,7 @@ export class VortexSdk {
       } else if (quote.to === "pix") {
         return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
-        return this.mykoboHandler.updateMykoboOfframp(rampId, additionalUpdateData as EurOfframpUpdateAdditionalData);
+        return this.eurHandler.updateEurOfframp(rampId, additionalUpdateData as EurOfframpUpdateAdditionalData);
       }
     }
 

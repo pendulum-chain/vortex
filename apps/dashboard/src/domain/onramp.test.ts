@@ -8,6 +8,7 @@ import {
   type RampTokenOption,
   sortRampTokenOptions
 } from "./onramp";
+import { eurOnrampBlocker as blocker } from "./onramp";
 
 function option(
   label: string,
@@ -85,5 +86,21 @@ describe("getNetworkOptions", () => {
 
   it("returns nothing while the token list is still empty", () => {
     assert.deepEqual(getNetworkOptions([]), []);
+  });
+});
+
+describe("eurOnrampBlocker", () => {
+  const ready = { chain: "polygon", iban: "provisioned" as const, linkedAddress: "0xAbC0000000000000000000000000000000000001", source: "oauth" as const };
+
+  it("requires a provisioned IBAN on a linked wallet first", () => {
+    assert.equal(blocker(null, ready.linkedAddress), "link_wallet");
+    assert.equal(blocker({ ...ready, iban: "missing" }, ready.linkedAddress), "link_wallet");
+    assert.equal(blocker({ ...ready, iban: "elsewhere" }, ready.linkedAddress), "link_wallet");
+  });
+
+  it("then requires the linked wallet to be the connected one", () => {
+    assert.equal(blocker(ready, undefined), "connect_wallet");
+    assert.equal(blocker(ready, "0x0000000000000000000000000000000000000002"), "wrong_wallet");
+    assert.equal(blocker(ready, ready.linkedAddress.toLowerCase()), null);
   });
 });

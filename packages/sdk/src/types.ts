@@ -149,9 +149,18 @@ export interface BrlOnrampAdditionalData {
 }
 
 export interface EurOnrampAdditionalData {
+  /** Required when the authenticated user owns both individual and business Monerium profiles. */
+  customerType?: "individual" | "business";
   destinationAddress: string;
-  email: string;
-  ipAddress: string;
+  /**
+   * The wallet linked to the user's Monerium profile. The backend mints EURe there and returns
+   * its ERC-2612 permit as a user-owned transaction that this wallet must sign.
+   */
+  walletAddress: string;
+  /** @deprecated Not used by the Monerium onramp; identity is derived from the authenticated user. */
+  email?: string;
+  /** @deprecated Not used by the Monerium onramp. */
+  ipAddress?: string;
 }
 
 export interface DomesticOnrampAdditionalData {
@@ -197,7 +206,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends Domest
   : Q extends BrlOnrampQuote
     ? never // No additional data required from the user for this type of ramp.
     : Q extends EurOnrampQuote
-      ? never // No additional data required from the user for EUR onramp.
+      ? never // The owner permit goes through submitUserTransactions / submitUserSignature, not updateRamp.
       : Q extends DomesticOfframpQuote
         ? DomesticOfframpUpdateAdditionalData
         : Q extends BrlOfframpQuote

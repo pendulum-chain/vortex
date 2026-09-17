@@ -1,8 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { createActor, waitFor } from "xstate";
 import type { MoneriumKycApi } from "./api";
 import { createMoneriumKycMachine } from "./machine";
-import { MoneriumAuthorizationRequiredError, type MoneriumStatusResponse } from "./types";
+import { MONERIUM_REAUTHENTICATION_REQUIRED, MoneriumAuthorizationRequiredError, type MoneriumStatusResponse } from "./types";
 
 const approved: MoneriumStatusResponse = {
   customerType: "individual",
@@ -71,7 +71,8 @@ describe("moneriumKycMachine", () => {
   });
 
   it("surfaces a provider callback error without calling the API", async () => {
-    const machine = machineWith({} as MoneriumKycApi);
+    const reportError = mock(() => undefined);
+    const machine = createMoneriumKycMachine({ api: {} as MoneriumKycApi, openAuthorizationUrl: () => undefined, reportError });
     const actor = createActor(machine, {
       input: {
         callback: { error: "access_denied", errorDescription: "The user declined access" },
@@ -81,6 +82,26 @@ describe("moneriumKycMachine", () => {
 
     await waitFor(actor, snapshot => snapshot.matches("Failure"));
     expect(actor.getSnapshot().context.error?.message).toBe("The user declined access");
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("reports an unexpected status failure with the original error once", async () => {
+    const failure = new Error("Monerium status HTTP 500");
+    const reportError = mock(() => undefined);
+    const machine = createMoneriumKycMachine({
+      api: {
+        completeOAuth: async () => approved,
+        getStatus: async () => { throw failure; },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      openAuthorizationUrl: () => undefined,
+      reportError
+    });
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+
+    await waitFor(actor, snapshot => snapshot.matches("Failure"));
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(failure);
   });
 
   it("refreshes a pending profile to approved", async () => {
@@ -109,5 +130,63 @@ describe("moneriumKycMachine", () => {
     const actor = createActor(machine, { input: { customerType: "individual" } }).start();
 
     await waitFor(actor, snapshot => snapshot.matches("Ready"));
+  });
+
+  it("re-checks status from Redirecting when the client asks for a refresh", async () => {
+    const machine = machineWith(
+      {
+        completeOAuth: async () => approved,
+        getStatus: async () => {
+          throw new MoneriumAuthorizationRequiredError();
+        },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      () => undefined
+    );
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    actor.send({ type: "START_OAUTH" });
+    await waitFor(actor, snapshot => snapshot.matches("Redirecting"));
+
+    actor.send({ type: "REFRESH" });
+
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    expect(actor.getSnapshot().context.authorizationUrl).toBe("https://example.com/auth");
+  });
+
+  it("routes a persisted approval whose OAuth session is gone back to authorization", async () => {
+    const machine = machineWith({
+      completeOAuth: async () => approved,
+      getStatus: async () => ({
+        ...approved,
+        rampError: { code: MONERIUM_REAUTHENTICATION_REQUIRED, message: "Monerium reauthentication is required" }
+      }),
+      startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+    });
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    expect(actor.getSnapshot().context.rampError?.code).toBe(MONERIUM_REAUTHENTICATION_REQUIRED);
+  });
+
+  it("lets the user close the flow while the authorization tab is open", async () => {
+    const machine = machineWith(
+      {
+        completeOAuth: async () => approved,
+        getStatus: async () => {
+          throw new MoneriumAuthorizationRequiredError();
+        },
+        startOAuth: async () => ({ authorizationUrl: "https://example.com/auth" })
+      },
+      () => undefined
+    );
+    const actor = createActor(machine, { input: { customerType: "individual" } }).start();
+    await waitFor(actor, snapshot => snapshot.matches("Ready"));
+    actor.send({ type: "START_OAUTH" });
+    await waitFor(actor, snapshot => snapshot.matches("Redirecting"));
+
+    actor.send({ type: "CLOSE" });
+
+    await waitFor(actor, snapshot => snapshot.matches("Done"));
   });
 });

@@ -75,6 +75,16 @@ function instructionRows(ramp: RampProcess): Array<{ label: string; value: unkno
         { label: "Reference", value: payment?.reference },
         { label: "Expires", value: payment?.expirationDate }
       ];
+    case "EUR": {
+      const iban = ramp.ibanPaymentData;
+      return [
+        amountRow,
+        { label: "Beneficiary", value: iban?.receiverName },
+        { label: "IBAN", value: iban?.iban },
+        { label: "BIC", value: iban?.bic },
+        { label: "Payment reference", value: iban?.reference }
+      ];
+    }
     default:
       return [];
   }
