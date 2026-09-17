@@ -11,6 +11,10 @@ procedures in [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-run
 verbal/Telegram statements; consolidate into the MSA or a side letter:
 
 1. Attestor-pattern acceptance (verbally accepted, conditional on fallback capability —
+   **re-approval needed (2026-09-17):** the fallback is now a Vortex-held recovery
+   wallet linked to a Vortex/SatoshiPay company profile, and that one profile refunds
+   many client corporates by SEPA; ask alongside whether `supportingDocumentId` is
+   required for a return-to-originator above EUR 15,000 and what outgoing limits apply —
    mandatory by design, so the condition is met).
 2. Redemption-limitation disclosure obligation (their request; our commitment — §Terms 1).
 3. Issuer recovery backstop: burn from a linked address, payout only to the customer's
@@ -62,7 +66,9 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    executes within floor plus the per-swap subsidy cap, and decide whether a second
    route (direct EURe→USDC or other tiers) is worth whitelisting from day one.
 4. Deploy implementation + factory with the final parameters (ADR table: 52 h oracle
-   age, 40 bps floor on the net, 1% fee cap, 100 bps reference band, 7 d/24 h delays,
+   age, 60 bps floor on the net, 1% fee cap, 100 bps reference band, 2 h recovery / 24 h
+   trigger delays, the recovery wallet address (a dedicated linked address on the Vortex
+   company profile — onboard that profile in the whitelabel app first),
    €25 floor/€50k ceiling, initial 5 bps/5 bps route); set operational `minSwapAmount`
    €250 and `perSwapCap` €25k; register the keeper key.
 4a. Deploy `VortexSubsidyVault` (USDC, the fee Safe as treasury, the factory, 50 bps per
@@ -97,11 +103,12 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 ## Terms & disclosure inputs (engineering-accurate; G2/partner own final wording)
 
 1. **Redemption limitation (B6 — mandatory, committed to Monerium).** Draft:
-   > EURe received at your dedicated forwarding address cannot be redeemed directly
-   > with Monerium from that address. If you need to redeem EURe (rather than receive
-   > the automatic USDC conversion), you must first withdraw it to your fallback
-   > address — from which you can redeem normally — or use Monerium's recovery
-   > process, which pays out only to your own verified bank account.
+   > EURe received at your dedicated forwarding address cannot be redeemed with Monerium
+   > from that address and cannot be withdrawn by you. It is converted to USDC and sent
+   > to your payout address as one transfer per payment; a payment that cannot be
+   > converted within the promised window is refunded by Vortex, in EUR and in full, to
+   > the bank account it was sent from. Monerium's recovery process, which pays out only
+   > to your own verified bank account, remains available as a backstop.
 
    (The recovery backstop is functional as built — T1 resolved — but keep it framed as
    Monerium's process, subject to their verification.)
@@ -111,15 +118,16 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    mis-crediting losses; CEX destinations carry an explicit rotation/minimum-deposit
    attestation. Vortex's diligence consideration: 5 USDC penny test before activation,
    the 60-day dormancy gate, minimum forward at or above the destination's minimum
-   deposit, and never sending unconverted EURe to the destination. Destination changes
-   are client-only (fallback key); Vortex cannot redirect funds.
+   deposit, and never sending unconverted EURe to the destination. The destination is
+   fixed per account: a change means a new forwarding account (and IBAN move) set up by
+   Vortex on the partner's written instruction; Vortex cannot redirect funds.
 3. **Dormancy re-confirmation (P5/B5).** Draft:
    > If no conversion completes for 60 days, forwarding pauses automatically and
    > resumes only after you (or the partner on your behalf, in writing) re-confirm your
    > payout address. Deposits made while paused remain in your forwarding account and
-   > convert after re-confirmation; your fallback-address rights are unaffected. Once
-   > a balance has waited 7 days without conversion, anyone may return it to your
-   > fallback address instead.
+   > convert after re-confirmation. A payment received while paused that cannot be
+   > converted within the promised window is refunded in full to the bank account it
+   > came from.
 4. **Rate, fee and subsidy (B1/P1/P2/P12/P13)** — disclose the guarantee, the fee and
    the hard bound separately:
    - Reference rate: a five-minute volume-weighted average of the Coinbase Exchange
@@ -141,31 +149,40 @@ fee policy 12.5 bps target / 15 bps floor (B1).
      unsubsidized Chainlink-bounded terms below; the guarantee applies to conversions
      Vortex's keeper executes.
    - Hard bound (not a fee): no conversion ever delivers less than the Chainlink
-     EUR/USD rate minus 0.4% after fee and subsidy, or it does not execute. Enforced by
+     EUR/USD rate minus 0.6% after fee and subsidy, or it does not execute. Enforced by
      the contract assuming an honest oracle; not a principal guarantee under oracle
      failure or a stablecoin collapse beyond the bound.
-   - Batching never changes a client's effective rate: co-converted deposits split fee,
-     subsidy and output pro-rata by amount.
+   - Each payment converts on its own, in chunks when it exceeds the per-conversion cap,
+     and reaches the payout address as a single transfer once every chunk is done; the
+     chunks' rates, fees and subsidies are reported per chunk.
 5. **Processing SLA (B3 — decided: same business day).** Draft:
-   > Deposits at or above the minimum convert the same business day under normal
-   > market conditions. Conversions also execute on weekends; the EUR/USD reference
-   > rate updates less frequently outside FX market hours (staleness ceiling 52 h), so
-   > weekend conversions may execute at a rate up to that age — always within the
-   > conversion bound. Deposits below the minimum accumulate until it is reached.
+   > A payment is converted and delivered within two hours of its arrival under normal
+   > market conditions, on weekends as well. A payment that cannot be converted within
+   > that window — a market move beyond the conversion bound, a liquidity or subsidy
+   > shortfall, or an operational fault — is not held: Vortex refunds the full EUR amount
+   > to the bank account it was sent from. Payments below the minimum are refunded the
+   > same way. The EUR/USD reference rate updates less frequently outside FX market
+   > hours (staleness ceiling 52 h), so weekend conversions may execute at a rate up to
+   > that age — always within the conversion bound.
 
-   Include: the SLA is a service target, not a guarantee; keeper outages beyond 24 h
-   open a permissionless execution path, so conversion does not depend on Vortex; a
-   conversion deliberately held back by the subsidy limits is disclosed as waiting, not
-   failed.
-6. **Vortex powers & self-custody disclosure.** What Vortex can do: deploy the account,
-   run the conversion, pause it, tune bounded parameters, adjust the fee policy within
-   the disclosed cap and timelock, choose the swap route among an on-chain validated
-   set, and fund or limit its own subsidy budget. What Vortex cannot do: move, redeem, or redirect funds —
-   every exit target is client-controlled, and pauses never block the fallback rights
-   or the delayed automatic sweep. Exit guarantees are scoped to the client's continued
-   control of their fallback key (loss of that key plus a broken destination is an
-   ordinary self-custody residual, borne by the client). Vortex cannot prevent inbound
-   SEPA to an issued IBAN; deposits during a pause accumulate safely as EURe.
+   Include: the window is enforced on chain (funds cannot move to Vortex's refund wallet
+   before it elapses); keeper outages beyond 24 h open a permissionless execution path,
+   so conversion does not depend on Vortex; the refund is automated in a later phase and
+   operator-run until then (runbook §2.7); a refund reverses the fee (none is kept on a
+   refunded payment's delivered amount — chunk fees already taken are Vortex's cost).
+6. **Vortex powers & custody disclosure (amended 2026-09-17).** What Vortex can do:
+   deploy the account, run the conversion, pause it, tune bounded parameters, adjust the
+   fee policy within the disclosed cap and timelock, choose the swap route among an
+   on-chain validated set, fund or limit its own subsidy budget, and — for a payment
+   the promised window was missed on, and only then — move that payment to its own
+   recovery wallet in order to refund it. What Vortex cannot do: redirect funds. The
+   contract can pay only the client's payout address, Vortex's fee treasury, and the
+   fixed Vortex recovery wallet, and it refuses a recovery before the window has
+   elapsed. Vortex holds custody of a client's funds only on that refund path; the
+   client has no key of their own and no unilateral exit — the partner accepts this
+   (written confirmation, G1). Should Vortex disappear, anyone may complete conversions
+   permissionlessly after 24 hours. Vortex cannot prevent inbound SEPA to an issued IBAN;
+   deposits during a pause accumulate safely as EURe until converted or refunded.
 
 ## Open items ledger
 
@@ -178,6 +195,9 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
 | Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses a five-minute VWAP of Coinbase Exchange EURC-USDC candles — confirm that is what was meant |
-| Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 25 bps, not the band: a market more than ~25 bps under a stale Chainlink round defers every swap until the round updates — decide whether that is acceptable or whether `SLIPPAGE_BPS`/`floorPpm` move before the deploy |
+| Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 45 bps after the 2026-09-17 move to 60 bps: the twelve-month replay shows ~0.2 h/year of floor-cause deferral at that margin, so ordinary weekends no longer refund |
+| Recovery wallet + float wallet | Ops ↔ Monerium | Onboard a Vortex/SatoshiPay company profile in the whitelabel app; link one dedicated address as `RECOVERY_WALLET` (immutable at implementation deploy) and one as the EURe float; fund the float; keys into the keeper's KMS before recovery is automated |
+| Refund automation (proposal phase 2) | Engineering | Deadline trigger, reverse swap, float top-up and redeem orchestration; until then runbook §2.7 by hand |
+| Sandbox SEPA simulation: payer counterpart | Engineering (needs Marcel's sandbox login) | Capture one real issue-order webhook to confirm `counterpart.identifier.iban` / `details.name` arrive as the spec says (the refund target) |
 | Subsidy vault funding and refill cadence | Ops | Before first activation; runbook §2.6 |
 | GA items | Engineering | Backend volume-limit enforcement (revisit), guardian key to hardware/multisig, O1 migration endpoint when first needed |

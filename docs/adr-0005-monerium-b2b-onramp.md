@@ -2,7 +2,9 @@
 
 **Status:** Accepted (selected 2026-07-17; parameters finalized and documents consolidated
 2026-08-26; amended 2026-09-15 with reference-priced fee bands, the subsidy vault, the
-route whitelist and the 7 day sweep — see the amendment section). This ADR is the
+route whitelist and the 7 day sweep; amended 2026-09-17 with whole-deposit settlement, the
+Vortex-held recovery path and the removal of the client fallback role — see the second
+amendment). This ADR is the
 single source of truth for the *decisions and risk
 acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
@@ -54,29 +56,25 @@ Supporting decisions, all in force:
   migrating clients clone-by-clone — never by mutating deployed code. The custody
   argument depends on it. Routes, the fee policy and the vault limits are bounded
   *data* the guardian may change within immutable validation, not code.
-- **Mandatory self-custodied `fallbackAddress`** for every client (Tier C "no fallback"
-  dropped 2026-07-17 — condition of Monerium's acceptance; Tier B "partner-held
-  recovery key" rejected 2026-07-14 — the partner declines custody-like powers). All
-  emergency flows point to it: client `sweep`/config functions plus the permissionless
-  dead-man sweep.
-- **Never send raw EURe to a CEX destination** — EURe recovery targets are the
-  fallback address only.
-- **No on-contract redeem validator, and no payment bouncing** (reaffirmed 2026-09-15).
-  Redemption = withdraw to fallback, then redeem normally; Monerium's issuer recovery is
-  the break-glass backstop (see T1 below). Returning a deposit to its sender would be a
-  redeem order the forwarder must approve via EIP-1271; any such path hands whoever
-  holds the whitelabel credentials plus the signing key a fiat drain to an arbitrary
-  IBAN, and the safe variant (a return IBAN pinned per clone) still buys nothing for the
-  liquidity case it was asked for — swaps stop at the floor and funds wait safely.
-- **No Vortex-triggered sweep to the fallback address** (decided 2026-09-15). Only the
-  client (`sweep`) and the permissionless dead-man sweep move EURe to the fallback; a
-  guardian shortcut would weaken "Vortex keys cannot move client funds". Instead the
-  dead-man delay is short (P3, 7 days), and because the sweep ignores pauses that is
-  also the longest hold Vortex can impose — token-level freezes are Monerium's lever.
+- **No client key on the clone** (amended 2026-09-17; superseded the mandatory
+  self-custodied `fallbackAddress` of 2026-07-17 and its `sweep`/config functions and
+  dead-man sweep). The only exits are the client's fixed `destination` and, for a payment
+  the promised window was missed on, the Vortex recovery wallet — see the second
+  amendment. A destination change means a new clone (runbook §5).
+- **Never send raw EURe to a CEX destination** — EURe leaves a clone only to the router
+  or the Vortex recovery wallet.
+- **No on-contract redeem validator.** The forwarder's EIP-1271 still validates only the
+  link message. Returning a deposit to its sender happens off the clone: the keeper moves
+  the payment to the Vortex recovery wallet and Vortex redeems from there (amendment
+  2026-09-17), so the whitelabel credentials plus the attestor key still cannot drain a
+  clone to an arbitrary IBAN. Monerium's issuer recovery stays the break-glass backstop
+  (see T1 below).
 - **EIP-191 hash only, chainid-bound** (the raw-keccak variant was removed after the G0
   sandbox validation; chainid binding closes cross-chain replay — review r1).
-- **Three distinct Vortex keys** (attestor / keeper / guardian), none able to move or
-  redirect funds; the keeper runs on exactly one backend (the mykobo flow variant).
+- **Three distinct Vortex keys** (attestor / keeper / guardian), none able to redirect
+  funds; the keeper can move a payment only to the immutable recovery wallet and only
+  once the clone's batch has been open for `RECOVERY_DELAY` (amendment 2026-09-17); the
+  keeper runs on exactly one backend (the mykobo flow variant).
 - **Managed-profile integration:** each client is a managed child profile under the
   partner manager (KYB mirror, credentials, read API, webhook tenancy). The flow is
   quoteless and deliberately **not** part of `ramp_states` — evaluated and rejected
@@ -102,7 +100,7 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
   price × volume), widened to an hour when the five minutes carry no volume, so a
   single thin print on a weekend or outside business hours never becomes the reference
   (suggested in review, 2026-09-15). It records price, window and time on the
-  execution row and passes the rate into `swapAndForward`. The contract rejects a reference outside
+  execution row and passes the rate into `swap`. The contract rejects a reference outside
   `MAX_REFERENCE_DEVIATION_BPS` of Chainlink; on the permissionless path the argument is
   ignored and Chainlink is the reference. Reading the price from Vortex's own oracle on
   Base was rejected: it blends a forex rate on weekdays and lives on another chain.
@@ -119,7 +117,7 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
   its destination — a swap is never partially subsidized and a guardian-set vault cannot
   harm the client. The vault holds Vortex money only, so its limits bound Vortex's
   exposure, never the client's.
-- **Floor on the net.** `SLIPPAGE_BPS` (now 40 bps) is enforced on fill − fee + subsidy,
+- **Floor on the net.** `SLIPPAGE_BPS` (60 bps since the 2026-09-17 amendment; 40 at this amendment) is enforced on fill − fee + subsidy,
   not on the raw fill; the router minimum is zero and the forwarder's post-condition is
   the guard, so a subsidy can never paper over a depegged reference.
 - **Route whitelist.** The factory holds guardian-managed routes, validated on chain to
@@ -140,6 +138,56 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
   floor to floor plus the per-swap cap, paid by the vault; private orderflow and a
   modest cap are the mitigation, and the permissionless path keeps the plain floor.
 
+## Amendment 2026-09-17: whole-deposit settlement and the refund path
+
+Product requirements from the partner (SulPayments): one USDC transfer per bank
+payment, and an automatic refund of the exact EUR amount to the payer's bank account
+when a payment cannot be converted inside the promised window. Vortex holding the funds
+for that refund is agreed commercially. Decisions (the proposal that led here is
+[`proposal-monerium-b2b-settlement-and-recovery.md`](proposal-monerium-b2b-settlement-and-recovery.md)):
+
+- **Chunks accumulate on the clone; one forward per payment.** `swap(reference, route,
+  amountIn)` converts an explicit chunk and keeps the USDC (subsidy included) on the
+  clone; `forward(amount)` pushes the whole converted payment to `destination`. The
+  keeper serves one deposit at a time (1 deposit : N swap executions), so deposits never
+  share a swap and the N:M attribution of 2026-08 is gone. Approach A of the proposal
+  (no escrow contract): smallest audit delta, per-client blast radius, USDC never
+  leaves the client's clone until it goes to the destination.
+- **Vortex-held recovery wallet, on-chain delay.** `recover(eure, usdc)` is keeper-only,
+  pays only the immutable `RECOVERY_WALLET` — one wallet linked to a Vortex/SatoshiPay
+  company profile at Monerium — and only once the clone's batch marker has been open for
+  `RECOVERY_DELAY` = **2 hours** (immutable, P3). The clock starts when funds first
+  arrive on the clone; a chunk swap never re-times it; a forward or recovery re-times
+  whatever remains. The refund then leaves the Monerium profile that wallet belongs to:
+  the recovered USDC is swapped back to EURe, a separate float wallet covers the
+  slippage residue (the loss ledger), and a redeem order returns the exact issue amount
+  to the payer's IBAN (payer IBAN and name come from the issue order). Manual per the
+  runbook until automated.
+- **Client fallback role removed.** `fallbackAddress`, `sweep`, `setDestination`,
+  `setClientPaused` and the dead-man sweep are gone (the client never held a key in
+  the pilot; the partner warrants the destination, B5). A destination change means a new
+  clone (runbook §5). The permissionless `swap`/`forwardAll` path after `TRIGGER_DELAY`
+  stays as the liveness guarantee, so a Vortex outage never traps converted funds.
+- **Trust statement (replaces "Vortex keys cannot move client funds").** Vortex keys can
+  move a client's funds only to the Vortex recovery wallet, only after `RECOVERY_DELAY`,
+  and the contract can never send anywhere else. Consequences carried to G1 (Monerium
+  re-approval of the Vortex-held fallback and of one company profile refunding many
+  client corporates), G2 (custody scoping) and the partner terms (rollout §Terms 6).
+- **Refund triggers.** Missed window (automated in a later phase; operator-triggered via
+  the admin endpoint until then), operator intervention, and remainders below
+  `minSwapAmount` (they cannot be swapped and are refunded). Chunk fees already taken on
+  a refunded payment stay in the treasury and are netted in the ledger.
+- **`SLIPPAGE_BPS` 40 → 60.** With a 2 h promise a weekend Chainlink gap that defers a
+  swap turns into a refund, so the operating tolerance to a stale round (`SLIPPAGE_BPS −
+  floorPpm`) moves from ~25 to ~45 bps; the twelve-month replay of the Coinbase
+  EURC-USDC market against Chainlink shows ~80 h/year of floor-cause deferral at 40 bps
+  over ten weekends and two five-minute blips at 60. The keeper's worst-case pricing
+  power on the client widens by 20 bps in exchange. A genuine depeg beyond the 100 bps
+  band still defers and, past the window, refunds.
+- **Dormancy.** A dormant or suspended account still recovers its marked deposits (the
+  refund path is for payments nobody converts), so a deposit into a dormant account is
+  refunded rather than parked.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -150,9 +198,9 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 | B4 | Pilot volume limits | **€50k/client/day, paper/contractual only** (no backend enforcement in the pilot; GA revisit) |
 | B5 | Partner liability | Tier A defaults: partner warrants destination correctness; rotation loss borne by the client; dormancy re-activation on written partner confirmation |
 | B6 | Redemption-limitation disclosure | Mandatory in client terms (committed to Monerium); draft in the rollout doc |
-| P1 | `SLIPPAGE_BPS` | **40 bps on the client's net after fee and subsidy** (amended 2026-09-15; was 100 on the raw fill) |
+| P1 | `SLIPPAGE_BPS` | **60 bps on the client's net after fee and subsidy** (amended 2026-09-17; 40 from 2026-09-15, 100 on the raw fill before) |
 | P2 | `MAX_FEE_PPM` | 10000 ppm (1%), immutable; caps both the fee and the floor policy (amended 2026-09-15; was `MAX_FEE_BPS` 100) |
-| P3 | Dead-man sweep delay | **7 days** (amended 2026-09-15; was 60) — also the longest hold Vortex can impose |
+| P3 | `RECOVERY_DELAY` | **2 hours** (amended 2026-09-17): the promised conversion window, enforced on chain as the earliest a payment may move to the recovery wallet. Replaces the dead-man sweep delay (7 days on 2026-09-15, 60 before), which had no target left once the fallback role was removed |
 | P4 | Permissionless trigger delay | 24 h |
 | P5 | Dormancy window | 60 days |
 | P6 | `minSwapAmount` | floor €25 (immutable) / operational **€250** |
@@ -198,19 +246,28 @@ example (oversized-deposit allocation).
 - **CEX destination rotation.** Not verifiable on-chain; carried contractually (B5)
   with penny test, dormancy gate, and minimum-forward diligence. Silent-loss risk
   converts to a pause via the dormancy gate.
-- **Fallback-key loss + broken destination** — ordinary self-custody residual, borne
-  by the client (terms; do not overpromise exits — R11).
+- **Vortex custody on the refund path** (amendment 2026-09-17). A recovered payment
+  sits in Vortex's own wallet until the bank refund goes out; a compromised keeper plus
+  recovery key could divert a payment the window was missed on. Bounded by the immutable
+  wallet, the on-chain delay, explicit amounts, a dedicated linked address holding
+  nothing else, and the association monitor; accepted commercially by the partner and
+  carried to G1/G2.
+- **Broken destination** — with no client key on the clone, a wrong destination is
+  caught by the penny test and the dormancy gate; a rotation loss is borne by the
+  client/partner (B5); a destination change is a new clone.
 - **Non-custody ≠ out of MiCA scope.** The constrained-attestor construction defeats
   the custody definition, but exchange/transfer-service scoping is a separate G2
   question. Never present "no custody" as "no licence needed".
 - **Stuck-state table** (route death, feed retirement, depeg beyond bound, blacklisted
   destination, reference feed outage, exhausted subsidy budget): all fail-safe — swaps
-  revert or the keeper defers, funds accumulate as EURe, client exits keep working;
-  recovery is client-side sweep plus the issuer backstop. Accepted.
+  revert or the keeper defers, funds accumulate as EURe; past the promised window the
+  payment is refunded through the recovery wallet, past 24 h anyone may convert and
+  forward permissionlessly; the issuer backstop remains. Accepted.
 - **Bounded keeper pricing power.** A compromised keeper can pick any whitelisted route
   and any reference inside the Chainlink band: worst case the fee reaches `MAX_FEE_PPM`
   or the vault pays up to its caps. Bounded by the band, the fee cap, the vault limits
-  and the floor on the net; it can still never redirect funds. Accepted.
+  and the floor on the net; it can still never redirect funds — only, after the on-chain
+  delay, move them to the recovery wallet. Accepted.
 - **Subsidy exposure.** Up to the per-swap cap per swap and the daily budget per day,
   plus the widened sandwich band (amendment). Accepted; both limits are live-tunable.
 - **Operational residuals:** reorgs deeper than the watcher's 12-block lag;
@@ -221,8 +278,9 @@ example (oversized-deposit allocation).
 ## Consequences
 
 Zero-touch onboarding works end to end (validated against the Monerium sandbox: link
-accepted, IBAN issued, no client interaction). Clients keep unilateral exits that no
-Vortex failure can block. The cost: every rescue path must be designed in upfront
+accepted, IBAN issued, no client interaction). A Vortex outage can never trap converted
+funds (the permissionless path), and a payment the promised window was missed on is
+refunded rather than parked, at the price of Vortex custody on that path. The cost: every rescue path must be designed in upfront
 (no universal owner key), fee-policy increases are timelocked and venue changes are
 bounded by on-chain route validation rather than admin switches, the partner's rate
 guarantee is enforced by the contract at the cost of a treasury-funded subsidy budget,

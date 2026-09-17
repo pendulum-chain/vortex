@@ -16,13 +16,17 @@ deploys one `VortexForwarder` contract clone per client, links it to that profil
 attestor signature, and requests an IBAN **for the linked contract address** — the IBAN's
 default mint destination *is* the forwarder. From then on the flow is passive on
 Monerium's side: EUR received on the IBAN mints EURe to the forwarder, and Vortex's
-keeper calls `swapAndForward(reference, route)` on the contract, which swaps EURe to
-USDC over a whitelisted Uniswap v3 route, settles the fill against the partner reference
-rate (surplus above the target is the fee, shortfall below the floor is topped up from
-the subsidy vault, Chainlink bounds the net), and transfers the USDC to the client's
-fixed destination wallet. The flow is
-deliberately **not** a ramp: no quote, no `ramp_states` — the account is permanent and
-repeatedly funded. Inside Vortex the client is a **managed child profile** under the
+keeper converts each bank payment in `swap(reference, route, amountIn)` chunks on the
+contract — each swaps EURe to USDC over a whitelisted Uniswap v3 route and settles the
+fill against the partner reference rate (surplus above the target is the fee, shortfall
+below the floor is topped up from the subsidy vault, Chainlink bounds the net) — the USDC
+accumulates on the forwarder, and one `forward(amount)` pushes the whole converted
+payment to the client's fixed destination wallet, so the client sees one transfer per
+pay-in. A payment that cannot be converted inside the promised window is moved to the
+Vortex recovery wallet (`recover`, keeper-only, contract-gated by `RECOVERY_DELAY`) and
+refunded to the payer's bank account — see "Chunking, forwarding and the refund path".
+The flow is deliberately **not** a ramp: no quote, no `ramp_states` — the account is
+permanent and repeatedly funded. Inside Vortex the client is a **managed child profile** under the
 partner manager, which is what carries KYB records, API credentials, the read API, and
 webhook tenancy.
 
@@ -54,6 +58,7 @@ flowchart LR
         VAULT["VortexSubsidyVault\n(shared, treasury-funded)"]
         DEST[Client wallet]
         TREAS[Treasury FEE_RECIPIENT]
+        RECOV["Vortex recovery wallet\n(refund to the payer's IBAN)"]
     end
 
     subgraph Reference["Reference rate"]
@@ -78,13 +83,16 @@ flowchart LR
     MW -- "EURe Transfer logs" --> FWD
     CB -- "price before each swap" --> CE
     CE -- "quotes every route" --> UNI
-    CE -- "swapAndForward(reference, route)" --> FWD
+    CE -- "swap(reference, route, chunk) x N" --> FWD
+    CE -- "forward(whole payment)" --> FWD
+    CE -- "recover(eure, usdc) after RECOVERY_DELAY" --> FWD
     FWD --> UNI
     FWD -- "band + floor on the net" --> LINK
-    FWD -- "USDC - fee" --> DEST
+    FWD -- "one USDC transfer per payment" --> DEST
     FWD -- fee --> TREAS
     FWD -- "pay(shortfall)" --> VAULT
-    VAULT -- subsidy --> DEST
+    VAULT -- "subsidy (stays on the clone)" --> FWD
+    FWD -- "stuck payment" --> RECOV
     ONB -- "link address + request IBAN" --> MAPI
     MONI -- "association / config reads" --> MAPI
     OUTBOX -- "DEPOSIT_RECEIVED / DEPOSIT_CONVERTED" --> PAPI
@@ -93,8 +101,10 @@ flowchart LR
 
 Trust boundaries worth holding onto: **Monerium controls where EURe mints** (the IBAN's
 linked default address — which is why the association monitor exists); **the contract
-controls where funds can go** (fixed `destination`, fee to the immutable treasury,
-fallback sweep — the keeper can only ever trigger, never redirect); **Vortex controls
+controls where funds can go** (fixed `destination`, fee to the immutable treasury, and
+the immutable Vortex recovery wallet, reachable only by the keeper and only once a batch
+has been open for `RECOVERY_DELAY` — the keeper can trigger and, for a stuck payment,
+recover, never redirect); **Vortex controls
 timing, route choice and the reference within on-chain bounds** (a validated route set,
 a Chainlink band, a fee cap, vault caps and a floor on the client's net), which can move
 the price inside those bounds but never where funds go; and **accounting**.
@@ -110,7 +120,7 @@ sequenceDiagram
     participant C as Ethereum
 
     Note over M: Monerium onboards the corporate under partner reliance - profile "approved"
-    Op->>C: deployForwarder(destination, fallback, targetPpm, floorPpm) via factory
+    Op->>C: deployForwarder(destination, targetPpm, floorPpm) via factory
     Op->>Adm: POST /v1/admin/monerium-b2b/accounts
     Adm->>C: verify clone against configured trusted factory + config read-back
     Adm->>Adm: atomically commit managed child + KYB mirror + account
@@ -126,9 +136,9 @@ Steps in prose:
 1. **Monerium onboards the corporate** under the partner's reliance attestation; the
    profile arrives `approved`. (Vortex's KYB submission API is a deliberate 501 stub —
    registry T3.)
-2. **Operator deploys the forwarder clone** with the client's `destination`, mandatory
-   self-custodied `fallbackAddress`, and the initial fee policy (`targetPpm`,
-   `floorPpm`); manifest generated and verified.
+2. **Operator deploys the forwarder clone** with the client's `destination` (no setter:
+   a wallet change means a new clone, runbook §5) and the initial fee policy
+   (`targetPpm`, `floorPpm`); manifest generated and verified.
 3. **Admin mapping** — one idempotent call provisions the managed child, mirrors the
    approved KYB into `provider_customers` + `kyc_cases`, verifies the clone against the
    configured trusted factory on chain, and creates the account row bound via
@@ -155,18 +165,20 @@ sequenceDiagram
     M-->>V: order.created / order.updated webhook -> inbox -> deposit row
     V->>F: (watcher) sees the Transfer log -> stamps chain identity
     V->>V: DEPOSIT_RECEIVED -> outbox -> partner webhook
-    V->>CB: last hour of 1-min candles -> 5-min VWAP (reference, recorded on the execution row)
-    V->>V: quote every whitelisted route, project fee/subsidy, defer if the vault cannot cover
-    V->>F: swapAndForward(reference, bestRoute)  [execution row committed first]
-    F->>F: swap min(balance, perSwapCap) on the route; fee above target, floor on the net
-    F->>S: pay(shortfall) when the fill is below the floor
-    S->>P: subsidy USDC to client wallet
-    F->>P: USDC - fee to client wallet (fee to treasury)
-    V->>V: finalize from SwapExecuted event (fee, subsidy, reference, route)
-    Note over V: mint cursor reaches the swap block
-    V->>V: R04 attribution through the exact swap log position
+    loop one chunk per keeper cycle (at most perSwapCap) until the deposit is converted
+        V->>CB: last hour of 1-min candles -> 5-min VWAP (reference, recorded on the execution row)
+        V->>V: quote every whitelisted route, project fee/subsidy, defer if the vault cannot cover
+        V->>F: swap(reference, bestRoute, chunk)  [execution row bound to the deposit, committed first]
+        F->>F: swap the chunk on the route; fee above target (to treasury), floor on the net; USDC stays here
+        F->>S: pay(shortfall) when the fill is below the floor
+        S->>F: subsidy USDC onto the clone
+        V->>V: finalize from SwapExecuted (fee, subsidy, reference, route)
+    end
+    V->>F: forward(sum of the chunks' net)  [execution row committed first]
+    F->>P: the whole payment's USDC to the client wallet in one transfer
+    V->>V: finalize from Forwarded (amount must equal the plan) -> deposit forwarded
     Note over V: 32 blocks later
-    V->>P: DEPOSIT_CONVERTED -> outbox -> partner webhook
+    V->>P: DEPOSIT_CONVERTED (chunks + forward tx) -> outbox -> partner webhook
 ```
 
 Vortex learns about a deposit through two complementary channels, which converge on the
@@ -223,8 +235,16 @@ stateDiagram-v2
         pending --> returned
         held --> minted
         held --> returned
-        minted --> [*]
+        minted --> converting : first chunk sent
+        minted --> recovering
+        converting --> forwarded : forward confirmed
+        converting --> recovering
+        recovering --> refunded
+        recovering --> recovery_failed
+        recovery_failed --> recovering : operator retry
+        forwarded --> [*]
         returned --> [*]
+        refunded --> [*]
     }
 ```
 
@@ -232,8 +252,8 @@ stateDiagram-v2
 stateDiagram-v2
     direction LR
     state "Execution (monerium_conversion_executions)" as exe {
-        [*] --> pending2 : row committed BEFORE broadcast
-        pending2 --> confirmed : receipt + SwapExecuted
+        [*] --> pending2 : row committed BEFORE broadcast (kind swap / forward / recover, bound to its deposit)
+        pending2 --> confirmed : receipt + the kind's event (amounts must match the plan)
         pending2 --> failed : revert / never sent / stale
         confirmed --> [*]
         failed --> [*] : retried via a NEW row (backoff)
@@ -254,48 +274,58 @@ stateDiagram-v2
 ```
 
 Deposit statuses are **forward-only** (a delayed or replayed webhook can never regress a
-row). Account statuses follow only the arrows above; `closed` is terminal and a repeated
+row): the provider states first, then the keeper's settlement branch or the refund branch
+(`recovering` is entered by the operator through the admin endpoint until the missed
+window triggers it automatically; `refunded` and `recovery_failed` are set by whoever
+completes the bank refund). Account statuses follow only the arrows above; `closed` is terminal and a repeated
 write of the current status is idempotent. A nonce-less execution row is a five-minute
 pre-send reservation; expiry uses a compare-and-set so its original owner can no longer
 broadcast. Once the swap nonce is persisted, time alone never fails the execution.
 Recovery scans bounded 2,000-block pages from the pre-broadcast block and adopts only
-one transaction matching the keeper sender, nonce, forwarder target, the exact
-`swapAndForward(reference, route)` calldata rebuilt from the reference and route
-persisted before broadcast, and emitted event; incomplete or ambiguous evidence stays
-pending for manual reconciliation. The account additionally carries a `dormant_since`
+one transaction matching the keeper sender, nonce, forwarder target, the exact calldata
+of its kind — `swap(reference, route, amountIn)`, `forward(amount)` or
+`recover(eure, usdc)` — rebuilt from what was persisted before broadcast, and the kind's
+emitted event; incomplete or ambiguous evidence stays pending for manual reconciliation. The account additionally carries a `dormant_since`
 marker (guardian-paused after 60 days without a conversion; conversion stops, the
 protective stranding marker still arms).
 
-## Batching and large deposits
+## Chunking, forwarding and the refund path
 
-Batching happens in both directions, automatically:
+The keeper serves **one deposit at a time** per account, oldest chain-indexed mint first,
+and sends at most one transaction per account per cycle:
 
-- **A large deposit is chunked.** One `swapAndForward()` call converts at most
-  `perSwapCap`; the remainder stays on the forwarder and the keeper converts it on
-  subsequent cycles (one execution row per chunk) until the balance is below
-  `minSwapAmount`. A €120k deposit at a €25k cap becomes five executions a few minutes
-  apart. The cap is an availability/price-impact parameter, not a safety bound — the
-  oracle `minOut` is the safety bound.
-- **Several small deposits merge.** The contract swaps the balance, not a deposit: two
-  €5k deposits sitting on the forwarder convert in a single execution, and R04
-  attribution splits the USDC back across both deposit rows pro-rata. A deposit that
-  only partially fits under the cap is split into an allocation for this execution and
-  an outstanding remainder for the next. Partners receive one `DEPOSIT_CONVERTED`
-  event only after the whole deposit is allocated and every contributing execution is
-  deep enough; its `conversions[]` lists each portion and `usdcNetRaw` is the aggregate
-  of each swap's `usdcOut - fee`. It excludes unsolicited USDC that the contract sweeps
-  to the same destination alongside a swap.
-
-Allocation is intentionally deferred after the swap receipt. The mint watcher must
-first advance through the execution block; the reconciler then includes deposits from
-earlier blocks and only deposits whose `Transfer` log precedes `SwapExecuted` in the
-same block. This exact boundary also captures a mint that lands between the executor's
-balance read and its swap transaction without attributing a later mint to that swap.
-
-In normal operation merging is rare: the keeper runs every minute, so deposits share an
-execution only when they arrive within about a minute of each other or during downtime.
-And batching only ever merges deposits of the **same client** — every client has their
-own forwarder, so cross-client funds never mix.
+- **A large deposit is chunked; the client still gets one transfer.** `swap` takes an
+  explicit `amountIn`: at most `perSwapCap`, and never leaving a sub-minimum dust
+  remainder when the last two chunks can share it (`planChunk`). A €120k deposit at a
+  €25k cap becomes five swap executions a few minutes apart, each bound to the deposit;
+  their USDC (fee already skimmed, subsidy already added) waits on the forwarder. Once
+  the chunks' EURe sum to the deposit, one `forward(amount)` execution pushes the sum of
+  their nets to the destination, and the deposit is `forwarded`. The cap is an
+  availability/price-impact parameter, not a safety bound — the oracle floor is.
+- **Deposits never share a swap.** Two deposits sitting on the forwarder convert one
+  after the other; the second waits for the first's forward only if they compete for
+  the same cycle. There is no pro-rata attribution any more: an execution belongs to
+  exactly one deposit by construction. The partner receives one `DEPOSIT_CONVERTED`
+  per deposit after the forward is deep enough, with `conversions[]` per chunk and
+  `forwardTxHash`.
+- **A remainder below `minSwapAmount`** (registry P6) cannot be swapped; it waits for
+  the refund path rather than merging with the next deposit.
+- **The refund path.** A deposit marked `recovering` — by an operator through the admin
+  endpoint, or once automated by the missed window — is moved off the clone with
+  `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
+  immutable `RECOVERY_WALLET`, and only once the clone's `batchOpenedAt` marker is older
+  than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive, is never
+  re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
+  recovery, so a younger payment sharing the clone gets its own clock. The keeper
+  recovers before it converts anything else, and still does so on suspended or dormant
+  accounts (`recover` ignores the guardian pause). Off the clone the refund is manual for
+  now (runbook §2.7): the USDC is swapped back to EURe, a float wallet covers the
+  slippage residue, and a Monerium redeem order from the recovery wallet's company
+  profile returns the exact issue amount to the payer's IBAN; the operator then marks the
+  deposit `refunded`.
+- **Liveness without Vortex.** Past `TRIGGER_DELAY` (24 h) anyone may `swap` (Chainlink
+  reference, no subsidy) and `forwardAll` the clone's USDC to the destination; payments
+  may merge on that path, and the keeper reconciles what it did not send by hand.
 
 ## Fees, reference rate and subsidy
 
@@ -309,7 +339,7 @@ settles every fill into three bands against that reference (decisions:
   price `(low + high + close) / 3` weighted by volume; widened to an hour when the five
   minutes carry no volume, so a single thin weekend print never becomes the reference),
   stores price, window and time on the execution row, and passes the rate into
-  `swapAndForward`. The contract rejects a reference outside
+  `swap`. The contract rejects a reference outside
   `MAX_REFERENCE_DEVIATION_BPS` of Chainlink EUR/USD; a permissionless caller's value is
   ignored and Chainlink is the reference. No reference means the keeper defers.
 - **Fee policy (`targetPpm`, `floorPpm`)**: per clone, in ppm below the reference,
@@ -322,19 +352,21 @@ settles every fill into three bands against that reference (decisions:
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
   from the treasury. It pays only when called by a factory-registered clone, to the
-  destination the clone passes (its own immutable one), within a guardian-settable
+  clone itself (the subsidy is forwarded with the payment), within a guardian-settable
   per-swap cap (ppm of the swap's reference value) and a UTC-daily budget; it can be
   paused and withdraws only to the treasury. A vault that cannot cover the shortfall
-  reverts the whole swap, and the clone reverts unless exactly the shortfall arrived at
-  its destination — a swap is never partially subsidized, and the guardian cannot harm
-  a swap by pointing the factory at a bad vault. The vault holds Vortex money only.
+  reverts the whole swap, and the clone reverts unless exactly the shortfall arrived on
+  it — a swap is never partially subsidized, and the guardian cannot harm a swap by
+  pointing the factory at a bad vault. The vault holds Vortex money only.
 - **Floor on the net**: `SLIPPAGE_BPS` bounds fill − fee + subsidy against Chainlink,
   not the raw fill. The router minimum is zero and the forwarder's post-condition is the
   guard, so a subsidy can never paper over a depegged reference and the whole call,
   subsidy transfer included, reverts when the floor fails. Because the client's floor is
-  15 bps under the reference and the oracle floor 40 bps under Chainlink, a reference
-  more than ~25 bps below Chainlink fails the floor for every normal fill: that margin,
-  not the 100 bps band, is the operating tolerance against a stale Chainlink round.
+  15 bps under the reference and the oracle floor 60 bps under Chainlink, a reference
+  more than ~45 bps below Chainlink fails the floor for every normal fill: that margin,
+  not the 100 bps band, is the operating tolerance against a stale Chainlink round —
+  sized so ordinary weekend drift defers (and, under the 2 h window, refunds) about
+  nothing, while a genuine depeg still does.
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
   validated on chain to touch only EURe, EURC and USDC on the immutable router, with at
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
@@ -372,17 +404,21 @@ read-only — no keys, no transactions:
    prevented client-side, only detected fast.
 2. **Executable-depth monitor.** QuoterV2 quotes on every enabled route vs Chainlink;
    the best route's impact past the floor is an alert before clients feel it.
-3. **Stranded-balance monitor.** Forwarders holding EURe with the stranding marker
-   armed too long — a keeper-outage or deferral signal (past the trigger delay, the
-   permissionless fallback is live; within two days of the 7 day sweep the alert says
-   the dead-man sweep to the fallback is imminent; funds are never at risk).
-4. **Config reconciliation.** Re-reads per-clone config and bytecode: client-authorized
-   changes (destination/fallback) and guardian-authorized changes (fee policy,
-   timelocked) are reconciled into the DB with a version bump; bytecode or registration
-   drift is a should-be-impossible incident.
+3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
+   been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
+   or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
+   a keeper-outage signal; funds are never at risk).
+4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
+   fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
+   destination change (no setter exists), bytecode or registration drift is a
+   should-be-impossible incident.
 5. **Subsidy-vault monitor.** Balance, daily budget, spend and pause state of the shared
    vault: paused or empty is an error (every below-floor swap defers), less than a day
    of budget or an exhausted day is a refill warning.
+6. **Reference-venue monitor.** Probes the Coinbase product the reference VWAP reads:
+   a delisted or halted product keeps answering the candles endpoint with stale data
+   and would make every keeper swap defer silently, so its status is an error line
+   rather than an assumption.
 
 ## Data model — the Monerium B2B tables
 
@@ -395,8 +431,7 @@ erDiagram
     profiles ||--o| monerium_accounts : "vortex_profile_id (managed child)"
     monerium_accounts ||--o{ monerium_fiat_deposits : "account_id"
     monerium_accounts ||--o{ monerium_conversion_executions : "account_id"
-    monerium_fiat_deposits ||--o{ monerium_deposit_allocations : "deposit_id"
-    monerium_conversion_executions ||--o{ monerium_deposit_allocations : "execution_id (R04)"
+    monerium_fiat_deposits ||--o{ monerium_conversion_executions : "deposit_id (1 deposit : N executions)"
     webhooks ||--o{ webhook_deliveries : "webhook_id (deposit events)"
 
     monerium_accounts {
@@ -405,7 +440,6 @@ erDiagram
         string iban
         string forwarder_address UK
         string destination
-        string fallback_address
         int target_ppm
         int floor_ppm
         enum status
@@ -418,6 +452,8 @@ erDiagram
         int log_index
     }
     monerium_conversion_executions {
+        enum kind
+        uuid deposit_id FK
         decimal eure_in_raw
         decimal usdc_net_raw
         decimal subsidy_raw
@@ -429,20 +465,13 @@ erDiagram
         int swap_log_index
         enum status
     }
-    monerium_deposit_allocations {
-        uuid deposit_id FK
-        uuid execution_id FK
-        decimal eure_in_raw
-        decimal usdc_net_raw
-    }
 ```
 
 | Table | Purpose |
 |---|---|
-| `monerium_accounts` (069, 071, 078) | One row per client account: Monerium profile UUID, IBAN, forwarder/destination/fallback addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
-| `monerium_fiat_deposits` (069, 070, 073, 076) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status, on-chain mint identity, and two webhook-emission markers |
-| `monerium_conversion_executions` (069, 074, 075, 077, 079) | One row per `swapAndForward()`, created before broadcast with the reference (rate, source, averaging window, time) and route it will send: EURe in, USDC gross + fee + subsidy from the event, conversion net (`usdcOut - fee + subsidy`, excluding unrelated USDC swept by `forwarded`), tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and `SwapExecuted` log index (allocation boundary), status |
-| `monerium_deposit_allocations` (076) | N:M accounting join: the EURe portion and attributed net USDC for each deposit/execution pair |
+| `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
+| `monerium_fiat_deposits` (069, 070, 073, 076, 080) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity, and two webhook-emission markers |
+| `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, averaging window, time) and route, then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |
 | `webhook_deliveries` (072) | Generic durable outbox for the deposit-event webhook family: one row per (webhook, event), claim-based dispatch with backoff, 30-day retention after settling |
@@ -458,14 +487,16 @@ the exactly-once link/IBAN calls, and — registered by the partner — a user-o
 
 Webhook deliveries survive crashes (persist-before-200 inbox); a late provider webhook
 reconciles the exact same-account unattributed mint into the provider order, including
-when that order row already exists, without duplicating chain identity or allocations;
+when that order row already exists, without duplicating chain identity or executions;
 provider onboarding calls are exactly-once (`financial_operations`) and their reads are
 bound to the configured profile and chain; a broadcast whose hash was lost is recovered
-from its persisted nonce/block plus an exact transaction-and-event match (including the
-persisted reference and route in the calldata) rather than re-sent; a swap the vault
+from its persisted nonce/block plus an exact transaction-and-event match (the calldata
+of its kind rebuilt from what was persisted) rather than re-sent; a swap the vault
 could not cover, a reference that is unavailable or out of band, or a fill below the
 floor is deferred by the keeper, never forced; all per-account writes serialize on one
-advisory lock; and the client always has two exits
-that no operator failure can block — the fallback-address sweep and, past the trigger
-delay, permissionless swap execution. Full invariants and threat model:
+advisory lock; a Vortex outage can never trap converted funds on chain (past the
+trigger delay anyone may swap and forward permissionlessly); and a payment the promised
+window was missed on leaves the clone only through the keeper's delay-gated recovery to
+the immutable Vortex wallet, which the refund completes off chain. Full invariants and
+threat model:
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md).

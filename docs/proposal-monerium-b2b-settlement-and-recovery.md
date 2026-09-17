@@ -1,9 +1,12 @@
 # Proposal: whole-deposit settlement and automatic refund recovery (Monerium B2B onramp)
 
-**Status:** draft plan, 2026-09-17. Nothing here is implemented. Targets the design on
-PR #1375 (`feat/monerium-forwarder-fee-subsidy`); the contracts are not deployed, so
-every change below is a pre-launch design change, not a migration. Accepted parts move
-into a second amendment of [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md).
+**Status:** accepted 2026-09-17 with every recommendation in §8; phases 0 and 1 are
+implemented on PR #1375 (`feat/monerium-forwarder-fee-subsidy`), phases 2 and 3 are in
+progress. The decisions live in the second amendment of
+[`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md); the behaviour in
+[`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md). This document
+stays as the design rationale (the approaches compared, the feasibility findings) until the
+remaining phases land, then it is deleted.
 
 ## 1. What product asked for
 

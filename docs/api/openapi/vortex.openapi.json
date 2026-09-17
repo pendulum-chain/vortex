@@ -2517,10 +2517,6 @@
             "format": "date-time",
             "type": ["string", "null"]
           },
-          "fallbackAddress": {
-            "description": "The client's self-custodied recovery address.",
-            "type": "string"
-          },
           "floorPpm": {
             "description": "Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap.",
             "type": "integer"
@@ -2547,7 +2543,6 @@
           "createdAt",
           "destination",
           "dormantSince",
-          "fallbackAddress",
           "floorPpm",
           "forwarderAddress",
           "iban",
@@ -2572,18 +2567,18 @@
             "type": "string"
           },
           "conversions": {
-            "description": "Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit.",
+            "description": "The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits.",
             "items": {
               "properties": {
                 "eureInRaw": {
-                  "description": "EURe from this deposit consumed by the execution in 18-decimal base units.",
+                  "description": "EURe of this deposit consumed by the chunk in 18-decimal base units.",
                   "type": "string"
                 },
                 "execution": {
-                  "description": "Execution-level pricing, identical on every deposit portion the execution consumed: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the execution is not yet confirmed.",
+                  "description": "The chunk's pricing: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the chunk is not yet confirmed.",
                   "properties": {
                     "feeRaw": {
-                      "description": "Fee taken on the whole execution in 6-decimal base units.",
+                      "description": "Fee taken on the chunk in 6-decimal base units.",
                       "type": ["string", "null"]
                     },
                     "referenceRateRaw": {
@@ -2591,7 +2586,7 @@
                       "type": ["string", "null"]
                     },
                     "subsidyRaw": {
-                      "description": "Subsidy paid by the vault straight to the destination for the whole execution in 6-decimal base units.",
+                      "description": "Subsidy paid by the vault onto the forwarding contract for the chunk, delivered with the deposit's transfer, in 6-decimal base units.",
                       "type": ["string", "null"]
                     }
                   },
@@ -2607,11 +2602,11 @@
                   "type": "string"
                 },
                 "txHash": {
-                  "description": "The swap-and-forward transaction hash.",
+                  "description": "The chunk swap transaction hash.",
                   "type": ["string", "null"]
                 },
                 "usdcNetRaw": {
-                  "description": "Net USDC from this execution attributed to this deposit in 6-decimal base units.",
+                  "description": "Net USDC of the chunk (fill minus fee plus subsidy) in 6-decimal base units.",
                   "type": "string"
                 }
               },
@@ -2630,9 +2625,23 @@
           "depositId": {
             "type": "string"
           },
+          "forwardTxHash": {
+            "description": "The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded.",
+            "type": ["string", "null"]
+          },
           "status": {
-            "description": "Deposit status (forward-only).",
-            "enum": ["pending", "minted", "held", "returned"],
+            "description": "Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.",
+            "enum": [
+              "pending",
+              "minted",
+              "held",
+              "returned",
+              "converting",
+              "forwarded",
+              "recovering",
+              "refunded",
+              "recovery_failed"
+            ],
             "type": "string"
           },
           "txHash": {
@@ -2640,11 +2649,21 @@
             "type": ["string", "null"]
           },
           "usdcNetRaw": {
-            "description": "Aggregate net USDC attributed to this deposit so far in 6-decimal base units.",
+            "description": "Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded.",
             "type": "string"
           }
         },
-        "required": ["amountRaw", "conversions", "createdAt", "currency", "depositId", "status", "txHash", "usdcNetRaw"],
+        "required": [
+          "amountRaw",
+          "conversions",
+          "createdAt",
+          "currency",
+          "depositId",
+          "forwardTxHash",
+          "status",
+          "txHash",
+          "usdcNetRaw"
+        ],
         "type": "object"
       },
       "MoneriumB2bDepositsResponse": {
