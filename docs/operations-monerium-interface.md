@@ -56,7 +56,8 @@ Configuration (`apps/api/src/config/vars.ts`, samples in `apps/api/.env.example`
 | `MONERIUM_API_URL` | Monerium API base (`https://api.monerium.dev` sandbox, `https://api.monerium.app` production). |
 | `MONERIUM_CLIENT_ID` | OAuth authorization-code app used by the dashboard and widget onboarding. |
 | `MONERIUM_REDIRECT_URI` / `MONERIUM_WIDGET_REDIRECT_URI` | Exact callback URIs registered with Monerium for the dashboard and the widget (`/widget` on the frontend origin); a mismatch renders Monerium's authorization page blank. The widget URI is optional and disables widget OAuth when unset. |
-| `MONERIUM_WHITELABEL_CLIENT_ID` / `MONERIUM_WHITELABEL_CLIENT_SECRET` | White-label client credentials (also the B2B onramp). |
+| `MONERIUM_WHITELABEL_CLIENT_ID` / `MONERIUM_WHITELABEL_CLIENT_SECRET` | White-label client credentials (also the B2B onramp). Optional: when unset, profile, address, and IBAN reads go through the user's OAuth session only. |
+| `EUR_ONRAMP_ENABLED` | Kill switch. `false` stops new EUR pay-in quotes with a public `503`; registered ramps keep executing. Defaults to enabled. |
 | `MONERIUM_ISSUE_FEE_EUR` | Flat EUR fee subtracted from each issue quote; required in production and must not default silently. Keep it at `0`: Monerium mints SEPA credits at par, and the flow models the fee as provider-deducted, so a non-zero value is shown to the user but never collected (it stays in the owner's wallet). Collecting it needs a full-input self-transfer plus on-chain fee distribution first. |
 
 This release does not create profiles through the white-label API, import external profiles,

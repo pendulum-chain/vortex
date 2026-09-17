@@ -35,7 +35,8 @@ Sandbox probes on 2026-09-14 settled the facts the design depends on:
 1. **Both apps stay in service; only the credential differs.** At EUR ramp registration the
    backend resolves the user's `monerium`/`eur` binding through the white-label app first and,
    when that app answers `403` or `404`, through the user's backend-held OAuth token. Any other
-   white-label failure does not switch apps. The on-chain flow is identical for both paths.
+   white-label failure does not switch apps. Without white-label credentials the backend uses the
+   OAuth token directly. The on-chain flow is identical for both paths.
 2. **No stored source.** Which app served a profile is decided per call and logged, never
    persisted: after registration the ramp facts make the source irrelevant.
 3. **OAuth tokens stay in backend memory only**, as before. A missing or rejected session fails
