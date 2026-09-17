@@ -1,6 +1,6 @@
 import { getNetworkId, type PresignedTx } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, getAddress, parseTransaction, recoverTransactionAddress } from "viem";
-import { POLYGON_EURE, POLYGON_EURE_USDC_FEE, POLYGON_UNISWAP_V3_ROUTER, POLYGON_USDC, uniswapV3RouterAbi } from "./contract";
+import { POLYGON_EURE, POLYGON_EURE_USDC_PATH, POLYGON_UNISWAP_V3_ROUTER, uniswapV3RouterAbi } from "./contract";
 
 export interface UniswapV3SwapExpectation {
   amountInRaw: string;
@@ -56,17 +56,14 @@ export async function validateUniswapSwap(tx: PresignedTx, expectation: UniswapV
     throw new Error("Uniswap swap signer or router does not match the fixed route");
   }
   const decoded = decodeFunctionData({ abi: uniswapV3RouterAbi, data: parsed.data ?? "0x" });
-  if (decoded.functionName !== "exactInputSingle") throw new Error("Uniswap swap call is not exactInputSingle");
+  if (decoded.functionName !== "exactInput") throw new Error("Uniswap swap call is not exactInput");
   const params = decoded.args[0];
   if (
-    !sameAddress(params.tokenIn, POLYGON_EURE) ||
-    !sameAddress(params.tokenOut, POLYGON_USDC) ||
-    params.fee !== POLYGON_EURE_USDC_FEE ||
+    params.path.toLowerCase() !== POLYGON_EURE_USDC_PATH.toLowerCase() ||
     !sameAddress(params.recipient, expectation.signer) ||
     params.deadline !== BigInt(expectation.deadline) ||
     params.amountIn !== BigInt(expectation.amountInRaw) ||
-    params.amountOutMinimum !== BigInt(expectation.hardMinimumOutputRaw) ||
-    params.sqrtPriceLimitX96 !== 0n
+    params.amountOutMinimum !== BigInt(expectation.hardMinimumOutputRaw)
   ) {
     throw new Error("Uniswap swap does not match the fixed Polygon EURe/USDC route");
   }

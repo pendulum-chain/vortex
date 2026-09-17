@@ -15,7 +15,7 @@ import { getEvmFundingAccount } from "../../core/evm-funding";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import {
   POLYGON_EURE,
-  POLYGON_EURE_USDC_FEE,
+  POLYGON_EURE_USDC_PATH,
   POLYGON_UNISWAP_V3_ROUTER,
   POLYGON_USDC,
   UNISWAP_APPROVE_GAS_LIMIT,
@@ -90,14 +90,11 @@ export async function prepareUniswapV3FixedSwapTxs(
                 amountIn: BigInt(ctx.ownMetadata.inputAmountRaw),
                 amountOutMinimum: BigInt(hardMinimumOutputRaw),
                 deadline,
-                fee: POLYGON_EURE_USDC_FEE,
-                recipient: ephemeral.address as `0x${string}`,
-                sqrtPriceLimitX96: 0n,
-                tokenIn: POLYGON_EURE,
-                tokenOut: POLYGON_USDC
+                path: POLYGON_EURE_USDC_PATH,
+                recipient: ephemeral.address as `0x${string}`
               }
             ],
-            functionName: "exactInputSingle"
+            functionName: "exactInput"
           }),
           ...feeFields,
           gas: UNISWAP_SWAP_GAS_LIMIT.toString(),

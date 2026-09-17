@@ -340,7 +340,7 @@ route.
 | Presigned tx | Lane | Owning phase | Rationale |
 |--------------|------|--------------|-----------|
 | `nablaApprove`, `nablaSwap` | main | `NablaSwap` | its executors broadcast them; amounts from `nablaSwapEvm` |
-| `uniswapApprove`, `uniswapSwap` | main | `PolygonEureUsdcUniswapSwap` | exact EURe approval and pinned-pool `exactInputSingle` conversion |
+| `uniswapApprove`, `uniswapSwap` | main | `PolygonEureUsdcUniswapSwap` | exact EURe approval and pinned-path `exactInput` conversion (EURe → USDC.e → USDC) |
 | `distributeFees` | main | `DistributeFees` | fee amounts from `quote.metadata.fees` |
 | `squidRouterApprove`, `squidRouterSwap` | main | `SquidRouterSwap` | bridge input from `evmToEvm` |
 | `destinationTransfer` | main | `DestinationTransfer` | delivers `quote.outputAmount` to the user |

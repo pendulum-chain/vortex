@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import { EphemeralAccountType, type EvmTransactionData, EvmToken, Networks, type PresignedTx } from "@vortexfi/shared";
 import Big from "big.js";
-import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256 } from "viem";
+import { decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, keccak256 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { ReconciliationRequiredPhaseError, RecoverablePhaseError } from "../../../../errors/phase-error";
@@ -9,10 +9,11 @@ import * as financialOperationNamespace from "../core/financial-operation";
 import { allocateNonces } from "../core/prepare";
 import {
   POLYGON_EURE,
-  POLYGON_EURE_USDC_FEE,
-  POLYGON_EURE_USDC_POOL,
+  POLYGON_EURE_USDC_PATH,
+  POLYGON_EURE_USDC_ROUTE,
   POLYGON_UNISWAP_V3_ROUTER,
   POLYGON_USDC,
+  POLYGON_USDCE,
   uniswapV3RouterAbi
 } from "../phases/uniswap-v3-fixed-swap/contract";
 import { simulateUniswapV3FixedSwap } from "../phases/uniswap-v3-fixed-swap/simulation";
@@ -92,11 +93,8 @@ type SwapParams = {
   amountIn: bigint;
   amountOutMinimum: bigint;
   deadline: bigint;
-  fee: number;
+  path: `0x${string}`;
   recipient: `0x${string}`;
-  sqrtPriceLimitX96: bigint;
-  tokenIn: `0x${string}`;
-  tokenOut: `0x${string}`;
 };
 
 /** Prepares the fixed route for the shared ephemeral at `now`, returning blueprints and the persisted state. */
@@ -133,11 +131,11 @@ function swapParamsOf(blueprint: PresignedTx): SwapParams {
 }
 
 function encodeSwap(params: SwapParams): `0x${string}` {
-  return encodeFunctionData({ abi: uniswapV3RouterAbi, args: [params], functionName: "exactInputSingle" });
+  return encodeFunctionData({ abi: uniswapV3RouterAbi, args: [params], functionName: "exactInput" });
 }
 
 describe("fixed Polygon Uniswap V3 EURe/USDC swap", () => {
-  it("quotes the pinned pool without exposing EURE through the public token registry", async () => {
+  it("quotes the pinned two-hop path without exposing EURE through the public token registry", async () => {
     const result = await simulation();
 
     expect(result.output).toMatchObject({
@@ -147,15 +145,15 @@ describe("fixed Polygon Uniswap V3 EURe/USDC swap", () => {
     });
     expect(result.output.amount.toFixed()).toBe("116");
     expect(result.metadata).toMatchObject({
-      fee: POLYGON_EURE_USDC_FEE,
       inputToken: POLYGON_EURE,
       outputToken: POLYGON_USDC,
-      pool: POLYGON_EURE_USDC_POOL,
+      path: POLYGON_EURE_USDC_PATH,
+      pools: POLYGON_EURE_USDC_ROUTE.map(hop => hop.pool),
       router: POLYGON_UNISWAP_V3_ROUTER
     });
   });
 
-  it("prepares exact approval, fixed-pool swap, cleanup, and native prefunding", async () => {
+  it("prepares exact approval, fixed-path swap, cleanup, and native prefunding", async () => {
     const simulated = await simulation();
     const prepared = await prepareUniswapV3FixedSwapTxs(
       {
@@ -187,11 +185,8 @@ describe("fixed Polygon Uniswap V3 EURe/USDC swap", () => {
     expect(params).toMatchObject({
       amountIn: BigInt(inputAmountRaw),
       amountOutMinimum: 110_200_000n,
-      fee: POLYGON_EURE_USDC_FEE,
-      recipient: ephemeral.address,
-      sqrtPriceLimitX96: 0n,
-      tokenIn: POLYGON_EURE,
-      tokenOut: POLYGON_USDC
+      path: POLYGON_EURE_USDC_PATH,
+      recipient: ephemeral.address
     });
     expect(state).toEqual({
       deadline: "1700604800",
@@ -351,15 +346,16 @@ describe("fixed Polygon Uniswap V3 route validation", () => {
     await expect(validateUniswapApproval(signed, expectation)).rejects.toThrow();
   });
 
+  const pathTypes = ["address", "uint24", "address", "uint24", "address"] as const;
   it.each<[string, (params: SwapParams) => Partial<SwapParams>]>([
-    ["tokenIn", () => ({ tokenIn: OTHER_TOKEN })],
-    ["tokenOut", () => ({ tokenOut: OTHER_TOKEN })],
-    ["fee tier", () => ({ fee: 3000 })],
+    ["output token", () => ({ path: encodePacked(pathTypes, [POLYGON_EURE, 3000, POLYGON_USDCE, 100, OTHER_TOKEN]) })],
+    ["intermediate token", () => ({ path: encodePacked(pathTypes, [POLYGON_EURE, 3000, OTHER_TOKEN, 100, POLYGON_USDC]) })],
+    ["fee tier", () => ({ path: encodePacked(pathTypes, [POLYGON_EURE, 500, POLYGON_USDCE, 100, POLYGON_USDC]) })],
+    ["hop count", () => ({ path: encodePacked(["address", "uint24", "address"], [POLYGON_EURE, 500, POLYGON_USDC]) })],
     ["recipient", () => ({ recipient: OTHER_TOKEN })],
     ["deadline", params => ({ deadline: params.deadline + 1n })],
     ["amountIn", params => ({ amountIn: params.amountIn + 1n })],
-    ["amountOutMinimum", params => ({ amountOutMinimum: params.amountOutMinimum - 1n })],
-    ["sqrtPriceLimitX96", () => ({ sqrtPriceLimitX96: 1n })]
+    ["amountOutMinimum", params => ({ amountOutMinimum: params.amountOutMinimum - 1n })]
   ])("rejects a swap whose %s differs from the fixed route", async (_label, mutate) => {
     const { expectation, swap } = await prepared();
     const params = swapParamsOf(swap);
@@ -373,7 +369,7 @@ describe("fixed Polygon Uniswap V3 route validation", () => {
     await expect(validateUniswapSwap(signed, expectation)).rejects.toThrow("signer or router does not match");
   });
 
-  it("rejects a swap that is not exactInputSingle", async () => {
+  it("rejects a swap that is not exactInput", async () => {
     const { expectation, swap } = await prepared();
     const signed = await sign(
       withData(swap, {

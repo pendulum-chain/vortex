@@ -22,7 +22,7 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 - Polygon destinations (`MoneriumOnrampPolygonSameChain`) end the same prefix at `subsidizePostSwap` → `destinationTransfer` for USDC, with one same-chain `squidRouterSwap` before the transfer for other Polygon tokens; no bridge, no `squidRouterPay`, no `finalSettlementSubsidy`.
 - Registration resolves the profile through the white-label app or the user's backend-held OAuth token (`05-integrations/monerium.md`), derives one approved profile-linked Polygon EOA/IBAN pair, and persists the owner's EURe baseline. The SEPA artifact uses the full quote input amount; issue execution waits for `baseline + quoted post-fee EURe` and treats balance-check timeout/read failure as recoverable.
 - Self-transfer moves exactly the quoted post-fee EURe from the owner to the ephemeral using the owner permit and ephemeral `transferFrom`; excess or duplicate EURe remains with the owner.
-- The fixed Polygon Uniswap block converts EURe to native USDC through the pinned 500-fee pool. Fees and post-swap subsidy run on Polygon USDC before Squid destination settlement.
+- The fixed Polygon Uniswap block converts EURe to native USDC through the pinned EURe → USDC.e (3000-fee) → USDC (100-fee) path. Fees and post-swap subsidy run on Polygon USDC before Squid destination settlement.
 - Supported EVM destination tokens must exist in `evmTokenConfig`.
 - `EurOnrampBase*` and `EurOfframpBase` Mykobo flows remain executable only for persisted recovery and are never candidates for new quotes. See `05-integrations/monerium.md` and `05-integrations/mykobo.md`.
 

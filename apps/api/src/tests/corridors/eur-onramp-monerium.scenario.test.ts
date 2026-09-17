@@ -22,8 +22,7 @@ import { moneriumPermitAbi } from "../../api/services/phases/blocks/phases/moner
 import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import {
   POLYGON_EURE,
-  POLYGON_EURE_USDC_FEE,
-  POLYGON_EURE_USDC_POOL,
+  POLYGON_EURE_USDC_ROUTE,
   POLYGON_UNISWAP_V3_FACTORY,
   POLYGON_UNISWAP_V3_ROUTER,
   POLYGON_USDC
@@ -168,27 +167,33 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
     world.squidRouter.computeToAmountMin = params => world.squidRouter.computeToAmount(params);
     world.squidRouter.computeToAmountUsd = params => new Big(params.fromAmount).div(1_000_000).toFixed();
     world.squidRouter.toTokenDecimals = 6;
-    // The pinned Polygon EURe/USDC deployment verifies against these constants; per-ramp
-    // allowance and nonce reads are layered on top by scriptHappyWorld.
+    // The pinned Polygon EURe -> USDC.e -> USDC deployment verifies against these constants;
+    // per-ramp allowance and nonce reads are layered on top by scriptHappyWorld.
+    const sameAddress = (a: unknown, b: string) => typeof a === "string" && a.toLowerCase() === b.toLowerCase();
     world.evm.onReadContract = (_network, params) => {
+      const hop = POLYGON_EURE_USDC_ROUTE.find(candidate => sameAddress(params.address, candidate.pool));
       switch (params.functionName) {
         case "token0":
-          return POLYGON_EURE;
+          return hop?.tokenIn;
         case "token1":
-          return POLYGON_USDC;
+          return hop?.tokenOut;
         case "fee":
-          return POLYGON_EURE_USDC_FEE;
+          return hop?.fee;
         case "factory":
           return POLYGON_UNISWAP_V3_FACTORY;
-        case "getPool":
-          return POLYGON_EURE_USDC_POOL;
+        case "getPool": {
+          const [tokenIn, tokenOut, fee] = params.args ?? [];
+          return POLYGON_EURE_USDC_ROUTE.find(
+            candidate => candidate.fee === fee && sameAddress(tokenIn, candidate.tokenIn) && sameAddress(tokenOut, candidate.tokenOut)
+          )?.pool;
+        }
         default:
           return undefined;
       }
     };
     world.evm.onSimulateContract = (_network, params) => {
-      if (params.functionName === "quoteExactInputSingle") {
-        const amountIn = params.args?.[3] as bigint;
+      if (params.functionName === "quoteExactInput") {
+        const amountIn = params.args?.[1] as bigint;
         return (amountIn * EURE_USDC_RATE_MICRO) / 10n ** 18n;
       }
       return undefined;

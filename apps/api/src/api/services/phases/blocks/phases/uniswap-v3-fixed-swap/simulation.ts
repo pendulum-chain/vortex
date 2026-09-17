@@ -7,8 +7,8 @@ import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { MONERIUM_EURE } from "../monerium-issue/simulation";
 import {
   POLYGON_EURE,
-  POLYGON_EURE_USDC_FEE,
-  POLYGON_EURE_USDC_POOL,
+  POLYGON_EURE_USDC_PATH,
+  POLYGON_EURE_USDC_ROUTE,
   POLYGON_UNISWAP_V3_FACTORY,
   POLYGON_UNISWAP_V3_QUOTER,
   POLYGON_UNISWAP_V3_ROUTER,
@@ -20,7 +20,6 @@ import {
 } from "./contract";
 
 export interface UniswapV3FixedSwapMetadata {
-  fee: number;
   inputAmountDecimal: SerializableBig;
   inputAmountRaw: string;
   inputToken: string;
@@ -28,7 +27,8 @@ export interface UniswapV3FixedSwapMetadata {
   outputAmountDecimal: SerializableBig;
   outputAmountRaw: string;
   outputToken: string;
-  pool: string;
+  path: string;
+  pools: string[];
   quoter: string;
   router: string;
 }
@@ -46,26 +46,38 @@ function sameAddress(left: string, right: string): boolean {
 
 export async function verifyPolygonEureUsdcDeployment(): Promise<void> {
   const client = EvmClientManager.getInstance().getClient(Networks.Polygon);
-  const [token0, token1, fee, poolFactory, canonicalPool, routerFactory, quoterFactory] = await Promise.all([
-    client.readContract({ abi: uniswapV3PoolAbi, address: POLYGON_EURE_USDC_POOL, functionName: "token0" }),
-    client.readContract({ abi: uniswapV3PoolAbi, address: POLYGON_EURE_USDC_POOL, functionName: "token1" }),
-    client.readContract({ abi: uniswapV3PoolAbi, address: POLYGON_EURE_USDC_POOL, functionName: "fee" }),
-    client.readContract({ abi: uniswapV3PoolAbi, address: POLYGON_EURE_USDC_POOL, functionName: "factory" }),
-    client.readContract({
-      abi: uniswapV3FactoryAbi,
-      address: POLYGON_UNISWAP_V3_FACTORY,
-      args: [POLYGON_EURE, POLYGON_USDC, POLYGON_EURE_USDC_FEE],
-      functionName: "getPool"
-    }),
+  const [routerFactory, quoterFactory, ...hops] = await Promise.all([
     client.readContract({ abi: uniswapV3RouterAbi, address: POLYGON_UNISWAP_V3_ROUTER, functionName: "factory" }),
-    client.readContract({ abi: uniswapV3QuoterAbi, address: POLYGON_UNISWAP_V3_QUOTER, functionName: "factory" })
+    client.readContract({ abi: uniswapV3QuoterAbi, address: POLYGON_UNISWAP_V3_QUOTER, functionName: "factory" }),
+    ...POLYGON_EURE_USDC_ROUTE.map(hop =>
+      Promise.all([
+        client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "token0" }),
+        client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "token1" }),
+        client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "fee" }),
+        client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "factory" }),
+        client.readContract({
+          abi: uniswapV3FactoryAbi,
+          address: POLYGON_UNISWAP_V3_FACTORY,
+          args: [hop.tokenIn, hop.tokenOut, hop.fee],
+          functionName: "getPool"
+        })
+      ])
+    )
   ]);
+  const hopsMatch = POLYGON_EURE_USDC_ROUTE.every((hop, index) => {
+    const [token0, token1, fee, poolFactory, canonicalPool] = hops[index];
+    const pair = [token0, token1].map(getAddress).sort();
+    const expected = [hop.tokenIn, hop.tokenOut].map(getAddress).sort();
+    return (
+      pair[0] === expected[0] &&
+      pair[1] === expected[1] &&
+      fee === hop.fee &&
+      sameAddress(poolFactory, POLYGON_UNISWAP_V3_FACTORY) &&
+      sameAddress(canonicalPool, hop.pool)
+    );
+  });
   if (
-    !sameAddress(token0, POLYGON_EURE) ||
-    !sameAddress(token1, POLYGON_USDC) ||
-    fee !== POLYGON_EURE_USDC_FEE ||
-    !sameAddress(poolFactory, POLYGON_UNISWAP_V3_FACTORY) ||
-    !sameAddress(canonicalPool, POLYGON_EURE_USDC_POOL) ||
+    !hopsMatch ||
     !sameAddress(routerFactory, POLYGON_UNISWAP_V3_FACTORY) ||
     !sameAddress(quoterFactory, POLYGON_UNISWAP_V3_FACTORY)
   ) {
@@ -78,8 +90,8 @@ export async function quotePolygonEureToUsdc(amountIn: bigint): Promise<bigint> 
   const { result } = await client.simulateContract({
     abi: uniswapV3QuoterAbi,
     address: POLYGON_UNISWAP_V3_QUOTER,
-    args: [POLYGON_EURE, POLYGON_USDC, POLYGON_EURE_USDC_FEE, amountIn, 0n],
-    functionName: "quoteExactInputSingle"
+    args: [POLYGON_EURE_USDC_PATH, amountIn],
+    functionName: "quoteExactInput"
   });
   return result;
 }
@@ -99,7 +111,6 @@ export async function simulateUniswapV3FixedSwap(
   ctx.addNote(`UniswapV3FixedSwap: ${input.amount.toFixed()} EURE -> ${outputAmountDecimal.toFixed()} USDC on Polygon`);
   return {
     metadata: {
-      fee: POLYGON_EURE_USDC_FEE,
       inputAmountDecimal: input.amount,
       inputAmountRaw: input.amountRaw,
       inputToken: POLYGON_EURE,
@@ -107,7 +118,8 @@ export async function simulateUniswapV3FixedSwap(
       outputAmountDecimal,
       outputAmountRaw: outputAmountRaw.toString(),
       outputToken: POLYGON_USDC,
-      pool: POLYGON_EURE_USDC_POOL,
+      path: POLYGON_EURE_USDC_PATH,
+      pools: POLYGON_EURE_USDC_ROUTE.map(hop => hop.pool),
       quoter: POLYGON_UNISWAP_V3_QUOTER,
       router: POLYGON_UNISWAP_V3_ROUTER
     },
