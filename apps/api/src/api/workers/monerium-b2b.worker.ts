@@ -2,6 +2,7 @@ import { CronJob } from "cron";
 import { QueryTypes } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
 import { isKeeperChainConfigured } from "../services/monerium-b2b/chain";
 import { runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
@@ -11,6 +12,7 @@ import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-even
 import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
+import { runRecoveryDeadlines, runRecoveryOrchestrator } from "../services/monerium-b2b/recovery";
 
 const DEFAULT_CRON_TIME = "* * * * *"; // every minute
 
@@ -70,6 +72,16 @@ class MoneriumB2bWorker {
         }
 
         await runDormancyGate();
+
+        // The refund path: deposits past the promised window are marked (or reported),
+        // and the one active refund advances by a step; both need the keeper's chain
+        // config, the orchestrator also the recovery and float keys (fail-fast config).
+        if (config.moneriumB2b.autoRecovery !== "off") {
+          await runRecoveryDeadlines();
+        }
+        if (config.moneriumB2b.autoRecovery === "auto") {
+          await runRecoveryOrchestrator();
+        }
       }
 
       // Manager-facing deposit events into the durable webhook outbox; the

@@ -28,6 +28,7 @@ import {
 } from "./chain";
 import { isForwardTransition, withForwarderLock } from "./deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
+import { activeRecoveryExists } from "./recovery";
 import { fetchCoinbaseReference, isWithinReferenceBand, ReferenceQuote } from "./reference-rate";
 
 /**
@@ -778,13 +779,16 @@ export interface ActionPlanningInput {
   nowMs: number;
   perSwapCap: bigint;
   recoveryDelaySeconds: number;
+  /** A recovered payment is still on the recovery wallet: no second `recover` may land there. */
+  recoveryInFlight: boolean;
 }
 
 /**
  * What the keeper should do next for an account, given its settling deposits (oldest
  * mint first) and their confirmed chunks. A deposit marked `recovering` goes first, once
- * the clone's batch has been open for RECOVERY_DELAY (else it waits without blocking
- * younger deposits); then the oldest convertible deposit is forwarded when all of its
+ * the clone's batch has been open for RECOVERY_DELAY and no other refund is in flight
+ * (the recovery wallet takes one payment at a time); else it waits without blocking
+ * younger deposits. Then the oldest convertible deposit is forwarded when all of its
  * EURe is converted, or swapped in its next chunk.
  */
 export function planAction(
@@ -801,6 +805,9 @@ export function planAction(
     }
     if (input.batchOpenedAtSec === 0n || input.nowMs < recoveryEligibleAtMs) {
       continue; // the contract would revert DelayNotElapsed; younger deposits keep converting
+    }
+    if (input.recoveryInFlight) {
+      continue; // the previous refund must leave the recovery wallet first
     }
     return { deposit, eureRaw: state.remainingEureRaw, kind: "recover", usdcRaw: state.usdcNetRaw };
   }
@@ -886,11 +893,24 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // is currently possible.
   const pokeNeeded = batchOpenedAt === 0n && (eureBalance >= minSwapFloor || usdcBalance > 0n);
 
+  const recoveryInFlight = await activeRecoveryExists();
   const planned = await withForwarderLock(account.forwarderAddress, async transaction => {
     const deposits = await settlingDeposits(account.id, transaction);
     const withState = [];
     for (const deposit of deposits) {
-      withState.push({ deposit, state: await loadSettlementState(deposit, transaction) });
+      // A deposit whose `recover` already confirmed is the orchestrator's; it never
+      // recovers twice.
+      const state = await loadSettlementState(deposit, transaction);
+      const recovered = await MoneriumConversionExecution.count({
+        transaction,
+        where: {
+          depositId: deposit.id,
+          kind: MoneriumConversionExecutionKind.Recover,
+          status: MoneriumConversionExecutionStatus.Confirmed
+        }
+      });
+      if (recovered > 0) continue;
+      withState.push({ deposit, state });
     }
     return planAction(withState, {
       batchOpenedAtSec: batchOpenedAt,
@@ -898,7 +918,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       minSwapAmount,
       nowMs: Date.now(),
       perSwapCap,
-      recoveryDelaySeconds: immutables.recoveryDelaySeconds
+      recoveryDelaySeconds: immutables.recoveryDelaySeconds,
+      recoveryInFlight
     });
   });
   if (planned.kind === "none") {

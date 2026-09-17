@@ -90,7 +90,8 @@ describe("planAction", () => {
     minSwapAmount: 25n * EUR,
     nowMs: 1_000_000 + 3 * 60 * 60 * 1000, // three hours after the batch opened
     perSwapCap: 10_000n * EUR,
-    recoveryDelaySeconds: 2 * 60 * 60
+    recoveryDelaySeconds: 2 * 60 * 60,
+    recoveryInFlight: false
   };
   const deposit = (id: string, status: MoneriumFiatDepositStatus, amount: bigint) =>
     ({ amountRaw: amount.toString(), id, status }) as MoneriumFiatDeposit;
@@ -126,6 +127,12 @@ describe("planAction", () => {
       kind: "swap"
     });
     expect(planAction([stuck, young], { ...base, batchOpenedAtSec: 0n })).toMatchObject({ kind: "swap" });
+  });
+
+  it("never sends a second recover while a refund is still on the recovery wallet", () => {
+    const stuck = withSwaps(deposit("old", MoneriumFiatDepositStatus.Recovering, 500n * EUR), []);
+    const young = withSwaps(deposit("young", MoneriumFiatDepositStatus.Minted, 500n * EUR), []);
+    expect(planAction([stuck, young], { ...base, recoveryInFlight: true })).toMatchObject({ kind: "swap" });
   });
 
   it("still recovers on an account that may not convert", () => {
@@ -481,6 +488,7 @@ describe("pricePlannedSwap", () => {
     oracleDecimals: 8,
     recoveryDelaySeconds: 7_200,
     recoveryWallet: "0x7777777777777777777777777777777777777777",
+    router: "0x8888888888888888888888888888888888888888",
     slippageBps: 60,
     usdc: "0x6666666666666666666666666666666666666666"
   };

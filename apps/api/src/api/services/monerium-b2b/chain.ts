@@ -69,8 +69,43 @@ export const erc20Abi = [
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function"
+  },
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "approve",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
   }
 ] as const;
+
+/** Uniswap V3 SwapRouter02 `exactInput`, the same call the forwarder makes — used by the refund's reverse swap. */
+export const swapRouter02Abi = parseAbi([
+  "function exactInput((bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum) params) payable returns (uint256 amountOut)"
+]);
 
 export const forwarderAbi = [
   { inputs: [], name: "poke", outputs: [], stateMutability: "nonpayable", type: "function" },
@@ -115,6 +150,7 @@ export const forwarderAbi = [
   { inputs: [], name: "RECOVERY_WALLET", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "guardianPaused", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "EURE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ROUTER", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "FACTORY", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "USDC", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "ORACLE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
@@ -222,6 +258,8 @@ export type KeeperWalletClient = WalletClient<Transport, undefined, Account>;
 let publicClientCache: PublicClient | null = null;
 let keeperClientCache: KeeperWalletClient | null = null;
 let guardianClientCache: KeeperWalletClient | null = null;
+let recoveryClientCache: KeeperWalletClient | null = null;
+let floatClientCache: KeeperWalletClient | null = null;
 let privateRpcWarned = false;
 
 export function isKeeperChainConfigured(): boolean {
@@ -298,6 +336,38 @@ export function getGuardianWalletClient(): KeeperWalletClient | null {
   return guardianClientCache;
 }
 
+/**
+ * Recovery-wallet client (MONERIUM_B2B_RECOVERY_PRIVATE_KEY): the immutable
+ * RECOVERY_WALLET's key, which signs the refund's reverse swap and the Monerium redeem
+ * message. Null when unset — the refund path then runs manually per the runbook.
+ */
+export function getRecoveryWalletClient(): KeeperWalletClient | null {
+  if (!config.moneriumB2b.recoveryPrivateKey) {
+    return null;
+  }
+  if (!recoveryClientCache) {
+    recoveryClientCache = createWalletClient({
+      account: privateKeyToAccount(config.moneriumB2b.recoveryPrivateKey as Hex),
+      transport: http(submissionRpcUrl())
+    });
+  }
+  return recoveryClientCache;
+}
+
+/** Float-wallet client (MONERIUM_B2B_FLOAT_PRIVATE_KEY): the EURe float that tops a refund up to the exact amount. */
+export function getFloatWalletClient(): KeeperWalletClient | null {
+  if (!config.moneriumB2b.floatPrivateKey) {
+    return null;
+  }
+  if (!floatClientCache) {
+    floatClientCache = createWalletClient({
+      account: privateKeyToAccount(config.moneriumB2b.floatPrivateKey as Hex),
+      transport: http(submissionRpcUrl())
+    });
+  }
+  return floatClientCache;
+}
+
 // ------------------------------------------------------------------ cached chain lookups
 
 let chainIdCache: number | null = null;
@@ -312,6 +382,7 @@ export async function getChainId(): Promise<number> {
 export interface ForwarderImmutables {
   eure: Address;
   factory: Address;
+  router: Address;
   maxFeePpm: number;
   maxReferenceDeviationBps: number;
   oracle: Address;
@@ -346,6 +417,7 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
       | "MAX_REFERENCE_DEVIATION_BPS"
       | "RECOVERY_DELAY"
       | "RECOVERY_WALLET"
+      | "ROUTER"
   >(
     functionName: T
   ) => client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName });
@@ -359,7 +431,8 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     maxFeePpm,
     maxReferenceDeviationBps,
     recoveryDelay,
-    recoveryWallet
+    recoveryWallet,
+    router
   ] = await Promise.all([
     read("EURE"),
     read("FACTORY"),
@@ -370,7 +443,8 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     read("MAX_FEE_PPM"),
     read("MAX_REFERENCE_DEVIATION_BPS"),
     read("RECOVERY_DELAY"),
-    read("RECOVERY_WALLET")
+    read("RECOVERY_WALLET"),
+    read("ROUTER")
   ]);
   const immutables: ForwarderImmutables = {
     eure,
@@ -381,6 +455,7 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     oracleDecimals: Number(oracleDecimals),
     recoveryDelaySeconds: Number(recoveryDelay),
     recoveryWallet,
+    router,
     slippageBps: Number(slippageBps),
     usdc
   };

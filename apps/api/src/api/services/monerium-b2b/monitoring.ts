@@ -1,14 +1,16 @@
 import { Op } from "sequelize";
-import { Address, Hex, parseAbi } from "viem";
+import { Address, formatUnits, Hex, parseAbi } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import {
   chainlinkAbi,
   erc20Abi,
   factoryAbi,
   forwarderAbi,
   getChainId,
+  getFloatWalletClient,
   getForwarderImmutables,
   getPublicClient,
   moneriumChainForChainId,
@@ -49,6 +51,8 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  * 6. Reference-venue monitor: the Coinbase product the reference VWAP reads. A delisted
  *    or halted product keeps answering the candles endpoint with stale data, so every
  *    keeper swap would defer silently; its status is probed instead of assumed.
+ * 7. Refund monitor (automated refunds only): the active recovery must not linger, and
+ *    the EURe float that tops refunds up must not run dry.
  *
  * None of these monitors hold keys or send transactions; they are detection-only.
  */
@@ -554,6 +558,61 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
   }
 }
 
+/** An active refund older than this warns; older than four times it errors. */
+export const RECOVERY_LINGER_MS = 60 * 60 * 1000;
+/** The EURe float warns below this balance (18 decimals). */
+export const FLOAT_WARN_EURE = 1_000n * 10n ** 18n;
+
+export type RefundQueueSeverity = "error" | "ok" | "warn";
+
+/** Severity of the oldest active refund by its age; a failed one is always an error. */
+export function classifyRefundQueue(activeCreatedAt: Date | null, failed: boolean, nowMs: number): RefundQueueSeverity {
+  if (failed) return "error";
+  if (!activeCreatedAt) return "ok";
+  const age = nowMs - activeCreatedAt.getTime();
+  if (age >= 4 * RECOVERY_LINGER_MS) return "error";
+  if (age >= RECOVERY_LINGER_MS) return "warn";
+  return "ok";
+}
+
+/**
+ * Refund monitor: the one active recovery and the float. Runs only with automated
+ * refunds configured; the manual procedure has the runbook.
+ */
+export async function runRefundMonitor(now: number = Date.now()): Promise<void> {
+  const active = await MoneriumRecovery.findOne({
+    order: [["created_at", "ASC"]],
+    where: { phase: { [Op.ne]: MoneriumRecoveryPhase.Redeemed } }
+  });
+  const severity = classifyRefundQueue(active?.createdAt ?? null, Boolean(active?.error), now);
+  if (active) {
+    const message =
+      `monerium-b2b: refund of deposit ${active.depositId} in phase ${active.phase} since ${active.createdAt.toISOString()}` +
+      `${active.error ? ` — FAILED: ${active.error}` : ""}`;
+    if (severity === "error") logger.error(`${message} (runbook §2.7)`);
+    else if (severity === "warn") logger.warn(message);
+  }
+
+  const float = getFloatWalletClient();
+  const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
+  if (!float || accounts.length === 0) return;
+  const { eure } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
+  const balance = await getPublicClient().readContract({
+    abi: erc20Abi,
+    address: eure,
+    args: [float.account.address],
+    functionName: "balanceOf"
+  });
+  const detail = `float ${float.account.address} holds ${formatUnits(balance, 18)} EURe`;
+  if (balance === 0n) {
+    logger.error(`monerium-b2b: FLOAT EMPTY — every refund top-up waits; ${detail} (runbook §2.7)`);
+  } else if (balance < FLOAT_WARN_EURE) {
+    logger.warn(`monerium-b2b: float running low; ${detail}`);
+  } else {
+    logger.info(`monerium-b2b: ${detail}`);
+  }
+}
+
 /** Reference-venue monitor: a product that is not online makes every keeper swap defer. */
 export async function runReferenceVenueMonitor(): Promise<void> {
   const product = await fetchCoinbaseProductStatus();
@@ -597,6 +656,9 @@ export async function runMonitoringPass(now: number = Date.now()): Promise<void>
     await guarded("stranded-balance monitor", () => runStrandedBalanceMonitor(now));
     await guarded("subsidy-vault monitor", runSubsidyVaultMonitor);
     await guarded("config reconciliation", runConfigReconciliation);
+    if (config.moneriumB2b.autoRecovery === "auto") {
+      await guarded("refund monitor", () => runRefundMonitor(now));
+    }
   }
   if (isWhitelabelConfigured()) {
     await guarded("association monitor", runAssociationMonitor);

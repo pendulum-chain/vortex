@@ -225,11 +225,19 @@ interface Config {
   // Separate credential set from the legacy consumer OAuth integration above.
   moneriumB2b: {
     attestorPrivateKey: string | undefined;
+    /** off: nothing; alert: log deposits past the window; auto: mark them and run the refund. */
+    autoRecovery: "off" | "alert" | "auto";
     enabled: boolean;
+    /** Key of the EURe float wallet that tops a refund up to the exact amount. */
+    floatPrivateKey: string | undefined;
     forwarderFactoryAddress: string | undefined;
     guardianPrivateKey: string | undefined;
     keeperPrivateKey: string | undefined;
     privateRpcUrl: string | undefined;
+    /** Promised conversion window from the mint, in minutes; the on-chain RECOVERY_DELAY is its floor. */
+    recoveryDeadlineMinutes: number;
+    /** Key of the immutable RECOVERY_WALLET: signs the reverse swap and the Monerium redeem message. */
+    recoveryPrivateKey: string | undefined;
     rpcUrl: string | undefined;
     webhookSecret: string;
   };
@@ -346,7 +354,11 @@ export const config: Config = {
     // (MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_API_URL — @vortexfi/shared);
     // this block keeps only the chain/keeper-specific settings.
     attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
+    autoRecovery: (["alert", "auto"].includes(process.env.MONERIUM_B2B_AUTO_RECOVERY ?? "")
+      ? process.env.MONERIUM_B2B_AUTO_RECOVERY
+      : "off") as "off" | "alert" | "auto",
     enabled: process.env.MONERIUM_B2B_ENABLED === "true",
+    floatPrivateKey: process.env.MONERIUM_B2B_FLOAT_PRIVATE_KEY,
     forwarderFactoryAddress: process.env.MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS,
     // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
     // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
@@ -355,6 +367,8 @@ export const config: Config = {
     // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
     // the keeper falls back to the public RPC and logs a warning (see chain.ts).
     privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    recoveryDeadlineMinutes: Number(process.env.MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES || 120),
+    recoveryPrivateKey: process.env.MONERIUM_B2B_RECOVERY_PRIVATE_KEY,
     rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
     webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
@@ -480,10 +494,27 @@ if (config.moneriumB2b.enabled) {
   ) {
     throw new Error("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS must be a valid EVM address");
   }
+  if (config.moneriumB2b.autoRecovery === "auto") {
+    const missingRecovery: string[] = [];
+    if (!config.moneriumB2b.recoveryPrivateKey) missingRecovery.push("MONERIUM_B2B_RECOVERY_PRIVATE_KEY");
+    if (!config.moneriumB2b.floatPrivateKey) missingRecovery.push("MONERIUM_B2B_FLOAT_PRIVATE_KEY");
+    if (missingRecovery.length > 0) {
+      throw new Error(`MONERIUM_B2B_AUTO_RECOVERY=auto requires ${missingRecovery.join(", ")}`);
+    }
+  }
+  if (!Number.isInteger(config.moneriumB2b.recoveryDeadlineMinutes) || config.moneriumB2b.recoveryDeadlineMinutes <= 0) {
+    throw new Error("MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES must be a positive integer");
+  }
   for (const [name, value] of [
     ["MONERIUM_B2B_ATTESTOR_PRIVATE_KEY", config.moneriumB2b.attestorPrivateKey],
     ["MONERIUM_B2B_GUARDIAN_PRIVATE_KEY", config.moneriumB2b.guardianPrivateKey],
-    ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey]
+    ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey],
+    ...(config.moneriumB2b.recoveryPrivateKey
+      ? ([["MONERIUM_B2B_RECOVERY_PRIVATE_KEY", config.moneriumB2b.recoveryPrivateKey]] as const)
+      : []),
+    ...(config.moneriumB2b.floatPrivateKey
+      ? ([["MONERIUM_B2B_FLOAT_PRIVATE_KEY", config.moneriumB2b.floatPrivateKey]] as const)
+      : [])
   ] as const) {
     if (!/^0x[0-9a-fA-F]{64}$/.test(value as string)) {
       throw new Error(`${name} must be a 32-byte 0x-prefixed private key`);

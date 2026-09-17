@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   classifyExecutableDepth,
+  classifyRefundQueue,
   classifyStranding,
   classifyVaultRunway,
   computeQuoteImpactBps,
@@ -96,6 +97,19 @@ describe("classifyStranding", () => {
 
   it("errors past TRIGGER_DELAY", () => {
     expect(classifyStranding(openedAt(25 * 60 * 60 * 1000), RECOVERY_DELAY, TRIGGER_DELAY, now)).toBe("error");
+  });
+});
+
+describe("classifyRefundQueue", () => {
+  const now = 1_800_000_000_000;
+  it("is ok without an active refund or with a young one, warns after an hour, errors after four", () => {
+    expect(classifyRefundQueue(null, false, now)).toBe("ok");
+    expect(classifyRefundQueue(new Date(now - 10 * 60_000), false, now)).toBe("ok");
+    expect(classifyRefundQueue(new Date(now - 61 * 60_000), false, now)).toBe("warn");
+    expect(classifyRefundQueue(new Date(now - 5 * 60 * 60_000), false, now)).toBe("error");
+  });
+  it("always errors on a failed refund", () => {
+    expect(classifyRefundQueue(new Date(now - 60_000), true, now)).toBe("error");
   });
 });
 
