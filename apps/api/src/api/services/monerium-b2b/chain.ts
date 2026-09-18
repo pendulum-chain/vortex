@@ -113,7 +113,8 @@ export const forwarderAbi = [
     inputs: [
       { name: "referenceRate", type: "uint256" },
       { name: "routeIndex", type: "uint256" },
-      { name: "amountIn", type: "uint256" }
+      { name: "amountIn", type: "uint256" },
+      { name: "maxSubsidy", type: "uint256" }
     ],
     name: "swap",
     outputs: [],

@@ -42,6 +42,8 @@ export interface MoneriumConversionExecutionAttributes {
   referenceAt: Date | null;
   /** Factory route index the swap executed. */
   routeIndex: number | null;
+  /** The keeper's subsidy tier for the chunk (6 decimals), the `maxSubsidy` argument; persisted before broadcast. */
+  maxSubsidyRaw: string | null;
   txHash: string | null;
   /** The swap's transaction nonce, persisted BEFORE broadcast (crash-recovery identity). */
   nonce: number | null;
@@ -70,6 +72,7 @@ type MoneriumConversionExecutionCreationAttributes = Optional<
   | "referenceWindowSeconds"
   | "referenceAt"
   | "routeIndex"
+  | "maxSubsidyRaw"
   | "txHash"
   | "nonce"
   | "broadcastBlockNumber"
@@ -100,6 +103,7 @@ class MoneriumConversionExecution
   declare referenceWindowSeconds: number | null;
   declare referenceAt: Date | null;
   declare routeIndex: number | null;
+  declare maxSubsidyRaw: string | null;
   declare txHash: string | null;
   declare nonce: number | null;
   declare broadcastBlockNumber: number | null;
@@ -166,6 +170,11 @@ MoneriumConversionExecution.init(
       allowNull: false,
       defaultValue: MoneriumConversionExecutionKind.Swap,
       type: DataTypes.ENUM(...Object.values(MoneriumConversionExecutionKind))
+    },
+    maxSubsidyRaw: {
+      allowNull: true,
+      field: "max_subsidy_raw",
+      type: DataTypes.DECIMAL(38, 0)
     },
     nonce: {
       allowNull: true,

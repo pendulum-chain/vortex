@@ -147,6 +147,8 @@ export interface SwapProjectionInput {
   amountIn: bigint;
   floorPpm: number;
   maxFeePpm: number;
+  /** The keeper's subsidy tier for this chunk (6 decimals): the most Vortex pays right now. */
+  maxSubsidyRaw: bigint;
   oracleDecimals: number;
   oracleRaw: bigint;
   quotedOut: bigint;
@@ -189,7 +191,9 @@ export function projectSwap(input: SwapProjectionInput): SwapProjection {
   const net = input.quotedOut - fee + subsidy;
 
   let defer: string | null = null;
-  if (subsidy > 0n) {
+  if (subsidy > input.maxSubsidyRaw) {
+    defer = `projected subsidy ${subsidy} exceeds the current tier ${input.maxSubsidyRaw}`;
+  } else if (subsidy > 0n) {
     const vault = input.vault;
     if (!vault) {
       defer = `a subsidy of ${subsidy} is needed but no subsidy vault is configured`;
@@ -208,6 +212,35 @@ export function projectSwap(input: SwapProjectionInput): SwapProjection {
     defer = `projected net ${net} is below the oracle floor ${oracleFloor}`;
   }
   return { defer, fee, net, subsidy };
+}
+
+// ------------------------------------------------------------------ subsidy ladder
+
+/**
+ * The most Vortex pays for a chunk that has waited `elapsedSeconds`, in bps of the
+ * reference value: the last ladder step whose time has come (adr-0005 amendment
+ * 2026-09-18). The ladder holds its last step from then on; the refund deadline, not the
+ * ladder, ends the wait.
+ */
+export function maxSubsidyBpsFor(
+  ladder: ReadonlyArray<{ afterSeconds: number; maxSubsidyBps: number }>,
+  elapsedSeconds: number
+): number {
+  let bps = 0;
+  for (const step of ladder) {
+    if (elapsedSeconds >= step.afterSeconds) bps = step.maxSubsidyBps;
+  }
+  return bps;
+}
+
+/** How long the next chunk of a deposit has been waiting: since the mint, or since the previous chunk confirmed. */
+export function chunkElapsedSeconds(
+  deposit: Pick<MoneriumFiatDeposit, "createdAt" | "mintedAt">,
+  lastSwapAt: Date | null,
+  nowMs: number
+): number {
+  const since = Math.max((deposit.mintedAt ?? deposit.createdAt).getTime(), lastSwapAt?.getTime() ?? 0);
+  return Math.max(0, Math.floor((nowMs - since) / 1000));
 }
 
 // ------------------------------------------------------------------ chunk planning
@@ -233,6 +266,8 @@ export function planChunk(remaining: bigint, minSwapAmount: bigint, perSwapCap: 
 export interface DepositSettlementState {
   /** Confirmed chunk swaps of the deposit, oldest first. */
   swaps: MoneriumConversionExecution[];
+  /** When the newest confirmed chunk settled: the next chunk's clock starts here. */
+  lastSwapAt: Date | null;
   convertedEureRaw: bigint;
   remainingEureRaw: bigint;
   /** Sum of the confirmed chunks' net USDC: what a forward or a recovery moves. */
@@ -247,7 +282,11 @@ export function settlementState(
   const convertedEureRaw = swaps.reduce((sum, swap) => sum + BigInt(swap.eureInRaw), 0n);
   const usdcNetRaw = swaps.reduce((sum, swap) => sum + BigInt(swap.usdcNetRaw ?? "0"), 0n);
   const remainingEureRaw = BigInt(deposit.amountRaw) - convertedEureRaw;
-  return { convertedEureRaw, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, swaps, usdcNetRaw };
+  const lastSwapAt = swaps.reduce<Date | null>(
+    (latest, swap) => (swap.updatedAt && (!latest || swap.updatedAt > latest) ? swap.updatedAt : latest),
+    null
+  );
+  return { convertedEureRaw, lastSwapAt, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, swaps, usdcNetRaw };
 }
 
 async function loadSettlementState(deposit: MoneriumFiatDeposit, transaction?: Transaction): Promise<DepositSettlementState> {
@@ -440,14 +479,22 @@ export interface RecoveryTransactionIdentity {
  * amounts for a recovery. Null for a swap that never got priced.
  */
 export function expectedCalldata(
-  execution: Pick<MoneriumConversionExecution, "eureInRaw" | "kind" | "referenceRateRaw" | "routeIndex" | "usdcNetRaw">
+  execution: Pick<
+    MoneriumConversionExecution,
+    "eureInRaw" | "kind" | "maxSubsidyRaw" | "referenceRateRaw" | "routeIndex" | "usdcNetRaw"
+  >
 ): Hex | null {
   switch (execution.kind) {
     case MoneriumConversionExecutionKind.Swap:
-      if (execution.referenceRateRaw === null || execution.routeIndex === null) return null;
+      if (execution.referenceRateRaw === null || execution.routeIndex === null || execution.maxSubsidyRaw === null) return null;
       return encodeFunctionData({
         abi: forwarderAbi,
-        args: [BigInt(execution.referenceRateRaw), BigInt(execution.routeIndex), BigInt(execution.eureInRaw)],
+        args: [
+          BigInt(execution.referenceRateRaw),
+          BigInt(execution.routeIndex),
+          BigInt(execution.eureInRaw),
+          BigInt(execution.maxSubsidyRaw)
+        ],
         functionName: "swap"
       });
     case MoneriumConversionExecutionKind.Forward:
@@ -675,7 +722,14 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
 
 export type PlannedSwap =
   | { kind: "defer"; reason: string }
-  | { kind: "ready"; projection: SwapProjection | null; reference: ReferenceQuote; routeIndex: number };
+  | {
+      kind: "ready";
+      /** The tier cap in USDC (6 decimals): the `maxSubsidy` argument of the swap. */
+      maxSubsidyRaw: bigint;
+      projection: SwapProjection | null;
+      reference: ReferenceQuote;
+      routeIndex: number;
+    };
 
 function deferSwap(reason: string): PlannedSwap {
   return { kind: "defer", reason };
@@ -698,12 +752,18 @@ async function quoteRoutes(
 }
 
 /**
- * Reference, route and projection for a swap of `amountIn`
- * (docs/architecture-monerium-b2b-onramp.md, fees section). Outside Ethereum mainnet
- * there is no quoter pin: the first enabled route is used unprojected and the
- * contract's own checks remain the only gate.
+ * Reference, route, tier cap and projection for a swap of `amountIn`
+ * (docs/architecture-monerium-b2b-onramp.md, fees section). `maxSubsidyBps` is the
+ * keeper's tier for the chunk's waiting time; the cap it yields is passed into the swap
+ * and binds on chain. Outside Ethereum mainnet there is no quoter pin: the first enabled
+ * route is used unprojected and the contract's own checks remain the only gate.
  */
-export async function pricePlannedSwap(forwarder: Address, factory: Address, amountIn: bigint): Promise<PlannedSwap> {
+export async function pricePlannedSwap(
+  forwarder: Address,
+  factory: Address,
+  amountIn: bigint,
+  maxSubsidyBps: number
+): Promise<PlannedSwap> {
   const client = getPublicClient();
   const immutables = await getForwarderImmutables(forwarder);
   const [targetPpm, floorPpm, roundData, vaultAddress] = await Promise.all([
@@ -729,12 +789,15 @@ export async function pricePlannedSwap(forwarder: Address, factory: Address, amo
     );
   }
 
+  const referenceOut = (amountIn * reference.rateRaw) / 10n ** BigInt(12 + immutables.oracleDecimals);
+  const maxSubsidyRaw = (referenceOut * BigInt(maxSubsidyBps)) / BPS;
+
   const routes = await readEnabledRoutes(factory);
   if (routes.length === 0) {
     return deferSwap("the factory has no enabled swap route");
   }
   if ((await getChainId()) !== 1) {
-    return { kind: "ready", projection: null, reference, routeIndex: routes[0].index };
+    return { kind: "ready", maxSubsidyRaw, projection: null, reference, routeIndex: routes[0].index };
   }
   const quotes = await quoteRoutes(routes, amountIn);
   if (quotes.length === 0) {
@@ -746,6 +809,7 @@ export async function pricePlannedSwap(forwarder: Address, factory: Address, amo
     amountIn,
     floorPpm: Number(floorPpm),
     maxFeePpm: immutables.maxFeePpm,
+    maxSubsidyRaw,
     oracleDecimals: immutables.oracleDecimals,
     oracleRaw,
     quotedOut: best.quotedOut,
@@ -755,13 +819,17 @@ export async function pricePlannedSwap(forwarder: Address, factory: Address, amo
     vault
   });
   if (projection.defer) {
-    return deferSwap(`${projection.defer} (route ${best.index} quoted ${best.quotedOut})`);
+    // Calibration data for the ladder: the shortfall this attempt would have needed.
+    const shortfallBps = referenceOut > 0n ? Number((projection.subsidy * BPS) / referenceOut) : 0;
+    return deferSwap(
+      `${projection.defer} (route ${best.index} quoted ${best.quotedOut}, shortfall ${shortfallBps} bps, tier ${maxSubsidyBps} bps)`
+    );
   }
   logger.info(
     `monerium-b2b: priced swap of ${amountIn} on route ${best.index}: quoted ${best.quotedOut}, ` +
-      `reference ${reference.price}, fee ${projection.fee}, subsidy ${projection.subsidy}`
+      `reference ${reference.price}, fee ${projection.fee}, subsidy ${projection.subsidy}, tier ${maxSubsidyBps} bps`
   );
-  return { kind: "ready", projection, reference, routeIndex: best.index };
+  return { kind: "ready", maxSubsidyRaw, projection, reference, routeIndex: best.index };
 }
 
 // ------------------------------------------------------------------ action planning
@@ -770,7 +838,7 @@ export type PlannedAction =
   | { kind: "none"; reason: string }
   | { kind: "recover"; deposit: MoneriumFiatDeposit; eureRaw: bigint; usdcRaw: bigint }
   | { kind: "forward"; deposit: MoneriumFiatDeposit; usdcRaw: bigint }
-  | { kind: "swap"; deposit: MoneriumFiatDeposit; amountIn: bigint };
+  | { kind: "swap"; deposit: MoneriumFiatDeposit; amountIn: bigint; elapsedSeconds: number };
 
 export interface ActionPlanningInput {
   batchOpenedAtSec: bigint;
@@ -831,7 +899,12 @@ export function planAction(
       reason: `deposit ${next.deposit.id} has ${next.state.remainingEureRaw} raw EURe left, below the minimum swap`
     };
   }
-  return { amountIn, deposit: next.deposit, kind: "swap" };
+  return {
+    amountIn,
+    deposit: next.deposit,
+    elapsedSeconds: chunkElapsedSeconds(next.deposit, next.state.lastSwapAt, input.nowMs),
+    kind: "swap"
+  };
 }
 
 // ------------------------------------------------------------------ executor
@@ -934,9 +1007,12 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // creates an execution row.
   let plan: PlannedSwap | null = null;
   if (planned.kind === "swap") {
-    plan = await pricePlannedSwap(forwarder, factory, planned.amountIn);
+    const maxSubsidyBps = maxSubsidyBpsFor(config.moneriumB2b.subsidyLadder, planned.elapsedSeconds);
+    plan = await pricePlannedSwap(forwarder, factory, planned.amountIn, maxSubsidyBps);
     if (plan.kind === "defer") {
-      logger.warn(`monerium-b2b: deferring conversion for account ${account.id}: ${plan.reason}`);
+      logger.warn(
+        `monerium-b2b: deferring conversion for account ${account.id} (chunk waited ${planned.elapsedSeconds}s): ${plan.reason}`
+      );
       if (pokeNeeded) {
         await sendPoke(forwarder);
       }
@@ -965,6 +1041,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
         usdcNetRaw: call.usdcNetRaw,
         ...(readyPlan?.kind === "ready"
           ? {
+              maxSubsidyRaw: readyPlan.maxSubsidyRaw.toString(),
               referenceAt: readyPlan.reference.time,
               referenceRateRaw: readyPlan.reference.rateRaw.toString(),
               referenceSource: readyPlan.reference.source,
@@ -1065,7 +1142,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
 }
 
 type ExecutionRequest =
-  | { args: readonly [bigint, bigint, bigint]; functionName: "swap" }
+  | { args: readonly [bigint, bigint, bigint, bigint]; functionName: "swap" }
   | { args: readonly [bigint]; functionName: "forward" }
   | { args: readonly [bigint, bigint]; functionName: "recover" };
 
@@ -1118,7 +1195,10 @@ function executionCall(
       return {
         eureInRaw: planned.amountIn.toString(),
         kind: MoneriumConversionExecutionKind.Swap,
-        request: { args: [plan.reference.rateRaw, BigInt(plan.routeIndex), planned.amountIn], functionName: "swap" },
+        request: {
+          args: [plan.reference.rateRaw, BigInt(plan.routeIndex), planned.amountIn, plan.maxSubsidyRaw],
+          functionName: "swap"
+        },
         usdcNetRaw: null
       };
     }

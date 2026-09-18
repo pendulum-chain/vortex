@@ -14,7 +14,8 @@ import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
 import { runRecoveryDeadlines, runRecoveryOrchestrator } from "../services/monerium-b2b/recovery";
 
-const DEFAULT_CRON_TIME = "* * * * *"; // every minute
+/** Six-field cron with seconds: a waiting chunk is re-quoted every cycle (MONERIUM_B2B_KEEPER_CYCLE_SECONDS). */
+const DEFAULT_CRON_TIME = `*/${config.moneriumB2b.keeperCycleSeconds} * * * * *`;
 
 /**
  * Keeper loop for the Monerium B2B onramp (plan §3): webhook inbox -> mint watcher ->

@@ -9,13 +9,16 @@ import MoneriumConversionExecution, {
 } from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import * as chain from "./chain";
+import { parseSubsidyLadder } from "../../../config/vars";
 import {
   broadcastExecutionSequence,
+  chunkElapsedSeconds,
   classifyHashlessPending,
   conversionAmountsFromSwapEvent,
   expectedCalldata,
   finalizeExecution,
   isExpectedTransaction,
+  maxSubsidyBpsFor,
   planAction,
   planChunk,
   pricePlannedSwap,
@@ -60,6 +63,41 @@ describe("planChunk", () => {
   });
 });
 
+// The subsidy ladder (adr-0005 amendment 2026-09-18): how much of a shortfall Vortex pays
+// after a chunk has waited, from a "seconds:bps" config string.
+describe("subsidy ladder", () => {
+  const ladder = parseSubsidyLadder(undefined);
+
+  it("parses the launch ladder and looks the tier up by waiting time", () => {
+    expect(ladder[0]).toEqual({ afterSeconds: 0, maxSubsidyBps: 0 });
+    expect(ladder.at(-1)).toEqual({ afterSeconds: 960, maxSubsidyBps: 100 });
+    expect(maxSubsidyBpsFor(ladder, 0)).toBe(0);
+    expect(maxSubsidyBpsFor(ladder, 359)).toBe(0);
+    expect(maxSubsidyBpsFor(ladder, 360)).toBe(10);
+    expect(maxSubsidyBpsFor(ladder, 700)).toBe(30);
+    expect(maxSubsidyBpsFor(ladder, 5_000)).toBe(100); // holds the last step until the refund deadline
+  });
+
+  it("rejects a malformed or non-ascending ladder", () => {
+    expect(() => parseSubsidyLadder("60:10")).toThrow("start at 0");
+    expect(() => parseSubsidyLadder("0:0,120:20,60:30")).toThrow("ascend");
+    expect(() => parseSubsidyLadder("0:0,120:20,240:10")).toThrow("ascend");
+    expect(() => parseSubsidyLadder("0:x")).toThrow("<seconds>:<bps>");
+    expect(parseSubsidyLadder("0:0,120:25")).toEqual([
+      { afterSeconds: 0, maxSubsidyBps: 0 },
+      { afterSeconds: 120, maxSubsidyBps: 25 }
+    ]);
+  });
+
+  it("counts a chunk's wait from the mint or from the previous chunk's confirmation", () => {
+    const now = 1_800_000_000_000;
+    const deposit = { createdAt: new Date(now - 900_000), mintedAt: new Date(now - 600_000) };
+    expect(chunkElapsedSeconds(deposit, null, now)).toBe(600);
+    expect(chunkElapsedSeconds(deposit, new Date(now - 120_000), now)).toBe(120);
+    expect(chunkElapsedSeconds({ createdAt: new Date(now - 300_000), mintedAt: null }, null, now)).toBe(300);
+  });
+});
+
 function swapRow(eureInRaw: bigint, usdcNetRaw: bigint): MoneriumConversionExecution {
   return {
     eureInRaw: eureInRaw.toString(),
@@ -94,7 +132,13 @@ describe("planAction", () => {
     recoveryInFlight: false
   };
   const deposit = (id: string, status: MoneriumFiatDepositStatus, amount: bigint) =>
-    ({ amountRaw: amount.toString(), id, status }) as MoneriumFiatDeposit;
+    ({
+      amountRaw: amount.toString(),
+      createdAt: new Date(base.nowMs - 10 * 60_000),
+      id,
+      mintedAt: new Date(base.nowMs - 7 * 60_000),
+      status
+    }) as MoneriumFiatDeposit;
   const withSwaps = (row: MoneriumFiatDeposit, swaps: MoneriumConversionExecution[]) => ({
     deposit: row,
     state: settlementState(row, swaps)
@@ -102,7 +146,8 @@ describe("planAction", () => {
 
   it("swaps the next chunk of the oldest convertible deposit", () => {
     const plan = planAction([withSwaps(deposit("a", MoneriumFiatDepositStatus.Minted, 25_000n * EUR), [])], base);
-    expect(plan).toMatchObject({ amountIn: 10_000n * EUR, kind: "swap" });
+    // The first chunk's clock runs from the mint (seven minutes ago here).
+    expect(plan).toMatchObject({ amountIn: 10_000n * EUR, elapsedSeconds: 420, kind: "swap" });
   });
 
   it("forwards a deposit once every chunk is confirmed, with the sum of the nets", () => {
@@ -183,6 +228,7 @@ describe("projectSwap", () => {
     amountIn: 1_000n * EUR,
     floorPpm: 1_500,
     maxFeePpm: 10_000,
+    maxSubsidyRaw: 1_140n * USDC, // an unbounded tier: the vault decides
     oracleDecimals: 8,
     oracleRaw: 114_000_000n,
     referenceRaw: 114_000_000n,
@@ -190,6 +236,13 @@ describe("projectSwap", () => {
     targetPpm: 1_250,
     vault
   };
+
+  it("defers a shortfall above the keeper's current tier before asking the vault", () => {
+    // 2.29 USDC needed; a 10 bps tier of 1140 allows 1.14.
+    expect(projectSwap({ ...base, maxSubsidyRaw: 1_140_000n, quotedOut: 1_136n * USDC }).defer).toContain("current tier");
+    expect(projectSwap({ ...base, maxSubsidyRaw: 0n, quotedOut: 1_136n * USDC }).defer).toContain("current tier");
+    expect(projectSwap({ ...base, maxSubsidyRaw: 2_290_000n, quotedOut: 1_136n * USDC }).defer).toBeNull();
+  });
 
   it("takes the surplus above the target as fee, capped at MAX_FEE_PPM", () => {
     expect(projectSwap({ ...base, quotedOut: 1_145n * USDC })).toEqual({
@@ -262,13 +315,19 @@ describe("projectSwap", () => {
 });
 
 describe("expectedCalldata", () => {
-  const swap = { eureInRaw: (1_000n * EUR).toString(), kind: MoneriumConversionExecutionKind.Swap, usdcNetRaw: null };
+  const swap = {
+    eureInRaw: (1_000n * EUR).toString(),
+    kind: MoneriumConversionExecutionKind.Swap,
+    maxSubsidyRaw: "2290000",
+    usdcNetRaw: null
+  };
 
-  it("rebuilds a swap's calldata from the persisted reference, route and chunk, or nothing", () => {
+  it("rebuilds a swap's calldata from the persisted reference, route, chunk and tier cap, or nothing", () => {
     expect(expectedCalldata({ ...swap, referenceRateRaw: null, routeIndex: 0 })).toBeNull();
     expect(expectedCalldata({ ...swap, referenceRateRaw: "114000000", routeIndex: null })).toBeNull();
+    expect(expectedCalldata({ ...swap, maxSubsidyRaw: null, referenceRateRaw: "114000000", routeIndex: 1 })).toBeNull();
     expect(expectedCalldata({ ...swap, referenceRateRaw: "114000000", routeIndex: 1 })).toBe(
-      encodeFunctionData({ abi: chain.forwarderAbi, args: [114_000_000n, 1n, 1_000n * EUR], functionName: "swap" })
+      encodeFunctionData({ abi: chain.forwarderAbi, args: [114_000_000n, 1n, 1_000n * EUR, 2_290_000n], functionName: "swap" })
     );
   });
 
@@ -277,6 +336,7 @@ describe("expectedCalldata", () => {
       expectedCalldata({
         eureInRaw: (100n * EUR).toString(),
         kind: MoneriumConversionExecutionKind.Forward,
+        maxSubsidyRaw: null,
         referenceRateRaw: null,
         routeIndex: null,
         usdcNetRaw: (108n * USDC).toString()
@@ -286,6 +346,7 @@ describe("expectedCalldata", () => {
       expectedCalldata({
         eureInRaw: (40n * EUR).toString(),
         kind: MoneriumConversionExecutionKind.Recover,
+        maxSubsidyRaw: null,
         referenceRateRaw: null,
         routeIndex: null,
         usdcNetRaw: (65n * USDC).toString()
@@ -335,7 +396,11 @@ describe("classifyHashlessPending", () => {
 describe("isExpectedTransaction", () => {
   const keeper = "0x1111111111111111111111111111111111111111";
   const forwarder = "0x2222222222222222222222222222222222222222";
-  const input = encodeFunctionData({ abi: chain.forwarderAbi, args: [114_000_000n, 0n, 1_000n * EUR], functionName: "swap" });
+  const input = encodeFunctionData({
+    abi: chain.forwarderAbi,
+    args: [114_000_000n, 0n, 1_000n * EUR, 0n],
+    functionName: "swap"
+  });
   const expected = { from: keeper, input, nonce: 7, to: forwarder };
 
   it("requires the exact keeper, nonce, forwarder, and calldata", () => {
@@ -346,7 +411,7 @@ describe("isExpectedTransaction", () => {
     expect(isExpectedTransaction({ ...expected, input: "0x" }, keeper, forwarder, 7, input)).toBe(false);
     const otherChunk = encodeFunctionData({
       abi: chain.forwarderAbi,
-      args: [114_000_000n, 0n, 999n * EUR],
+      args: [114_000_000n, 0n, 999n * EUR, 0n],
       functionName: "swap"
     });
     expect(isExpectedTransaction({ ...expected, input: otherChunk }, keeper, forwarder, 7, input)).toBe(false);
@@ -548,7 +613,7 @@ describe("pricePlannedSwap", () => {
     }
   }
 
-  const price = () => pricePlannedSwap(FORWARDER, FACTORY, 1_000n * EUR);
+  const price = (maxSubsidyBps = 50) => pricePlannedSwap(FORWARDER, FACTORY, 1_000n * EUR, maxSubsidyBps);
 
   it("defers on a non-positive Chainlink answer", async () => {
     arrange({ oracleAnswer: 0n });
@@ -570,9 +635,9 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ kind: "defer", reason: "the factory has no enabled swap route" });
   });
 
-  it("uses the first enabled route unprojected off mainnet", async () => {
+  it("uses the first enabled route unprojected off mainnet, still carrying the tier cap", async () => {
     arrange({ chainId: 11_155_111 });
-    expect(await price()).toEqual({ kind: "ready", projection: null, reference, routeIndex: 0 });
+    expect(await price()).toEqual({ kind: "ready", maxSubsidyRaw: 5_700_000n, projection: null, reference, routeIndex: 0 });
   });
 
   it("defers when no route can be quoted", async () => {
@@ -584,18 +649,21 @@ describe("pricePlannedSwap", () => {
     arrange();
     expect(await price()).toEqual({
       kind: "ready",
+      maxSubsidyRaw: 5_700_000n, // 50 bps of the 1140 USDC reference value
       projection: { defer: null, fee: 425_000n, net: 1_138_575_000n, subsidy: 0n },
       reference,
       routeIndex: 1
     });
   });
 
-  it("defers with the route and quote when the projection defers", async () => {
+  it("defers with the route, quote and shortfall when the projection defers", async () => {
     arrange({ quotes: { "0xaa": 1_130n * USDC, "0xbb": new Error("no pool") } }); // needs 8.29 USDC, cap is 5.7
-    expect(await price()).toMatchObject({
+    expect(await price(100)).toMatchObject({
       kind: "defer",
-      reason: expect.stringMatching(/per-swap cap.*\(route 0 quoted 1130000000\)/)
+      reason: expect.stringMatching(/per-swap cap.*\(route 0 quoted 1130000000, shortfall 72 bps, tier 100 bps\)/)
     });
+    // A tier below the shortfall defers before the vault is even consulted.
+    expect(await price(0)).toMatchObject({ kind: "defer", reason: expect.stringContaining("current tier 0") });
   });
 });
 
