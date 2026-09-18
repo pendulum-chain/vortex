@@ -237,10 +237,15 @@ cast call $USDC "balanceOf(address)(uint256)" $VAULT --rpc-url $RPC
 cast send $VAULT "withdraw(uint256)" <amountRaw> --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-Sizing: at the €25k per-swap cap a worst-case top-up is about 135 USDC, so the 200 USDC
-daily budget covers roughly one and a half such swaps per day across all clients before
-the keeper starts deferring. Raise the budget or lower `perSwapCap` if deferrals become
-routine; both are instant.
+Sizing: the vault's per-swap cap must be at least the subsidy ladder's top (100 bps, so
+`setMaxSubsidyPpm(10000)` at launch), because the keeper's tier is the effective cap and
+the vault's is the ceiling. At the €25k per-swap cap a top-up at the ladder's top is
+about 285 USDC, so size the daily budget from the expected number of chunks that reach
+the late tiers, not from one worst case; raise the budget or lower `perSwapCap` if
+deferrals become routine; both are instant. The ladder itself
+(`MONERIUM_B2B_SUBSIDY_LADDER`, seconds:bps steps) and the re-quote cadence
+(`MONERIUM_B2B_KEEPER_CYCLE_SECONDS`) are backend settings; tune the ladder from the
+`deferring conversion ... shortfall N bps, tier M bps` log lines.
 
 ### 2.7 Refund (recovery) procedure
 
@@ -305,7 +310,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 |---|---|---|
 | `DEPTH BELOW FLOOR — raw quote impact at minSwapAmount exceeds SLIPPAGE_BPS` | Even minimum-size fills land below Chainlink − 60 bps on every route before settlement. The floor is enforced on the client's net, so the keeper still executes while the vault covers the shortfall (up to the per-swap cap; beyond it the keeper defers and logs `deferring conversion`), but every swap of that size now costs a subsidy and the unsubsidized permissionless path would revert | Investigate pool state (LP exit, depeg) and watch the vault spend (§2.6); whitelist a better route or lower `perSwapCap`; global pause (§2.1) if it is a depeg or the vault is being drained; re-run the liquidity-baseline methodology before trusting the route again |
 | `raw quote impact at perSwapCap exceeds SLIPPAGE_BPS` | Cap-sized swaps would need a vault subsidy; availability and vault spend, not fund risk | Lower `perSwapCap`, add a route, or accept the subsidies; watch for escalation |
-| `deferring conversion for account` | The keeper declined to swap this cycle; the reason follows: `reference rate unavailable` (Coinbase unreachable — check egress), `outside the ... band around Chainlink` (EURC/EUR basis or a stale Chainlink round), `projected subsidy ... exceeds` cap/budget/balance (§2.6: fund, raise limits, or wait for the market), `below the oracle floor` (depeg — do not force), `no enabled swap route could be quoted` or `the factory has no enabled swap route` (§2.1 route lever) | Funds wait with the batch marker open; a deferral that outlives the 2 h window means the payment is refunded (§2.7) rather than converted late — communicate; after 24 h the permissionless path can execute unsubsidized |
+| `deferring conversion for account` | The keeper declined to swap this cycle; the reason follows: `reference rate unavailable` (Coinbase unreachable, a malformed ticker, or `spread of N bps exceeds 50 bps` — a thin book; check egress and the venue), `outside the ... band around Chainlink` (EURC/EUR basis or a stale Chainlink round), `exceeds the current tier` (normal while the chunk waits for the market; the line names the shortfall and the tier), `projected subsidy ... exceeds` cap/budget/balance (§2.6: fund, raise limits, or wait for the market), `below the oracle floor` (depeg — do not force), `no enabled swap route could be quoted` or `the factory has no enabled swap route` (§2.1 route lever) | Funds wait with the batch marker open; a deferral that outlives the 2 h window means the payment is refunded (§2.7) rather than converted late — communicate; after 24 h the permissionless path can execute unsubsidized |
 | `SUBSIDY VAULT —` (error) | Vault paused or empty: every below-floor swap defers | §2.6: fund or unpause; check why it emptied (budget too high for the market?) |
 | `subsidy vault ... refill before below-floor swaps start deferring` | Less than a day of budget left, or today's budget spent | §2.6 refill; consider the budget vs. observed spreads |
 | `no subsidy vault is configured on the factory` | `setSubsidyVault` never ran; below-floor swaps defer | §2.6 |
@@ -657,7 +662,7 @@ FROM monerium_fiat_deposits
 WHERE account_id = '<account-id>';
 
 SELECT kind, deposit_id, eure_in_raw, usdc_gross_raw, fee_raw, subsidy_raw, usdc_net_raw, destination,
-       reference_rate_raw, reference_source, reference_window_seconds, route_index,
+       reference_rate_raw, reference_source, max_subsidy_raw, route_index,
        tx_hash, nonce, broadcast_block_number, block_number, swap_log_index, status, error
 FROM monerium_conversion_executions
 WHERE account_id = '<account-id>' ORDER BY created_at;
@@ -667,7 +672,7 @@ Required results:
 
 - One `forwarded` deposit with the real transfer hash and log index.
 - One `confirmed` `swap` execution bound to it with the 25 EURe input, a recorded
-  reference (rate, source, averaging window) and route index 0, a fee or subsidy
+  reference (rate, source), the tier cap and route index 0, a fee or subsidy
   consistent with the fill's position against the reference bands (`usdc_net_raw =
   usdc_gross_raw - fee_raw + subsidy_raw`), non-null nonce/hash/block/swap-log-index,
   destination matching the clone, and `error IS NULL`. If the vault was left empty and

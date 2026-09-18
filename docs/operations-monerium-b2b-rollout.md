@@ -130,12 +130,11 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    > came from.
 4. **Rate, fee and subsidy (B1/P1/P2/P12/P13)** — disclose the guarantee, the fee and
    the hard bound separately:
-   - Reference rate: a five-minute volume-weighted average of the Coinbase Exchange
-     EURC-USDC market, computed immediately before each conversion from public
-     one-minute candles and recorded with the conversion (widened to a one-hour
-     average when the five minutes carry no trades). The agreement's "Coinbase EURC
-     oracle" — align the wording; the source is the exchange market, weekdays and
-     weekends alike, smoothed so a single thin print cannot set the rate.
+   - Reference rate: the midpoint between the best bid and the best ask on the Coinbase
+     Exchange EURC-USDC market, read immediately before each conversion from the public
+     ticker and recorded with the conversion; a conversion waits while the spread is
+     wider than 0.5%. The agreement's "Coinbase EURC oracle" — align the wording; the
+     source is the exchange market, weekdays and weekends alike.
    - Guarantee: each keeper-executed conversion delivers the reference rate minus
      12.5 bps whenever the market allows it, and never less than the reference minus
      15 bps. Vortex's fee is whatever the market delivers above the 12.5 bps target,
@@ -143,9 +142,12 @@ fee policy 12.5 bps target / 15 bps floor (B1).
      conversion up from its own subsidy budget. The 12.5 bps target and 15 bps floor are
      per client; raising either requires a 24 h on-chain pre-announcement (P11),
      lowering is immediate.
-   - Subsidy limits: top-ups are capped per conversion and per day (P13). When the
-     budget cannot cover a conversion, the conversion waits rather than executing below
-     the floor. After a conversion has waited 24 hours, anyone may execute it at the
+   - Subsidy limits: top-ups are capped per conversion and per day (P13), and the
+     amount Vortex is willing to top up grows with the time a chunk has waited for the
+     market (P14: nothing for the first six minutes, then in steps up to the cap). A
+     chunk therefore executes as soon as the market delivers the floor on its own, or
+     once Vortex's willingness to pay meets the shortfall; when neither happens within
+     the promised window the payment is refunded. After a conversion has waited 24 hours, anyone may execute it at the
      unsubsidized Chainlink-bounded terms below; the guarantee applies to conversions
      Vortex's keeper executes.
    - Hard bound (not a fee): no conversion ever delivers less than the Chainlink
@@ -194,7 +196,8 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 | SulPayments agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
-| Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses a five-minute VWAP of Coinbase Exchange EURC-USDC candles — confirm that is what was meant |
+| Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint (spot, since 2026-09-18) — confirm that is what was meant |
+| Subsidy ladder calibration | Ops ↔ product | Launch ladder in P14; retune from the `deferring conversion` shortfall lines and the vault spend after the first weeks; raise the vault's per-swap cap to the ladder's top before enabling |
 | Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 45 bps after the 2026-09-17 move to 60 bps: the twelve-month replay shows ~0.2 h/year of floor-cause deferral at that margin, so ordinary weekends no longer refund |
 | Recovery wallet + float wallet | Ops ↔ Monerium | Onboard a Vortex/SatoshiPay company profile in the whitelabel app; link one dedicated address as `RECOVERY_WALLET` (immutable at implementation deploy) and one as the EURe float; fund the float; keys into the keeper's KMS before recovery is automated |
 | Refund automation | Ops | Implemented (`recovery.ts`): ship with `MONERIUM_B2B_AUTO_RECOVERY=alert`, observe one sandbox refund end to end, then `auto` with the recovery and float keys set; refunds of EUR 15,000 or more stay manual until G1 settles the supporting-document question |

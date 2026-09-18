@@ -62,7 +62,7 @@ flowchart LR
     end
 
     subgraph Reference["Reference rate"]
-        CB[Coinbase Exchange\nEURC-USDC 1-min candles]
+        CB[Coinbase Exchange\nEURC-USDC ticker]
     end
 
     subgraph Vortex["Vortex API (keeper backend)"]
@@ -166,9 +166,9 @@ sequenceDiagram
     V->>F: (watcher) sees the Transfer log -> stamps chain identity
     V->>V: DEPOSIT_RECEIVED -> outbox -> partner webhook
     loop one chunk per keeper cycle (at most perSwapCap) until the deposit is converted
-        V->>CB: last hour of 1-min candles -> 5-min VWAP (reference, recorded on the execution row)
-        V->>V: quote every whitelisted route, project fee/subsidy, defer if the vault cannot cover
-        V->>F: swap(reference, bestRoute, chunk)  [execution row bound to the deposit, committed first]
+        V->>CB: top of book -> bid/ask midpoint (reference, recorded on the execution row)
+        V->>V: quote every route, project fee/subsidy, defer above the subsidy tier for the chunk's wait or beyond the vault
+        V->>F: swap(reference, bestRoute, chunk, maxSubsidy = tier)  [execution row bound to the deposit, committed first]
         F->>F: swap the chunk on the route; fee above target (to treasury), floor on the net; USDC stays here
         F->>S: pay(shortfall) when the fill is below the floor
         S->>F: subsidy USDC onto the clone
@@ -349,12 +349,12 @@ The partner agreement fixes the client's rate against a reference: the reference
 settles every fill into three bands against that reference (decisions:
 [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md), amendment).
 
-- **Reference rate.** Before each swap the keeper computes a five-minute volume-weighted
-  average of Coinbase Exchange EURC-USDC one-minute candles (`reference-rate.ts`: typical
-  price `(low + high + close) / 3` weighted by volume; widened to an hour when the five
-  minutes carry no volume, so a single thin weekend print never becomes the reference),
-  stores price, window and time on the execution row, and passes the rate into
-  `swap`. The contract rejects a reference outside
+- **Reference rate.** Before each swap the keeper reads the Coinbase Exchange EURC-USDC
+  ticker and takes the bid/ask midpoint (`reference-rate.ts`): spot, so the reference
+  never lags a moving market; the midpoint rather than the last trade because a last
+  print can be one-sided or minutes stale on a quiet weekend; a spread above 50 bps is a
+  thin book and the keeper defers. It stores price, source and time on the execution
+  row and passes the rate into `swap`. The contract rejects a reference outside
   `MAX_REFERENCE_DEVIATION_BPS` of Chainlink EUR/USD; a permissionless caller's value is
   ignored and Chainlink is the reference. No reference means the keeper defers.
 - **Fee policy (`targetPpm`, `floorPpm`)**: per clone, in ppm below the reference,
@@ -387,11 +387,24 @@ settles every fill into three bands against that reference (decisions:
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
   indices stay stable. The keeper quotes every enabled route on the mainnet QuoterV2
   and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
+- **Subsidy ladder and per-swap cap.** How much of a shortfall Vortex pays depends on
+  how long the chunk has waited: `MONERIUM_B2B_SUBSIDY_LADDER` maps seconds waited to a
+  maximum subsidy in bps of the reference value (launch: nothing for six minutes, then
+  10 bps more every two minutes to 50, then 100 from minute sixteen, held until the
+  refund deadline). The clock runs per chunk, from the mint or the previous chunk's
+  confirmation, and the keeper re-quotes every `MONERIUM_B2B_KEEPER_CYCLE_SECONDS`
+  (20 s); quoting is free, so waiting costs nothing. The tier is passed into `swap` as
+  `maxSubsidy` and binds on chain: a fill that moved between the quote and the swap
+  cannot draw more than the tier. The ladder is Vortex's spending policy, not a client
+  protection — the client's floor never moves — which is why it lives in config and not
+  in the contract; the vault's cap and daily budget stay the hard bounds.
 - **Keeper deferral**: before reserving an execution row the keeper mirrors the
   settlement off-chain (`projectSwap`). It defers — nothing sent, no row, funds wait,
-  stranding marker armed — when the reference is unavailable or out of band, no route
-  quotes, the projected subsidy exceeds the cap, the remaining budget or the vault
-  balance, or the projected net would breach the floor. After the 24 h trigger anyone
+  stranding marker armed — when the reference is unavailable, thin or out of band, no
+  route quotes, the projected subsidy exceeds the current tier, the vault's cap, the
+  remaining budget or the vault balance, or the projected net would breach the floor.
+  Every deferral logs the shortfall in bps against the tier, the data the ladder is
+  tuned from. After the 24 h trigger anyone
   may execute the swap anyway, priced against Chainlink and unsubsidized (accepted
   limitation, ADR).
 - **Destination (`FEE_RECIPIENT`)**: an immutable baked into the **implementation**
@@ -430,8 +443,8 @@ read-only — no keys, no transactions:
 5. **Subsidy-vault monitor.** Balance, daily budget, spend and pause state of the shared
    vault: paused or empty is an error (every below-floor swap defers), less than a day
    of budget or an exhausted day is a refill warning.
-6. **Reference-venue monitor.** Probes the Coinbase product the reference VWAP reads:
-   a delisted or halted product keeps answering the candles endpoint with stale data
+6. **Reference-venue monitor.** Probes the Coinbase product the reference reads: a
+   delisted or halted product keeps answering its endpoints with stale data
    and would make every keeper swap defer silently, so its status is an error line
    rather than an assumption.
 7. **Refund monitor** (automated refunds only). The one active recovery must not
@@ -490,7 +503,7 @@ erDiagram
 | `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
 | `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, attempts and the last error |
-| `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, averaging window, time) and route, then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
+| `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, time), the route and the subsidy tier cap (`max_subsidy_raw`), then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |
 | `webhook_deliveries` (072) | Generic durable outbox for the deposit-event webhook family: one row per (webhook, event), claim-based dispatch with backoff, 30-day retention after settling |

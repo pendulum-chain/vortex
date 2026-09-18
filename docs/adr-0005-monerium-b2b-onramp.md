@@ -3,8 +3,9 @@
 **Status:** Accepted (selected 2026-07-17; parameters finalized and documents consolidated
 2026-08-26; amended 2026-09-15 with reference-priced fee bands, the subsidy vault, the
 route whitelist and the 7 day sweep; amended 2026-09-17 with whole-deposit settlement, the
-Vortex-held recovery path and the removal of the client fallback role — see the second
-amendment). This ADR is the
+Vortex-held recovery path and the removal of the client fallback role; amended 2026-09-18
+with the keeper's subsidy ladder, the per-swap subsidy cap and the spot reference — see the
+amendment sections). This ADR is the
 single source of truth for the *decisions and risk
 acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
@@ -96,7 +97,8 @@ A flat skim on whatever the DEX returns cannot express that, so the contract now
 every fill into bands against a reference rate (decided with the partner; contracts were
 not yet deployed, so this replaced the flat fee before launch with no migration):
 
-- **Reference rate.** Before each swap the keeper computes a five-minute
+- **Reference rate** (superseded 2026-09-18 by the bid/ask midpoint, see the third
+  amendment). Before each swap the keeper computes a five-minute
   volume-weighted average of Coinbase Exchange EURC-USDC one-minute candles (typical
   price × volume), widened to an hour when the five minutes carry no volume, so a
   single thin print on a weekend or outside business hours never becomes the reference
@@ -189,6 +191,34 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   refund path is for payments nobody converts), so a deposit into a dormant account is
   refunded rather than parked.
 
+## Amendment 2026-09-18: subsidy ladder, per-swap subsidy cap, spot reference
+
+- **The subsidy escalates with the time a chunk has waited.** Product wants the keeper
+  to wait for the market before Vortex pays a shortfall, and to pay more the longer a
+  chunk waits. The ladder is a Vortex spending policy, not a client protection (the
+  client's floor never moves), so it lives in the keeper (`MONERIUM_B2B_SUBSIDY_LADDER`,
+  seconds waited → max bps of the reference value; launch: 0 bps for six minutes, then
+  10/20/30/40/50 bps in two-minute steps, 100 bps from minute sixteen, held until the
+  refund deadline). The clock runs per chunk, from the mint or the previous chunk's
+  confirmation, and the keeper re-quotes every cycle (`MONERIUM_B2B_KEEPER_CYCLE_SECONDS`,
+  20 s). Deferred attempts log the shortfall so the ladder is tuned from data. A
+  contract-side ladder was considered and rejected: the contract cannot observe a try,
+  a keeper-supplied tier index would be unverifiable, and time-tiered vault caps would
+  buy enforcement against a keeper the design already bounds by the vault's cap and
+  budget.
+- **The tier binds on chain anyway (`swap(..., maxSubsidy)`).** The keeper passes its
+  tier as a per-swap cap and the forwarder refuses a top-up above it, so a fill that
+  moved between the quote and the swap cannot draw more than the tier. The contract
+  learns nothing about time or ladders; the vault's cap (`maxSubsidyPpm`, to be raised to
+  the ladder's top, 100 bps) and daily budget remain the hard bounds (P13 note below).
+- **Spot reference instead of the VWAP.** An average lags a moving market, and in a
+  falling one the lag turns into subsidy. The reference is now the Coinbase Exchange
+  EURC-USDC bid/ask midpoint read just before the swap (P12): no averaging, no lag; the
+  midpoint rather than the last trade because a last print can be one-sided or stale on a
+  quiet weekend, and a spread above 50 bps makes the keeper defer rather than price
+  against a thin book. The 2026-09-16 drift replay that sized `SLIPPAGE_BPS` used the
+  five-minute VWAP; spot moves those figures only marginally.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -210,7 +240,8 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
 | P9 | Notification confirmation depth | 32 blocks (implemented) |
 | P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route EURe→EURC→USDC at the 5 bps tiers, re-verify at the deploy block (amended 2026-09-15) |
 | P11 | Fee adjustability | Guardian `setFeePolicy(target, floor)` within `MAX_FEE_PPM`; raising either value is announced and applies after 24 h, lowering is immediate (amended 2026-09-15) |
-| P12 | Reference rate | Five-minute VWAP over Coinbase Exchange EURC-USDC one-minute candles (widened to 60 min when the five minutes have no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15). The floor on the net binds first: with `floorPpm` 15 bps and `SLIPPAGE_BPS` 40 bps, a reference more than `SLIPPAGE_BPS − floorPpm` ≈ 25 bps below Chainlink makes every normal fill (fee band or subsidized) revert on chain and defer off chain, so ~25 bps is the working downside margin against a stale round; the 100 bps band is the outlier ceiling for a keeper-supplied value, not the operating tolerance (2026-09-16) |
+| P12 | Reference rate | **Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, deferring on a spread above 50 bps** (amended 2026-09-18; from 2026-09-15 a five-minute VWAP over one-minute candles widened to 60 min on no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15). The floor on the net binds first: with `floorPpm` 15 bps and `SLIPPAGE_BPS` 40 bps, a reference more than `SLIPPAGE_BPS − floorPpm` ≈ 25 bps below Chainlink makes every normal fill (fee band or subsidized) revert on chain and defer off chain, so ~25 bps is the working downside margin against a stale round; the 100 bps band is the outlier ceiling for a keeper-supplied value, not the operating tolerance (2026-09-16) |
+| P14 | Subsidy ladder | **`MONERIUM_B2B_SUBSIDY_LADDER` = `0:0,360:10,480:20,600:30,720:40,840:50,960:100`** (2026-09-18; keeper policy, tunable from deferral logs); per-chunk clock; the vault's per-swap cap must be at least the ladder's top |
 | P13 | Subsidy vault limits | One shared vault; **50 bps of the reference value per swap, 200 USDC per UTC day** at launch, guardian-settable; withdraw to treasury only (2026-09-15) |
 | T2 | Whitelabel MSA terms | Open — G1 negotiation (rollout doc), includes the per-IBAN suspension ask |
 | T3 | KYB submission mechanism | Open, deliberately unbuilt — pilot corporates are approved by Monerium under partner KYC reliance and imported via the admin mapping; no identity-data submission path may exist until this settles (security-spec invariant 11) |

@@ -183,7 +183,7 @@ Each `conversions[]` entry is one chunk swap of this deposit: the EURe it consum
 
 Deposit `status` values: `pending`, `minted`, `held`, `returned` (provider states), then `converting`, `forwarded`, or — when a payment cannot be converted within the promised window — `recovering`, `refunded`, `recovery_failed`. `DEPOSIT_RECEIVED` may already report `converting` when conversion started within the same minute.
 
-The nested `execution` object carries the pricing of the whole execution, identical on every deposit it consumed: `referenceRateRaw` is the EUR/USD reference the swap was settled against, a volume-weighted average of the Coinbase Exchange EURC-USDC market over the five minutes before the swap, widened to sixty minutes when those five carry no trades (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). A deposit's own net already includes its share of both.
+The nested `execution` object carries the pricing of the whole execution, identical on every deposit it consumed: `referenceRateRaw` is the EUR/USD reference the swap was settled against, the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). A deposit's own net already includes its share of both.
 
 ### `DEPOSIT_RETURNED`
 
