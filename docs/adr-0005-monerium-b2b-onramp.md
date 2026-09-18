@@ -216,8 +216,15 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   EURC-USDC bid/ask midpoint read just before the swap (P12): no averaging, no lag; the
   midpoint rather than the last trade because a last print can be one-sided or stale on a
   quiet weekend, and a spread above 50 bps makes the keeper defer rather than price
-  against a thin book. The 2026-09-16 drift replay that sized `SLIPPAGE_BPS` used the
-  five-minute VWAP; spot moves those figures only marginally.
+  against a thin book. The drift replay that sized `SLIPPAGE_BPS` was rerun on spot
+  (2026-09-18, one-minute closes of Coinbase EURC-USDC as the midpoint's proxy vs the
+  Chainlink rounds, 2025-09-18 to 2026-09-18, 88% of minutes traded; historical bid/ask
+  is not public): weekend median −5.3 bps, p5 −26.5. Time a floor fill would breach the
+  oracle floor: at 40 bps 122 h/year over 12 weekends with ten weekend episodes longer
+  than the 2 h window; at 60 bps 48 h/year of which 47.8 h are the 2025-10-11/12 depeg
+  weekend (out of the 100 bps band anyway) and the rest six blips of one to five
+  minutes on three weekends. Spot is noisier than the VWAP at 40 bps and identical at
+  60; the 60 bps decision stands.
 
 ## Final parameters (decided 2026-08-26 unless noted)
 
