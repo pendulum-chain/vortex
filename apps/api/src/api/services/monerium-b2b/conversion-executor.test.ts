@@ -284,28 +284,46 @@ describe("projectSwap", () => {
     );
   });
 
-  it("defers when even the subsidized net sits below the oracle floor (depegged reference)", () => {
-    const projection = projectSwap({ ...base, quotedOut: 1_127n * USDC, referenceRaw: (114_000_000n * 9_910n) / 10_000n });
-    expect(projection.subsidy).toBeGreaterThan(0n);
-    expect(projection.defer).toContain("oracle floor");
+  // Mirrors test_swap_depeggedReference_isLiftedToTheOracleFloorWhenTheTierAndVaultAllow.
+  it("lifts a depegged reference's net to the oracle floor when the tier and the vault allow, else defers", () => {
+    const lowReference = (114_000_000n * 9_910n) / 10_000n; // 90 bps below Chainlink
+    const needed = 1_133_160_000n - 1_127n * USDC; // 6.16 USDC up to the Chainlink floor, not the reference floor
+    // The launch vault cap (50 bps of the reference value, ~5.65 USDC) cannot cover it.
+    expect(projectSwap({ ...base, quotedOut: 1_127n * USDC, referenceRaw: lowReference }).defer).toContain("per-swap cap");
+    const roomy = { ...vault, maxSubsidyPpm: 10_000 };
+    expect(projectSwap({ ...base, maxSubsidyRaw: needed - 1n, quotedOut: 1_127n * USDC, referenceRaw: lowReference, vault: roomy }).defer).toContain("current tier");
+    expect(projectSwap({ ...base, quotedOut: 1_127n * USDC, referenceRaw: lowReference, vault: roomy })).toEqual({
+      defer: null,
+      fee: 0n,
+      net: 1_133_160_000n,
+      subsidy: needed
+    });
   });
 
-  it("defers when a fee-band net sits below the oracle floor (depegged reference, fee side)", () => {
-    // Mirrors test_swap_depeggedReference_feeBranchStillEnforcesOracleFloor: reference 100 bps
-    // under Chainlink, fill above its target -> fee 0.81 USDC, net 1_127_189_250 < 1_133_160_000.
-    const projection = projectSwap({ ...base, quotedOut: 1_128n * USDC, referenceRaw: (114_000_000n * 9_900n) / 10_000n });
-    expect(projection.fee).toBe(810_750n);
-    expect(projection.subsidy).toBe(0n);
-    expect(projection.net).toBe(1_127_189_250n);
-    expect(projection.defer).toContain("oracle floor");
+  // Mirrors test_swap_depeggedReference_feeGivesWayBeforeTheOracleFloor.
+  it("lets the fee give way before the client drops under the oracle floor", () => {
+    const lowReference = (114_000_000n * 9_900n) / 10_000n; // 100 bps below Chainlink: the band's edge
+    expect(projectSwap({ ...base, quotedOut: 1_140n * USDC, referenceRaw: lowReference })).toEqual({
+      defer: null,
+      fee: 1_140n * USDC - 1_133_160_000n, // only what sits above the Chainlink floor, not down to 1_127_189_250
+      net: 1_133_160_000n,
+      subsidy: 0n
+    });
   });
 
-  it("tolerates a reference only SLIPPAGE_BPS - floorPpm (~45 bps) below Chainlink before the floor binds", () => {
-    // A fill exactly at the client's floor: no fee, no subsidy, net = reference x (1 - floorPpm).
+  it("pays the drift below ~45 bps under Chainlink from the tier instead of deferring", () => {
+    // A fill exactly at the client's reference floor: above the Chainlink floor it is untouched,
+    // below it the subsidy lifts the net to the Chainlink floor (amendment 2026-09-18).
     const floorFill = (referenceRaw: bigint) => (((base.amountIn * referenceRaw) / 10n ** 20n) * 998_500n) / 1_000_000n;
     const tooLow = (114_000_000n * 9_953n) / 10_000n; // 47 bps below
     const fine = (114_000_000n * 9_957n) / 10_000n; // 43 bps below
-    expect(projectSwap({ ...base, quotedOut: floorFill(tooLow), referenceRaw: tooLow }).defer).toContain("oracle floor");
+    const lifted = projectSwap({ ...base, quotedOut: floorFill(tooLow), referenceRaw: tooLow });
+    expect(lifted.defer).toBeNull();
+    expect(lifted.subsidy).toBeGreaterThan(0n);
+    expect(lifted.net).toBe(1_133_160_000n);
+    expect(projectSwap({ ...base, maxSubsidyRaw: 0n, quotedOut: floorFill(tooLow), referenceRaw: tooLow }).defer).toContain(
+      "current tier"
+    );
     expect(projectSwap({ ...base, quotedOut: floorFill(fine), referenceRaw: fine })).toMatchObject({
       defer: null,
       fee: 0n,

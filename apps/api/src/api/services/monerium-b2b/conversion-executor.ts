@@ -169,15 +169,20 @@ export interface SwapProjection {
 
 /**
  * Off-chain mirror of VortexForwarder's settlement for a quoted fill: the fee band, the
- * subsidy band and the oracle floor on the client's net. The keeper defers — funds wait,
+ * subsidy band and the oracle floor on the client's net, where the Chainlink floor bounds
+ * both the target and the floor from below (a reference far under a stale round costs
+ * Vortex fee and subsidy instead of stopping the swap). The keeper defers — funds wait,
  * nothing is sent, no execution row is burnt — whenever the contract would revert or the
- * vault could not cover the projected subsidy.
+ * tier or the vault could not cover the projected subsidy.
  */
 export function projectSwap(input: SwapProjectionInput): SwapProjection {
   const scale = 10n ** BigInt(12 + input.oracleDecimals);
   const referenceOut = (input.amountIn * input.referenceRaw) / scale;
-  const targetOut = (referenceOut * (PPM - BigInt(input.targetPpm))) / PPM;
-  const floorOut = (referenceOut * (PPM - BigInt(input.floorPpm))) / PPM;
+  const oracleFloor = (((input.amountIn * input.oracleRaw) / scale) * (BPS - BigInt(input.slippageBps))) / BPS;
+  let targetOut = (referenceOut * (PPM - BigInt(input.targetPpm))) / PPM;
+  if (targetOut < oracleFloor) targetOut = oracleFloor;
+  let floorOut = (referenceOut * (PPM - BigInt(input.floorPpm))) / PPM;
+  if (floorOut < oracleFloor) floorOut = oracleFloor;
 
   let fee = 0n;
   let subsidy = 0n;
@@ -207,7 +212,6 @@ export function projectSwap(input: SwapProjectionInput): SwapProjection {
       defer = `projected subsidy ${subsidy} exceeds the vault balance ${vault.balance}`;
     }
   }
-  const oracleFloor = (((input.amountIn * input.oracleRaw) / scale) * (BPS - BigInt(input.slippageBps))) / BPS;
   if (defer === null && net < oracleFloor) {
     defer = `projected net ${net} is below the oracle floor ${oracleFloor}`;
   }
