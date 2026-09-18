@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {VortexForwarder, IERC20, IVortexForwarderFactory} from "../src/VortexForwarder.sol";
 import {VortexForwarderFactory} from "../src/VortexForwarderFactory.sol";
 import {VortexSubsidyVault} from "../src/VortexSubsidyVault.sol";
+import {NO_CAP} from "./VortexForwarder.t.sol";
 
 interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address);
@@ -126,7 +127,7 @@ contract VortexForwarderForkTest is Test {
         uint256 fair = (amountIn * uint256(answer)) / 1e20; // 6-dec USDC at oracle rate
 
         vm.prank(keeper);
-        fwd.swap(_reference(), 0, amountIn);
+        fwd.swap(_reference(), 0, amountIn, NO_CAP);
         assertEq(IERC20Meta(USDC).balanceOf(destination), 0, "USDC must wait on the clone until forward");
 
         // With the vault funded the client lands at or above the policy floor (15 bps),
@@ -146,7 +147,7 @@ contract VortexForwarderForkTest is Test {
     function test_fork_chunkedPayment_accumulatesThenRecovers() public onlyForked {
         deal(EURE_V2, address(fwd), 12_000e18); // cap is 10k
         vm.prank(keeper);
-        fwd.swap(_reference(), 0, 10_000e18);
+        fwd.swap(_reference(), 0, 10_000e18, NO_CAP);
         assertEq(IERC20Meta(EURE_V2).balanceOf(address(fwd)), 2_000e18);
         uint256 converted = IERC20Meta(USDC).balanceOf(address(fwd));
         assertGt(converted, 0);

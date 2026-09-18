@@ -8,6 +8,8 @@ import {VortexSubsidyVault} from "../src/VortexSubsidyVault.sol";
 
 // Reference rate the keeper passes in the unit tests; equal to the mock oracle price.
 uint256 constant REF = 1.14e8;
+// "No keeper tier": lets the vault's own cap decide, as the tests did before A+.
+uint256 constant NO_CAP = type(uint256).max;
 
 contract MockERC20 {
     string public name;
@@ -88,7 +90,7 @@ contract MockRouter {
 /// Malicious router that tries to re-enter swap during the swap.
 contract MockReentrantRouter {
     function exactInput(ISwapRouter02.ExactInputParams calldata) external payable returns (uint256) {
-        VortexForwarder(msg.sender).swap(REF, 0, 1_000e18); // must revert via reentrancy guard
+        VortexForwarder(msg.sender).swap(REF, 0, 1_000e18, NO_CAP); // must revert via reentrancy guard
         return 0;
     }
 }
@@ -201,7 +203,7 @@ contract VortexForwarderTest is Test {
 
     function _keeperSwap(uint256 amountIn) internal {
         vm.prank(keeper);
-        fwd.swap(REF, 0, amountIn);
+        fwd.swap(REF, 0, amountIn, NO_CAP);
     }
 
     // ---------------------------------------------------------------- EIP-1271
@@ -364,11 +366,11 @@ contract VortexForwarderTest is Test {
         router.setNextOut(ORACLE_FLOOR_1K - 1);
         vm.prank(rando);
         vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
 
         router.setNextOut(ORACLE_FLOOR_1K);
         vm.prank(rando);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(address(fwd)), ORACLE_FLOOR_1K);
     }
 
@@ -379,7 +381,7 @@ contract VortexForwarderTest is Test {
         skip(53 hours); // just past the 52h P8 window
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.StalePrice.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
     }
 
     function test_swap_publicOnlyAfterTriggerDelay() public {
@@ -388,17 +390,17 @@ contract VortexForwarderTest is Test {
 
         vm.prank(rando);
         vm.expectRevert(VortexForwarder.NotAuthorizedYet.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
 
         fwd.poke();
         vm.prank(rando);
         vm.expectRevert(VortexForwarder.NotAuthorizedYet.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
 
         skip(TRIGGER_DELAY + 1);
         oracle.set(1.14e8, block.timestamp);
         vm.prank(rando);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(address(fwd)), TARGET_1K);
     }
 
@@ -408,11 +410,11 @@ contract VortexForwarderTest is Test {
         oracle.set(0, block.timestamp);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.InvalidPrice.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         oracle.set(-1, block.timestamp);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.InvalidPrice.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
     }
 
     function test_swap_amountBounds() public {
@@ -420,12 +422,12 @@ contract VortexForwarderTest is Test {
         router.setNextOut(TARGET_10K);
         vm.startPrank(keeper);
         vm.expectRevert(VortexForwarder.BelowMinimum.selector);
-        fwd.swap(REF, 0, 24e18);
+        fwd.swap(REF, 0, 24e18, NO_CAP);
         vm.expectRevert(VortexForwarder.InvalidAmount.selector);
-        fwd.swap(REF, 0, 10_000e18 + 1); // above the cap
-        fwd.swap(REF, 0, 10_000e18);
+        fwd.swap(REF, 0, 10_000e18 + 1, NO_CAP); // above the cap
+        fwd.swap(REF, 0, 10_000e18, NO_CAP);
         vm.expectRevert(VortexForwarder.InvalidAmount.selector);
-        fwd.swap(REF, 0, 5_000e18 + 1); // above the balance
+        fwd.swap(REF, 0, 5_000e18 + 1, NO_CAP); // above the balance
         vm.stopPrank();
         assertEq(eure.balanceOf(address(fwd)), 5_000e18); // remainder awaits the next chunk
     }
@@ -460,7 +462,7 @@ contract VortexForwarderTest is Test {
         fwd.setGuardianPaused(true); // test contract is factory guardian
         vm.startPrank(keeper);
         vm.expectRevert(VortexForwarder.Paused.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         vm.expectRevert(VortexForwarder.Paused.selector);
         fwd.forward(TARGET_1K);
         vm.expectRevert(VortexForwarder.Paused.selector);
@@ -471,7 +473,7 @@ contract VortexForwarderTest is Test {
         factory.setGlobalPaused(true);
         vm.startPrank(keeper);
         vm.expectRevert(VortexForwarder.Paused.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         vm.expectRevert(VortexForwarder.Paused.selector);
         fwd.forward(TARGET_1K);
         vm.stopPrank();
@@ -553,7 +555,7 @@ contract VortexForwarderTest is Test {
         eure.mint(address(fwd2), 1_000e18);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.Reentrancy.selector);
-        fwd2.swap(REF, 0, 1_000e18);
+        fwd2.swap(REF, 0, 1_000e18, NO_CAP);
     }
 
     // ---------------------------------------------------------------- recovery
@@ -699,7 +701,7 @@ contract VortexForwarderTest is Test {
         _fund(1_000e18);
         router.setNextOut(TARGET_1K);
         vm.prank(keeper);
-        fwd.swap(REF, 1, 1_000e18);
+        fwd.swap(REF, 1, 1_000e18, NO_CAP);
         assertEq(router.lastPath(), direct);
     }
 
@@ -709,12 +711,12 @@ contract VortexForwarderTest is Test {
 
         vm.prank(keeper);
         vm.expectRevert(VortexForwarderFactory.InvalidRoute.selector);
-        fwd.swap(REF, 7, 1_000e18);
+        fwd.swap(REF, 7, 1_000e18, NO_CAP);
 
         factory.setRouteEnabled(0, false);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.InvalidRoute.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
 
         vm.expectRevert(VortexForwarderFactory.InvalidRoute.selector);
         factory.setRouteEnabled(7, false);
@@ -797,12 +799,41 @@ contract VortexForwarderTest is Test {
         assertEq(usdc.balanceOf(address(fwd)), FLOOR_1K);
     }
 
+    /// A+: the keeper's tier binds at execution. A fill that needs more than the caller
+    /// allowed reverts the whole swap, whatever the vault would have paid.
+    function test_swap_subsidyAboveKeeperCap_revertsTheWholeSwap() public {
+        _fund(1_000e18);
+        router.setNextOut(1_136e6); // needs 2.29 USDC
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.SubsidyAboveCap.selector);
+        fwd.swap(REF, 0, 1_000e18, 2_290_000 - 1);
+        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
+        assertEq(usdc.balanceOf(address(vault)), 1_000e6);
+
+        vm.prank(keeper);
+        fwd.swap(REF, 0, 1_000e18, 2_290_000); // exactly the shortfall: allowed
+        assertEq(usdc.balanceOf(address(fwd)), FLOOR_1K);
+        assertEq(usdc.balanceOf(address(vault)), 1_000e6 - 2_290_000);
+    }
+
+    function test_swap_keeperCapZero_onlyFillsAtOrAboveTheFloorSucceed() public {
+        _fund(1_000e18);
+        router.setNextOut(1_136e6);
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.SubsidyAboveCap.selector);
+        fwd.swap(REF, 0, 1_000e18, 0); // the ladder's first tiers: wait for the market
+        router.setNextOut(FLOOR_1K);
+        vm.prank(keeper);
+        fwd.swap(REF, 0, 1_000e18, 0);
+        assertEq(usdc.balanceOf(address(fwd)), FLOOR_1K);
+    }
+
     function test_swap_subsidyOverCap_revertsTheWholeSwap() public {
         _fund(1_000e18);
         router.setNextOut(1_130e6); // needs 8.29 USDC; the cap is 50 bps of 1140 = 5.7 USDC
         vm.prank(keeper);
         vm.expectRevert(VortexSubsidyVault.SubsidyCapExceeded.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         assertEq(eure.balanceOf(address(fwd)), 1_000e18);
         assertEq(usdc.balanceOf(address(fwd)), 0);
     }
@@ -813,7 +844,7 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_130e6); // below both floors; the 8.29 USDC top-up the vault "pays" never arrives
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.SubsidyUnavailable.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
         assertEq(eure.balanceOf(address(fwd)), 1_000e18);
         assertEq(usdc.balanceOf(address(fwd)), 0);
     }
@@ -824,7 +855,7 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_136e6);
         vm.prank(keeper);
         vm.expectRevert(VortexSubsidyVault.BudgetExhausted.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
     }
 
     function test_swap_withoutVault_onlyFillsAtOrAboveTheFloorSucceed() public {
@@ -833,7 +864,7 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_136e6);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.SubsidyUnavailable.selector);
-        fwd.swap(REF, 0, 1_000e18);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
 
         router.setNextOut(1_145e6);
         _keeperSwap(1_000e18);
@@ -848,7 +879,7 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_127e6);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
-        fwd.swap(lowReference, 0, 1_000e18);
+        fwd.swap(lowReference, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(address(vault)), 1_000e6, "subsidy transfer must be undone");
     }
 
@@ -860,7 +891,7 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_128e6);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
-        fwd.swap(lowReference, 0, 1_000e18);
+        fwd.swap(lowReference, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(feeRecipient), 0, "fee transfer must be undone");
         assertEq(eure.balanceOf(address(fwd)), 1_000e18);
     }
@@ -870,12 +901,12 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_150e6);
         vm.startPrank(keeper);
         vm.expectRevert(VortexForwarder.ReferenceOutOfBand.selector);
-        fwd.swap((REF * 10_101) / 10_000, 0, 1_000e18); // 101 bps above
+        fwd.swap((REF * 10_101) / 10_000, 0, 1_000e18, NO_CAP); // 101 bps above
         vm.expectRevert(VortexForwarder.ReferenceOutOfBand.selector);
-        fwd.swap((REF * 9_899) / 10_000, 0, 1_000e18); // 101 bps below
+        fwd.swap((REF * 9_899) / 10_000, 0, 1_000e18, NO_CAP); // 101 bps below
         vm.expectRevert(VortexForwarder.ReferenceOutOfBand.selector);
-        fwd.swap(0, 0, 1_000e18);
-        fwd.swap((REF * 10_100) / 10_000, 0, 1_000e18); // exactly 100 bps: allowed
+        fwd.swap(0, 0, 1_000e18, NO_CAP);
+        fwd.swap((REF * 10_100) / 10_000, 0, 1_000e18, NO_CAP); // exactly 100 bps: allowed
         vm.stopPrank();
         assertGt(usdc.balanceOf(address(fwd)), 0);
     }
@@ -887,14 +918,14 @@ contract VortexForwarderTest is Test {
         oracle.set(1.14e8, block.timestamp);
         router.setNextOut(1_136e6); // below the floor: the client simply gets the fill
         vm.prank(rando);
-        fwd.swap(1, 0, 1_000e18); // garbage reference is ignored on this path
+        fwd.swap(1, 0, 1_000e18, NO_CAP); // garbage reference is ignored on this path
         assertEq(usdc.balanceOf(address(fwd)), 1_136e6);
         assertEq(usdc.balanceOf(address(vault)), 1_000e6);
 
         _fund(1_000e18);
         router.setNextOut(1_145e6); // above the Chainlink-based target: the fee still applies
         vm.prank(rando);
-        fwd.swap(999, 0, 1_000e18);
+        fwd.swap(999, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(feeRecipient), 1_145e6 - TARGET_1K);
     }
 

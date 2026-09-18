@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {VortexForwarder, IERC20, IVortexForwarderFactory} from "../src/VortexForwarder.sol";
 import {VortexForwarderFactory} from "../src/VortexForwarderFactory.sol";
 import {VortexSubsidyVault} from "../src/VortexSubsidyVault.sol";
-import {MockERC20, MockOracle, MockRouter} from "./VortexForwarder.t.sol";
+import {MockERC20, MockOracle, MockRouter, NO_CAP} from "./VortexForwarder.t.sol";
 
 /// Randomized action handler. Ghost variables track every token unit entering the
 /// system so the invariants below can assert exit-path exhaustiveness (plan §2.3.1):
@@ -41,6 +41,8 @@ contract ForwarderHandler is Test {
     uint256 public earlyRecoveries;
     /// Swaps that changed an already-armed batch marker. Must stay zero.
     uint256 public markerRetimes;
+    /// Swaps whose vault subsidy exceeded the caller's maxSubsidy. Must stay zero.
+    uint256 public capViolations;
     uint32 public immutable INITIAL_TARGET_PPM = 1_250;
     uint32 public immutable INITIAL_FLOOR_PPM = 1_500;
     uint256 public constant VAULT_FUNDING = 10_000e6;
@@ -109,40 +111,61 @@ contract ForwarderHandler is Test {
 
     /// Router pays a randomized amount around the fair oracle value: far below exercises
     /// the floor/cap reverts, slightly below the subsidy path, above the fee path.
-    function keeperSwap(uint96 raw, uint96 rawAmount) external {
-        _swapAs(keeper, raw, rawAmount);
+    function keeperSwap(uint96 raw, uint96 rawAmount, uint32 rawCap) external {
+        _swapAs(keeper, raw, rawAmount, rawCap);
     }
 
-    function randoSwap(uint96 raw, uint96 rawAmount) external {
-        _swapAs(rando, raw, rawAmount);
+    function randoSwap(uint96 raw, uint96 rawAmount, uint32 rawCap) external {
+        _swapAs(rando, raw, rawAmount, rawCap);
     }
 
-    function _swapAs(address caller, uint96 raw, uint96 rawAmount) internal {
+    struct SwapSnapshot {
+        uint256 routerMinted;
+        uint256 vault;
+        uint256 clone;
+        uint256 fee;
+        uint64 marker;
+    }
+
+    function _swapAs(address caller, uint96 raw, uint96 rawAmount, uint32 rawCap) internal {
         oracle.set(1.14e8, block.timestamp);
+        (uint256 amountIn, uint256 fair) = _arrangeFill(raw, rawAmount);
+        // The keeper's tier: sometimes nothing, sometimes a few USDC, sometimes unbounded.
+        uint256 maxSubsidy = rawCap % 3 == 0 ? NO_CAP : uint256(rawCap) % 12e6;
+        SwapSnapshot memory before = SwapSnapshot({
+            routerMinted: usdc.totalMinted(),
+            vault: usdc.balanceOf(address(vault)),
+            clone: usdc.balanceOf(address(fwd)),
+            fee: usdc.balanceOf(feeRecipient),
+            marker: fwd.batchOpenedAt()
+        });
+        vm.prank(caller);
+        try fwd.swap(REFERENCE, 0, amountIn, maxSubsidy) {
+            _recordSwap(caller, fair, maxSubsidy, before);
+        } catch {}
+    }
+
+    /// Mostly legal amounts (occasionally out of bounds to exercise the reverts) and a
+    /// router payout randomized around the fair oracle value.
+    function _arrangeFill(uint96 raw, uint96 rawAmount) internal returns (uint256 amountIn, uint256 fair) {
         uint256 balance = eure.balanceOf(address(fwd));
         uint256 ceiling = balance > 10_000e18 ? 10_000e18 : balance;
-        // Mostly legal amounts; occasionally out of bounds to exercise the reverts.
-        uint256 amountIn = bound(uint256(rawAmount), 0, ceiling + 30e18);
-        uint256 fair = (amountIn * REFERENCE) / 1e20;
-        uint256 payout = bound(uint256(raw), (fair * 95) / 100, (fair * 105) / 100);
-        router.setNextOut(payout);
+        amountIn = bound(uint256(rawAmount), 0, ceiling + 30e18);
+        fair = (amountIn * REFERENCE) / 1e20;
+        router.setNextOut(bound(uint256(raw), (fair * 95) / 100, (fair * 105) / 100));
+    }
 
-        uint256 routerUsdcBefore = usdc.totalMinted();
-        uint256 vaultBefore = usdc.balanceOf(address(vault));
-        uint256 cloneBefore = usdc.balanceOf(address(fwd));
-        uint256 feeBefore = usdc.balanceOf(feeRecipient);
-        uint64 markerBefore = fwd.batchOpenedAt();
-        vm.prank(caller);
-        try fwd.swap(REFERENCE, 0, amountIn) {
-            uint256 paid = usdc.totalMinted() - routerUsdcBefore;
-            ghostUsdcPaidByRouter += paid;
-            ghostSubsidyPaid += vaultBefore - usdc.balanceOf(address(vault));
-            uint256 net = usdc.balanceOf(address(fwd)) - cloneBefore; // fill - fee + subsidy
-            if (net < (fair * 9_940) / 10_000) pricingViolations++; // Chainlink - 60 bps
-            if (caller == keeper && net < (fair * (1_000_000 - fwd.floorPpm())) / 1_000_000) pricingViolations++;
-            if (usdc.balanceOf(feeRecipient) - feeBefore > paid / 100) pricingViolations++; // MAX_FEE_PPM
-            if (markerBefore != 0 && fwd.batchOpenedAt() != markerBefore) markerRetimes++;
-        } catch {}
+    function _recordSwap(address caller, uint256 fair, uint256 maxSubsidy, SwapSnapshot memory before) internal {
+        uint256 paid = usdc.totalMinted() - before.routerMinted;
+        ghostUsdcPaidByRouter += paid;
+        uint256 subsidy = before.vault - usdc.balanceOf(address(vault));
+        ghostSubsidyPaid += subsidy;
+        if (subsidy > maxSubsidy) capViolations++;
+        uint256 net = usdc.balanceOf(address(fwd)) - before.clone; // fill - fee + subsidy
+        if (net < (fair * 9_940) / 10_000) pricingViolations++; // Chainlink - 60 bps
+        if (caller == keeper && net < (fair * (1_000_000 - fwd.floorPpm())) / 1_000_000) pricingViolations++;
+        if (usdc.balanceOf(feeRecipient) - before.fee > paid / 100) pricingViolations++; // MAX_FEE_PPM
+        if (before.marker != 0 && fwd.batchOpenedAt() != before.marker) markerRetimes++;
     }
 
     function keeperForward(uint96 raw) external {
@@ -258,6 +281,11 @@ contract VortexForwarderInvariantTest is Test {
     /// Chunking a payment never restarts its recovery clock.
     function invariant_swapNeverRetimesTheBatch() public view {
         assertEq(handler.markerRetimes(), 0, "a swap re-timed an open batch");
+    }
+
+    /// The vault never pays more for a swap than the caller allowed (A+).
+    function invariant_subsidyNeverAboveCallerCap() public view {
+        assertEq(handler.capViolations(), 0, "the vault paid above the caller's maxSubsidy");
     }
 
     /// Config changes only through their authorized paths: the fee policy moves

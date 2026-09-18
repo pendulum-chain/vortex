@@ -202,6 +202,7 @@ contract VortexForwarder {
     error NoPendingFeePolicy();
     error ReferenceOutOfBand();
     error SubsidyUnavailable();
+    error SubsidyAboveCap();
     error DelayNotElapsed();
     error TransferFailed();
     error Reentrancy();
@@ -355,7 +356,16 @@ contract VortexForwarder {
     /// @param amountIn Exactly how much EURe to convert: at least minSwapAmount, at most
     ///        perSwapCap and the balance. Explicit so the keeper's chunking maps every
     ///        swap to one bank payment.
-    function swap(uint256 referenceRate, uint256 routeIndex, uint256 amountIn) external nonReentrant whenNotPaused {
+    /// @param maxSubsidy The most USDC the caller lets the vault pay for this swap: the
+    ///        keeper's escalation tier for the time the chunk has waited (docs, fees
+    ///        section). Binding at execution, so a fill that moved between the quote and
+    ///        the swap cannot draw more than the tier; the vault's own cap and budget
+    ///        still apply on top. Ignored on the permissionless path, which pays nothing.
+    function swap(uint256 referenceRate, uint256 routeIndex, uint256 amountIn, uint256 maxSubsidy)
+        external
+        nonReentrant
+        whenNotPaused
+    {
         bool privileged = _privileged();
         if (!privileged) _requireBatchAge(TRIGGER_DELAY, NotAuthorizedYet.selector);
 
@@ -366,7 +376,7 @@ contract VortexForwarder {
         uint256 referenceUsed = privileged ? _checkedReference(referenceRate, oraclePrice) : oraclePrice;
 
         uint256 usdcReceived = _swap(routeIndex, amountIn);
-        (uint256 fee, uint256 subsidy) = _settle(amountIn, usdcReceived, referenceUsed, privileged);
+        (uint256 fee, uint256 subsidy) = _settle(amountIn, usdcReceived, referenceUsed, privileged, maxSubsidy);
 
         // The oracle floor is enforced on the client's NET (fill - fee + subsidy), not on
         // the raw fill: a subsidized fill may sit below it, and a subsidy must never
@@ -406,10 +416,11 @@ contract VortexForwarder {
     ///      - fill between the floor and the target: no fee, no subsidy;
     ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall
     ///        from the vault onto this clone; a permissionless swap pays nothing.
-    ///      The vault reverts (and so does the swap) when its cap, budget, pause or
-    ///      balance cannot cover the shortfall, and the forwarder reverts unless exactly
-    ///      the shortfall arrived here — a swap is never partially subsidized.
-    function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged)
+    ///      The caller's `maxSubsidy` bounds the shortfall first; the vault reverts (and so
+    ///      does the swap) when its cap, budget, pause or balance cannot cover it, and the
+    ///      forwarder reverts unless exactly the shortfall arrived here — a swap is never
+    ///      partially subsidized.
+    function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged, uint256 maxSubsidy)
         internal
         returns (uint256 fee, uint256 subsidy)
     {
@@ -426,6 +437,7 @@ contract VortexForwarder {
         if (usdcReceived >= floorOut || !privileged) return (0, 0);
 
         subsidy = floorOut - usdcReceived;
+        if (subsidy > maxSubsidy) revert SubsidyAboveCap();
         address vault = FACTORY.subsidyVault();
         if (vault == address(0)) revert SubsidyUnavailable();
         // The vault is guardian-settable without a timelock, so its word is not enough:
