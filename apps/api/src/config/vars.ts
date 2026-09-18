@@ -1,3 +1,5 @@
+import { FiatToken } from "@vortexfi/shared";
+
 interface PriceProvider {
   baseUrl: string;
   appId?: string;
@@ -52,6 +54,27 @@ function readFlowVariant(): FlowVariant {
   }
 
   return rawFlowVariant as FlowVariant;
+}
+
+/**
+ * `DISABLED_FIAT_CURRENCIES="MXN,COP"`: kill switch for fiat rails whose provider is down. New
+ * quotes on those rails stop with a public 503 and the rails leave the public listing; ramps
+ * already registered keep executing. An unknown symbol aborts startup so a misspelled switch
+ * cannot stay silently inactive.
+ */
+function readDisabledFiatCurrencies(): FiatToken[] {
+  const symbols = (process.env.DISABLED_FIAT_CURRENCIES || "")
+    .split(",")
+    .map(symbol => symbol.trim().toUpperCase())
+    .filter(Boolean);
+  const known: string[] = Object.values(FiatToken);
+  const unknown = symbols.filter(symbol => !known.includes(symbol));
+  if (unknown.length > 0) {
+    throw new Error(
+      `DISABLED_FIAT_CURRENCIES contains unknown fiat currencies: ${unknown.join(", ")} (expected one of ${known.join(", ")})`
+    );
+  }
+  return symbols as FiatToken[];
 }
 
 interface MykoboFeeFallback {
@@ -204,7 +227,7 @@ interface Config {
   quote: {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
-    disabledFiatCurrencies: string[];
+    disabledFiatCurrencies: FiatToken[];
   };
   recipients: {
     inviteMaxDiscountBps: number;
@@ -394,12 +417,7 @@ export const config: Config = {
   },
   quote: {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
-    // Kill switch for fiat rails whose provider is down (e.g. "MXN,COP"): new quotes on those
-    // rails stop with a public 503; ramps already registered keep executing.
-    disabledFiatCurrencies: (process.env.DISABLED_FIAT_CURRENCIES || "")
-      .split(",")
-      .map(symbol => symbol.trim().toUpperCase())
-      .filter(Boolean),
+    disabledFiatCurrencies: readDisabledFiatCurrencies(),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
   },
   rampWidgetUrl: process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget",

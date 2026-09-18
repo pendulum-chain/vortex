@@ -1,4 +1,4 @@
-import { EvmClientManager, FiatToken, initializeEvmTokens, setLogger } from "@vortexfi/shared";
+import { EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
 import cryptoService from "./config/crypto";
@@ -46,14 +46,6 @@ const validateRequiredEnvVars = () => {
   for (const [key, value] of Object.entries(requiredVars)) {
     if (!value) {
       logger.error(`${key} not set in the environment variables`);
-      process.exit(1);
-    }
-  }
-
-  // A misspelled symbol would leave the kill switch silently inactive.
-  for (const symbol of config.quote.disabledFiatCurrencies) {
-    if (!Object.values(FiatToken).includes(symbol as FiatToken)) {
-      logger.error(`DISABLED_FIAT_CURRENCIES contains unknown fiat currency '${symbol}'`);
       process.exit(1);
     }
   }

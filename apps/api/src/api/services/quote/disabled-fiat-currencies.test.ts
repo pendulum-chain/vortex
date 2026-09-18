@@ -37,4 +37,16 @@ describe("fiat currency kill switch", () => {
     const { network: _network, to: _to, ...bestBuy } = buy;
     await expect(new QuoteService().createBestQuote(bestBuy)).rejects.toMatchObject(unavailable);
   });
+
+  it("keeps the permanent EUR SELL rejection ahead of the temporary switch", async () => {
+    // A pair that is never supported must not turn into "try again later" because its rail is
+    // also switched off; the switch only speaks for otherwise-supported requests.
+    config.quote.disabledFiatCurrencies = [FiatToken.EURC];
+    const eurSell = { ...sell, outputCurrency: FiatToken.EURC, to: EPaymentMethod.SEPA };
+    await expect(new QuoteService().createQuote(eurSell)).rejects.toMatchObject({
+      isPublic: true,
+      message: "EUR offramps are not supported",
+      status: 400
+    });
+  });
 });

@@ -320,7 +320,7 @@ function assertEurOnrampEnabled(request: Pick<CreateQuoteRequest, "inputCurrency
 /** Operational kill switch (`DISABLED_FIAT_CURRENCIES=MXN,COP`): new quotes on those fiat rails stop, registered ramps keep executing. */
 function assertFiatCurrencyEnabled(request: Pick<CreateQuoteRequest, "inputCurrency" | "outputCurrency" | "rampType">): void {
   const fiatCurrency = request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency;
-  if (config.quote.disabledFiatCurrencies.includes(fiatCurrency)) {
+  if (config.quote.disabledFiatCurrencies.includes(fiatCurrency as FiatToken)) {
     throw new APIError({
       isPublic: true,
       message: QuoteError.AnchorTemporarilyUnavailable,

@@ -33,12 +33,13 @@ const requiredMoneriumB2bEnv = {
   MONERIUM_WHITELABEL_CLIENT_SECRET: "test-whitelabel-client-secret"
 };
 
-async function importVarsWithEnv(env: Record<string, string>) {
+// `print` is evaluated against the imported module (`vars`) and written to stdout; defaults to "ok".
+async function importVarsWithEnv(env: Record<string, string>, print = '"ok"') {
   const proc = Bun.spawn({
     cmd: [
       bunExecutable,
       "-e",
-      `import(${JSON.stringify(varsModuleUrl)}).then(() => console.log("ok")).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); })`
+      `import(${JSON.stringify(varsModuleUrl)}).then(vars => console.log(${print})).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); })`
     ],
     // A cwd without .env files: bun auto-loads .env from the cwd, which would
     // silently backfill variables these scenarios deliberately leave unset.
@@ -304,5 +305,29 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MYKOBO_FALLBACK_DEPOSIT_FEE must be a non-negative number");
+  });
+});
+
+describe("vars disabled fiat currencies", () => {
+  it("parses a mixed-case, padded, comma-separated list", async () => {
+    const result = await importVarsWithEnv(
+      { DISABLED_FIAT_CURRENCIES: " mxn, COP ,,eur" },
+      "JSON.stringify(vars.config.quote.disabledFiatCurrencies)"
+    );
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '["MXN","COP","EUR"]\n' });
+  });
+
+  it("leaves the switch empty when unset", async () => {
+    const result = await importVarsWithEnv({}, "JSON.stringify(vars.config.quote.disabledFiatCurrencies)");
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "[]\n" });
+  });
+
+  it("refuses to start on an unknown symbol", async () => {
+    const result = await importVarsWithEnv({ DISABLED_FIAT_CURRENCIES: "MXN,EURC" });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("DISABLED_FIAT_CURRENCIES contains unknown fiat currencies: EURC");
   });
 });
