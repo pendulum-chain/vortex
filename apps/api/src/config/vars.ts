@@ -204,6 +204,7 @@ interface Config {
   quote: {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
+    disabledFiatCurrencies: string[];
   };
   recipients: {
     inviteMaxDiscountBps: number;
@@ -393,6 +394,12 @@ export const config: Config = {
   },
   quote: {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
+    // Kill switch for fiat rails whose provider is down (e.g. "MXN,COP"): new quotes on those
+    // rails stop with a public 503; ramps already registered keep executing.
+    disabledFiatCurrencies: (process.env.DISABLED_FIAT_CURRENCIES || "")
+      .split(",")
+      .map(symbol => symbol.trim().toUpperCase())
+      .filter(Boolean),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
   },
   rampWidgetUrl: process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget",

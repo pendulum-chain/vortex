@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
+import { FiatToken } from "@vortexfi/shared";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
+import { config } from "../config/vars";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
@@ -350,6 +352,17 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       // Token exhaustiveness (see CLAUDE.md): all six fiat tokens stay listed.
       // (FiatToken.EURC's wire value is "EUR".)
       expect(currencies.map(currency => currency.symbol).sort()).toEqual(["ARS", "BRL", "COP", "EUR", "MXN", "USD"]);
+
+      // DISABLED_FIAT_CURRENCIES drops a rail from the public listing while the switch is set.
+      config.quote.disabledFiatCurrencies = [FiatToken.MXN];
+      try {
+        const disabled = await requestJson("/v1/supported-fiat-currencies");
+        const listed = (disabled.body.currencies as Array<{ symbol: string }>).map(currency => currency.symbol);
+        expect(listed).not.toContain("MXN");
+        expect(listed).toHaveLength(5);
+      } finally {
+        config.quote.disabledFiatCurrencies = [];
+      }
 
       const crypto = await requestJson("/v1/supported-cryptocurrencies?network=ethereum");
       expect(crypto.status).toBe(200);
