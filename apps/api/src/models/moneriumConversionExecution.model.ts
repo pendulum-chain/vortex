@@ -37,8 +37,6 @@ export interface MoneriumConversionExecutionAttributes {
   /** Partner reference the swap was priced against, ORACLE_DECIMALS; persisted before broadcast. */
   referenceRateRaw: string | null;
   referenceSource: string | null;
-  /** Averaging window (seconds) the reference was computed over. */
-  referenceWindowSeconds: number | null;
   referenceAt: Date | null;
   /** Factory route index the swap executed. */
   routeIndex: number | null;
@@ -69,7 +67,6 @@ type MoneriumConversionExecutionCreationAttributes = Optional<
   | "usdcNetRaw"
   | "referenceRateRaw"
   | "referenceSource"
-  | "referenceWindowSeconds"
   | "referenceAt"
   | "routeIndex"
   | "maxSubsidyRaw"
@@ -100,7 +97,6 @@ class MoneriumConversionExecution
   declare destination: string;
   declare referenceRateRaw: string | null;
   declare referenceSource: string | null;
-  declare referenceWindowSeconds: number | null;
   declare referenceAt: Date | null;
   declare routeIndex: number | null;
   declare maxSubsidyRaw: string | null;
@@ -194,11 +190,6 @@ MoneriumConversionExecution.init(
       allowNull: true,
       field: "reference_source",
       type: DataTypes.STRING(64)
-    },
-    referenceWindowSeconds: {
-      allowNull: true,
-      field: "reference_window_seconds",
-      type: DataTypes.INTEGER
     },
     routeIndex: {
       allowNull: true,

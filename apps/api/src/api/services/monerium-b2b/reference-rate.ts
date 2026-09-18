@@ -2,34 +2,28 @@ import { formatUnits, parseUnits } from "viem";
 
 /**
  * Partner reference rate for the forwarder fee bands (docs/adr-0005-monerium-b2b-onramp.md, P12):
- * a volume-weighted average price over the last five minutes of Coinbase Exchange
- * EURC-USDC one-minute candles, computed fresh before every swap and recorded on the
- * execution row (rate, window, time) so the partner can recompute it from Coinbase's
- * public candle history. Averaging instead of taking the last tick keeps a single thin
- * print — common on weekends and outside business hours — from becoming the reference.
- * When the five-minute window carries no volume the window widens to an hour; with no
- * volume in an hour there is no reference and the keeper defers. The keeper passes the
- * rate into swapAndForward; the contract rejects it outside its Chainlink band.
+ * the Coinbase Exchange EURC-USDC bid/ask midpoint, read fresh before every swap and
+ * recorded on the execution row (rate, source, time) so the partner can check it against
+ * Coinbase's public ticker. Spot rather than an average (amendment 2026-09-18): an average
+ * lags a moving market, and the lag would turn into subsidy in a falling one. The midpoint
+ * rather than the last trade because a last print can be one-sided or minutes stale on a
+ * quiet weekend; a wide spread is itself a thin market, and the keeper then defers rather
+ * than pricing against it. The keeper passes the rate into `swap`; the contract rejects it
+ * outside its Chainlink band.
  */
 
 /**
  * The Coinbase Exchange product the reference is read from. EURC-USD and EURC-EUR were
- * delisted on 2024-08-29 and still answer the candles endpoint with two-year-old data,
- * so the product's status is monitored (`fetchCoinbaseProductStatus`), not assumed.
+ * delisted on 2024-08-29 and still answer their endpoints with two-year-old data, so
+ * the product's status is monitored (`fetchCoinbaseProductStatus`), not assumed.
  */
 export const COINBASE_REFERENCE_PRODUCT = "EURC-USDC";
 export const COINBASE_EURC_PRODUCT_URL = `https://api.exchange.coinbase.com/products/${COINBASE_REFERENCE_PRODUCT}`;
-export const COINBASE_EURC_CANDLES_URL = `${COINBASE_EURC_PRODUCT_URL}/candles`;
-export const COINBASE_REFERENCE_SOURCE = `coinbase-exchange:${COINBASE_REFERENCE_PRODUCT}:vwap`;
-export const REFERENCE_WINDOW_SECONDS = 5 * 60;
-export const REFERENCE_FALLBACK_WINDOW_SECONDS = 60 * 60;
-const CANDLE_GRANULARITY_SECONDS = 60;
+export const COINBASE_EURC_TICKER_URL = `${COINBASE_EURC_PRODUCT_URL}/ticker`;
+export const COINBASE_REFERENCE_SOURCE = `coinbase-exchange:${COINBASE_REFERENCE_PRODUCT}:mid`;
+/** A top of book wider than this is too thin to be a reference; the keeper defers. */
+export const MAX_SPREAD_BPS = 50;
 const FETCH_TIMEOUT_MS = 5_000;
-/** Coinbase candle volumes carry up to eight decimals. */
-const VOLUME_DECIMALS = 8;
-
-/** One Coinbase candle: bucket start (unix seconds), low, high, open, close, volume. */
-export type Candle = readonly [number, number, number, number, number, number];
 
 export interface ReferenceQuote {
   /** The reference as a decimal string at the oracle's decimals, e.g. "1.14320000". */
@@ -37,10 +31,8 @@ export interface ReferenceQuote {
   /** The reference scaled to the forwarder's ORACLE_DECIMALS. */
   rateRaw: bigint;
   source: string;
-  /** When the reference was computed; the window ends at the current minute bucket. */
+  /** When the reference was read. */
   time: Date;
-  /** Length of the averaging window that produced the rate (300, or 3600 when widened). */
-  windowSeconds: number;
 }
 
 /** Mirrors VortexForwarder._checkedReference: |reference - oracle| <= oracle x band / 10000. */
@@ -49,61 +41,36 @@ export function isWithinReferenceBand(rateRaw: bigint, oracleRaw: bigint, bandBp
   return rateRaw + tolerance >= oracleRaw && rateRaw <= oracleRaw + tolerance;
 }
 
-function toRaw(value: number, decimals: number): bigint {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`candle value is not a non-negative number: ${String(value)}`);
-  }
-  return parseUnits(value.toFixed(decimals), decimals);
+export interface TopOfBook {
+  ask: string;
+  bid: string;
 }
 
-/**
- * Volume-weighted average over the candles whose bucket starts inside
- * [windowEnd - windowSeconds, windowEnd), weighting each candle's typical price
- * (low + high + close) / 3 by its volume. Null when the window holds no volume.
- */
-export function computeWindowVwap(
-  candles: readonly Candle[],
-  windowEndSec: number,
-  windowSeconds: number,
-  decimals: number
-): bigint | null {
-  let weighted = 0n;
-  let volume = 0n;
-  for (const [time, low, high, , close, size] of candles) {
-    if (time < windowEndSec - windowSeconds || time >= windowEndSec) continue;
-    const typical = (toRaw(low, decimals) + toRaw(high, decimals) + toRaw(close, decimals)) / 3n;
-    const sizeRaw = toRaw(size, VOLUME_DECIMALS);
-    weighted += typical * sizeRaw;
-    volume += sizeRaw;
+/** Extracts the top of book from a Coinbase ticker response; anything but two positive decimals throws. */
+export function parseTicker(body: unknown): TopOfBook {
+  const ticker = body as { ask?: unknown; bid?: unknown } | null;
+  const bid = ticker?.bid;
+  const ask = ticker?.ask;
+  if (typeof bid !== "string" || typeof ask !== "string" || !/^\d+(\.\d+)?$/.test(bid) || !/^\d+(\.\d+)?$/.test(ask)) {
+    throw new Error("Coinbase ticker response is malformed");
   }
-  return volume === 0n ? null : weighted / volume;
+  return { ask, bid };
 }
 
-/** The primary window, or the widened one when the primary carries no volume; null when neither does. */
-export function selectReferenceWindow(
-  candles: readonly Candle[],
-  windowEndSec: number,
-  decimals: number
-): { rateRaw: bigint; windowSeconds: number } | null {
-  for (const windowSeconds of [REFERENCE_WINDOW_SECONDS, REFERENCE_FALLBACK_WINDOW_SECONDS]) {
-    const rateRaw = computeWindowVwap(candles, windowEndSec, windowSeconds, decimals);
-    if (rateRaw !== null && rateRaw > 0n) {
-      return { rateRaw, windowSeconds };
-    }
+/** Spread of the top of book in bps of the midpoint (floored). */
+export function spreadBps(book: TopOfBook, decimals: number): number {
+  const bid = parseUnits(book.bid, decimals);
+  const ask = parseUnits(book.ask, decimals);
+  if (bid <= 0n || ask < bid) {
+    throw new Error(`Coinbase top of book is inverted or empty (bid ${book.bid}, ask ${book.ask})`);
   }
-  return null;
+  const mid = (bid + ask) / 2n;
+  return Number(((ask - bid) * 10_000n) / mid);
 }
 
-export function parseCandles(body: unknown): Candle[] {
-  if (!Array.isArray(body)) {
-    throw new Error("Coinbase candles response is not an array");
-  }
-  return body.map(row => {
-    if (!Array.isArray(row) || row.length < 6 || !row.slice(0, 6).every(v => typeof v === "number" && Number.isFinite(v))) {
-      throw new Error("Coinbase candle row is malformed");
-    }
-    return row.slice(0, 6) as unknown as Candle;
-  });
+/** The bid/ask midpoint scaled to `decimals`, floored to the unit. */
+export function computeMid(book: TopOfBook, decimals: number): bigint {
+  return (parseUnits(book.bid, decimals) + parseUnits(book.ask, decimals)) / 2n;
 }
 
 export type FetchLike = (
@@ -111,36 +78,26 @@ export type FetchLike = (
   init?: { signal?: AbortSignal }
 ) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
-/** Fetches the last hour of one-minute candles and computes the reference. Any failure throws; the caller defers. */
+/** Reads the ticker and returns the midpoint. Any failure throws; the caller defers. */
 export async function fetchCoinbaseReference(
   decimals: number,
   fetchImpl: FetchLike = fetch,
   nowMs: number = Date.now()
 ): Promise<ReferenceQuote> {
-  // The window ends at the end of the current minute bucket, so the in-progress candle counts.
-  const windowEndSec =
-    Math.floor(nowMs / 1000 / CANDLE_GRANULARITY_SECONDS) * CANDLE_GRANULARITY_SECONDS + CANDLE_GRANULARITY_SECONDS;
-  const startSec = windowEndSec - REFERENCE_FALLBACK_WINDOW_SECONDS;
-  const url =
-    `${COINBASE_EURC_CANDLES_URL}?granularity=${CANDLE_GRANULARITY_SECONDS}` +
-    `&start=${new Date(startSec * 1000).toISOString()}&end=${new Date(nowMs).toISOString()}`;
-  const response = await fetchImpl(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  const response = await fetchImpl(COINBASE_EURC_TICKER_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) {
-    throw new Error(`Coinbase candles responded ${response.status}`);
+    throw new Error(`Coinbase ticker responded ${response.status}`);
   }
-  const window = selectReferenceWindow(parseCandles(await response.json()), windowEndSec, decimals);
-  if (!window) {
-    throw new Error(
-      `no ${COINBASE_REFERENCE_PRODUCT} volume on Coinbase in the last ${REFERENCE_FALLBACK_WINDOW_SECONDS / 60} minutes`
-    );
+  const book = parseTicker(await response.json());
+  const spread = spreadBps(book, decimals);
+  if (spread > MAX_SPREAD_BPS) {
+    throw new Error(`Coinbase ${COINBASE_REFERENCE_PRODUCT} spread of ${spread} bps exceeds ${MAX_SPREAD_BPS} bps`);
   }
-  return {
-    price: formatUnits(window.rateRaw, decimals),
-    rateRaw: window.rateRaw,
-    source: COINBASE_REFERENCE_SOURCE,
-    time: new Date(nowMs),
-    windowSeconds: window.windowSeconds
-  };
+  const rateRaw = computeMid(book, decimals);
+  if (rateRaw <= 0n) {
+    throw new Error(`Coinbase ${COINBASE_REFERENCE_PRODUCT} midpoint is zero`);
+  }
+  return { price: formatUnits(rateRaw, decimals), rateRaw, source: COINBASE_REFERENCE_SOURCE, time: new Date(nowMs) };
 }
 
 // ------------------------------------------------------------------ venue status

@@ -561,8 +561,7 @@ describe("pricePlannedSwap", () => {
     price: "1.14000000",
     rateRaw: 114_000_000n,
     source: "test",
-    time: new Date(0),
-    windowSeconds: 300
+    time: new Date(0)
   };
   const vault: chain.SubsidyVaultState = {
     balance: 1_000n * USDC,

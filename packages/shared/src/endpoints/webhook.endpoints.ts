@@ -128,7 +128,7 @@ export interface DepositReceivedWebhookPayload {
 export interface ConversionExecutionPricing {
   /** Fee taken on the execution (6-decimal base units). */
   feeRaw: string | null;
-  /** Reference EUR/USD rate the execution was priced against (a Coinbase EURC-USDC VWAP over the five minutes before the swap, or sixty when those carry no volume), in the oracle's decimals (8). */
+  /** Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
   referenceRateRaw: string | null;
   /** Subsidy paid by the vault straight to the destination (6-decimal base units). */
   subsidyRaw: string | null;

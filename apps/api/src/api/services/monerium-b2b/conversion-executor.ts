@@ -1045,7 +1045,6 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
               referenceAt: readyPlan.reference.time,
               referenceRateRaw: readyPlan.reference.rateRaw.toString(),
               referenceSource: readyPlan.reference.source,
-              referenceWindowSeconds: readyPlan.reference.windowSeconds,
               routeIndex: readyPlan.routeIndex
             }
           : {})
