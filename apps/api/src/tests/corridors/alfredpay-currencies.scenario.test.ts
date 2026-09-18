@@ -15,13 +15,16 @@ import {
   PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
+  type SignedTypedData,
   type UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { Signature as EvmSignature } from "ethers";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { validatePresignedTxs } from "../../api/services/transactions/validation";
 import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -277,7 +280,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     userId: string,
     signingAccounts: Array<{ address: string; type: string }>,
     additionalData: Record<string, unknown>
-  ): Promise<{ id: string }> {
+  ): Promise<{ id: string; unsignedTxs?: UnsignedTx[] }> {
     const response = await app.request("/v1/ramp/register", {
       body: JSON.stringify({ additionalData, quoteId, signingAccounts }),
       headers: {
@@ -287,10 +290,14 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
       method: "POST"
     });
     expect(response.status, `registration failed: ${await response.clone().text()}`).toBe(201);
-    return (await response.json()) as { id: string };
+    return (await response.json()) as { id: string; unsignedTxs?: UnsignedTx[] };
   }
 
-  async function updateRampViaApi(rampId: string, userId: string, body: Record<string, unknown>): Promise<void> {
+  async function updateRampViaApi(
+    rampId: string,
+    userId: string,
+    body: Record<string, unknown>
+  ): Promise<{ unsignedTxs?: UnsignedTx[] }> {
     const response = await app.request("/v1/ramp/update", {
       body: JSON.stringify({ rampId, ...body }),
       headers: {
@@ -300,6 +307,34 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
       method: "POST"
     });
     expect(response.status, `ramp update failed: ${await response.clone().text()}`).toBe(200);
+    return (await response.json()) as { unsignedTxs?: UnsignedTx[] };
+  }
+
+  function startRampViaApi(rampId: string, userId: string): Promise<Response> {
+    return app.request("/v1/ramp/start", {
+      body: JSON.stringify({ rampId }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(userId)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+  }
+
+  /** Signs the user's EIP-712 permit blueprint the way the widget's sign step does. */
+  async function signUserPermit(blueprint: UnsignedTx, userWallet: PrivateKeyAccount): Promise<Record<string, unknown>> {
+    const [unsigned] = blueprint.txData as SignedTypedData[];
+    const hex = await userWallet.signTypedData({
+      domain: unsigned.domain,
+      message: unsigned.message,
+      primaryType: unsigned.primaryType,
+      types: unsigned.types
+    } as Parameters<PrivateKeyAccount["signTypedData"]>[0]);
+    const { r, s, v } = EvmSignature.from(hex);
+    return {
+      ...blueprint,
+      txData: [{ ...unsigned, signature: { deadline: Number(unsigned.message.deadline), r, s, v } }]
+    };
   }
 
   function blueprintOf(unsignedTxs: UnsignedTx[], phase: RampPhase): UnsignedTx {
@@ -966,4 +1001,67 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
       30000
     );
   }
+
+  /**
+   * Direct Polygon permit path (the fake token answers the nonces()/name()
+   * probes, so registration does not fall back). The widget signs in two
+   * steps: ephemeral presigns first, then whatever user-wallet txs the update
+   * response reveals. The backend executes squidRouterPermitExecute from the
+   * user's typed data, so the release gate must pass on the ephemeral presigns
+   * alone while startRamp keeps refusing until the permit is presigned.
+   */
+  it("direct permit offramp reveals squidRouterPermitExecute after the ephemeral presigns and blocks start until it is signed", async () => {
+    const currency = CURRENCY_CASES[0];
+    world.alfredpay.offrampRate = currency.offrampRate;
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const userWallet = privateKeyToAccount(generatePrivateKey());
+
+    const user = await createTestUser();
+    await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    const quote = await createQuoteViaApi({
+      from: Networks.Polygon,
+      inputAmount: currency.offrampInputAmount,
+      inputCurrency: EvmToken.USDT,
+      network: Networks.Polygon,
+      outputCurrency: currency.fiat,
+      rampType: RampDirection.SELL,
+      to: currency.rail
+    });
+    const registered = await registerViaApi(quote.id, user.id, [{ address: ephemeral.address, type: "EVM" }], {
+      fiatAccountId: "test-fiat-account-1",
+      walletAddress: userWallet.address
+    });
+    // SELL withholds the user-wallet txs until the ephemeral presigns are in.
+    const ephemeralBlueprints = registered.unsignedTxs ?? [];
+    expect(ephemeralBlueprints.length).toBeGreaterThan(0);
+    expect(ephemeralBlueprints.every(tx => tx.signer.toLowerCase() === ephemeral.address.toLowerCase())).toBe(true);
+
+    const persisted = await RampState.findByPk(registered.id);
+    expect(persisted?.state.isNoPermitFallback).toBe(false);
+    const permitBlueprint = blueprintOf(persisted?.unsignedTxs ?? [], "squidRouterPermitExecute");
+    expect(permitBlueprint.signer.toLowerCase()).toBe(userWallet.address.toLowerCase());
+
+    const afterEphemeralPresigns = await updateRampViaApi(registered.id, user.id, {
+      presignedTxs: await Promise.all(ephemeralBlueprints.map(blueprint => presignWithBackups(ephemeral, blueprint)))
+    });
+    expect((afterEphemeralPresigns.unsignedTxs ?? []).map(tx => tx.phase)).toContain("squidRouterPermitExecute");
+
+    const startWithoutPermit = await startRampViaApi(registered.id, user.id);
+    expect(startWithoutPermit.status).toBe(400);
+    expect(await startWithoutPermit.text()).toContain("Not all unsigned transactions have a corresponding presigned transaction");
+    expect((await RampState.findByPk(registered.id))?.currentPhase).toBe("initial");
+
+    await updateRampViaApi(registered.id, user.id, { presignedTxs: [await signUserPermit(permitBlueprint, userWallet)] });
+    // The strict check startRamp runs now passes on the persisted set. The start endpoint itself
+    // is not called again: it would detach phase execution the fake world does not script.
+    const complete = await RampState.findByPk(registered.id);
+    await expect(
+      validatePresignedTxs(
+        RampDirection.SELL,
+        complete?.presignedTxs ?? [],
+        { EVM: ephemeral.address, Substrate: "" },
+        complete?.unsignedTxs ?? []
+      )
+    ).resolves.toBeUndefined();
+  });
 });

@@ -1056,7 +1056,11 @@ export class RampService extends BaseRampService {
     };
 
     try {
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs);
+      // Only the ephemeral presigns gate the release of user-wallet txs; the user's own typed data
+      // (e.g. the SELL squidRouterPermitExecute permit) is among the txs this release reveals.
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs, {
+        requireUserTypedData: false
+      });
       return true;
     } catch {
       return false;
