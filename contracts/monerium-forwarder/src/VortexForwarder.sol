@@ -374,15 +374,18 @@ contract VortexForwarder {
 
         uint256 oraclePrice = _oraclePrice();
         uint256 referenceUsed = privileged ? _checkedReference(referenceRate, oraclePrice) : oraclePrice;
+        uint256 oracleFloor = _floorOut(amountIn, oraclePrice);
 
         uint256 usdcReceived = _swap(routeIndex, amountIn);
-        (uint256 fee, uint256 subsidy) = _settle(amountIn, usdcReceived, referenceUsed, privileged, maxSubsidy);
+        (uint256 fee, uint256 subsidy) =
+            _settle(amountIn, usdcReceived, referenceUsed, oracleFloor, privileged, maxSubsidy);
 
         // The oracle floor is enforced on the client's NET (fill - fee + subsidy), not on
-        // the raw fill: a subsidized fill may sit below it, and a subsidy must never
-        // paper over a depegged reference. Reverting here undoes the swap and the
-        // subsidy transfer alike.
-        if (usdcReceived - fee + subsidy < _floorOut(amountIn, oraclePrice)) revert InsufficientOutput();
+        // the raw fill. A privileged swap is settled to at least this floor by `_settle`
+        // (fee first, then the tier-bounded subsidy) or reverts there; the permissionless
+        // path pays no subsidy, so its fill must clear the floor on its own. Reverting
+        // undoes the swap and any subsidy transfer alike.
+        if (usdcReceived - fee + subsidy < oracleFloor) revert InsufficientOutput();
 
         _syncBatch(false);
         emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy);
@@ -411,21 +414,31 @@ contract VortexForwarder {
         if (eureBefore - EURE.balanceOf(address(this)) > amountIn) revert Overspend();
     }
 
-    /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"):
-    ///      - fill above reference x (1 - targetPpm): the surplus is the fee, <= MAX_FEE_PPM;
+    /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"),
+    ///      with the Chainlink floor `oracleFloor` as a lower bound on both the target and the
+    ///      floor, so that a reference sitting far below a stale Chainlink round costs Vortex
+    ///      fee and subsidy instead of stopping the swap (amendment 2026-09-18):
+    ///      - fill above max(reference x (1 - targetPpm), oracleFloor): the surplus is the
+    ///        fee, <= MAX_FEE_PPM — the fee gives way before the client drops under the floor;
     ///      - fill between the floor and the target: no fee, no subsidy;
-    ///      - fill below reference x (1 - floorPpm): a privileged swap draws the shortfall
-    ///        from the vault onto this clone; a permissionless swap pays nothing.
+    ///      - fill below max(reference x (1 - floorPpm), oracleFloor): a privileged swap draws
+    ///        the shortfall from the vault onto this clone; a permissionless swap pays nothing.
     ///      The caller's `maxSubsidy` bounds the shortfall first; the vault reverts (and so
     ///      does the swap) when its cap, budget, pause or balance cannot cover it, and the
     ///      forwarder reverts unless exactly the shortfall arrived here — a swap is never
-    ///      partially subsidized.
-    function _settle(uint256 amountIn, uint256 usdcReceived, uint256 referenceUsed, bool privileged, uint256 maxSubsidy)
-        internal
-        returns (uint256 fee, uint256 subsidy)
-    {
+    ///      partially subsidized. A depeg beyond what the tier and the vault cover still
+    ///      reverts.
+    function _settle(
+        uint256 amountIn,
+        uint256 usdcReceived,
+        uint256 referenceUsed,
+        uint256 oracleFloor,
+        bool privileged,
+        uint256 maxSubsidy
+    ) internal returns (uint256 fee, uint256 subsidy) {
         uint256 referenceOut = _usdcValue(amountIn, referenceUsed);
         uint256 targetOut = (referenceOut * (PPM - targetPpm)) / PPM;
+        if (targetOut < oracleFloor) targetOut = oracleFloor;
         if (usdcReceived > targetOut) {
             fee = usdcReceived - targetOut;
             uint256 maxFee = (usdcReceived * MAX_FEE_PPM) / PPM;
@@ -434,6 +447,7 @@ contract VortexForwarder {
             return (fee, 0);
         }
         uint256 floorOut = (referenceOut * (PPM - floorPpm)) / PPM;
+        if (floorOut < oracleFloor) floorOut = oracleFloor;
         if (usdcReceived >= floorOut || !privileged) return (0, 0);
 
         subsidy = floorOut - usdcReceived;

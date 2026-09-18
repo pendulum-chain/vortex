@@ -871,29 +871,53 @@ contract VortexForwarderTest is Test {
         assertEq(usdc.balanceOf(address(fwd)), TARGET_1K);
     }
 
-    function test_swap_depeggedReference_cannotBePaperedOverBySubsidy() public {
+    /// Amendment 2026-09-18: a reference far below a stale Chainlink round no longer stops
+    /// the swap — the client is settled to the Chainlink floor instead, at Vortex's cost,
+    /// within the keeper's tier and the vault's cap.
+    function test_swap_depeggedReference_isLiftedToTheOracleFloorWhenTheTierAndVaultAllow() public {
         _fund(1_000e18);
         uint256 lowReference = (REF * 9_910) / 10_000; // 90 bps below Chainlink: inside the band
         // The floor at that reference (~1128.05 USDC) is below Chainlink - 60 bps (1133.16):
-        // the vault would top the client up to it, and the swap must still revert.
+        // the subsidy tops the client up to 1133.16, not to 1128.05.
         router.setNextOut(1_127e6);
+        uint256 needed = ORACLE_FLOOR_1K - 1_127e6; // 6.16 USDC
+
+        // The launch vault cap (50 bps of the reference value, ~5.65 USDC) cannot cover it.
         vm.prank(keeper);
-        vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
+        vm.expectRevert(VortexSubsidyVault.SubsidyCapExceeded.selector);
         fwd.swap(lowReference, 0, 1_000e18, NO_CAP);
-        assertEq(usdc.balanceOf(address(vault)), 1_000e6, "subsidy transfer must be undone");
+
+        vault.setMaxSubsidyPpm(10_000); // the ladder's top: 100 bps
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.SubsidyAboveCap.selector);
+        fwd.swap(lowReference, 0, 1_000e18, needed - 1); // the keeper's tier still binds
+
+        vm.prank(keeper);
+        fwd.swap(lowReference, 0, 1_000e18, needed);
+        assertEq(usdc.balanceOf(address(fwd)), ORACLE_FLOOR_1K, "settled to the Chainlink floor");
+        assertEq(usdc.balanceOf(address(vault)), 1_000e6 - needed);
     }
 
-    function test_swap_depeggedReference_feeBranchStillEnforcesOracleFloor() public {
+    /// A fill above the low reference's target but below the Chainlink floor: the fee
+    /// gives way first, so the client still lands on the floor.
+    function test_swap_depeggedReference_feeGivesWayBeforeTheOracleFloor() public {
         _fund(1_000e18);
         uint256 lowReference = (REF * 9_900) / 10_000; // 100 bps below Chainlink: the band's edge
-        // Above that reference's target (1_127_189_250): fee branch, fee 0.81 USDC, and the
-        // net 1_127_189_250 still sits below Chainlink - 60 bps (1_133_160_000).
+        // The reference target is 1_127_189_250; the fill of 1140 is above it, but the fee may
+        // only take what sits above the Chainlink floor (1_133_160_000).
+        router.setNextOut(1_140e6);
+        vm.prank(keeper);
+        fwd.swap(lowReference, 0, 1_000e18, 0);
+        assertEq(usdc.balanceOf(address(fwd)), ORACLE_FLOOR_1K);
+        assertEq(usdc.balanceOf(feeRecipient), 1_140e6 - ORACLE_FLOOR_1K);
+        assertEq(usdc.balanceOf(address(vault)), 1_000e6, "no subsidy was needed");
+
+        // Below the floor with a zero tier: the swap waits (reverts), it does not execute short.
+        _fund(1_000e18);
         router.setNextOut(1_128e6);
         vm.prank(keeper);
-        vm.expectRevert(VortexForwarder.InsufficientOutput.selector);
-        fwd.swap(lowReference, 0, 1_000e18, NO_CAP);
-        assertEq(usdc.balanceOf(feeRecipient), 0, "fee transfer must be undone");
-        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
+        vm.expectRevert(VortexForwarder.SubsidyAboveCap.selector);
+        fwd.swap(lowReference, 0, 1_000e18, 0);
     }
 
     function test_swap_referenceOutsideTheBandReverts() public {
