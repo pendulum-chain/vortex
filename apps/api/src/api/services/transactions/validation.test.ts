@@ -307,6 +307,63 @@ describe("Presigned Transaction validation", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("lets the SELL release gate pass on ephemeral presigns alone while startRamp still needs the user permit", async () => {
+    // AlfredPay offramp permit path: the backend executes squidRouterPermitExecute from typed data
+    // the user can only sign after the ephemeral presigns have released it to the client.
+    const ephemeralTransfer = await makeSignedEvmTxWithBackups({
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "alfredpayOfframpTransfer"
+    });
+    const unsignedTransfer: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "alfredpayOfframpTransfer",
+      signer: EVM_SIGNER,
+      txData: {
+        data: "0x12345678",
+        gas: "21000",
+        maxFeePerGas: "1000000000",
+        maxPriorityFeePerGas: "1000000000",
+        to: "0x000000000000000000000000000000000000dEaD",
+        value: "0"
+      }
+    };
+    const unsignedPermit: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "squidRouterPermitExecute",
+      signer: EVM_SIGNER_2,
+      txData: [
+        {
+          domain: { chainId: 137, name: "Token", verifyingContract: "0x0000000000000000000000000000000000000001", version: "1" },
+          message: { deadline: "9999999999", nonce: "0", owner: EVM_SIGNER_2, spender: EVM_SIGNER, value: "1" },
+          primaryType: "Permit",
+          types: {
+            Permit: [
+              { name: "owner", type: "address" },
+              { name: "spender", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "nonce", type: "uint256" },
+              { name: "deadline", type: "uint256" }
+            ]
+          }
+        }
+      ]
+    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { EVM: EVM_SIGNER, Substrate: "" };
+    const unsignedTxs = [unsignedTransfer, unsignedPermit];
+
+    await expect(validatePresignedTxs(RampDirection.SELL, [ephemeralTransfer], ephemerals, unsignedTxs)).rejects.toThrow(
+      "Not all unsigned transactions have a corresponding presigned transaction"
+    );
+    await expect(
+      validatePresignedTxs(RampDirection.SELL, [ephemeralTransfer], ephemerals, unsignedTxs, { requireUserTypedData: false })
+    ).resolves.toBeUndefined();
+  });
+
   it("validates polymorphic phases as EVM transactions when they are on Base", async () => {
     const expectedEvmSigner = "0x1111111111111111111111111111111111111111";
     const wrongEvmSigner = "0x2222222222222222222222222222222222222222";

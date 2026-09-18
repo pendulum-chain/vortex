@@ -357,9 +357,13 @@ export async function validatePresignedTxs(
   presignedTxs: PresignedTx[],
   ephemerals: { [key in EphemeralAccountType]: string },
   unsignedTxs: PresignedTx[],
-  options: { requireComplete?: boolean } = {}
+  options: { requireComplete?: boolean; requireUserTypedData?: boolean } = {}
 ): Promise<void> {
   const requireComplete = options.requireComplete ?? true;
+  // User-signed typed data (Monerium owner permit, SELL squidRouterPermitExecute) is executed by
+  // the backend, so startRamp needs it presigned. The SELL release gate must not wait on it: that
+  // gate is what reveals the user-wallet transactions to the client for signing in the first place.
+  const requireUserTypedData = options.requireUserTypedData ?? true;
 
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
@@ -444,7 +448,9 @@ export async function validatePresignedTxs(
       .map(s => s.toLowerCase())
   );
   const requiredUnsigned = unsignedTxs.filter(
-    tx => ephemeralSigners.has(tx.signer.toLowerCase()) || isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)
+    tx =>
+      ephemeralSigners.has(tx.signer.toLowerCase()) ||
+      (requireUserTypedData && (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)))
   );
   if (!areAllTxsIncluded(requiredUnsigned, presignedTxs)) {
     throw new APIError({
