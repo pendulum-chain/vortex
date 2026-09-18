@@ -216,7 +216,18 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   EURC-USDC bid/ask midpoint read just before the swap (P12): no averaging, no lag; the
   midpoint rather than the last trade because a last print can be one-sided or stale on a
   quiet weekend, and a spread above 50 bps makes the keeper defer rather than price
-  against a thin book. The drift replay that sized `SLIPPAGE_BPS` was rerun on spot
+  against a thin book.
+- **Weekend drift is paid, not refunded.** The Chainlink floor (`SLIPPAGE_BPS`) now
+  bounds the fee target and the subsidy floor from below: when the reference sits more
+  than ~45 bps under a stale Chainlink round, the fee gives way first and then the
+  keeper's tier-bounded subsidy lifts the client's net to Chainlink − 60 bps, within the
+  vault's cap, instead of the swap reverting and the payment refunding after the window.
+  The client never gets less than the floor, occasionally more than the reference deal;
+  Vortex pays the difference, bounded by the ladder's tier and the vault. A depeg beyond
+  what the tier and the vault cover (the 2025-10 weekend needed ~440 bps) still reverts
+  and refunds; the permissionless path still pays nothing. `SLIPPAGE_BPS` thus stays the
+  hard line for what a compromised keeper can do to the client, and the ladder's top tier
+  becomes the runtime knob for how much drift Vortex absorbs. The drift replay that sized `SLIPPAGE_BPS` was rerun on spot
   (2026-09-18, one-minute closes of Coinbase EURC-USDC as the midpoint's proxy vs the
   Chainlink rounds, 2025-09-18 to 2026-09-18, 88% of minutes traded; historical bid/ask
   is not public): weekend median −5.3 bps, p5 −26.5. Time a floor fill would breach the

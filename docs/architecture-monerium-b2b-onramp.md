@@ -373,15 +373,16 @@ settles every fill into three bands against that reference (decisions:
   reverts the whole swap, and the clone reverts unless exactly the shortfall arrived on
   it — a swap is never partially subsidized, and the guardian cannot harm a swap by
   pointing the factory at a bad vault. The vault holds Vortex money only.
-- **Floor on the net**: `SLIPPAGE_BPS` bounds fill − fee + subsidy against Chainlink,
-  not the raw fill. The router minimum is zero and the forwarder's post-condition is the
-  guard, so a subsidy can never paper over a depegged reference and the whole call,
-  subsidy transfer included, reverts when the floor fails. Because the client's floor is
-  15 bps under the reference and the oracle floor 60 bps under Chainlink, a reference
-  more than ~45 bps below Chainlink fails the floor for every normal fill: that margin,
-  not the 100 bps band, is the operating tolerance against a stale Chainlink round —
-  sized so ordinary weekend drift defers (and, under the 2 h window, refunds) about
-  nothing, while a genuine depeg still does.
+- **Floor on the net**: `SLIPPAGE_BPS` (60 bps) bounds fill − fee + subsidy against
+  Chainlink, not the raw fill, and since 2026-09-18 it also bounds the fee target and the
+  subsidy floor from below: when the reference sits more than ~45 bps under a stale
+  Chainlink round (weekend drift), the fee gives way first and the tier-bounded subsidy
+  then lifts the net to Chainlink − 60 bps instead of the swap reverting. The router
+  minimum is zero and the forwarder's post-condition is the guard; a depeg beyond what
+  the tier and the vault cover still reverts (and, past the window, refunds), and the
+  permissionless path pays no subsidy and must clear the floor on its own. The 60 bps
+  is therefore the hard line for what a compromised keeper can do to the client, while
+  the ladder's top tier decides how much drift Vortex absorbs.
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
   validated on chain to touch only EURe, EURC and USDC on the immutable router, with at
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so

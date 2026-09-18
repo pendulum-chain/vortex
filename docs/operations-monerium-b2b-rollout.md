@@ -151,9 +151,12 @@ fee policy 12.5 bps target / 15 bps floor (B1).
      unsubsidized Chainlink-bounded terms below; the guarantee applies to conversions
      Vortex's keeper executes.
    - Hard bound (not a fee): no conversion ever delivers less than the Chainlink
-     EUR/USD rate minus 0.6% after fee and subsidy, or it does not execute. Enforced by
-     the contract assuming an honest oracle; not a principal guarantee under oracle
-     failure or a stablecoin collapse beyond the bound.
+     EUR/USD rate minus 0.6% after fee and subsidy, or it does not execute. When the
+     Coinbase reference sits below that bound, Vortex makes up the difference from its
+     own budget within the disclosed limits, so the client receives the bound rather
+     than the reference deal; when the difference exceeds those limits the conversion
+     waits. Enforced by the contract assuming an honest oracle; not a principal
+     guarantee under oracle failure or a stablecoin collapse beyond the bound.
    - Each payment converts on its own, in chunks when it exceeds the per-conversion cap,
      and reaches the payout address as a single transfer once every chunk is done; the
      chunks' rates, fees and subsidies are reported per chunk.
