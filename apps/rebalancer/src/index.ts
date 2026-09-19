@@ -396,12 +396,20 @@ async function resumeInFlightRebalance(): Promise<boolean> {
 
   const usdcBaseState = await new UsdcBaseStateManager().getState();
   if (usdcBaseState && usdcBaseState.currentPhase !== UsdcBaseRebalancePhase.Idle) {
+    if (config.rebalancingCostPolicy.mode === "dry-run") {
+      console.log(`Dry-run mode: not resuming USDC->BRLA->USDC run at phase ${usdcBaseState.currentPhase}.`);
+      return false;
+    }
     await rebalanceUsdcBrlaUsdcBase(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), false, forcedRoute);
     return true;
   }
 
   const brlaToUsdcState = await new BrlaToUsdcBaseStateManager().getState();
   if (brlaToUsdcState && brlaToUsdcState.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle) {
+    if (config.rebalancingCostPolicy.mode === "dry-run") {
+      console.log(`Dry-run mode: not resuming BRLA->USDC run at phase ${brlaToUsdcState.currentPhase}.`);
+      return false;
+    }
     await rebalanceBrlaToUsdcBase(toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount), false);
     return true;
   }
@@ -410,12 +418,12 @@ async function resumeInFlightRebalance(): Promise<boolean> {
 }
 
 async function checkForRebalancing() {
-  if (await resumeInFlightRebalance()) return;
-
   const config = getConfig();
   const coverage = await getBaseNablaCoverageRatio();
 
   if (!coverage) throw new Error("Failed to fetch Base Nabla coverage ratio.");
+
+  if (await resumeInFlightRebalance()) return;
 
   const lowerBound = 1 - config.rebalancingThresholdBrlaToUsdc;
   const upperBound = 1 + config.rebalancingThresholdUsdcToBrla;
