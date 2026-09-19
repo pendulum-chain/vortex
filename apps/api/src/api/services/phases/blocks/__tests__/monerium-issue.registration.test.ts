@@ -1,0 +1,255 @@
+import { describe, expect, it, mock } from "bun:test";
+import { type MoneriumChain, Networks } from "@vortexfi/shared";
+import Big from "big.js";
+import { createRegisterMoneriumIssue } from "../phases/monerium-issue/registration";
+import {
+  MONERIUM_EURE,
+  MONERIUM_ISSUE_NETWORKS,
+  type MoneriumIssueNetwork
+} from "../phases/monerium-issue/simulation";
+
+const PROFILE_ID = "9e6a92a5-5f6d-48aa-a57b-0f8ae8eb745d";
+const ADDRESS = "0x1212121212121212121212121212121212121212";
+
+function profile(state: "approved" | "pending" = "approved") {
+  return {
+    details: { state },
+    form: { state },
+    id: PROFILE_ID,
+    kind: "personal" as const,
+    name: "Ada Example",
+    state,
+    verifications: []
+  };
+}
+
+function client(
+  overrides: { addresses?: unknown[]; chain?: MoneriumChain; ibans?: unknown[]; state?: "approved" | "pending" } = {}
+) {
+  const chain = overrides.chain ?? "base";
+  return {
+    getProfile: mock(async () => profile(overrides.state)),
+    listAddresses: mock(async () => ({
+      addresses: overrides.addresses ?? [{ address: ADDRESS, chains: [chain], profile: PROFILE_ID }]
+    })),
+    listIbans: mock(async () => ({
+      ibans:
+        overrides.ibans ??
+        [{ address: ADDRESS, bic: "DEUTDEFF", chain, iban: "DE89370400440532013000", name: "Monerium EMI", profile: PROFILE_ID }]
+    }))
+  };
+}
+
+function identity(monerium: ReturnType<typeof client>, state: "approved" | "pending" = "approved") {
+  return { client: monerium as never, profile: profile(state), profileId: PROFILE_ID, source: "whitelabel" as const };
+}
+
+function context(input: Record<string, unknown> = {}, network: MoneriumIssueNetwork = Networks.Base) {
+  return {
+    authenticatedUser: { id: "effective-user-1" },
+    input,
+    metadata: { issue: { outputAmountRaw: "98750000000000000000" }, network } as never,
+    quote: { inputAmount: "100" } as never,
+    signingAccounts: []
+  };
+}
+
+describe("MoneriumIssue registration", () => {
+  it("locks the profile before reading the IBAN in the registration transaction", async () => {
+    const monerium = client();
+    const transaction = {} as never;
+    const lockProfile = mock(async () => {
+      expect(monerium.listIbans).not.toHaveBeenCalled();
+    });
+    const lockOwner = mock(async () => undefined);
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000001",
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
+      lockOwner,
+      lockProfile,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(monerium)
+    });
+
+    await register({ ...context(), transaction });
+    expect(lockProfile).toHaveBeenCalledWith(PROFILE_ID, transaction);
+    expect(lockOwner).toHaveBeenCalledWith(ADDRESS, transaction);
+  });
+
+  it("derives the Polygon owner and persists its EURe balance baseline", async () => {
+    const monerium = client({ chain: "polygon" });
+    const resolveIdentity = mock(async () => identity(monerium));
+    const readOwnerEureBalance = mock(async () => new Big("5000000000000000000"));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000001",
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
+      readOwnerEureBalance,
+      resolveIdentity
+    });
+
+    const result = await register(context({}, Networks.Polygon));
+
+    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined, undefined);
+    expect(monerium.getProfile).not.toHaveBeenCalled();
+    expect(monerium.listAddresses).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
+    expect(monerium.listIbans).toHaveBeenCalledWith({ chain: "polygon", profile: PROFILE_ID });
+    expect(readOwnerEureBalance).toHaveBeenCalledWith({
+      chain: Networks.Polygon,
+      ownerAddress: ADDRESS,
+      tokenAddress: MONERIUM_ISSUE_NETWORKS[Networks.Polygon].eureAddress
+    });
+    expect(result).toEqual({
+      facts: {
+        amountRaw: "98750000000000000000",
+        chain: Networks.Polygon,
+        moneriumAddress: ADDRESS,
+        moneriumIban: "DE89370400440532013000",
+        moneriumPaymentReference: "VTX00000000000000000000000000000001",
+        moneriumProfileId: PROFILE_ID,
+        owner: ADDRESS,
+        ownerEureBalanceBaselineRaw: "5000000000000000000",
+        token: MONERIUM_EURE
+      },
+      responseArtifacts: {
+        ibanPaymentData: {
+          bic: "DEUTDEFF",
+          iban: "DE89370400440532013000",
+          receiverName: "Monerium EMI",
+          reference: "VTX00000000000000000000000000000001"
+        }
+      }
+    });
+  });
+
+  it("selects the provider destination for the requested non-Base chain", async () => {
+    const monerium = client({ chain: "amoy" });
+    const isContractAddress = mock(async () => false);
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000002",
+      findActiveRampForOwner: async () => null,
+            isContractAddress,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(monerium)
+    });
+
+    const result = await register(context({}, Networks.PolygonAmoy));
+
+    expect(monerium.listAddresses).toHaveBeenCalledWith({ chain: "amoy", profile: PROFILE_ID });
+    expect(monerium.listIbans).toHaveBeenCalledWith({ chain: "amoy", profile: PROFILE_ID });
+    expect(isContractAddress).toHaveBeenCalledWith(Networks.PolygonAmoy, ADDRESS);
+    expect(result.facts).toMatchObject({ chain: Networks.PolygonAmoy, owner: ADDRESS });
+  });
+
+  it("registers against the requested legal profile type", async () => {
+    const resolveIdentity = mock(async () => identity(client()));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "VTX00000000000000000000000000000002",
+      findActiveRampForOwner: async () => null,
+      isContractAddress: async () => false,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity
+    });
+
+    await register(context({ customerType: "individual" }));
+    expect(resolveIdentity).toHaveBeenCalledWith("effective-user-1", undefined, "individual");
+    await expect(register(context({ customerType: "wrong" }))).rejects.toMatchObject({ status: 400 });
+    expect(resolveIdentity).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects caller-controlled identity before resolving any provider customer", async () => {
+    const resolveIdentity = mock(async () => identity(client()));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
+            isContractAddress: async () => false,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity
+    });
+
+    await expect(register(context({ profileId: "foreign-profile" }))).rejects.toThrow(
+      "Monerium identity is server-derived; profileId must not be supplied"
+    );
+    expect(resolveIdentity).not.toHaveBeenCalled();
+  });
+
+  it("requires the live profile to remain approved", async () => {
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
+            isContractAddress: async () => false,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(client({ state: "pending" }), "pending")
+    });
+
+    await expect(register(context())).rejects.toThrow("The Monerium profile is not approved");
+  });
+
+  it("rejects a profile-linked contract wallet that cannot sign the EOA permit", async () => {
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
+            isContractAddress: async () => true,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(client())
+    });
+
+    await expect(register(context())).rejects.toThrow("self-transfer requires a profile-linked EOA");
+  });
+
+  it.each([
+    ["missing", []],
+    [
+      "ambiguous",
+      [
+        { address: ADDRESS, bic: "DEUTDEFF", chain: "base", iban: "DE89370400440532013000", name: "Monerium EMI", profile: PROFILE_ID },
+        { address: ADDRESS, bic: "DEUTDEFF", chain: "base", iban: "DE12500105170648489890", name: "Monerium EMI", profile: PROFILE_ID }
+      ]
+    ]
+  ])("rejects a %s provider-chain IBAN/address match", async (_label, ibans) => {
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
+            isContractAddress: async () => false,
+      readOwnerEureBalance: async () => new Big(0),
+      resolveIdentity: async () => identity(client({ ibans }))
+    });
+
+    await expect(register(context())).rejects.toThrow("Expected exactly one Monerium base IBAN/address match");
+  });
+
+  it("rejects a second ramp while one is still live for the same owner", async () => {
+    const findActiveRampForOwner = mock(async () => "ramp-live");
+    const readOwnerEureBalance = mock(async () => new Big(0));
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner,
+      isContractAddress: async () => false,
+      readOwnerEureBalance,
+      resolveIdentity: async () => identity(client({ chain: "polygon" }))
+    });
+
+    await expect(register(context({}, Networks.Polygon))).rejects.toMatchObject({
+      isPublic: true,
+      message: expect.stringContaining("ramp-live"),
+      status: 409
+    });
+    expect(findActiveRampForOwner).toHaveBeenCalledWith(ADDRESS, undefined);
+    expect(readOwnerEureBalance).not.toHaveBeenCalled();
+  });
+
+  it("fails registration when the owner baseline cannot be read", async () => {
+    const register = createRegisterMoneriumIssue({
+      createReference: () => "unused",
+      findActiveRampForOwner: async () => null,
+            isContractAddress: async () => false,
+      readOwnerEureBalance: async () => {
+        throw new Error("RPC unavailable");
+      },
+      resolveIdentity: async () => identity(client({ chain: "polygon" }))
+    });
+
+    await expect(register(context({}, Networks.Polygon))).rejects.toThrow("RPC unavailable");
+  });
+});

@@ -23,13 +23,20 @@ two people.
 
 **Current scope.** The dashboard ships the unified schema (customer entities, provider customers,
  KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
- self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
+ self-offramps, and fiat-funded self-onramps for BRL, EUR, MXN, COP, USD, and ARS. Cross-border
  fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
- remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
- onboarding uses Monerium but active EUR ramps resolve Mykobo. The API and dashboard implement
- managed headless profiles and route-scoped manager delegation: active managers can select a child,
- act through supported dashboard surfaces, and return to their own account without changing the
- authenticated manager identity.
+ remain target-state rather than current behavior. EUR onramps run through Monerium: an EU
+ sender verifies with Monerium OAuth, links the wallet they will pay in with (Vortex requests or
+ moves the profile's IBAN to it), and then signs the owner permit with that connected wallet when
+ registering a EUR pay-in; the SEPA instructions appear after that signature. EUR offramps are
+ unavailable and return a quote error. The API and dashboard implement managed headless profiles
+ and route-scoped manager delegation: active managers can select a child, act through supported
+ dashboard surfaces, and return to their own account without changing the authenticated manager
+ identity.
+
+Monerium profiles onboarded through the OAuth application and profiles the white-label application
+can see both work; the backend picks the app that can read the profile at registration. KYC/KYB
+lifecycle reconciliation and external-profile import remain deferred.
 
 
 ## User stories
@@ -44,7 +51,9 @@ two people.
 ### Onboarding (KYC/KYB)
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
-  Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+  Monerium uses its hosted OAuth portal through a sibling OAuth application used only for KYC/KYB;
+  after the callback exchange, the dashboard reopens the EU onboarding modal. Migration into the
+  white-label application is a separate TBD process.
 - KYC/KYB is owner-only in the dashboard. During admin impersonation or while a manager acts for
   a managed child, onboarding cards and statuses remain visible, but start, continue, retry, and
   provider re-authentication actions are disabled and onboarding deep links do not open a flow.
@@ -57,19 +66,18 @@ two people.
   reusing the existing Avenia subaccount and issuing fresh verification links.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor started; it moves to
   in review only after Monerium reports that all required information was submitted.
-- As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
-  action only when the backend returns `MONERIUM_REAUTHENTICATION_REQUIRED` while loading the corridor.
-- **To be confirmed:** the current assumption is that Vortex cannot retrieve a user's Monerium
-  status unless the user has authenticated and Vortex holds app-specific Monerium authorization.
-  Under that assumption, missing authorization produces a `404` and the custom error above.
-  Note this assumption is already load-bearing: the user-visible **Re-authenticate with
-  Monerium** affordance is built on it, so confirming (or refuting) it with Monerium changes
-  shipped behavior, not just documentation.
+- As an approved EU sender, the corridor card asks me to link the wallet I will pay in with: I
+  connect it, sign Monerium's ownership message (no gas), and Vortex requests the IBAN or offers
+  to move an existing one to that wallet. Before a move, I see that future EUR deposits to the
+  same IBAN will reach a new wallet and other services using it may be affected; I must confirm.
+  EUR pay-ins stay blocked until the IBAN points to the connected wallet.
+- As a sender whose Monerium onboarding is in review, I see status derived from the onboarding
+  profile. Post-migration status ownership remains part of the TBD migration design.
 - As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
   approved/rejected` — read from the provider, surviving reload. `pending` is only used for
   missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
-  Monerium's hosted OAuth KYC/KYB.
+  Monerium KYC/KYB.
 - Corridor/kind combinations without an implemented provider flow — US individual onboarding
   (the partner redirect is not wired) and AR company KYB (provider support unconfirmed) — are
   shown as **not yet available** and cannot be started. They are disabled rather than simulated:
@@ -245,8 +253,8 @@ provider-shaped rather than UI-shaped.
 
 - **Reuse the KYC machines, don't re-implement them.** `@vortexfi/kyc` holds the Avenia,
   AlfredPay, and Monerium provider machines. Each app binds them to its API client and browser
-  side effects. Monerium OAuth state, PKCE, code exchange, and tokens stay in the backend; the
-  shared machine receives only an authorization URL and normalized profile status.
+  side effects. Monerium credentials, access tokens, and provider calls stay in the backend; the
+  shared machine receives only normalized profile state and onboarding results.
 
 - **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
   quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet
@@ -324,16 +332,13 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - **EU recipient onboarding is currently contradictory.** The widget's EURC KYC child is Mykobo
-    (individual-only, needs a connected wallet), while the recipient backend's `eur` rail requires
-    a Monerium provider record (`providerForRail`) — and Monerium onboards in the dashboard, not
-    the widget. EU is therefore excluded from the widget's KYB region list: an EU link's
-    `?kybLocked=EU` is not recognized, and the corridor locks only from the acceptance response.
-    The dashboard intentionally does not prevent creating EU invites — once any corridor is
-    approved, all live corridors are selectable in the recipient dialog — so an EU invite can be
-    issued but cannot produce a payable recipient until recipient EU onboarding is routed through
-    Monerium (or the rail mapping changes). Known gap, tracked with the EUR corridor
-    reconciliation.
+  - **EU onboarding runs through Monerium OAuth.** After login the widget starts the Monerium
+    authorization (top-level in a standalone widget, a new tab when embedded) and returns to
+    `/widget` with the callback, which the persisted ramp hands to the restored verification step.
+    Once approved, the connected EVM wallet signs Monerium's ownership message, Vortex links it and
+    provisions or, after explicit informed confirmation, moves the IBAN, and the EUR pay-in continues
+    with that wallet's permit. All those steps use the widget's individual legal profile. The legacy
+    Mykobo form stays in the codebase but no longer routes new EUR flows.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import httpStatus from "http-status";
 import NodeCache from "node-cache";
 import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, {
@@ -16,6 +17,8 @@ import { cache } from "../index";
 const OAUTH_TRANSACTION_TTL_SECONDS = 10 * 60;
 const FETCH_TIMEOUT_MS = 10_000;
 export const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
+export const MONERIUM_OAUTH_CLIENTS = ["dashboard", "widget"] as const;
+export type MoneriumOAuthClient = (typeof MONERIUM_OAUTH_CLIENTS)[number];
 const TOKEN_EXPIRY_SKEW_MS = 30_000;
 const CREDENTIAL_TTL_SECONDS = 24 * 60 * 60;
 const API_V2_ACCEPT = "application/vnd.monerium.api-v2+json";
@@ -134,8 +137,17 @@ export function selectMoneriumProfile(
   return matches[0];
 }
 
-function upstreamError(_internalMessage: string): APIError {
-  return new APIError({ message: "Monerium request failed", status: httpStatus.BAD_GATEWAY });
+class MoneriumUpstreamError extends APIError {
+  constructor(
+    _internalMessage: string,
+    readonly upstreamStatus?: number
+  ) {
+    super({ message: "Monerium request failed", status: httpStatus.BAD_GATEWAY });
+  }
+}
+
+function upstreamError(internalMessage: string, upstreamStatus?: number): APIError {
+  return new MoneriumUpstreamError(internalMessage, upstreamStatus);
 }
 
 async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
@@ -146,7 +158,7 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
     throw upstreamError("Monerium request timed out or failed");
   }
   if (!response.ok) {
-    throw upstreamError(`Monerium returned HTTP ${response.status}`);
+    throw upstreamError(`Monerium returned HTTP ${response.status}`, response.status);
   }
   try {
     return await response.json();
@@ -207,16 +219,50 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
       grant_type: "refresh_token",
       refresh_token: credentials.refreshToken
     })
-  ).then(rotated => {
-    credentialCache.set(key, rotated);
-    return rotated;
-  });
+  ).then(
+    rotated => {
+      credentialCache.set(key, rotated);
+      return rotated;
+    },
+    (error: unknown) => {
+      // A rejected refresh grant (revoked or expired token) cannot heal; keeping the stale
+      // credential would answer every later call with a generic 502 instead of a reconnect prompt.
+      if (error instanceof MoneriumUpstreamError && error.upstreamStatus !== undefined && error.upstreamStatus < 500) {
+        credentialCache.del(key);
+        throw new APIError({
+          message: "Monerium reauthentication is required",
+          status: httpStatus.NOT_FOUND,
+          type: MONERIUM_REAUTHENTICATION_REQUIRED
+        });
+      }
+      // An upstream failure keeps the session for the next attempt, but must not stay invisible: a
+      // sustained outage on a truly expired token would otherwise read as an endless 502.
+      const reason =
+        error instanceof MoneriumUpstreamError
+          ? `upstream status ${error.upstreamStatus ?? "unknown"}`
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      logger.warn(
+        `MoneriumOAuth: token refresh for ${customerType} entity ${customerEntityId} failed (${reason}); keeping the session for retry`
+      );
+      throw error;
+    }
+  );
   refreshes.set(key, refresh);
   try {
     return await refresh;
   } finally {
     refreshes.delete(key);
   }
+}
+
+/** Access token of the entity's backend-held OAuth session; throws `MONERIUM_REAUTHENTICATION_REQUIRED` when none is cached. */
+export async function getMoneriumUserAccessToken(
+  customerEntityId: string,
+  customerType: ProviderCustomerType
+): Promise<string> {
+  return (await getValidCredentials(customerEntityId, customerType)).accessToken;
 }
 
 async function readProfile(
@@ -305,14 +351,26 @@ async function mirrorProfile(
   return { customerType, profileId: profile.id, status, statusExternal: profile.state };
 }
 
+function redirectUriForClient(client: MoneriumOAuthClient): string {
+  if (client === "dashboard") return config.monerium.redirectUri;
+  if (!config.monerium.widgetRedirectUri) {
+    throw new APIError({ message: "Monerium widget callback is not configured", status: httpStatus.SERVICE_UNAVAILABLE });
+  }
+  return config.monerium.widgetRedirectUri;
+}
+
 export async function startMoneriumOAuth(
   userId: string,
   email: string,
-  customerType: ProviderCustomerType
+  customerType: ProviderCustomerType,
+  client: MoneriumOAuthClient = "dashboard"
 ): Promise<{ authorizationUrl: string }> {
   if (!config.monerium.clientId) {
     throw new APIError({ message: "Monerium OAuth is not configured", status: httpStatus.SERVICE_UNAVAILABLE });
   }
+  // The callback is chosen from the configured allowlist, never from caller input, and bound into
+  // the OAuth transaction so the exchange must use the same exact URI.
+  const redirectUri = redirectUriForClient(client);
   const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
   if (entity.type !== customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
@@ -341,7 +399,7 @@ export async function startMoneriumOAuth(
     customerEntityId: entity.id,
     customerType,
     expectedEmail: email.trim().toLowerCase(),
-    redirectUri: config.monerium.redirectUri,
+    redirectUri,
     userId,
     verifier
   };
@@ -427,8 +485,21 @@ export async function getMoneriumStatus(userId: string, customerType: ProviderCu
     }
   }
   const credentials = await getValidCredentials(entity.id, customerType);
-  const { profile } = await readProfile(credentials, customerType);
-  return mirrorProfile(entity.id, customerType, profile);
+  try {
+    const { profile } = await readProfile(credentials, customerType);
+    return mirrorProfile(entity.id, customerType, profile);
+  } catch (error) {
+    if (error instanceof MoneriumUpstreamError && error.upstreamStatus === 401) {
+      credentialCache.del(credentialsCacheKey(entity.id, customerType));
+      throw new APIError({
+        isPublic: true,
+        message: "Monerium reauthentication is required",
+        status: httpStatus.NOT_FOUND,
+        type: MONERIUM_REAUTHENTICATION_REQUIRED
+      });
+    }
+    throw error;
+  }
 }
 
 export function resetMoneriumMemoryForTests(): void {

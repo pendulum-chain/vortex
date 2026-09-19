@@ -7,6 +7,7 @@ import {
   EvmTransactionData,
   getNetworkId,
   isEvmTransactionData,
+  isNetworkEVM,
   isSignedTypedData,
   isSignedTypedDataArray,
   Networks,
@@ -215,8 +216,9 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "nablaApprove":
     case "nablaSwap":
     case "subsidizePreSwap":
-    case "subsidizePostSwap":
       return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
+    case "subsidizePostSwap":
+      return isNetworkEVM(network) ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
   }
 
   switch (phase) {
@@ -238,6 +240,9 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "fundEphemeral":
     case "destinationTransfer":
     case "moonbeamToPendulum":
+    case "moneriumOnrampSelfTransfer":
+    case "uniswapApprove":
+    case "uniswapSwap":
     case "alfredpayOnrampMint":
     case "alfredpayOfframpTransfer":
     case "brlaOnrampMint":
@@ -352,9 +357,13 @@ export async function validatePresignedTxs(
   presignedTxs: PresignedTx[],
   ephemerals: { [key in EphemeralAccountType]: string },
   unsignedTxs: PresignedTx[],
-  options: { requireComplete?: boolean } = {}
+  options: { requireComplete?: boolean; requireUserTypedData?: boolean } = {}
 ): Promise<void> {
   const requireComplete = options.requireComplete ?? true;
+  // User-signed typed data (Monerium owner permit, SELL squidRouterPermitExecute) is executed by
+  // the backend, so startRamp needs it presigned. The SELL release gate must not wait on it: that
+  // gate is what reveals the user-wallet transactions to the client for signing in the first place.
+  const requireUserTypedData = options.requireUserTypedData ?? true;
 
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
@@ -438,9 +447,12 @@ export async function validatePresignedTxs(
       .filter((v): v is string => Boolean(v))
       .map(s => s.toLowerCase())
   );
-  const ephemeralUnsigned = unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
-  const ephemeralPresigned = presignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
-  if (!areAllTxsIncluded(ephemeralUnsigned, ephemeralPresigned)) {
+  const requiredUnsigned = unsignedTxs.filter(
+    tx =>
+      ephemeralSigners.has(tx.signer.toLowerCase()) ||
+      (requireUserTypedData && (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)))
+  );
+  if (!areAllTxsIncluded(requiredUnsigned, presignedTxs)) {
     throw new APIError({
       message: "Not all unsigned transactions have a corresponding presigned transaction",
       status: httpStatus.BAD_REQUEST

@@ -1,4 +1,5 @@
 import { EvmClientManager, type EvmNetworks } from "@vortexfi/shared";
+import { keccak256 } from "viem";
 
 export interface RecordedEvmTx {
   network: string;
@@ -53,6 +54,16 @@ export class FakeEvm {
   onTransaction?: (tx: RecordedEvmTx) => void;
   /** First chance to answer any readContract call; return undefined to fall through to defaults. */
   onReadContract?: (network: string, params: ReadContractParams) => unknown;
+  /** Answers simulateContract (eth_call with a decoded result, e.g. a Uniswap quoter); required per call. */
+  onSimulateContract?: (network: string, params: ReadContractParams) => unknown;
+  /** Addresses that report deployed bytecode; everything else is an EOA. */
+  readonly contractAddresses = new Set<string>();
+  /**
+   * When true, receipts for hashes this fake never recorded throw like a real node instead of
+   * confirming generically — required by executors that pre-compute a raw transaction's hash and
+   * probe for it before broadcasting (Monerium self-transfer, Uniswap).
+   */
+  strictReceipts = false;
   /** Nabla router getAmountOut. Default: same-decimals 1:1.05. */
   onGetAmountOut: (network: string, routerAddress: string, amountIn: bigint) => bigint = (_n, _r, amountIn) =>
     (amountIn * 105n) / 100n;
@@ -108,7 +119,9 @@ export class FakeEvm {
       this.failNextSends -= 1;
       throw new Error(this.sendFailureMessage);
     }
-    const recorded = { ...tx, hash: this.nextHash() };
+    // A raw signed transaction has a deterministic hash on a real node; executors that
+    // pre-compute it (Monerium self-transfer, Uniswap) verify the node agrees.
+    const recorded = { ...tx, hash: tx.serialized ? keccak256(tx.serialized as `0x${string}`) : this.nextHash() };
     this.sentTransactions.push(recorded);
     this.transactionsByHash.set(recorded.hash, recorded);
     this.onTransaction?.(recorded);
@@ -125,6 +138,11 @@ export class FakeEvm {
         return this.erc20Balance(network, params.address, params.args?.[0] as string);
       case "allowance":
         return MAX_UINT256;
+      // ERC-2612 probes: a fresh owner has no permit history and the fake token has a fixed name.
+      case "nonces":
+        return 0n;
+      case "name":
+        return "Fake EURe";
       case "getAmountOut":
         return this.onGetAmountOut(network, params.address, params.args?.[0] as bigint);
       case "getL1Fee":
@@ -165,6 +183,9 @@ export class FakeEvm {
     // `revertedReceiptHashes` report a mined-but-reverted transaction instead.
     const receipt = (hash: `0x${string}`) => {
       const recorded = this.transactionsByHash.get(hash);
+      if (!recorded && this.strictReceipts) {
+        throw new Error(`FakeEvm: transaction receipt with hash "${hash}" could not be found`);
+      }
       return {
         blockNumber: 1n,
         from: recorded?.from,
@@ -183,6 +204,8 @@ export class FakeEvm {
           this.feeEstimates.get(network) ?? { maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n },
         estimateGas: async () => 21_000n,
         getBalance: async ({ address }: { address: string }) => this.nativeBalance(network, address),
+        getBytecode: async ({ address }: { address: string }) =>
+          this.contractAddresses.has(address.toLowerCase()) ? ("0x6080" as `0x${string}`) : undefined,
         getGasPrice: async () => 1_000_000_000n,
         getTransaction: async ({ hash }: { hash: `0x${string}` }) => {
           const recorded = this.transactionsByHash.get(hash);
@@ -202,6 +225,15 @@ export class FakeEvm {
         readContract: async (params: ReadContractParams) => this.readContract(network, params),
         sendRawTransaction: async ({ serializedTransaction }: { serializedTransaction: string }) =>
           this.recordTransaction({ network, serialized: serializedTransaction }),
+        simulateContract: async (params: ReadContractParams) => {
+          const result = this.onSimulateContract?.(network, params);
+          if (result === undefined) {
+            throw new Error(
+              `FakeEvm: simulateContract '${params.functionName}' on ${network} is not scripted — set fakeEvm.onSimulateContract in the test.`
+            );
+          }
+          return { result };
+        },
         waitForTransactionReceipt: async ({ hash }: { hash: `0x${string}` }) => receipt(hash)
       },
       `PublicClient(${network})`

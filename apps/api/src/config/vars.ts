@@ -1,3 +1,5 @@
+import { FiatToken } from "@vortexfi/shared";
+
 interface PriceProvider {
   baseUrl: string;
   appId?: string;
@@ -54,17 +56,34 @@ function readFlowVariant(): FlowVariant {
   return rawFlowVariant as FlowVariant;
 }
 
+/**
+ * `DISABLED_FIAT_CURRENCIES="MXN,COP"`: kill switch for fiat rails whose provider is down. New
+ * quotes on those rails stop with a public 503 and the rails leave the public listing; ramps
+ * already registered keep executing. An unknown symbol aborts startup so a misspelled switch
+ * cannot stay silently inactive.
+ */
+function readDisabledFiatCurrencies(): FiatToken[] {
+  const symbols = (process.env.DISABLED_FIAT_CURRENCIES || "")
+    .split(",")
+    .map(symbol => symbol.trim().toUpperCase())
+    .filter(Boolean);
+  const known: string[] = Object.values(FiatToken);
+  const unknown = symbols.filter(symbol => !known.includes(symbol));
+  if (unknown.length > 0) {
+    throw new Error(
+      `DISABLED_FIAT_CURRENCIES contains unknown fiat currencies: ${unknown.join(", ")} (expected one of ${known.join(", ")})`
+    );
+  }
+  return symbols as FiatToken[];
+}
+
 interface MykoboFeeFallback {
   enabled: boolean;
   depositFee: string | undefined;
   withdrawFee: string | undefined;
 }
 
-// Display-only fallback so EUR quotes still render when the Mykobo /fees endpoint is
-// down. Never prices a ramp execution: EUR ramp start is currently blocked entirely by
-// the register-time kill-switch (registerRamp rejects EURC quotes with 503). When EUR is
-// re-enabled, ramp start must re-validate the live Mykobo fee before executing — no such
-// check exists today. Both fees are flat EUR amounts and are required when enabled.
+// Retained for legacy Mykobo flow simulation tests. New quotes no longer select Mykobo.
 function readMykoboFeeFallback(): MykoboFeeFallback {
   const enabled = process.env.MYKOBO_FEE_FALLBACK_ENABLED === "true";
   if (!enabled) {
@@ -80,7 +99,7 @@ function readMykoboFeeFallback(): MykoboFeeFallback {
 function readNonNegativeDecimalEnv(name: string): string {
   const rawValue = process.env[name]?.trim();
   if (!rawValue) {
-    throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
+    throw new Error(`${name} is required`);
   }
   const value = Number(rawValue);
   if (!DECIMAL_STRING_PATTERN.test(rawValue) || !Number.isFinite(value) || value < 0) {
@@ -208,6 +227,7 @@ interface Config {
   quote: {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
+    disabledFiatCurrencies: FiatToken[];
   };
   recipients: {
     inviteMaxDiscountBps: number;
@@ -218,7 +238,12 @@ interface Config {
   monerium: {
     apiUrl: string;
     clientId: string;
+    eurOnrampEnabled: boolean;
+    issueFeeEur: string | undefined;
     redirectUri: string;
+    whiteLabelClientId: string;
+    widgetRedirectUri: string | undefined;
+    whiteLabelClientSecret: string;
   };
   // B2B whitelabel onramp integration (docs/architecture-monerium-b2b-onramp.md §3).
   // Separate credential set from the legacy consumer OAuth integration above.
@@ -332,7 +357,13 @@ export const config: Config = {
       process.env.MONERIUM_API_URL ||
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
-    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+    // Kill switch for new EUR pay-in quotes; ramps already registered keep executing.
+    eurOnrampEnabled: process.env.EUR_ONRAMP_ENABLED !== "false",
+    issueFeeEur: process.env.MONERIUM_ISSUE_FEE_EUR ? readNonNegativeDecimalEnv("MONERIUM_ISSUE_FEE_EUR") : undefined,
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback",
+    whiteLabelClientId: process.env.MONERIUM_WHITELABEL_CLIENT_ID || "",
+    whiteLabelClientSecret: process.env.MONERIUM_WHITELABEL_CLIENT_SECRET || "",
+    widgetRedirectUri: process.env.MONERIUM_WIDGET_REDIRECT_URI || undefined
   },
   moneriumB2b: {
     // Whitelabel API credentials and base URL live with the shared client
@@ -386,6 +417,7 @@ export const config: Config = {
   },
   quote: {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
+    disabledFiatCurrencies: readDisabledFiatCurrencies(),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
   },
   rampWidgetUrl: process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget",
@@ -513,7 +545,9 @@ if (config.env === "production") {
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
   if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!config.monerium.issueFeeEur) missing.push("MONERIUM_ISSUE_FEE_EUR");
   if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
+  // The white-label pair is optional: without it every Monerium read uses the user's OAuth token.
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

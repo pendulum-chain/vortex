@@ -15,7 +15,7 @@ Manager status is granted by Vortex, not self-service. During partner onboarding
 - **Allowed corridors** — the countries (`BR`, `AR`, `CO`, `MX`, `US`, `EU`) your children may operate in.
 - **Optional customer-type narrowing** — restrict children to `individual` or `business`; a null policy allows both wherever the corridor's canonical capability matrix does.
 
-Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Quoted EUR ramps are not available for managed children — those flows are bound to a verified login email. The `EU` corridor instead covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding.
+Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Automated EUR onboarding and provider binding are not available for managed children. A non-technical child that operations has already provisioned with an approved EUR provider binding, Polygon EOA, and IBAN may use the direct-API EUR BUY flow when the manager policy allows that corridor. The `EU` corridor also covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding.
 
 ## Create A Managed Child
 

@@ -294,16 +294,6 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Before removing this kill-switch, add a hermetic EUR corridor scenario in
-      // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
-      // RUN_LIVE_TESTS-gated tests only — see docs/operations-testing.md).
-      if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
-        throw new APIError({
-          message: "EUR ramps are currently disabled",
-          status: httpStatus.SERVICE_UNAVAILABLE
-        });
-      }
-
       RampService.assertMoonbeamRuntimeAvailable({
         flowId: getFlowMetadata(quote.metadata).flow?.id,
         from: quote.from,
@@ -987,10 +977,10 @@ export class RampService extends BaseRampService {
     aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (
-      (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) &&
-      (!additionalData?.destinationAddress || !additionalData.ipAddress)
-    ) {
+    const metadata = getFlowMetadata(quote.metadata);
+    const flow = resolvePersistedBlockFlow(metadata);
+    const isLegacyMykoboFlow = flow.phases.some(phase => phase === "mykoboOnrampDeposit" || phase === "mykoboPayoutOnBase");
+    if (isLegacyMykoboFlow && (!additionalData?.destinationAddress || !additionalData.ipAddress)) {
       throw new APIError({
         message: `Parameters destinationAddress and ipAddress are required for Mykobo EUR ${quote.rampType === RampDirection.BUY ? "onramp" : "offramp"}`,
         status: httpStatus.BAD_REQUEST
@@ -1015,8 +1005,6 @@ export class RampService extends BaseRampService {
       }
     }
 
-    const metadata = getFlowMetadata(quote.metadata);
-    const flow = resolvePersistedBlockFlow(metadata);
     const quoteFields = quote.get({ plain: true });
     if (metadata.globals.evmDestinationGas) {
       // Run the same persisted-envelope guard before provider registration can
@@ -1068,7 +1056,11 @@ export class RampService extends BaseRampService {
     };
 
     try {
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs);
+      // Only the ephemeral presigns gate the release of user-wallet txs; the user's own typed data
+      // (e.g. the SELL squidRouterPermitExecute permit) is among the txs this release reveals.
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs, {
+        requireUserTypedData: false
+      });
       return true;
     } catch {
       return false;

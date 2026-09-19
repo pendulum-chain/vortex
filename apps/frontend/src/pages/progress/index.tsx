@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isDomesticToken, isNetworkEVM, RampDirection, RampPhase } from "@vortexfi/shared";
+import { isNetworkEVM, RampPhase } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
@@ -12,37 +12,8 @@ import { useRampActor } from "../../contexts/rampState";
 import { GotQuestions } from "../../sections/individuals/GotQuestions";
 import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
-import { PHASE_DURATIONS, PHASE_FLOWS } from "./phaseFlows";
+import { getRampFlow, PHASE_DURATIONS, PHASE_FLOWS } from "./phaseFlows";
 import { getMessageForPhase } from "./phaseMessages";
-
-function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS | null {
-  if (!rampState || !rampState.ramp) {
-    return null;
-  }
-
-  const { type } = rampState.ramp;
-
-  if (type === RampDirection.BUY) {
-    if (rampState.quote?.inputCurrency === FiatToken.BRL) {
-      return "onramp_brl";
-    }
-    return "onramp_eur_evm";
-  }
-
-  if (rampState.quote?.outputCurrency === FiatToken.BRL) {
-    return "offramp_brl";
-  }
-
-  if (rampState.quote?.outputCurrency === FiatToken.EURC) {
-    return "offramp_eur_evm";
-  }
-
-  if (rampState.quote && isDomesticToken(rampState.quote.outputCurrency)) {
-    return "offramp_alfredpay";
-  }
-
-  return null;
-}
 
 const useProgressUpdate = (
   currentPhase: RampPhase,

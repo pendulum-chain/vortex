@@ -1,3 +1,4 @@
+import type { MoneriumRampReadiness } from "@vortexfi/kyc";
 import { z } from "zod";
 
 /**
@@ -46,6 +47,8 @@ export interface Corridor {
 
 export interface Onboarding {
   corridorId: CorridorId;
+  /** EUR onramp readiness of an approved Monerium account; null until approved or for other providers. */
+  ramp?: MoneriumRampReadiness | null;
   /** Provider-registered company name, when the provider account already exists. */
   companyName?: string | null;
   kind: OnboardingKind;

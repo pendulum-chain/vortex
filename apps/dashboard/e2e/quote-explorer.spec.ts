@@ -23,7 +23,7 @@ test("Base defaults to USDC when requesting a BUY quote", async ({ page }) => {
 });
 
 test("EUR is quotable on BUY and an unapproved corridor routes to onboarding", async ({ page }) => {
-  const backend = await mockBackend(page);
+  const backend = await mockBackend(page, { moneriumKyc: true });
   await seedSession(page);
   await page.goto("/quote");
 
@@ -40,13 +40,13 @@ test("EUR is quotable on BUY and an unapproved corridor routes to onboarding", a
   await onboardingCta.click();
 
   await expect(page).toHaveURL(/\/overview\?onboarding=EU$/);
-  await expect(page.getByRole("dialog").getByText("KYC is currently disabled in Europe.")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("Verify with Monerium")).toBeVisible();
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
-test("An approved EUR BUY explains the missing transfer flow instead of linking the form", async ({ page }) => {
+test("An approved EUR BUY links the onramp form for the EU corridor", async ({ page }) => {
   const backend = await mockBackend(page, { moneriumKyc: true });
   // Onboarding status reports an approved Monerium (EU) account from the first poll.
   backend.monerium.completed = true;
@@ -59,10 +59,14 @@ test("An approved EUR BUY explains the missing transfer flow instead of linking 
   await page.getByRole("option", { name: /EURC/ }).click();
   await page.getByLabel("You pay").fill("100");
 
-  await expect(page.getByText("Buying crypto with EURC isn’t available in transfers yet.")).toBeVisible({
-    timeout: 20_000
-  });
-  await expect(page.getByRole("link", { name: "Continue to transfer" })).toBeHidden();
+  const continueLink = page.getByRole("link", { name: "Continue to transfer" });
+  await expect(continueLink).toBeVisible({ timeout: 20_000 });
+  await continueLink.click();
+
+  await expect(page).toHaveURL(/\/transfer/);
+  const search = new URL(page.url()).searchParams;
+  expect(search.get("corridorId")).toBe("EU");
+  expect(search.get("mode")).toBe("onramp");
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

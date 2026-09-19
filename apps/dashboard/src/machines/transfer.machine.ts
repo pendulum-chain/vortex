@@ -13,6 +13,7 @@ import {
   pollRampUntilTerminal,
   type RefreshTransferQuoteInput,
   type RegisterTransferInput,
+  type RegisterTransferOutput,
   refreshTransferQuote,
   registerTransfer,
   signUserTransactions,
@@ -123,6 +124,10 @@ export const transferMachine = setup({
   },
   guards: {
     isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY,
+    isOnrampWithoutUserTxs: ({ context, event }) => {
+      const output = (event as unknown as { output?: RegisterTransferOutput }).output;
+      return context.quote?.rampType === RampDirection.BUY && (output?.userTxs.length ?? 0) === 0;
+    },
     isOwnerEvent: ({ context, event }) =>
       "ownerProfileId" in event &&
       event.ownerProfileId === context.activeOwnerProfileId &&
@@ -271,7 +276,7 @@ export const transferMachine = setup({
         onDone: [
           {
             actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
-            guard: "isOnramp",
+            guard: "isOnrampWithoutUserTxs",
             target: "AwaitingPayment"
           },
           {
@@ -298,10 +303,26 @@ export const transferMachine = setup({
           }
           return { ramp: context.ramp, userTxs: context.userTxs };
         },
-        onDone: {
-          actions: assign(({ event }) => ({ ramp: event.output })),
-          target: "Starting"
-        },
+        onDone: [
+          {
+            // An onramp releases its payment instructions only once the owner-signed
+            // transactions are in, so keep whatever the update returned.
+            actions: assign(({ context, event }) => ({
+              ramp: {
+                ...event.output,
+                achPaymentData: event.output.achPaymentData ?? context.ramp?.achPaymentData,
+                depositQrCode: event.output.depositQrCode ?? context.ramp?.depositQrCode,
+                ibanPaymentData: event.output.ibanPaymentData ?? context.ramp?.ibanPaymentData
+              }
+            })),
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: assign(({ event }) => ({ ramp: event.output })),
+            target: "Starting"
+          }
+        ],
         onError: {
           actions: [
             assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),

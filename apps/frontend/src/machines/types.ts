@@ -1,4 +1,5 @@
 import { WalletAccount } from "@talismn/connect-wallets";
+import type { MoneriumOAuthCallback } from "@vortexfi/kyc";
 import { AlfredpayKycContext, AveniaKycContext } from "@vortexfi/kyc";
 import { FiatToken, PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ActorRef, ActorRefFrom, Snapshot, SnapshotFrom } from "xstate";
@@ -8,11 +9,15 @@ import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { MykoboKycContext } from "./kyc.states";
+import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { moneriumWalletMachine } from "./moneriumWallet.machine";
 import { mykoboKycMachine } from "./mykoboKyc.machine";
 
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 export interface RampContext {
+  /** Monerium OAuth callback (`?code&state` or `?error`) waiting for the restored KYC child. */
+  moneriumCallback?: MoneriumOAuthCallback;
   connectedWalletAddress: string | undefined; // The address of the connected wallet (EVM or Substrate)
   authToken?: string;
   chainId: number | undefined;
@@ -94,6 +99,8 @@ export type RampMachineEvents =
   | { type: "LOGOUT" }
   | { type: "GO_BACK" }
   | { type: "START_KYB_LINK"; invite?: string; region?: string; locked?: boolean }
+  | { type: "MONERIUM_CALLBACK"; callback: MoneriumOAuthCallback }
+  | { type: "MONERIUM_REFRESH" }
   | { type: "RETRY_INVITE" }
   | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
@@ -105,6 +112,22 @@ export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
 
 export type AlfredpayKycActorRef = ActorRefFrom<typeof alfredpayKycMachine>;
 export type AlfredpayKycSnapshot = SnapshotFrom<typeof alfredpayKycMachine>;
+
+export type MoneriumKycActorRef = ActorRefFrom<typeof moneriumKycMachine>;
+export type MoneriumKycSnapshot = SnapshotFrom<typeof moneriumKycMachine>;
+
+export type MoneriumWalletActorRef = ActorRefFrom<typeof moneriumWalletMachine>;
+export type MoneriumWalletSnapshot = SnapshotFrom<typeof moneriumWalletMachine>;
+
+export type SelectedMoneriumData = {
+  stateValue: MoneriumKycSnapshot["value"];
+  context: MoneriumKycSnapshot["context"];
+};
+
+export type SelectedMoneriumWalletData = {
+  stateValue: MoneriumWalletSnapshot["value"];
+  context: MoneriumWalletSnapshot["context"];
+};
 
 export type MykoboKycActorRef = ActorRefFrom<typeof mykoboKycMachine>;
 export type MykoboKycSnapshot = SnapshotFrom<typeof mykoboKycMachine>;

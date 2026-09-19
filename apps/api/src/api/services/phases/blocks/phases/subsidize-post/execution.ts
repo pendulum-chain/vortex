@@ -11,6 +11,7 @@ import {
   getEvmNativeBalance,
   getOnChainTokenDetails,
   isDeterministicPreBroadcastRevert,
+  isNetworkEVM,
   Networks,
   nativeToDecimal,
   RampCurrency,
@@ -132,11 +133,14 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
 
     try {
       const outputToken = metadata.outputCurrency as EvmToken;
-
-      const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outputToken) as EvmTokenDetails;
+      const outputNetwork = (metadata.network ?? Networks.Base) as Networks;
+      if (!isNetworkEVM(outputNetwork)) {
+        throw new Error(`SubsidizePostSwapExecutor: Unsupported EVM network ${outputNetwork}`);
+      }
+      const outputTokenDetails = getOnChainTokenDetails(outputNetwork, outputToken) as EvmTokenDetails;
       if (!outputTokenDetails) {
         throw new Error(
-          `Could not find token details for output token ${outputToken} on network ${Networks.Base}. Invalid quote metadata.`
+          `Could not find token details for output token ${outputToken} on network ${outputNetwork}. Invalid quote metadata.`
         );
       }
 

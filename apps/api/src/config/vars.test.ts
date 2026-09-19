@@ -9,7 +9,10 @@ const requiredProductionEnv = {
   FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   MONERIUM_CLIENT_ID: "test-monerium-client-id",
+  MONERIUM_ISSUE_FEE_EUR: "0",
   MONERIUM_REDIRECT_URI: "https://dashboard.example.com/monerium/callback",
+  MONERIUM_WHITELABEL_CLIENT_ID: "test-monerium-whitelabel-client-id",
+  MONERIUM_WHITELABEL_CLIENT_SECRET: "test-monerium-whitelabel-client-secret",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
   SUPABASE_URL: "https://example.supabase.co",
@@ -30,12 +33,13 @@ const requiredMoneriumB2bEnv = {
   MONERIUM_WHITELABEL_CLIENT_SECRET: "test-whitelabel-client-secret"
 };
 
-async function importVarsWithEnv(env: Record<string, string>) {
+// `print` is evaluated against the imported module (`vars`) and written to stdout; defaults to "ok".
+async function importVarsWithEnv(env: Record<string, string>, print = '"ok"') {
   const proc = Bun.spawn({
     cmd: [
       bunExecutable,
       "-e",
-      `import(${JSON.stringify(varsModuleUrl)}).then(() => console.log("ok")).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); })`
+      `import(${JSON.stringify(varsModuleUrl)}).then(vars => console.log(${print})).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); })`
     ],
     // A cwd without .env files: bun auto-loads .env from the cwd, which would
     // silently backfill variables these scenarios deliberately leave unset.
@@ -121,6 +125,39 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
+  });
+
+  it("boots in production without the Monerium white-label credentials", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_WHITELABEL_CLIENT_ID: "",
+      MONERIUM_WHITELABEL_CLIENT_SECRET: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("requires an explicit Monerium issue fee in production", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_ISSUE_FEE_EUR: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_ISSUE_FEE_EUR");
+  });
+
+  it("rejects an invalid Monerium issue fee", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_ISSUE_FEE_EUR: "-1",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_ISSUE_FEE_EUR must be a non-negative number");
   });
 
   it("keeps Monerium B2B disabled unless its flag is exactly true", async () => {
@@ -268,5 +305,29 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("MYKOBO_FALLBACK_DEPOSIT_FEE must be a non-negative number");
+  });
+});
+
+describe("vars disabled fiat currencies", () => {
+  it("parses a mixed-case, padded, comma-separated list", async () => {
+    const result = await importVarsWithEnv(
+      { DISABLED_FIAT_CURRENCIES: " mxn, COP ,,eur" },
+      "JSON.stringify(vars.config.quote.disabledFiatCurrencies)"
+    );
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '["MXN","COP","EUR"]\n' });
+  });
+
+  it("leaves the switch empty when unset", async () => {
+    const result = await importVarsWithEnv({}, "JSON.stringify(vars.config.quote.disabledFiatCurrencies)");
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "[]\n" });
+  });
+
+  it("refuses to start on an unknown symbol", async () => {
+    const result = await importVarsWithEnv({ DISABLED_FIAT_CURRENCIES: "MXN,EURC" });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("DISABLED_FIAT_CURRENCIES contains unknown fiat currencies: EURC");
   });
 });

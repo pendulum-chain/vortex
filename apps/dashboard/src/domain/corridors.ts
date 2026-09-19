@@ -108,11 +108,11 @@ export function isOnboardingAvailable(corridor: Corridor, kind: OnboardingKind):
 }
 
 /**
- * EU onboarding (KYC and KYB) is temporarily switched off: the corridor card replaces every
- * actionable button (start, continue, retry, re-authenticate) with a disabled, explanatory
- * one, and the wizard refuses the corridor even when opened via the `?onboarding=EU` deep
- * link so mid-flow users cannot reach the Monerium flow either.
+ * Corridors whose onboarding is switched off. When one is, the corridor card replaces every
+ * actionable button (start, continue, retry, re-authenticate) with a disabled, explanatory one
+ * and the wizard refuses the corridor even via the `?onboarding=<id>` deep link. None today:
+ * EU was off while the Monerium onramp was rebuilt and runs through Monerium OAuth again.
  */
-export function isCorridorOnboardingDisabled(corridor: Corridor): boolean {
-  return corridor.id === "EU";
+export function isCorridorOnboardingDisabled(_corridor: Corridor): boolean {
+  return false;
 }

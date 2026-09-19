@@ -57,6 +57,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.InvalidNetworks]: "pages.swap.error.invalidNetworks",
   [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
   [QuoteError.AssetHubNotSupportedForAlfredPay]: "pages.swap.error.assetHubNotSupportedForAlfredPay",
+  [QuoteError.EurOnrampNetworkUnsupported]: "pages.swap.error.eurOnrampNetworkUnsupported",
 
   // Amount too low - suggest larger amount
   [QuoteError.InputAmountTooLowToCoverFees]: "pages.swap.error.tryLargerAmount",
