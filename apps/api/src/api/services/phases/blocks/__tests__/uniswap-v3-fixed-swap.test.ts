@@ -468,6 +468,28 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     expect(operationAttempts).toEqual([]);
   });
 
+  it("finishes a resumed swap whose transaction already settled instead of pausing", async () => {
+    // Crash after the swap was mined: the allowance is consumed and the EURe is gone, but the
+    // deterministic hash already has a successful receipt.
+    const sendRawTransaction = mock(async (): Promise<`0x${string}`> => {
+      throw new Error("must not resend a settled swap");
+    });
+    const simulateTransaction = mock(async () => {
+      throw new Error("must not simulate a settled swap");
+    });
+    const error = await runSwap({
+      getAllowance: async () => 0n,
+      getBalance: async token => (token === POLYGON_EURE ? 0n : 116_000_000n),
+      getReceipt: async () => ({ status: "success" }),
+      sendRawTransaction,
+      simulateTransaction
+    });
+    expect(error).toBeNull();
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+    expect(simulateTransaction).not.toHaveBeenCalled();
+    expect(operationAttempts).toEqual([]);
+  });
+
   it("retries later when the live quote moved below the soft minimum", async () => {
     const error = await runSwap({ quote: async () => 113_679_999n });
     expect(error).toBeInstanceOf(RecoverablePhaseError);

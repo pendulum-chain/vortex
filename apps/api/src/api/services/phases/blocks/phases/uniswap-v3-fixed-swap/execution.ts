@@ -180,27 +180,32 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
     const unsigned = this.findTransaction(state.unsignedTxs, this.getPhaseName(), "swap blueprint");
     await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
     const transaction = await validateUniswapSwap(signed, expectation);
-    if (BigInt(expectation.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
-      throw this.createRecoverableError("Uniswap fixed swap signature expired before settlement");
+    // A swap that already settled on-chain has consumed the allowance, so the pre-flight checks can
+    // never pass again; skip them and let broadcast() recognise the mined transaction.
+    const settled = (await dependencies.getReceipt(keccak256(transaction)))?.status === "success";
+    if (!settled) {
+      if (BigInt(expectation.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
+        throw this.createRecoverableError("Uniswap fixed swap signature expired before settlement");
+      }
+      await dependencies.verifyDeployment();
+      const [inputBalance, allowance, currentQuote] = await Promise.all([
+        dependencies.getBalance(POLYGON_EURE, expectation.signer),
+        dependencies.getAllowance(expectation.signer),
+        dependencies.quote(BigInt(expectation.amountInRaw))
+      ]);
+      if (inputBalance < BigInt(expectation.amountInRaw)) {
+        throw this.createRecoverableError("Uniswap fixed swap input EURe has not reached the ephemeral account");
+      }
+      if (allowance !== BigInt(expectation.amountInRaw)) {
+        throw this.createReconciliationRequiredError(
+          `Uniswap fixed swap allowance ${allowance} does not match ${expectation.amountInRaw}`
+        );
+      }
+      if (currentQuote < BigInt(preparation.softMinimumOutputRaw)) {
+        throw this.createRecoverableError("Uniswap fixed swap quote moved below its soft minimum");
+      }
+      await dependencies.simulateTransaction(transaction);
     }
-    await dependencies.verifyDeployment();
-    const [inputBalance, allowance, currentQuote] = await Promise.all([
-      dependencies.getBalance(POLYGON_EURE, expectation.signer),
-      dependencies.getAllowance(expectation.signer),
-      dependencies.quote(BigInt(expectation.amountInRaw))
-    ]);
-    if (inputBalance < BigInt(expectation.amountInRaw)) {
-      throw this.createRecoverableError("Uniswap fixed swap input EURe has not reached the ephemeral account");
-    }
-    if (allowance !== BigInt(expectation.amountInRaw)) {
-      throw this.createReconciliationRequiredError(
-        `Uniswap fixed swap allowance ${allowance} does not match ${expectation.amountInRaw}`
-      );
-    }
-    if (currentQuote < BigInt(preparation.softMinimumOutputRaw)) {
-      throw this.createRecoverableError("Uniswap fixed swap quote moved below its soft minimum");
-    }
-    await dependencies.simulateTransaction(transaction);
     await this.broadcast(state, transaction, dependencies, signal);
     const [remainingAllowance, outputBalance] = await Promise.all([
       dependencies.getAllowance(expectation.signer),
