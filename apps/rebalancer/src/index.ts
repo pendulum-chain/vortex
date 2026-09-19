@@ -18,14 +18,9 @@ import {
   compareRoutesUpfront,
   getUsdcBalanceOnBaseRaw
 } from "./rebalance/usdc-brla-usdc-base/steps.ts";
+import { resumeInFlightRebalance, runRebalanceCycle, shouldQuoteProfitableAmount } from "./rebalanceCycle.ts";
 import { getBaseNablaCoverageRatio } from "./services/indexer";
-import {
-  BrlaToUsdcBaseRebalancePhase,
-  BrlaToUsdcBaseStateManager,
-  UsdcBaseRebalancePhase,
-  UsdcBaseStateManager,
-  type WinningRoute
-} from "./services/stateManager.ts";
+import { BrlaToUsdcBaseStateManager, UsdcBaseStateManager, type WinningRoute } from "./services/stateManager.ts";
 import { getConfig } from "./utils/config.ts";
 
 const args = process.argv.slice(2);
@@ -108,14 +103,6 @@ async function evaluateCurrentRunDailyLimit(
   if (!dailyLimitDecision) return { dailyVolume };
   logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
   return { dailyVolume, decision: dailyLimitDecision };
-}
-
-function calculateCoverageDeviationBps(coverageRatio: number, triggerBound: number): number {
-  return Number(
-    Big(Math.abs(coverageRatio - triggerBound))
-      .mul(10_000)
-      .toFixed(2)
-  );
 }
 
 function getQuoteForRoute(
@@ -268,16 +255,13 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   }
 
   const profitableAmountRaw = toUsdcRaw(config.rebalancingProfitableUsdToBrlAmount);
-  if (profitableAmountRaw === standardAmountRaw) {
-    return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
-  }
-
-  const baseUsdcRaw = await getUsdcBalanceOnBaseRaw();
-  if (Big(baseUsdcRaw).lt(profitableAmountRaw)) {
-    console.log(
-      `Base USDC balance ${Big(baseUsdcRaw).div(1e6).toFixed(6)} USDC cannot fund the profitable amount ` +
-        `${config.rebalancingProfitableUsdToBrlAmount} USDC. Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
-    );
+  const quoteProfitableAmount = await shouldQuoteProfitableAmount({
+    getBaseUsdcRaw: getUsdcBalanceOnBaseRaw,
+    mode: config.rebalancingCostPolicy.mode,
+    profitableAmountRaw,
+    standardAmountRaw
+  });
+  if (!quoteProfitableAmount) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
@@ -388,68 +372,27 @@ async function runBrlaToUsdc(coverageDeviationBps: number) {
   });
 }
 
-// A run that died mid-flow holds funds in transit. Resume it before quoting, sizing, or
-// balance-checking a fresh run: those checks assume the in-flight USDC is still in the wallet.
-async function resumeInFlightRebalance(): Promise<boolean> {
-  if (forceRestart) return false;
-  const config = getConfig();
-
-  const usdcBaseState = await new UsdcBaseStateManager().getState();
-  if (usdcBaseState && usdcBaseState.currentPhase !== UsdcBaseRebalancePhase.Idle) {
-    if (config.rebalancingCostPolicy.mode === "dry-run") {
-      console.log(
-        `Dry-run mode: USDC->BRLA->USDC run paused at phase ${usdcBaseState.currentPhase}. Skipping fresh evaluation.`
-      );
-      return true;
-    }
-    await rebalanceUsdcBrlaUsdcBase(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), false, forcedRoute);
-    return true;
-  }
-
-  const brlaToUsdcState = await new BrlaToUsdcBaseStateManager().getState();
-  if (brlaToUsdcState && brlaToUsdcState.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle) {
-    if (config.rebalancingCostPolicy.mode === "dry-run") {
-      console.log(`Dry-run mode: BRLA->USDC run paused at phase ${brlaToUsdcState.currentPhase}. Skipping fresh evaluation.`);
-      return true;
-    }
-    await rebalanceBrlaToUsdcBase(toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount), false);
-    return true;
-  }
-
-  return false;
-}
-
 async function checkForRebalancing() {
   const config = getConfig();
-  const coverage = await getBaseNablaCoverageRatio();
 
-  if (!coverage) throw new Error("Failed to fetch Base Nabla coverage ratio.");
-
-  if (await resumeInFlightRebalance()) return;
-
-  const lowerBound = 1 - config.rebalancingThresholdBrlaToUsdc;
-  const upperBound = 1 + config.rebalancingThresholdUsdcToBrla;
-
-  if (coverage.brlaCoverageRatio >= lowerBound && coverage.brlaCoverageRatio <= upperBound) {
-    if (await tryOpportunisticUsdcToBrla()) return;
-    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} in range [${lowerBound}, ${upperBound}]. No rebalancing needed.`);
-    return;
-  }
-
-  if (coverage.brlaCoverageRatio < lowerBound) {
-    const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, lowerBound);
-    console.log(
-      `BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Evaluating BRLA->USDC (${deviationBps} bps deviation).`
-    );
-    await runBrlaToUsdc(deviationBps);
-    return;
-  }
-
-  const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, upperBound);
-  console.log(
-    `BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Evaluating USDC->BRLA (${deviationBps} bps deviation).`
-  );
-  await runUsdcToBrla(deviationBps);
+  await runRebalanceCycle({
+    lowerBound: 1 - config.rebalancingThresholdBrlaToUsdc,
+    readCoverage: getBaseNablaCoverageRatio,
+    resumeInFlight: () =>
+      resumeInFlightRebalance({
+        forceRestart,
+        getBrlaToUsdcState: () => new BrlaToUsdcBaseStateManager().getState(),
+        getUsdcBaseState: () => new UsdcBaseStateManager().getState(),
+        mode: config.rebalancingCostPolicy.mode,
+        resumeBrlaToUsdc: () => rebalanceBrlaToUsdcBase(toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount), false),
+        resumeUsdcBase: () =>
+          rebalanceUsdcBrlaUsdcBase(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), false, forcedRoute)
+      }),
+    runBrlaToUsdc,
+    runUsdcToBrla,
+    tryOpportunisticUsdcToBrla,
+    upperBound: 1 + config.rebalancingThresholdUsdcToBrla
+  });
 }
 
 console.log("Using Base rebalancing flow.");
