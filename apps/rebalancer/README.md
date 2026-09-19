@@ -51,7 +51,9 @@ Passing `--legacy` exits with an error; it cannot start the retired Pendulum/Moo
 
 Each Base flow persists its phase in Supabase Storage and resumes it on the next cron run before
 anything new is quoted. If a run can no longer complete (for example its funds were moved back
-manually), inspect and reset the USDC → BRLA → USDC state after reconciling the funds:
+manually), reconcile the funds first, then suspend the Render cron job and make sure no
+rebalancer process is running: the script and a live run write the same Supabase object
+without locking. Then inspect and reset the USDC → BRLA → USDC state:
 
 ```bash
 bun run reset:usdc-base-state            # prints the persisted state, changes nothing

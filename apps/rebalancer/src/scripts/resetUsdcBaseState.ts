@@ -20,4 +20,6 @@ if (!confirm) {
 }
 
 await stateManager.saveState(createUsdcBaseRebalanceState(null, UsdcBaseRebalancePhase.Idle));
-console.log("State reset to idle. Reconcile the abandoned run's funds manually using the state printed above.");
+console.log(
+  "State reset to idle. The state printed above is the last record of the abandoned run; keep it if the funds are not fully reconciled yet."
+);
