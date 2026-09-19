@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createMoneriumKycApi, MoneriumAuthorizationRequiredError, type MoneriumCustomerType } from "@vortexfi/kyc";
 import { AlertTriangle, CheckCircle2, Loader2, Wallet } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { ConnectWalletButton } from "@/components/layout/ConnectWalletButton";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,10 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const statusQueryKey = [...MONERIUM_STATUS_QUERY_KEY, customerType];
+  const fetchCount = () => queryClient.getQueryState(statusQueryKey)?.dataUpdateCount ?? 0;
+  // The poll budget belongs to one provisioning attempt: it restarts when the dialog opens, after a
+  // link or move succeeds, and on "Check again", not with the cached query's lifetime.
+  const [attemptStart, setAttemptStart] = useState(fetchCount);
   const status = useQuery({
     queryFn: () => api.getStatus(customerType),
     queryKey: statusQueryKey,
@@ -39,17 +43,22 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
       moneriumStatusPollInterval({
         address,
         error: query.state.error,
-        polls: query.state.dataUpdateCount,
+        polls: query.state.dataUpdateCount - attemptStart,
         ramp: query.state.data?.ramp
       }),
     retry: false
   });
   const ramp = status.data?.ramp;
-  const pollsExhausted = (queryClient.getQueryState(statusQueryKey)?.dataUpdateCount ?? 0) >= MONERIUM_STATUS_MAX_POLLS;
+  const pollsExhausted = fetchCount() - attemptStart >= MONERIUM_STATUS_MAX_POLLS;
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: MONERIUM_STATUS_QUERY_KEY });
     queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_QUERY_KEY });
+  }
+
+  function startAttempt() {
+    setAttemptStart(fetchCount());
+    refresh();
   }
 
   const link = useMutation({
@@ -58,14 +67,14 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
       const signature = await signMoneriumWalletLinkMessage();
       return api.linkWallet({ address, chain: ramp.chain, customerType, signature });
     },
-    onSuccess: refresh
+    onSuccess: startAttempt
   });
   const move = useMutation({
     mutationFn: async () => {
       if (!address || !ramp) throw new Error("Connect a wallet first");
       return api.moveIban({ address, chain: ramp.chain, customerType });
     },
-    onSuccess: refresh
+    onSuccess: startAttempt
   });
   const reauthorize = useMutation({
     mutationFn: () => api.startOAuth(customerType),
@@ -195,7 +204,7 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
           {pollsExhausted && (
             <p className="max-w-sm text-muted-foreground text-sm">
               Monerium is taking longer than usual.{" "}
-              <button className="underline" onClick={() => status.refetch()} type="button">
+              <button className="underline" onClick={startAttempt} type="button">
                 Check again
               </button>
             </p>
