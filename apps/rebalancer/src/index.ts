@@ -397,8 +397,10 @@ async function resumeInFlightRebalance(): Promise<boolean> {
   const usdcBaseState = await new UsdcBaseStateManager().getState();
   if (usdcBaseState && usdcBaseState.currentPhase !== UsdcBaseRebalancePhase.Idle) {
     if (config.rebalancingCostPolicy.mode === "dry-run") {
-      console.log(`Dry-run mode: not resuming USDC->BRLA->USDC run at phase ${usdcBaseState.currentPhase}.`);
-      return false;
+      console.log(
+        `Dry-run mode: USDC->BRLA->USDC run paused at phase ${usdcBaseState.currentPhase}. Skipping fresh evaluation.`
+      );
+      return true;
     }
     await rebalanceUsdcBrlaUsdcBase(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), false, forcedRoute);
     return true;
@@ -407,8 +409,8 @@ async function resumeInFlightRebalance(): Promise<boolean> {
   const brlaToUsdcState = await new BrlaToUsdcBaseStateManager().getState();
   if (brlaToUsdcState && brlaToUsdcState.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle) {
     if (config.rebalancingCostPolicy.mode === "dry-run") {
-      console.log(`Dry-run mode: not resuming BRLA->USDC run at phase ${brlaToUsdcState.currentPhase}.`);
-      return false;
+      console.log(`Dry-run mode: BRLA->USDC run paused at phase ${brlaToUsdcState.currentPhase}. Skipping fresh evaluation.`);
+      return true;
     }
     await rebalanceBrlaToUsdcBase(toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount), false);
     return true;
