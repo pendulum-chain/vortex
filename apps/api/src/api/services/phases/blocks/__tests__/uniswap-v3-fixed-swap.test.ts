@@ -477,14 +477,18 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     const simulateTransaction = mock(async () => {
       throw new Error("must not simulate a settled swap");
     });
+    const getReceipt = mock(async (): Promise<{ status: "success" }> => ({ status: "success" }));
     const error = await runSwap({
       getAllowance: async () => 0n,
       getBalance: async token => (token === POLYGON_EURE ? 0n : 116_000_000n),
-      getReceipt: async () => ({ status: "success" }),
+      getReceipt,
       sendRawTransaction,
       simulateTransaction
     });
     expect(error).toBeNull();
+    // One lookup decides the resume; broadcast() is not entered, so a transient RPC failure on a
+    // second read cannot turn into a resend of the mined transaction.
+    expect(getReceipt).toHaveBeenCalledTimes(1);
     expect(sendRawTransaction).not.toHaveBeenCalled();
     expect(simulateTransaction).not.toHaveBeenCalled();
     expect(operationAttempts).toEqual([]);

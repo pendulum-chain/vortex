@@ -181,7 +181,8 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
     await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
     const transaction = await validateUniswapSwap(signed, expectation);
     // A swap that already settled on-chain has consumed the allowance, so the pre-flight checks can
-    // never pass again; skip them and let broadcast() recognise the mined transaction.
+    // never pass again; skip them and the broadcast, which would otherwise re-read the receipt and,
+    // on a transient RPC failure, try to resend the mined transaction.
     const settled = (await dependencies.getReceipt(keccak256(transaction)))?.status === "success";
     if (!settled) {
       if (BigInt(expectation.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
@@ -205,8 +206,8 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
         throw this.createRecoverableError("Uniswap fixed swap quote moved below its soft minimum");
       }
       await dependencies.simulateTransaction(transaction);
+      await this.broadcast(state, transaction, dependencies, signal);
     }
-    await this.broadcast(state, transaction, dependencies, signal);
     const [remainingAllowance, outputBalance] = await Promise.all([
       dependencies.getAllowance(expectation.signer),
       dependencies.getBalance(POLYGON_USDC, expectation.signer)
