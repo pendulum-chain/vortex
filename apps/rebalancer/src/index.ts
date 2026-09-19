@@ -13,7 +13,11 @@ import {
   type RebalancingCostPolicyDecision,
   shouldTriggerOpportunisticUsdcToBrla
 } from "./rebalance/usdc-brla-usdc-base/guards.ts";
-import { checkInitialUsdcBalanceOnBase, compareRoutesUpfront } from "./rebalance/usdc-brla-usdc-base/steps.ts";
+import {
+  checkInitialUsdcBalanceOnBase,
+  compareRoutesUpfront,
+  getUsdcBalanceOnBaseRaw
+} from "./rebalance/usdc-brla-usdc-base/steps.ts";
 import { getBaseNablaCoverageRatio } from "./services/indexer";
 import {
   BrlaToUsdcBaseRebalancePhase,
@@ -268,6 +272,15 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
+  const baseUsdcRaw = await getUsdcBalanceOnBaseRaw();
+  if (Big(baseUsdcRaw).lt(profitableAmountRaw)) {
+    console.log(
+      `Base USDC balance ${Big(baseUsdcRaw).div(1e6).toFixed(6)} USDC cannot fund the profitable amount ` +
+        `${config.rebalancingProfitableUsdToBrlAmount} USDC. Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
+    );
+    return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
+  }
+
   console.log(
     `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountSelection.amountUsdc} USDC, ` +
       `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
@@ -343,61 +356,62 @@ async function evaluateBrlaToUsdcPolicy(
 }
 
 async function runUsdcToBrla(coverageDeviationBps: number) {
-  const config = getConfig();
-  const amountUsdcRaw = toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount);
-
-  const stateManager = new UsdcBaseStateManager();
-  const state = await stateManager.getState();
-  const isResuming = !forceRestart && state && state.currentPhase !== UsdcBaseRebalancePhase.Idle;
-
-  if (!isResuming) {
-    const selectedAmount = await selectUsdcToBrlaPolicyAmount(coverageDeviationBps);
-    const policyDecision = selectedAmount.policyDecision;
-    if (!policyDecision.shouldExecute) return;
-    await executeUsdcToBrlaRebalance(selectedAmount.amountUsdcRaw, coverageDeviationBps, policyDecision);
-    return;
-  }
-
-  await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, forcedRoute);
+  const selectedAmount = await selectUsdcToBrlaPolicyAmount(coverageDeviationBps);
+  const policyDecision = selectedAmount.policyDecision;
+  if (!policyDecision.shouldExecute) return;
+  await executeUsdcToBrlaRebalance(selectedAmount.amountUsdcRaw, coverageDeviationBps, policyDecision);
 }
 
 async function runBrlaToUsdc(coverageDeviationBps: number) {
   const config = getConfig();
-  const amountUsdc = manualAmount || config.rebalancingBrlToUsdAmount;
-  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
+  const amountUsdcRaw = toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount);
 
-  const stateManager = new BrlaToUsdcBaseStateManager();
-  const state = await stateManager.getState();
-  const isResuming = !forceRestart && state && state.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle;
+  const policyDecision = await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps);
+  if (!policyDecision.shouldExecute) return;
 
-  if (!isResuming) {
-    const policyDecision = await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps);
-    if (!policyDecision.shouldExecute) return;
+  const dailyLimitEvaluation = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
+  if (dailyLimitEvaluation.decision?.shouldSkip) return;
 
-    const dailyLimitEvaluation = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
-    if (dailyLimitEvaluation.decision?.shouldSkip) return;
+  const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
+  if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
+    throw new Error(
+      `Rebalancer USDC balance ${rebalancerUsdcBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform rebalancing.`
+    );
+  }
+  await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart, {
+    config: config.rebalancingCostPolicy,
+    dailyLimitDecision: dailyLimitEvaluation.decision,
+    dailyVolume: dailyLimitEvaluation.dailyVolume,
+    decision: policyDecision.decision,
+    deviationBps: coverageDeviationBps,
+    fallbackRequiresProfit: policyDecision.profitable
+  });
+}
 
-    const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
-    if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
-      throw new Error(
-        `Rebalancer USDC balance ${rebalancerUsdcBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform rebalancing.`
-      );
-    }
-    await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart, {
-      config: config.rebalancingCostPolicy,
-      dailyLimitDecision: dailyLimitEvaluation.decision,
-      dailyVolume: dailyLimitEvaluation.dailyVolume,
-      decision: policyDecision.decision,
-      deviationBps: coverageDeviationBps,
-      fallbackRequiresProfit: policyDecision.profitable
-    });
-    return;
+// A run that died mid-flow holds funds in transit. Resume it before quoting, sizing, or
+// balance-checking a fresh run: those checks assume the in-flight USDC is still in the wallet.
+async function resumeInFlightRebalance(): Promise<boolean> {
+  if (forceRestart) return false;
+  const config = getConfig();
+
+  const usdcBaseState = await new UsdcBaseStateManager().getState();
+  if (usdcBaseState && usdcBaseState.currentPhase !== UsdcBaseRebalancePhase.Idle) {
+    await rebalanceUsdcBrlaUsdcBase(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), false, forcedRoute);
+    return true;
   }
 
-  await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart);
+  const brlaToUsdcState = await new BrlaToUsdcBaseStateManager().getState();
+  if (brlaToUsdcState && brlaToUsdcState.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle) {
+    await rebalanceBrlaToUsdcBase(toUsdcRaw(manualAmount || config.rebalancingBrlToUsdAmount), false);
+    return true;
+  }
+
+  return false;
 }
 
 async function checkForRebalancing() {
+  if (await resumeInFlightRebalance()) return;
+
   const config = getConfig();
   const coverage = await getBaseNablaCoverageRatio();
 
