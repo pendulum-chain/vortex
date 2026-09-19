@@ -146,33 +146,43 @@ export async function linkMoneriumWallet(
     });
   }
 
+  const signature = input.signature;
   const identity = await dependencies.resolveIdentity(userId, undefined, input.customerType);
-  const before = await readDestinations(identity, chain);
-  if (!before.addresses.some(entry => sameAddress(entry.address, address))) {
-    await identity.client.linkAddress({
-      address,
-      chain,
-      message: MONERIUM_ADDRESS_OWNERSHIP_MESSAGE,
-      profile: identity.profileId,
-      signature: input.signature
-    });
-    logger.info(`MoneriumWallet: linked ${address} on ${chain} through the ${identity.source} app`);
-  }
+  // Serialise with IBAN moves and issue registration on the same profile: both read the same
+  // address and IBAN lists this call mutates.
+  return (dependencies.runWithProfileLock ?? runWithProfileLock)(
+    identity.profileId,
+    async (): Promise<MoneriumWalletLinkResult> => {
+      const before = await readDestinations(identity, chain);
+      if (!before.addresses.some(entry => sameAddress(entry.address, address))) {
+        await identity.client.linkAddress({
+          address,
+          chain,
+          message: MONERIUM_ADDRESS_OWNERSHIP_MESSAGE,
+          profile: identity.profileId,
+          signature
+        });
+        logger.info(`MoneriumWallet: linked ${address} on ${chain} through the ${identity.source} app`);
+      }
 
-  if (before.ibans.some(entry => entry.chain === chain && sameAddress(entry.address, address))) {
-    return { address, chain, iban: "provisioned" };
-  }
-  if (before.ibans.length > 0) return { address, chain, iban: "elsewhere" };
+      if (before.ibans.some(entry => entry.chain === chain && sameAddress(entry.address, address))) {
+        return { address, chain, iban: "provisioned" };
+      }
+      if (before.ibans.length > 0) return { address, chain, iban: "elsewhere" };
 
-  try {
-    await identity.client.requestIban({ address, chain });
-  } catch (error) {
-    // Monerium keeps one IBAN per profile and answers 400 when one is already requested.
-    if (!(error instanceof MoneriumApiError && error.status === 400)) throw error;
-    logger.warn(`MoneriumWallet: POST /ibans answered 400 for ${address} on ${chain}; assuming an IBAN is already requested`);
-  }
-  logger.info(`MoneriumWallet: requested an IBAN for ${address} on ${chain}`);
-  return { address, chain, iban: "pending" };
+      try {
+        await identity.client.requestIban({ address, chain });
+      } catch (error) {
+        // Monerium keeps one IBAN per profile and answers 400 when one is already requested.
+        if (!(error instanceof MoneriumApiError && error.status === 400)) throw error;
+        logger.warn(
+          `MoneriumWallet: POST /ibans answered 400 for ${address} on ${chain}; assuming an IBAN is already requested`
+        );
+      }
+      logger.info(`MoneriumWallet: requested an IBAN for ${address} on ${chain}`);
+      return { address, chain, iban: "pending" };
+    }
+  );
 }
 
 /** Moves the profile's single IBAN to an already-linked address. Only ever called on the owner's explicit request. */

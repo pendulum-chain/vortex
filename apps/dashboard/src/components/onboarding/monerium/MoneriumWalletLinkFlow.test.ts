@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { MoneriumRampReadiness, MoneriumWalletLinkResult } from "@vortexfi/kyc";
-import { moneriumWalletLinkRequired, moneriumWalletStep } from "./walletStep";
+import {
+  MONERIUM_STATUS_MAX_POLLS,
+  MONERIUM_STATUS_POLL_INTERVAL_MS,
+  moneriumStatusPollInterval,
+  moneriumWalletLinkRequired,
+  moneriumWalletStep
+} from "./walletStep";
 
 const OLD = "0x1111111111111111111111111111111111111111";
 const NEW = "0x2222222222222222222222222222222222222222";
@@ -21,6 +27,32 @@ describe("Monerium wallet step", () => {
   it("shows ready only when the connected wallet receives the IBAN's deposits", () => {
     assert.equal(moneriumWalletStep(ramp, OLD, undefined), "ready");
     assert.equal(moneriumWalletStep({ ...ramp, linkedAddress: NEW }, NEW, undefined), "ready");
+  });
+});
+
+describe("Monerium status polling", () => {
+  const pending: MoneriumRampReadiness = { ...ramp, iban: "missing", linkedAddress: null };
+
+  it("polls while the IBAN is not provisioned to the connected wallet", () => {
+    assert.equal(
+      moneriumStatusPollInterval({ address: NEW, error: null, polls: 3, ramp: pending }),
+      MONERIUM_STATUS_POLL_INTERVAL_MS
+    );
+    assert.equal(moneriumStatusPollInterval({ address: NEW, error: null, polls: 3, ramp }), MONERIUM_STATUS_POLL_INTERVAL_MS);
+    assert.equal(moneriumStatusPollInterval({ address: OLD, error: null, polls: 3, ramp }), false);
+  });
+
+  it("stops on an error or without a wallet", () => {
+    assert.equal(moneriumStatusPollInterval({ address: NEW, error: new Error("boom"), polls: 0, ramp: pending }), false);
+    assert.equal(moneriumStatusPollInterval({ address: undefined, error: null, polls: 0, ramp: pending }), false);
+  });
+
+  it("gives up after the same bound as the widget instead of polling forever", () => {
+    assert.equal(
+      moneriumStatusPollInterval({ address: NEW, error: null, polls: MONERIUM_STATUS_MAX_POLLS - 1, ramp: pending }),
+      MONERIUM_STATUS_POLL_INTERVAL_MS
+    );
+    assert.equal(moneriumStatusPollInterval({ address: NEW, error: null, polls: MONERIUM_STATUS_MAX_POLLS, ramp: pending }), false);
   });
 });
 

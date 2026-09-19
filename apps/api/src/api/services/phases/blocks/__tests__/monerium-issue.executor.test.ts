@@ -3,6 +3,7 @@ import { BalanceCheckError, BalanceCheckErrorType, Networks } from "@vortexfi/sh
 import Big from "big.js";
 import { MoneriumOnrampMintExecutor } from "../phases/monerium-issue/execution";
 import { MoneriumIssue } from "../phases/monerium-issue";
+import { MONERIUM_ISSUE_NETWORKS } from "../phases/monerium-issue/simulation";
 
 const OWNER = "0x1212121212121212121212121212121212121212";
 
@@ -40,7 +41,7 @@ describe("MoneriumOnrampMintExecutor", () => {
 
     expect(await executor.executePhase(rampState)).toBe(rampState);
     expect(waitForBalance).toHaveBeenCalledWith(
-      "0x18ec0A6E18E5bc3784fDd3a3634b31245ab704F6",
+      MONERIUM_ISSUE_NETWORKS[Networks.Polygon].eureAddress,
       OWNER,
       "598",
       5000,

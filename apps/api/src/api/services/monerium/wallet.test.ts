@@ -165,6 +165,33 @@ describe("linkMoneriumWallet", () => {
     expect(error.message).toContain("Contract wallets are not supported");
     expect(monerium.linkAddress).not.toHaveBeenCalled();
   });
+
+  it("holds the profile lock while linking the address and requesting the IBAN", async () => {
+    const monerium = client();
+    const order: string[] = [];
+    monerium.linkAddress.mockImplementation(async () => {
+      order.push("link");
+      return { httpStatus: 201 as const };
+    });
+    monerium.requestIban.mockImplementation(async () => {
+      order.push("iban");
+      return { httpStatus: 202 as const };
+    });
+    const runWithProfileLock = async <T>(profileId: string, work: (transaction: Transaction) => Promise<T>): Promise<T> => {
+      order.push(`lock:${profileId}`);
+      const result = await work(undefined as unknown as Transaction);
+      order.push("unlock");
+      return result;
+    };
+
+    await linkMoneriumWallet(
+      "user-1",
+      { address: OWNER.address, chain: "polygon", signature: await ownerSignature() },
+      deps(monerium, { runWithProfileLock })
+    );
+
+    expect(order).toEqual([`lock:${PROFILE_ID}`, "link", "iban", "unlock"]);
+  });
 });
 
 describe("moveMoneriumIban", () => {

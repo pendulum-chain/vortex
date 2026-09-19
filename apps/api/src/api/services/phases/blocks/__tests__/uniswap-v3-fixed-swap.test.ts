@@ -28,13 +28,31 @@ import {
 
 const financialOperationReal = { ...financialOperationNamespace };
 const operationAttempts: string[] = [];
+/** Journal rows by attempt class; a seeded `submitted` row must be reconciled, never performed again. */
+const operationRows = new Map<string, "submitted" | "confirmed">();
 
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
-  runFinancialOperation: async ({ attemptClass, perform }: { attemptClass: string; perform(key: string): Promise<unknown> }) => {
+  runFinancialOperation: async ({
+    attemptClass,
+    perform,
+    reconcile
+  }: {
+    attemptClass: string;
+    perform(key: string): Promise<unknown>;
+    reconcile?: (operation: unknown) => Promise<unknown>;
+  }) => {
     operationAttempts.push(attemptClass);
-    return perform(`test-${attemptClass}`);
+    if (operationRows.get(attemptClass) === "submitted") {
+      const reconciled = reconcile ? await reconcile({}) : null;
+      if (reconciled === null) throw new Error(`operation ${attemptClass} has submitted outcome`);
+      operationRows.set(attemptClass, "confirmed");
+      return reconciled;
+    }
+    const result = await perform(`test-${attemptClass}`);
+    operationRows.set(attemptClass, "confirmed");
+    return result;
   }
 }));
 
@@ -431,6 +449,7 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
 
   async function runSwap(overrides: Partial<NonNullable<Deps>>, now = Date.now()) {
     operationAttempts.length = 0;
+    operationRows.clear();
     const { approval, simulated, state, swap } = await prepared(now);
     const signedApproval = await sign(approval);
     const signedSwap = await sign(swap);
@@ -466,6 +485,52 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((error as Error).message).toContain("allowance");
     expect(operationAttempts).toEqual([]);
+  });
+
+  /** Crash after the swap was mined: allowance consumed, EURe gone, but the deterministic hash has a receipt. */
+  function settledSwapDependencies() {
+    const sendRawTransaction = mock(async (): Promise<`0x${string}`> => {
+      throw new Error("must not resend a settled swap");
+    });
+    const simulateTransaction = mock(async () => {
+      throw new Error("must not simulate a settled swap");
+    });
+    const getReceipt = mock(async (): Promise<{ status: "success" }> => ({ status: "success" }));
+    return {
+      getAllowance: async () => 0n,
+      getBalance: async (token: `0x${string}`) => (token === POLYGON_EURE ? 0n : 116_000_000n),
+      getReceipt,
+      sendRawTransaction,
+      simulateTransaction
+    };
+  }
+
+  it("finishes a resumed swap whose transaction already settled instead of pausing", async () => {
+    const dependencies = settledSwapDependencies();
+    const error = await runSwap(dependencies);
+    expect(error).toBeNull();
+    // One lookup decides the resume and also settles the journal: no second read that could fail
+    // transiently, no resend of the mined transaction.
+    expect(dependencies.getReceipt).toHaveBeenCalledTimes(1);
+    expect(dependencies.sendRawTransaction).not.toHaveBeenCalled();
+    expect(dependencies.simulateTransaction).not.toHaveBeenCalled();
+    expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
+    expect(operationRows.get("uniswap-presigned-broadcast")).toBe("confirmed");
+  });
+
+  it("confirms a journal row left submitted by the crash from the receipt it already read", async () => {
+    const dependencies = settledSwapDependencies();
+    // runSwap clears the rows, so seed the submitted row from the receipt read, which precedes the journal call.
+    const getReceipt = mock(async (): Promise<{ status: "success" }> => {
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+      return { status: "success" };
+    });
+    const error = await runSwap({ ...dependencies, getReceipt });
+    expect(error).toBeNull();
+    expect(getReceipt).toHaveBeenCalledTimes(1);
+    expect(dependencies.sendRawTransaction).not.toHaveBeenCalled();
+    expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
+    expect(operationRows.get("uniswap-presigned-broadcast")).toBe("confirmed");
   });
 
   it("retries later when the live quote moved below the soft minimum", async () => {

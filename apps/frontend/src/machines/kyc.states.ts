@@ -189,15 +189,19 @@ export const kycStateNode = {
         onDone: [
           {
             actions: assign({ moneriumCallback: undefined }),
-            guard: ({ event }: { event: DoneActorEvent<MoneriumKycOutput> }) => event.output.status === "APPROVED",
+            // An approved profile whose backend session is lost closes with rampError; the wallet step would only fail again.
+            guard: ({ event }: { event: DoneActorEvent<MoneriumKycOutput> }) =>
+              event.output.status === "APPROVED" && !event.output.rampError,
             target: "MoneriumWallet"
           },
           {
-            // Closed before approval (in review, rejected, cancelled): keep the quote, explain, and let the user retry.
+            // Closed before approval (in review, rejected, cancelled) or instead of reconnecting: keep the quote,
+            // explain, and let the user retry.
             actions: [
               clearSigningPhase,
               assign({
                 initializeFailedMessage: ({ event }: { event: DoneActorEvent<MoneriumKycOutput> }) =>
+                  event.output.rampError?.message ||
                   event.output.error?.message ||
                   (event.output.status ? "Monerium has not approved your verification yet." : undefined),
                 moneriumCallback: undefined
