@@ -2,11 +2,16 @@
 
 Foundry project for the attestor-linked forwarder (Monerium B2B zero-touch onramp):
 per-client EIP-1167 clones whose EIP-1271 `isValidSignature` accepts only the fixed
-Monerium link message from the Vortex attestor, with an immutable EURe→EURC→USDC
-conversion policy and client-controlled recovery.
+Monerium link message from the Vortex attestor, a conversion policy that swaps over a
+factory-whitelisted Uniswap v3 route and settles the fill against a partner reference
+rate (fee above the target, top-up from the shared `VortexSubsidyVault` below the floor,
+Chainlink floor on the client's net), whole-payment forwarding (chunks accumulate as USDC on the
+clone and leave in one `forward`), and a keeper-only, delay-gated `recover` to the immutable Vortex
+recovery wallet for bank refunds.
 
 - Spec: [docs/architecture-monerium-b2b-onramp.md](../../docs/architecture-monerium-b2b-onramp.md) §2
-- Parameter values (slippage, delays, caps, fee) are decided in
+  and its "Fees, reference rate and subsidy" section
+- Parameter values (floor, delays, caps, fee policy, reference band, vault limits) are decided in
   [docs/adr-0005-monerium-b2b-onramp.md](../../docs/adr-0005-monerium-b2b-onramp.md) —
   that table, not values hardcoded in tests or scripts, is authoritative.
 
@@ -41,6 +46,5 @@ node. Published manifests live in `manifests/`.
 produced by Vortex from the same chain state it attests to, so a verifier pass proves
 only that the deployment has not silently changed since publication — not that it was
 honest. Independent verification of contract behavior requires the verified source on a
-block explorer. Client-authorized config changes (destination/fallback rotation by the
-client's own fallbackAddress) are reported as expected transitions, not failures
-(re-review R07).
+block explorer. The per-clone destination has no setter, so any change to it is reported as
+a failure like every other immutable; guardian-tunable parameters are notices.

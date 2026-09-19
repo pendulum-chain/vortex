@@ -2,8 +2,11 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
+import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
+import { isForwardTransition, withForwarderLock } from "../../services/monerium-b2b/deposit-processor";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -13,11 +16,11 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       contactEmail,
       destination,
       externalSubjectId,
-      fallbackAddress,
-      feeBps,
+      floorPpm,
       forwarderAddress,
       managerProfileId,
-      moneriumProfileId
+      moneriumProfileId,
+      targetPpm
     } = req.body ?? {};
     if (
       typeof managerProfileId !== "string" ||
@@ -29,14 +32,14 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       typeof contactEmail !== "string" ||
       typeof forwarderAddress !== "string" ||
       typeof destination !== "string" ||
-      typeof fallbackAddress !== "string" ||
-      (feeBps !== undefined && typeof feeBps !== "number")
+      (targetPpm !== undefined && typeof targetPpm !== "number") ||
+      (floorPpm !== undefined && typeof floorPpm !== "number")
     ) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
           code: "MONERIUM_B2B_INVALID_INPUT",
           message:
-            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, destination, and fallbackAddress are required; feeBps must be a number when present",
+            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, and destination are required; targetPpm and floorPpm must be numbers when present",
           status: httpStatus.BAD_REQUEST
         }
       });
@@ -47,11 +50,11 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       contactEmail,
       destination,
       externalSubjectId,
-      fallbackAddress,
-      feeBps,
+      floorPpm,
       forwarderAddress,
       managerProfileId,
-      moneriumProfileId
+      moneriumProfileId,
+      targetPpm
     });
     res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ account: result });
   } catch (error) {
@@ -145,6 +148,115 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       error: {
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to update Monerium B2B account status",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      }
+    });
+  }
+}
+
+/**
+ * POST /v1/admin/monerium-b2b/deposits/:depositId/recover — marks a settling deposit for
+ * the refund path (runbook §2.7). The keeper moves its unconverted EURe and converted
+ * USDC to the recovery wallet once the clone's batch has been open for RECOVERY_DELAY;
+ * the bank refund itself follows the runbook until it is automated.
+ */
+export async function postMoneriumB2bDepositRecovery(req: Request<{ depositId: string }>, res: Response): Promise<void> {
+  try {
+    if (!UUID_PATTERN.test(req.params.depositId)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: { code: "MONERIUM_B2B_INVALID_INPUT", message: "depositId must be a UUID", status: httpStatus.BAD_REQUEST }
+      });
+      return;
+    }
+    const refusal = await markDepositForRecovery(req.params.depositId);
+    if (refusal === "deposit not found") {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: { code: "MONERIUM_B2B_DEPOSIT_NOT_FOUND", message: "Monerium deposit not found", status: httpStatus.NOT_FOUND }
+      });
+      return;
+    }
+    if (refusal) {
+      res.status(httpStatus.CONFLICT).json({
+        error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION", message: refusal, status: httpStatus.CONFLICT }
+      });
+      return;
+    }
+    res
+      .status(httpStatus.OK)
+      .json({ deposit: { depositId: req.params.depositId, status: MoneriumFiatDepositStatus.Recovering } });
+  } catch (error) {
+    logger.error("Error marking Monerium B2B deposit for recovery:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to mark the deposit for recovery",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      }
+    });
+  }
+}
+
+const OPERATOR_DEPOSIT_STATUSES: readonly string[] = [
+  MoneriumFiatDepositStatus.Refunded,
+  MoneriumFiatDepositStatus.RecoveryFailed,
+  MoneriumFiatDepositStatus.Recovering
+];
+
+/**
+ * PATCH /v1/admin/monerium-b2b/deposits/:depositId/status — closes or retries a
+ * recovery by hand: `refunded` once the bank refund went out, `recovery_failed` when it
+ * cannot, `recovering` to retry a failed one. Forward-only like every deposit transition.
+ */
+export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: string }>, res: Response): Promise<void> {
+  try {
+    const { status } = req.body ?? {};
+    if (!UUID_PATTERN.test(req.params.depositId) || typeof status !== "string" || !OPERATOR_DEPOSIT_STATUSES.includes(status)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "MONERIUM_B2B_INVALID_INPUT",
+          message: `depositId must be a UUID and status must be one of ${OPERATOR_DEPOSIT_STATUSES.join(", ")}`,
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+    const deposit = await MoneriumFiatDeposit.findByPk(req.params.depositId);
+    if (!deposit) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: { code: "MONERIUM_B2B_DEPOSIT_NOT_FOUND", message: "Monerium deposit not found", status: httpStatus.NOT_FOUND }
+      });
+      return;
+    }
+    const account = await MoneriumAccount.findByPk(deposit.accountId);
+    if (!account) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND", message: "Monerium account not found", status: httpStatus.NOT_FOUND }
+      });
+      return;
+    }
+    const targetStatus = status as MoneriumFiatDepositStatus;
+    const outcome = await withForwarderLock(account.forwarderAddress, async transaction => {
+      const current = await MoneriumFiatDeposit.findByPk(deposit.id, { transaction });
+      if (!current) return "missing";
+      if (targetStatus === current.status) return "same";
+      if (!isForwardTransition(current.status, targetStatus))
+        return `Monerium deposit cannot transition from ${current.status} to ${targetStatus}`;
+      await current.update({ status: targetStatus }, { transaction });
+      return "updated";
+    });
+    if (outcome !== "updated" && outcome !== "same") {
+      res.status(httpStatus.CONFLICT).json({
+        error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION", message: outcome, status: httpStatus.CONFLICT }
+      });
+      return;
+    }
+    res.status(httpStatus.OK).json({ deposit: { depositId: deposit.id, status: targetStatus } });
+  } catch (error) {
+    logger.error("Error updating Monerium B2B deposit status:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to update Monerium B2B deposit status",
         status: httpStatus.INTERNAL_SERVER_ERROR
       }
     });

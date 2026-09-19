@@ -1,15 +1,21 @@
-import { DepositStatus, type DepositWebhookPayloadBase, WebhookEventType, type WebhookPayload } from "@vortexfi/shared";
+import {
+  type ConversionExecutionPricing,
+  DepositStatus,
+  type DepositWebhookPayloadBase,
+  WebhookEventType,
+  type WebhookPayload
+} from "@vortexfi/shared";
 import { Op } from "sequelize";
-import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ManagedProfile from "../../../models/managedProfile.model";
 import MoneriumAccount from "../../../models/moneriumAccount.model";
 import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import MoneriumRecovery from "../../../models/moneriumRecovery.model";
 import webhookService from "../webhook/webhook.service";
 import { enqueueWebhookDeliveries } from "../webhook/webhook-outbox.service";
 import { getPublicClient, NOTIFY_CONFIRMATION_DEPTH } from "./chain";
@@ -28,6 +34,21 @@ const defaultDeps: ManagerEventDeps = {
     return getPublicClient().getBlockNumber();
   }
 };
+
+/** First and last four characters of an IBAN, for partner-facing payloads. */
+export function maskIban(iban: string): string {
+  const compact = iban.replace(/\s+/g, "");
+  return compact.length <= 8 ? compact : `${compact.slice(0, 4)}…${compact.slice(-4)}`;
+}
+
+/** Execution-level pricing facts, identical on every deposit portion the execution consumed. */
+export function executionPricing(execution: MoneriumConversionExecution): ConversionExecutionPricing {
+  return {
+    feeRaw: execution.feeRaw,
+    referenceRateRaw: execution.referenceRateRaw,
+    subsidyRaw: execution.subsidyRaw
+  };
+}
 
 function depositPayloadBase(deposit: MoneriumFiatDeposit, account: MoneriumAccount): DepositWebhookPayloadBase {
   return {
@@ -75,7 +96,10 @@ async function emitReceivedEvents(): Promise<void> {
       logIndex: { [Op.ne]: null },
       moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
       receivedEventAt: null,
-      status: MoneriumFiatDepositStatus.Minted,
+      // Any state past the mint: the keeper may have started converting within the cycle.
+      status: {
+        [Op.notIn]: [MoneriumFiatDepositStatus.Pending, MoneriumFiatDepositStatus.Held, MoneriumFiatDepositStatus.Returned]
+      },
       txHash: { [Op.ne]: null }
     }
   });
@@ -109,9 +133,8 @@ async function emitConvertedEvents(deps: ManagerEventDeps): Promise<void> {
     order: [["created_at", "ASC"]],
     where: {
       convertedEventAt: null,
-      id: { [Op.in]: sequelize.literal("(SELECT deposit_id FROM monerium_deposit_allocations)") },
       moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
-      status: MoneriumFiatDepositStatus.Minted
+      status: MoneriumFiatDepositStatus.Forwarded
     }
   });
   if (deposits.length === 0) return;
@@ -129,28 +152,17 @@ async function emitConvertedEvents(deps: ManagerEventDeps): Promise<void> {
 }
 
 async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: bigint): Promise<void> {
-  const allocations = await MoneriumDepositAllocation.findAll({
-    order: [["created_at", "ASC"]],
-    where: { depositId: deposit.id }
-  });
-  if (allocations.length === 0) return;
-  const allocatedEure = allocations.reduce((sum, allocation) => sum + BigInt(allocation.eureInRaw), 0n);
-  if (allocatedEure !== BigInt(deposit.amountRaw)) return;
-
   const executions = await MoneriumConversionExecution.findAll({
-    where: { id: allocations.map(allocation => allocation.executionId) }
+    order: [["created_at", "ASC"]],
+    where: { depositId: deposit.id, status: MoneriumConversionExecutionStatus.Confirmed }
   });
-  const executionById = new Map(executions.map(execution => [execution.id, execution]));
-  if (executions.length !== allocations.length) return;
-  if (executions.some(execution => execution.status !== MoneriumConversionExecutionStatus.Confirmed)) return;
-  // Confirmation-depth gate (plan §3, registry P9): only notify once the execution
-  // blocks are NOTIFY_CONFIRMATION_DEPTH below the head, so a shallow reorg cannot
-  // produce a delivered-then-vanished aggregate conversion event.
-  if (
-    executions.some(
-      execution => execution.blockNumber === null || head < BigInt(execution.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)
-    )
-  ) {
+  const forward = executions.find(execution => execution.kind === MoneriumConversionExecutionKind.Forward);
+  const swaps = executions.filter(execution => execution.kind === MoneriumConversionExecutionKind.Swap);
+  if (!forward || swaps.length === 0) return;
+  // Confirmation-depth gate (plan §3, registry P9): only notify once the forward is
+  // NOTIFY_CONFIRMATION_DEPTH blocks below the head, so a shallow reorg cannot produce a
+  // delivered-then-vanished conversion event. The chunks precede the forward by construction.
+  if (forward.blockNumber === null || head < BigInt(forward.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)) {
     return;
   }
 
@@ -162,16 +174,15 @@ async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: 
     eventType: WebhookEventType.DEPOSIT_CONVERTED,
     payload: {
       ...depositPayloadBase(deposit, account),
-      conversions: allocations.map(allocation => {
-        const execution = executionById.get(allocation.executionId) as MoneriumConversionExecution;
-        return {
-          eureInRaw: allocation.eureInRaw,
-          executionId: execution.id,
-          txHash: execution.txHash,
-          usdcNetRaw: allocation.usdcNetRaw
-        };
-      }),
-      usdcNetRaw: allocations.reduce((sum, allocation) => sum + BigInt(allocation.usdcNetRaw), 0n).toString()
+      conversions: swaps.map(execution => ({
+        eureInRaw: execution.eureInRaw,
+        execution: executionPricing(execution),
+        executionId: execution.id,
+        txHash: execution.txHash,
+        usdcNetRaw: execution.usdcNetRaw ?? "0"
+      })),
+      forwardTxHash: forward.txHash,
+      usdcNetRaw: forward.usdcNetRaw ?? "0"
     },
     timestamp: new Date().toISOString()
   };
@@ -179,16 +190,71 @@ async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: 
   await deposit.update({ convertedEventAt: new Date() });
 }
 
+async function emitReturnedEvents(): Promise<void> {
+  const deposits = await MoneriumFiatDeposit.findAll({
+    limit: BATCH_LIMIT,
+    order: [["created_at", "ASC"]],
+    where: {
+      moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
+      returnedEventAt: null,
+      status: MoneriumFiatDepositStatus.Refunded
+    }
+  });
+  for (const deposit of deposits) {
+    try {
+      const account = await MoneriumAccount.findByPk(deposit.accountId);
+      if (!account) continue;
+      const [recovery, recoverExecution] = await Promise.all([
+        MoneriumRecovery.findOne({ where: { depositId: deposit.id } }),
+        MoneriumConversionExecution.findOne({
+          where: {
+            depositId: deposit.id,
+            kind: MoneriumConversionExecutionKind.Recover,
+            status: MoneriumConversionExecutionStatus.Confirmed
+          }
+        })
+      ]);
+      const managerProfileId = await resolveManagerProfileId(account);
+      const payload: WebhookPayload = {
+        eventId: `deposit-returned:${deposit.id}`,
+        eventType: WebhookEventType.DEPOSIT_RETURNED,
+        payload: {
+          ...depositPayloadBase(deposit, account),
+          refund: {
+            amount: recovery?.refundAmount ?? refundAmountFromRaw(deposit.amountRaw),
+            payerIbanMasked: deposit.payerIban ? maskIban(deposit.payerIban) : "",
+            recoverTxHash: recoverExecution?.txHash ?? null,
+            redeemOrderId: recovery?.redeemOrderId ?? null
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+      await enqueueForManager(WebhookEventType.DEPOSIT_RETURNED, managerProfileId, payload);
+      await deposit.update({ returnedEventAt: new Date() });
+    } catch (error) {
+      logger.error(`monerium-b2b: DEPOSIT_RETURNED emission failed for deposit ${deposit.id}:`, error);
+    }
+  }
+}
+
+/** The issue amount to the cent, for a refund closed by hand before a recovery row recorded it. */
+function refundAmountFromRaw(amountRaw: string): string {
+  const cents = BigInt(amountRaw) / 10n ** 16n;
+  return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+
 /**
  * Emits the manager-facing deposit events into the durable webhook outbox:
- * DEPOSIT_RECEIVED once a deposit is minted, DEPOSIT_CONVERTED once every portion is
- * allocated and all of its executions are confirmed at notification depth. Emission
- * markers make each event fire exactly once regardless of the advancing component.
+ * DEPOSIT_RECEIVED once a deposit is minted, DEPOSIT_CONVERTED once the whole converted
+ * deposit was forwarded to the destination and that forward sits at notification depth,
+ * DEPOSIT_RETURNED once a deposit that missed the promised window was refunded.
+ * Emission markers make each event fire exactly once regardless of the advancing component.
  */
 export async function emitMoneriumDepositEvents(deps: ManagerEventDeps = defaultDeps): Promise<void> {
   try {
     await emitReceivedEvents();
     await emitConvertedEvents(deps);
+    await emitReturnedEvents();
   } catch (error) {
     logger.error("monerium-b2b: manager event emission failed:", error);
   }

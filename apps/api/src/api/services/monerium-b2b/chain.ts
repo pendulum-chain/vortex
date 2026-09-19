@@ -7,9 +7,11 @@ import {
   Hex,
   http,
   PublicClient,
+  parseAbi,
   parseAbiItem,
   Transport,
-  WalletClient
+  WalletClient,
+  zeroAddress
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../config/logger";
@@ -52,11 +54,13 @@ export const NOTIFY_CONFIRMATION_DEPTH = 32;
 
 export const eureTransferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
-// SwapExecuted as a standalone event item for getLogs-based crash recovery (must stay
-// in sync with the entry in forwarderAbi below).
+// Standalone event items for getLogs-based crash recovery, one per keeper transaction
+// kind (must stay in sync with the entries in forwarderAbi below).
 export const swapExecutedEvent = parseAbiItem(
-  "event SwapExecuted(address indexed caller, uint256 eureIn, uint256 usdcOut, uint256 fee, uint256 forwarded)"
+  "event SwapExecuted(address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 referenceRate, uint256 fee, uint256 subsidy)"
 );
+export const forwardedEvent = parseAbiItem("event Forwarded(address indexed caller, uint256 amount)");
+export const recoveredEvent = parseAbiItem("event Recovered(address indexed caller, uint256 eureAmount, uint256 usdcAmount)");
 
 export const erc20Abi = [
   {
@@ -65,12 +69,76 @@ export const erc20Abi = [
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function"
+  },
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "approve",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
   }
 ] as const;
 
+/** Uniswap V3 SwapRouter02 `exactInput`, the same call the forwarder makes — used by the refund's reverse swap. */
+export const swapRouter02Abi = parseAbi([
+  "function exactInput((bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum) params) payable returns (uint256 amountOut)"
+]);
+
 export const forwarderAbi = [
   { inputs: [], name: "poke", outputs: [], stateMutability: "nonpayable", type: "function" },
-  { inputs: [], name: "swapAndForward", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [
+      { name: "referenceRate", type: "uint256" },
+      { name: "routeIndex", type: "uint256" },
+      { name: "amountIn", type: "uint256" },
+      { name: "maxSubsidy", type: "uint256" }
+    ],
+    name: "swap",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "forward",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  { inputs: [], name: "forwardAll", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [
+      { name: "eureAmount", type: "uint256" },
+      { name: "usdcAmount", type: "uint256" }
+    ],
+    name: "recover",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
   {
     inputs: [{ name: "paused", type: "bool" }],
     name: "setGuardianPaused",
@@ -78,13 +146,30 @@ export const forwarderAbi = [
     stateMutability: "nonpayable",
     type: "function"
   },
-  { inputs: [], name: "strandedSince", outputs: [{ name: "", type: "uint64" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "batchOpenedAt", outputs: [{ name: "", type: "uint64" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "RECOVERY_DELAY", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "RECOVERY_WALLET", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "guardianPaused", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "EURE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ROUTER", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "FACTORY", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "USDC", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ORACLE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "ORACLE_DECIMALS", outputs: [{ name: "", type: "uint8" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "SLIPPAGE_BPS", outputs: [{ name: "", type: "uint16" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "MAX_FEE_PPM", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [],
+    name: "MAX_REFERENCE_DEVIATION_BPS",
+    outputs: [{ name: "", type: "uint16" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  { inputs: [], name: "targetPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
   {
     anonymous: false,
-    inputs: [{ indexed: false, name: "strandedSince", type: "uint64" }],
+    inputs: [{ indexed: false, name: "batchOpenedAt", type: "uint64" }],
     name: "Poked",
     type: "event"
   },
@@ -92,12 +177,33 @@ export const forwarderAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "routeIndex", type: "uint256" },
       { indexed: false, name: "eureIn", type: "uint256" },
       { indexed: false, name: "usdcOut", type: "uint256" },
+      { indexed: false, name: "referenceRate", type: "uint256" },
       { indexed: false, name: "fee", type: "uint256" },
-      { indexed: false, name: "forwarded", type: "uint256" }
+      { indexed: false, name: "subsidy", type: "uint256" }
     ],
     name: "SwapExecuted",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" }
+    ],
+    name: "Forwarded",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "caller", type: "address" },
+      { indexed: false, name: "eureAmount", type: "uint256" },
+      { indexed: false, name: "usdcAmount", type: "uint256" }
+    ],
+    name: "Recovered",
     type: "event"
   },
   {
@@ -111,8 +217,40 @@ export const forwarderAbi = [
 export const factoryAbi = [
   { inputs: [], name: "minSwapAmount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "perSwapCap", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "MIN_SWAP_FLOOR", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }
+  { inputs: [], name: "MIN_SWAP_FLOOR", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "subsidyVault", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "routeCount", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [{ name: "index", type: "uint256" }],
+    name: "route",
+    outputs: [
+      { name: "path", type: "bytes" },
+      { name: "enabled", type: "bool" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
 ] as const;
+
+// VortexSubsidyVault: the guardian-tunable limits the keeper projects a swap against.
+export const subsidyVaultAbi = parseAbi([
+  "function maxSubsidyPpm() view returns (uint32)",
+  "function dailyBudget() view returns (uint256)",
+  "function spentToday() view returns (uint256)",
+  "function currentDay() view returns (uint256)",
+  "function paused() view returns (bool)"
+]);
+
+export const chainlinkAbi = parseAbi([
+  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)"
+]);
+
+/** Uniswap V3 QuoterV2 on Ethereum mainnet (the pinned quoting contract, PRD §7.4). */
+export const MAINNET_QUOTER_V2: Address = "0x61fFE014bA17989E743c5F6cB21bF9697530B21e";
+
+export const quoterV2Abi = parseAbi([
+  "function quoteExactInput(bytes path, uint256 amountIn) returns (uint256 amountOut, uint160[] sqrtPriceX96AfterList, uint32[] initializedTicksCrossedList, uint256 gasEstimate)"
+]);
 
 // ------------------------------------------------------------------ clients
 
@@ -121,6 +259,8 @@ export type KeeperWalletClient = WalletClient<Transport, undefined, Account>;
 let publicClientCache: PublicClient | null = null;
 let keeperClientCache: KeeperWalletClient | null = null;
 let guardianClientCache: KeeperWalletClient | null = null;
+let recoveryClientCache: KeeperWalletClient | null = null;
+let floatClientCache: KeeperWalletClient | null = null;
 let privateRpcWarned = false;
 
 export function isKeeperChainConfigured(): boolean {
@@ -197,6 +337,38 @@ export function getGuardianWalletClient(): KeeperWalletClient | null {
   return guardianClientCache;
 }
 
+/**
+ * Recovery-wallet client (MONERIUM_B2B_RECOVERY_PRIVATE_KEY): the immutable
+ * RECOVERY_WALLET's key, which signs the refund's reverse swap and the Monerium redeem
+ * message. Null when unset — the refund path then runs manually per the runbook.
+ */
+export function getRecoveryWalletClient(): KeeperWalletClient | null {
+  if (!config.moneriumB2b.recoveryPrivateKey) {
+    return null;
+  }
+  if (!recoveryClientCache) {
+    recoveryClientCache = createWalletClient({
+      account: privateKeyToAccount(config.moneriumB2b.recoveryPrivateKey as Hex),
+      transport: http(submissionRpcUrl())
+    });
+  }
+  return recoveryClientCache;
+}
+
+/** Float-wallet client (MONERIUM_B2B_FLOAT_PRIVATE_KEY): the EURe float that tops a refund up to the exact amount. */
+export function getFloatWalletClient(): KeeperWalletClient | null {
+  if (!config.moneriumB2b.floatPrivateKey) {
+    return null;
+  }
+  if (!floatClientCache) {
+    floatClientCache = createWalletClient({
+      account: privateKeyToAccount(config.moneriumB2b.floatPrivateKey as Hex),
+      transport: http(submissionRpcUrl())
+    });
+  }
+  return floatClientCache;
+}
+
 // ------------------------------------------------------------------ cached chain lookups
 
 let chainIdCache: number | null = null;
@@ -208,13 +380,23 @@ export async function getChainId(): Promise<number> {
   return chainIdCache;
 }
 
-interface ForwarderImmutables {
+export interface ForwarderImmutables {
   eure: Address;
   factory: Address;
+  router: Address;
+  maxFeePpm: number;
+  maxReferenceDeviationBps: number;
+  oracle: Address;
+  oracleDecimals: number;
+  /** Seconds a batch must have been open before the clone accepts `recover` (registry P3). */
+  recoveryDelaySeconds: number;
+  recoveryWallet: Address;
+  slippageBps: number;
+  usdc: Address;
 }
 
-// EURE/FACTORY are implementation-level immutables shared by every clone, so one
-// lookup per forwarder address is enough for the process lifetime.
+// Implementation-level immutables shared by every clone, so one lookup per forwarder
+// address is enough for the process lifetime.
 const forwarderImmutablesCache = new Map<string, ForwarderImmutables>();
 
 export async function getForwarderImmutables(forwarderAddress: Address): Promise<ForwarderImmutables> {
@@ -224,11 +406,120 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     return cached;
   }
   const client = getPublicClient();
-  const [eure, factory] = await Promise.all([
-    client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName: "EURE" }),
-    client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName: "FACTORY" })
+  const read = <
+    T extends
+      | "EURE"
+      | "FACTORY"
+      | "USDC"
+      | "ORACLE"
+      | "ORACLE_DECIMALS"
+      | "SLIPPAGE_BPS"
+      | "MAX_FEE_PPM"
+      | "MAX_REFERENCE_DEVIATION_BPS"
+      | "RECOVERY_DELAY"
+      | "RECOVERY_WALLET"
+      | "ROUTER"
+  >(
+    functionName: T
+  ) => client.readContract({ abi: forwarderAbi, address: forwarderAddress, functionName });
+  const [
+    eure,
+    factory,
+    usdc,
+    oracle,
+    oracleDecimals,
+    slippageBps,
+    maxFeePpm,
+    maxReferenceDeviationBps,
+    recoveryDelay,
+    recoveryWallet,
+    router
+  ] = await Promise.all([
+    read("EURE"),
+    read("FACTORY"),
+    read("USDC"),
+    read("ORACLE"),
+    read("ORACLE_DECIMALS"),
+    read("SLIPPAGE_BPS"),
+    read("MAX_FEE_PPM"),
+    read("MAX_REFERENCE_DEVIATION_BPS"),
+    read("RECOVERY_DELAY"),
+    read("RECOVERY_WALLET"),
+    read("ROUTER")
   ]);
-  const immutables = { eure, factory };
+  const immutables: ForwarderImmutables = {
+    eure,
+    factory,
+    maxFeePpm: Number(maxFeePpm),
+    maxReferenceDeviationBps: Number(maxReferenceDeviationBps),
+    oracle,
+    oracleDecimals: Number(oracleDecimals),
+    recoveryDelaySeconds: Number(recoveryDelay),
+    recoveryWallet,
+    router,
+    slippageBps: Number(slippageBps),
+    usdc
+  };
   forwarderImmutablesCache.set(key, immutables);
   return immutables;
+}
+
+// ------------------------------------------------------------------ routes + vault readers
+
+/** Enabled swap routes on the factory whitelist, by stable index. */
+export async function readEnabledRoutes(factory: Address): Promise<Array<{ index: number; path: Hex }>> {
+  const client = getPublicClient();
+  const count = Number(await client.readContract({ abi: factoryAbi, address: factory, functionName: "routeCount" }));
+  const routes = await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      client
+        .readContract({ abi: factoryAbi, address: factory, args: [BigInt(index)], functionName: "route" })
+        .then(([path, enabled]) => ({ enabled, index, path }))
+    )
+  );
+  return routes.filter(route => route.enabled).map(({ index, path }) => ({ index, path }));
+}
+
+/** Static QuoterV2 quote for `amountIn` over a packed path. Mainnet only (MAINNET_QUOTER_V2 pin). */
+export async function quoteRouteOutput(path: Hex, amountIn: bigint): Promise<bigint> {
+  const { result } = await getPublicClient().simulateContract({
+    abi: quoterV2Abi,
+    address: MAINNET_QUOTER_V2,
+    args: [path, amountIn],
+    functionName: "quoteExactInput"
+  });
+  return result[0];
+}
+
+export interface SubsidyVaultState {
+  balance: bigint;
+  dailyBudget: bigint;
+  maxSubsidyPpm: number;
+  paused: boolean;
+  /** Spent in the current UTC day; zero when the vault's day counter has rolled over. */
+  spentToday: bigint;
+}
+
+/** Live limits and balance of the factory's subsidy vault; null when none is configured. */
+export async function readSubsidyVaultState(vault: Address, usdc: Address): Promise<SubsidyVaultState | null> {
+  if (vault === zeroAddress) {
+    return null;
+  }
+  const client = getPublicClient();
+  const [balance, dailyBudget, maxSubsidyPpm, paused, spentToday, currentDay] = await Promise.all([
+    client.readContract({ abi: erc20Abi, address: usdc, args: [vault], functionName: "balanceOf" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "dailyBudget" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "maxSubsidyPpm" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "paused" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "spentToday" }),
+    client.readContract({ abi: subsidyVaultAbi, address: vault, functionName: "currentDay" })
+  ]);
+  const today = BigInt(Math.floor(Date.now() / 86_400_000));
+  return {
+    balance,
+    dailyBudget,
+    maxSubsidyPpm: Number(maxSubsidyPpm),
+    paused,
+    spentToday: currentDay === today ? spentToday : 0n
+  };
 }

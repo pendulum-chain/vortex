@@ -4,7 +4,8 @@ export enum WebhookEventType {
   TRANSACTION_CREATED = "TRANSACTION_CREATED",
   STATUS_CHANGE = "STATUS_CHANGE",
   DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED",
-  DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED"
+  DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED",
+  DEPOSIT_RETURNED = "DEPOSIT_RETURNED"
 }
 
 /**
@@ -13,13 +14,31 @@ export enum WebhookEventType {
  * transaction events in one webhook, and are delivered durably (at-least-once with
  * backoff) to the account's controlling manager.
  */
-export const ACCOUNT_WEBHOOK_EVENT_TYPES = [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED] as const;
+export const ACCOUNT_WEBHOOK_EVENT_TYPES = [
+  WebhookEventType.DEPOSIT_RECEIVED,
+  WebhookEventType.DEPOSIT_CONVERTED,
+  WebhookEventType.DEPOSIT_RETURNED
+] as const;
 
 export enum DepositStatus {
+  /** Provider order placed, EURe not minted yet. */
   PENDING = "pending",
+  /** EURe minted to the forwarder. */
   MINTED = "minted",
+  /** Provider compliance hold before the mint. */
   HELD = "held",
-  RETURNED = "returned"
+  /** The provider returned the payment before the mint. Terminal. */
+  RETURNED = "returned",
+  /** Conversion started; chunks accumulate on the forwarder until the whole deposit is converted. */
+  CONVERTING = "converting",
+  /** The whole converted deposit reached the destination in one transfer. Terminal. */
+  FORWARDED = "forwarded",
+  /** The deposit could not be converted inside the promised window; Vortex is refunding the payer. */
+  RECOVERING = "recovering",
+  /** The exact EUR amount was refunded to the payer's bank account. Terminal. */
+  REFUNDED = "refunded",
+  /** The refund needs operator intervention. */
+  RECOVERY_FAILED = "recovery_failed"
 }
 
 export enum TransactionStatus {
@@ -100,6 +119,21 @@ export interface DepositReceivedWebhookPayload {
   payload: DepositWebhookPayloadBase;
 }
 
+/**
+ * How a whole execution was priced (docs/architecture-monerium-b2b-onramp.md, fees section):
+ * the partner reference it was settled against, the fee Vortex took above the target
+ * band, and the subsidy the vault paid to reach the floor. Totals for the execution,
+ * not per deposit; a deposit's own share is its `usdcNetRaw`.
+ */
+export interface ConversionExecutionPricing {
+  /** Fee taken on the execution (6-decimal base units). */
+  feeRaw: string | null;
+  /** Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
+  referenceRateRaw: string | null;
+  /** Subsidy paid by the vault straight to the destination (6-decimal base units). */
+  subsidyRaw: string | null;
+}
+
 export interface DepositConvertedWebhookPayload {
   /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
   eventId: string;
@@ -110,14 +144,38 @@ export interface DepositConvertedWebhookPayload {
     conversions: Array<{
       /** EURe from this deposit consumed by this execution (18-decimal base units). */
       eureInRaw: string;
+      /** Execution-level pricing shared by every deposit portion the execution consumed. */
+      execution: ConversionExecutionPricing;
       executionId: string;
       /** The swap-and-forward transaction. */
       txHash: string | null;
       /** Net USDC from this execution attributed to this deposit (6-decimal base units). */
       usdcNetRaw: string;
     }>;
-    /** Aggregate net USDC attributed to the complete deposit (6-decimal base units). */
+    /** The single transaction that pushed the whole converted deposit to the destination. */
+    forwardTxHash: string | null;
+    /** Aggregate net USDC forwarded for the complete deposit (6-decimal base units). */
     usdcNetRaw: string;
+  };
+}
+
+/** A deposit that could not be converted inside the promised window was refunded to the payer's bank account. */
+export interface DepositReturnedWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_RETURNED;
+  timestamp: string;
+  payload: DepositWebhookPayloadBase & {
+    refund: {
+      /** The EUR amount refunded, to the cent ("1234.56"): always the full issue amount. */
+      amount: string;
+      /** The payer's IBAN the refund went to, masked to its first and last four characters. */
+      payerIbanMasked: string;
+      /** Monerium's redeem order id for the refund, when known. */
+      redeemOrderId: string | null;
+      /** The on-chain transaction that moved the deposit off the forwarding contract for the refund. */
+      recoverTxHash: string | null;
+    };
   };
 }
 
@@ -125,7 +183,8 @@ export type WebhookPayload =
   | TransactionCreatedWebhookPayload
   | StatusChangeWebhookPayload
   | DepositReceivedWebhookPayload
-  | DepositConvertedWebhookPayload;
+  | DepositConvertedWebhookPayload
+  | DepositReturnedWebhookPayload;
 
 export interface WebhookDeliveryAttempt {
   webhookId: string;

@@ -8,7 +8,7 @@ import { parseUnits } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import MoneriumAccount from "../../../models/moneriumAccount.model";
-import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
+import MoneriumConversionExecution from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
 import { getChainId, moneriumChainForChainId } from "./chain";
@@ -39,8 +39,10 @@ export async function withForwarderLock<T>(forwarderAddress: string, fn: (transa
   });
 }
 
-// Forward-only lattice (plan §3): pending → minted/held/returned; a compliance hold can
-// still resolve to minted or returned; minted/returned are terminal.
+// Forward-only lattice (plan §3): the provider states first — pending → minted/held/
+// returned, a compliance hold resolves to minted or returned — then the keeper's
+// settlement branch (minted → converting → forwarded) or the refund branch (minted or
+// converting → recovering → refunded, or recovery_failed for the operator, who may retry).
 const FORWARD_TRANSITIONS: Record<MoneriumFiatDepositStatus, readonly MoneriumFiatDepositStatus[]> = {
   [MoneriumFiatDepositStatus.Pending]: [
     MoneriumFiatDepositStatus.Minted,
@@ -48,13 +50,27 @@ const FORWARD_TRANSITIONS: Record<MoneriumFiatDepositStatus, readonly MoneriumFi
     MoneriumFiatDepositStatus.Returned
   ],
   [MoneriumFiatDepositStatus.Held]: [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Returned],
-  [MoneriumFiatDepositStatus.Minted]: [],
-  [MoneriumFiatDepositStatus.Returned]: []
+  [MoneriumFiatDepositStatus.Minted]: [MoneriumFiatDepositStatus.Converting, MoneriumFiatDepositStatus.Recovering],
+  [MoneriumFiatDepositStatus.Converting]: [MoneriumFiatDepositStatus.Forwarded, MoneriumFiatDepositStatus.Recovering],
+  [MoneriumFiatDepositStatus.Recovering]: [MoneriumFiatDepositStatus.Refunded, MoneriumFiatDepositStatus.RecoveryFailed],
+  [MoneriumFiatDepositStatus.RecoveryFailed]: [MoneriumFiatDepositStatus.Recovering],
+  [MoneriumFiatDepositStatus.Forwarded]: [],
+  [MoneriumFiatDepositStatus.Returned]: [],
+  [MoneriumFiatDepositStatus.Refunded]: []
 };
 
 export function isForwardTransition(from: MoneriumFiatDepositStatus, to: MoneriumFiatDepositStatus): boolean {
   return FORWARD_TRANSITIONS[from].includes(to);
 }
+
+/** Deposit states past the mint: a provider "processed" replay says nothing new about them. */
+export const PAST_MINT_STATUSES: readonly MoneriumFiatDepositStatus[] = [
+  MoneriumFiatDepositStatus.Converting,
+  MoneriumFiatDepositStatus.Forwarded,
+  MoneriumFiatDepositStatus.Recovering,
+  MoneriumFiatDepositStatus.Refunded,
+  MoneriumFiatDepositStatus.RecoveryFailed
+];
 
 /**
  * Maps a Monerium issue-order state to a deposit status, or null for states we do not
@@ -88,6 +104,9 @@ interface ParsedOrderEvent {
   profileId: string;
   state: string;
   txHash: string | null;
+  /** The payer's IBAN and name from the order's counterpart (Monerium "Issue orders" details), when present. */
+  payerIban: string | null;
+  payerName: string | null;
 }
 
 export interface ParsedIbanEvent {
@@ -161,12 +180,19 @@ export function parseOrderEvent(payload: unknown): ParsedOrderEvent | null {
   if (!event || (event.type !== "order.created" && event.type !== "order.updated")) return null;
   const data = event.data;
   if (data.kind !== "issue" || data.currency !== "eur") return null;
+  const identifier = data.counterpart.identifier as { iban?: unknown; standard: string };
+  const details = (data.counterpart.details ?? {}) as { name?: unknown };
   return {
     amount: data.amount,
     chain: data.chain,
     currency: data.currency,
     forwarderAddress: data.address,
     orderId: data.id,
+    payerIban:
+      identifier.standard === "iban" && typeof identifier.iban === "string"
+        ? identifier.iban.replace(/\s+/g, "").toUpperCase()
+        : null,
+    payerName: typeof details.name === "string" && details.name.trim() ? details.name.trim().slice(0, 140) : null,
     profileId: data.profile,
     state: data.state,
     txHash: data.meta.txHashes?.length === 1 ? data.meta.txHashes[0] : null
@@ -310,12 +336,12 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
       }
       if (unattributed.length === 1) {
         const mint = unattributed[0];
-        if (await MoneriumDepositAllocation.count({ transaction, where: { depositId: existing.id } })) {
-          logger.error(`monerium-b2b: webhook order ${event.orderId} already has allocations, refusing identity merge`);
+        if (await MoneriumConversionExecution.count({ transaction, where: { depositId: existing.id } })) {
+          logger.error(`monerium-b2b: webhook order ${event.orderId} already has executions, refusing identity merge`);
           await row.update({ processedAt: new Date() }, { transaction });
           return;
         }
-        await MoneriumDepositAllocation.update({ depositId: existing.id }, { transaction, where: { depositId: mint.id } });
+        await MoneriumConversionExecution.update({ depositId: existing.id }, { transaction, where: { depositId: mint.id } });
         await mint.destroy({ transaction });
         await existing.update(
           {
@@ -337,14 +363,20 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
           amountRaw,
           currency: event.currency,
           moneriumOrderId: event.orderId,
+          payerIban: event.payerIban,
+          payerName: event.payerName,
           status: targetStatus ?? MoneriumFiatDepositStatus.Pending,
           txHash: event.txHash
         },
         { transaction }
       );
     } else {
-      const updates: { status?: MoneriumFiatDepositStatus; txHash?: string } = {};
-      if (targetStatus && targetStatus !== existing.status) {
+      const updates: { payerIban?: string; payerName?: string; status?: MoneriumFiatDepositStatus; txHash?: string } = {};
+      // The refund target: filled once, never overwritten by a later delivery.
+      if (event.payerIban && !existing.payerIban) updates.payerIban = event.payerIban;
+      if (event.payerName && !existing.payerName) updates.payerName = event.payerName;
+      const alreadyPastMint = targetStatus === MoneriumFiatDepositStatus.Minted && PAST_MINT_STATUSES.includes(existing.status);
+      if (targetStatus && targetStatus !== existing.status && !alreadyPastMint) {
         if (isForwardTransition(existing.status, targetStatus)) {
           updates.status = targetStatus;
         } else {

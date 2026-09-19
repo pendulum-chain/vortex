@@ -2864,15 +2864,16 @@ export interface components {
              * @description Set while the account is dormancy-paused.
              */
             dormantSince: string | null;
-            /** @description The client's self-custodied recovery address. */
-            fallbackAddress: string;
-            feeBps: number;
+            /** @description Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap. */
+            floorPpm: number;
             /** @description The account's on-chain forwarding contract. */
             forwarderAddress: string;
             /** @description The account's dedicated IBAN; null until issuance completes. */
             iban: string | null;
             /** @enum {string} */
             status: "onboarding" | "active" | "suspended" | "closed";
+            /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
+            targetPpm: number;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];
@@ -2880,33 +2881,51 @@ export interface components {
         MoneriumB2bDeposit: {
             /** @description Deposit amount in 18-decimal base units of the deposit currency. */
             amountRaw: string;
-            /** @description Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit. */
+            /** @description The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits. */
             conversions: {
-                /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
+                /** @description EURe of this deposit consumed by the chunk in 18-decimal base units. */
                 eureInRaw: string;
+                /** @description The chunk's pricing: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the chunk is not yet confirmed. */
+                execution: {
+                    /** @description Fee taken on the chunk in 6-decimal base units. */
+                    feeRaw: string | null;
+                    /** @description Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
+                    referenceRateRaw: string | null;
+                    /** @description Subsidy paid by the vault onto the forwarding contract for the chunk, delivered with the deposit's transfer, in 6-decimal base units. */
+                    subsidyRaw: string | null;
+                };
                 executionId: string;
                 /**
                  * @description Execution status.
                  * @enum {string}
                  */
                 status: "pending" | "confirmed" | "failed";
-                /** @description The swap-and-forward transaction hash. */
+                /** @description The chunk swap transaction hash. */
                 txHash: string | null;
-                /** @description Net USDC from this execution attributed to this deposit in 6-decimal base units. */
+                /** @description Net USDC of the chunk (fill minus fee plus subsidy) in 6-decimal base units. */
                 usdcNetRaw: string;
             }[];
             /** Format: date-time */
             createdAt: string;
             currency: string;
             depositId: string;
+            /** @description The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded. */
+            forwardTxHash: string | null;
+            /** @description Present once the deposit entered the refund path (it could not be converted within the promised window): the EUR amount refunded to the payer once known, Monerium's redeem order id, and the transaction that moved the deposit off the forwarding contract. Null otherwise. */
+            refund: {
+                /** @description The EUR amount refunded, to the cent; null until the refund order is placed. */
+                amount: string | null;
+                recoverTxHash: string | null;
+                redeemOrderId: string | null;
+            } | null;
             /**
-             * @description Deposit status (forward-only).
+             * @description Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.
              * @enum {string}
              */
-            status: "pending" | "minted" | "held" | "returned";
+            status: "pending" | "minted" | "held" | "returned" | "converting" | "forwarded" | "recovering" | "refunded" | "recovery_failed";
             /** @description The on-chain mint transaction, when observed. */
             txHash: string | null;
-            /** @description Aggregate net USDC attributed to this deposit so far in 6-decimal base units. */
+            /** @description Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded. */
             usdcNetRaw: string;
         };
         MoneriumB2bDepositsResponse: {
