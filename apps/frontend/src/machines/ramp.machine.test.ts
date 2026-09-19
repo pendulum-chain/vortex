@@ -535,6 +535,25 @@ describe("rampMachine", () => {
       expect(actor.getSnapshot().context.initializeFailedMessage).toBe("Monerium has not approved your verification yet.");
     });
 
+    it("returns to QuoteReady instead of the wallet step when the user cancels the Monerium reconnect prompt", async () => {
+      // An approved profile whose backend OAuth session is gone closes with its status still APPROVED.
+      const rampError = { code: "MONERIUM_REAUTHENTICATION_REQUIRED", message: "Monerium reauthentication is required" };
+      const actor = createRampActor({
+        moneriumKyc: stubMoneriumKyc({ customerType: "individual", rampError, status: "APPROVED" }),
+        moneriumWallet: stubMoneriumWallet(),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor);
+      await waitFor(actor, s => s.matches({ KYC: "Monerium" }));
+
+      finishChild(actor, "moneriumKyc");
+      await waitFor(actor, s => s.matches("QuoteReady"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe(rampError.message);
+      expect(actor.getSnapshot().children.moneriumWallet).toBeUndefined();
+    });
+
     it("an unlinked wallet returns to QuoteReady with the wallet step's message", async () => {
       const actor = createRampActor({
         moneriumKyc: stubMoneriumKyc(),
