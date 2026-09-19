@@ -25,7 +25,6 @@ import {
   SUPPORTED_CHAINS,
   validateChainSupport
 } from "../phases/blocks/core/helpers";
-import { MykoboFeeUnavailableError } from "../phases/blocks/core/mykobo-fee";
 import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
 import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import { BaseRampService } from "../ramp/base.service";
