@@ -47,4 +47,15 @@ bun run start
 
 Passing `--legacy` exits with an error; it cannot start the retired Pendulum/Moonbeam flow.
 
+## Resetting a stuck run
+
+Each Base flow persists its phase in Supabase Storage and resumes it on the next cron run before
+anything new is quoted. If a run can no longer complete (for example its funds were moved back
+manually), inspect and reset the USDC → BRLA → USDC state after reconciling the funds:
+
+```bash
+bun run reset:usdc-base-state            # prints the persisted state, changes nothing
+bun run reset:usdc-base-state --confirm  # resets it to idle, keeping history
+```
+
 This project was created using `bun init` in bun v1.2.6. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
