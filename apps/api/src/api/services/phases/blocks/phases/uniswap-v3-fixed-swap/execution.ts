@@ -101,24 +101,32 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     return transaction;
   }
 
+  /**
+   * Sends the presigned transaction inside the financial-operation journal. `settledReceipt` is a
+   * successful receipt the caller already read for the transaction's deterministic hash: it lets a
+   * row left `submitted` by an earlier crash become `confirmed` without another RPC read or resend.
+   */
   protected async broadcast(
     state: RampState,
     transaction: `0x${string}`,
     dependencies: UniswapV3ExecutionDependencies,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    settledReceipt?: Receipt
   ): Promise<`0x${string}`> {
     const deterministicHash = keccak256(transaction);
-    const existingReceipt = await dependencies.getReceipt(deterministicHash);
-    if (existingReceipt) {
-      if (existingReceipt.status !== "success") {
+    const settle = (receipt: Receipt | null): { hash: `0x${string}` } | null => {
+      if (!receipt) return null;
+      if (receipt.status !== "success") {
         throw new FinancialOperationRejectedError(`Uniswap transaction ${deterministicHash} reverted`);
       }
-      return deterministicHash;
-    }
+      return { hash: deterministicHash };
+    };
     const result = await this.runFinancialOperation(state, {
       attemptClass: "uniswap-presigned-broadcast",
       externalId: value => value.hash,
       perform: async () => {
+        const known = settledReceipt ? settle(settledReceipt) : null;
+        if (known) return known;
         throwIfAborted(signal);
         const hash = await dependencies.sendRawTransaction(transaction);
         if (hash.toLowerCase() !== deterministicHash.toLowerCase()) {
@@ -129,14 +137,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         return { hash };
       },
       provider: Networks.Polygon,
-      reconcile: async () => {
-        const receipt = await dependencies.getReceipt(deterministicHash);
-        if (!receipt) return null;
-        if (receipt.status !== "success") {
-          throw new FinancialOperationRejectedError(`Uniswap transaction ${deterministicHash} reverted`);
-        }
-        return { hash: deterministicHash };
-      },
+      reconcile: async () => settle(settledReceipt ?? (await dependencies.getReceipt(deterministicHash))),
       request: { network: Networks.Polygon, signedTransaction: transaction },
       signal
     });
@@ -181,10 +182,11 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
     await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
     const transaction = await validateUniswapSwap(signed, expectation);
     // A swap that already settled on-chain has consumed the allowance, so the pre-flight checks can
-    // never pass again; skip them and the broadcast, which would otherwise re-read the receipt and,
-    // on a transient RPC failure, try to resend the mined transaction.
-    const settled = (await dependencies.getReceipt(keccak256(transaction)))?.status === "success";
-    if (!settled) {
+    // never pass again. Skip them and hand the receipt to the journal, which then confirms its row
+    // without a second read that could fail transiently and trigger a resend.
+    const receipt = await dependencies.getReceipt(keccak256(transaction));
+    const settledReceipt = receipt?.status === "success" ? receipt : undefined;
+    if (!settledReceipt) {
       if (BigInt(expectation.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
         throw this.createRecoverableError("Uniswap fixed swap signature expired before settlement");
       }
@@ -206,8 +208,8 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
         throw this.createRecoverableError("Uniswap fixed swap quote moved below its soft minimum");
       }
       await dependencies.simulateTransaction(transaction);
-      await this.broadcast(state, transaction, dependencies, signal);
     }
+    await this.broadcast(state, transaction, dependencies, signal, settledReceipt);
     const [remainingAllowance, outputBalance] = await Promise.all([
       dependencies.getAllowance(expectation.signer),
       dependencies.getBalance(POLYGON_USDC, expectation.signer)
