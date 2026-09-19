@@ -33,6 +33,7 @@
     "dev": "bun run src/index.ts",
     "format": "biome check --write --unsafe --no-errors-on-unmatched",
     "prepare": "husky",
+    "reset:usdc-base-state": "bun run src/scripts/resetUsdcBaseState.ts",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",
     "test": "bun test",
