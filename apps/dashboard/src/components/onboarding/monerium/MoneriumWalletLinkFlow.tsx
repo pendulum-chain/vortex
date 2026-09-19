@@ -11,7 +11,7 @@ import type { OnboardingStatus } from "@/domain/types";
 import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { apiClient } from "@/services/api/api-client";
 import { signMoneriumWalletLinkMessage } from "@/services/transactions/userSigning";
-import { moneriumWalletStep } from "./walletStep";
+import { MONERIUM_STATUS_MAX_POLLS, moneriumStatusPollInterval, moneriumWalletStep } from "./walletStep";
 
 const api = createMoneriumKycApi(apiClient);
 export const MONERIUM_STATUS_QUERY_KEY = ["monerium-status"] as const;
@@ -31,20 +31,21 @@ interface MoneriumWalletLinkFlowProps {
 export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: MoneriumWalletLinkFlowProps) {
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const statusQueryKey = [...MONERIUM_STATUS_QUERY_KEY, customerType];
   const status = useQuery({
     queryFn: () => api.getStatus(customerType),
-    queryKey: [...MONERIUM_STATUS_QUERY_KEY, customerType],
-    refetchInterval: query => {
-      const current = query.state.data?.ramp;
-      return query.state.error ||
-        !address ||
-        (current?.iban === "provisioned" && current.linkedAddress?.toLowerCase() === address.toLowerCase())
-        ? false
-        : 5_000;
-    },
+    queryKey: statusQueryKey,
+    refetchInterval: query =>
+      moneriumStatusPollInterval({
+        address,
+        error: query.state.error,
+        polls: query.state.dataUpdateCount,
+        ramp: query.state.data?.ramp
+      }),
     retry: false
   });
   const ramp = status.data?.ramp;
+  const pollsExhausted = (queryClient.getQueryState(statusQueryKey)?.dataUpdateCount ?? 0) >= MONERIUM_STATUS_MAX_POLLS;
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: MONERIUM_STATUS_QUERY_KEY });
@@ -191,6 +192,14 @@ export function MoneriumWalletLinkFlow({ customerType, onClose, onSettled }: Mon
             <p className="max-w-sm text-muted-foreground text-sm">Waiting for Monerium to update this IBAN’s destination…</p>
           )}
           {failure && <p className="max-w-sm text-destructive text-sm">{failure.message}</p>}
+          {pollsExhausted && (
+            <p className="max-w-sm text-muted-foreground text-sm">
+              Monerium is taking longer than usual.{" "}
+              <button className="underline" onClick={() => status.refetch()} type="button">
+                Check again
+              </button>
+            </p>
+          )}
         </div>
       </Centered>
       <DialogFooter>
