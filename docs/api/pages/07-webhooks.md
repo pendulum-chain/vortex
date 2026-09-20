@@ -6,7 +6,7 @@ You can subscribe to:
 
 - **Transaction creation** — a new ramp is registered.
 - **Status changes** — a ramp's status moves between `PENDING`, `COMPLETE`, and `FAILED`.
-- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`) or converted and forwarded (`DEPOSIT_CONVERTED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery.
+- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`), converted and forwarded (`DEPOSIT_CONVERTED`), or refunded because it could not be converted within the promised window (`DEPOSIT_RETURNED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery.
 
 ## Security Model
 
@@ -113,7 +113,7 @@ Managers whose business clients hold EUR onramp accounts can subscribe to deposi
 ```json
 {
   "url": "https://manager.example.com/vortex/deposits",
-  "events": ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"]
+  "events": ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED"]
 }
 ```
 
@@ -142,7 +142,7 @@ Fired once when a client's EUR deposit has been matched to the corresponding on-
 
 ### `DEPOSIT_CONVERTED`
 
-Fired once per deposit after the full deposit has been converted and every contributing execution has reached a safe confirmation depth on chain. A deposit split by the per-swap cap still produces one final aggregate event.
+Fired once per deposit after the whole deposit has been converted and forwarded to the destination in a single transfer, and that transfer has reached a safe confirmation depth on chain. A deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract; the destination still receives one transfer and you receive one event.
 
 ```json
 {
@@ -155,28 +155,64 @@ Fired once per deposit after the full deposit has been converted and every contr
     "depositId": "9f6f6a7e-...",
     "amountRaw": "100000000000000000000",
     "currency": "eur",
-    "status": "minted",
+    "status": "forwarded",
     "txHash": "0x...",
     "conversions": [
       {
         "eureInRaw": "60000000000000000000",
+        "execution": { "feeRaw": "81000", "referenceRateRaw": "108140000", "subsidyRaw": "0" },
         "executionId": "e77a...",
         "txHash": "0x...",
         "usdcNetRaw": "64800000"
       },
       {
         "eureInRaw": "40000000000000000000",
+        "execution": { "feeRaw": "0", "referenceRateRaw": "108120000", "subsidyRaw": "120000" },
         "executionId": "f88b...",
         "txHash": "0x...",
         "usdcNetRaw": "43200000"
       }
     ],
+    "forwardTxHash": "0x...",
     "usdcNetRaw": "108000000"
   }
 }
 ```
 
-Each `conversions[]` entry contains the EURe portion consumed and the net USDC attributed to this deposit by that execution. The payload-level `usdcNetRaw` is their aggregate. When one execution consumes several deposits, its output is divided proportionally by allocated EURe; floor dust goes to the largest allocation.
+Each `conversions[]` entry is one chunk swap of this deposit: the EURe it consumed and its net USDC. Chunks are never shared between deposits. `forwardTxHash` is the transaction that pushed the whole converted deposit to the destination, and the payload-level `usdcNetRaw` is the amount that single transfer carried (the sum of the chunks' nets).
+
+Deposit `status` values: `pending`, `minted`, `held`, `returned` (provider states), then `converting`, `forwarded`, or — when a payment cannot be converted within the promised window — `recovering`, `refunded`, `recovery_failed`. `DEPOSIT_RECEIVED` may already report `converting` when conversion started within the same minute.
+
+The nested `execution` object carries the pricing of the whole execution, identical on every deposit it consumed: `referenceRateRaw` is the EUR/USD reference the swap was settled against, the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). A deposit's own net already includes its share of both.
+
+### `DEPOSIT_RETURNED`
+
+Fired once per deposit that could not be converted within the promised window (or that an operator withdrew from conversion), after Vortex refunded the full EUR amount to the bank account the payment came from. Chunks already converted are swapped back and any shortfall is covered by Vortex; the payer always receives the exact issue amount.
+
+```json
+{
+  "eventId": "deposit-returned:9f6f6a7e-...",
+  "eventType": "DEPOSIT_RETURNED",
+  "timestamp": "2025-01-15T13:05:00.000Z",
+  "payload": {
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "depositId": "9f6f6a7e-...",
+    "amountRaw": "100000000000000000000",
+    "currency": "eur",
+    "status": "refunded",
+    "txHash": "0x...",
+    "refund": {
+      "amount": "100.00",
+      "payerIbanMasked": "DE89…3000",
+      "redeemOrderId": "8c0fd7b1-...",
+      "recoverTxHash": "0x..."
+    }
+  }
+}
+```
+
+`refund.amount` is the EUR amount refunded, to the cent — always the full issue amount. `payerIbanMasked` identifies the receiving account by its first and last four characters, `redeemOrderId` is Monerium's order for the outgoing SEPA transfer, and `recoverTxHash` the transaction that moved the deposit off the forwarding contract.
 
 ### Delivery Semantics
 

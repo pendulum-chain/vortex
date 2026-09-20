@@ -34,6 +34,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
+| [`proposal-monerium-b2b-settlement-and-recovery.md`](proposal-monerium-b2b-settlement-and-recovery.md) | Draft plan (2026-09-17) to rework PR #1375: whole-deposit USDC forwarding and automatic exact-amount refund recovery via a Vortex-held recovery wallet |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
 | [`proposal-sumsub-kyc-token-sharing.md`](proposal-sumsub-kyc-token-sharing.md) | Implemented and enabled in code on the branch; production readiness still awaits provider, legal, and sandbox confirmation |
 

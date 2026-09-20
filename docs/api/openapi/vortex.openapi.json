@@ -2517,11 +2517,8 @@
             "format": "date-time",
             "type": ["string", "null"]
           },
-          "fallbackAddress": {
-            "description": "The client's self-custodied recovery address.",
-            "type": "string"
-          },
-          "feeBps": {
+          "floorPpm": {
+            "description": "Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap.",
             "type": "integer"
           },
           "forwarderAddress": {
@@ -2535,6 +2532,10 @@
           "status": {
             "enum": ["onboarding", "active", "suspended", "closed"],
             "type": "string"
+          },
+          "targetPpm": {
+            "description": "Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it.",
+            "type": "integer"
           }
         },
         "required": [
@@ -2542,11 +2543,11 @@
           "createdAt",
           "destination",
           "dormantSince",
-          "fallbackAddress",
-          "feeBps",
+          "floorPpm",
           "forwarderAddress",
           "iban",
-          "status"
+          "status",
+          "targetPpm"
         ],
         "type": "object"
       },
@@ -2566,12 +2567,31 @@
             "type": "string"
           },
           "conversions": {
-            "description": "Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit.",
+            "description": "The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits.",
             "items": {
               "properties": {
                 "eureInRaw": {
-                  "description": "EURe from this deposit consumed by the execution in 18-decimal base units.",
+                  "description": "EURe of this deposit consumed by the chunk in 18-decimal base units.",
                   "type": "string"
+                },
+                "execution": {
+                  "description": "The chunk's pricing: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the chunk is not yet confirmed.",
+                  "properties": {
+                    "feeRaw": {
+                      "description": "Fee taken on the chunk in 6-decimal base units.",
+                      "type": ["string", "null"]
+                    },
+                    "referenceRateRaw": {
+                      "description": "Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8).",
+                      "type": ["string", "null"]
+                    },
+                    "subsidyRaw": {
+                      "description": "Subsidy paid by the vault onto the forwarding contract for the chunk, delivered with the deposit's transfer, in 6-decimal base units.",
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["feeRaw", "referenceRateRaw", "subsidyRaw"],
+                  "type": "object"
                 },
                 "executionId": {
                   "type": "string"
@@ -2582,15 +2602,15 @@
                   "type": "string"
                 },
                 "txHash": {
-                  "description": "The swap-and-forward transaction hash.",
+                  "description": "The chunk swap transaction hash.",
                   "type": ["string", "null"]
                 },
                 "usdcNetRaw": {
-                  "description": "Net USDC from this execution attributed to this deposit in 6-decimal base units.",
+                  "description": "Net USDC of the chunk (fill minus fee plus subsidy) in 6-decimal base units.",
                   "type": "string"
                 }
               },
-              "required": ["eureInRaw", "executionId", "status", "txHash", "usdcNetRaw"],
+              "required": ["eureInRaw", "execution", "executionId", "status", "txHash", "usdcNetRaw"],
               "type": "object"
             },
             "type": "array"
@@ -2605,9 +2625,40 @@
           "depositId": {
             "type": "string"
           },
+          "forwardTxHash": {
+            "description": "The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded.",
+            "type": ["string", "null"]
+          },
+          "refund": {
+            "description": "Present once the deposit entered the refund path (it could not be converted within the promised window): the EUR amount refunded to the payer once known, Monerium's redeem order id, and the transaction that moved the deposit off the forwarding contract. Null otherwise.",
+            "properties": {
+              "amount": {
+                "description": "The EUR amount refunded, to the cent; null until the refund order is placed.",
+                "type": ["string", "null"]
+              },
+              "recoverTxHash": {
+                "type": ["string", "null"]
+              },
+              "redeemOrderId": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["amount", "recoverTxHash", "redeemOrderId"],
+            "type": ["object", "null"]
+          },
           "status": {
-            "description": "Deposit status (forward-only).",
-            "enum": ["pending", "minted", "held", "returned"],
+            "description": "Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.",
+            "enum": [
+              "pending",
+              "minted",
+              "held",
+              "returned",
+              "converting",
+              "forwarded",
+              "recovering",
+              "refunded",
+              "recovery_failed"
+            ],
             "type": "string"
           },
           "txHash": {
@@ -2615,11 +2666,22 @@
             "type": ["string", "null"]
           },
           "usdcNetRaw": {
-            "description": "Aggregate net USDC attributed to this deposit so far in 6-decimal base units.",
+            "description": "Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded.",
             "type": "string"
           }
         },
-        "required": ["amountRaw", "conversions", "createdAt", "currency", "depositId", "status", "txHash", "usdcNetRaw"],
+        "required": [
+          "amountRaw",
+          "conversions",
+          "createdAt",
+          "currency",
+          "depositId",
+          "forwardTxHash",
+          "refund",
+          "status",
+          "txHash",
+          "usdcNetRaw"
+        ],
         "type": "object"
       },
       "MoneriumB2bDepositsResponse": {
@@ -11018,7 +11080,7 @@
                 "properties": {
                   "events": {
                     "items": {
-                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
+                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\", \"DEPOSIT_RETURNED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
                       "type": "string"
                     },
                     "type": "array"

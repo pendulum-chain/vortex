@@ -2,20 +2,22 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { WebhookEventType } from "@vortexfi/shared";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
-import MoneriumConversionExecution, { MoneriumConversionExecutionStatus } from "../../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import Webhook from "../../../models/webhook.model";
 import WebhookDelivery from "../../../models/webhookDelivery.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { provisionMoneriumB2bAccount } from "./account-provisioning";
 import { NOTIFY_CONFIRMATION_DEPTH } from "./chain";
-import { emitMoneriumDepositEvents } from "./manager-events";
+import { emitMoneriumDepositEvents, maskIban } from "./manager-events";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
-const FALLBACK = "0x3333333333333333333333333333333333333333";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 
 describe("monerium b2b manager events", () => {
@@ -47,7 +49,6 @@ describe("monerium b2b manager events", () => {
       contactEmail: "ops@client.example.com",
       destination: DESTINATION,
       externalSubjectId: "client-1",
-      fallbackAddress: FALLBACK,
       forwarderAddress: FORWARDER,
       managerProfileId: manager.id,
       moneriumProfileId: MONERIUM_PROFILE
@@ -155,26 +156,28 @@ describe("monerium b2b manager events", () => {
     expect(await WebhookDelivery.count()).toBe(0);
   });
 
-  it("emits one aggregate DEPOSIT_CONVERTED only after every allocation reaches confirmation depth", async () => {
+  it("emits DEPOSIT_RECEIVED for a deposit the keeper already started converting", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RECEIVED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "100000000000000000000",
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Converting,
+      txHash: "0xmint"
+    });
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const deliveries = await WebhookDelivery.findAll();
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0].payload).toMatchObject({ payload: { depositId: deposit.id, status: "converting" } });
+  });
+
+  it("emits one DEPOSIT_CONVERTED with every chunk once the forward reaches confirmation depth", async () => {
     const { mapped, webhook } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_CONVERTED]);
-    const firstExecution = await MoneriumConversionExecution.create({
-      accountId: mapped.accountId,
-      blockNumber: 1000,
-      destination: DESTINATION,
-      eureInRaw: "60000000000000000000",
-      status: MoneriumConversionExecutionStatus.Confirmed,
-      txHash: "0xswap1",
-      usdcNetRaw: "64800000"
-    });
-    const secondExecution = await MoneriumConversionExecution.create({
-      accountId: mapped.accountId,
-      blockNumber: 1001,
-      destination: DESTINATION,
-      eureInRaw: "40000000000000000000",
-      status: MoneriumConversionExecutionStatus.Confirmed,
-      txHash: "0xswap2",
-      usdcNetRaw: "43200000"
-    });
     const deposit = await MoneriumFiatDeposit.create({
       accountId: mapped.accountId,
       amountRaw: "100000000000000000000",
@@ -184,34 +187,60 @@ describe("monerium b2b manager events", () => {
       logIndex: 1,
       moneriumOrderId: "order-1",
       receivedEventAt: new Date(),
-      status: MoneriumFiatDepositStatus.Minted,
+      status: MoneriumFiatDepositStatus.Converting,
       txHash: "0xmint"
     });
-    await MoneriumDepositAllocation.create({
+    const firstExecution = await MoneriumConversionExecution.create({
+      accountId: mapped.accountId,
+      blockNumber: 1000,
       depositId: deposit.id,
+      destination: DESTINATION,
       eureInRaw: "60000000000000000000",
-      executionId: firstExecution.id,
+      feeRaw: "81000",
+      referenceRateRaw: "108140000",
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      subsidyRaw: "0",
+      txHash: "0xswap1",
       usdcNetRaw: "64800000"
     });
-
-    // A partially converted deposit must not produce a misleading final event.
-    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1000 + NOTIFY_CONFIRMATION_DEPTH)));
-    expect(await WebhookDelivery.count()).toBe(0);
-
-    await MoneriumDepositAllocation.create({
+    const secondExecution = await MoneriumConversionExecution.create({
+      accountId: mapped.accountId,
+      blockNumber: 1001,
       depositId: deposit.id,
+      destination: DESTINATION,
       eureInRaw: "40000000000000000000",
-      executionId: secondExecution.id,
+      feeRaw: "0",
+      referenceRateRaw: "108120000",
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      subsidyRaw: "120000",
+      txHash: "0xswap2",
       usdcNetRaw: "43200000"
     });
 
+    // Converted but not forwarded: the partner must not see a final event yet.
+    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1001 + NOTIFY_CONFIRMATION_DEPTH)));
+    expect(await WebhookDelivery.count()).toBe(0);
+
+    await MoneriumConversionExecution.create({
+      accountId: mapped.accountId,
+      blockNumber: 1002,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: "100000000000000000000",
+      kind: MoneriumConversionExecutionKind.Forward,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xforward",
+      usdcNetRaw: "108000000"
+    });
+    await deposit.update({ status: MoneriumFiatDepositStatus.Forwarded });
+
     // One block short of the depth: nothing emitted, marker untouched.
-    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1001 + NOTIFY_CONFIRMATION_DEPTH - 1)));
+    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1002 + NOTIFY_CONFIRMATION_DEPTH - 1)));
     expect(await WebhookDelivery.count()).toBe(0);
     await deposit.reload();
     expect(deposit.convertedEventAt).toBeNull();
 
-    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1001 + NOTIFY_CONFIRMATION_DEPTH)));
+    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1002 + NOTIFY_CONFIRMATION_DEPTH)));
     const deliveries = await WebhookDelivery.findAll();
     expect(deliveries).toHaveLength(1);
     expect(deliveries[0]).toMatchObject({
@@ -222,10 +251,24 @@ describe("monerium b2b manager events", () => {
     expect(deliveries[0].payload).toMatchObject({
       payload: {
         conversions: [
-          { eureInRaw: "60000000000000000000", executionId: firstExecution.id, txHash: "0xswap1", usdcNetRaw: "64800000" },
-          { eureInRaw: "40000000000000000000", executionId: secondExecution.id, txHash: "0xswap2", usdcNetRaw: "43200000" }
+          {
+            eureInRaw: "60000000000000000000",
+            execution: { feeRaw: "81000", referenceRateRaw: "108140000", subsidyRaw: "0" },
+            executionId: firstExecution.id,
+            txHash: "0xswap1",
+            usdcNetRaw: "64800000"
+          },
+          {
+            eureInRaw: "40000000000000000000",
+            execution: { feeRaw: "0", referenceRateRaw: "108120000", subsidyRaw: "120000" },
+            executionId: secondExecution.id,
+            txHash: "0xswap2",
+            usdcNetRaw: "43200000"
+          }
         ],
         depositId: deposit.id,
+        forwardTxHash: "0xforward",
+        status: "forwarded",
         usdcNetRaw: "108000000"
       }
     });
@@ -233,8 +276,61 @@ describe("monerium b2b manager events", () => {
     expect(deposit.convertedEventAt).not.toBeNull();
 
     // Replay is a no-op.
-    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1001 + NOTIFY_CONFIRMATION_DEPTH)));
+    await emitMoneriumDepositEvents(depsAtBlock(BigInt(1002 + NOTIFY_CONFIRMATION_DEPTH)));
     expect(await WebhookDelivery.count()).toBe(1);
+  });
+
+  it("emits DEPOSIT_RETURNED once a deposit was refunded, with the refund facts and a masked IBAN", async () => {
+    const { mapped, webhook } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "100000000000000000000",
+      blockNumber: 999,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      receivedEventAt: new Date(),
+      status: MoneriumFiatDepositStatus.Refunded,
+      txHash: "0xmint"
+    });
+    await MoneriumConversionExecution.create({
+      accountId: mapped.accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: "100000000000000000000",
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    await MoneriumRecovery.create({
+      depositId: deposit.id,
+      eureRecoveredRaw: "100000000000000000000",
+      phase: MoneriumRecoveryPhase.Redeemed,
+      redeemOrderId: "order-redeem-1",
+      refundAmount: "100.00",
+      usdcRecoveredRaw: "0"
+    });
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const deliveries = await WebhookDelivery.findAll();
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({ eventId: `deposit-returned:${deposit.id}`, webhookId: webhook?.id });
+    expect(deliveries[0].payload).toMatchObject({
+      eventType: WebhookEventType.DEPOSIT_RETURNED,
+      payload: {
+        depositId: deposit.id,
+        refund: { amount: "100.00", payerIbanMasked: "DE89…3000", recoverTxHash: "0xrecover", redeemOrderId: "order-redeem-1" },
+        status: "refunded"
+      }
+    });
+    await deposit.reload();
+    expect(deposit.returnedEventAt).not.toBeNull();
+    expect(maskIban("EE08 7224 5745 6244 9516")).toBe("EE08…9516");
   });
 
   it("only enqueues to the controlling manager's webhooks", async () => {

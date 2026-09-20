@@ -249,12 +249,28 @@ interface Config {
   // Separate credential set from the legacy consumer OAuth integration above.
   moneriumB2b: {
     attestorPrivateKey: string | undefined;
+    /** off: nothing; alert: log deposits past the window; auto: mark them and run the refund. */
+    autoRecovery: "off" | "alert" | "auto";
     enabled: boolean;
+    /** Key of the EURe float wallet that tops a refund up to the exact amount. */
+    floatPrivateKey: string | undefined;
+    /** Seconds between keeper cycles: how often a waiting chunk is re-quoted. */
+    keeperCycleSeconds: number;
     forwarderFactoryAddress: string | undefined;
     guardianPrivateKey: string | undefined;
     keeperPrivateKey: string | undefined;
     privateRpcUrl: string | undefined;
+    /** Promised conversion window from the mint, in minutes; the on-chain RECOVERY_DELAY is its floor. */
+    recoveryDeadlineMinutes: number;
+    /** Key of the immutable RECOVERY_WALLET: signs the reverse swap and the Monerium redeem message. */
+    recoveryPrivateKey: string | undefined;
     rpcUrl: string | undefined;
+    /**
+     * How much of a chunk's shortfall below the client's floor Vortex pays, as a ladder of
+     * "after N seconds waited, at most M bps of the reference value" steps; before the first
+     * step's time the keeper only executes fills at or above the floor.
+     */
+    subsidyLadder: Array<{ afterSeconds: number; maxSubsidyBps: number }>;
     webhookSecret: string;
   };
   subscanApiKey: string | undefined;
@@ -300,6 +316,32 @@ interface Config {
     maxExecutionFeeUsd: string;
     networkFeeMarginBps: number;
   };
+}
+
+/**
+ * Launch subsidy ladder (adr-0005 amendment 2026-09-18): nothing for six minutes, then
+ * 10 bps more every two minutes up to 50, then 100 bps from minute sixteen on.
+ */
+export const DEFAULT_SUBSIDY_LADDER = "0:0,360:10,480:20,600:30,720:40,840:50,960:100";
+
+/** Parses "seconds:bps,seconds:bps,..." into an ascending ladder; throws on anything malformed. */
+export function parseSubsidyLadder(raw: string | undefined): Array<{ afterSeconds: number; maxSubsidyBps: number }> {
+  const steps = (raw?.trim() || DEFAULT_SUBSIDY_LADDER).split(",").map(entry => {
+    const [seconds, bps] = entry.split(":").map(part => Number(part.trim()));
+    if (!Number.isInteger(seconds) || seconds < 0 || !Number.isInteger(bps) || bps < 0 || bps > 10_000) {
+      throw new Error(`MONERIUM_B2B_SUBSIDY_LADDER entry "${entry}" must be <seconds>:<bps> with bps in 0..10000`);
+    }
+    return { afterSeconds: seconds, maxSubsidyBps: bps };
+  });
+  if (steps[0].afterSeconds !== 0) {
+    throw new Error("MONERIUM_B2B_SUBSIDY_LADDER must start at 0 seconds");
+  }
+  for (let i = 1; i < steps.length; i++) {
+    if (steps[i].afterSeconds <= steps[i - 1].afterSeconds || steps[i].maxSubsidyBps < steps[i - 1].maxSubsidyBps) {
+      throw new Error("MONERIUM_B2B_SUBSIDY_LADDER steps must ascend in both seconds and bps");
+    }
+  }
+  return steps;
 }
 
 export const config: Config = {
@@ -370,16 +412,24 @@ export const config: Config = {
     // (MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_API_URL — @vortexfi/shared);
     // this block keeps only the chain/keeper-specific settings.
     attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
+    autoRecovery: (["alert", "auto"].includes(process.env.MONERIUM_B2B_AUTO_RECOVERY ?? "")
+      ? process.env.MONERIUM_B2B_AUTO_RECOVERY
+      : "off") as "off" | "alert" | "auto",
     enabled: process.env.MONERIUM_B2B_ENABLED === "true",
+    floatPrivateKey: process.env.MONERIUM_B2B_FLOAT_PRIVATE_KEY,
     forwarderFactoryAddress: process.env.MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS,
     // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
     // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
     guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
+    keeperCycleSeconds: Number(process.env.MONERIUM_B2B_KEEPER_CYCLE_SECONDS || 20),
     keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
     // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
     // the keeper falls back to the public RPC and logs a warning (see chain.ts).
     privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    recoveryDeadlineMinutes: Number(process.env.MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES || 120),
+    recoveryPrivateKey: process.env.MONERIUM_B2B_RECOVERY_PRIVATE_KEY,
     rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
+    subsidyLadder: parseSubsidyLadder(process.env.MONERIUM_B2B_SUBSIDY_LADDER),
     webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
   mykobo: {
@@ -505,10 +555,30 @@ if (config.moneriumB2b.enabled) {
   ) {
     throw new Error("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS must be a valid EVM address");
   }
+  if (config.moneriumB2b.autoRecovery === "auto") {
+    const missingRecovery: string[] = [];
+    if (!config.moneriumB2b.recoveryPrivateKey) missingRecovery.push("MONERIUM_B2B_RECOVERY_PRIVATE_KEY");
+    if (!config.moneriumB2b.floatPrivateKey) missingRecovery.push("MONERIUM_B2B_FLOAT_PRIVATE_KEY");
+    if (missingRecovery.length > 0) {
+      throw new Error(`MONERIUM_B2B_AUTO_RECOVERY=auto requires ${missingRecovery.join(", ")}`);
+    }
+  }
+  if (!Number.isInteger(config.moneriumB2b.recoveryDeadlineMinutes) || config.moneriumB2b.recoveryDeadlineMinutes <= 0) {
+    throw new Error("MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES must be a positive integer");
+  }
+  if (!Number.isInteger(config.moneriumB2b.keeperCycleSeconds) || config.moneriumB2b.keeperCycleSeconds < 5) {
+    throw new Error("MONERIUM_B2B_KEEPER_CYCLE_SECONDS must be an integer of at least 5");
+  }
   for (const [name, value] of [
     ["MONERIUM_B2B_ATTESTOR_PRIVATE_KEY", config.moneriumB2b.attestorPrivateKey],
     ["MONERIUM_B2B_GUARDIAN_PRIVATE_KEY", config.moneriumB2b.guardianPrivateKey],
-    ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey]
+    ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey],
+    ...(config.moneriumB2b.recoveryPrivateKey
+      ? ([["MONERIUM_B2B_RECOVERY_PRIVATE_KEY", config.moneriumB2b.recoveryPrivateKey]] as const)
+      : []),
+    ...(config.moneriumB2b.floatPrivateKey
+      ? ([["MONERIUM_B2B_FLOAT_PRIVATE_KEY", config.moneriumB2b.floatPrivateKey]] as const)
+      : [])
   ] as const) {
     if (!/^0x[0-9a-fA-F]{64}$/.test(value as string)) {
       throw new Error(`${name} must be a 32-byte 0x-prefixed private key`);
