@@ -116,6 +116,7 @@ const routeQueues = new Map<string, PQueue>();
 
 // Cap any retryAfter value Squidrouter returns to avoid pathologically long waits if the API misbehaves.
 const MAX_RETRY_AFTER_MS = 5000;
+const TRANSIENT_RETRY_DELAY_MS = 1000;
 
 class HttpError extends Error {
   status: number;
@@ -201,13 +202,20 @@ async function getRouteInternalWithRetry(params: RouteParams): Promise<Squidrout
   try {
     return await getRouteInternal(params);
   } catch (error) {
-    const retryAfterMs = extractRateLimitRetryAfterMs(error);
+    const retryAfterMs =
+      extractRateLimitRetryAfterMs(error) ?? (isTransientUpstreamError(error) ? TRANSIENT_RETRY_DELAY_MS : undefined);
     if (retryAfterMs === undefined) throw error;
 
-    logger.current.warn(`Squidrouter rate limit hit. Retrying once after ${retryAfterMs}ms.`);
+    logger.current.warn(`Squidrouter route request failed transiently. Retrying once after ${retryAfterMs}ms.`);
     await sleep(retryAfterMs);
     return getRouteInternal(params);
   }
+}
+
+// A 5xx whose body is not Squid's JSON error shape comes from the gateway in front of Squid
+// (observed ~1-2 times per hour in production); a single retry is cheap for this read-only query.
+function isTransientUpstreamError(error: unknown): boolean {
+  return error instanceof HttpError && error.status >= 500 && typeof error.data === "string";
 }
 
 function extractRateLimitRetryAfterMs(error: unknown): number | undefined {
