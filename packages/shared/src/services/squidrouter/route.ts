@@ -116,6 +116,7 @@ const routeQueues = new Map<string, PQueue>();
 
 // Cap any retryAfter value Squidrouter returns to avoid pathologically long waits if the API misbehaves.
 const MAX_RETRY_AFTER_MS = 5000;
+const TRANSIENT_RETRY_DELAY_MS = 1000;
 
 class HttpError extends Error {
   status: number;
@@ -131,7 +132,15 @@ class HttpError extends Error {
 async function squidFetch<T>(url: string, options: RequestInit): Promise<{ data: T; headers: Headers }> {
   const response = await fetch(url, options);
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    // Squid's own errors are JSON; keep a non-JSON body (Cloudflare / load-balancer error page) as text.
+    // A body that cannot be read (truncated stream) must still surface the status, so treat it as empty.
+    const text = await response.text().catch(() => "");
+    let errorData: unknown = text;
+    try {
+      errorData = JSON.parse(text);
+    } catch {
+      // not JSON: the raw text is the most useful thing to log and marks the error as a gateway error
+    }
     throw new HttpError(response.status, errorData);
   }
   const data = (await response.json()) as T;
@@ -194,13 +203,20 @@ async function getRouteInternalWithRetry(params: RouteParams): Promise<Squidrout
   try {
     return await getRouteInternal(params);
   } catch (error) {
-    const retryAfterMs = extractRateLimitRetryAfterMs(error);
+    const retryAfterMs =
+      extractRateLimitRetryAfterMs(error) ?? (isTransientUpstreamError(error) ? TRANSIENT_RETRY_DELAY_MS : undefined);
     if (retryAfterMs === undefined) throw error;
 
-    logger.current.warn(`Squidrouter rate limit hit. Retrying once after ${retryAfterMs}ms.`);
+    logger.current.warn(`Squidrouter route request failed transiently. Retrying once after ${retryAfterMs}ms.`);
     await sleep(retryAfterMs);
     return getRouteInternal(params);
   }
+}
+
+// A 5xx whose body is not Squid's JSON error shape comes from the gateway in front of Squid
+// (observed ~1-2 times per hour in production); a single retry is cheap for this read-only query.
+function isTransientUpstreamError(error: unknown): boolean {
+  return error instanceof HttpError && error.status >= 500 && typeof error.data === "string";
 }
 
 function extractRateLimitRetryAfterMs(error: unknown): number | undefined {
@@ -241,7 +257,7 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
     });
   } catch (error) {
     if (error instanceof HttpError) {
-      logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.data)}`);
+      logger.current.error(`Error fetching route from Squidrouter API: HTTP ${error.status} ${JSON.stringify(error.data)}`);
       const message =
         typeof error.data === "object" && error.data !== null && "message" in error.data
           ? String((error.data as { message: unknown }).message)
