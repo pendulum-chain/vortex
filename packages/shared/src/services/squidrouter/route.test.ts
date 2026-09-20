@@ -87,6 +87,20 @@ describe("getRoute upstream error handling", () => {
     expect(state.calls).toBe(2);
   });
 
+  test("retries a 5xx whose body cannot be read instead of dropping the status", async () => {
+    const truncated = new ReadableStream({
+      start(controller) {
+        controller.error(new TypeError("terminated"));
+      }
+    });
+    const state = fetchSequence([new Response(truncated, { status: 502 }), Response.json(validRouteBody)]);
+
+    const result = await getRoute(params);
+
+    expect(result.data.route.quoteId).toBe("quote-1");
+    expect(state.calls).toBe(2);
+  });
+
   test("does not retry Squid's own JSON errors and surfaces their message", async () => {
     const state = fetchSequence([
       Response.json({ message: "Low liquidity, please reduce swap amount and try again", statusCode: 500 }, { status: 500 })

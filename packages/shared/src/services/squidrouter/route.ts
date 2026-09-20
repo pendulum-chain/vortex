@@ -133,7 +133,8 @@ async function squidFetch<T>(url: string, options: RequestInit): Promise<{ data:
   const response = await fetch(url, options);
   if (!response.ok) {
     // Squid's own errors are JSON; keep a non-JSON body (Cloudflare / load-balancer error page) as text.
-    const text = await response.text();
+    // A body that cannot be read (truncated stream) must still surface the status, so treat it as empty.
+    const text = await response.text().catch(() => "");
     let errorData: unknown = text;
     try {
       errorData = JSON.parse(text);
