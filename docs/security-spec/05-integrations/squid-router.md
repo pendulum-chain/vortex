@@ -116,6 +116,6 @@ The removed input-currency-to-RPC fallback no longer exists. The block executor 
 - [x] **No-permit fallback receipt validation**: `waitForUserHash` verifies receipt `from`, receipt `to`, and transaction `input` against the expected user address and presigned EVM transaction payload before advancing.
 - [x] **Skip-Squid trivial path**: the block catalog selects the direct flow for exact same-chain corridors; direct quote simulation preserves zero network fee and transaction preparation omits Squid phases. **PASS** — no security checks bypassed.
 - [x] **Destination-token raw output metadata**: `evmToEvm.outputAmountRaw` preserves Squid's `route.estimate.toAmount` in destination raw units, including routed Alfredpay onramps. **PASS** — prevents Base/Polygon 6-decimal source → BSC USDT-style 18-decimal destination under-scaling.
-- [x] **Squid 429 rate-limit retry**: exponential backoff. **PASS — verify backoff cap.**
+- [x] **Squid 429 and gateway 5xx retry**: a single retry, after the advertised `retryAfter` capped at 5 s (`MAX_RETRY_AFTER_MS`) for a 429 and after 1 s for a 5xx with a non-JSON body; Squid's own JSON errors fail fast. **PASS**
 - [x] **Arrival timeout**: `waitUntilTrue` accepts a timeout argument. **PASS** — verify all callers pass a finite value.
 - [EXISTING FINDING F-054]: `backupSquidRouterApprove`/`backupSquidRouterSwap`/`backupApprove` presigned txs have no registered phase handler. Either dead code or missing implementation.
