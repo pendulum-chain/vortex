@@ -131,7 +131,14 @@ class HttpError extends Error {
 async function squidFetch<T>(url: string, options: RequestInit): Promise<{ data: T; headers: Headers }> {
   const response = await fetch(url, options);
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    // Squid's own errors are JSON; keep a non-JSON body (Cloudflare / load-balancer error page) as text.
+    const text = await response.text();
+    let errorData: unknown = text;
+    try {
+      errorData = JSON.parse(text);
+    } catch {
+      // not JSON: the raw text is the most useful thing to log and marks the error as a gateway error
+    }
     throw new HttpError(response.status, errorData);
   }
   const data = (await response.json()) as T;
@@ -241,7 +248,7 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
     });
   } catch (error) {
     if (error instanceof HttpError) {
-      logger.current.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.data)}`);
+      logger.current.error(`Error fetching route from Squidrouter API: HTTP ${error.status} ${JSON.stringify(error.data)}`);
       const message =
         typeof error.data === "object" && error.data !== null && "message" in error.data
           ? String((error.data as { message: unknown }).message)
