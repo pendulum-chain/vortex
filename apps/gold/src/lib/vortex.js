@@ -235,15 +235,24 @@ export function classifyRamp(ramp) {
   return "processing";
 }
 
-export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, timeoutMs = 20 * 60_000, signal } = {}) {
+// No response, a timeout, rate limiting or a server error; auth and validation errors are final.
+function isTransientError(error) {
+  const status = Number(error?.status || 0);
+  return [0, 408, 425, 429].includes(status) || status >= 500;
+}
+
+export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, timeoutMs = 20 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
   const startedAt = Date.now();
+  let failures = 0;
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const ramp = await client.getRampStatus(rampId);
-    onUpdate?.(ramp);
-    const classification = classifyRamp(ramp);
-    if (["success", "failure"].includes(classification)) {
-      return ramp;
+    let ramp = null;
+    // A mobile network blip must not end the tracking of a ramp that keeps running server-side.
+    try { ramp = await client.getRampStatus(rampId); failures = 0; }
+    catch (error) { if (!isTransientError(error) || ++failures >= maxConsecutiveErrors) throw error; }
+    if (ramp) {
+      onUpdate?.(ramp);
+      if (["success", "failure"].includes(classifyRamp(ramp))) return ramp;
     }
     await new Promise((resolve, reject) => {
       const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, resolveApiBase } from "../src/lib/vortex.js";
+import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, resolveApiBase } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -37,4 +37,27 @@ test("resolves the API base against the page origin unless an absolute URL is co
   assert.equal(resolveApiBase(undefined, "https://www.vortexfinance.co"), "https://www.vortexfinance.co/api/production");
   assert.equal(resolveApiBase("/api/staging/", "https://deploy-preview-1--vortexfi.netlify.app"), "https://deploy-preview-1--vortexfi.netlify.app/api/staging");
   assert.equal(resolveApiBase("https://api.vortexfinance.co", "https://www.vortexfinance.co"), "https://api.vortexfinance.co");
+});
+
+test("ramp polling rides out network blips and server errors", async () => {
+  let calls = 0;
+  const client = { getRampStatus: async () => {
+    calls += 1;
+    if (calls <= 2) throw new TypeError("Failed to fetch");
+    if (calls === 3) throw Object.assign(new Error("Bad gateway"), { status: 502 });
+    return { status: "COMPLETE", currentPhase: "complete" };
+  } };
+  assert.equal(classifyRamp(await pollRamp(client, "r1", { intervalMs: 1 })), "success");
+  assert.equal(calls, 4);
+});
+
+test("ramp polling surfaces persistent outages and final errors", async () => {
+  let calls = 0;
+  const offline = { getRampStatus: async () => { calls += 1; throw new TypeError("Failed to fetch"); } };
+  await assert.rejects(pollRamp(offline, "r1", { intervalMs: 1, maxConsecutiveErrors: 3 }), /Failed to fetch/);
+  assert.equal(calls, 3);
+  calls = 0;
+  const signedOut = { getRampStatus: async () => { calls += 1; throw Object.assign(new Error("Unauthorized"), { status: 401 }); } };
+  await assert.rejects(pollRamp(signedOut, "r1", { intervalMs: 1 }), /Unauthorized/);
+  assert.equal(calls, 1);
 });
