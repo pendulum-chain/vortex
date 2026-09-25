@@ -91,7 +91,7 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
 .login-other-trigger { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: #5f5a52; cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
 .login-other-trigger svg { transition: transform 160ms ease; }
 .login-other-trigger svg.open { transform: rotate(180deg); }
-.legal-note { margin: 16px 8px 0; color: #837d74; font-size: 11px; line-height: 1.5; text-align: center; }
+.legal-note { margin: 16px 8px 0; color: #6b665f; font-size: 12px; line-height: 1.5; text-align: center; }
 .welcome-grid { display: grid; grid-template-columns: 1.08fr .92fr; gap: 24px; margin: 26px 0; }
 .welcome-lede { color: var(--muted); font-size: 18px; line-height: 1.5; }
 .welcome-points { display: grid; gap: 16px; }
