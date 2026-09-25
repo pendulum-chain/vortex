@@ -101,8 +101,10 @@ export async function refreshVortexSession() {
     clearVortexSession();
     throw new VortexError("Sua sessão de segurança expirou. Solicite um novo código.", { status: 401, code: "SESSION_EXPIRED" });
   }
+  // Only a 401 means the refresh token is invalid (security spec, Supabase OTP rule 9); a network
+  // error or a 503 must keep the session so the user is not logged out mid-operation.
   refreshPromise = api("/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: session.refresh_token }) })
-    .then(setVortexSession).catch((error) => { clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
+    .then(setVortexSession).catch((error) => { if (error.status === 401) clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
   return refreshPromise;
 }
 

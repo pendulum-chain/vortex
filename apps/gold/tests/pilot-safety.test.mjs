@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, requestVortexOtp, setVortexSession, getFreshAccessToken, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
+import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, requestVortexOtp, setVortexSession, getFreshAccessToken, getVortexSession, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
 import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, PAXG_ADDRESS } from '../src/lib/paxg.js';
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp } from '../src/lib/pilot-store.js';
 
@@ -108,4 +108,16 @@ test('the e-mail code is requested in Brazilian Portuguese',async()=>{
     await requestVortexOtp(' Ana@Example.com ');
     assert.deepEqual(body,{email:'ana@example.com',locale:'pt-BR'});
   } finally {globalThis.fetch=old;}
+});
+test('only a rejected refresh token ends the Vortex session',async()=>{
+  const old=globalThis.fetch;let status;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  try {
+    setVortexSession({access_token:jwt(1),refresh_token:'fake-test-only'});
+    globalThis.fetch=async()=>new Response(JSON.stringify({error:'unavailable'}),{status});
+    status=503; await assert.rejects(getFreshAccessToken());
+    assert.equal(getVortexSession()?.refresh_token,'fake-test-only');
+    status=401; await assert.rejects(getFreshAccessToken());
+    assert.equal(getVortexSession(),null);
+  } finally {clearVortexSession();globalThis.fetch=old;}
 });
