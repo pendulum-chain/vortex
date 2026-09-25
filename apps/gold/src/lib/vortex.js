@@ -90,8 +90,15 @@ export async function requestVortexOtp(email) {
 }
 
 export async function verifyVortexOtp(email, token) {
-  const session = await api("/v1/auth/verify-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase(), token: String(token).replace(/\D/g, "") }) });
-  return setVortexSession(session);
+  const verifiedEmail = String(email).trim().toLowerCase();
+  const session = await api("/v1/auth/verify-otp", { method: "POST", body: JSON.stringify({ email: verifiedEmail, token: String(token).replace(/\D/g, "") }) });
+  // Kept with the session, like the widget's stored user e-mail, so it is only reused for that address.
+  return setVortexSession({ ...session, email: verifiedEmail });
+}
+
+// A session verified in this tab for the same e-mail skips the code step; a rejected one falls back to it.
+export function hasVortexSession(email) {
+  return getVortexSession()?.email === String(email || "").trim().toLowerCase();
 }
 
 export async function refreshVortexSession() {
@@ -104,7 +111,7 @@ export async function refreshVortexSession() {
   // Only a 401 means the refresh token is invalid (security spec, Supabase OTP rule 9); a network
   // error or a 503 must keep the session so the user is not logged out mid-operation.
   refreshPromise = api("/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: session.refresh_token }) })
-    .then(setVortexSession).catch((error) => { if (error.status === 401) clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
+    .then((next) => setVortexSession({ ...next, email: session.email })).catch((error) => { if (error.status === 401) clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
   return refreshPromise;
 }
 
