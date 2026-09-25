@@ -253,6 +253,12 @@ export function classifyRamp(ramp, now = Date.now()) {
   return "processing";
 }
 
+// Status responses carry createdAt but no expiresAt; start is refused 15 minutes after registration.
+export function rampStartDeadline(ramp) {
+  if (ramp?.expiresAt) return new Date(ramp.expiresAt).getTime();
+  return ramp?.createdAt ? Date.parse(ramp.createdAt) + 15 * 60_000 : null;
+}
+
 export function secondsUntilExpiry(expiresAt, now = Date.now()) {
   return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
 }

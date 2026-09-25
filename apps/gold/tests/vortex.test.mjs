@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
+import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -40,6 +40,12 @@ test("an unstarted ramp an hour after registration stops blocking new operations
   assert.equal(classifyRamp(pix, at(30)), "awaiting_payment");
   assert.equal(classifyRamp(pix, at(61)), "failure");
   assert.equal(classifyRamp({ status: "PENDING", currentPhase: "brlaOnrampMint", createdAt }, at(61)), "processing");
+});
+
+test("a resumed PIX counts down to the real start deadline", () => {
+  assert.equal(rampStartDeadline({ expiresAt: "2030-01-01T00:15:00.000Z" }), Date.parse("2030-01-01T00:15:00.000Z"));
+  assert.equal(rampStartDeadline({ createdAt: "2030-01-01T00:00:00.000Z" }), Date.parse("2030-01-01T00:15:00.000Z"));
+  assert.equal(rampStartDeadline({}), null);
 });
 
 test("resolves the API base against the page origin unless an absolute URL is configured", () => {

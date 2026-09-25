@@ -18,6 +18,7 @@ import {
   getBrazilKycUploads,
   pollBrazilKyc,
   pollRamp,
+  rampStartDeadline,
   registerPaxgBuy,
   requestVortexOtp,
   secondsUntilExpiry,
@@ -170,7 +171,7 @@ function ConfirmStep({ amount, quote, market, onNext, loading, error }) {
 }
 
 function PixStep({ ramp, quote, copied, onCopy, onPaid, loading, error }) {
-  const [expiresAt] = useState(() => ramp.expiresAt || Date.now() + 600_000);
+  const [expiresAt] = useState(() => rampStartDeadline(ramp) ?? Date.now() + 600_000);
   const [seconds, setSeconds] = useState(() => secondsUntilExpiry(expiresAt));
   // Read the clock on every tick: timers pause while the user pays in the banking app.
   useEffect(() => { const timer = setInterval(() => setSeconds(secondsUntilExpiry(expiresAt)), 1000); return () => clearInterval(timer); }, [expiresAt]);
