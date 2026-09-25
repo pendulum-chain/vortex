@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, setVortexSession, getFreshAccessToken, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
+import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, setVortexSession, getFreshAccessToken, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
 import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, PAXG_ADDRESS } from '../src/lib/paxg.js';
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp } from '../src/lib/pilot-store.js';
 
@@ -88,5 +88,16 @@ test('concurrent expired sessions rotate once and retain refreshed session',asyn
     globalThis.fetch=async(url)=>{assert.match(url,/auth\/refresh$/);calls++;return new Response(JSON.stringify({access_token:refreshed,refresh_token:'rotated-test-only'}));};
     assert.deepEqual(await Promise.all([getFreshAccessToken(),getFreshAccessToken()]),[refreshed,refreshed]);
     assert.equal(calls,1);
+  } finally {clearVortexSession();globalThis.fetch=old;}
+});
+test('resuming a sell asks the API for the ramp\'s unsigned wallet transactions',async()=>{
+  const old=globalThis.fetch;const seen=[];
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    globalThis.fetch=async(url,init)=>{seen.push({url,init});return new Response(JSON.stringify({id:'r1',currentPhase:'initial',unsignedTxs:[{phase:'squidRouterApprove',signer:address}]}));};
+    assert.equal((await getRampWithUnsignedTxs('r1')).unsignedTxs.length,1);
+    assert.match(seen[0].url,/\/v1\/ramp\/r1\?showUnsignedTxs=true$/);
+    assert.match(seen[0].init.headers.Authorization,/^Bearer /);
   } finally {clearVortexSession();globalThis.fetch=old;}
 });

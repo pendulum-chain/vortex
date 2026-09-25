@@ -219,6 +219,11 @@ export async function registerPaxgSell({ client, quote, walletAddress, ethereumP
   return result.rampProcess;
 }
 
+// The SDK's status call omits unsignedTxs; resuming a sell needs them to ask the wallet again.
+export async function getRampWithUnsignedTxs(rampId) {
+  return authenticatedApi(`/v1/ramp/${encodeURIComponent(rampId)}?showUnsignedTxs=true`, { method: "GET" });
+}
+
 export async function startRampSafely(client, rampId) {
   try { return await client.startRamp(rampId); }
   catch (error) {

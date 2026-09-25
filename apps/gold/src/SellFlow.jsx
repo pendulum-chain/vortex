@@ -3,7 +3,7 @@ import { Bank, CheckCircle, Copy, WarningCircle } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { gramsToPaxg, readPaxgBalance } from "./lib/paxg.js";
 import { clearActiveRamp, getActiveRamp, saveActiveRamp } from "./lib/pilot-store.js";
-import { classifyRamp, createPaxgSellQuote, createVortexClient, getBrazilBuyReadiness, getPaxgAvailability, pollRamp, registerPaxgSell, requestVortexOtp, startRampSafely, submitWalletTransactions, verifyVortexOtp } from "./lib/vortex.js";
+import { classifyRamp, createPaxgSellQuote, createVortexClient, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, pollRamp, registerPaxgSell, requestVortexOtp, startRampSafely, submitWalletTransactions, verifyVortexOtp } from "./lib/vortex.js";
 
 const brl = (amount) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(amount));
 const gramsLabel = (amount) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 }).format(Number(amount));
@@ -110,7 +110,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
 
   const continueSigning = () => run(async () => {
     if (!client.current) client.current = await createVortexClient();
-    const current = await client.current.getRampStatus(active.id);
+    const current = await getRampWithUnsignedTxs(active.id);
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
     if (classifyRamp(current) === "failure") { setStep("issue"); throw new Error("Esta operação não pode ser retomada. Consulte o suporte."); }
