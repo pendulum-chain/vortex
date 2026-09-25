@@ -80,7 +80,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     setHasGas(balance > 0n);
     const result = await createPaxgSellQuote(maxAmount || gramsToPaxg(amount), walletAddress);
     client.current = result.client; setQuote(result.quote);
-    const readiness = await getBrazilBuyReadiness(result.client);
+    const readiness = await getBrazilBuyReadiness();
     if (readiness.kycStatus !== "approved") setStep("kyc");
     else if (!readiness.canSell) throw new Error("Sua conta ainda não está liberada para receber PIX. Verifique sua situação com a Vortex.");
     else setStep("review");

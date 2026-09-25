@@ -174,11 +174,18 @@ export async function createPaxgSellQuote(amount, walletAddress) {
   return { client, quote: normalizeQuote(quote) };
 }
 
-export async function getBrazilBuyReadiness(client) {
-  const info = await client.getRampInfo();
-  const entries = Object.entries(info?.corridors || {});
-  const match = entries.find(([key]) => /^(BR|BRL|PIX|Brazil)$/i.test(key));
-  return match ? { corridor: match[0], ...match[1] } : { corridor: null, kycStatus: "not_started", canBuy: false, canSell: false };
+// Reads the signed-in user's own Avenia account with the OTP session, as the widget does before it
+// skips KYC. /v1/ramp-info cannot be used: it only reports on the owner of an API credential.
+export async function getBrazilBuyReadiness() {
+  try {
+    const { identityStatus } = await authenticatedApi("/v1/brl/getUser", { method: "GET" });
+    const approved = identityStatus === "CONFIRMED";
+    return { kycStatus: approved ? "approved" : "pending", canBuy: approved, canSell: approved };
+  } catch (error) {
+    // 400/404: the user has no approved, provisioned Avenia account yet.
+    if (error.status === 400 || error.status === 404) return { kycStatus: "not_started", canBuy: false, canSell: false };
+    throw error;
+  }
 }
 
 export async function submitWalletTransactions(client, rampId, unsignedTransactions, walletAddress, ethereumProvider) {

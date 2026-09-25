@@ -26,10 +26,26 @@ test('grams conversion floors precisely, without floating point oversell',()=>{
   assert.equal(gramsToPaxg('31.1034768'),'1');
   assert.equal(gramsToPaxg('0,31103476'),'0.009999999742794027');
 });
-test('failure overrides conflicting completion and no other country enables Brazil',async()=>{
+test('failure overrides conflicting completion',()=>{
   assert.equal(classifyRamp({status:'failed',currentPhase:'complete'}),'failure');
-  assert.equal((await getBrazilBuyReadiness({getRampInfo:async()=>({corridors:{EU:{kycStatus:'approved',canBuy:true}}})})).canBuy,false);
-  assert.equal((await getBrazilBuyReadiness({getRampInfo:async()=>({corridors:{BR:{kycStatus:'approved',canBuy:true,canSell:true}}})})).canSell,true);
+});
+test('Brazil readiness reads the signed-in user\'s own Avenia account with the OTP session',async()=>{
+  const old=globalThis.fetch;const seen=[];let reply;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    globalThis.fetch=async(url,init)=>{seen.push({url,init});return new Response(JSON.stringify(reply.body),{status:reply.status});};
+    reply={status:200,body:{identityStatus:'CONFIRMED',kycLevel:1,subAccountId:'s1',evmAddress:address}};
+    assert.deepEqual(await getBrazilBuyReadiness(),{kycStatus:'approved',canBuy:true,canSell:true});
+    assert.match(seen[0].url,/\/v1\/brl\/getUser$/);
+    assert.match(seen[0].init.headers.Authorization,/^Bearer /);
+    reply={status:200,body:{identityStatus:'PENDING',subAccountId:'s1'}};
+    assert.equal((await getBrazilBuyReadiness()).canBuy,false);
+    reply={status:400,body:{error:'No completed provider profile found for this API key user.'}};
+    assert.deepEqual(await getBrazilBuyReadiness(),{kycStatus:'not_started',canBuy:false,canSell:false});
+    reply={status:500,body:{error:'unavailable'}};
+    await assert.rejects(getBrazilBuyReadiness());
+  } finally {clearVortexSession();globalThis.fetch=old;}
 });
 test('token discovery requires canonical address and direction',async()=>{
   const old=globalThis.fetch;

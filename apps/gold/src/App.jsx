@@ -215,7 +215,7 @@ function TransactionFlow({ email, name, market, walletAddress, getEthereumProvid
     const result = await createPaxgQuote(Number(amount), walletAddress);
     clientRef.current = result.client;
     setQuote(result.quote);
-    const readiness = await getBrazilBuyReadiness(result.client);
+    const readiness = await getBrazilBuyReadiness();
     const required = String(readiness.kycStatus).toLowerCase() !== "approved";
     if (!required && !readiness.canBuy) throw new Error("Sua conta ainda não está liberada para comprar via PIX. Consulte a Vortex.");
     setKycRequired(required);
