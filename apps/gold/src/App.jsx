@@ -20,6 +20,7 @@ import {
   pollRamp,
   registerPaxgBuy,
   requestVortexOtp,
+  secondsUntilExpiry,
   startRampSafely,
   submitBrazilKyc,
   uploadKycDocument,
@@ -169,8 +170,10 @@ function ConfirmStep({ amount, quote, market, onNext, loading, error }) {
 }
 
 function PixStep({ ramp, quote, copied, onCopy, onPaid, loading, error }) {
-  const [seconds, setSeconds] = useState(() => Math.max(0, Math.floor((new Date(ramp.expiresAt || Date.now() + 600_000).getTime() - Date.now()) / 1000)));
-  useEffect(() => { const timer = setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000); return () => clearInterval(timer); }, []);
+  const [expiresAt] = useState(() => ramp.expiresAt || Date.now() + 600_000);
+  const [seconds, setSeconds] = useState(() => secondsUntilExpiry(expiresAt));
+  // Read the clock on every tick: timers pause while the user pays in the banking app.
+  useEffect(() => { const timer = setInterval(() => setSeconds(secondsUntilExpiry(expiresAt)), 1000); return () => clearInterval(timer); }, [expiresAt]);
   const pixCode = ramp.depositQrCode || "";
   const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
   const remaining = String(seconds % 60).padStart(2, "0");

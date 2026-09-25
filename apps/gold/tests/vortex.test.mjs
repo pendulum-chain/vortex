@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, resolveApiBase } from "../src/lib/vortex.js";
+import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -37,6 +37,13 @@ test("resolves the API base against the page origin unless an absolute URL is co
   assert.equal(resolveApiBase(undefined, "https://www.vortexfinance.co"), "https://www.vortexfinance.co/api/production");
   assert.equal(resolveApiBase("/api/staging/", "https://deploy-preview-1--vortexfi.netlify.app"), "https://deploy-preview-1--vortexfi.netlify.app/api/staging");
   assert.equal(resolveApiBase("https://api.vortexfinance.co", "https://www.vortexfinance.co"), "https://api.vortexfinance.co");
+});
+
+test("counts the PIX deadline from the clock, so a paused tab cannot show stale time", () => {
+  const expiresAt = "2030-01-01T00:10:00.000Z";
+  assert.equal(secondsUntilExpiry(expiresAt, Date.parse("2030-01-01T00:00:00.000Z")), 600);
+  assert.equal(secondsUntilExpiry(expiresAt, Date.parse("2030-01-01T00:09:30.000Z")), 30);
+  assert.equal(secondsUntilExpiry(expiresAt, Date.parse("2030-01-01T00:11:00.000Z")), 0);
 });
 
 test("ramp polling rides out network blips and server errors", async () => {

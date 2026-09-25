@@ -235,6 +235,10 @@ export function classifyRamp(ramp) {
   return "processing";
 }
 
+export function secondsUntilExpiry(expiresAt, now = Date.now()) {
+  return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
+}
+
 // No response, a timeout, rate limiting or a server error; auth and validation errors are final.
 function isTransientError(error) {
   const status = Number(error?.status || 0);
