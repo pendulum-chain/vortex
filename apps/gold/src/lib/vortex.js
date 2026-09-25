@@ -238,11 +238,17 @@ export async function startRampSafely(client, rampId) {
 export const SUCCESS_STATUSES = ["completed", "complete", "success"];
 export const FAILURE_STATUSES = ["failed", "cancelled", "expired", "timedout", "timed_out"];
 
-export function classifyRamp(ramp) {
+// The API refuses to start a ramp 15 minutes after registration and only ever starts a paid PIX ramp
+// later through its unhandled-payment worker (every 15 minutes). A ramp still initial an hour after
+// registration is abandoned and must stop blocking new operations on this device.
+const ABANDONED_AFTER_MS = 60 * 60_000;
+
+export function classifyRamp(ramp, now = Date.now()) {
   const status = String(ramp?.status || "").toLowerCase();
   const phase = String(ramp?.currentPhase || "").toLowerCase();
   if (FAILURE_STATUSES.includes(status) || ["failed", "timedout"].includes(phase)) return "failure";
   if (SUCCESS_STATUSES.includes(status) || phase === "complete") return "success";
+  if (phase === "initial" && Date.parse(ramp?.createdAt) + ABANDONED_AFTER_MS < now) return "failure";
   if (ramp?.depositQrCode && phase === "initial") return "awaiting_payment";
   return "processing";
 }

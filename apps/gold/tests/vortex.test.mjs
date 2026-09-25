@@ -33,6 +33,15 @@ test("classifies provider ramp outcomes conservatively", () => {
   assert.equal(classifyRamp({ status: "pending", currentPhase: "hydrationSwap" }), "processing");
 });
 
+test("an unstarted ramp an hour after registration stops blocking new operations", () => {
+  const createdAt = "2030-01-01T00:00:00.000Z";
+  const at = (minutes) => Date.parse(createdAt) + minutes * 60_000;
+  const pix = { status: "PENDING", currentPhase: "initial", depositQrCode: "pix", createdAt };
+  assert.equal(classifyRamp(pix, at(30)), "awaiting_payment");
+  assert.equal(classifyRamp(pix, at(61)), "failure");
+  assert.equal(classifyRamp({ status: "PENDING", currentPhase: "brlaOnrampMint", createdAt }, at(61)), "processing");
+});
+
 test("resolves the API base against the page origin unless an absolute URL is configured", () => {
   assert.equal(resolveApiBase(undefined, "https://www.vortexfinance.co"), "https://www.vortexfinance.co/api/production");
   assert.equal(resolveApiBase("/api/staging/", "https://deploy-preview-1--vortexfi.netlify.app"), "https://deploy-preview-1--vortexfi.netlify.app/api/staging");
