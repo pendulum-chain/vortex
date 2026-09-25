@@ -138,7 +138,7 @@ function KycStep({ quote, email, initialName, onApproved }) {
       }
       const url = uploads.selfieUpload.livenessUrl;
       setLivenessUrl(url);
-      setPrepared({ subAccountId: account.subAccountId, fullName: form.fullName.trim(), dateOfBirth: form.dateOfBirth, countryOfTaxId: "BR", taxIdNumber: taxId, email, country: "BR", state: form.state.toUpperCase(), city: form.city.trim(), zipCode: form.zipCode.replace(/\D/g, ""), streetAddress: form.streetAddress.trim(), uploadedSelfieId: uploads.selfieUpload.id, uploadedDocumentId: uploads.idUpload.id });
+      setPrepared({ subAccountId: account.subAccountId, fullName: form.fullName.trim(), dateOfBirth: form.dateOfBirth, countryOfTaxId: "BRA", taxIdNumber: taxId, email, country: "BRA", state: form.state.toUpperCase(), city: form.city.trim(), zipCode: form.zipCode.replace(/\D/g, ""), streetAddress: form.streetAddress.trim(), uploadedSelfieId: uploads.selfieUpload.id, uploadedDocumentId: uploads.idUpload.id });
       setPhase("liveness");
       if (livenessWindow) livenessWindow.location.replace(url);
     } catch (nextError) {
