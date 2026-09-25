@@ -85,7 +85,8 @@ export function setVortexSession(value) {
 export function clearVortexSession() { storage()?.removeItem(ACCESS_KEY); }
 
 export async function requestVortexOtp(email) {
-  return api("/v1/auth/request-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase() }) });
+  // Without a locale the API sends the English e-mail and resets the user's stored locale to en-US.
+  return api("/v1/auth/request-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase(), locale: "pt-BR" }) });
 }
 
 export async function verifyVortexOtp(email, token) {

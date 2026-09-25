@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, setVortexSession, getFreshAccessToken, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
+import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, requestVortexOtp, setVortexSession, getFreshAccessToken, clearVortexSession, submitWalletTransactions } from '../src/lib/vortex.js';
 import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, PAXG_ADDRESS } from '../src/lib/paxg.js';
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp } from '../src/lib/pilot-store.js';
 
@@ -100,4 +100,12 @@ test('resuming a sell asks the API for the ramp\'s unsigned wallet transactions'
     assert.match(seen[0].url,/\/v1\/ramp\/r1\?showUnsignedTxs=true$/);
     assert.match(seen[0].init.headers.Authorization,/^Bearer /);
   } finally {clearVortexSession();globalThis.fetch=old;}
+});
+test('the e-mail code is requested in Brazilian Portuguese',async()=>{
+  const old=globalThis.fetch;let body;
+  try {
+    globalThis.fetch=async(url,init)=>{assert.match(url,/\/v1\/auth\/request-otp$/);body=JSON.parse(init.body);return new Response(JSON.stringify({success:true}));};
+    await requestVortexOtp(' Ana@Example.com ');
+    assert.deepEqual(body,{email:'ana@example.com',locale:'pt-BR'});
+  } finally {globalThis.fetch=old;}
 });
