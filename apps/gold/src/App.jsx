@@ -4,7 +4,7 @@ import { SellFlow } from "./SellFlow.jsx";
 import { MIN_BUY, QUICK_BUY_VALUES, DEFAULT_BUY, validBuyAmount, buyFeePercent } from "./lib/purchase-options.js";
 import { QRCodeSVG } from "qrcode.react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { fetchPaxgMarket, getDemoMarket } from "./lib/market.js";
+import { CHART_PERIODS, chartWindow, fetchPaxgMarket, getDemoMarket } from "./lib/market.js";
 import { readPaxgBalance } from "./lib/paxg.js";
 import { addRampHistory, clearActiveRamp, getActiveRamp, getRampHistory, saveActiveRamp } from "./lib/pilot-store.js";
 import {
@@ -82,10 +82,9 @@ function GoldTooltip({ active, payload }) {
 
 function PriceChart({ market }) {
   const [period, setPeriod] = useState("30D");
-  const periods = ["7D", "30D", "1A", "Tudo"];
-  const shown = period === "7D" ? market.points.slice(-7) : period === "30D" ? market.points.slice(-30) : market.points;
+  const { points: shown, change } = chartWindow(market.points, period);
   if (market.source === "unavailable") return <section className="panel chart-panel"><span className="section-kicker">PREÇO DO OURO</span><h2>Preço indisponível</h2><p>A cotação atual será apresentada antes de confirmar sua operação.</p><a href="https://www.coingecko.com/en/coins/pax-gold" target="_blank" rel="noreferrer">Comparar no CoinGecko</a></section>;
-  return <section className="panel chart-panel" aria-labelledby="price-title"><div className="panel-heading"><div><span className="section-kicker">PREÇO DO OURO</span><h2 id="price-title">{formatBRL(market.brlPerGram)} <small>por grama</small></h2></div><span className={`market-change ${market.change >= 0 ? "positive" : "negative"}`}><TrendUp size={16} /> {market.change >= 0 ? "+" : ""}{market.change.toFixed(2)}%</span></div><div className="period-tabs" role="tablist" aria-label="Período do gráfico">{periods.map((item) => <button key={item} type="button" role="tab" aria-selected={period === item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item}</button>)}</div><div className="chart-wrap" aria-label="Evolução do preço do PAXG em reais por grama"><ResponsiveContainer width="100%" height="100%"><AreaChart data={shown} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}><defs><linearGradient id="goldArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c3a04c" stopOpacity={0.25} /><stop offset="100%" stopColor="#c3a04c" stopOpacity={0} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e8e1d5" strokeDasharray="2 5" /><XAxis dataKey="label" axisLine={false} tickLine={false} interval="preserveStartEnd" tick={{ fill: "#777169", fontSize: 11 }} /><Tooltip content={<GoldTooltip />} cursor={{ stroke: "#b69546", strokeDasharray: "3 3" }} /><Area type="monotone" dataKey="value" stroke="#a77f24" strokeWidth={2.2} fill="url(#goldArea)" activeDot={{ r: 4, fill: "#1f513f" }} /></AreaChart></ResponsiveContainer></div><div className="chart-footer"><span>1 PAXG = 1 onça troy de ouro fino</span><a href="https://www.coingecko.com/en/coins/pax-gold" target="_blank" rel="noreferrer">Comparar no CoinGecko <ArrowRight size={14} /></a></div></section>;
+  return <section className="panel chart-panel" aria-labelledby="price-title"><div className="panel-heading"><div><span className="section-kicker">PREÇO DO OURO</span><h2 id="price-title">{formatBRL(market.brlPerGram)} <small>por grama</small></h2></div><span className={`market-change ${change >= 0 ? "positive" : "negative"}`}><TrendUp size={16} /> {change >= 0 ? "+" : ""}{formatNumber(change, 2)}%</span></div><div className="period-tabs" role="tablist" aria-label="Período do gráfico">{CHART_PERIODS.map((item) => <button key={item} type="button" role="tab" aria-selected={period === item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item}</button>)}</div><div className="chart-wrap" aria-label="Evolução do preço do PAXG em reais por grama"><ResponsiveContainer width="100%" height="100%"><AreaChart data={shown} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}><defs><linearGradient id="goldArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c3a04c" stopOpacity={0.25} /><stop offset="100%" stopColor="#c3a04c" stopOpacity={0} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e8e1d5" strokeDasharray="2 5" /><XAxis dataKey="label" axisLine={false} tickLine={false} interval="preserveStartEnd" tick={{ fill: "#777169", fontSize: 11 }} /><Tooltip content={<GoldTooltip />} cursor={{ stroke: "#b69546", strokeDasharray: "3 3" }} /><Area type="monotone" dataKey="value" stroke="#a77f24" strokeWidth={2.2} fill="url(#goldArea)" activeDot={{ r: 4, fill: "#1f513f" }} /></AreaChart></ResponsiveContainer></div><div className="chart-footer"><span>1 PAXG = 1 onça troy de ouro fino</span><a href="https://www.coingecko.com/en/coins/pax-gold" target="_blank" rel="noreferrer">Comparar no CoinGecko <ArrowRight size={14} /></a></div></section>;
 }
 
 function Dashboard({ user, address, grams, balanceLoading, balanceError, market, onBuy, onSell, availability, onLogout, onLearn, history, demo, pending, onResume }) {
@@ -356,7 +355,7 @@ export function App({ auth, demo = true }) {
   const [balanceError, setBalanceError] = useState(false);
   const [history, setHistory] = useState([]);
   const [pending, setPending] = useState(null);
-  const [market, setMarket] = useState(() => demo ? getDemoMarket() : { brlPerGram: null, points: [], change: 0, source: "unavailable" });
+  const [market, setMarket] = useState(() => demo ? getDemoMarket() : { brlPerGram: null, points: [], source: "unavailable" });
   const [authLoading, setAuthLoading] = useState("");
   const signedIn = auth?.authenticated || false;
 
