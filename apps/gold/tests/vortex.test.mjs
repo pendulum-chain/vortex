@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
+import { buildPaxgBuyRequest, classifyRamp, isValidCpf, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -82,4 +82,9 @@ test("ramp polling surfaces persistent outages and final errors", async () => {
   const signedOut = { getRampStatus: async () => { calls += 1; throw Object.assign(new Error("Unauthorized"), { status: 401 }); } };
   await assert.rejects(pollRamp(signedOut, "r1", { intervalMs: 1 }), /Unauthorized/);
   assert.equal(calls, 1);
+});
+
+test("accepts only CPFs with valid check digits", () => {
+  for (const cpf of ["08786985906", "087.869.859-06", "52998224725"]) assert.equal(isValidCpf(cpf), true, cpf);
+  for (const cpf of ["08786985907", "12345678901", "11111111111", "0878698590", "", undefined]) assert.equal(isValidCpf(cpf), false, String(cpf));
 });

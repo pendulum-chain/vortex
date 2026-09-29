@@ -314,6 +314,14 @@ export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, t
   throw new VortexError("A operação continua em processamento. Você pode fechar esta tela e acompanhar depois.", { code: "POLL_TIMEOUT" });
 }
 
+// Brazilian CPF check digits, so a typo is caught here instead of by the API or Avenia.
+export function isValidCpf(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  const checkDigit = (length) => [...digits.slice(0, length)].reduce((sum, digit, index) => sum + Number(digit) * (length + 1 - index), 0) * 10 % 11 % 10;
+  return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
+}
+
 export async function createBrazilSubaccount({ name, taxId, quoteId, sessionId }) {
   return authenticatedApi("/v1/brl/createSubaccount", { method: "POST", body: JSON.stringify({ accountType: "INDIVIDUAL", name, taxId, quoteId, sessionId }) });
 }
