@@ -210,7 +210,7 @@ sequenceDiagram
 
 ### 6.1 Chunks
 
-A payment larger than the per-swap cap of **€25,000** is converted in several chunks, a
+A payment larger than the per-swap cap of **€10,000** is converted in several chunks, a
 few minutes apart. The chunks' USDC waits on the forwarder until the whole payment is
 converted. Two payments are never mixed in one swap. A single client's payments are
 converted one after the other, while different clients' payments convert in parallel.
@@ -288,7 +288,7 @@ flowchart TD
 - It was **not converted within two hours** of the mint. Typical causes are a market
   move beyond the bounds, thin liquidity, an exhausted subsidy budget, or an operational
   fault.
-- It, or its last remainder, is **below the €250 minimum swap**.
+- It is **below the €1 minimum swap**.
 - An operator triggers it after a **compliance decision or an incident**.
 
 A payment is never partly delivered. If any part cannot be converted in time, the whole
@@ -436,8 +436,8 @@ Statuses only move forward. A late or repeated webhook can never move a deposit 
 | Reference band against Chainlink | 1% | Fixed in the contract |
 | Maximum Coinbase spread | 0.5% | Keeper code |
 | Subsidy ladder | none for 6 min, rising to 1% from 16 min | Keeper setting |
-| Chunk size | up to €25,000 | Operational, ceiling €50,000 |
-| Minimum swap | €250 | Operational, floor €25 |
+| Chunk size | up to €10,000 | Operational, ceiling €50,000 |
+| Minimum swap | €1 | Operational, can be raised but never below €1 |
 | Manual refunds | €15,000 and above | Until [M9] is answered |
 | Penny test | about 5 USDC | Per client |
 | Dormancy pause | 60 days without a conversion | Keeper code |

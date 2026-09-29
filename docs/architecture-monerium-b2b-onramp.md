@@ -296,8 +296,8 @@ and sends at most one transaction per account per cycle:
 
 - **A large deposit is chunked; the client still gets one transfer.** `swap` takes an
   explicit `amountIn`: at most `perSwapCap`, and never leaving a sub-minimum dust
-  remainder when the last two chunks can share it (`planChunk`). A €120k deposit at a
-  €25k cap becomes five swap executions a few minutes apart, each bound to the deposit;
+  remainder when the last two chunks can share it (`planChunk`). A €45k deposit at a
+  €10k cap becomes five swap executions a few minutes apart, each bound to the deposit;
   their USDC (fee already skimmed, subsidy already added) waits on the forwarder. Once
   the chunks' EURe sum to the deposit, one `forward(amount)` execution pushes the sum of
   their nets to the destination, and the deposit is `forwarded`. The cap is an

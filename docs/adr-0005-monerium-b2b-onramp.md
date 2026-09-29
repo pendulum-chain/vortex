@@ -237,6 +237,27 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   minutes on three weekends. Spot is noisier than the VWAP at 40 bps and identical at
   60; the 60 bps decision stands.
 
+## Amendment 2026-09-29: pilot parameter changes
+
+- **No practical swap minimum.** The team decided not to enforce a meaningful minimum
+  amount. The immutable `MIN_SWAP_FLOOR` and the operational `minSwapAmount` are both
+  €1 (P6; €25 and €250 before). Almost every payment now converts instead of waiting
+  for the refund path as sub-minimum. Accepted consequences: a very small payment costs
+  Vortex more gas than it earns; a small payment forwarded to an exchange address can
+  land below that exchange's minimum deposit, which now sits with the client under B5
+  instead of Vortex's minimum-forward diligence; and unsolicited EURe from €1 upward arms
+  a clone's batch timers (from €25 before), which the stranded-balance monitor still
+  reports. The guardian can raise the operational minimum at any time without a
+  redeploy; it can never go below €1.
+- **€10k chunks.** `perSwapCap` is €10k (P7; €25k before). The €25k was an operational
+  choice from the pre-deploy liquidity baseline, not a limit. Smaller chunks mean less
+  price impact per swap and a smaller top-up per chunk at the ladder's top (about
+  115 USDC instead of 285), at the cost of more transactions and more time for large
+  payments. When the market needs the ladder's top tier, each chunk can wait up to
+  16 minutes, so a payment above roughly €70k could reach the two-hour window; the
+  €50k per client per day pilot limit (B4) keeps a payment at five chunks or fewer. The
+  guardian can change the cap at any time up to the €50k ceiling.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -252,8 +273,8 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
 | P3 | `RECOVERY_DELAY` | **2 hours** (amended 2026-09-17): the promised conversion window, enforced on chain as the earliest a payment may move to the recovery wallet. Replaces the dead-man sweep delay (7 days on 2026-09-15, 60 before), which had no target left once the fallback role was removed |
 | P4 | Permissionless trigger delay | 24 h |
 | P5 | Dormancy window | 60 days |
-| P6 | `minSwapAmount` | floor €25 (immutable) / operational **€250** |
-| P7 | `perSwapCap` | operational **€25k** / ceiling €50k (re-measure liquidity at the deploy block before raising) |
+| P6 | `minSwapAmount` | floor **€1** (immutable) / operational **€1**: no practical minimum (amended 2026-09-29; €25 / €250 before) |
+| P7 | `perSwapCap` | operational **€10k** / ceiling €50k (amended 2026-09-29; €25k before; re-measure liquidity at the deploy block before raising) |
 | P8 | `MAX_ORACLE_AGE` | **52 h** (observed Chainlink EUR/USD weekend gaps up to 48 h; applied to configs 2026-08-26) |
 | P9 | Notification confirmation depth | 32 blocks (implemented) |
 | P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route EURe→EURC→USDC at the 5 bps tiers, re-verify at the deploy block (amended 2026-09-15) |

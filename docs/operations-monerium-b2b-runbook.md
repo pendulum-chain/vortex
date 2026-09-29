@@ -239,8 +239,8 @@ cast send $VAULT "withdraw(uint256)" <amountRaw> --rpc-url $RPC --private-key $G
 
 Sizing: the vault's per-swap cap must be at least the subsidy ladder's top (100 bps, so
 `setMaxSubsidyPpm(10000)` at launch), because the keeper's tier is the effective cap and
-the vault's is the ceiling. At the €25k per-swap cap a top-up at the ladder's top is
-about 285 USDC, so size the daily budget from the expected number of chunks that reach
+the vault's is the ceiling. At the €10k per-swap cap a top-up at the ladder's top is
+about 115 USDC, so size the daily budget from the expected number of chunks that reach
 the late tiers, not from one worst case; raise the budget or lower `perSwapCap` if
 deferrals become routine; both are instant. The ladder itself
 (`MONERIUM_B2B_SUBSIDY_LADDER`, seconds:bps steps) and the re-quote cadence

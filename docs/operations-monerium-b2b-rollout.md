@@ -62,15 +62,15 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    immutable in the implementation. Confirm guardian key custody plan (EOA acceptable
    for pilot; hardware/multisig at GA).
 3. Re-verify the initial route's pools and fee tiers at the deploy block (P10) and re-run
-   the liquidity baseline quote methodology (T6); confirm `perSwapCap` €25k still
+   the liquidity baseline quote methodology (T6); confirm `perSwapCap` €10k still
    executes within floor plus the per-swap subsidy cap, and decide whether a second
    route (direct EURe→USDC or other tiers) is worth whitelisting from day one.
 4. Deploy implementation + factory with the final parameters (ADR table: 52 h oracle
    age, 60 bps floor on the net, 1% fee cap, 100 bps reference band, 2 h recovery / 24 h
    trigger delays, the recovery wallet address (a dedicated linked address on the Vortex
    company profile — onboard that profile in the whitelabel app first),
-   €25 floor/€50k ceiling, initial 5 bps/5 bps route); set operational `minSwapAmount`
-   €250 and `perSwapCap` €25k; register the keeper key.
+   €1 floor/€50k ceiling, initial 5 bps/5 bps route); set operational `minSwapAmount`
+   €1 and `perSwapCap` €10k; register the keeper key.
 4a. Deploy `VortexSubsidyVault` (USDC, the fee Safe as treasury, the factory, 50 bps per
    swap, 200 USDC per day — P13), point the factory at it (`setSubsidyVault`), and fund
    it from the treasury with the first days of budget. Runbook §2.6 has the commands.
@@ -117,8 +117,10 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    of changes before further deposits; client/partner bears rotation/closure/
    mis-crediting losses; CEX destinations carry an explicit rotation/minimum-deposit
    attestation. Vortex's diligence consideration: 5 USDC penny test before activation,
-   the 60-day dormancy gate, minimum forward at or above the destination's minimum
-   deposit, and never sending unconverted EURe to the destination. The destination is
+   the 60-day dormancy gate, and never sending unconverted EURe to the destination.
+   Vortex enforces no practical minimum (€1, ADR amendment 2026-09-29), so keeping
+   payments above an exchange destination's minimum deposit is the client's
+   responsibility. The destination is
    fixed per account: a change means a new forwarding account (and IBAN move) set up by
    Vortex on the partner's written instruction; Vortex cannot redirect funds.
 3. **Dormancy re-confirmation (P5/B5).** Draft:
