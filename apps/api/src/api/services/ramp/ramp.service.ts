@@ -805,7 +805,12 @@ export class RampService extends BaseRampService {
       vortexFeeFiat: fiatFees.vortex,
       vortexFeeUsd: usdFees.vortex,
       walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
-      ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
+      ...(showUnsignedTxs && {
+        unsignedTxs: filterUnsignedTxsForResponse(
+          rampState,
+          rampState.state.presignChecksPass || (await this.ephemeralPresignChecksPass(rampState))
+        )
+      })
     };
 
     return response;
