@@ -12,6 +12,8 @@ bun add @vortexfi/sdk
 
 ## Initialize In Node.js
 
+Create the credential in the Vortex dashboard: sign in with your email, open **API keys**, and click **Create credential**. Existing customers sign in with the email of their onboarded profile. The secret key is shown once. The full steps are in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 ```js
 import {
   VortexSdk,

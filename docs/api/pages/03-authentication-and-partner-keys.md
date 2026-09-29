@@ -7,6 +7,21 @@ Vortex issues one API credential with two values for one profile subject:
 
 Both values share one immutable credential ID, subject profile, optional partner, environment, expiry, and revocation lifecycle. If a request sends both values, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`.
 
+## Get An API Key From The Dashboard
+
+The quickest way to get a credential is the Vortex dashboard:
+
+1. Open <https://dashboard.vortexfinance.co>. It issues production keys (`pk_live_*` / `sk_live_*`). For sandbox keys (`pk_test_*` / `sk_test_*`), use <https://dashboard-sandbox.vortexfinance.co>.
+2. Enter your email and the 6-digit code Vortex sends you. The first sign-in with a new email creates your profile.
+3. Open **API keys** and click **Create credential**. Name the credential and choose an expiration of up to two years.
+4. Copy both values from the confirmation dialog. The secret key is shown once: after the dialog closes it cannot be retrieved, only revoked and replaced with a new credential.
+
+The credential authenticates the profile you signed in with. If you are already a Vortex customer, sign in with the email of your onboarded profile. A different email creates a new profile that has not completed KYC or KYB, and its key cannot register ramps until that profile is onboarded.
+
+Keep the secret key on your backend, in a secret manager, and send it as `X-API-Key` only from there; see Secret Handling below. Only the public key may appear in browser code.
+
+To issue credentials from your own code instead, use the OTP and credential endpoints under Provision A Profile-Managed Credential below.
+
 ## Capability Matrix
 
 | Task | Public value | Secret value | Supabase Bearer |

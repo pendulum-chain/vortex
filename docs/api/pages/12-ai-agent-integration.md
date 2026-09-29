@@ -26,6 +26,8 @@ The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR 
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
+Server-side paths authenticate with an API credential. The account holder creates it in the Vortex dashboard: sign in with the email of the onboarded profile, open **API keys**, and click **Create credential**. The secret key is shown once and belongs on your backend. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
 ## C. Python (`vortex-sdk-python`)
