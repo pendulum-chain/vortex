@@ -81,9 +81,11 @@ const { rampProcess } = await sdk.registerRamp(quote, {
   // fiatAccountId is optional for onramp.
 });
 
-// Inspect off-chain fiat payment instructions before starting.
+// Fiat payment instructions arrive with the registered ramp; startRamp does not repeat them.
+console.log("Pay via:", rampProcess.achPaymentData);
+
+// Start after the user initiates the bank transfer.
 const startedRamp = await sdk.startRamp(rampProcess.id);
-console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
 Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires either a `secretKey` or an `accessTokenProvider` to resolve to an onboarded user. A secret can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The same user must have completed Alfredpay KYC for the country, so registration resolves to that user's Alfredpay customer automatically.
