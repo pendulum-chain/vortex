@@ -167,7 +167,7 @@ Ramp registration resolves KYC and payment identity from the effective profile, 
 
 ### Fiat Accounts
 
-Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. The account is created during onboarding in the Vortex app or Widget; the ID is opaque to the SDK and the API client.
+Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. Verification does not create it: add it after the corridor is verified, with **Add pay-out account** under Onboarding in the Dashboard, in the Widget, or with `POST /v1/domestic/fiatAccounts`. The ID is opaque to the SDK and the API client.
 
 ### Payment Instructions On Buys
 
