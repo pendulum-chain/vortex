@@ -105,11 +105,11 @@ const userWalletTx: UnsignedTx = {
   txData: "0x"
 };
 
-function makeSellRampState(presignChecksPass: boolean) {
+function makeSellRampState() {
   const rampState = makeRampState(false, "initial");
   rampState.type = RampDirection.SELL;
   rampState.unsignedTxs = [ephemeralTx, userWalletTx];
-  rampState.state = makeStateMetadata({ evmEphemeralAddress: EVM_EPHEMERAL, presignChecksPass });
+  rampState.state = makeStateMetadata({ evmEphemeralAddress: EVM_EPHEMERAL, presignChecksPass: false });
   return rampState;
 }
 
@@ -210,15 +210,16 @@ describe("RampService.getRampStatus", () => {
   });
 
   it("withholds SELL user-wallet txs while ephemeral presigned txs are missing", async () => {
-    const service = new TestRampService(makeSellRampState(false));
+    const service = new TestRampService(makeSellRampState());
 
     const status = await service.getRampStatus("ramp-1", true);
 
     expect(status?.unsignedTxs).toEqual([ephemeralTx]);
   });
 
-  it("releases SELL user-wallet txs once presign checks have passed", async () => {
-    const service = new TestRampService(makeSellRampState(true));
+  it("releases SELL user-wallet txs once the ephemeral presigned txs validate", async () => {
+    const service = new TestRampService(makeSellRampState());
+    Object.assign(service, { ephemeralPresignChecksPass: mock(async () => true) });
 
     const status = await service.getRampStatus("ramp-1", true);
 
