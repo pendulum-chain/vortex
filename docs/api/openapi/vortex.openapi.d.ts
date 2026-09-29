@@ -3316,8 +3316,11 @@ export interface components {
                 }[];
             };
         };
-        /** @description `PENDING`, `FAILED`, `COMPLETED` */
-        SimpleStatus: string;
+        /**
+         * @description Overall ramp status. `COMPLETE` and `FAILED` are terminal; use this field, not `currentPhase`, to detect the end of a ramp.
+         * @enum {string}
+         */
+        SimpleStatus: "PENDING" | "COMPLETE" | "FAILED";
         StartKYC2Request: {
             documentType: components["schemas"]["KYCDocType"];
             taxId: string;

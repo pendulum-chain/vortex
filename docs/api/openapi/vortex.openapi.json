@@ -3720,7 +3720,8 @@
         "type": "object"
       },
       "SimpleStatus": {
-        "description": "`PENDING`, `FAILED`, `COMPLETED`",
+        "description": "Overall ramp status. `COMPLETE` and `FAILED` are terminal; use this field, not `currentPhase`, to detect the end of a ramp.",
+        "enum": ["PENDING", "COMPLETE", "FAILED"],
         "type": "string"
       },
       "StartKYC2Request": {
