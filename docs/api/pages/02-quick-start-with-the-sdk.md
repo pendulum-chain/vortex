@@ -2,6 +2,8 @@
 
 This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk` in Node.js or a modern browser.
 
+Ramping for your own account, for example from a trading bot? You need one onboarded profile and one API key, and no managed profiles. The step-by-step sequence is in section B.1 of [AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration).
+
 ## Install
 
 ```bash

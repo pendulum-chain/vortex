@@ -30,6 +30,27 @@ Server-side paths authenticate with an API credential. The account holder create
 
 Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
 
+### B.1 Ramping On Your Own Account
+
+Use this path when you ramp for yourself or your own business, for example from a trading bot, a treasury job, or a payout script. You need one onboarded profile and one secret key on your server. Managed child profiles, `X-Managed-Profile-Id`, and browser origin approval are not needed.
+
+One-time setup, all in the Vortex dashboard (<https://dashboard.vortexfinance.co>):
+
+1. Sign in with your email. Existing customers use the email of their onboarded profile.
+2. Under **Onboarding**, complete KYC (individual) or KYB (business) for each corridor you will use. To sell into USD, MXN, COP, or ARS, also add the payout bank account there. Section H covers doing this through the API instead.
+3. Under **API keys**, create a credential and store its secret key on your server. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
+Then, for each ramp:
+
+1. **Quote.** `sdk.createQuote()` or `POST /v1/quotes`.
+2. **Register.** `sdk.registerRamp()` or `POST /v1/ramp/register`. On a buy, pass the receiving wallet as `destinationAddress` (for EUR, also your linked wallet as `walletAddress`). On a sell, pass your own wallet as `walletAddress`, plus `pixDestination` for BRL or the payout account's `fiatAccountId` for USD, MXN, COP, and ARS (`sdk.listDomesticFiatAccounts()` or `GET /v1/domestic/fiatAccounts` returns it).
+3. **Sign and update.** The SDK signs the ephemeral transactions and submits them inside `registerRamp`. On a sell, and for the owner permit on an EUR buy, your wallet is the user wallet: validate the returned user transactions, sign or send them with your wallet key, and submit them with `sdk.submitUserTransactions()` or `POST /v1/ramp/update`.
+4. **Fund.** On a buy, pay the instructions released by the update: `depositQrCode` for BRL (PIX), `achPaymentData` for USD, MXN, COP, and ARS, or `ibanPaymentData` for EUR. On a sell, what your wallet signed or sent in step 3 funds the ramp; there is no separate funding step.
+5. **Start.** `sdk.startRamp()` or `POST /v1/ramp/start`, before the `expiresAt` returned by register and update (15 minutes after registration). After that deadline, update and start are refused.
+6. **Track.** Poll `GET /v1/ramp/{id}` until `status` is `COMPLETE` or `FAILED`, or register a webhook (Section D.6).
+
+Signing in step 3 is the one case where a server signs the user-owned transactions that Section D.4 routes to the user's wallet: the funds are your own. Keep that wallet key in a secret manager, separate from the per-ramp ephemeral keys.
+
 ## C. Python (`vortex-sdk-python`)
 
 `vortex-sdk-python` is a process-bridge wrapper around the native Node.js SDK. It spawns the Node SDK and exposes a Python-friendly surface, so the behavior, custody model, and supported flows match `@vortexfi/sdk` exactly.
