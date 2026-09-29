@@ -18,6 +18,8 @@ function convertCommonErrorToMessage(error: string, t: (key: string) => string):
     return t("components.errorStep.errors.quoteExpired");
   } else if (error.includes("Insufficient funds")) {
     return t("components.errorStep.errors.insufficientFunds");
+  } else if (error.includes("Ramp start window closed")) {
+    return t("components.errorStep.errors.startWindowClosed");
   } else {
     return error;
   }
