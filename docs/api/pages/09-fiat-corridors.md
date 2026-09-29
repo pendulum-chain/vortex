@@ -171,7 +171,7 @@ Sells pay out to a saved bank account referenced by `fiatAccountId` in the regis
 
 ### Payment Instructions On Buys
 
-After `POST /v1/ramp/start`, the response's `achPaymentData` contains the bank transfer instructions the user must pay (beneficiary, account, and reference details for the corridor's rail). Display them to the user verbatim; the ramp continues automatically once the fiat deposit is confirmed.
+The first `POST /v1/ramp/update` response returns `achPaymentData`: the bank transfer instructions the user must pay (beneficiary, account, and reference details for the corridor's rail). `GET /v1/ramp/{id}` returns them too, and the SDK's `registerRamp` returns them on `rampProcess` because it performs that update. Display them to the user verbatim, and call `POST /v1/ramp/start` after the user initiates the transfer; the start response does not repeat them. The ramp continues automatically once the fiat deposit is confirmed.
 
 ### Limits
 

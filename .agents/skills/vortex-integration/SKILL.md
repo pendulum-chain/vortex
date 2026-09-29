@@ -369,10 +369,12 @@ const { rampProcess } = await vortex.registerRamp(quote, {
   destinationAddress: "0xUserWalletAddress"
 });
 
-const started = await vortex.startRamp(rampProcess.id);
+// Bank transfer instructions the user must pay arrive with the registered ramp
+// (registerRamp performs the update that releases them); startRamp does not repeat them.
+console.log(rampProcess.achPaymentData);
 
-// Bank transfer instructions the user must pay are on the START response:
-console.log(started.achPaymentData);
+// After the user initiates the transfer, start before the ramp's expiresAt.
+const started = await vortex.startRamp(rampProcess.id);
 ```
 
 No user-signed on-chain transactions on buys. Unlike BRL there is no QR code — display the `achPaymentData` deposit instructions verbatim; the ramp continues automatically once the fiat deposit is confirmed.

@@ -162,10 +162,11 @@ const { rampProcess } = await sdk.registerRamp(quote, {
   // fiatAccountId is optional for onramp
 });
 
-const started = await sdk.startRamp(rampProcess.id);
-
 // Show the user how to pay via SPEI
-console.log(started.achPaymentData);
+console.log(rampProcess.achPaymentData);
+
+// After the user initiates the SPEI transfer, start the ramp.
+const started = await sdk.startRamp(rampProcess.id);
 ```
 
 No user-signed on-chain transactions are required for the bank-transfer onramp shown here. The SDK signs its ephemeral transactions during `registerRamp`.
