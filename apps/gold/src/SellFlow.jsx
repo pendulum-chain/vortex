@@ -37,6 +37,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     catch (e) {
       setError(e.code === 4001 ? "Confirmação cancelada. Você pode continuar esta mesma operação." : e.message || "Não foi possível continuar.");
       if (e.status === 401 || e.code === "AUTH_REQUIRED") { setSent(false); setOtp(""); setStep("otp"); }
+      if (e.code === "START_WINDOW_CLOSED") setStep("issue");
     } finally { actionLock.current = false; setBusy(false); }
   };
 
@@ -122,7 +123,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     if (saved?.stage === "registering") throw new Error("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda.");
     const transactions = (current.unsignedTxs || []).filter((tx) => tx.signer?.toLowerCase() === walletAddress.toLowerCase());
     if (saved?.stage !== "ready" && !transactions.length) throw new Error("Não foi possível recuperar as confirmações. Consulte o suporte com o código abaixo.");
-    if (saved?.stage !== "ready") await submitWalletTransactions(client.current, current.id, transactions, walletAddress, await getEthereumProvider(), saved?.inputAmount);
+    if (saved?.stage !== "ready") await submitWalletTransactions(client.current, current, transactions, walletAddress, await getEthereumProvider(), saved?.inputAmount);
     saveActiveRamp({ rampId: current.id, walletAddress, inputAmount: current.inputAmount, outputAmount: current.outputAmount, rampType: "SELL", stage: "ready" });
     setRamp(await startRampSafely(client.current, current.id)); setStep("processing");
   });

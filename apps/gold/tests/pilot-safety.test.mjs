@@ -112,8 +112,21 @@ test('a tampered sell never reaches the wallet or the SDK',async()=>{
   const calls=[];
   const client={submitUserTransactions:async()=>calls.push('sdk')};
   const provider={request:async({method})=>calls.push(method)};
-  await assert.rejects(submitWalletTransactions(client,'r',sellTxs({swap:{to:address}}),address,provider,'0.02'),/não correspondem/);
+  await assert.rejects(submitWalletTransactions(client,{id:'r',createdAt:new Date().toISOString()},sellTxs({swap:{to:address}}),address,provider,'0.02'),/não correspondem/);
   assert.deepEqual(calls,[]);
+});
+test('a sell past its start window broadcasts nothing and stops blocking the wallet',async()=>{
+  const sent=[];
+  const provider={request:async({method})=>{sent.push(method);return {'eth_getBalance':'0x0','eth_gasPrice':'0x1','eth_estimateGas':'0x5208'}[method];}};
+  const client={submitUserTransactions:async(id,txs,{sendTransaction})=>{for(const tx of txs) await sendTransaction(tx.txData,{unsignedTransaction:tx});}};
+  const ramp=(minutesAgo)=>({id:'r5',createdAt:new Date(Date.now()-minutesAgo*60_000).toISOString()});
+  saveActiveRamp({rampId:'r5',walletAddress:address,inputAmount:'0.02',rampType:'SELL',stage:'signing'});
+  await assert.rejects(submitWalletTransactions(client,ramp(1),sellTxs(),address,provider,'0.02'),/ETH/);
+  assert.equal(getActiveRamp(address).rampId,'r5');
+  await assert.rejects(submitWalletTransactions(client,ramp(12),sellTxs(),address,provider,'0.02'),/prazo/);
+  assert.ok(!sent.includes('eth_sendTransaction'));
+  assert.equal(getActiveRamp(address),null);
+  memory.clear();
 });
 test('concurrent expired sessions rotate once and retain refreshed session',async()=>{
   const old=globalThis.fetch;let calls=0;

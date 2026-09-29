@@ -1,6 +1,6 @@
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
 import { PAXG_ADDRESS, assertPaxgSellTransactions, assertSellBalance, sendEthereumTransaction } from "./paxg.js";
-import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
+import { failActiveRamp, saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
 
 const ENV = import.meta.env || {};
 // Same-origin by default: the Vortex Netlify site proxies /api/<env>/* to the API, so a
@@ -198,24 +198,34 @@ export async function getBrazilBuyReadiness() {
   }
 }
 
+// The API refuses to record or start a ramp after its start deadline, so a transaction broadcast later
+// would strand the gold. The margin covers the swap receipt wait (up to 3 minutes), the update and the start.
+const SIGNING_MARGIN_MS = 4 * 60_000;
+
 // inputAmount is the PAXG amount this device quoted, never the API's, and bounds the approval.
-export async function submitWalletTransactions(client, rampId, unsignedTransactions, walletAddress, ethereumProvider, inputAmount) {
+export async function submitWalletTransactions(client, ramp, unsignedTransactions, walletAddress, ethereumProvider, inputAmount) {
   if (!unsignedTransactions?.length) return;
   assertPaxgSellTransactions(unsignedTransactions, { walletAddress, inputAmount });
   if (!ethereumProvider) throw new VortexError("A carteira Privy ainda não está pronta para confirmar a operação.", { code: "WALLET_NOT_READY" });
+  const deadline = rampStartDeadline(ramp);
   await ethereumProvider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
-  await client.submitUserTransactions(rampId, unsignedTransactions, { sendTransaction: async (transaction, context) => {
+  await client.submitUserTransactions(ramp.id, unsignedTransactions, { sendTransaction: async (transaction, context) => {
     const phase = context.unsignedTransaction.phase;
     const saved = getActiveRamp(walletAddress);
-    const previousHash = saved?.rampId === rampId ? saved.transactions?.[phase] : null;
-    return sendEthereumTransaction(ethereumProvider, walletAddress, transaction, { previousHash, onBroadcast: (hash) => saveTransactionCheckpoint(rampId, phase, hash) });
+    const previousHash = saved?.rampId === ramp.id ? saved.transactions?.[phase] : null;
+    if (!previousHash && !(deadline - Date.now() > SIGNING_MARGIN_MS)) {
+      // Nothing has left the wallet yet, so the dead ramp must stop blocking a new sale.
+      failActiveRamp(ramp.id);
+      throw new VortexError("O prazo desta venda terminou antes do envio do seu ouro. Seu ouro continua na carteira; faça uma nova venda.", { code: "START_WINDOW_CLOSED" });
+    }
+    return sendEthereumTransaction(ethereumProvider, walletAddress, transaction, { previousHash, onBroadcast: (hash) => saveTransactionCheckpoint(ramp.id, phase, hash) });
   } });
 }
 
 export async function registerPaxgBuy({ client, quote, walletAddress, ethereumProvider }) {
   if (!walletAddress) throw new VortexError("Sua carteira Privy ainda está sendo preparada. Aguarde alguns segundos.", { code: "WALLET_NOT_READY" });
   const { rampProcess, unsignedTransactions } = await client.registerRamp(quote.rawQuote || quote, { destinationAddress: walletAddress });
-  await submitWalletTransactions(client, rampProcess.id, unsignedTransactions, walletAddress, ethereumProvider);
+  await submitWalletTransactions(client, rampProcess, unsignedTransactions, walletAddress, ethereumProvider);
   return rampProcess;
 }
 
@@ -224,7 +234,7 @@ export async function registerPaxgSell({ client, quote, walletAddress, ethereumP
   const result = await client.registerRamp(quote.rawQuote || quote, { walletAddress, pixDestination: pixDestination.trim() });
   saveActiveRamp({ rampId: result.rampProcess.id, walletAddress, inputAmount: quote.inputAmount, outputAmount: quote.outputAmount, rampType: "SELL", stage: "signing" });
   onRegistered?.(result.rampProcess);
-  await submitWalletTransactions(client, result.rampProcess.id, result.unsignedTransactions, walletAddress, ethereumProvider, quote.inputAmount);
+  await submitWalletTransactions(client, result.rampProcess, result.unsignedTransactions, walletAddress, ethereumProvider, quote.inputAmount);
   return result.rampProcess;
 }
 
