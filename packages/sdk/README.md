@@ -54,7 +54,7 @@ console.log("Please do the pix transfer using the following code: ", depositQrCo
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
-### Alfredpay (USD / MXN / COP / ARS) onramp
+### Bank-transfer (USD / MXN / COP / ARS) onramp
 
 ```typescript
 import { VortexSdk, FiatToken, EvmToken, EPaymentMethod, Networks, RampDirection } from "@vortexfi/sdk";
@@ -88,7 +88,7 @@ console.log("Pay via:", rampProcess.achPaymentData);
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
-Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires either a `secretKey` or an `accessTokenProvider` to resolve to an onboarded user. A secret can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The same user must have completed Alfredpay KYC for the country, so registration resolves to that user's Alfredpay customer automatically.
+Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires either a `secretKey` or an `accessTokenProvider` to resolve to an onboarded user. A secret can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The same user must have completed KYC for the country, so registration resolves to that user's verified payment profile automatically.
 
 Use `sdk.getRampInfo()` to read the credential-bound, sanitized KYC and buy/sell availability by country. It accepts either configured key and returns no identifiers, limits, or personal data.
 
@@ -110,7 +110,7 @@ const sdk = new VortexSdk({
 
 The provider is awaited before every API request, so tokens refreshed after SDK construction are used automatically. If both `secretKey` and `accessTokenProvider` are configured, the secret key takes precedence and the provider is not called. A configured `publicKey` continues to be sent for attribution with either authentication mechanism.
 
-### Alfredpay (USD / MXN / COP / ARS) offramp
+### Bank-transfer (USD / MXN / COP / ARS) offramp
 
 ```typescript
 const quote = await sdk.createQuote({
@@ -124,7 +124,7 @@ const quote = await sdk.createQuote({
 });
 
 const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
-  fiatAccountId: "<the user's Alfredpay fiat account id>",
+  fiatAccountId: "<the user's fiat account id>",
   walletAddress: "0x1234567890123456789012345678901234567890"
 });
 
@@ -137,7 +137,7 @@ await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
-> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
+> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. The account is created during onboarding; look up its `fiatAccountId` with `sdk.listDomesticFiatAccounts(country)` and pass it in.
 
 ### Deferred offramp funding
 
