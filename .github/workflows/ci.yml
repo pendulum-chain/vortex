@@ -103,3 +103,6 @@ jobs:
 
       - name: 🧪 Frontend tests (coverage-gated)
         run: cd apps/frontend && bun run test:coverage
+
+      - name: 🧪 Gold tests
+        run: bun run test:gold
