@@ -22,11 +22,36 @@ When you point an AI coding agent at Vortex:
 | Browser, mobile, or WebView preferring a hosted UX and hosted custody | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
-The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR (SEPA) BUY currently requires a direct API integration because the linked owner must sign typed data; EUR SELL is unavailable. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
+The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR (SEPA) BUY is available in sandbox, with production activation pending; until the next `@vortexfi/sdk` release it requires a direct API integration in which the linked owner wallet signs a typed-data permit. EUR SELL is unavailable. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
+Server-side paths authenticate with an API credential. The account holder creates it in the Vortex dashboard: sign in with the email of the onboarded profile, open **API keys**, and click **Create credential**. The secret key is shown once and belongs on your backend. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
 Do not expose an `sk_*` or reimplement signing against the raw ramp API in a browser. An approved origin means Vortex has added your exact browser origin to its allowlist; request it at <support@vortexfinance.co> before you integrate, because unapproved origins fail at the CORS preflight. Use the browser build of `@vortexfi/sdk` with Bearer authentication on an approved origin, or use the Widget. Browser SDK users explicitly accept that ephemeral secrets are generated in browser memory and backed up to plaintext same-origin localStorage by default.
+
+### B.1 Ramping On Your Own Account
+
+Use this path when you ramp for yourself or your own business, for example from a trading bot, a treasury job, or a payout script. You need one onboarded profile and one secret key on your server. Managed child profiles, `X-Managed-Profile-Id`, and browser origin approval are not needed.
+
+One-time setup, all in the Vortex dashboard: <https://dashboard.vortexfinance.co> for production, or <https://dashboard-sandbox.vortexfinance.co> for sandbox. Each dashboard issues keys only for its own API (`https://api.vortexfinance.co` or `https://api-sandbox.vortexfinance.co`), and profiles and onboarding do not carry over between them. EUR is sandbox-only for now, so set up EUR in the sandbox dashboard.
+
+1. Sign in with your email. Existing customers use the email of their onboarded profile.
+2. Under **Onboarding**, complete KYC (individual) or KYB (business) for each corridor you will use. To sell into USD, MXN, COP, or ARS, also click **Add pay-out account** for that corridor once it is verified. For EUR, onboarding with the EUR provider is not enough: also link the Polygon wallet you will pay from and wait until your IBAN is provisioned. Section H covers onboarding through the API for the corridors that support it; EUR setup is only available in the dashboard or Widget.
+3. Under **API keys**, create a credential and store its secret key on your server. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+
+Then, for each ramp:
+
+1. **Quote.** `sdk.createQuote()` or `POST /v1/quotes`.
+2. **Register.** `sdk.registerRamp()` or `POST /v1/ramp/register`. On a buy, pass the receiving wallet as `destinationAddress`. For EUR, also pass `customerType` (`"individual"` or `"business"`) if you hold both EUR provider profiles, and with the SDK your linked wallet as `walletAddress`; the API derives the permit owner from your EUR provider binding, not from that field. On a sell, pass your own wallet as `walletAddress`, plus `pixDestination` for BRL or the payout account's `fiatAccountId` for USD, MXN, COP, and ARS (`sdk.listDomesticFiatAccounts(DomesticCountry.MX)`, with `DomesticCountry` imported from `@vortexfi/sdk`, or `GET /v1/domestic/fiatAccounts?country=MX` returns it; substitute your sell corridor's country: `US`, `MX`, `CO`, or `AR`).
+3. **Sign and update.** The SDK signs the ephemeral transactions and submits them inside `registerRamp`. A direct API client must sign every returned ephemeral-owned transaction itself (Section D.4) and submit them through `POST /v1/ramp/update`; BRL and EUR payment instructions are released, and start is accepted, only after they validate. On a sell, and for the owner permit on an EUR buy, your wallet is the user wallet: route each returned user transaction by its `signer` (for EUR, the linked wallet), validate it, sign or send it with that wallet's key, and submit them with `sdk.submitUserTransactions()` or `POST /v1/ramp/update`.
+4. **Fund.** On a buy, pay the instructions released by the update: `depositQrCode` for BRL (PIX), `achPaymentData` for USD, MXN, COP, and ARS, or `ibanPaymentData` for EUR. On a sell, what your wallet signed or sent in step 3 funds the ramp; there is no separate funding step.
+5. **Start.** `sdk.startRamp()` or `POST /v1/ramp/start`, before the `expiresAt` returned by register and update (15 minutes after registration). After that deadline, update and start are refused.
+6. **Track.** Poll `GET /v1/ramp/{id}` until `status` is `COMPLETE` or `FAILED`, or register a webhook (Section D.6).
+
+EUR buys are available in sandbox only for now, and until the next SDK release they use the API calls above rather than the SDK methods.
+
+Signing in step 3 is the one case where a server signs the user-owned transactions that Section D.4 routes to the user's wallet: the funds are your own. Keep that wallet key in a secret manager, separate from the per-ramp ephemeral keys.
 
 ## C. Python (`vortex-sdk-python`)
 
@@ -160,7 +185,7 @@ On a **buy**, where the fiat payment instructions appear depends on the corridor
 
 - **BRL**: `depositQrCode` (PIX) is released once the presigned transactions submitted via update pass validation — on the update response and on `GET /v1/ramp/{id}`, not on the register response. Show it; wait for the user to pay; then call start. (The SDK performs the update inside `registerRamp`, so SDK callers see it on the returned ramp process.)
 - **EUR**: the direct client must first submit the linked owner's EIP-712 permit and every ephemeral signature. `ibanPaymentData` (IBAN, BIC, receiver name, payment reference) is released only after the complete set validates. Show it; the user initiates the SEPA transfer; then call start before the start deadline.
-- **USD, MXN, COP, ARS**: call start first; the start response's `achPaymentData` contains the bank transfer instructions for the corridor's rail (ACH, SPEI, CBU). Display them verbatim; the ramp continues automatically once the deposit is confirmed.
+- **USD, MXN, COP, ARS**: the first update response contains `achPaymentData`, the bank transfer instructions for the corridor's rail (ACH, SPEI, CBU); `GET /v1/ramp/{id}` returns them too, and the start response does not. Display them verbatim; the user initiates the transfer; then call start before the start deadline. The ramp continues automatically once the deposit is confirmed.
 
 On a **supported sell**, the user signs the user-owned transaction(s), you submit them via update, then call start. Vortex pays out to the user's PIX key (BRL) or the saved bank account referenced by `fiatAccountId` (USD, MXN, COP, ARS). EUR SELL is unavailable.
 
@@ -172,7 +197,7 @@ On a **supported sell**, the user signs the user-owned transaction(s), you submi
 
 ## E. Mandatory Client Responsibilities
 
-These are not optional. The SDK handles them for supported corridors; a custom client must implement them explicitly. The current EUR BUY flow is one such custom-client path.
+These are not optional. The SDK handles them for supported corridors; a custom client must implement them explicitly. Until the next SDK release, EUR BUY is one such custom-client path.
 
 1. **Ephemeral key custody.** Generate fresh per-ramp keypairs. Store them encrypted, keyed by `rampId`. Keep them until the ramp is `COMPLETE` or `FAILED` **and** any recovery window has passed. Never transmit secrets to Vortex, support, logs, or analytics. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 2. **Payload validation before signing.** Every field that affects funds movement must match what your application requested.
