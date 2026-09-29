@@ -204,6 +204,7 @@ Gets the current status of a ramp process.
 Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
 EUR/SEPA BUY requires an SDK release newer than 0.9.0; with 0.9.0, use the direct API flow in the Fiat Corridors guide.
+EUR is available in sandbox only; production activation is pending.
 For EUR/SEPA BUY, pass `walletAddress`: the wallet linked to the user's EUR provider profile (see the
 Fiat Corridors guide). The backend mints EURe to that wallet and returns its ERC-2612 permit as a
 user-owned typed-data transaction in `unsignedTransactions`; sign and submit it with
