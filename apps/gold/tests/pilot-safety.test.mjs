@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, requestVortexOtp, setVortexSession, getFreshAccessToken, getVortexSession, clearVortexSession, submitWalletTransactions, verifyVortexOtp } from '../src/lib/vortex.js';
-import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, PAXG_ADDRESS } from '../src/lib/paxg.js';
+import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, assertPaxgSellTransactions, PAXG_ADDRESS, SQUID_ROUTER } from '../src/lib/paxg.js';
+import { encodeFunctionData, parseAbi, parseUnits } from 'viem';
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp, failActiveRamp, getRampHistory } from '../src/lib/pilot-store.js';
 
 const address = '0x0000000000000000000000000000000000000001';
@@ -83,9 +84,36 @@ test('insufficient ETH is blocked before transaction broadcast',async()=>{
   await assert.rejects(sendEthereumTransaction(provider,address,{to:PAXG_ADDRESS}),/ETH/);
   assert.ok(!calls.includes('eth_sendTransaction'));
 });
-test('typed signatures cannot switch away from Ethereum',async()=>{
-  const client={submitUserTransactions:async(id,tx,callbacks)=>callbacks.signTypedData({domain:{chainId:137}})};
-  await assert.rejects(submitWalletTransactions(client,'r', [{}],address,{request:async()=>null}),/Ethereum/);
+const approveData=(spender,amount)=>encodeFunctionData({abi:parseAbi(['function approve(address,uint256) returns (bool)']),functionName:'approve',args:[spender,amount]});
+const sellTxs=({approve={},swap={},...tx}={})=>[
+  {phase:'squidRouterApprove',network:'ethereum',signer:address,...tx,txData:{to:PAXG_ADDRESS,value:'0',data:approveData(SQUID_ROUTER,parseUnits('0.02',18)),...approve}},
+  {phase:'squidRouterSwap',network:'ethereum',signer:address,...tx,txData:{to:SQUID_ROUTER,value:'1000',data:'0xabcdef',...swap}}];
+const sell={walletAddress:address,inputAmount:'0.02'};
+test('the wallet only signs the approve and swap of the quoted sell',()=>{
+  assert.doesNotThrow(()=>assertPaxgSellTransactions(sellTxs(),sell));
+  assert.doesNotThrow(()=>assertPaxgSellTransactions(sellTxs({approve:{data:approveData(SQUID_ROUTER,1n)}}),sell));
+  const [approve,swap]=sellTxs();
+  const tampered=[
+    sellTxs({approve:{to:SQUID_ROUTER}}),
+    sellTxs({approve:{data:approveData(address,parseUnits('0.02',18))}}),
+    sellTxs({approve:{data:approveData(SQUID_ROUTER,parseUnits('0.02',18)+1n)}}),
+    sellTxs({approve:{data:approveData(SQUID_ROUTER,1n)+'00'}}),
+    sellTxs({approve:{value:'1'}}),
+    sellTxs({swap:{to:PAXG_ADDRESS}}),
+    sellTxs({signer:'0x0000000000000000000000000000000000000002'}),
+    sellTxs({network:'polygon'}),
+    [approve],[swap,approve],[approve,swap,swap],
+    [approve,{...swap,phase:'squidRouterPermitExecute',txData:{domain:{chainId:1}}}],
+  ];
+  for(const txs of tampered) assert.throws(()=>assertPaxgSellTransactions(txs,sell),/não correspondem/);
+  assert.throws(()=>assertPaxgSellTransactions(sellTxs(),{walletAddress:address}),/não correspondem/);
+});
+test('a tampered sell never reaches the wallet or the SDK',async()=>{
+  const calls=[];
+  const client={submitUserTransactions:async()=>calls.push('sdk')};
+  const provider={request:async({method})=>calls.push(method)};
+  await assert.rejects(submitWalletTransactions(client,'r',sellTxs({swap:{to:address}}),address,provider,'0.02'),/não correspondem/);
+  assert.deepEqual(calls,[]);
 });
 test('concurrent expired sessions rotate once and retain refreshed session',async()=>{
   const old=globalThis.fetch;let calls=0;

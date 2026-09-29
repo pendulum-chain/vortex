@@ -1,5 +1,5 @@
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
-import { PAXG_ADDRESS, assertSellBalance, sendEthereumTransaction } from "./paxg.js";
+import { PAXG_ADDRESS, assertPaxgSellTransactions, assertSellBalance, sendEthereumTransaction } from "./paxg.js";
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
 
 const ENV = import.meta.env || {};
@@ -198,14 +198,13 @@ export async function getBrazilBuyReadiness() {
   }
 }
 
-export async function submitWalletTransactions(client, rampId, unsignedTransactions, walletAddress, ethereumProvider) {
+// inputAmount is the PAXG amount this device quoted, never the API's, and bounds the approval.
+export async function submitWalletTransactions(client, rampId, unsignedTransactions, walletAddress, ethereumProvider, inputAmount) {
   if (!unsignedTransactions?.length) return;
+  assertPaxgSellTransactions(unsignedTransactions, { walletAddress, inputAmount });
   if (!ethereumProvider) throw new VortexError("A carteira Privy ainda não está pronta para confirmar a operação.", { code: "WALLET_NOT_READY" });
   await ethereumProvider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
-  await client.submitUserTransactions(rampId, unsignedTransactions, { includeDomainType: true, signTypedData: async (payload) => {
-    if (payload.domain?.chainId && BigInt(payload.domain.chainId) !== 1n) throw new Error("A confirmação não pertence à rede Ethereum.");
-    return ethereumProvider.request({ method: "eth_signTypedData_v4", params: [walletAddress, JSON.stringify(payload)] });
-  }, sendTransaction: async (transaction, context) => {
+  await client.submitUserTransactions(rampId, unsignedTransactions, { sendTransaction: async (transaction, context) => {
     const phase = context.unsignedTransaction.phase;
     const saved = getActiveRamp(walletAddress);
     const previousHash = saved?.rampId === rampId ? saved.transactions?.[phase] : null;
@@ -225,7 +224,7 @@ export async function registerPaxgSell({ client, quote, walletAddress, ethereumP
   const result = await client.registerRamp(quote.rawQuote || quote, { walletAddress, pixDestination: pixDestination.trim() });
   saveActiveRamp({ rampId: result.rampProcess.id, walletAddress, inputAmount: quote.inputAmount, outputAmount: quote.outputAmount, rampType: "SELL", stage: "signing" });
   onRegistered?.(result.rampProcess);
-  await submitWalletTransactions(client, result.rampProcess.id, result.unsignedTransactions, walletAddress, ethereumProvider);
+  await submitWalletTransactions(client, result.rampProcess.id, result.unsignedTransactions, walletAddress, ethereumProvider, quote.inputAmount);
   return result.rampProcess;
 }
 
