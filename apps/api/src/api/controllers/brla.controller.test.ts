@@ -15,6 +15,7 @@ import QuoteTicket from "../../models/quoteTicket.model";
 import User from "../../models/user.model";
 import { hashTaxReference } from "../services/avenia/avenia-customer.service";
 import { SupabaseAuthService } from "../services/auth";
+import { validateSubaccountCreation } from "../middlewares/validators";
 import {
   createSubaccount,
   createKybDocument,
@@ -1859,6 +1860,62 @@ describe("createSubaccount", () => {
       status: VerificationStatus.Pending
     });
     expect(subaccountInfoMock).toHaveBeenCalledWith("new-subaccount");
+  });
+
+  // The route runs validateSubaccountCreation ahead of the controller; drive both in order so the
+  // assertions cover what a real request reaches.
+  async function submitThroughRoute(body: unknown, userId = "squatter-user") {
+    const req = { body, userId } as any;
+    const res = createResponse();
+    let validated = false;
+    validateSubaccountCreation(req, res as any, () => {
+      validated = true;
+    });
+    if (validated) await createSubaccount(req, res as any);
+    return res;
+  }
+
+  it("never reaches the provider or the database for malformed input", async () => {
+    mockBrlaApi();
+    const findOne = mock(async () => null);
+    ProviderCustomer.findOne = findOne as unknown as typeof ProviderCustomer.findOne;
+
+    const malformed = [
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "12345678901" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "abc" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: 8786985906 },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "11222333000181" },
+      { accountType: AveniaAccountType.COMPANY, name: "Squatter Ltda", taxId: "08786985906" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "  ", taxId: "08786985906" },
+      { accountType: AveniaAccountType.INDIVIDUAL, taxId: "08786985906" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "08786985907" }
+    ];
+    for (const body of malformed) {
+      const res = await submitThroughRoute(body);
+      expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    }
+
+    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+    expect(FinancialOperation.findOrCreate).not.toHaveBeenCalled();
+    expect(sequelize.transaction).not.toHaveBeenCalled();
+    expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it("stores the normalized tax id when the client sends a formatted valid CPF", async () => {
+    mockBrlaApi();
+    const providerCreateMock = mock(async (values: Record<string, unknown>) => ({ ...values }));
+    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
+    ProviderCustomer.create = providerCreateMock as unknown as typeof ProviderCustomer.create;
+
+    const res = await submitThroughRoute({ ...validBody, taxId: "087.869.859-06" }, "new-user");
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(createAveniaSubaccountMock).toHaveBeenCalledTimes(1);
+    expect(providerCreateMock.mock.calls[0]?.[0]).toMatchObject({
+      taxReference: "08786985906",
+      taxReferenceHash: hashTaxReference("08786985906")
+    });
   });
 
   it("rejects overwrite when a started record belongs to another entity", async () => {

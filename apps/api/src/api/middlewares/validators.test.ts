@@ -1,4 +1,4 @@
-import { BrDocumentType, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
+import { AveniaAccountType, BrDocumentType, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
 import { describe, expect, it, mock } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
@@ -9,7 +9,8 @@ import {
   validateAveniaKybLevel1,
   validateAveniaKybUbo,
   validateCreateBestQuoteInput,
-  validateKycSubmission
+  validateKycSubmission,
+  validateSubaccountCreation
 } from "./validators";
 
 function buildRes() {
@@ -281,5 +282,86 @@ describe("validateKycSubmission", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(nextMock.mock.calls[0]?.[0]).toBeUndefined();
     expect(res.statusCode).toBeUndefined();
+  });
+});
+
+describe("validateSubaccountCreation", () => {
+  // Synthetic identifiers with valid check digits (never real people or companies).
+  const VALID_CPF = "52998224725";
+  const VALID_CPF_FORMATTED = "529.982.247-25";
+  const VALID_CNPJ = "11222333000181";
+  const VALID_CNPJ_FORMATTED = "11.222.333/0001-81";
+
+  function validate(body: unknown) {
+    const req = { body } as unknown as Request;
+    const res = buildRes();
+    const next = mock(() => undefined) as unknown as NextFunction;
+
+    validateSubaccountCreation(req, res, next);
+
+    return { next, res };
+  }
+
+  function expectRejected(body: unknown, error: string) {
+    const { next, res } = validate(body);
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ error });
+    expect(next).not.toHaveBeenCalled();
+  }
+
+  const individual = { accountType: AveniaAccountType.INDIVIDUAL, name: "Ana Maria Silva", taxId: VALID_CPF };
+  const company = { accountType: AveniaAccountType.COMPANY, name: "Acme Ltda", taxId: VALID_CNPJ };
+
+  it("accepts a valid CPF, plain or formatted, for an individual", () => {
+    for (const taxId of [VALID_CPF, VALID_CPF_FORMATTED, ` ${VALID_CPF} `]) {
+      const { next, res } = validate({ ...individual, taxId });
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.statusCode).toBeUndefined();
+    }
+  });
+
+  it("accepts a valid CNPJ, plain or formatted, for a company", () => {
+    for (const taxId of [VALID_CNPJ, VALID_CNPJ_FORMATTED]) {
+      const { next, res } = validate({ ...company, taxId });
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.statusCode).toBeUndefined();
+    }
+  });
+
+  it("rejects checksum-invalid and trivial identifiers", () => {
+    for (const taxId of ["52998224724", "12345678901", "11111111111", "abc", "", "529.982.247-2"]) {
+      expectRejected({ ...individual, taxId }, "taxId must be a valid CPF for INDIVIDUAL accounts.");
+    }
+    expectRejected({ ...company, taxId: "11222333000182" }, "taxId must be a valid CNPJ for COMPANY accounts.");
+  });
+
+  it("rejects a CPF for a company and a CNPJ for an individual", () => {
+    expectRejected({ ...company, taxId: VALID_CPF }, "taxId must be a valid CNPJ for COMPANY accounts.");
+    expectRejected({ ...individual, taxId: VALID_CNPJ }, "taxId must be a valid CPF for INDIVIDUAL accounts.");
+  });
+
+  it("rejects a missing or non-string taxId", () => {
+    for (const taxId of [undefined, null, 52998224725, [VALID_CPF], { value: VALID_CPF }]) {
+      expectRejected({ ...individual, taxId }, "taxId must be a valid CPF for INDIVIDUAL accounts.");
+    }
+  });
+
+  it("rejects a missing, non-string, blank or oversized name", () => {
+    const error = "name must be a non-empty string of at most 255 characters.";
+    for (const name of [undefined, null, 42, ["Ana"], "", "   ", "x".repeat(256)]) {
+      expectRejected({ ...individual, name }, error);
+    }
+    const { next } = validate({ ...individual, name: "x".repeat(255) });
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an unknown or missing accountType before looking at the other fields", () => {
+    for (const accountType of [undefined, "BUSINESS", 1]) {
+      expectRejected({ ...individual, accountType }, "Invalid accountType.");
+    }
+  });
+
+  it("rejects a missing body instead of throwing", () => {
+    expectRejected(undefined, "Invalid accountType.");
   });
 });
