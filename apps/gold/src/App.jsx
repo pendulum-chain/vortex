@@ -17,6 +17,7 @@ import {
   getPaxgAvailability,
   getBrazilKycUploads,
   hasVortexSession,
+  kycOutcome,
   pollBrazilKyc,
   pollRamp,
   rampStartDeadline,
@@ -121,6 +122,8 @@ function KycStep({ quote, email, initialName, onApproved }) {
   const [livenessUrl, setLivenessUrl] = useState("");
   const [prepared, setPrepared] = useState(null);
   const submittedKyc = useRef(false);
+  const pollAbort = useRef(null);
+  useEffect(() => () => pollAbort.current?.abort(), []);
   const [form, setForm] = useState({ fullName: initialName || "", taxId: "", dateOfBirth: "", state: "", city: "", zipCode: "", streetAddress: "", documentType: "DRIVERS-LICENSE", front: null, back: null });
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const valid = form.fullName.trim().length > 4 && cleanCpf(form.taxId).length === 11 && form.dateOfBirth && form.state.length === 2 && form.city.trim() && form.zipCode.replace(/\D/g, "").length === 8 && form.streetAddress.trim().length > 5 && form.front && (form.documentType !== "ID" || form.back);
@@ -150,12 +153,14 @@ function KycStep({ quote, email, initialName, onApproved }) {
 
   const finish = async () => {
     setLoading(true); setError(""); setPhase("checking");
+    pollAbort.current = new AbortController();
     try {
       if (!submittedKyc.current) { await submitBrazilKyc(prepared); submittedKyc.current = true; }
-      const status = await pollBrazilKyc(prepared.taxIdNumber);
-      if (String(status?.result || "").toUpperCase() !== "APPROVED") throw new Error(status?.failureReason ? `A verificação não foi aprovada (${status.failureReason}). Confira os dados e tente novamente.` : "A verificação ainda não foi aprovada. Aguarde alguns minutos e tente novamente.");
-      onApproved();
-    } catch (nextError) { setError(nextError.message || "Não foi possível concluir a verificação."); setPhase("liveness"); }
+      const outcome = kycOutcome(await pollBrazilKyc(prepared.taxIdNumber, { signal: pollAbort.current.signal }));
+      if (outcome.approved) { onApproved(); return; }
+      // A rejected or expired attempt needs a new document upload and selfie, submitted as a new attempt.
+      submittedKyc.current = false; setPhase("form"); setError(outcome.message);
+    } catch (nextError) { if (nextError.name !== "AbortError") { setError(nextError.message || "Não foi possível concluir a verificação."); setPhase("liveness"); } }
     finally { setLoading(false); }
   };
 

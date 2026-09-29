@@ -282,6 +282,14 @@ export function secondsUntilExpiry(expiresAt, now = Date.now()) {
   return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
 }
 
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
 // No response, a timeout, rate limiting or a server error; auth and validation errors are final.
 function isTransientError(error) {
   const status = Number(error?.status || 0);
@@ -301,11 +309,7 @@ export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, t
       onUpdate?.(ramp);
       if (["success", "failure"].includes(classifyRamp(ramp))) return ramp;
     }
-    await new Promise((resolve, reject) => {
-      const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
-      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, intervalMs);
-      signal?.addEventListener("abort", abort, { once: true });
-    });
+    await delay(intervalMs, signal);
   }
   throw new VortexError("A operação continua em processamento. Você pode fechar esta tela e acompanhar depois.", { code: "POLL_TIMEOUT" });
 }
@@ -326,16 +330,36 @@ export async function uploadKycDocument(uploadUrl, file) {
 export async function submitBrazilKyc(payload) { return authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
 export async function getBrazilKycStatus(taxId) { return authenticatedApi(`/v1/brl/getKycStatus?taxId=${encodeURIComponent(taxId)}`, { method: "GET" }); }
 
-export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, signal } = {}) {
+export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
   const startedAt = Date.now();
+  let failures = 0;
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const result = await getBrazilKycStatus(taxId);
-    onUpdate?.(result);
-    const status = String(result?.status || "").toUpperCase();
-    const outcome = String(result?.result || "").toUpperCase();
-    if (status === "COMPLETED" || ["APPROVED", "REJECTED"].includes(outcome)) return result;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    let result = null;
+    // Besides network blips, the API answers 404 or 409 while it reconciles a just-submitted attempt.
+    try { result = await getBrazilKycStatus(taxId); failures = 0; }
+    catch (error) { if (!(isTransientError(error) || [404, 409].includes(error.status)) || ++failures >= maxConsecutiveErrors) throw error; }
+    if (result) {
+      onUpdate?.(result);
+      const status = String(result.status || "").toUpperCase();
+      const outcome = String(result.result || "").toUpperCase();
+      if (["COMPLETED", "EXPIRED"].includes(status) || ["APPROVED", "REJECTED"].includes(outcome)) return result;
+    }
+    await delay(intervalMs, signal);
   }
-  throw new VortexError("A verificação ainda está em análise. Você pode voltar ao painel e continuar mais tarde.", { code: "KYC_PENDING" });
+  throw new VortexError("A verificação ainda está em análise. Aguarde nesta tela e toque em \"Já concluí a selfie\" para consultar de novo.", { code: "KYC_PENDING" });
+}
+
+const KYC_REJECTION_MESSAGES = {
+  face: "A selfie não confirmou que o documento é seu. Tente de novo com boa luz, sem óculos nem boné.",
+  name: "O nome informado não confere com o documento. Corrija e tente novamente.",
+  birthdate: "A data de nascimento não confere com o documento. Corrija e tente novamente.",
+  tax_id: "O CPF informado não confere com o documento. Corrija e tente novamente.",
+};
+
+// Maps a finished Avenia attempt to what the user must do next; expired and rejected attempts start over.
+export function kycOutcome(result) {
+  if (String(result?.result || "").toUpperCase() === "APPROVED") return { approved: true, message: "" };
+  if (String(result?.status || "").toUpperCase() === "EXPIRED") return { approved: false, message: "O prazo da verificação terminou. Envie o documento e faça a selfie novamente." };
+  return { approved: false, message: KYC_REJECTION_MESSAGES[String(result?.failureReason || "").toLowerCase()] || "A verificação não foi aprovada. Confira seus dados e tente novamente." };
 }
