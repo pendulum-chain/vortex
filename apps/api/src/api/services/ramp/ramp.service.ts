@@ -808,7 +808,9 @@ export class RampService extends BaseRampService {
       ...(showUnsignedTxs && {
         unsignedTxs: filterUnsignedTxsForResponse(
           rampState,
-          rampState.state.presignChecksPass || (await this.ephemeralPresignChecksPass(rampState))
+          rampState.type !== RampDirection.SELL ||
+            rampState.state.presignChecksPass ||
+            (await this.ephemeralPresignChecksPass(rampState))
         )
       })
     };

@@ -224,4 +224,16 @@ describe("RampService.getRampStatus", () => {
 
     expect(status?.unsignedTxs).toEqual([ephemeralTx, userWalletTx]);
   });
+
+  it("skips presign validation for BUY ramps, which the gate does not filter", async () => {
+    const rampState = makeRampState(false);
+    rampState.state = makeStateMetadata({ presignChecksPass: false });
+    const service = new TestRampService(rampState);
+    const ephemeralPresignChecksPass = mock(async () => false);
+    Object.assign(service, { ephemeralPresignChecksPass });
+
+    await service.getRampStatus("ramp-1", true);
+
+    expect(ephemeralPresignChecksPass).not.toHaveBeenCalled();
+  });
 });
