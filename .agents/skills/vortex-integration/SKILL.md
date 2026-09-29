@@ -352,7 +352,7 @@ The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. R
 ## Prerequisites
 - The user completed KYC for the corridor's country via the Vortex app or Widget, and the SDK is authenticated with that user's own `sk_*` key or Supabase session.
 - Buy: `destinationAddress` (required); `fiatAccountId`, `walletAddress` optional.
-- Sell: `fiatAccountId` and `walletAddress` (both required). List saved accounts with `vortex.listDomesticFiatAccounts(country)`.
+- Sell: `fiatAccountId` and `walletAddress` (both required). Verification does not create a pay-out account: the user adds one after verification (Dashboard **Add pay-out account**, the Widget, or `POST /v1/domestic/fiatAccounts`). List saved accounts with `vortex.listDomesticFiatAccounts(country)`.
 
 ## SDK recipe (onramp, MXN shown — substitute fiat + rail for USD/COP/ARS)
 ```js
@@ -382,9 +382,22 @@ No user-signed on-chain transactions on buys. Unlike BRL there is no QR code —
 
 ## SDK recipe (offramp)
 ```js
-const accounts = await vortex.listDomesticFiatAccounts("MX");
+const sellQuote = await vortex.createQuote({
+  rampType: RampDirection.SELL,
+  from: Networks.Polygon,
+  to: EPaymentMethod.SPEI,
+  network: Networks.Polygon,
+  inputAmount: "10",
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.MXN
+});
 
-const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
+const accounts = await vortex.listDomesticFiatAccounts("MX");
+if (accounts.length === 0) {
+  throw new Error("Add a pay-out account for MX before selling");
+}
+
+const { rampProcess, unsignedTransactions } = await vortex.registerRamp(sellQuote, {
   fiatAccountId: accounts[0].fiatAccountId,
   walletAddress: "0xUserWalletAddress"
 });
@@ -396,7 +409,7 @@ await vortex.submitUserTransactions(rampProcess.id, unsignedTransactions, {
 await vortex.startRamp(rampProcess.id);
 ```
 
-The SDK cannot **create** fiat accounts; they are created during onboarding in the Vortex app or Widget. `fiatAccountId` is opaque to the SDK.
+The SDK cannot **create** fiat accounts, and verification does not create one either: the user adds it in the Dashboard (**Add pay-out account**) or Widget, or a server calls `POST /v1/domestic/fiatAccounts`. `fiatAccountId` is opaque to the SDK.
 
 ## Common failures
 - `MissingDomesticOnrampParametersError` / `MissingDomesticOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
