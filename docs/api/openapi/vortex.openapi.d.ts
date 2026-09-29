@@ -957,7 +957,7 @@ export interface paths {
         };
         /**
          * Get the acting profile's EUR onramp account
-         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -979,7 +979,7 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -1021,7 +1021,7 @@ export interface paths {
         };
         /**
          * Discover KYC or KYB requirements
-         * @description Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.
+         * @description Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. EUR onboarding is not part of discovery; it runs in the Dashboard or Widget.
          */
         get: operations["getOnboardingRequirements"];
         put?: never;
@@ -3066,7 +3066,7 @@ export interface components {
                     /** @enum {string} */
                     provider: "alfredpay" | "avenia" | "monerium" | "mykobo";
                     rail: string | null;
-                    /** @description EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
+                    /** @description EUR onramp readiness of an approved EUR provider account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
                     ramp: Record<string, never> & (null | {
                         chain: string;
                         /** @enum {string} */
@@ -3335,8 +3335,11 @@ export interface components {
                 }[];
             };
         };
-        /** @description `PENDING`, `FAILED`, `COMPLETED` */
-        SimpleStatus: string;
+        /**
+         * @description Overall ramp status. `COMPLETE` and `FAILED` are terminal; use this field, not `currentPhase`, to detect the end of a ramp.
+         * @enum {string}
+         */
+        SimpleStatus: "PENDING" | "COMPLETE" | "FAILED";
         StartKYC2Request: {
             documentType: components["schemas"]["KYCDocType"];
             taxId: string;

@@ -805,7 +805,14 @@ export class RampService extends BaseRampService {
       vortexFeeFiat: fiatFees.vortex,
       vortexFeeUsd: usdFees.vortex,
       walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
-      ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
+      ...(showUnsignedTxs && {
+        unsignedTxs: filterUnsignedTxsForResponse(
+          rampState,
+          rampState.type !== RampDirection.SELL ||
+            rampState.state.presignChecksPass ||
+            (await this.ephemeralPresignChecksPass(rampState))
+        )
+      })
     };
 
     return response;
@@ -1056,7 +1063,11 @@ export class RampService extends BaseRampService {
     };
 
     try {
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs);
+      // Only the ephemeral presigns gate the release of user-wallet txs; the user's own typed data
+      // (e.g. the SELL squidRouterPermitExecute permit) is among the txs this release reveals.
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs, {
+        requireUserTypedData: false
+      });
       return true;
     } catch {
       return false;

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import httpStatus from "http-status";
 import NodeCache from "node-cache";
 import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, {
@@ -234,6 +235,17 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
           type: MONERIUM_REAUTHENTICATION_REQUIRED
         });
       }
+      // An upstream failure keeps the session for the next attempt, but must not stay invisible: a
+      // sustained outage on a truly expired token would otherwise read as an endless 502.
+      const reason =
+        error instanceof MoneriumUpstreamError
+          ? `upstream status ${error.upstreamStatus ?? "unknown"}`
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      logger.warn(
+        `MoneriumOAuth: token refresh for ${customerType} entity ${customerEntityId} failed (${reason}); keeping the session for retry`
+      );
       throw error;
     }
   );

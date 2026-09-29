@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 // Load this shared consumer before the module mocks below; Bun does not unregister mock.module
 // replacements, and the API suite may import transfer eligibility after this file.
 import "../recipients/transfer-eligibility.service";
@@ -8,6 +8,7 @@ import "./wallet";
 // module mocks are process-wide and would poison later test files (e.g. integration tests
 // that need the real sequelize instance and models).
 import * as databaseNamespace from "../../../config/database";
+import logger from "../../../config/logger";
 import * as kycCaseNamespace from "../../../models/kycCase.model";
 import * as providerCustomerNamespace from "../../../models/providerCustomer.model";
 import * as customerEntityNamespace from "../customer-entity.service";
@@ -366,6 +367,46 @@ describe("Monerium OAuth", () => {
       type: service.MONERIUM_REAUTHENTICATION_REQUIRED
     });
     expect(tokenCalls).toBe(2);
+  });
+
+  it("keeps the session and logs a warning when the refresh grant fails upstream", async () => {
+    let tokenCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        tokenCalls += 1;
+        return tokenCalls === 1
+          ? jsonResponse({ access_token: "old-access", expires_in: 1, refresh_token: "old-refresh" })
+          : new Response("upstream unavailable", { status: 503 });
+      }
+      if (url.endsWith("/auth/context")) {
+        return jsonResponse({
+          email: "owner@example.com",
+          profiles: [{ id: "profile-a", kind: "personal" }],
+          userId: "monerium-user-a"
+        });
+      }
+      return jsonResponse({ id: "profile-a", kind: "personal", state: "pending" });
+    }) as unknown as typeof fetch;
+    const warn = spyOn(logger, "warn").mockImplementation(() => logger);
+
+    try {
+      const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+      const state = new URL(authorizationUrl).searchParams.get("state") as string;
+      await service.completeMoneriumOAuth("owner", "authorization-code", state);
+
+      await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({ status: 502 });
+      // The session survives an outage: the next call retries the refresh instead of demanding reauthentication.
+      await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({ status: 502 });
+      expect(tokenCalls).toBe(3);
+      expect(warn).toHaveBeenCalledTimes(2);
+      const logged = JSON.stringify(warn.mock.calls);
+      expect(logged).toContain("token refresh");
+      expect(logged).toContain("503");
+      expect(logged).not.toContain("old-refresh");
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("asks for reauthentication when Monerium revokes an otherwise unexpired access token", async () => {

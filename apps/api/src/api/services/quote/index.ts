@@ -25,7 +25,6 @@ import {
   SUPPORTED_CHAINS,
   validateChainSupport
 } from "../phases/blocks/core/helpers";
-import { MykoboFeeUnavailableError } from "../phases/blocks/core/mykobo-fee";
 import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
 import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import { BaseRampService } from "../ramp/base.service";
@@ -57,6 +56,7 @@ export class QuoteService extends BaseRampService {
   ): Promise<QuoteResponse> {
     assertEurOfframpSupported(request);
     assertEurOnrampEnabled(request);
+    assertFiatCurrencyEnabled(request);
     assertEurOnrampNetworkSupported(request);
     return this.executeQuoteCalculation(request);
   }
@@ -90,6 +90,7 @@ export class QuoteService extends BaseRampService {
   ): Promise<QuoteResponse> {
     assertEurOfframpSupported(request);
     assertEurOnrampEnabled(request);
+    assertFiatCurrencyEnabled(request);
     const { rampType, from, to, networks } = request;
 
     // Determine eligible networks based on the corridor
@@ -307,6 +308,18 @@ function assertEurOfframpSupported(request: Pick<CreateQuoteRequest, "outputCurr
 /** Operational kill switch (`EUR_ONRAMP_ENABLED=false`): new EUR pay-in quotes stop, registered ramps keep executing. */
 function assertEurOnrampEnabled(request: Pick<CreateQuoteRequest, "inputCurrency" | "rampType">): void {
   if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.EURC && !config.monerium.eurOnrampEnabled) {
+    throw new APIError({
+      isPublic: true,
+      message: QuoteError.AnchorTemporarilyUnavailable,
+      status: httpStatus.SERVICE_UNAVAILABLE
+    });
+  }
+}
+
+/** Operational kill switch (`DISABLED_FIAT_CURRENCIES=MXN,COP`): new quotes on those fiat rails stop, registered ramps keep executing. */
+function assertFiatCurrencyEnabled(request: Pick<CreateQuoteRequest, "inputCurrency" | "outputCurrency" | "rampType">): void {
+  const fiatCurrency = request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency;
+  if (config.quote.disabledFiatCurrencies.includes(fiatCurrency as FiatToken)) {
     throw new APIError({
       isPublic: true,
       message: QuoteError.AnchorTemporarilyUnavailable,

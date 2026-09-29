@@ -6,7 +6,7 @@ You can subscribe to:
 
 - **Transaction creation** — a new ramp is registered.
 - **Status changes** — a ramp's status moves between `PENDING`, `COMPLETE`, and `FAILED`.
-- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`), converted and forwarded (`DEPOSIT_CONVERTED`), or refunded because it could not be converted within the promised window (`DEPOSIT_RETURNED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery.
+- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`), converted and forwarded (`DEPOSIT_CONVERTED`), or refunded because it could not be converted within the promised window (`DEPOSIT_RETURNED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery. Business EUR onramp accounts are available in sandbox; production activation is pending.
 
 ## Security Model
 
@@ -104,6 +104,8 @@ Status values:
 - `FAILED` — ramp failed or timed out.
 
 ## Deposit Events
+
+Business EUR onramp accounts, and with them deposit events, are available in sandbox; production activation is pending.
 
 Managers whose business clients hold EUR onramp accounts can subscribe to deposit events instead of polling `GET /v1/monerium-b2b/deposits`. These subscriptions follow account-scoped rules:
 

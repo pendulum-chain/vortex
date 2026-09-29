@@ -554,7 +554,7 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "pixDestination is required for offramp to BRL") {
         return new MissingBrlOfframpParametersError();
       }
-      if (errorMessage === "Invalid pixKey or receiverTaxId") {
+      if (errorMessage === "Invalid pixKey or receiverTaxId.") {
         return new InvalidPixKeyError();
       }
       if (errorMessage === "Parameter destinationAddress is required for this onramp") {

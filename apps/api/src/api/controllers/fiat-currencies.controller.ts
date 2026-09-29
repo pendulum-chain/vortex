@@ -5,6 +5,7 @@ import {
 } from "@vortexfi/shared";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
+import { config } from "../../config/vars";
 
 /**
  * Get supported fiat currencies
@@ -19,7 +20,7 @@ export const getSupportedFiatCurrenciesHandler = async (
 ): Promise<void> => {
   try {
     res.status(httpStatus.OK).json({
-      currencies: SUPPORTED_FIAT_CURRENCIES.filter(c => c.enabled)
+      currencies: SUPPORTED_FIAT_CURRENCIES.filter(c => c.enabled && !config.quote.disabledFiatCurrencies.includes(c.symbol))
     });
   } catch (error) {
     next(error);
