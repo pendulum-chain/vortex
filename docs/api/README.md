@@ -78,6 +78,9 @@ Deliberate exceptions, all of them things a rename would break or misrepresent:
 - Internal provider-protocol types, service files, workers, and log lines. These model a
   specific third party's API and are never returned to a partner.
 - `Sumsub`, which is the caller's own vendor rather than a Vortex payment partner.
+- The EUR corridor's released API names: the `/v1/monerium/*` and `/v1/monerium-b2b/*` routes,
+  `MONERIUM_*` error codes, `monerium*` phase values, and the SDK's `Monerium*` error classes.
+  Prose around them still says "EUR provider".
 
 Deprecated provider-named SDK aliases stay exported until the next major release.
 

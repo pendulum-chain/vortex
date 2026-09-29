@@ -22,7 +22,7 @@ When you point an AI coding agent at Vortex:
 | Browser, mobile, or WebView preferring a hosted UX and hosted custody | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
-The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR (SEPA) BUY currently requires a direct API integration because the linked owner must sign typed data; EUR SELL is unavailable. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
+The SDK paths support BRL (PIX), USD (ACH), MXN (SPEI), COP, and ARS (CBU). EUR (SEPA) BUY is available in sandbox, with production activation pending; until the next `@vortexfi/sdk` release it requires a direct API integration in which the linked owner wallet signs a typed-data permit. EUR SELL is unavailable. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
 
 Ramping requires an onboarded (KYC/KYB-approved) user. Onboarding is a separate, corridor-specific flow that most corridors also expose through the API — see Section H before assuming the app or Widget is required.
 
@@ -48,6 +48,8 @@ Then, for each ramp:
 4. **Fund.** On a buy, pay the instructions released by the update: `depositQrCode` for BRL (PIX), `achPaymentData` for USD, MXN, COP, and ARS, or `ibanPaymentData` for EUR. On a sell, what your wallet signed or sent in step 3 funds the ramp; there is no separate funding step.
 5. **Start.** `sdk.startRamp()` or `POST /v1/ramp/start`, before the `expiresAt` returned by register and update (15 minutes after registration). After that deadline, update and start are refused.
 6. **Track.** Poll `GET /v1/ramp/{id}` until `status` is `COMPLETE` or `FAILED`, or register a webhook (Section D.6).
+
+EUR buys are available in sandbox only for now, and until the next SDK release they use the API calls above rather than the SDK methods.
 
 Signing in step 3 is the one case where a server signs the user-owned transactions that Section D.4 routes to the user's wallet: the funds are your own. Keep that wallet key in a secret manager, separate from the per-ramp ephemeral keys.
 
@@ -195,7 +197,7 @@ On a **supported sell**, the user signs the user-owned transaction(s), you submi
 
 ## E. Mandatory Client Responsibilities
 
-These are not optional. The SDK handles them for supported corridors; a custom client must implement them explicitly. The current EUR BUY flow is one such custom-client path.
+These are not optional. The SDK handles them for supported corridors; a custom client must implement them explicitly. Until the next SDK release, EUR BUY is one such custom-client path.
 
 1. **Ephemeral key custody.** Generate fresh per-ramp keypairs. Store them encrypted, keyed by `rampId`. Keep them until the ramp is `COMPLETE` or `FAILED` **and** any recovery window has passed. Never transmit secrets to Vortex, support, logs, or analytics. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 2. **Payload validation before signing.** Every field that affects funds movement must match what your application requested.
