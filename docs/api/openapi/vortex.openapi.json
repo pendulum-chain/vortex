@@ -80,6 +80,16 @@
           }
         },
         "description": ""
+      },
+      "TooManyDistinctTaxIds": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/BrErrorResponse"
+            }
+          }
+        },
+        "description": "Too many tax IDs of other accounts. An account (or, for unauthenticated requests, a client IP) that queried 5 different CPF/CNPJ values belonging to other accounts within 24 hours (answered `403`, or `409` on `createSubaccount`) receives this for any further tax ID on the tax-ID-keyed BR operations (`createSubaccount`, `getUser`, `getUserRemainingLimit`, `getKycStatus`, `getUploadUrls`, `getSelfieLivenessUrl`). Tax IDs the account owns and tax IDs not yet registered never count, and repeating a tax ID is never limited. Retry after the 24-hour window has passed."
       }
     },
     "schemas": {
@@ -653,6 +663,7 @@
             "type": "string"
           },
           "taxIdentificationNumberTin": {
+            "description": "The CNPJ the company subaccount was created with. Punctuation is ignored; a different value is rejected with `400`.",
             "type": "string"
           },
           "uboIds": {
@@ -1004,7 +1015,9 @@
             "type": "string"
           },
           "name": {
-            "description": "Individual full name or company legal name.",
+            "description": "Individual full name or company legal name (1 to 255 characters after trimming).",
+            "maxLength": 255,
+            "minLength": 1,
             "type": "string"
           },
           "quoteId": {
@@ -1014,7 +1027,8 @@
             "type": "string"
           },
           "taxId": {
-            "description": "CPF for an individual or CNPJ for a company.",
+            "description": "CPF for an `INDIVIDUAL` account or CNPJ for a `COMPANY` account. Check digits are validated; punctuation is optional (`529.982.247-25` and `52998224725` are equivalent).",
+            "example": "529.982.247-25",
             "type": "string"
           }
         },
@@ -2238,6 +2252,7 @@
             "type": "string"
           },
           "taxIdNumber": {
+            "description": "The CPF the subaccount was created with. Punctuation is ignored; a different CPF is rejected with `400`.",
             "type": "string"
           },
           "uploadedDocumentId": {
@@ -4606,7 +4621,7 @@
     "/v1/brl/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
+        "description": "Creates the provider subaccount for a Brazilian individual (`INDIVIDUAL`, CPF) or company (`COMPANY`, CNPJ). The tax ID is reserved for the calling account as soon as this succeeds, so `taxId` must be the CPF/CNPJ of the person or company being onboarded; it is validated (format and check digits) before anything is created. Repeating the call for a tax ID the account already owns returns the existing `subAccountId`.\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** secret `X-API-Key` or Supabase Bearer session.",
         "operationId": "createSubaccount",
         "parameters": [
           {
@@ -4643,7 +4658,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (cpf, cnpj, companyName, startDate)\n- Subaccount already created and KYC level > 0\n- Other invalid request details",
+            "description": "Bad Request. Possible reasons:\n- `accountType` is not `INDIVIDUAL` or `COMPANY`\n- `name` is missing, blank, or longer than 255 characters\n- `taxId` is missing, is not a string, or is not a valid CPF (`INDIVIDUAL`) / CNPJ (`COMPANY`); punctuation is optional, the check digits are verified\n- Other invalid request details",
             "headers": {}
           },
           "401": {
@@ -4651,6 +4666,9 @@
           },
           "403": {
             "$ref": "#/components/responses/BrlaManagedSelectorForbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
           },
           "500": {
             "content": {
@@ -4746,6 +4764,9 @@
             "description": "The canonical KYC state requires reconciliation.",
             "headers": {}
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -4839,6 +4860,9 @@
             },
             "description": "The immutable KYC method or canonical case state conflicts with liveness creation.",
             "headers": {}
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
           },
           "500": {
             "content": {
@@ -4935,6 +4959,9 @@
             "description": "The immutable KYC method or canonical case state conflicts with upload creation.",
             "headers": {}
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -5030,6 +5057,9 @@
             "description": "Subaccount not found.",
             "headers": {}
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -5122,6 +5152,9 @@
             },
             "description": "Subaccount not found or limits not found.",
             "headers": {}
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyDistinctTaxIds"
           },
           "500": {
             "content": {
@@ -5426,7 +5459,7 @@
                 }
               }
             },
-            "description": "Invalid submission or document state."
+            "description": "Invalid submission or document state, including a `taxIdentificationNumberTin` that does not match the CNPJ the company subaccount was created with (punctuation is ignored)."
           },
           "401": {
             "$ref": "#/components/responses/ManagedSelectorUnauthorized",
@@ -5909,7 +5942,7 @@
                 }
               }
             },
-            "description": "Validation failure.",
+            "description": "Validation failure, including a `taxIdNumber` that does not match the CPF the subaccount was created with (punctuation is ignored). Submit the same CPF used for `createSubaccount`.",
             "headers": {}
           },
           "401": {

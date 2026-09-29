@@ -109,7 +109,7 @@ export interface paths {
         put?: never;
         /**
          * Create user or retry KYC
-         * @description `companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`
+         * @description Creates the provider subaccount for a Brazilian individual (`INDIVIDUAL`, CPF) or company (`COMPANY`, CNPJ). The tax ID is reserved for the calling account as soon as this succeeds, so `taxId` must be the CPF/CNPJ of the person or company being onboarded; it is validated (format and check digits) before anything is created. Repeating the call for a tax ID the account already owns returns the existing `subAccountId`.
          *
          *     `quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.
          *
@@ -2249,6 +2249,7 @@ export interface components {
             /** @enum {string} */
             sourceOfFundsAndIncome: "business_loans" | "grants" | "inter_company_funds" | "investment_proceeds" | "legal_settlement" | "owners_capital" | "pension_retirement" | "sale_of_assets" | "sales_of_goods_and_services" | "third_party_funds" | "treasury_reserves";
             taxIdentificationDocumentId: string;
+            /** @description The CNPJ the company subaccount was created with. Punctuation is ignored; a different value is rejected with `400`. */
             taxIdentificationNumberTin: string;
             uboIds: string[];
             /** Format: uri */
@@ -2365,11 +2366,14 @@ export interface components {
         CreateSubaccountRequest: {
             /** @enum {string} */
             accountType: "INDIVIDUAL" | "COMPANY";
-            /** @description Individual full name or company legal name. */
+            /** @description Individual full name or company legal name (1 to 255 characters after trimming). */
             name: string;
             quoteId?: string;
             sessionId?: string;
-            /** @description CPF for an individual or CNPJ for a company. */
+            /**
+             * @description CPF for an `INDIVIDUAL` account or CNPJ for a `COMPANY` account. Check digits are validated; punctuation is optional (`529.982.247-25` and `52998224725` are equivalent).
+             * @example 529.982.247-25
+             */
             taxId: string;
         };
         CreateSubaccountResponse: {
@@ -2767,6 +2771,7 @@ export interface components {
             state: string;
             streetAddress: string;
             subAccountId: string;
+            /** @description The CPF the subaccount was created with. Punctuation is ignored; a different CPF is rejected with `400`. */
             taxIdNumber: string;
             uploadedDocumentId: string;
             uploadedSelfieId: string;
@@ -3536,6 +3541,15 @@ export interface components {
                 };
             };
         };
+        /** @description Too many tax IDs of other accounts. An account (or, for unauthenticated requests, a client IP) that queried 5 different CPF/CNPJ values belonging to other accounts within 24 hours (answered `403`, or `409` on `createSubaccount`) receives this for any further tax ID on the tax-ID-keyed BR operations (`createSubaccount`, `getUser`, `getUserRemainingLimit`, `getKycStatus`, `getUploadUrls`, `getSelfieLivenessUrl`). Tax IDs the account owns and tax IDs not yet registered never count, and repeating a tax ID is never limited. Retry after the 24-hour window has passed. */
+        TooManyDistinctTaxIds: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["BrErrorResponse"];
+            };
+        };
     };
     parameters: {
         /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
@@ -3831,8 +3845,9 @@ export interface operations {
             };
             /**
              * @description Bad Request. Possible reasons:
-             *     - Missing required fields (cpf, cnpj, companyName, startDate)
-             *     - Subaccount already created and KYC level > 0
+             *     - `accountType` is not `INDIVIDUAL` or `COMPANY`
+             *     - `name` is missing, blank, or longer than 255 characters
+             *     - `taxId` is missing, is not a string, or is not a valid CPF (`INDIVIDUAL`) / CNPJ (`COMPANY`); punctuation is optional, the check digits are verified
              *     - Other invalid request details
              */
             400: {
@@ -3845,6 +3860,7 @@ export interface operations {
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
             403: components["responses"]["BrlaManagedSelectorForbidden"];
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {
@@ -3909,6 +3925,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error (e.g., no KYC events found when expected). */
             500: {
                 headers: {
@@ -3973,6 +3990,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal server error. */
             500: {
                 headers: {
@@ -4038,6 +4056,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal server error. */
             500: {
                 headers: {
@@ -4105,6 +4124,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {
@@ -4165,6 +4185,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
+            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {
@@ -4383,7 +4404,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Invalid submission or document state. */
+            /** @description Invalid submission or document state, including a `taxIdentificationNumberTin` that does not match the CNPJ the company subaccount was created with (punctuation is ignored). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4738,7 +4759,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Validation failure. */
+            /** @description Validation failure, including a `taxIdNumber` that does not match the CPF the subaccount was created with (punctuation is ignored). Submit the same CPF used for `createSubaccount`. */
             400: {
                 headers: {
                     [name: string]: unknown;
