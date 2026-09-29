@@ -5,6 +5,7 @@ import { MIN_BUY, QUICK_BUY_VALUES, DEFAULT_BUY, validBuyAmount, buyFeePercent }
 import { QRCodeSVG } from "qrcode.react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { CHART_PERIODS, chartWindow, fetchPaxgMarket, getDemoMarket } from "./lib/market.js";
+import { deleteEphemeralRampKeys } from "./lib/ephemeral-store.js";
 import { readPaxgBalance } from "./lib/paxg.js";
 import { addRampHistory, clearActiveRamp, failActiveRamp, getActiveRamp, getRampHistory, saveActiveRamp } from "./lib/pilot-store.js";
 import {
@@ -395,6 +396,8 @@ export function App({ auth, demo = true }) {
     const next = addRampHistory({ rampId: ramp.id, walletAddress: auth.address?.toLowerCase(), inputAmount: ramp.inputAmount, outputAmount: ramp.outputAmount, transactionExplorerLink: ramp.transactionExplorerLink, rampType: ramp.type || "BUY" });
     setHistory(next.filter((item) => item.walletAddress === auth.address?.toLowerCase()));
     setPending(null);
+    // Completed ramps are swept server-side; the stored keys only matter for recovering failed ones.
+    if (!demo) deleteEphemeralRampKeys(ramp.id).catch(() => {});
     if (demo) setGrams((value) => Math.max(0, value + (ramp.type === "SELL" ? -Number(ramp.inputAmount) : Number(ramp.outputAmount)) * 31.1034768));
     window.setTimeout(loadBalance, 2_000);
   };
