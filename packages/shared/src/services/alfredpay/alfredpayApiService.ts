@@ -1,5 +1,5 @@
 import Big from "big.js";
-import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
+import { ALFREDPAY_API_KEY, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
 import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
@@ -98,16 +98,13 @@ async function asAsciiNamedUpload(file: Blob): Promise<File> {
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
 
-  private apiKey: string;
-
-  private apiSecret: string;
+  private authorization: string;
 
   private constructor() {
-    if (!ALFREDPAY_API_KEY || !ALFREDPAY_API_SECRET) {
-      throw new Error("ALFREDPAY_API_KEY or ALFREDPAY_API_SECRET not defined");
+    if (!ALFREDPAY_API_KEY) {
+      throw new Error("ALFREDPAY_API_KEY not defined");
     }
-    this.apiKey = ALFREDPAY_API_KEY;
-    this.apiSecret = ALFREDPAY_API_SECRET;
+    this.authorization = `Bearer ${ALFREDPAY_API_KEY}`;
   }
 
   public static getInstance(): AlfredpayApiService {
@@ -129,8 +126,7 @@ export class AlfredpayApiService {
   ): Promise<T | undefined> {
     const headers = {
       Accept: "application/json",
-      "api-key": this.apiKey,
-      "api-secret": this.apiSecret,
+      Authorization: this.authorization,
       "Content-Type": "application/json"
     };
 
@@ -372,10 +368,7 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
+      headers: { Authorization: this.authorization },
       method: "POST"
     });
 
@@ -434,10 +427,7 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
+      headers: { Authorization: this.authorization },
       method: "POST"
     });
 
@@ -465,10 +455,7 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
+      headers: { Authorization: this.authorization },
       method: "POST"
     });
 

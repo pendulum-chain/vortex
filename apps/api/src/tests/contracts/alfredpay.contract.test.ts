@@ -58,7 +58,7 @@ import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 import { FakeAlfredpay } from "../../test-utils/fake-world/fake-anchors";
 
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
-const HAS_CREDS = !!(process.env.ALFREDPAY_API_KEY && process.env.ALFREDPAY_API_SECRET);
+const HAS_CREDS = !!process.env.ALFREDPAY_API_KEY;
 const CUSTOMER_ID = process.env.ALFREDPAY_CONTRACT_CUSTOMER_ID;
 const FIAT_ACCOUNT_ID = process.env.ALFREDPAY_CONTRACT_FIAT_ACCOUNT_ID;
 const KYC_SUBMISSION_ID = process.env.ALFREDPAY_CONTRACT_KYC_SUBMISSION_ID;
@@ -173,7 +173,7 @@ function kybFlowForm(email: string): SubmitKybInformationRequest {
 }
 
 if (RUN_LIVE && !HAS_CREDS) {
-  console.warn("[contract:live] Alfredpay live half skipped: ALFREDPAY_API_KEY/ALFREDPAY_API_SECRET not set");
+  console.warn("[contract:live] Alfredpay live half skipped: ALFREDPAY_API_KEY not set");
 }
 
 // Unremarkable placeholder wallet, mirroring the squidrouter suite.

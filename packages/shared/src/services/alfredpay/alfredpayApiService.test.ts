@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 process.env.ALFREDPAY_API_KEY ||= "test-key";
-process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
 const { AlfredpayApiService, toAsciiFileName } = await import("./alfredpayApiService");
 const {
@@ -95,6 +94,49 @@ describe("uploads send an ASCII multipart filename", () => {
   test("KYC document upload", async () => {
     await AlfredpayApiService.getInstance().submitKycFile("cust-1", "sub-1", AlfredpayKycFileType.DOC_FRONT, accentedPng());
     expect(sentFileName("fileBody")).toBe("Identificacion_oficial.png");
+  });
+});
+
+/**
+ * Alfred's migration guide authenticates the Penny adapter with the partner API key as a bearer
+ * token; the `api-key`/`api-secret` pair belonged to the decommissioned Penny hosts. Uploads build
+ * their own headers, so they are covered separately.
+ */
+describe("requests authenticate with the Alfred API key as a bearer token", () => {
+  let sentHeaders: Headers[];
+  const realFetch = globalThis.fetch;
+  const service = AlfredpayApiService.getInstance();
+
+  beforeEach(() => {
+    sentHeaders = [];
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      sentHeaders.push(new Headers(init.headers));
+      return Response.json({ supportedPairs: [] });
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function expectBearerOnly(headers: Headers | undefined): void {
+    expect(headers?.get("authorization")).toBe(`Bearer ${process.env.ALFREDPAY_API_KEY}`);
+    expect(headers?.has("api-key")).toBe(false);
+    expect(headers?.has("api-secret")).toBe(false);
+  }
+
+  test("JSON requests", async () => {
+    await service.getAllConfigs();
+    expectBearerOnly(sentHeaders[0]);
+  });
+
+  test("every multipart upload", async () => {
+    const file = new File([new Uint8Array([1])], "doc.png", { type: "image/png" });
+    await service.submitKycFile("cust-1", "sub-1", AlfredpayKycFileType.FRONT, file);
+    await service.submitKybFiles("cust-1", "sub-1", AlfredpayKybFileType.PROOF_ADDRESS, file);
+    await service.submitKybRelatedPersonFiles("cust-1", "person-1", AlfredpayKybRelatedPersonFileType.DOC_FRONT, file);
+    expect(sentHeaders).toHaveLength(3);
+    for (const headers of sentHeaders) expectBearerOnly(headers);
   });
 });
 
