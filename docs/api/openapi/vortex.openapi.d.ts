@@ -957,7 +957,7 @@ export interface paths {
         };
         /**
          * Get the acting profile's EUR onramp account
-         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -979,7 +979,7 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
