@@ -44,6 +44,11 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
   `failed`. Locks are released on terminal states; only `currentPhase`/`phaseHistory` are
   updated by the processor.
 - Presigned transaction and ephemeral address validation (F-021, F-038 class).
+- The start deadline is relaxed only for worker-driven recovery: public `/ramp/update` and
+  `/ramp/start` keep rejecting an expired ramp even with a source hash reported, while the
+  recovery worker starts (and completes) a non-domestic SELL ramp with a reported hash between
+  16 minutes and 3 days old and leaves every other `initial` ramp untouched
+  (`corridors/brl-offramp-crosschain.scenario.test.ts`, `brl-offramp.scenario.test.ts`).
 - External swap/route outputs are validated against expectations before funds move (F-030).
 
 When a new security finding is fixed, add a regression test in the same PR and reference the
