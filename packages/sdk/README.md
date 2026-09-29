@@ -137,7 +137,7 @@ await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
-> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. The account is created during onboarding; look up its `fiatAccountId` with `sdk.listDomesticFiatAccounts(country)` and pass it in.
+> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Verification does not create it: add the pay-out account first (Dashboard **Add pay-out account** after the corridor is verified), then look up its `fiatAccountId` with `sdk.listDomesticFiatAccounts(country)` and pass it in.
 
 ### Deferred offramp funding
 
@@ -203,6 +203,7 @@ Gets the current status of a ramp process.
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
 Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
+EUR/SEPA BUY requires an SDK release newer than 0.9.0; with 0.9.0, use the direct API flow in the Fiat Corridors guide.
 For EUR/SEPA BUY, pass `walletAddress`: the wallet linked to the user's EUR provider profile (see the
 Fiat Corridors guide). The backend mints EURe to that wallet and returns its ERC-2612 permit as a
 user-owned typed-data transaction in `unsignedTransactions`; sign and submit it with
