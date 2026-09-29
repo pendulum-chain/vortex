@@ -18,6 +18,7 @@ import { RampContext, RampMachineActor, RampState } from "../types";
 export enum SignRampErrorType {
   InvalidInput = "INVALID_INPUT",
   UserRejected = "USER_REJECTED",
+  StartWindowClosed = "START_WINDOW_CLOSED",
   UnknownError = "UNKNOWN_ERROR"
 }
 export class SignRampError extends Error implements DomainError {
@@ -29,6 +30,10 @@ export class SignRampError extends Error implements DomainError {
     this.type = type;
   }
 }
+
+// The API refuses to record or start a ramp after its start deadline, so funds broadcast later strand on the
+// ephemeral. The margin covers the wallet confirmation, the receipt wait and the update/start calls.
+const START_DEADLINE_MARGIN_MS = 4 * 60_000;
 
 export const signTransactionsActor = async ({
   input
@@ -88,6 +93,13 @@ export const signTransactionsActor = async ({
       const tx = sortedTxs[idx];
       const current = idx + 1;
 
+      // Typed-data permits move nothing until the backend executes them after a successful start.
+      // The negated comparison fails closed when expiresAt is missing (NaN).
+      const isBroadcast = !isSignedTypedData(tx.txData) && !isSignedTypedDataArray(tx.txData);
+      if (isBroadcast && !(Date.parse(rampState.ramp?.expiresAt ?? "") - Date.now() > START_DEADLINE_MARGIN_MS)) {
+        throw new SignRampError("Ramp start window closed before broadcast", SignRampErrorType.StartWindowClosed);
+      }
+
       if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
         input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         if (isSignedTypedData(tx.txData)) {
@@ -135,6 +147,9 @@ export const signTransactionsActor = async ({
     }
   } catch (error) {
     console.log("Error during signing transactions: ", error);
+    if (error instanceof SignRampError) {
+      throw error;
+    }
     // We try to catch an error caused by user rejection of the signature request.
     if (error instanceof Error && error.message) {
       if (error.message.includes("User rejected the request")) {
