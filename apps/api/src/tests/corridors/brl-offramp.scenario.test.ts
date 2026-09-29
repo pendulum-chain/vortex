@@ -15,6 +15,7 @@ import {
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import RampRecoveryWorker from "../../api/workers/ramp-recovery.worker";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import FinancialOperation from "../../models/financialOperation.model";
@@ -697,5 +698,32 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
     },
     30000
+  );
+
+  it(
+    "recovery worker: starts a direct-transfer ramp whose transfer hash was reported but never started",
+    async () => {
+      const setup = await setUpRegisteredRamp({ submitViaApi: true });
+      scriptHappyWorld(setup);
+      // The client reported the transfer hash inside the window, then never called /v1/ramp/start.
+      await RampState.update({ createdAt: new Date(Date.now() - 17 * 60 * 1000) }, { where: { id: setup.rampId } });
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      const worker = new RampRecoveryWorker("*/5 * * * *", false) as unknown as { recover: () => Promise<void> };
+      await worker.recover();
+
+      const deadline = Date.now() + 20000;
+      let final = await RampState.findByPk(setup.rampId);
+      while (final?.currentPhase !== "complete" && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        final = await RampState.findByPk(setup.rampId);
+      }
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(1);
+      expect(submissionsOf(setup.signedPayout)).toBe(1);
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
+    },
+    60000
   );
 });

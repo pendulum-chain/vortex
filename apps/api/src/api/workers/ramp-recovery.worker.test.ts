@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { EPaymentMethod, Networks } from "@vortexfi/shared";
+import { EPaymentMethod, Networks, RampDirection } from "@vortexfi/shared";
+import { Op } from "sequelize";
+import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import phaseProcessor from "../services/phases/phase-processor";
+import rampService from "../services/ramp/ramp.service";
 import RampRecoveryWorker from "./ramp-recovery.worker";
 
 const originalFindAll = RampState.findAll;
@@ -35,5 +38,87 @@ describe("RampRecoveryWorker Moonbeam retirement", () => {
     await worker.recover();
 
     expect(processRamp).not.toHaveBeenCalled();
+  });
+});
+
+describe("RampRecoveryWorker funded SELL start", () => {
+  const originalRecoverFundedSellRamp = rampService.recoverFundedSellRamp;
+  const originalAppendErrorLog = rampService.appendErrorLog;
+  const recoverFundedSellRamp = mock(async (_rampId: string): Promise<unknown> => undefined);
+  const appendErrorLog = mock(async (_id: string, _entry: unknown) => undefined);
+  const fundedSell = {
+    currentPhase: "initial",
+    from: Networks.Ethereum,
+    id: "funded-sell-ramp",
+    state: { flow: { id: "BrlOfframpBase" }, squidRouterSwapHash: "0xabc" },
+    to: EPaymentMethod.PIX,
+    unsignedTxs: []
+  };
+  let queries: Array<{ where: Record<PropertyKey, unknown> }>;
+
+  beforeEach(() => {
+    queries = [];
+    RampState.findAll = mock(async (options: { where: Record<PropertyKey, unknown> }) => {
+      queries.push(options);
+      return options.where.currentPhase === "initial" ? [fundedSell] : [];
+    }) as unknown as typeof RampState.findAll;
+    rampService.recoverFundedSellRamp = recoverFundedSellRamp as unknown as typeof rampService.recoverFundedSellRamp;
+    rampService.appendErrorLog = appendErrorLog as unknown as typeof rampService.appendErrorLog;
+    recoverFundedSellRamp.mockReset();
+    recoverFundedSellRamp.mockImplementation(async () => undefined);
+    appendErrorLog.mockClear();
+  });
+
+  afterEach(() => {
+    rampService.recoverFundedSellRamp = originalRecoverFundedSellRamp;
+    rampService.appendErrorLog = originalAppendErrorLog;
+  });
+
+  async function runWorker() {
+    const worker = new RampRecoveryWorker("*/5 * * * *", false) as unknown as { recover: () => Promise<void> };
+    await worker.recover();
+  }
+
+  it("selects initial SELL ramps with a reported source hash between 16 minutes and 3 days old", async () => {
+    const before = Date.now();
+    await runWorker();
+    const after = Date.now();
+
+    const where = queries.find(query => query.where.currentPhase === "initial")?.where as Record<PropertyKey, unknown>;
+    expect(where.type).toBe(RampDirection.SELL);
+    expect(where.flowVariant).toBe(config.flowVariant);
+    expect(where[Op.or]).toEqual([
+      { "state.squidRouterSwapHash": { [Op.ne]: null } },
+      { "state.squidRouterNoPermitTransferHash": { [Op.ne]: null } }
+    ]);
+    const createdAt = where.createdAt as Record<symbol, Date>;
+    const minute = 60 * 1000;
+    expect(before - createdAt[Op.lt].getTime()).toBeGreaterThanOrEqual(16 * minute);
+    expect(after - createdAt[Op.lt].getTime()).toBeLessThan(16 * minute + 5000);
+    expect(before - createdAt[Op.gt].getTime()).toBeGreaterThanOrEqual(3 * 24 * 60 * minute);
+    expect(after - createdAt[Op.gt].getTime()).toBeLessThan(3 * 24 * 60 * minute + 5000);
+  });
+
+  it("starts each selected ramp through the funded SELL path, not the phase processor", async () => {
+    await runWorker();
+
+    expect(recoverFundedSellRamp).toHaveBeenCalledTimes(1);
+    expect(recoverFundedSellRamp).toHaveBeenCalledWith("funded-sell-ramp");
+    expect(processRamp).not.toHaveBeenCalled();
+    expect(appendErrorLog).not.toHaveBeenCalled();
+  });
+
+  it("logs a failed start on the ramp and selects it again on the next cycle", async () => {
+    recoverFundedSellRamp.mockImplementation(async () => {
+      throw new Error("database unavailable");
+    });
+
+    await runWorker();
+    await runWorker();
+
+    expect(appendErrorLog).toHaveBeenCalledTimes(2);
+    expect(appendErrorLog.mock.calls[0]?.[0]).toBe("funded-sell-ramp");
+    expect(appendErrorLog.mock.calls[0]?.[1]).toMatchObject({ error: "database unavailable", phase: "initial" });
+    expect(recoverFundedSellRamp).toHaveBeenCalledTimes(2);
   });
 });
