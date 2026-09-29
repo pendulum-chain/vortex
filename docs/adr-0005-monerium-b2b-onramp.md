@@ -257,13 +257,17 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   16 minutes, so a payment above roughly €70k could reach the two-hour window; the
   €50k per client per day pilot limit (B4) keeps a payment at five chunks or fewer. The
   guardian can change the cap at any time up to the €50k ceiling.
+- **Penny test optional.** The penny test (B2) was never agreed as a mandatory step. It
+  is an optional check, recommended for exchange destinations, and not an activation
+  requirement. A wrong or rotated destination is now caught by the penny test only when
+  one is run, otherwise by the dormancy gate; the loss allocation under B5 is unchanged.
 
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
 |---|---|---|
 | B1 | Fee policy | **target 1250 ppm (12.5 bps), floor 1500 ppm (15 bps) below the reference**, per client, guardian-adjustable (amended 2026-09-15; replaces the flat 0 / 15 bps skim) |
-| B2 | Penny-test amount | 5 USDC |
+| B2 | Penny-test amount | 5 USDC, **optional** (amended 2026-09-29): recommended for exchange destinations, not an activation requirement |
 | B3 | Processing SLA wording | **Same business day**; weekend mints execute within the 52 h oracle window at possibly wider spreads |
 | B4 | Pilot volume limits | **€50k/client/day, paper/contractual only** (no backend enforcement in the pilot; GA revisit) |
 | B5 | Partner liability | Tier A defaults: partner warrants destination correctness; rotation loss borne by the client; dormancy re-activation on written partner confirmation |
@@ -315,7 +319,7 @@ example (oversized-deposit allocation).
   client-side: association monitor is the detective control; Monerium-side
   authorization requirements are the G1 ask; response = rotate + suspend (runbook).
 - **CEX destination rotation.** Not verifiable on-chain; carried contractually (B5)
-  with penny test, dormancy gate, and minimum-forward diligence. Silent-loss risk
+  with the dormancy gate and an optional penny test. Silent-loss risk
   converts to a pause via the dormancy gate.
 - **Vortex custody on the refund path** (amendment 2026-09-17). A recovered payment
   sits in Vortex's own wallet until the bank refund goes out; a compromised keeper plus
@@ -324,7 +328,7 @@ example (oversized-deposit allocation).
   nothing else, and the association monitor; accepted commercially by the partner and
   carried to G1/G2.
 - **Broken destination** — with no client key on the clone, a wrong destination is
-  caught by the penny test and the dormancy gate; a rotation loss is borne by the
+  caught by an optional penny test or by the dormancy gate; a rotation loss is borne by the
   client/partner (B5); a destination change is a new clone.
 - **Non-custody ≠ out of MiCA scope.** The constrained-attestor construction defeats
   the custody definition, but exchange/transfer-service scoping is a separate G2

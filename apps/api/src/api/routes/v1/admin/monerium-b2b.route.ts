@@ -15,7 +15,7 @@ router.use(adminAuth);
 // deployed forwarder as a B2B onramp account. Idempotent.
 router.post("/accounts", postMoneriumB2bAccount);
 
-// Operator lifecycle transitions (activate after the penny test, suspend, close).
+// Operator lifecycle transitions (activate, suspend, close).
 router.patch("/accounts/:accountId/status", patchMoneriumB2bAccountStatus);
 
 // Refund path (runbook §2.7): mark a settling deposit for recovery — the keeper moves

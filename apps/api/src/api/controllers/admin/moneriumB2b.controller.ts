@@ -125,8 +125,8 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       });
       return;
     }
-    // Activation requires the issued IBAN: the penny test (runbook §7) cannot have
-    // happened without it, and the association monitor needs the reference state.
+    // Activation requires the issued IBAN: the client cannot pay in without it, and the
+    // association monitor needs the reference state.
     if (status === MoneriumAccountStatus.Active && account.iban === null) {
       res.status(httpStatus.CONFLICT).json({
         error: {

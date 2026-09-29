@@ -127,7 +127,7 @@ sequenceDiagram
     K->>M: POST /addresses (attestor-signed link)  [exactly-once]
     K->>M: POST /ibans for the forwarder address   [exactly-once]
     M-->>K: iban.updated webhook -> IBAN recorded
-    Op->>M: penny test (simulated/real small SEPA)
+    Op->>M: optional penny test (simulated/real small SEPA)
     Op->>Adm: PATCH .../accounts/:id/status "active" (refused without IBAN)
 ```
 
@@ -146,7 +146,7 @@ Steps in prose:
 4. **Keeper automation** links the forwarder (attestor signature) and requests the IBAN,
    each exactly-once through the profile-scoped `financial_operations` ledger; the
    `iban.updated` webhook records the IBAN.
-5. **Penny test**, then activation via the admin status endpoint.
+5. **Optional penny test**, then activation via the admin status endpoint.
 
 ## Deposit-to-payout sequence
 
@@ -265,7 +265,7 @@ stateDiagram-v2
     direction LR
     state "Account (monerium_accounts)" as acc {
         [*] --> onboarding : admin mapping
-        onboarding --> active : penny test + admin PATCH (needs IBAN)
+        onboarding --> active : admin PATCH (needs IBAN)
         active --> suspended
         suspended --> active
         active --> closed

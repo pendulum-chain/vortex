@@ -31,7 +31,8 @@ Ground rules that shape every procedure here:
 
 ## 1. Client onboarding
 
-Deploy → manifest → verify → map → (automated: link + IBAN) → penny test → activate.
+Deploy → manifest → verify → map → (automated: link + IBAN) → optional penny test →
+activate.
 One pass per client. Prerequisites: guardian key funded on the target chain;
 `MONERIUM_B2B_ENABLED=true` and the complete `MONERIUM_B2B_*` env set on the one
 `mykobo` keeper backend (including the trusted factory address, read/private RPCs,
@@ -50,7 +51,7 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
   (rotation risk — terms).
 - (No client recovery address: the recovery wallet is Vortex's, immutable in the
   implementation. The destination has no setter — a client wallet change is a new clone,
-  §5 — so get it right and penny-test it.)
+  §5 — so get it right; a penny test is recommended for exchange destinations.)
 - `targetPpm` / `floorPpm` — the client's fee policy in ppm below the reference rate;
   launch policy 1250 / 1500 (12.5 / 15 bps, ADR B1). Adjustable later via the
   guardian's timelocked `setFeePolicy` (raising either value waits 24 h).
@@ -114,21 +115,19 @@ with the attestor signature (`POST /addresses` — HTTP 201, `state: linked`, ze
 interaction), then requests IBAN issuance (`POST /ibans`, async 202). The IBAN lands on
 the account row via the `iban.updated` webhook; from then on the association monitor
 treats the DB record as the reference state. Nothing to do manually — verify the row
-has its IBAN before the penny test, and check the logs if it stays empty for more than
+has its IBAN before activation, and check the logs if it stays empty for more than
 a few cycles.
 
-### 1.6 Penny test
+### 1.6 Penny test (optional)
 
-Prove the destination actually credits contract-originated USDC transfers (CEXes can
-rotate or mis-credit) before real volume flows:
+Optional, and recommended for exchange destinations (ADR amendment 2026-09-29): prove
+the destination actually credits contract-originated USDC transfers (CEXes can rotate
+or mis-credit) before real volume flows. Skipping it does not block activation.
 
 1. Send a small SEPA deposit to the new IBAN (sandbox: dashboard → Receive → "Simulate
    bank transfer"). Target forward amount: 5 USDC (ADR B2).
-2. The keeper converts automatically once the balance reaches `minSwapAmount`; for a
-   sub-minimum penny test, temporarily lower `minSwapAmount` (guardian, bounded by the
-   floor) or fund up to the minimum.
-3. **Partner/client confirms credit at the destination** in writing (a terms diligence
-   commitment).
+2. The keeper converts it like any other payment (the minimum swap is €1).
+3. **Partner/client confirms credit at the destination** in writing.
 
 ### 1.7 Activate
 
@@ -200,7 +199,7 @@ Suspected vulnerability in `VortexForwarder`/factory:
    issuer recovery backstop (burn + payout to the client's own bank account; validates
    the already-whitelisted ownership message) is the last resort.
 6. **Ship the fix as a migration** (§5): new implementation + factory (new audit), new
-   clones, re-link, move IBANs, penny-test, republish the manifest. Old clones stay
+   clones, re-link, move IBANs, optionally penny-test, republish the manifest. Old clones stay
    paused; residual balances leave through the refund path.
 7. **Unpause / decommission** only contracts confirmed unaffected.
 
@@ -347,7 +346,8 @@ arrives first.
 **Re-confirmation (manual, via partner):** partner re-confirms in writing that the
 destination is valid and client-controlled (ADR B5). If the destination changed, deploy
 a new clone with the new destination and migrate (§5) — the clone has no setter and
-Vortex must never redirect — and CEX destinations re-run the penny test. Archive the
+Vortex must never redirect — and re-running the penny test is recommended for CEX
+destinations. Archive the
 confirmation.
 
 **Un-pause (both steps, always):**
@@ -378,8 +378,8 @@ monitor's alerts are expected, then:
    account row's forwarder is repointed, or manual `POST /addresses`).
 4. Move the IBAN: `PATCH /ibans/{iban}` with the new address — this is the
    S1-sensitive operation; it must only ever happen inside an announced migration.
-5. Update the `monerium_accounts` row (forwarder address), penny-test the new clone,
-   re-activate.
+5. Update the `monerium_accounts` row (forwarder address), optionally penny-test the new
+   clone, re-activate.
 
 There is no unlink at Monerium and no custodial parking position: EURe always mints to
 the IBAN's current default address; the old clone stays linked but inert.

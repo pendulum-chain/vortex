@@ -128,8 +128,8 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
  * Advances every mapped account still in onboarding: links its forwarder to the
  * Monerium profile with the attestor signature, then requests IBAN issuance. Both
  * provider writes run through the profile-scoped financial-operation ledger, so a
- * crash or retry never repeats a claimed call. Activation (after the penny test)
- * stays a manual operator step.
+ * crash or retry never repeats a claimed call. Activation stays a manual operator
+ * step.
  */
 export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDeps): Promise<number> {
   if (!isOnboardingConfigured()) {

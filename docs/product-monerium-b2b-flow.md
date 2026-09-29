@@ -101,8 +101,6 @@ subsidy on a swap, or the refund path.
   points at the forwarder**. Monerium mints to whatever address the IBAN points at, so
   this is what routes every payment through the conversion. An IBAN pointing at the
   client's own wallet would deliver EURe, not USDC.
-- A **penny test** has shown that the destination credits USDC sent from a contract. The
-  client confirms receipt of about 5 USDC in writing.
 - Vortex has mapped the client under **SulPayments' partner account**, so webhooks and
   API reads reach SulPayments.
 
@@ -129,8 +127,6 @@ sequenceDiagram
     V->>M: Link forwarder to the profile with a contract signature [M3]
     V->>M: IBAN on the forwarder, request new or move existing [M3]
     M-->>V: IBAN issued or moved
-    CL->>M: Penny test, small SEPA payment
-    V->>CL: About 5 USDC to the destination, client confirms
     V->>SP: Client active, IBAN visible in dashboard or API [S4, V3]
     SP->>CL: Hand over IBAN, client starts sending EUR
 ```
@@ -156,7 +152,7 @@ Notes on the proposal:
   Monerium profile ID, SulPayments' client ID, the destination and the fee policy.
 - The keeper then links the forwarder and requests the IBAN automatically. The IBAN is
   recorded when Monerium confirms it.
-- After the penny test, the operator activates the account.
+- The operator then activates the account.
 - SulPayments can read the account and its IBAN through the Vortex API. There is no
   dashboard view yet **[V3]**.
 - Adopting the proposal changes two things: onboarding starts from Monerium's profile
@@ -439,7 +435,6 @@ Statuses only move forward. A late or repeated webhook can never move a deposit 
 | Chunk size | up to €10,000 | Operational, ceiling €50,000 |
 | Minimum swap | €1 | Operational, can be raised but never below €1 |
 | Manual refunds | €15,000 and above | Until [M9] is answered |
-| Penny test | about 5 USDC | Per client |
 | Dormancy pause | 60 days without a conversion | Keeper code |
 | Pilot volume | 3 to 5 clients, €50,000 per client per day | Contractual |
 
