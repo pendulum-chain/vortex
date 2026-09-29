@@ -392,7 +392,7 @@ const sellQuote = await vortex.createQuote({
   outputCurrency: FiatToken.MXN
 });
 
-const accounts = await vortex.listDomesticFiatAccounts("MX");
+const accounts = await vortex.listDomesticFiatAccounts(DomesticCountry.MX); // DomesticCountry from @vortexfi/sdk
 if (accounts.length === 0) {
   throw new Error("Add a pay-out account for MX before selling");
 }
