@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, requestVortexOtp, setVortexSession, getFreshAccessToken, getVortexSession, clearVortexSession, submitWalletTransactions, verifyVortexOtp } from '../src/lib/vortex.js';
 import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, PAXG_ADDRESS } from '../src/lib/paxg.js';
-import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp } from '../src/lib/pilot-store.js';
+import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp, failActiveRamp, getRampHistory } from '../src/lib/pilot-store.js';
 
 const address = '0x0000000000000000000000000000000000000001';
 const quote = () => ({ id:'test', rampType:'SELL', from:'ethereum', to:'pix', inputCurrency:'PAXG', outputCurrency:'BRL', network:'ethereum', inputAmount:'0.02', outputAmount:'440', expiresAt:new Date(Date.now()+60000).toISOString(), networkFeeFiat:'1', processingFeeFiat:'2', partnerFeeFiat:'0', totalFeeFiat:'3', feeCurrency:'BRL' });
@@ -64,6 +64,14 @@ test('transaction checkpoint survives stage changes and is wallet scoped',()=>{
   assert.equal(getActiveRamp('0xother'),null);
   assert.throws(()=>saveTransactionCheckpoint('r2','approve','0xabc'));
   clearActiveRamp('r2'); assert.ok(getActiveRamp(address)); clearActiveRamp('r1');
+});
+test('a failed operation unblocks the wallet but stays in its history with the code',()=>{
+  saveActiveRamp({rampId:'r3',walletAddress:address,inputAmount:'0.02',outputAmount:'440',rampType:'SELL'});
+  failActiveRamp('other'); assert.equal(getActiveRamp(address).rampId,'r3');
+  failActiveRamp('r3');
+  assert.equal(getActiveRamp(address),null);
+  assert.deepEqual(getRampHistory(address).map(({completedAt,...item})=>item),[{rampId:'r3',walletAddress:address,inputAmount:'0.02',outputAmount:'440',rampType:'SELL',status:'failed'}]);
+  memory.clear();
 });
 test('Ethereum RPC transaction whitelist rejects other chains',()=>{
   assert.deepEqual(ethereumTransaction({to:PAXG_ADDRESS,value:'10',gas:21000,chainId:1,unexpected:'omit'},address),{from:address,to:PAXG_ADDRESS,data:'0x',value:'0xa',gas:'0x5208'});

@@ -29,6 +29,15 @@ export function clearActiveRamp(rampId) {
   if (!rampId || active?.rampId === rampId) localStorage.removeItem(ACTIVE_KEY);
 }
 
+// A failed or abandoned operation stops blocking new ones but stays listed with its code for support.
+export function failActiveRamp(rampId) {
+  const active = read(ACTIVE_KEY, null);
+  if (!rampId || active?.rampId !== rampId) return;
+  const { walletAddress, inputAmount, outputAmount, rampType } = active;
+  addRampHistory({ rampId, walletAddress, inputAmount, outputAmount, rampType, status: "failed" });
+  localStorage.removeItem(ACTIVE_KEY);
+}
+
 export function addRampHistory(item) {
   const history = read(HISTORY_KEY, []);
   const next = [{ ...item, completedAt: Date.now() }, ...history.filter((entry) => entry.rampId !== item.rampId)].slice(0, 12);

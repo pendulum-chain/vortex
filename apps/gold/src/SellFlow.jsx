@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bank, CheckCircle, Copy, WarningCircle } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { gramsToPaxg, readPaxgBalance } from "./lib/paxg.js";
-import { clearActiveRamp, getActiveRamp, saveActiveRamp } from "./lib/pilot-store.js";
+import { clearActiveRamp, failActiveRamp, getActiveRamp, saveActiveRamp } from "./lib/pilot-store.js";
 import { classifyRamp, createPaxgSellQuote, createVortexClient, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, pollRamp, registerPaxgSell, requestVortexOtp, startRampSafely, submitWalletTransactions, verifyVortexOtp } from "./lib/vortex.js";
 
 const brl = (amount) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(amount));
@@ -52,7 +52,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     const current = await client.current.getRampStatus(id);
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
-    if (classifyRamp(current) === "failure") { clearActiveRamp(current.id); setStep("issue"); throw new Error("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); }
+    if (classifyRamp(current) === "failure") { failActiveRamp(current.id); setStep("issue"); throw new Error("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); }
     setStep(current.currentPhase === "initial" ? "sign" : "processing");
   };
   useEffect(() => { if (initialResume.current) run(recover); }, []);
@@ -62,7 +62,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     const controller = new AbortController();
     pollRamp(client.current, ramp.id, { signal: controller.signal, onUpdate: setRamp }).then((current) => {
       if (classifyRamp(current) === "success") complete(current);
-      else { clearActiveRamp(current.id); setStep("issue"); setError("A venda não foi concluída. Consulte o suporte com o código da operação."); }
+      else { failActiveRamp(current.id); setStep("issue"); setError("A venda não foi concluída. Consulte o suporte com o código da operação."); }
     }).catch((e) => { if (e.name !== "AbortError") { setStep("recover"); setError(e.message); } });
     return () => controller.abort();
   }, [step, ramp?.id]);
@@ -116,7 +116,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     const current = await getRampWithUnsignedTxs(active.id);
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
-    if (classifyRamp(current) === "failure") { clearActiveRamp(current.id); setStep("issue"); throw new Error("Esta operação não pode ser retomada. Consulte o suporte."); }
+    if (classifyRamp(current) === "failure") { failActiveRamp(current.id); setStep("issue"); throw new Error("Esta operação não pode ser retomada. Consulte o suporte."); }
     if (current.currentPhase !== "initial") { setStep("processing"); return; }
     const saved = getActiveRamp(walletAddress);
     if (saved?.stage === "registering") throw new Error("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda.");
