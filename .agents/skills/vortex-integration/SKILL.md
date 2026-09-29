@@ -19,7 +19,7 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
   - `pk_live_*` / `pk_test_*` — public value, sent as `X-Public-Key` for attribution and approved low-sensitivity reads. Quote/widget body `apiKey` remains compatibility transport; if both are present they must match.
   - `sk_live_*` / `sk_test_*` — secret value, sent only in `X-API-Key`. **Never expose `sk_*` in a browser or mobile app.** It is returned only when the credential is created.
   - If both values are configured, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. A valid secret may be used without a public value.
-  - **Ramp registration requires an authenticated profile in every corridor.** The SDK accepts either a secret credential for its bound profile or an `accessTokenProvider` for that profile's renewable Supabase Bearer session; raw API clients may use the secret credential or that Supabase Bearer session directly. Provider identity (BRL tax ID, Alfredpay customer, or Monerium profile) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
+  - **Ramp registration requires an authenticated profile in every corridor.** The SDK accepts either a secret credential for its bound profile or an `accessTokenProvider` for that profile's renewable Supabase Bearer session; raw API clients may use the secret credential or that Supabase Bearer session directly. Provider identity (BRL tax ID, bank-transfer customer, or Monerium profile) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
   - Profile-managed credentials use `POST/GET/DELETE /v1/api-credentials` with a Supabase Bearer session. One profile may have at most five active non-expired credentials; revoke by credential ID disables both values atomically with no DELETE body.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
@@ -351,7 +351,7 @@ The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. R
 ## Prerequisites
 - The user completed KYC for the corridor's country via the Vortex app or Widget, and the SDK is authenticated with that user's own `sk_*` key or Supabase session.
 - Buy: `destinationAddress` (required); `fiatAccountId`, `walletAddress` optional.
-- Sell: `fiatAccountId` and `walletAddress` (both required). List saved accounts with `vortex.listAlfredpayFiatAccounts(country)`.
+- Sell: `fiatAccountId` and `walletAddress` (both required). List saved accounts with `vortex.listDomesticFiatAccounts(country)`.
 
 ## SDK recipe (onramp, MXN shown — substitute fiat + rail for USD/COP/ARS)
 ```js
@@ -381,10 +381,10 @@ No user-signed on-chain transactions on buys. Unlike BRL there is no QR code —
 
 ## SDK recipe (offramp)
 ```js
-const accounts = await vortex.listAlfredpayFiatAccounts("MEX");
+const accounts = await vortex.listDomesticFiatAccounts("MX");
 
 const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
-  fiatAccountId: accounts[0].id,
+  fiatAccountId: accounts[0].fiatAccountId,
   walletAddress: "0xUserWalletAddress"
 });
 
@@ -398,8 +398,8 @@ await vortex.startRamp(rampProcess.id);
 The SDK cannot **create** fiat accounts; they are created during onboarding in the Vortex app or Widget. `fiatAccountId` is opaque to the SDK.
 
 ## Common failures
-- `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
-- `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
+- `MissingDomesticOnrampParametersError` / `MissingDomesticOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
+- `DomesticOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
 - `400` "requires an API key linked to a user" on register — the supplied API credential or Bearer session is not bound to an eligible profile. Authenticate as the onboarded user or provision a managed profile and issue a credential for that explicit subject.
 - `InsufficientBalanceError` — in the default `"prefunded"` mode, the offramp pre-flight found the source wallet balance below the quote's input amount. A deliberate register-then-fund integration may use `offrampFundingMode: "deferred"`; it must fund before submitting user transactions and starting the ramp.
 
@@ -747,7 +747,7 @@ Include this payload (with secrets redacted) in any support ticket.
 | `InvalidNetworkError` | Network not in `Networks` enum | Use `discover-supported-corridors` |
 | `MissingRequiredFieldsError` / `MissingBrlParametersError` / `MissingBrlOfframpParametersError` | Body field missing | Fill the missing field; do not retry blindly |
 | `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
-| `AlfredpayOnrampKycRequiredError` | Bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
+| `DomesticOnrampKycRequiredError` | Bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
 | Raw EUR registration `400` / `409` | Missing approved binding/profile or not exactly one Polygon EOA/IBAN match | Provision or reconcile the user out of band; do not submit caller-selected provider identity |
 | `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
 | `VortexSdkError` with `code === "provider_limit_exceeded"` | The provider account limit is exhausted | Stop retrying registration; wait for provider capacity to reset or contact Vortex support |
