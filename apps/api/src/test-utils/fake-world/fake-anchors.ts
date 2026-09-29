@@ -475,7 +475,7 @@ export class FakeAlfredpay {
         quote: this.onrampQuote({
           fromAmount: request.amount,
           fromCurrency: request.fromCurrency,
-          metadata: { businessId: "vortex", customerId: request.customerId },
+          metadata: { customerId: request.customerId },
           paymentMethodType: request.paymentMethodType,
           toCurrency: request.toCurrency
         }),

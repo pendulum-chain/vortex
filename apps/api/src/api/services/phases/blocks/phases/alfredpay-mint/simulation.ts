@@ -43,7 +43,7 @@ export async function simulateAlfredpayMint(
     chain: AlfredpayChain.MATIC,
     fromAmount: input.amount.toString(),
     fromCurrency: input.token as unknown as AlfredpayFiatCurrency,
-    metadata: { businessId: "vortex", customerId },
+    metadata: { customerId },
     paymentMethodType: AlfredpayPaymentMethodType.BANK,
     toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
   };

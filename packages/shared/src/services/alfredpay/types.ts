@@ -138,10 +138,13 @@ export enum AlfredpayPaymentMethodType {
   BANK = "BANK"
 }
 
+/**
+ * Tracking-only quote metadata. No `businessId`: Alfred derives the company from the API key and
+ * its migration guide says not to send one in the body. Closed on purpose, so an object literal
+ * carrying it again fails to compile.
+ */
 export interface AlfredpayQuoteMetadata {
-  businessId: string;
   customerId: string;
-  [key: string]: unknown;
 }
 
 interface AlfredpayBaseQuoteRequest<FromCurrency, ToCurrency> {

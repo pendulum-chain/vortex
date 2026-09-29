@@ -667,7 +667,7 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
               chain: AlfredpayChain.MATIC,
               fromAmount: new Big(promised.inputAmountDecimal as unknown as string).toString(),
               fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-              metadata: { businessId: "vortex", customerId: alfredpayUserId },
+              metadata: { customerId: alfredpayUserId },
               paymentMethodType: AlfredpayPaymentMethodType.BANK,
               toCurrency
             })

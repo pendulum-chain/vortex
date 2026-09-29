@@ -185,7 +185,7 @@ describe("offramp responses are validated at the service boundary", () => {
         chain: AlfredpayChain.MATIC,
         fromAmount: "1000",
         fromCurrency: AlfredpayOnChainCurrency.USDT,
-        metadata: { businessId: "business-1", customerId: "customer-1" },
+        metadata: { customerId: "customer-1" },
         paymentMethodType: AlfredpayPaymentMethodType.BANK,
         toCurrency: AlfredpayFiatCurrency.MXN
       })

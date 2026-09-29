@@ -182,7 +182,7 @@ const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
 // Sentinel used by production quote requests for anonymous rate discovery
 // (ALFREDPAY_ANONYMOUS_CUSTOMER_ID in quote/alfredpay-customer.ts — metadata.customerId
 // is tracking-only on quote requests).
-const QUOTE_METADATA = { businessId: "vortex", customerId: "anonymous" };
+const QUOTE_METADATA = { customerId: "anonymous" };
 
 function onrampQuoteRequest(fromAmount: string): CreateAlfredpayOnrampQuoteRequest {
   // Mirrors OnRampInitializeAlfredpayEngine: fiat -> USDC minted on Polygon.
@@ -528,7 +528,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       const quote = await runLive("alfredpay onramp quote (order)", () =>
         api().createOnrampQuote({
           ...onrampQuoteRequest("500"),
-          metadata: { businessId: "vortex", customerId: CUSTOMER_ID as string }
+          metadata: { customerId: CUSTOMER_ID as string }
         })
       );
       if (!quote) return;
@@ -565,7 +565,7 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
           chain: AlfredpayChain.MATIC,
           fromAmount: "30",
           fromCurrency: AlfredpayOnChainCurrency.USDC,
-          metadata: { businessId: "vortex", customerId: CUSTOMER_ID as string },
+          metadata: { customerId: CUSTOMER_ID as string },
           paymentMethodType: AlfredpayPaymentMethodType.BANK,
           toCurrency: AlfredpayFiatCurrency.MXN
         })
