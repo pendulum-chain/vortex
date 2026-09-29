@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
-import { EPaymentMethod, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import { EPaymentMethod, FiatToken, Networks, RampDirection, RampPhase, UnsignedTx } from "@vortexfi/shared";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
@@ -92,6 +92,25 @@ function makeRampState(onHold: boolean, currentPhase: RampPhase = "brlaOnrampMin
     userId: null,
     updatedAt
   });
+}
+
+const EVM_EPHEMERAL = "0x3333333333333333333333333333333333333333";
+const ephemeralTx: UnsignedTx = { meta: {}, network: Networks.Base, nonce: 0, phase: "distributeFees", signer: EVM_EPHEMERAL, txData: "0x" };
+const userWalletTx: UnsignedTx = {
+  meta: {},
+  network: Networks.Base,
+  nonce: 0,
+  phase: "squidRouterPermitExecute",
+  signer: "0x4444444444444444444444444444444444444444",
+  txData: "0x"
+};
+
+function makeSellRampState() {
+  const rampState = makeRampState(false, "initial");
+  rampState.type = RampDirection.SELL;
+  rampState.unsignedTxs = [ephemeralTx, userWalletTx];
+  rampState.state = makeStateMetadata({ evmEphemeralAddress: EVM_EPHEMERAL, presignChecksPass: false });
+  return rampState;
 }
 
 function makeStateMetadata(overrides: Partial<StateMetadata>): StateMetadata {
@@ -188,5 +207,34 @@ describe("RampService.getRampStatus", () => {
     const status = await service.getRampStatus("ramp-1");
 
     expect(status?.currentPhase).toBe("fundEphemeral");
+  });
+
+  it("withholds SELL user-wallet txs while ephemeral presigned txs are missing", async () => {
+    const service = new TestRampService(makeSellRampState());
+
+    const status = await service.getRampStatus("ramp-1", true);
+
+    expect(status?.unsignedTxs).toEqual([ephemeralTx]);
+  });
+
+  it("releases SELL user-wallet txs once the ephemeral presigned txs validate", async () => {
+    const service = new TestRampService(makeSellRampState());
+    Object.assign(service, { ephemeralPresignChecksPass: mock(async () => true) });
+
+    const status = await service.getRampStatus("ramp-1", true);
+
+    expect(status?.unsignedTxs).toEqual([ephemeralTx, userWalletTx]);
+  });
+
+  it("skips presign validation for BUY ramps, which the gate does not filter", async () => {
+    const rampState = makeRampState(false);
+    rampState.state = makeStateMetadata({ presignChecksPass: false });
+    const service = new TestRampService(rampState);
+    const ephemeralPresignChecksPass = mock(async () => false);
+    Object.assign(service, { ephemeralPresignChecksPass });
+
+    await service.getRampStatus("ramp-1", true);
+
+    expect(ephemeralPresignChecksPass).not.toHaveBeenCalled();
   });
 });
