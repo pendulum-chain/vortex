@@ -2161,6 +2161,52 @@ describe("newKyc", () => {
     expect(getInstance).not.toHaveBeenCalled();
   });
 
+  describe("tax id binding", () => {
+    function mockOwnedIndividual() {
+      CustomerEntity.findAll = mock(async () => [{ id: "entity-user-1" }]) as unknown as typeof CustomerEntity.findAll;
+      ProviderCustomer.findOne = mock(async () => ({
+        customerEntityId: "entity-user-1",
+        customerType: "individual",
+        id: "customer-1",
+        provider: "avenia",
+        providerSubaccountId: "subaccount-1",
+        taxReferenceHash: hashTaxReference("08786985906")
+      })) as unknown as typeof ProviderCustomer.findOne;
+      const getInstance = mock(() => ({}) as BrlaApiService);
+      BrlaApiService.getInstance = getInstance;
+      // Anything past the binding check opens the KYC claim transaction; fail loudly if reached.
+      const transaction = mock(async () => {
+        throw new Error("reached the KYC claim");
+      });
+      sequelize.transaction = transaction as unknown as typeof sequelize.transaction;
+      return { getInstance, transaction };
+    }
+
+    it("rejects a taxIdNumber that differs from the claimed CPF before any provider call", async () => {
+      const { getInstance, transaction } = mockOwnedIndividual();
+
+      for (const taxIdNumber of ["52998224725", "", undefined, 8786985906]) {
+        const res = createResponse();
+        await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber }, userId: "user-1" } as any, res as any);
+
+        expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+        expect(res.body).toEqual({ error: "taxIdNumber does not match the tax ID claimed for this subaccount." });
+      }
+      expect(getInstance).not.toHaveBeenCalled();
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it("lets a formatted equivalent of the claimed CPF through to the submission", async () => {
+      const { transaction } = mockOwnedIndividual();
+
+      const res = createResponse();
+      await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "087.869.859-06" }, userId: "user-1" } as any, res as any);
+
+      expect(transaction).toHaveBeenCalled();
+      expect(res.statusCode).not.toBe(httpStatus.BAD_REQUEST);
+    });
+  });
+
   it("rejects an imported-method case before provider document or submission calls", async () => {
     CustomerEntity.findAll = mock(async () => [{ id: "entity-user-1" }]) as unknown as typeof CustomerEntity.findAll;
     ProviderCustomer.findOne = mock(async () => ({
@@ -2168,7 +2214,8 @@ describe("newKyc", () => {
       customerType: "individual",
       id: "customer-1",
       provider: "avenia",
-      providerSubaccountId: "subaccount-1"
+      providerSubaccountId: "subaccount-1",
+      taxReferenceHash: hashTaxReference("08786985906")
     })) as unknown as typeof ProviderCustomer.findOne;
     KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "sumsub_share_token" }]) as unknown as typeof KycCase.findAll;
     sequelize.transaction = mock(async callback =>
@@ -2186,7 +2233,7 @@ describe("newKyc", () => {
     );
 
     const res = createResponse();
-    await newKyc({ body: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+    await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "08786985906" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(getUploadedDocuments).not.toHaveBeenCalled();
@@ -2203,6 +2250,7 @@ describe("newKyc", () => {
       provider: "avenia",
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.InReview,
+      taxReferenceHash: hashTaxReference("08786985906"),
       update: customerUpdate
     };
     ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
@@ -2260,6 +2308,7 @@ describe("newKyc", () => {
         {
           body: {
             subAccountId: "subaccount-1",
+            taxIdNumber: "087.869.859-06",
             uploadedDocumentId: "document-1",
             uploadedSelfieId: "selfie-1"
           },
@@ -2354,6 +2403,7 @@ describe("Avenia API KYB", () => {
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.Pending,
       statusExternal: null,
+      taxReferenceHash: hashTaxReference(validSubmission.taxIdentificationNumberTin),
       update
     })) as unknown as typeof ProviderCustomer.findOne;
     return update;
@@ -2485,6 +2535,45 @@ describe("Avenia API KYB", () => {
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(createUbo).not.toHaveBeenCalled();
+  });
+
+  it("rejects a TIN that differs from the claimed CNPJ before any provider call", async () => {
+    const { customerUpdate, submit } = mockInitialSubmission();
+    const getInstance = mock(() => ({ submitKybLevel1: submit }) as unknown as BrlaApiService);
+    BrlaApiService.getInstance = getInstance;
+
+    const res = createResponse();
+    await submitKybLevel1Api(
+      {
+        body: { ...validSubmission, taxIdentificationNumberTin: "11222333000181" },
+        query: { subAccountId: "subaccount-1" },
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ error: "taxIdentificationNumberTin does not match the tax ID claimed for this subaccount." });
+    expect(getInstance).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+    expect(customerUpdate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a formatted TIN equivalent to the claimed CNPJ", async () => {
+    const { submit } = mockInitialSubmission();
+
+    const res = createResponse();
+    await submitKybLevel1Api(
+      {
+        body: { ...validSubmission, taxIdentificationNumberTin: "42.731.085/0001-67" },
+        query: { subAccountId: "subaccount-1" },
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it("submits ready company documents and persists the pending attempt", async () => {

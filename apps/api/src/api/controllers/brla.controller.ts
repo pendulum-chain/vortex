@@ -906,6 +906,12 @@ export const newKyc = async (
       res.status(httpStatus.BAD_REQUEST).json({ error: "Individual KYC requires an individual customer account." });
       return;
     }
+    // The provider approves whoever the submitted documents belong to; the CPF claimed at
+    // createSubaccount must be that same identity, or the approval would attach to the wrong tax id.
+    if (typeof req.body.taxIdNumber !== "string" || hashTaxReference(req.body.taxIdNumber) !== record.taxReferenceHash) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "taxIdNumber does not match the tax ID claimed for this subaccount." });
+      return;
+    }
 
     const response = await submitStandardAveniaKyc({
       actorProfileId,
@@ -1068,6 +1074,13 @@ export const submitKybLevel1Api = async (
 ): Promise<void> => {
   try {
     const record = await resolveAveniaKybAccount(req, req.query.subAccountId);
+    // Same binding as newKyc: the submitted TIN must be the CNPJ claimed for this subaccount.
+    if (hashTaxReference(req.body.taxIdentificationNumberTin) !== record.taxReferenceHash) {
+      res
+        .status(httpStatus.BAD_REQUEST)
+        .json({ error: "taxIdentificationNumberTin does not match the tax ID claimed for this subaccount." });
+      return;
+    }
     const subAccountId = record.providerSubaccountId as string;
     const brlaApiService = BrlaApiService.getInstance();
     if (record.status === VerificationStatus.Approved) {
