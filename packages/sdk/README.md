@@ -203,11 +203,11 @@ Gets the current status of a ramp process.
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
 Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
-For EUR/SEPA BUY, pass `walletAddress`: the wallet linked to the user's Monerium profile (see the
+For EUR/SEPA BUY, pass `walletAddress`: the wallet linked to the user's EUR provider profile (see the
 Fiat Corridors guide). The backend mints EURe to that wallet and returns its ERC-2612 permit as a
 user-owned typed-data transaction in `unsignedTransactions`; sign and submit it with
 `submitUserTransactions` (or `getTypedDataToSign` + `submitUserSignature`) before the SEPA
-instructions (`ibanPaymentData`) are released. The user must already be onboarded with Monerium
+instructions (`ibanPaymentData`) are released. The user must already be onboarded with the EUR provider
 and have that wallet linked; otherwise registration fails with `MoneriumOnboardingRequiredError`
 or `MoneriumReauthenticationRequiredError`. EUR SELL is unavailable for new quotes.
 
