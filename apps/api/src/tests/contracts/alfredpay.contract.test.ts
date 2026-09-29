@@ -387,8 +387,15 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
   test(
     "POST /quotes responses satisfy the quote contract (both directions)",
     async () => {
+      // Amounts must stay Penny's decimal strings. Alfred's native API serializes minor units, and
+      // the decimal regex alone cannot tell 500 MXN ("500") from 500.00 in cents ("50000"): a fixed
+      // input must come back unchanged, and the output must move the right way against it.
       const onrampQuote = await runLive("alfredpay createOnrampQuote", () => api().createOnrampQuote(onrampQuoteRequest("500")));
-      if (onrampQuote) alfredpayQuoteResponseSchema.parse(onrampQuote);
+      if (onrampQuote) {
+        alfredpayQuoteResponseSchema.parse(onrampQuote);
+        expect(new Big(onrampQuote.fromAmount).eq(500)).toBe(true);
+        expect(new Big(onrampQuote.toAmount).lt(onrampQuote.fromAmount)).toBe(true); // 500 MXN buys far fewer USDC
+      }
 
       const offrampQuote = await runLive("alfredpay createOfframpQuote", () =>
         api().createOfframpQuote({
@@ -400,7 +407,11 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
           toCurrency: AlfredpayFiatCurrency.MXN
         })
       );
-      if (offrampQuote) alfredpayQuoteResponseSchema.parse(offrampQuote);
+      if (offrampQuote) {
+        alfredpayQuoteResponseSchema.parse(offrampQuote);
+        expect(new Big(offrampQuote.fromAmount).eq(30)).toBe(true);
+        expect(new Big(offrampQuote.toAmount).gt(offrampQuote.fromAmount)).toBe(true); // 30 USDC pays out more MXN
+      }
 
       const exactOutputQuote = await runLive("alfredpay createOfframpQuote by output", () =>
         api().createOfframpQuote({
