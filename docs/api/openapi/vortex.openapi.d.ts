@@ -3541,15 +3541,6 @@ export interface components {
                 };
             };
         };
-        /** @description Too many tax IDs of other accounts. An account (or, for unauthenticated requests, a client IP) that queried 5 different CPF/CNPJ values belonging to other accounts within 24 hours (answered `403`, or `409` on `createSubaccount`) receives this for any further tax ID on the tax-ID-keyed BR operations (`createSubaccount`, `getUser`, `getUserRemainingLimit`, `getKycStatus`, `getUploadUrls`, `getSelfieLivenessUrl`). Tax IDs the account owns and tax IDs not yet registered never count, and repeating a tax ID is never limited. Retry after the 24-hour window has passed. */
-        TooManyDistinctTaxIds: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["BrErrorResponse"];
-            };
-        };
     };
     parameters: {
         /** @description Selects one active, directly managed child as the effective subject. Use the controlling manager's secret `X-API-Key`, or its Supabase Bearer session where that operation accepts Bearer authentication. Public keys and direct child credentials cannot use this selector; a direct child credential already acts as its own subject without the header. Invalid UUIDs return `400 INVALID_MANAGED_PROFILE_ID`, missing authentication returns `401 AUTHENTICATION_REQUIRED`, and unauthorized, deleted, malformed, or corridor-disallowed children return `403 MANAGED_PROFILE_ACCESS_DENIED`. */
@@ -3860,7 +3851,6 @@ export interface operations {
             };
             401: components["responses"]["ManagedSelectorUnauthorized"];
             403: components["responses"]["BrlaManagedSelectorForbidden"];
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {
@@ -3925,7 +3915,6 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error (e.g., no KYC events found when expected). */
             500: {
                 headers: {
@@ -3990,7 +3979,6 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal server error. */
             500: {
                 headers: {
@@ -4056,7 +4044,6 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal server error. */
             500: {
                 headers: {
@@ -4124,7 +4111,6 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {
@@ -4185,7 +4171,6 @@ export interface operations {
                     "application/json": components["schemas"]["BrErrorResponse"];
                 };
             };
-            429: components["responses"]["TooManyDistinctTaxIds"];
             /** @description Internal Server Error. */
             500: {
                 headers: {

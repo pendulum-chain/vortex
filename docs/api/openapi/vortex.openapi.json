@@ -80,16 +80,6 @@
           }
         },
         "description": ""
-      },
-      "TooManyDistinctTaxIds": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/BrErrorResponse"
-            }
-          }
-        },
-        "description": "Too many tax IDs of other accounts. An account (or, for unauthenticated requests, a client IP) that queried 5 different CPF/CNPJ values belonging to other accounts within 24 hours (answered `403`, or `409` on `createSubaccount`) receives this for any further tax ID on the tax-ID-keyed BR operations (`createSubaccount`, `getUser`, `getUserRemainingLimit`, `getKycStatus`, `getUploadUrls`, `getSelfieLivenessUrl`). Tax IDs the account owns and tax IDs not yet registered never count, and repeating a tax ID is never limited. Retry after the 24-hour window has passed."
       }
     },
     "schemas": {
@@ -4667,9 +4657,6 @@
           "403": {
             "$ref": "#/components/responses/BrlaManagedSelectorForbidden"
           },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
-          },
           "500": {
             "content": {
               "application/json": {
@@ -4764,9 +4751,6 @@
             "description": "The canonical KYC state requires reconciliation.",
             "headers": {}
           },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
-          },
           "500": {
             "content": {
               "application/json": {
@@ -4860,9 +4844,6 @@
             },
             "description": "The immutable KYC method or canonical case state conflicts with liveness creation.",
             "headers": {}
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
           },
           "500": {
             "content": {
@@ -4959,9 +4940,6 @@
             "description": "The immutable KYC method or canonical case state conflicts with upload creation.",
             "headers": {}
           },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
-          },
           "500": {
             "content": {
               "application/json": {
@@ -5057,9 +5035,6 @@
             "description": "Subaccount not found.",
             "headers": {}
           },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
-          },
           "500": {
             "content": {
               "application/json": {
@@ -5152,9 +5127,6 @@
             },
             "description": "Subaccount not found or limits not found.",
             "headers": {}
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyDistinctTaxIds"
           },
           "500": {
             "content": {
