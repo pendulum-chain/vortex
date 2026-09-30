@@ -212,3 +212,23 @@ test('a finished KYC attempt tells the user what to fix in Portuguese',()=>{
   assert.match(kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:'unknown'}).message,/não foi aprovada/);
   assert.equal(kycOutcome({status:'COMPLETED',result:'REJECTED'}).approved,false);
 });
+test('KYC polling stops when the modal closes, even with a status answer in flight',{timeout:2000},async()=>{
+  const old=globalThis.fetch;let calls=0;let release;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  const reply=(body)=>new Response(JSON.stringify(body));
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    globalThis.fetch=async()=>{calls++;return reply({status:'PROCESSING'});};
+    const waiting=new AbortController();setTimeout(()=>waiting.abort(),20);
+    await assert.rejects(pollBrazilKyc('08786985906',{intervalMs:60_000,signal:waiting.signal}),{name:'AbortError'});
+    assert.equal(calls,1);
+    await assert.rejects(pollBrazilKyc('08786985906',{signal:AbortSignal.abort()}),{name:'AbortError'});
+    assert.equal(calls,1);
+    globalThis.fetch=()=>new Promise((resolve)=>{release=()=>resolve(reply({status:'COMPLETED',result:'APPROVED'}));});
+    const closing=new AbortController();
+    const polling=pollBrazilKyc('08786985906',{intervalMs:1,signal:closing.signal});
+    await new Promise((resolve)=>setTimeout(resolve,10));
+    closing.abort();release();
+    await assert.rejects(polling,{name:'AbortError'});
+  } finally {clearVortexSession();globalThis.fetch=old;}
+});

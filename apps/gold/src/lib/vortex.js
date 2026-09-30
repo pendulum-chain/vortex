@@ -284,6 +284,7 @@ export function secondsUntilExpiry(expiresAt, now = Date.now()) {
 
 function delay(ms, signal) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException("Aborted", "AbortError")); return; }
     const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
     const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
     signal?.addEventListener("abort", abort, { once: true });
@@ -347,6 +348,8 @@ export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeo
     // Besides network blips, the API answers 404 or 409 while it reconciles a just-submitted attempt.
     try { result = await getBrazilKycStatus(taxId); failures = 0; }
     catch (error) { if (!(isTransientError(error) || [404, 409].includes(error.status)) || ++failures >= maxConsecutiveErrors) throw error; }
+    // An answer that arrives after the modal closed must not approve a flow that is gone.
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     if (result) {
       onUpdate?.(result);
       const status = String(result.status || "").toUpperCase();

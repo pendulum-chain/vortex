@@ -88,3 +88,14 @@ test("accepts only CPFs with valid check digits", () => {
   for (const cpf of ["08786985906", "087.869.859-06", "52998224725"]) assert.equal(isValidCpf(cpf), true, cpf);
   for (const cpf of ["08786985907", "12345678901", "11111111111", "0878698590", "", undefined]) assert.equal(isValidCpf(cpf), false, String(cpf));
 });
+
+test("ramp polling stops as soon as it is aborted", { timeout: 2000 }, async () => {
+  let calls = 0;
+  const client = { getRampStatus: async () => { calls += 1; return { status: "PENDING", currentPhase: "hydrationSwap" }; } };
+  const waiting = new AbortController();
+  setTimeout(() => waiting.abort(), 20);
+  await assert.rejects(pollRamp(client, "r1", { intervalMs: 60_000, signal: waiting.signal }), { name: "AbortError" });
+  assert.equal(calls, 1);
+  await assert.rejects(pollRamp(client, "r1", { signal: AbortSignal.abort() }), { name: "AbortError" });
+  assert.equal(calls, 1);
+});
