@@ -266,7 +266,7 @@ describe("validateKycSubmission", () => {
     const req = {
       body: {
         country: "AR",
-        cuit: "20123456789",
+        cuit: "20-12345678-6",
         nationalities: ["AR"],
         pep: false,
         phoneNumber: "+5491112345678"
@@ -281,5 +281,26 @@ describe("validateKycSubmission", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(nextMock.mock.calls[0]?.[0]).toBeUndefined();
     expect(res.statusCode).toBeUndefined();
+  });
+
+  // Integrators reach this route without our forms; these are the values the provider rejects with
+  // an opaque 422, so they must stop here with a 400 instead.
+  function kycError(body: Record<string, unknown>): string | undefined {
+    const nextMock = mock((_error?: unknown) => undefined);
+    validateKycSubmission({ body } as unknown as Request, buildRes(), nextMock as unknown as NextFunction);
+    return (nextMock.mock.calls[0]?.[0] as APIError | undefined)?.message;
+  }
+
+  it("requires a CUIT with a valid check digit for Argentina", () => {
+    const ar = { country: "AR", nationalities: ["AR"], pep: false, phoneNumber: "+5491112345678" };
+    expect(kycError(ar)).toBe("CUIT must be 11 digits with a valid check digit");
+    expect(kycError({ ...ar, cuit: "20123456789" })).toBe("CUIT must be 11 digits with a valid check digit");
+    expect(kycError({ ...ar, cuit: "20123456786" })).toBeUndefined();
+  });
+
+  it("requires a CURP with a valid check digit as the Mexican dni", () => {
+    expect(kycError({ country: "MX", dni: "1234567890123" })).toBe("dni must be a valid 18-character CURP");
+    expect(kycError({ country: "MX", dni: "OEAF771012HMCRGR09" })).toBe("dni must be a valid 18-character CURP");
+    expect(kycError({ country: "MX", dni: "OEAF771012HMCRGR08" })).toBeUndefined();
   });
 });

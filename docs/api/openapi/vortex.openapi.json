@@ -1700,7 +1700,7 @@
                   "type": "string"
                 }
               },
-              "required": ["phoneNumber", "pep"]
+              "required": ["phoneNumber", "pep", "cuit"]
             }
           }
         ],
@@ -3887,6 +3887,11 @@
             "properties": {
               "country": {
                 "const": "MX"
+              },
+              "dni": {
+                "description": "CURP, 18 characters in upper case. The last character is a check digit, and a CURP with a wrong one is rejected with 400.",
+                "pattern": "^[A-Z]{4}[0-9]{6}[HMX][A-Z]{5}[0-9A-Z][0-9]$",
+                "type": "string"
               }
             },
             "required": ["email"]
@@ -3903,9 +3908,13 @@
             "properties": {
               "country": {
                 "const": "AR"
+              },
+              "cuit": {
+                "description": "CUIT or CUIL, 11 digits (separators are ignored). The last digit is a check digit, and a CUIT with a wrong one is rejected with 400.",
+                "type": "string"
               }
             },
-            "required": ["email", "phoneNumber", "countryCode", "nationalities", "typeDocumentAr", "pep"]
+            "required": ["email", "phoneNumber", "countryCode", "nationalities", "typeDocumentAr", "pep", "cuit"]
           }
         ],
         "properties": {
