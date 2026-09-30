@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { hasPrivySession } from "../src/lib/privy-session.js";
 import { buildPaxgBuyRequest, classifyRamp, isValidCpf, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
@@ -99,4 +100,13 @@ test("ramp polling stops as soon as it is aborted", { timeout: 2000 }, async () 
   assert.equal(calls, 1);
   await assert.rejects(pollRamp(client, "r1", { signal: AbortSignal.abort() }), { name: "AbortError" });
   assert.equal(calls, 1);
+});
+
+test("a stored Privy session or a Google sign-in return keeps the loader instead of the landing", () => {
+  assert.equal(hasPrivySession(["privy:token"], ""), true);
+  assert.equal(hasPrivySession(["privy:clabc:refresh_token"], ""), true);
+  const redirectKeys = ["privy:state_code", "privy:code_verifier", "privy:caid"];
+  assert.equal(hasPrivySession(redirectKeys, "?privy_oauth_code=x&privy_oauth_state=y&privy_oauth_provider=google"), true);
+  assert.equal(hasPrivySession(redirectKeys, ""), false);
+  assert.equal(hasPrivySession(["privy:id_token", "privy:pat", "satoshi:vortex-session:v2"], "?utm_source=ad"), false);
 });
