@@ -1,4 +1,4 @@
-import { AlfredpayArgentinaDocumentType, AlfredpayColombiaDocumentType } from "@vortexfi/shared";
+import { AlfredpayArgentinaDocumentType, AlfredpayColombiaDocumentType, isValidCuit, isValidCurp } from "@vortexfi/shared";
 import { z } from "zod";
 import type { KybFormData, KybQuestionnaireData } from "./types";
 
@@ -6,24 +6,11 @@ import type { KybFormData, KybQuestionnaireData } from "./types";
 export const KYC_FILE_ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 export const KYC_FILE_MAX_BYTES = 5 * 1024 * 1024;
 
-const CURP_ALPHABET = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
-
-/**
- * Alfred accepts only a CURP as the Mexican `dni` and verifies its check digit: an INE number or a
- * CURP with a wrong last digit fails the submission with `110002 Invalid field(s): dni` (sandbox,
- * 2026-09-30). Checking it here turns that into a field error the user can fix.
- */
-function isValidCurp(value: string): boolean {
-  if (!/^[A-Z]{4}\d{6}[HMX][A-Z]{5}[0-9A-Z]\d$/.test(value)) return false;
-  const sum = [...value.slice(0, 17)].reduce((total, char, index) => total + CURP_ALPHABET.indexOf(char) * (18 - index), 0);
-  return (10 - (sum % 10)) % 10 === Number(value[17]);
-}
-
 export const mxnKycSchema = z.object({
   address: z.string().min(1),
   city: z.string().min(1),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-  dni: z.string().trim().toUpperCase().refine(isValidCurp, "Enter your 18-character CURP"),
+  dni: z.string().trim().toUpperCase().refine(isValidCurp, "Enter a valid 18-character CURP"),
   email: z.string().email(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -54,8 +41,12 @@ export const arKycSchema = z.object({
   address: z.string().min(1),
   city: z.string().min(1),
   countryCode: z.literal("AR"),
-  // Alfred requires it for every Argentine individual (`110002 Invalid field(s): cuit` without it).
-  cuit: z.string().regex(/^\d{11}$/, "CUIT must be exactly 11 digits"),
+  // Alfred requires a CUIT with a valid check digit for every Argentine individual. Separators
+  // (20-12345678-6) are dropped so the usual written form passes.
+  cuit: z
+    .string()
+    .transform(value => value.replace(/\D/g, ""))
+    .refine(isValidCuit, "Enter a valid 11-digit CUIT"),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
   dni: z.string().min(1),
   email: z.string().email(),

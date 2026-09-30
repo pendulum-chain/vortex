@@ -109,9 +109,10 @@ describe("arKycSchema", () => {
     expect(arKycSchema.safeParse(ar).success).toBe(true);
   });
 
-  it("requires an 11-digit CUIT", () => {
+  it("requires a CUIT with a valid check digit, written with or without separators", () => {
     expect(arKycSchema.safeParse({ ...ar, cuit: "" }).success).toBe(false);
-    expect(arKycSchema.safeParse({ ...ar, cuit: "20123456789" }).success).toBe(true);
+    expect(arKycSchema.safeParse({ ...ar, cuit: "20123456789" }).success).toBe(false);
+    expect(arKycSchema.parse({ ...ar, cuit: "20-12345678-6" }).cuit).toBe("20123456786");
 
     const result = arKycSchema.safeParse({ ...ar, cuit: "2012345678" });
     expect(result.success).toBe(false);
