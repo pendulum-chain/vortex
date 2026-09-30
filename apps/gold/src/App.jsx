@@ -49,14 +49,18 @@ const IconButton = ({ label, children, className = "", ...props }) => <button cl
 
 function Modal({ title, description, onClose, children, wide = false, closeDisabled = false }) {
   const closeRef = useRef(null);
+  // Callers pass a new onClose on every render, and the app re-renders on its balance and availability
+  // polls; re-running the focus effect then pulled focus out of the field being typed in.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement;
     closeRef.current?.focus();
-    const onKey = (event) => event.key === "Escape" && !closeDisabled && onClose();
+    const onKey = (event) => event.key === "Escape" && !closeDisabled && onCloseRef.current();
     document.addEventListener("keydown", onKey);
     document.body.classList.add("no-scroll");
     return () => { document.removeEventListener("keydown", onKey); document.body.classList.remove("no-scroll"); previous?.focus?.(); };
-  }, [closeDisabled, onClose]);
+  }, [closeDisabled]);
   return <div className="modal-backdrop" role="presentation" onMouseDown={() => !closeDisabled && onClose()}><section className={`sheet ${wide ? "sheet--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-describedby={description ? "sheet-description" : undefined} onMouseDown={(event) => event.stopPropagation()}>{!closeDisabled && <IconButton label="Fechar" className="sheet-close" onClick={onClose} ref={closeRef}><X size={21} /></IconButton>}<h2 id="sheet-title">{title}</h2>{description && <p id="sheet-description" className="sheet-description">{description}</p>}{children}</section></div>;
 }
 
