@@ -375,14 +375,15 @@ export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeo
     }
     await delay(intervalMs, signal);
   }
-  throw new VortexError("A verificação ainda está em análise. Aguarde nesta tela e toque em \"Já concluí a selfie\" para consultar de novo.", { code: "KYC_PENDING" });
+  throw new VortexError("A verificação ainda está em análise. Aguarde nesta tela e selecione \"Já concluí a selfie\" para consultar novamente.", { code: "KYC_PENDING" });
 }
 
 const KYC_REJECTION_MESSAGES = {
-  face: "A selfie não confirmou que o documento é seu. Tente de novo com boa luz, sem óculos nem boné.",
+  face: "A selfie não confirmou que o documento é seu. Faça a selfie novamente em um local bem iluminado.",
   name: "O nome informado não confere com o documento. Corrija e tente novamente.",
   birthdate: "A data de nascimento não confere com o documento. Corrija e tente novamente.",
-  tax_id: "O CPF informado não confere com o documento. Corrija e tente novamente.",
+  // Avenia reports tax_id when the CPF does not exist, not when it differs from the document.
+  tax_id: "O CPF informado não foi encontrado. Confira o número e tente novamente.",
 };
 
 // Maps a finished Avenia attempt to what the user must do next; expired and rejected attempts start over.

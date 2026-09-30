@@ -229,8 +229,13 @@ test('a refused new KYC attempt points to support in Portuguese',async()=>{
 test('a finished KYC attempt tells the user what to fix in Portuguese',()=>{
   assert.deepEqual(kycOutcome({status:'COMPLETED',result:'APPROVED'}),{approved:true,message:''});
   assert.match(kycOutcome({status:'EXPIRED'}).message,/prazo/);
-  assert.match(kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:'face'}).message,/selfie/);
-  assert.match(kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:'tax_id'}).message,/CPF/);
+  const expected={face:/selfie/,name:/nome/,birthdate:/nascimento/,tax_id:/CPF.*não foi encontrado/};
+  for(const [reason,pattern] of Object.entries(expected)){
+    const {approved,message}=kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:reason});
+    assert.equal(approved,false); assert.match(message,pattern);
+    // Avenia's reason codes must never reach the Portuguese screen.
+    assert.doesNotMatch(message,/\b(face|name|birthdate|tax_id)\b/);
+  }
   assert.match(kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:'unknown'}).message,/não foi aprovada/);
   assert.equal(kycOutcome({status:'COMPLETED',result:'REJECTED'}).approved,false);
 });
