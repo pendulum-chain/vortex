@@ -336,7 +336,16 @@ export async function uploadKycDocument(uploadUrl, file) {
   if (!response.ok) throw new VortexError("Não foi possível enviar a foto do documento. Tente novamente.", { status: response.status, code: "DOCUMENT_UPLOAD_FAILED" });
 }
 
-export async function submitBrazilKyc(payload) { return authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+export async function submitBrazilKyc(payload) {
+  try { return await authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+  catch (error) {
+    // Avenia only allows a new attempt after a rejection or expiry it marks retryable; otherwise the API
+    // refuses the new documents with 409, and only support can reopen the verification.
+    if (error.status !== 409) throw error;
+    const reference = error.details?.requestId ? ` informando o código ${error.details.requestId}` : "";
+    throw new VortexError(`Não foi possível abrir uma nova verificação automaticamente. Consulte o suporte da Vortex${reference}.`, { status: 409, code: "KYC_NEW_ATTEMPT_BLOCKED", details: error.details });
+  }
+}
 export async function getBrazilKycStatus(taxId) { return authenticatedApi(`/v1/brl/getKycStatus?taxId=${encodeURIComponent(taxId)}`, { method: "GET" }); }
 
 export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
@@ -345,9 +354,17 @@ export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeo
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     let result = null;
-    // Besides network blips, the API answers 404 or 409 while it reconciles a just-submitted attempt.
+    // Besides network blips, the API answers 404 until a just-submitted attempt is visible and 409 while a
+    // submission is reconciled; a 409 that persists needs an operator, so it ends in a support message.
     try { result = await getBrazilKycStatus(taxId); failures = 0; }
-    catch (error) { if (!(isTransientError(error) || [404, 409].includes(error.status)) || ++failures >= maxConsecutiveErrors) throw error; }
+    catch (error) {
+      const reconciling = [404, 409].includes(error.status);
+      if (!(isTransientError(error) || reconciling)) throw error;
+      if (++failures >= maxConsecutiveErrors) {
+        if (!reconciling) throw error;
+        throw new VortexError("Não conseguimos confirmar sua verificação agora. Aguarde alguns minutos e tente novamente; se continuar, consulte o suporte da Vortex.", { status: error.status, code: "KYC_STATUS_UNAVAILABLE", details: error.details });
+      }
+    }
     // An answer that arrives after the modal closed must not approve a flow that is gone.
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     if (result) {

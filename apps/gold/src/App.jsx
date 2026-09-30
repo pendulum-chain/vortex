@@ -166,7 +166,12 @@ function KycStep({ quote, email, initialName, onApproved }) {
       if (outcome.approved) { onApproved(); return; }
       // A rejected or expired attempt needs a new document upload and selfie, submitted as a new attempt.
       submittedKyc.current = false; setPhase("form"); setError(outcome.message);
-    } catch (nextError) { if (nextError.name !== "AbortError") { setError(nextError.message || "Não foi possível concluir a verificação."); setPhase("liveness"); } }
+    } catch (nextError) {
+      if (nextError.name === "AbortError") return;
+      setError(nextError.message || "Não foi possível concluir a verificação.");
+      // "Já concluí a selfie" would only resubmit the refused attempt.
+      setPhase(nextError.code === "KYC_NEW_ATTEMPT_BLOCKED" ? "form" : "liveness");
+    }
     finally { setLoading(false); }
   };
 
