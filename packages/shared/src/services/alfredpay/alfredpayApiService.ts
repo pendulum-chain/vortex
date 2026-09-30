@@ -297,7 +297,16 @@ export class AlfredpayApiService {
 
   public async createOnramp(request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> {
     const path = "/api/v1/third-party-service/penny/onramp";
-    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOnrampResponse;
+    const response = await this.executeRequest<CreateAlfredpayOnrampResponse | GetAlfredpayOnrampTransactionResponse>(
+      path,
+      "POST",
+      request
+    );
+    // Penny nested the order under `transaction`; Alfred's adapter returns it flat, with the payment
+    // instructions alongside (sandbox, 2026-09-30). ponytail: accepts both until Alfred says which stays.
+    if (response && "transaction" in response) return response;
+    const { fiatPaymentInstructions, ...transaction } = response as GetAlfredpayOnrampTransactionResponse;
+    return { fiatPaymentInstructions, transaction };
   }
 
   public async getOnrampTransaction(transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> {

@@ -140,6 +140,48 @@ describe("requests authenticate with the Alfred API key as a bearer token", () =
   });
 });
 
+/**
+ * Alfred's Penny adapter answers POST …/onramp with the order flat and the payment instructions
+ * beside it, where Penny nested the order under `transaction`. The mint lifecycle reads
+ * `order.transaction.transactionId`, so both shapes must come back nested.
+ */
+describe("createOnramp returns the order nested under transaction", () => {
+  const realFetch = globalThis.fetch;
+  const instructions = { clabe: "646180157000000004", paymentType: "SPEI" };
+  const request = {
+    amount: "500",
+    chain: AlfredpayChain.MATIC,
+    customerId: "customer-1",
+    depositAddress: "0x5afe00000000000000000000000000000000d0e5",
+    fromCurrency: AlfredpayFiatCurrency.MXN,
+    paymentMethodType: AlfredpayPaymentMethodType.BANK,
+    quoteId: "quote-1",
+    toCurrency: AlfredpayOnChainCurrency.USDT
+  };
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("the adapter's flat order", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({ fiatPaymentInstructions: instructions, status: "CREATED", transactionId: "tx-1" })) as unknown as typeof fetch;
+
+    const order = await AlfredpayApiService.getInstance().createOnramp(request);
+    expect(order.transaction.transactionId).toBe("tx-1");
+    expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+
+  test("Penny's nested order", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({ fiatPaymentInstructions: instructions, transaction: { transactionId: "tx-2" } })) as unknown as typeof fetch;
+
+    const order = await AlfredpayApiService.getInstance().createOnramp(request);
+    expect(order.transaction.transactionId).toBe("tx-2");
+    expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+});
+
 describe("offramp responses are validated at the service boundary", () => {
   const realFetch = globalThis.fetch;
   const service = AlfredpayApiService.getInstance();
