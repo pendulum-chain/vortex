@@ -26,6 +26,7 @@
  *   RUN_LIVE_TESTS=1 ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 bun test alfredpay.contract
  */
 import { describe, expect, test } from "bun:test";
+import { deflateSync } from "node:zlib";
 import Big from "big.js";
 import {
   AlfredpayApiService,
@@ -64,11 +65,12 @@ const FIAT_ACCOUNT_ID = process.env.ALFREDPAY_CONTRACT_FIAT_ACCOUNT_ID;
 const KYC_SUBMISSION_ID = process.env.ALFREDPAY_CONTRACT_KYC_SUBMISSION_ID;
 const RUN_KYC_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYC_FLOW;
 const RUN_KYB_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYB_FLOW;
-// Completed Argentina sandbox customer reserved for the create/list/delete account lifecycle.
-const AR_COMPLETED_CUSTOMER_ID = "cd0a7a0d-1b2d-4894-bbb2-f05fe3b5c7df";
+// KYC-completed customers on the Penny adapter sandbox (api.sandbox.alfredpay.io, provisioned
+// 2026-09-30), reserved for the create/list/delete account lifecycle.
+const AR_COMPLETED_CUSTOMER_ID = "3094f6e7-0f71-4af0-8f28-a74230fcdd1e";
 const AR_CONTRACT_ACCOUNT_NUMBER = "0720369388000033954918";
-const CO_COMPLETED_CUSTOMER_ID = "2be2683f-9594-4b8f-9578-69212b6240fd";
-const MX_COMPLETED_CUSTOMER_ID = "230ee85f-5f2d-4cbf-af7c-afa46591d9ef";
+const CO_COMPLETED_CUSTOMER_ID = "d2db9f83-3852-4d67-b234-82b032218c74";
+const MX_COMPLETED_CUSTOMER_ID = "e6b69e2c-04c2-4f86-ba8a-3b6a689ef479";
 
 interface FiatAccountLifecycleCase {
   accountFields: AlfredpayFiatAccountFields;
@@ -119,13 +121,30 @@ const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
 // if Alfredpay ever clears the sandbox.
 const KYB_CUSTOMER_ID = "5f4a1e58-6b74-454c-bc89-defb8df593be";
 
-// 1x1 transparent PNG: the uploads only need a well-formed image of an accepted mime type.
-const BLANK_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+let blankPngShade = 0;
 
+/**
+ * A well-formed 1x1 RGBA PNG whose pixel differs on every call. Alfred rejects an upload whose
+ * bytes match a document already on the submission (`110002 Invalid field(s): fileBody`, observed
+ * 2026-09-30), so identical placeholders for a front and back side would fail the second upload.
+ */
 function blankPng(name = "blank.png"): File {
-  const bytes = Uint8Array.from(atob(BLANK_PNG_BASE64), character => character.charCodeAt(0));
-  return new File([bytes], name, { type: "image/png" });
+  const chunk = (type: string, data: Uint8Array) => {
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const frame = Buffer.alloc(8 + data.length + 4);
+    frame.writeUInt32BE(data.length, 0);
+    body.copy(frame, 4);
+    frame.writeUInt32BE(Bun.hash.crc32(body) >>> 0, 8 + data.length);
+    return frame;
+  };
+  const shade = blankPngShade++ % 256;
+  const png = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0])),
+    chunk("IDAT", deflateSync(Buffer.from([0, shade, shade, shade, 255]))),
+    chunk("IEND", Buffer.alloc(0))
+  ]);
+  return new File([png], name, { type: "image/png" });
 }
 
 /**
@@ -658,7 +677,8 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYC_FLOW)("Alfredpay individual 
         city: "Ciudad de Mexico",
         country: "MX",
         dateOfBirth: "1990-05-20",
-        dni: "GOMM900520MDFXYZ01",
+        // Alfred validates `dni` as a CURP, check digit included (GET /v1/kyc/requirements/MEX).
+        dni: "GOXM900520MDFMXR05",
         email,
         firstName: "Maria",
         lastName: "Gomez",
