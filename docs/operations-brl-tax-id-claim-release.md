@@ -3,7 +3,7 @@
 Status: current operator runbook. It backs RISK-026 in
 [`security-spec/RISK-REGISTER.md`](security-spec/RISK-REGISTER.md); the behavior it works
 around is specified in [`security-spec/05-integrations/brla.md`](security-spec/05-integrations/brla.md)
-(invariants 48-49).
+(invariant 48).
 
 ## When to use it
 
@@ -113,8 +113,5 @@ whether the holder profile should be suspended under the abuse policy.
 
 - Ask the real owner to retry onboarding. `createSubaccount` should return `200` with a new
   `subAccountId`, and the tax hash should now resolve to a row owned by the owner's profile.
-- If the owner gets `429`, their account queried more than five distinct tax IDs of other
-  profiles within 24 hours on that API instance; the counter resets on deploy or after the window
-  passes.
 - Log the tax hash, the deleted row IDs, the approver and the provider ticket. A second release
   within a quarter is the trigger in RISK-026 to make the reservation exclusive only on approval.
