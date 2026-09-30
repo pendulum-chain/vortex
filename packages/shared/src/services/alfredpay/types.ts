@@ -380,8 +380,9 @@ export interface AlfredpayConfigPair {
   fromCurrency: string | null;
   toCurrency: string;
   businessId: string | null;
-  maxQuantity: string;
-  minQuantity: string;
+  /** null: Alfred sets no limit on that side (most pairs on the Penny adapter, 2026-09-30). */
+  maxQuantity: string | null;
+  minQuantity: string | null;
   decimals: string | null;
   typeCustomer: DomesticCustomerType | null;
   createdAt: string;

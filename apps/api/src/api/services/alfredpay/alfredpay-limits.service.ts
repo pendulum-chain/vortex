@@ -131,19 +131,19 @@ export class AlfredpayLimitsService {
     if (!axes) return;
 
     const { direction, fiat, stablecoin } = axes;
-    const limits: RawAmountLimits = {
-      maxRaw: toRaw(pair.maxQuantity, decimals),
-      minRaw: toRaw(pair.minQuantity, decimals)
-    };
-
     const customers: DomesticCustomerType[] = pair.typeCustomer ? [pair.typeCustomer] : CUSTOMER_TYPES;
     const isWildcard = !pair.typeCustomer;
     for (const customer of customers) {
       const key = cacheKey(direction, fiat, stablecoin, customer);
       // Specific customer rows take precedence over the wildcard (null) row, regardless of response order.
-      if (!isWildcard || !target.has(key)) {
-        target.set(key, limits);
-      }
+      if (isWildcard && target.has(key)) continue;
+      // A null bound means Alfred sets no limit on that side: keep our configured bound there
+      // rather than treating it as unlimited.
+      const configured = this.fallback(fiat, stablecoin, customer, direction);
+      target.set(key, {
+        maxRaw: pair.maxQuantity === null ? configured.maxRaw : toRaw(pair.maxQuantity, decimals),
+        minRaw: pair.minQuantity === null ? configured.minRaw : toRaw(pair.minQuantity, decimals)
+      });
     }
   }
 

@@ -67,6 +67,16 @@ describe("alfredpayConfigsResponseSchema", () => {
     expect(() => alfredpayConfigsResponseSchema.parse(body)).not.toThrow();
   });
 
+  test("accepts the null limits the Penny adapter serves (no limit on that side)", () => {
+    const body = {
+      supportedPairs: [
+        { decimals: "2", fromCurrency: "ARS", maxQuantity: null, minQuantity: "1000.00", toCurrency: "USDC", typeCustomer: null },
+        { decimals: "6", fromCurrency: "USDC", maxQuantity: null, minQuantity: null, toCurrency: "MXN", typeCustomer: null }
+      ]
+    };
+    expect(() => alfredpayConfigsResponseSchema.parse(body)).not.toThrow();
+  });
+
   test("rejects a pair with a missing consumed field (minQuantity)", () => {
     const body = {
       supportedPairs: [{ decimals: "2", fromCurrency: "MXN", maxQuantity: "100000", toCurrency: "USDC", typeCustomer: null }]

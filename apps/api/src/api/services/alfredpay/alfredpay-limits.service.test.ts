@@ -5,6 +5,7 @@ import {
   DomesticCustomerType,
   FiatToken,
   type GetAllConfigsResponse,
+  getAnyFiatTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
@@ -87,5 +88,38 @@ describe("AlfredpayLimitsService.refresh", () => {
       maxRaw: "25000000",
       minRaw: "100000"
     });
+  });
+
+  /**
+   * The Penny adapter serves null quantities on most pairs (2026-09-30). `new Big(null)` threw and
+   * aborted the whole refresh, so no provider bound was ever applied. Both rows share one
+   * response: a throw on the null row would also lose the ARS minimum.
+   */
+  test("keeps the configured bound where Alfred sets no limit", async () => {
+    AlfredpayApiService.getInstance = () =>
+      ({
+        getAllConfigs: async () => ({
+          supportedPairs: [
+            pair({ fromCurrency: "ARS", maxQuantity: null, minQuantity: "1234.56", toCurrency: "USDT" }),
+            pair({ decimals: "6", fromCurrency: "USDC", maxQuantity: null, minQuantity: null, toCurrency: "MXN" })
+          ]
+        })
+      }) as unknown as AlfredpayApiService;
+
+    const service = new (AlfredpayLimitsService as unknown as { new (): AlfredpayLimitsService })();
+    await (service as unknown as { refresh(): Promise<void> }).refresh();
+
+    const configured = (fiat: FiatToken) => {
+      const limits = getAnyFiatTokenDetails(fiat).alfredpayLimits;
+      if (!limits) throw new Error(`no configured Alfredpay limits for ${fiat}`);
+      return limits;
+    };
+    expect(service.getLimits(FiatToken.ARS, "USDT", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual({
+      maxRaw: configured(FiatToken.ARS).onramp.USDT[DomesticCustomerType.INDIVIDUAL].maxRaw,
+      minRaw: "123456"
+    });
+    expect(service.getLimits(FiatToken.MXN, "USDC", DomesticCustomerType.BUSINESS, RampDirection.SELL)).toEqual(
+      configured(FiatToken.MXN).offramp.USDC[DomesticCustomerType.BUSINESS]
+    );
   });
 });

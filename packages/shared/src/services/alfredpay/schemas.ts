@@ -83,13 +83,14 @@ const parseableTimestamp = z.string().refine(value => !Number.isNaN(Date.parse(v
  * One entry of the GET …/allConfigs `supportedPairs` array. The listing contains junk
  * rows (observed live, 2026-07-14): `decimals` may be null or "", `fromCurrency` may be
  * null. The limits indexer skips rows without a digit-string `decimals`, so the per-row
- * contract is correspondingly loose.
+ * contract is correspondingly loose. Since the Penny adapter (observed 2026-09-30) most pairs
+ * carry null `minQuantity`/`maxQuantity`, meaning Alfred sets no limit on that side.
  */
 export const alfredpayConfigPairSchema = z.looseObject({
   decimals: z.string().regex(DIGITS_OR_EMPTY).nullable(),
   fromCurrency: z.string().min(1).nullable(),
-  maxQuantity: z.string().regex(DECIMAL_STRING),
-  minQuantity: z.string().regex(DECIMAL_STRING),
+  maxQuantity: z.string().regex(DECIMAL_STRING).nullable(),
+  minQuantity: z.string().regex(DECIMAL_STRING).nullable(),
   toCurrency: z.string().min(1),
   typeCustomer: z.enum(DomesticCustomerType).nullable()
 }) satisfies z.ZodType<ConsumedConfigPair>;
