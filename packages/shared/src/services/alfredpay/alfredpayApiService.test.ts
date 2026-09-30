@@ -168,8 +168,17 @@ describe("createOnramp returns the order nested under transaction", () => {
       Response.json({ fiatPaymentInstructions: instructions, status: "CREATED", transactionId: "tx-1" })) as unknown as typeof fetch;
 
     const order = await AlfredpayApiService.getInstance().createOnramp(request);
-    expect(order.transaction.transactionId).toBe("tx-1");
+    expect(order.transaction).toEqual({ status: "CREATED", transactionId: "tx-1" });
     expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+
+  // An order we cannot track must not come back as an order: the mint would show the user payment
+  // instructions and then fail.
+  test("rejects a response without a transactionId, in either shape", async () => {
+    for (const body of [{}, { fiatPaymentInstructions: instructions, status: "CREATED" }, { transaction: null }]) {
+      globalThis.fetch = (async () => Response.json(body)) as unknown as typeof fetch;
+      await expect(AlfredpayApiService.getInstance().createOnramp(request)).rejects.toThrow();
+    }
   });
 
   test("Penny's nested order", async () => {
@@ -179,6 +188,36 @@ describe("createOnramp returns the order nested under transaction", () => {
     const order = await AlfredpayApiService.getInstance().createOnramp(request);
     expect(order.transaction.transactionId).toBe("tx-2");
     expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+});
+
+describe("a 409 trade-limit response maps to the side that was breached", () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function respondWithLimit(errorMetadata: Record<string, unknown>): void {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ errorCode: 111426, errorMetadata }), { status: 409 })) as unknown as typeof fetch;
+  }
+
+  const quote = () => AlfredpayApiService.getInstance().getAllConfigs();
+
+  test("a null maximum is no limit: the minimum was breached", async () => {
+    respondWithLimit({ fromCurrency: "MXN", maxQuantity: null, minQuantity: 150 });
+    await expect(quote()).rejects.toMatchObject({ kind: "below", quantity: "150" });
+  });
+
+  test("a maximum means the maximum was breached", async () => {
+    respondWithLimit({ fromCurrency: "MXN", maxQuantity: 1000, minQuantity: null });
+    await expect(quote()).rejects.toMatchObject({ kind: "above", quantity: "1000" });
+  });
+
+  test("neither bound is not a trade-limit error", async () => {
+    respondWithLimit({ fromCurrency: "MXN" });
+    await expect(quote()).rejects.toMatchObject({ status: 409 });
   });
 });
 

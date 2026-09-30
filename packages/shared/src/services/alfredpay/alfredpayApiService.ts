@@ -2,7 +2,11 @@ import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
-import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
+import {
+  alfredpayCreateOnrampResponseSchema,
+  alfredpayOfframpTransactionSchema,
+  alfredpayQuoteResponseSchema
+} from "./schemas";
 import {
   AlfredpayFee,
   AlfredpayFiatAccountFields,
@@ -178,9 +182,9 @@ export class AlfredpayApiService {
             );
             // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
             // the error exposes them as strings.
-            throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
-              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
+            // `!= null`: Alfred's adapter uses null for "no limit on that side" (see allConfigs).
+            if (maxQuantity != null) throw AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency);
+            if (minQuantity != null) throw AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -304,9 +308,16 @@ export class AlfredpayApiService {
     );
     // Penny nested the order under `transaction`; Alfred's adapter returns it flat, with the payment
     // instructions alongside (sandbox, 2026-09-30). ponytail: accepts both until Alfred says which stays.
-    if (response && "transaction" in response) return response;
-    const { fiatPaymentInstructions, ...transaction } = response as GetAlfredpayOnrampTransactionResponse;
-    return { fiatPaymentInstructions, transaction };
+    // Validated like the offramp order: an order without an id must fail here (the financial operation
+    // then stays unresolved) rather than show the user instructions for an order we cannot track.
+    const order =
+      response && "transaction" in response
+        ? response
+        : (({ fiatPaymentInstructions, ...transaction }: Partial<GetAlfredpayOnrampTransactionResponse>) => ({
+            fiatPaymentInstructions,
+            transaction
+          }))(response ?? {});
+    return alfredpayCreateOnrampResponseSchema.parse(order) as unknown as CreateAlfredpayOnrampResponse;
   }
 
   public async getOnrampTransaction(transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> {
@@ -378,7 +389,8 @@ export class AlfredpayApiService {
     const response = await fetch(url, {
       body: formData,
       headers: { Authorization: this.authorization },
-      method: "POST"
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
@@ -437,7 +449,8 @@ export class AlfredpayApiService {
     const response = await fetch(url, {
       body: formData,
       headers: { Authorization: this.authorization },
-      method: "POST"
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
@@ -465,7 +478,8 @@ export class AlfredpayApiService {
     const response = await fetch(url, {
       body: formData,
       headers: { Authorization: this.authorization },
-      method: "POST"
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
