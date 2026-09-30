@@ -84,3 +84,34 @@ describe("GET /alfredpayStatus when Alfredpay answers 404", () => {
     expect(customer?.status).toBe(VerificationStatus.Pending);
   });
 });
+
+describe("GET /getKycStatus when Alfredpay reports no submission", () => {
+  async function statusWithoutSubmission(email: string, stored: AlfredPayStatus) {
+    const user = await createTestUser({ email });
+    await createAlfredpayCustomer(user.id, {
+      alfredPayId: "ap-not-found",
+      country: DomesticCountry.MX,
+      status: stored,
+      type: DomesticCustomerType.INDIVIDUAL
+    });
+    AlfredpayApiService.getInstance = mock(
+      () => ({ getLastKycSubmission: mock(async () => ({})) }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/getKycStatus?country=MX", {
+      headers: { Authorization: `Bearer ${testUserToken(user.id, email)}` }
+    });
+    expect(response.status).toBe(404);
+    return ProviderCustomer.findOne({ where: { providerCustomerId: "ap-not-found" } });
+  }
+
+  it("keeps an approved customer approved", async () => {
+    const customer = await statusWithoutSubmission("approved-empty@example.com", AlfredPayStatus.Success);
+    expect(customer?.status).toBe(VerificationStatus.Approved);
+  });
+
+  it("still resets an unapproved customer", async () => {
+    const customer = await statusWithoutSubmission("in-review-empty@example.com", AlfredPayStatus.UserCompleted);
+    expect(customer?.status).toBe(VerificationStatus.Pending);
+  });
+});

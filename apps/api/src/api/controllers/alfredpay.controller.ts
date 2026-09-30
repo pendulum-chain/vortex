@@ -526,11 +526,15 @@ export class AlfredpayController {
         : (await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId))?.submissionId;
 
       if (!submissionId) {
-        await alfredPayCustomer.update({
-          status: AlfredPayStatus.Consulted,
-          statusExternal: null,
-          verificationStatus: VerificationStatus.Pending
-        });
+        // Same rule as /alfredpayStatus: a read that finds nothing must not send an approved
+        // customer back through KYC (invariant 33).
+        if (alfredPayCustomer.status !== AlfredPayStatus.Success) {
+          await alfredPayCustomer.update({
+            status: AlfredPayStatus.Consulted,
+            statusExternal: null,
+            verificationStatus: VerificationStatus.Pending
+          });
+        }
         return res.status(404).json({ error: "No KYC attempt found" });
       }
 
