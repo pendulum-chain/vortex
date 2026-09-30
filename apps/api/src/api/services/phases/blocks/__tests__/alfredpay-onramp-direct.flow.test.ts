@@ -143,7 +143,8 @@ describe("Alfredpay direct onramp flow", () => {
     );
 
     expect(squidCalculations).toBe(0);
-    expect(capturedProviderRequests[0]?.metadata.customerId).toBe("anonymous");
+    // Exactly the tracking id: Alfred derives the company from the API key and refuses a business id.
+    expect(capturedProviderRequests[0]?.metadata).toEqual({ customerId: "anonymous" });
     expect(output).toMatchObject({ amountRaw: "95990000", chain: Networks.Polygon, token: ALFREDPAY_EVM_TOKEN });
     expect(metadata.blocks.squidRouterSwap).toMatchObject({
       effectiveExchangeRate: "1",
@@ -163,5 +164,21 @@ describe("Alfredpay direct onramp flow", () => {
       inputAmountRaw: "95990000",
       outputAmountRaw: "94990000"
     });
+  });
+  it("rejects a quote whose fromAmount does not echo the requested input", async () => {
+    AlfredpayApiService.getInstance = mock(() => ({
+      createOnrampQuote: async () => ({
+        expiration: new Date(Date.now() + 30_000).toISOString(),
+        fees: [{ amount: "2", currency: FiatToken.MXN }],
+        // 100.00 MXN in minor units, as Alfred's native API would serialize it.
+        fromAmount: "10000",
+        quoteId: "alfred-quote",
+        toAmount: "98"
+      })
+    })) as unknown as typeof AlfredpayApiService.getInstance;
+
+    await expect(makeAlfredpayOnrampDirectFlow(ALFREDPAY_EVM_TOKEN).simulate(buildCtx(ALFREDPAY_EVM_TOKEN))).rejects.toThrow(
+      "does not match the requested"
+    );
   });
 });
