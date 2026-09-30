@@ -590,10 +590,16 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
         "persisted replacement order could not be replayed; pausing before transfer"
       ));
     } else {
-      currentTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(currentTransactionId));
-      if (!currentTx) {
+      try {
+        currentTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(currentTransactionId));
+      } catch (error) {
+        throwIfAborted(signal);
+        if (error instanceof PhaseError) throw error;
+        // Nothing has left the ephemeral yet, so a failed read (404 for an order the provider cannot
+        // find, 401, 5xx, timeout, unexpected shape) is safe to retry. Failing the ramp here would
+        // strand the user's deposit and the subsidy on the ephemeral.
         throw this.createRecoverableError(
-          `AlfredpayOfframpTransferExecutor: Transaction ${currentTransactionId} not found in Alfredpay.`
+          `AlfredpayOfframpTransferExecutor: could not read provider order ${currentTransactionId}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
       if (currentTx.transactionId !== currentTransactionId) {
