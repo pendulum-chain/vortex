@@ -165,7 +165,7 @@ function MxKycForm({ onSubmit, onCancel, userEmail }: Omit<KycFormScreenProps, "
       <FormShell onCancel={onCancel} onSubmit={form.handleSubmit(onSubmit)}>
         <NameAndBirth control={form.control} />
         <TextField control={form.control} label="Email" name="email" readOnly={!!userEmail} type="email" />
-        <TextField control={form.control} label="CURP / INE number" name="dni" />
+        <TextField control={form.control} label="CURP" name="dni" />
         <AddressFields control={form.control} />
       </FormShell>
     </Form>
@@ -279,7 +279,7 @@ function ArKycForm({ onSubmit, onCancel, userEmail }: Omit<KycFormScreenProps, "
           )}
         />
         <TextField control={form.control} label="DNI" name="dni" />
-        <TextField control={form.control} label="CUIT (optional)" name="cuit" placeholder="11 digits" />
+        <TextField control={form.control} label="CUIT" name="cuit" placeholder="11 digits" />
         <AddressFields control={form.control} />
         <FormField
           control={form.control}

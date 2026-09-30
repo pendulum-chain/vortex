@@ -16,7 +16,7 @@ const mxn = {
   address: "Av. Reforma 1",
   city: "CDMX",
   dateOfBirth: "1990-05-04",
-  dni: "OEAF771012HMCRGR09",
+  dni: "OEAF771012HMCRGR08",
   email: "frida@example.com",
   firstName: "Frida",
   lastName: "Kahlo",
@@ -38,6 +38,7 @@ const col = {
 };
 
 const ar = {
+  cuit: "20123456786",
   address: "Av. Corrientes 1",
   city: "Buenos Aires",
   countryCode: "AR" as const,
@@ -61,6 +62,19 @@ describe("mxnKycSchema", () => {
   it("rejects a date of birth that is not YYYY-MM-DD", () => {
     const result = mxnKycSchema.safeParse({ ...mxn, dateOfBirth: "04/05/1990" });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts only a CURP with a valid check digit as dni", () => {
+    // An INE number, and the widely published example CURP whose check digit is wrong: Alfred rejects both.
+    for (const dni of ["1234567890123", "OEAF771012HMCRGR09"]) {
+      const result = mxnKycSchema.safeParse({ ...mxn, dni });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.path).toEqual(["dni"]);
+    }
+  });
+
+  it("normalizes a lowercase CURP before checking it", () => {
+    expect(mxnKycSchema.parse({ ...mxn, dni: " oeaf771012hmcrgr08 " }).dni).toBe("OEAF771012HMCRGR08");
   });
 
   it("rejects a malformed email", () => {
@@ -95,8 +109,8 @@ describe("arKycSchema", () => {
     expect(arKycSchema.safeParse(ar).success).toBe(true);
   });
 
-  it("treats CUIT as optional but requires exactly 11 digits when present", () => {
-    expect(arKycSchema.safeParse({ ...ar, cuit: "" }).success).toBe(true);
+  it("requires an 11-digit CUIT", () => {
+    expect(arKycSchema.safeParse({ ...ar, cuit: "" }).success).toBe(false);
     expect(arKycSchema.safeParse({ ...ar, cuit: "20123456789" }).success).toBe(true);
 
     const result = arKycSchema.safeParse({ ...ar, cuit: "2012345678" });

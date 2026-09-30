@@ -35,7 +35,8 @@ async function driveToInReview(page: Page): Promise<Locator> {
   await page.locator('input[name="firstName"]').fill("Maria");
   await page.locator('input[name="lastName"]').fill("Gomez");
   await page.locator('input[name="dateOfBirth"]').fill("1990-05-20");
-  await page.locator('input[name="dni"]').fill("GOMM900520MDFXYZ01");
+  // Must be a CURP with a valid check digit: the form now rejects anything Alfred would.
+  await page.locator('input[name="dni"]').fill("GOXM900520MDFMXR05");
   await page.locator('input[name="address"]').fill("Av Reforma 100");
   await page.locator('input[name="city"]').fill("Ciudad de Mexico");
   await page.locator('input[name="state"]').fill("CDMX");
