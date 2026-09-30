@@ -36,6 +36,11 @@ function cacheKey(
   return `${direction}:${fiat}:${stablecoin}:${customer}`;
 }
 
+/** A provider bound is only a decimal string; null, absent or "" means Alfred sets no limit on that side. */
+function isDecimalQuantity(value: unknown): value is string {
+  return typeof value === "string" && /^\d+(\.\d+)?$/.test(value);
+}
+
 function toRaw(quantityDecimal: string, decimals: number): string {
   return new Big(quantityDecimal).mul(new Big(10).pow(decimals)).round(0, Big.roundDown).toFixed(0);
 }
@@ -107,6 +112,8 @@ export class AlfredpayLimitsService {
   private async refresh(): Promise<void> {
     try {
       const { supportedPairs } = await AlfredpayApiService.getInstance().getAllConfigs();
+      // An unparseable 2xx body arrives as an empty listing; it must not wipe the limits we have.
+      if (supportedPairs.length === 0) throw new Error("allConfigs returned no pairs");
       const nextCache = new Map<string, RawAmountLimits>();
       for (const pair of supportedPairs) {
         this.indexPair(nextCache, pair);
@@ -119,30 +126,33 @@ export class AlfredpayLimitsService {
   }
 
   private indexPair(target: Map<string, RawAmountLimits>, pair: AlfredpayConfigPair): void {
-    // The /allConfigs listing contains junk rows: decimals null/"" and even null
-    // currencies. Only digit-string decimals are trustworthy — Number(null) is 0 and
-    // would silently shrink the raw limits by 10^decimals. Capped at two digits (sane
-    // currency precision): an oversized exponent would make Big(10).pow throw and
-    // abort the whole refresh on one bad row.
-    if (typeof pair.decimals !== "string" || !/^\d{1,2}$/.test(pair.decimals)) return;
-    const decimals = Number(pair.decimals);
-
     const axes = this.deriveAxes(pair);
     if (!axes) return;
-
     const { direction, fiat, stablecoin } = axes;
+
+    // Limits are read back scaled by the fiat's decimals for BUY and the stablecoin's (6) for SELL
+    // (resolveAlfredpayQuoteLimits). The listing also carries junk rows (decimals null, "" or huge);
+    // a row scaled any other way would mix scales with our configured bound, so it is skipped.
+    const decimals = direction === RampDirection.BUY ? getAnyFiatTokenDetails(fiat).decimals : 6;
+    if (pair.decimals !== String(decimals)) return;
+    if (pair.typeCustomer && !CUSTOMER_TYPES.includes(pair.typeCustomer)) return;
+
+    // A row without any bound says nothing and must not shadow another row for the same pair.
+    const minQuantity = isDecimalQuantity(pair.minQuantity) ? pair.minQuantity : null;
+    const maxQuantity = isDecimalQuantity(pair.maxQuantity) ? pair.maxQuantity : null;
+    if (minQuantity === null && maxQuantity === null) return;
+
     const customers: DomesticCustomerType[] = pair.typeCustomer ? [pair.typeCustomer] : CUSTOMER_TYPES;
     const isWildcard = !pair.typeCustomer;
     for (const customer of customers) {
       const key = cacheKey(direction, fiat, stablecoin, customer);
       // Specific customer rows take precedence over the wildcard (null) row, regardless of response order.
       if (isWildcard && target.has(key)) continue;
-      // A null bound means Alfred sets no limit on that side: keep our configured bound there
-      // rather than treating it as unlimited.
+      // Where Alfred sets no limit on a side, keep our configured bound rather than reading it as unlimited.
       const configured = this.fallback(fiat, stablecoin, customer, direction);
       target.set(key, {
-        maxRaw: pair.maxQuantity === null ? configured.maxRaw : toRaw(pair.maxQuantity, decimals),
-        minRaw: pair.minQuantity === null ? configured.minRaw : toRaw(pair.minQuantity, decimals)
+        maxRaw: maxQuantity === null ? configured.maxRaw : toRaw(maxQuantity, decimals),
+        minRaw: minQuantity === null ? configured.minRaw : toRaw(minQuantity, decimals)
       });
     }
   }

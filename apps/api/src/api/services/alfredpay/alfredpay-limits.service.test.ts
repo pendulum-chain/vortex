@@ -90,36 +90,72 @@ describe("AlfredpayLimitsService.refresh", () => {
     });
   });
 
+  async function refreshWith(...batches: AlfredpayConfigPair[][]): Promise<AlfredpayLimitsService> {
+    const service = new (AlfredpayLimitsService as unknown as { new (): AlfredpayLimitsService })();
+    for (const supportedPairs of batches) {
+      AlfredpayApiService.getInstance = () => ({ getAllConfigs: async () => ({ supportedPairs }) }) as unknown as AlfredpayApiService;
+      await (service as unknown as { refresh(): Promise<void> }).refresh();
+    }
+    return service;
+  }
+
+  const configured = (fiat: FiatToken) => {
+    const limits = getAnyFiatTokenDetails(fiat).alfredpayLimits;
+    if (!limits) throw new Error(`no configured Alfredpay limits for ${fiat}`);
+    return limits;
+  };
+  const arsMin = pair({ fromCurrency: "ARS", maxQuantity: null, minQuantity: "1234.56", toCurrency: "USDT" });
+
   /**
    * The Penny adapter serves null quantities on most pairs (2026-09-30). `new Big(null)` threw and
-   * aborted the whole refresh, so no provider bound was ever applied. Both rows share one
-   * response: a throw on the null row would also lose the ARS minimum.
+   * aborted the whole refresh, so no provider bound was ever applied.
    */
-  test("keeps the configured bound where Alfred sets no limit", async () => {
-    AlfredpayApiService.getInstance = () =>
-      ({
-        getAllConfigs: async () => ({
-          supportedPairs: [
-            pair({ fromCurrency: "ARS", maxQuantity: null, minQuantity: "1234.56", toCurrency: "USDT" }),
-            pair({ decimals: "6", fromCurrency: "USDC", maxQuantity: null, minQuantity: null, toCurrency: "MXN" })
-          ]
-        })
-      }) as unknown as AlfredpayApiService;
+  test("keeps each customer type's configured bound where Alfred sets no limit", async () => {
+    const service = await refreshWith([arsMin]);
 
-    const service = new (AlfredpayLimitsService as unknown as { new (): AlfredpayLimitsService })();
-    await (service as unknown as { refresh(): Promise<void> }).refresh();
+    for (const customer of [DomesticCustomerType.INDIVIDUAL, DomesticCustomerType.BUSINESS]) {
+      expect(service.getLimits(FiatToken.ARS, "USDT", customer, RampDirection.BUY)).toEqual({
+        maxRaw: configured(FiatToken.ARS).onramp.USDT[customer].maxRaw,
+        minRaw: "123456"
+      });
+    }
+  });
 
-    const configured = (fiat: FiatToken) => {
-      const limits = getAnyFiatTokenDetails(fiat).alfredpayLimits;
-      if (!limits) throw new Error(`no configured Alfredpay limits for ${fiat}`);
-      return limits;
-    };
-    expect(service.getLimits(FiatToken.ARS, "USDT", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual({
-      maxRaw: configured(FiatToken.ARS).onramp.USDT[DomesticCustomerType.INDIVIDUAL].maxRaw,
-      minRaw: "123456"
-    });
-    expect(service.getLimits(FiatToken.MXN, "USDC", DomesticCustomerType.BUSINESS, RampDirection.SELL)).toEqual(
-      configured(FiatToken.MXN).offramp.USDC[DomesticCustomerType.BUSINESS]
+  test("a malformed bound or an unknown customer type does not lose the other rows", async () => {
+    const service = await refreshWith([
+      pair({ maxQuantity: undefined as unknown as null, minQuantity: "" }),
+      pair({ maxQuantity: null, minQuantity: "10.00", typeCustomer: "COMPANY" as DomesticCustomerType }),
+      arsMin
+    ]);
+
+    expect(service.getLimits(FiatToken.ARS, "USDT", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY).minRaw).toBe("123456");
+  });
+
+  test("a row without any bound does not shadow a real row for the same pair", async () => {
+    const real = pair({ maxQuantity: "1000.00", minQuantity: "99.00" });
+    const service = await refreshWith([
+      pair({ maxQuantity: null, minQuantity: null }),
+      pair({ maxQuantity: null, minQuantity: null, typeCustomer: DomesticCustomerType.INDIVIDUAL }),
+      real
+    ]);
+
+    for (const customer of [DomesticCustomerType.INDIVIDUAL, DomesticCustomerType.BUSINESS]) {
+      expect(service.getLimits(FiatToken.MXN, "USDC", customer, RampDirection.BUY)).toEqual({ maxRaw: "100000", minRaw: "9900" });
+    }
+  });
+
+  test("an empty listing keeps the previous limits", async () => {
+    const service = await refreshWith([arsMin], []);
+
+    expect(service.getLimits(FiatToken.ARS, "USDT", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY).minRaw).toBe("123456");
+  });
+
+  test("a row scaled against the currency's convention is skipped", async () => {
+    // BUY limits are read back with the fiat's 2 decimals; a "6" row would be 10^4 off.
+    const service = await refreshWith([pair({ decimals: "6", maxQuantity: null, minQuantity: "150.00" })]);
+
+    expect(service.getLimits(FiatToken.MXN, "USDC", DomesticCustomerType.INDIVIDUAL, RampDirection.BUY)).toEqual(
+      configured(FiatToken.MXN).onramp.USDC[DomesticCustomerType.INDIVIDUAL]
     );
   });
 });
