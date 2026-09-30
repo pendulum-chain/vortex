@@ -7,7 +7,6 @@ import type { UnsignedTx } from "../endpoints/ramp.endpoints";
 // process.env for the whole test run. Provide the env defaults other test files rely on before
 // that happens (same pattern as alfredpayApiService.test.ts), hence the dynamic import.
 process.env.ALFREDPAY_API_KEY ||= "test-key";
-process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
 const { Networks } = await import("./networks");
 const { createEvmClient, groupUnsignedTxsForSigning, signUnsignedTransactions } = await import("./signUnsigned");

@@ -1,4 +1,4 @@
-import { AlfredpayArgentinaDocumentType, AlfredpayColombiaDocumentType } from "@vortexfi/shared";
+import { AlfredpayArgentinaDocumentType, AlfredpayColombiaDocumentType, isValidCuit, isValidCurp } from "@vortexfi/shared";
 import { z } from "zod";
 import type { KybFormData, KybQuestionnaireData } from "./types";
 
@@ -10,7 +10,7 @@ export const mxnKycSchema = z.object({
   address: z.string().min(1),
   city: z.string().min(1),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-  dni: z.string().min(1),
+  dni: z.string().trim().toUpperCase().refine(isValidCurp, "Enter a valid 18-character CURP"),
   email: z.string().email(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -37,29 +37,28 @@ export const colKycSchema = z
     }
   });
 
-export const arKycSchema = z
-  .object({
-    address: z.string().min(1),
-    city: z.string().min(1),
-    countryCode: z.literal("AR"),
-    cuit: z.string().optional(),
-    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-    dni: z.string().min(1),
-    email: z.string().email(),
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-    nationalities: z.array(z.string().regex(/^[A-Z]{2}$/)).optional(),
-    pep: z.boolean(),
-    phoneNumber: z.string().regex(/^\+54\d{7,}$/, "Use Argentina format (+54...)"),
-    state: z.string().min(1),
-    typeDocumentAr: z.nativeEnum(AlfredpayArgentinaDocumentType),
-    zipCode: z.string().min(1)
-  })
-  .superRefine((data, ctx) => {
-    if (data.cuit && !/^\d{11}$/.test(data.cuit)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CUIT must be exactly 11 digits", path: ["cuit"] });
-    }
-  });
+export const arKycSchema = z.object({
+  address: z.string().min(1),
+  city: z.string().min(1),
+  countryCode: z.literal("AR"),
+  // Alfred requires a CUIT with a valid check digit for every Argentine individual. Separators
+  // (20-12345678-6) are dropped so the usual written form passes.
+  cuit: z
+    .string()
+    .transform(value => value.replace(/\D/g, ""))
+    .refine(isValidCuit, "Enter a valid 11-digit CUIT"),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
+  dni: z.string().min(1),
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  nationalities: z.array(z.string().regex(/^[A-Z]{2}$/)).optional(),
+  pep: z.boolean(),
+  phoneNumber: z.string().regex(/^\+54\d{7,}$/, "Use Argentina format (+54...)"),
+  state: z.string().min(1),
+  typeDocumentAr: z.nativeEnum(AlfredpayArgentinaDocumentType),
+  zipCode: z.string().min(1)
+});
 
 export const kybFormSchema = z.object({
   address: z.string().min(1),

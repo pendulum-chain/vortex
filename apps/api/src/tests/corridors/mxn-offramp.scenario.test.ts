@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock, setSystemTime, spyOn } from "bun:test";
 import {
+  AlfredpayApiError,
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayChain,
@@ -1165,6 +1166,35 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         setup.inputAmountRaw
       );
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
+    },
+    30000
+  );
+
+  /**
+   * The pre-transfer order read runs after the user's USDT and any subsidy sit on the ephemeral.
+   * A provider error there (a 404 for an order the adapter cannot find after the platform switch,
+   * a 401, a 5xx, a timeout) used to fail the ramp outright and strand those funds.
+   */
+  it.each([404, 503, 0])(
+    "recoverable: a provider error (status %p) reading the order before the transfer is retried, not fatal",
+    async status => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      world.alfredpay.nextOfframpReadError = new AlfredpayApiError({
+        endpoint: "/api/v1/third-party-service/penny/offramp/order",
+        method: "GET",
+        responseBody: '{"errorCode":111483,"errorMessage":"Offramp not found"}',
+        status
+      });
+
+      await processRampWithoutCompletionEmail(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      const readLogs = final?.errorLogs.filter(log => log.error.includes("could not read provider order")) ?? [];
+      expect(readLogs.length).toBe(1);
+      expect(readLogs.every(log => log.phase === "alfredpayOfframpTransfer" && log.recoverable === true)).toBe(true);
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
     },
     30000
   );

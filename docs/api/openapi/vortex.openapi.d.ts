@@ -3385,12 +3385,16 @@ export interface components {
         } & ({
             /** @constant */
             country?: "MX";
+            /** @description CURP, 18 characters in upper case. The last character is a check digit, and a CURP with a wrong one is rejected with 400. */
+            dni?: string;
         } | {
             /** @constant */
             country?: "CO";
         } | {
             /** @constant */
             country?: "AR";
+            /** @description CUIT or CUIL, 11 digits (separators are ignored). The last digit is a check digit, and a CUIT with a wrong one is rejected with 400. */
+            cuit: string;
         });
         SuccessResponse: {
             /** @constant */

@@ -138,10 +138,13 @@ export enum AlfredpayPaymentMethodType {
   BANK = "BANK"
 }
 
+/**
+ * Tracking-only quote metadata. No `businessId`: Alfred derives the company from the API key and
+ * its migration guide says not to send one in the body. Closed on purpose, so an object literal
+ * carrying it again fails to compile.
+ */
 export interface AlfredpayQuoteMetadata {
-  businessId: string;
   customerId: string;
-  [key: string]: unknown;
 }
 
 interface AlfredpayBaseQuoteRequest<FromCurrency, ToCurrency> {
@@ -377,8 +380,9 @@ export interface AlfredpayConfigPair {
   fromCurrency: string | null;
   toCurrency: string;
   businessId: string | null;
-  maxQuantity: string;
-  minQuantity: string;
+  /** null: Alfred sets no limit on that side (most pairs on the Penny adapter, 2026-09-30). */
+  maxQuantity: string | null;
+  minQuantity: string | null;
   decimals: string | null;
   typeCustomer: DomesticCustomerType | null;
   createdAt: string;

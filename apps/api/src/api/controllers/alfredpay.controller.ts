@@ -341,9 +341,12 @@ export class AlfredpayController {
         logger.error("Error refreshing Alfredpay status:", error);
 
         // If the upstream API returns 404 (KYC submission not found), the local status is stale.
-        // Reset to Consulted so the frontend re-triggers the KYC flow.
+        // Reset to Consulted so the frontend re-triggers the KYC flow. Never for an approved
+        // customer: a lookup can also 404 for data Alfred has not moved to its new platform (US is
+        // not served there yet), and a status read must not force an approved customer through KYC.
         const errorMessage = AlfredpayController.getErrorMessage(error).toLowerCase();
-        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        const isNotFound = errorMessage.includes("404") || errorMessage.includes("not found");
+        if (isNotFound && alfredPayCustomer.status !== AlfredPayStatus.Success) {
           logger.info("Resetting stale AlfredPay status to pending due to upstream 404");
           await alfredPayCustomer.update({
             status: AlfredPayStatus.Consulted,
@@ -523,11 +526,15 @@ export class AlfredpayController {
         : (await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId))?.submissionId;
 
       if (!submissionId) {
-        await alfredPayCustomer.update({
-          status: AlfredPayStatus.Consulted,
-          statusExternal: null,
-          verificationStatus: VerificationStatus.Pending
-        });
+        // Same rule as /alfredpayStatus: a read that finds nothing must not send an approved
+        // customer back through KYC (invariant 33).
+        if (alfredPayCustomer.status !== AlfredPayStatus.Success) {
+          await alfredPayCustomer.update({
+            status: AlfredPayStatus.Consulted,
+            statusExternal: null,
+            verificationStatus: VerificationStatus.Pending
+          });
+        }
         return res.status(404).json({ error: "No KYC attempt found" });
       }
 

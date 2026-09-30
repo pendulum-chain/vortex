@@ -13,9 +13,13 @@ export const BRLA_PRIVATE_KEY = getEnvVar("BRLA_PRIVATE_KEY");
 
 export const ALCHEMY_API_KEY = getEnvVar("ALCHEMY_API_KEY");
 
-export const ALFREDPAY_BASE_URL = getEnvVar("ALFREDPAY_BASE_URL") || "https://penny-api-restricted-dev.alfredpay.io";
+// Alfred's Penny adapter: the legacy Penny request paths (/api/v1/third-party-service/penny/...)
+// served by the new platform. The legacy Penny hosts are decommissioned.
+export const ALFREDPAY_BASE_URL =
+  getEnvVar("ALFREDPAY_BASE_URL") ||
+  (SANDBOX_ENABLED ? "https://api.sandbox.alfredpay.io/adapters/penny" : "https://api.alfredpay.io/adapters/penny");
+// An Alfred partner API key (`alfk_...`); it identifies the company, so no secret or business id is sent.
 export const ALFREDPAY_API_KEY = getEnvVar("ALFREDPAY_API_KEY");
-export const ALFREDPAY_API_SECRET = getEnvVar("ALFREDPAY_API_SECRET");
 
 export const MYKOBO_BASE_URL =
   getEnvVar("MYKOBO_BASE_URL") || (SANDBOX_ENABLED ? "https://api-dev.mykobo.app" : "https://api.mykobo.app");

@@ -43,12 +43,17 @@ export async function simulateAlfredpayMint(
     chain: AlfredpayChain.MATIC,
     fromAmount: input.amount.toString(),
     fromCurrency: input.token as unknown as AlfredpayFiatCurrency,
-    metadata: { businessId: "vortex", customerId },
+    metadata: { customerId },
     paymentMethodType: AlfredpayPaymentMethodType.BANK,
     toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
   };
   const quote = await AlfredpayApiService.getInstance().createOnrampQuote(quoteRequest);
   const inputAmountDecimal = new Big(quote.fromAmount);
+  // A fixed-input quote echoes the input. Anything else means the amounts are not in the units we
+  // sent (Alfred's native API uses minor units), and every figure below would be off by that factor.
+  if (!inputAmountDecimal.eq(input.amount)) {
+    throw new Error(`AlfredpayMint: quote fromAmount ${quote.fromAmount} does not match the requested ${input.amount}`);
+  }
   const outputAmountDecimal = new Big(quote.toAmount);
   const fee = AlfredpayApiService.sumFeesByCurrency(quote.fees, input.token as unknown as AlfredpayFiatCurrency);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0);

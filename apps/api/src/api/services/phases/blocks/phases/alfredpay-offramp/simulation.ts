@@ -173,7 +173,7 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
         ...amount,
         chain: AlfredpayChain.MATIC,
         fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-        metadata: { businessId: "vortex", customerId },
+        metadata: { customerId },
         paymentMethodType: AlfredpayPaymentMethodType.BANK,
         toCurrency
       });

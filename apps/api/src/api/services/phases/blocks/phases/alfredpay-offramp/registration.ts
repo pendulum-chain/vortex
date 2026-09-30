@@ -61,7 +61,7 @@ export async function registerDomesticOfframp(
       chain: AlfredpayChain.MATIC,
       fromAmount: new Big(ctx.metadata.inputAmountDecimal as unknown as string).toString(),
       fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      metadata: { businessId: "vortex", customerId },
+      metadata: { customerId },
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency
     } satisfies CreateAlfredpayOfframpQuoteRequest);

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 process.env.ALFREDPAY_API_KEY ||= "test-key";
-process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
 const { AlfredpayApiService, toAsciiFileName } = await import("./alfredpayApiService");
 const {
@@ -98,6 +97,130 @@ describe("uploads send an ASCII multipart filename", () => {
   });
 });
 
+/**
+ * Alfred's migration guide authenticates the Penny adapter with the partner API key as a bearer
+ * token; the `api-key`/`api-secret` pair belonged to the decommissioned Penny hosts. Uploads build
+ * their own headers, so they are covered separately.
+ */
+describe("requests authenticate with the Alfred API key as a bearer token", () => {
+  let sentHeaders: Headers[];
+  const realFetch = globalThis.fetch;
+  const service = AlfredpayApiService.getInstance();
+
+  beforeEach(() => {
+    sentHeaders = [];
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      sentHeaders.push(new Headers(init.headers));
+      return Response.json({ supportedPairs: [] });
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function expectBearerOnly(headers: Headers | undefined): void {
+    expect(headers?.get("authorization")).toBe(`Bearer ${process.env.ALFREDPAY_API_KEY}`);
+    expect(headers?.has("api-key")).toBe(false);
+    expect(headers?.has("api-secret")).toBe(false);
+  }
+
+  test("JSON requests", async () => {
+    await service.getAllConfigs();
+    expectBearerOnly(sentHeaders[0]);
+  });
+
+  test("every multipart upload", async () => {
+    const file = new File([new Uint8Array([1])], "doc.png", { type: "image/png" });
+    await service.submitKycFile("cust-1", "sub-1", AlfredpayKycFileType.FRONT, file);
+    await service.submitKybFiles("cust-1", "sub-1", AlfredpayKybFileType.PROOF_ADDRESS, file);
+    await service.submitKybRelatedPersonFiles("cust-1", "person-1", AlfredpayKybRelatedPersonFileType.DOC_FRONT, file);
+    expect(sentHeaders).toHaveLength(3);
+    for (const headers of sentHeaders) expectBearerOnly(headers);
+  });
+});
+
+/**
+ * Alfred's Penny adapter answers POST …/onramp with the order flat and the payment instructions
+ * beside it, where Penny nested the order under `transaction`. The mint lifecycle reads
+ * `order.transaction.transactionId`, so both shapes must come back nested.
+ */
+describe("createOnramp returns the order nested under transaction", () => {
+  const realFetch = globalThis.fetch;
+  const instructions = { clabe: "646180157000000004", paymentType: "SPEI" };
+  const request = {
+    amount: "500",
+    chain: AlfredpayChain.MATIC,
+    customerId: "customer-1",
+    depositAddress: "0x5afe00000000000000000000000000000000d0e5",
+    fromCurrency: AlfredpayFiatCurrency.MXN,
+    paymentMethodType: AlfredpayPaymentMethodType.BANK,
+    quoteId: "quote-1",
+    toCurrency: AlfredpayOnChainCurrency.USDT
+  };
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("the adapter's flat order", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({ fiatPaymentInstructions: instructions, status: "CREATED", transactionId: "tx-1" })) as unknown as typeof fetch;
+
+    const order = await AlfredpayApiService.getInstance().createOnramp(request);
+    expect(order.transaction).toEqual({ status: "CREATED", transactionId: "tx-1" });
+    expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+
+  // An order we cannot track must not come back as an order: the mint would show the user payment
+  // instructions and then fail.
+  test("rejects a response without a transactionId, in either shape", async () => {
+    for (const body of [{}, { fiatPaymentInstructions: instructions, status: "CREATED" }, { transaction: null }]) {
+      globalThis.fetch = (async () => Response.json(body)) as unknown as typeof fetch;
+      await expect(AlfredpayApiService.getInstance().createOnramp(request)).rejects.toThrow();
+    }
+  });
+
+  test("Penny's nested order", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({ fiatPaymentInstructions: instructions, transaction: { transactionId: "tx-2" } })) as unknown as typeof fetch;
+
+    const order = await AlfredpayApiService.getInstance().createOnramp(request);
+    expect(order.transaction.transactionId).toBe("tx-2");
+    expect(order.fiatPaymentInstructions).toEqual(instructions);
+  });
+});
+
+describe("a 409 trade-limit response maps to the side that was breached", () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function respondWithLimit(errorMetadata: Record<string, unknown>): void {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ errorCode: 111426, errorMetadata }), { status: 409 })) as unknown as typeof fetch;
+  }
+
+  const quote = () => AlfredpayApiService.getInstance().getAllConfigs();
+
+  test("a null maximum is no limit: the minimum was breached", async () => {
+    respondWithLimit({ fromCurrency: "MXN", maxQuantity: null, minQuantity: 150 });
+    await expect(quote()).rejects.toMatchObject({ kind: "below", quantity: "150" });
+  });
+
+  test("a maximum means the maximum was breached", async () => {
+    respondWithLimit({ fromCurrency: "MXN", maxQuantity: 1000, minQuantity: null });
+    await expect(quote()).rejects.toMatchObject({ kind: "above", quantity: "1000" });
+  });
+
+  test("neither bound is not a trade-limit error", async () => {
+    respondWithLimit({ fromCurrency: "MXN" });
+    await expect(quote()).rejects.toMatchObject({ status: 409 });
+  });
+});
+
 describe("offramp responses are validated at the service boundary", () => {
   const realFetch = globalThis.fetch;
   const service = AlfredpayApiService.getInstance();
@@ -143,7 +266,7 @@ describe("offramp responses are validated at the service boundary", () => {
         chain: AlfredpayChain.MATIC,
         fromAmount: "1000",
         fromCurrency: AlfredpayOnChainCurrency.USDT,
-        metadata: { businessId: "business-1", customerId: "customer-1" },
+        metadata: { customerId: "customer-1" },
         paymentMethodType: AlfredpayPaymentMethodType.BANK,
         toCurrency: AlfredpayFiatCurrency.MXN
       })

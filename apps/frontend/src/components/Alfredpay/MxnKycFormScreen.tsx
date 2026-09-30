@@ -25,7 +25,7 @@ const config: KycFormConfig<MxnKycFormValues> = {
       name: "email",
       type: "text"
     },
-    { labelKey: "components.mxnKycForm.dni", name: "dni", placeholder: "CURP / INE number", type: "text" },
+    { labelKey: "components.mxnKycForm.dni", name: "dni", placeholder: "CURP", type: "text" },
     {
       autoComplete: "street-address",
       labelKey: "components.mxnKycForm.address",

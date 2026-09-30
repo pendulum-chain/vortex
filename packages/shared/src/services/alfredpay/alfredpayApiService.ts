@@ -1,8 +1,12 @@
 import Big from "big.js";
-import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
+import { ALFREDPAY_API_KEY, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
 import { ProviderHttpError } from "../providerHttpError";
-import { alfredpayOfframpTransactionSchema, alfredpayQuoteResponseSchema } from "./schemas";
+import {
+  alfredpayCreateOnrampResponseSchema,
+  alfredpayOfframpTransactionSchema,
+  alfredpayQuoteResponseSchema
+} from "./schemas";
 import {
   AlfredpayFee,
   AlfredpayFiatAccountFields,
@@ -98,16 +102,13 @@ async function asAsciiNamedUpload(file: Blob): Promise<File> {
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
 
-  private apiKey: string;
-
-  private apiSecret: string;
+  private authorization: string;
 
   private constructor() {
-    if (!ALFREDPAY_API_KEY || !ALFREDPAY_API_SECRET) {
-      throw new Error("ALFREDPAY_API_KEY or ALFREDPAY_API_SECRET not defined");
+    if (!ALFREDPAY_API_KEY) {
+      throw new Error("ALFREDPAY_API_KEY not defined");
     }
-    this.apiKey = ALFREDPAY_API_KEY;
-    this.apiSecret = ALFREDPAY_API_SECRET;
+    this.authorization = `Bearer ${ALFREDPAY_API_KEY}`;
   }
 
   public static getInstance(): AlfredpayApiService {
@@ -129,8 +130,7 @@ export class AlfredpayApiService {
   ): Promise<T | undefined> {
     const headers = {
       Accept: "application/json",
-      "api-key": this.apiKey,
-      "api-secret": this.apiSecret,
+      Authorization: this.authorization,
       "Content-Type": "application/json"
     };
 
@@ -182,9 +182,9 @@ export class AlfredpayApiService {
             );
             // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
             // the error exposes them as strings.
-            throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
-              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
+            // `!= null`: Alfred's adapter uses null for "no limit on that side" (see allConfigs).
+            if (maxQuantity != null) throw AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency);
+            if (minQuantity != null) throw AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -301,7 +301,23 @@ export class AlfredpayApiService {
 
   public async createOnramp(request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> {
     const path = "/api/v1/third-party-service/penny/onramp";
-    return (await this.executeRequest(path, "POST", request)) as CreateAlfredpayOnrampResponse;
+    const response = await this.executeRequest<CreateAlfredpayOnrampResponse | GetAlfredpayOnrampTransactionResponse>(
+      path,
+      "POST",
+      request
+    );
+    // Penny nested the order under `transaction`; Alfred's adapter returns it flat, with the payment
+    // instructions alongside (sandbox, 2026-09-30). ponytail: accepts both until Alfred says which stays.
+    // Validated like the offramp order: an order without an id must fail here (the financial operation
+    // then stays unresolved) rather than show the user instructions for an order we cannot track.
+    const order =
+      response && "transaction" in response
+        ? response
+        : (({ fiatPaymentInstructions, ...transaction }: Partial<GetAlfredpayOnrampTransactionResponse>) => ({
+            fiatPaymentInstructions,
+            transaction
+          }))(response ?? {});
+    return alfredpayCreateOnrampResponseSchema.parse(order) as unknown as CreateAlfredpayOnrampResponse;
   }
 
   public async getOnrampTransaction(transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> {
@@ -372,11 +388,9 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
-      method: "POST"
+      headers: { Authorization: this.authorization },
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
@@ -434,11 +448,9 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
-      method: "POST"
+      headers: { Authorization: this.authorization },
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
@@ -465,11 +477,9 @@ export class AlfredpayApiService {
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;
     const response = await fetch(url, {
       body: formData,
-      headers: {
-        "api-key": this.apiKey,
-        "api-secret": this.apiSecret
-      },
-      method: "POST"
+      headers: { Authorization: this.authorization },
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {

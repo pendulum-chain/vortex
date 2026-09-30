@@ -650,7 +650,7 @@
       "city": "City",
       "continue": "Continue",
       "dateOfBirth": "Date of Birth",
-      "dni": "Document Number",
+      "dni": "CURP",
       "documentType": "Document Type",
       "email": "Email",
       "firstName": "First Name",

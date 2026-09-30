@@ -296,6 +296,8 @@ export class FakeAlfredpay {
   nextOfframpOrderStatus: AlfredpayOfframpStatus | null = null;
   /** Optional one-shot lifecycle status returned when that new order is re-read. */
   nextOfframpRereadStatus: AlfredpayOfframpStatus | null = null;
+  /** Optional one-shot error thrown by the next getOfframpTransaction (provider outage/404 tests). */
+  nextOfframpReadError: Error | null = null;
   /** Status reported for every order by getOfframpTransaction. */
   offrampStatus: AlfredpayOfframpStatus = AlfredpayOfframpStatus.CREATED;
   /** Deposit address handed out for every offramp order. */
@@ -475,7 +477,7 @@ export class FakeAlfredpay {
         quote: this.onrampQuote({
           fromAmount: request.amount,
           fromCurrency: request.fromCurrency,
-          metadata: { businessId: "vortex", customerId: request.customerId },
+          metadata: { customerId: request.customerId },
           paymentMethodType: request.paymentMethodType,
           toCurrency: request.toCurrency
         }),
@@ -494,6 +496,9 @@ export class FakeAlfredpay {
     createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<DomesticOnrampQuote> =>
       this.onrampQuote(request),
     getOfframpTransaction: async (transactionId: string): Promise<CreateAlfredpayOfframpResponse> => {
+      const readError = this.nextOfframpReadError;
+      this.nextOfframpReadError = null;
+      if (readError) throw readError;
       const transaction = this.offrampTransactions.get(transactionId);
       if (!transaction) {
         throw new Error(`FakeAlfredpay: unknown offramp transaction ${transactionId}`);

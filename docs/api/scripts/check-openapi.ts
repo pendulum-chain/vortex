@@ -743,7 +743,7 @@ if (
   !JSON.stringify(kycInformationRequest.allOf).includes('"pattern":"^\\\\+54"') ||
   !JSON.stringify(kycInformationRequest.allOf).includes('"pattern":"^\\\\d{11}$"') ||
   !JSON.stringify(kycInformationRequest.allOf).includes('"pattern":"^[A-Z]{2}$"') ||
-  !JSON.stringify(kycInformationRequest.allOf).includes('"required":["phoneNumber","pep"]')
+  !JSON.stringify(kycInformationRequest.allOf).includes('"required":["phoneNumber","pep","cuit"]')
 ) {
   throw new Error(
     "DomesticSubmitKycInformationRequest must document Argentina phone, CUIT, nationality, and PEP requirements."

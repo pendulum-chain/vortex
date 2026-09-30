@@ -155,6 +155,8 @@ All four corridors support buys and sells on EVM networks; AssetHub is not avail
 
 Each corridor requires the user to complete KYC for the corridor's country before a ramp can be registered. The identity documents collected differ per country (for example INE, resident card, or passport in Mexico; cédula in Colombia; DNI in Argentina); requirements discovery (see Discovering Onboarding Requirements above) publishes the exact document list and accepted media types per country and customer type.
 
+Identity numbers are checked before a submission is created: a Mexican `dni` must be a CURP with a valid check digit, and Argentine individuals need a CUIT or CUIL (11 digits, separators ignored) with a valid check digit. Invalid values are rejected with `400`.
+
 Onboarding can be completed three ways:
 
 - **Vortex app or hosted Widget** — always available. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).

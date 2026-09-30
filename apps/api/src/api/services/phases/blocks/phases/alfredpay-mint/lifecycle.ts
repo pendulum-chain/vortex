@@ -54,7 +54,7 @@ export async function startAlfredpayMint(
       chain: AlfredpayChain.MATIC,
       fromAmount: new Big(ctx.quote.inputAmount).toString(),
       fromCurrency,
-      metadata: { businessId: "vortex", customerId },
+      metadata: { customerId },
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     });

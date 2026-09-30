@@ -13,6 +13,8 @@ import {
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
   isValidCpf,
+  isValidCuit,
+  isValidCurp,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
@@ -562,11 +564,14 @@ const countryValidators: Record<string, (body: SubmitKycInformationRequest) => s
   AR: ({ phoneNumber, cuit, nationalities, pep }) => {
     if (!phoneNumber) return "Phone number is required for Argentina";
     if (!phoneNumber.startsWith("+54")) return "Phone number must use Argentina country code (+54)";
-    if (cuit && !/^\d{11}$/.test(cuit)) return "CUIT must be exactly 11 digits";
+    // The provider rejects an Argentine individual without a CUIT or with a wrong check digit.
+    if (!cuit || !isValidCuit(cuit.replace(/\D/g, ""))) return "CUIT must be 11 digits with a valid check digit";
     if (nationalities && !nationalities.every(n => /^[A-Z]{2}$/.test(n))) return "Nationalities must use alpha-2 country codes";
     if (typeof pep !== "boolean") return "PEP declaration is required for Argentina";
     return null;
-  }
+  },
+  // The provider accepts only a CURP with a valid check digit as the Mexican `dni`.
+  MX: ({ dni }) => (typeof dni === "string" && isValidCurp(dni) ? null : "dni must be a valid 18-character CURP")
 };
 
 /**
