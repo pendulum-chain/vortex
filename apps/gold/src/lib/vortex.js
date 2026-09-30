@@ -318,7 +318,9 @@ export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, t
 // Brazilian CPF check digits, so a typo is caught here instead of by the API or Avenia.
 export function isValidCpf(value) {
   const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  // Like the shared helper, reject digit runs: repeated digits and 01234567890 are the only runs whose
+  // check digits are valid.
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits) || digits === "01234567890") return false;
   const checkDigit = (length) => [...digits.slice(0, length)].reduce((sum, digit, index) => sum + Number(digit) * (length + 1 - index), 0) * 10 % 11 % 10;
   return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
 }

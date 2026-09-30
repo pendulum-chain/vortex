@@ -86,7 +86,8 @@ test("ramp polling surfaces persistent outages and final errors", async () => {
 
 test("accepts only CPFs with valid check digits", () => {
   for (const cpf of ["08786985906", "087.869.859-06", "52998224725"]) assert.equal(isValidCpf(cpf), true, cpf);
-  for (const cpf of ["08786985907", "12345678901", "11111111111", "0878698590", "", undefined]) assert.equal(isValidCpf(cpf), false, String(cpf));
+  // 08786985914 is wrong only in the first check digit, 08786985907 only in the second.
+  for (const cpf of ["08786985914", "08786985907", "12345678901", "11111111111", "01234567890", "0878698590", "087869859060", "", undefined]) assert.equal(isValidCpf(cpf), false, String(cpf));
 });
 
 test("ramp polling stops as soon as it is aborted", { timeout: 2000 }, async () => {

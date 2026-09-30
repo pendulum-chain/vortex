@@ -218,6 +218,7 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
 .otp-single::placeholder { color: #c7bca9; }
 .demo-code, .field-error { margin: 0 0 18px; color: var(--muted); font-size: 11px; text-align: center; }
 .field-error { color: var(--red); }
+.field .field-error { margin: 0; text-align: left; }
 .flow-error { margin: 15px 0; padding: 11px 13px; border-radius: 8px; background: rgba(168,73,53,.07); line-height: 1.45; text-align: left; }
 .link-button, .back-button { border: 0; background: transparent; cursor: pointer; color: var(--green); font-size: 12px; }
 .centered { display: block; margin: 14px auto 0; }
