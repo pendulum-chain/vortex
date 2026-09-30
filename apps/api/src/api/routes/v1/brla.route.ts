@@ -1,7 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
 import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
-import { limitDistinctTaxIds } from "../../middlewares/distinctTaxIdLimiter";
 import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import {
@@ -21,14 +20,10 @@ const router: Router = Router({ mergeParams: true });
 // /getUser, /getUserRemainingLimit, and /validatePixKey use optionalPartnerOrUserAuth so that SDK
 // clients without API keys can drive a BRL ramp pre-flight against fully-anonymous quotes. The
 // controllers themselves apply ownership scoping using `getEffectiveUserId`;
-//
-// The routes keyed by a `taxId` (getUser, getUserRemainingLimit, getKycStatus, getSelfieLivenessUrl,
-// createSubaccount, getUploadUrls) run `limitDistinctTaxIds` after auth so the principal is resolved.
 router.get(
   "/getUser",
   optionalPartnerOrUserAuth(),
   authorizeManagedProfile(),
-  limitDistinctTaxIds,
   brlaController.getAveniaUser as unknown as RequestHandler
 );
 
@@ -36,7 +31,6 @@ router.get(
   "/getUserRemainingLimit",
   optionalPartnerOrUserAuth(),
   authorizeManagedProfile(),
-  limitDistinctTaxIds,
   brlaController.getAveniaUserRemainingLimit as unknown as RequestHandler
 );
 
@@ -44,7 +38,6 @@ router.get(
   "/getKycStatus",
   requirePartnerOrUserAuth(),
   authorizeManagedProfile(),
-  limitDistinctTaxIds,
   brlaController.fetchSubaccountKycStatus as unknown as RequestHandler
 );
 
@@ -53,7 +46,6 @@ router.get(
   requirePartnerOrUserAuth(),
   authorizeManagedProfile({ corridor: "BR" }),
   rejectImpersonation,
-  limitDistinctTaxIds,
   brlaController.getSelfieLivenessUrl as unknown as RequestHandler
 );
 
@@ -66,7 +58,6 @@ router
     authorizeManagedProfile({ corridor: "BR" }),
     rejectImpersonation,
     validateSubaccountCreation,
-    limitDistinctTaxIds,
     brlaController.createSubaccount as unknown as RequestHandler
   );
 
@@ -77,7 +68,6 @@ router
     authorizeManagedProfile({ corridor: "BR", customerType: "individual" }),
     rejectImpersonation,
     validateStartKyc2,
-    limitDistinctTaxIds,
     brlaController.getUploadUrls
   );
 
