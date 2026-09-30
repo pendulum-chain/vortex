@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The real module imports wagmi/walletconnect config at module load; the actor tests only
 // care about which signing helper is routed to, not the wallet plumbing itself.
@@ -31,7 +31,7 @@ const ALICE_SUBSTRATE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 function buildRampState(unsignedTxs: UnsignedTx[]): RampState {
   return {
     quote: buildQuoteResponse(),
-    ramp: { ...buildRampProcess("initial"), unsignedTxs },
+    ramp: { ...buildRampProcess("initial"), expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(), unsignedTxs },
     requiredUserActionsCompleted: false,
     signedTransactions: [],
     userSigningMeta: undefined
@@ -218,6 +218,32 @@ describe("signTransactionsActor", () => {
       expect(signAndSubmitEvmTransaction).not.toHaveBeenCalled();
       expect(events).toEqual([{ current: 1, max: 1, phase: "login", type: "SIGNING_UPDATE" }]);
       expect(updateCalls).toHaveLength(1);
+    });
+  });
+
+  describe("start deadline", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("refuses to broadcast the swap when the approve prompt ran into the start deadline margin", async () => {
+      const updateCalls = mockUpdateEndpoint();
+      vi.mocked(signAndSubmitEvmTransaction).mockImplementationOnce(async () => {
+        // The user leaves the approve prompt open until only three minutes of the start window remain.
+        vi.setSystemTime(Date.now() + 12 * 60_000);
+        return "0xapprovehash";
+      });
+      const context = buildContext([
+        buildUnsignedTx({ nonce: 1, phase: "squidRouterApprove" }),
+        buildUnsignedTx({ nonce: 2, phase: "squidRouterSwap" })
+      ]);
+      const { parent } = buildParent();
+
+      await expect(signTransactionsActor({ input: { context, parent } })).rejects.toMatchObject({
+        type: SignRampErrorType.StartWindowClosed
+      });
+      expect(vi.mocked(signAndSubmitEvmTransaction).mock.calls.map(call => call[0].phase)).toEqual(["squidRouterApprove"]);
+      expect(updateCalls).toHaveLength(0);
     });
   });
 
