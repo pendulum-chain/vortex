@@ -1,14 +1,15 @@
 # Monerium B2B Onramp: End-to-End Flow
 
-> **Status:** living overview, draft for alignment. Last updated 2026-09-29.
+> **Status:** living overview, draft for alignment. Last updated 2026-09-30, including
+> Monerium's written answers of that day.
 > **Audience:** Vortex/SatoshiPay internally, SulPayments, and Monerium.
 > **Scope:** the EUR to USDC onramp for SulPayments' business clients, as built for the
 > pilot on the branch of PR #1375. It is not merged or deployed yet. Open questions carry
 > an ID such as **[M1]** (Monerium), **[S1]** (SulPayments) or **[V1]** (Vortex internal)
 > and are collected in [section 12](#12-open-questions), with space for the answers.
-> Changes proposed but not built yet are marked **Proposed**. Answers taken from
-> Monerium's public API spec (version 2.0.0) are marked as such until Monerium confirms
-> them.
+> Changes proposed but not built yet are marked **Proposed**. Facts from Monerium's
+> public API spec (version 2.0.0) and guides are marked as such where Monerium has not
+> confirmed them in writing.
 
 ## Contents
 
@@ -41,15 +42,15 @@ the two-hour window, Vortex's recovery wallet.
 
 | Party or component | Role |
 |---|---|
-| **SulPayments** | Partner. Brings the business clients, performs their KYB (Monerium relies on it), receives status webhooks, and hands each client its IBAN. |
+| **SulPayments** | Partner. Brings the business clients, owns the white-label app at Monerium in which their profiles live, performs and submits their KYB under its reliance agreement with Monerium, receives status webhooks, and hands each client its IBAN. |
 | **Client** | The business that sends EUR and receives USDC in its own wallet, the **destination**. |
-| **Monerium** | Licensed EURe issuer. Hosts each client's profile and IBAN in Vortex's white-label app, mints EURe for incoming SEPA payments, and pays out EUR on redemption. |
-| **Vortex / SatoshiPay** | Operator. Deploys the contracts, runs the **keeper** service that converts and forwards, runs refunds, and reports status. |
+| **Monerium** | Licensed EURe issuer. Hosts each client's profile and IBAN in SulPayments' white-label app, mints EURe for incoming SEPA payments, and pays out EUR on redemption. |
+| **Vortex / SatoshiPay** | Operator. Deploys the contracts, runs the **keeper** service that converts and forwards, runs refunds, and reports status. Uses SulPayments' white-label app credentials for everything after KYB. |
 | **Forwarder contract** | One per client on Ethereum. Receives the minted EURe, swaps it, holds the USDC until the payment is complete, then forwards it. |
 | **Subsidy vault** | A Vortex-funded USDC pool that tops up a swap when the market delivers less than the client's guaranteed floor. |
 | **Fee treasury** | Vortex multisig that receives the conversion fee. |
 | **Recovery wallet and float wallet** | Two Vortex wallets used only for refunds. The recovery wallet receives a payment whose window was missed, and the float covers round-trip losses. |
-| **Refund address** | **Proposed.** One Vortex address per client, linked to the client's Monerium profile, from which a refund is paid out through the client's own IBAN. |
+| **Refund address** | **Proposed.** One Vortex address per client, linked to the client's Monerium profile, from which a refund is paid out through the client's own IBAN. Confirmed as technically possible by Monerium. |
 | **Price sources** | Coinbase Exchange EURC-USDC market for the reference rate, Chainlink EUR/USD as the on-chain safety bound, Uniswap v3 where the swaps execute. |
 
 ## 3. The flow at a glance
@@ -96,8 +97,8 @@ subsidy on a swap, or the refund path.
 
 ### 4.1 What has to be true when onboarding ends
 
-- The client has a **KYB-approved corporate profile** in Vortex's white-label app at
-  Monerium, based on SulPayments' KYB under a reliance arrangement.
+- The client has a **KYB-approved corporate profile** in SulPayments' white-label app at
+  Monerium, submitted by SulPayments under its reliance agreement.
 - A **forwarder contract** exists with the client's destination wallet written into it.
   The destination cannot be changed later. A new wallet means a new forwarder and moving
   the IBAN, on SulPayments' written instruction.
@@ -112,65 +113,73 @@ subsidy on a swap, or the refund path.
 
 ### 4.2 Proposed onboarding flow
 
-SulPayments registers each client and its destination with Vortex, and sends the KYB
-data to Monerium. A profile ID that Vortex issues ties the two together. Steps marked with
-an ID still need an answer.
+SulPayments owns the white-label app at Monerium and submits each client's KYB there.
+Monerium returns the new profile's ID, and SulPayments passes it to Vortex together with
+the client's destination wallet. Vortex does everything after KYB with the same app's
+credentials.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant SP as SulPayments
-    participant V as Vortex
     participant M as Monerium
+    participant V as Vortex
     participant C as Ethereum
     participant CL as Client
 
-    SP->>V: Register client and destination wallet [S3, V6]
-    V-->>SP: Profile ID for Monerium to use [M14]
-    SP->>M: KYB data and reliance attestation, with that profile ID [M1, S2]
-    M->>M: Create the profile in Vortex's white-label app and review KYB
+    SP->>M: Create the client profile in SulPayments' app
+    M-->>SP: Profile ID
+    SP->>M: Company details, form and verifications
+    SP->>V: Destination wallet for this profile ID [V6]
+    V->>M: Check the profile exists in SulPayments' app
     M-->>V: profile.updated, state approved
-    V->>V: Match the profile ID to the registered client
     V->>C: Deploy forwarder with destination and fee policy
-    V->>M: Link forwarder and refund address to the profile [M3, M8]
-    V->>M: Request the IBAN for the forwarder [M3]
+    V->>M: Link forwarder and refund address to the profile [M1]
+    V->>M: Request the IBAN for the forwarder
     M-->>V: iban.updated, IBAN issued
+    V->>M: Read the IBAN back from the API [V7]
     V->>SP: Client active, IBAN in the API, later the dashboard [S4, V3]
     SP->>CL: Hand over IBAN, client starts sending EUR
 ```
 
 Notes on the flow:
 
-- **The destination goes to Vortex, not Monerium.** Monerium's profile API has no field
-  that could carry it, linking an address needs a signature from its owner, which
-  exchange deposit addresses cannot give, and Monerium does not need it: only the
-  forwarder contract uses the destination.
-- **A new partner API call carries the destination (proposed).** SulPayments can already
-  create client profiles through the Vortex API with its own client ID. One new call
-  attaches the destination to such a client **[V6]**. The destination is create-only,
-  because it is fixed in the contract; a change means a new account on SulPayments'
-  written instruction. Vortex validates the address, rejects zero, token and contract
-  addresses, and requires SulPayments to confirm that an exchange address does not
-  rotate. The call carries no KYB data. Activation stays a Vortex operator step in the
-  pilot, since the destination decides where a client's USDC goes.
-- **Pilot without the new call.** For the first 3 to 5 clients, SulPayments can put the
-  destination in the signed onboarding form, and Vortex operations enters it through the
-  existing admin endpoint. The new call is worth building once the size of the
-  existing-client batch is known **[S1]**.
-- **Matching by profile ID.** Monerium's create-profile call accepts a profile ID chosen
-  by the creator. If Monerium creates the profile with the ID Vortex issued, the approval
-  notification matches the registered client without a manual step. Otherwise
-  SulPayments sends Vortex the Monerium profile ID once it exists **[M14]**.
-- **KYB goes from SulPayments to Monerium.** Monerium's spec reserves the endpoint for
-  submitting company details to partners under its KYC reliance model, and KYC sharing
-  through Sumsub covers personal profiles only. SulPayments performs the KYB and gives
-  Monerium a reliance attestation per client. Vortex submits no KYB data, which matches
-  the security spec **[M1]**.
-- **IBAN before the forwarder exists.** Monerium issues one IBAN per profile. If
-  Monerium creates it before the forwarder is linked, it points at another address, and
-  Vortex must move it to the forwarder before anyone pays into it **[M3]**.
-- **Approval notification.** Per Monerium's spec, `profile.updated` fires on every
-  profile state change, including approval, and is subscribed by default **[M6]**.
+- **SulPayments' app, shared credentials.** Monerium's reliance agreement is with
+  SulPayments, so the client profiles live in a white-label app in SulPayments' Monerium
+  account. Only the app that onboarded a profile can read it or act on it, so Vortex
+  uses the same app's client ID and secret. Monerium's guides describe one credential
+  pair per app **[M2]**.
+- **Division of work.** SulPayments creates profiles and submits KYB. Vortex links
+  addresses, requests the IBAN, places refunds, and registers its own webhook
+  subscription. SulPayments must never link addresses, request or move IBANs, place
+  orders, or change Vortex's webhook subscription. Closing a profile also closes its
+  IBAN, so SulPayments coordinates closures with Vortex **[S2]**.
+- **KYB.** Companies must use Monerium's reliance route: SulPayments submits company
+  details, form and verifications directly. Approval takes seconds when the data follows
+  Monerium's corporate KYB guide. Vortex never handles KYB data, which matches the
+  security spec. Reading a profile returns only the company name, so KYB details stay
+  with SulPayments.
+- **Destination handover by profile ID (proposed).** Creating a profile returns its ID.
+  SulPayments then calls a new Vortex endpoint with that ID, the destination, its own
+  client reference and a contact email **[V6]**. Vortex checks the profile exists in
+  SulPayments' app, stores the destination, and deploys the forwarder once the profile
+  is approved. The destination is create-only, because it is fixed in the contract; a
+  change means a new account on SulPayments' written instruction. Vortex rejects zero,
+  token and contract addresses, and exchange addresses need SulPayments' confirmation
+  that they do not rotate. Until the endpoint exists, the destination can come on the
+  signed onboarding form.
+- **Why the destination does not go through Monerium.** Monerium's profile API has no
+  field for it, linking an address needs a signature from its owner, which exchange
+  deposit addresses cannot give, and only the forwarder contract uses the destination.
+- **IBAN order.** Monerium issues an IBAN only for an address already linked to the
+  profile, so the forwarder is linked first. A profile has one IBAN, which can be moved
+  to another linked address.
+- **Webhooks.** Vortex registers its own subscription on SulPayments' app; Monerium
+  lists an app's subscriptions together. Monerium's guide says that list includes each
+  subscription's secret, while the response schema has no secret field. Either way,
+  Vortex reads the IBAN and the payer's IBAN back from Monerium's API instead of relying
+  on webhook payloads alone **[V7]**.
+- **Fee.** Monerium charges €10 per corporate account under its agreement **[M3, S10]**.
 
 ### 4.3 What is built today
 
@@ -181,11 +190,13 @@ Notes on the flow:
 - The operator then activates the account.
 - SulPayments can read the account and its IBAN through the Vortex API. There is no
   dashboard view yet **[V3]**.
-- Adopting the proposal changes four things. SulPayments supplies the destination
-  through the new API call **[V6]**. Onboarding starts from Monerium's approval
-  notification, matched by profile ID **[V1]**. The keeper links a refund address next
-  to the forwarder **[V2]**. If Monerium creates the IBAN first, the keeper moves it
-  instead of requesting a new one **[V1]**.
+- The backend uses one Monerium credential pair, shared with Vortex's retail EUR onramp.
+- Adopting the proposal changes five things. The B2B module gets its own credentials for
+  SulPayments' app **[V8]**. SulPayments supplies the destination by profile ID through
+  the new endpoint **[V6]**. Onboarding starts once the profile is approved and the
+  destination is registered **[V1]**. The keeper links a refund address next to the
+  forwarder **[V2]**. The IBAN and the payer's IBAN are read back from Monerium's API
+  **[V7]**.
 
 ### 4.4 Decisions behind onboarding
 
@@ -211,7 +222,7 @@ sequenceDiagram
 
     B->>M: SEPA transfer to the client's IBAN
     M-->>V: order.created webhook, EUR arrived
-    Note over M: Compliance hold possible, or return before minting
+    Note over M: Compliance review possible, or rejection before minting
     M->>F: Mint EURe to the forwarder
     M-->>V: order.updated webhook, order processed
     V->>F: Watcher confirms the mint on chain
@@ -220,18 +231,26 @@ sequenceDiagram
 ```
 
 - Vortex listens on **two channels**. Monerium's webhooks carry the order details:
-  amount, order ID, compliance holds, and the payer's IBAN and name. Vortex's own chain
+  amount, order ID, and the payer's IBAN and name. Vortex's own chain
   watcher proves the EURe actually arrived on the forwarder. A deposit becomes eligible
   for conversion only when both agree.
-- Per Monerium's spec, `order.created` arrives when the order is placed and
-  `order.updated` once it is processed or rejected. There is no separate event when
-  minting starts **[M7]**.
+- Monerium confirmed that `order.created` arrives when the payment hits the IBAN and
+  `order.updated` when the order changes state. While an order is **pending**, it is
+  either minting or under compliance review, and Monerium does not tell the two apart.
+  Reviews happen during business hours and add time before the two-hour window starts.
 - The payer's **IBAN and name are stored** from the order. They are the target of any
   refund.
 - The **two-hour window starts at the mint**, not at the SEPA transfer, because Vortex
   cannot act before the EURe exists.
-- Monerium may **hold** a payment for compliance or **return** it before minting. These
-  are Monerium's decisions, and nothing reaches the forwarder.
+- Monerium may **reject** a payment before minting, with a reason on the order. That is
+  Monerium's decision, and nothing reaches the forwarder **[M5]**.
+- **Memo routing.** A payer can write a chain and address into the SEPA memo. If that
+  address is linked to the client's profile, Monerium mints there instead of to the
+  forwarder. Monerium's guide describes only that case, which implies an unlinked
+  address is ignored and the payment mints to the forwarder as usual. The only other
+  address linked to a client profile is the proposed refund address, which Vortex
+  controls. Clients are unlikely to use this, so it stays enabled, and a mint to a
+  refund address is handled by operations **[V9]**.
 
 ## 6. Conversion: EURe to USDC
 
@@ -358,9 +377,12 @@ from the Vortex/SatoshiPay company profile.
 - With the proposal, the refund leaves from the **client's own IBAN**, in the client's
   name, with a reference to the original payment.
 - SEPA Instant is used when the payer's bank supports it, otherwise next business day.
-- Monerium requires a **supporting document**, an invoice or an agreement, on
-  redemptions above €15,000. Refunds of €15,000 or more stay manual until Monerium
-  confirms which document it accepts for a refund **[M9]**.
+- Monerium requires a **supporting document** on redemptions above €15,000 and accepts
+  the same agreement every time, so one standing document per client can be uploaded
+  once and reused. Until the refund automation attaches it, refunds of €15,000 or more
+  stay manual **[V10]**.
+- Monerium sets **no limits and charges no fees** on refunds. A refund may be reviewed
+  by Monerium during business hours before it is sent **[M4]**.
 - Refunds run one at a time and survive a crash of the keeper midway. A refund that
   fails its retries goes to **recovery failed** and is handed to Vortex operations.
 - Rollout: the automation first runs in **alert mode**, where Vortex operators confirm
@@ -386,11 +408,15 @@ What it changes:
   seed, links it at onboarding, and adds one transfer to the refund steps **[V2]**.
 - **No company profile needed for refunds.** The recovery and float wallets no longer
   need to be linked at Monerium, so the Vortex/SatoshiPay company profile stops being a
-  prerequisite for deploying the contracts **[M11]**.
+  prerequisite for deploying the contracts.
 - **Custody unchanged.** Vortex holds a payment only between the missed window and the
   payout. A refund address only ever holds the payment being refunded.
 
-Status: proposed to Monerium on 2026-09-29, not built yet **[M8]**.
+Status: Monerium confirmed on 2026-09-30 that an address belongs to exactly one
+profile, so one refund address per client is needed, and that a redeem from it leaves
+from the profile's IBAN. Monerium also asked whether Vortex controls the funds. It does,
+on the refund path only. Vortex accepts that custody risk for the pilot, and Monerium's
+compliance acceptance is still open **[M1]**. Not built yet **[V2]**.
 
 Alternatives considered:
 
@@ -409,11 +435,8 @@ Alternatives considered:
 stateDiagram-v2
     direction LR
     [*] --> pending: Monerium order
-    pending --> held: compliance hold
-    pending --> returned: Monerium returns it
-    held --> returned
+    pending --> returned: Monerium rejects it
     pending --> minted: EURe on the forwarder
-    held --> minted
     minted --> converting: first chunk swapped
     converting --> forwarded: one USDC transfer
     minted --> recovering: refund path
@@ -427,6 +450,9 @@ stateDiagram-v2
 ```
 
 Statuses only move forward. A late or repeated webhook can never move a deposit back.
+Monerium does not report a separate compliance-review state, so a payment under review
+shows as pending. The `held` status in the API is therefore never set and will be
+removed **[V11]**.
 
 ### 9.2 What SulPayments receives
 
@@ -492,60 +518,83 @@ Statuses only move forward. A late or repeated webhook can never move a deposit 
 | Subsidy ladder | none for 6 min, rising to 1% from 16 min | Keeper setting |
 | Chunk size | up to €10,000 | Operational, ceiling €50,000 |
 | Minimum swap | €1 | Operational, can be raised but never below €1 |
-| Manual refunds | €15,000 and above | Until [M9] is answered |
+| Manual refunds | €15,000 and above | Until the refund automation attaches the standing agreement [V10] |
+| Monerium account fee | €10 per corporate account | Monerium agreement |
 | Dormancy pause | 60 days without a conversion | Keeper code |
 | Pilot volume | 3 to 5 clients, €50,000 per client per day | Contractual |
 
 ## 12. Open questions
 
-### 12.1 Monerium
+### 12.1 Assumptions (2026-09-30)
 
-Status "Follow-up" means the question is in the endpoint-referenced follow-up to
-Monerium of 2026-09-29.
+- Vortex accepts the custody risk on the refund path for the pilot, without a legal
+  opinion. Monerium's acceptance is still needed **[M1]**.
+- SulPayments submits KYB directly in its own white-label app. Vortex never handles KYB
+  data.
+- No SulPayments client has an existing Monerium profile.
+- Monerium does not need to know or screen the client's final wallet.
+- Memo routing stays enabled, because clients are unlikely to use it.
+- Testing runs in Vortex's own Monerium sandbox.
+
+### 12.2 Answered by Monerium (2026-09-30)
+
+| Topic | Answer |
+|---|---|
+| Whose white-label app | A dedicated app in SulPayments' Monerium account, under SulPayments' reliance agreement. Vortex uses that app's client ID and secret. |
+| Onboarding steps | Confirmed: create profile, submit details, form and verifications, wait for `profile.updated` approved, link the forwarder and the refund address, request the IBAN. |
+| KYB route and speed | Corporates use the reliance endpoints. Approval takes seconds when the data follows Monerium's guidelines. |
+| Profile visibility | Only the credentials of the app that onboarded a profile can read it. |
+| Readable profile data | Only the bare minimum, such as the name. Full KYB details are not returned. |
+| Payment notifications | `order.created` when the payment hits the IBAN, `order.updated` on state changes. Pending covers both minting and compliance review. |
+| IBAN | Only for an address already linked to the profile. It can be moved to another linked address. |
+| Batching | None. Each client is its own request. |
+| Refund address | One address per profile, so one refund address per client. A redeem from it leaves from the profile's IBAN. |
+| Supporting document above €15,000 | The same agreement can be reused every time. |
+| Refund limits and fees | None. Some refunds are reviewed during business hours. |
+| Account fee | €10 per corporate account, per the agreement. |
+
+### 12.3 Monerium
 
 | ID | Question | Why it matters | Status | Answer |
 |---|---|---|---|---|
-| M1 | How does the KYB data reach Monerium, and who creates the profile in our white-label app? | Defines onboarding, section 4.2 | Asked 2026-09-29 on Telegram, follow-up | Partly, from the spec: submitting company details is reserved for partners under Monerium's KYC reliance model, and KYC sharing through Sumsub supports personal profiles only. Expected: SulPayments sends the KYB under its reliance arrangement, Monerium creates the profile, Vortex submits no KYB data. |
-| M2 | How are SulPayments' existing clients imported? How long does KYB take once SulPayments' data is in, and is that business hours? | Pilot timeline and client expectations | Follow-up | |
-| M3 | For a profile Monerium creates, can Vortex link the forwarder with its contract signature and put the IBAN on it? If Monerium creates the IBAN first, may Vortex move it, and can Monerium promise not to move it back? | The IBAN must point at the forwarder before a client pays | Follow-up | Partly, from the spec: a contract can be linked to a given profile with an ERC-1271 signature, an IBAN can be requested for an address, and an existing IBAN can be moved. Open: who creates the IBAN, and the commitment not to move it. |
-| M4 | Can our white-label app list all profiles Monerium creates for SulPayments' clients? | Automated onboarding and reconciliation | Follow-up | Yes for profiles in our app: the profile list returns every profile our app has access to, filterable by state and kind. Profiles created through another app are not visible, as seen in the sandbox on 2026-09-14. Open: confirm SulPayments' clients are created in our app. |
-| M5 | Which profile data can we read? | What the SulPayments dashboard view can show | Answered from the spec | Per profile: ID, name, kind, state, section states, and a rejection or closure reason. Per IBAN: IBAN, BIC, connected address and chain. Linked addresses per profile. Orders per profile, with the payer's IBAN and name. Submitted company details are not returned. |
-| M6 | Does `profile.updated` fire when Monerium creates and approves a profile in our app? | Trigger for automated onboarding | Answered from the spec | It fires on every profile state change, including approval, and is subscribed by default. |
-| M7 | Do `order.created` and `order.updated` arrive as described in section 5, with the payer's IBAN and name on the order? | The payer IBAN is the refund target | Answered from the spec, sandbox test pending | `order.created` when the order is placed, `order.updated` when it is processed or rejected, no separate event when minting starts. The order carries the payer's IBAN and name. To confirm with a sandbox SEPA simulation. |
-| M8 | Is a refund from a Vortex refund address linked to each client profile feasible and acceptable, section 8.3? Does it always leave from the client's IBAN in the client's name? | Refund design | Follow-up | Partly, from the spec: any linked address can use the profile's IBAN for outgoing payments, and an address has a single owning profile. Open: Monerium's acceptance. |
-| M9 | Which supporting document does Monerium accept for a refund of more than €15,000 to the original payer? Could one standing agreement per client be reused? | Whether large refunds can run automatically | Follow-up | Partly, from the spec: redemptions above €15,000 need a supporting document, an invoice or an agreement, uploaded once and referenced by ID. |
-| M10 | Which outgoing limits, fees and cut-off times apply to the refund redemptions? | Refund timing promise | Follow-up | |
-| M11 | Onboarding of a Vortex/SatoshiPay company profile with a recovery address and a float address. | Needed for refunds as built, and before deploy, since the recovery address is fixed in the contracts | Depends on M8 | Not needed if the refund addresses of section 8.3 are accepted. |
-| M12 | Production white-label API credentials for the B2B app. | Needed before go-live | Open | |
-| M13 | Written confirmation of the items agreed verbally so far: the attestor-signed link, the redemption-limitation disclosure, the issuer recovery backstop, what authorizes an IBAN move or new address link, SEPA recall and fraud loss allocation, per-IBAN suspension, and advance notice of changes to the link message. | Launch gate | Open | |
-| M14 | Can Monerium create each profile with a profile ID Vortex issues? The create-profile call accepts a partner-supplied ID. | Automatic matching of approved profiles to registered clients | Follow-up | |
-| M15 | Are there fees per profile or per KYB review? | Commercial planning | Follow-up | |
+| M1 | Is Monerium's compliance fine with Vortex holding a refund address on each client profile and signing refunds from it, on the refund path only? | Refund design, section 8.3 | Open, raised by Monerium 2026-09-30 | |
+| M2 | Can SulPayments' app have separate credentials for Vortex and SulPayments, or can linking addresses, requesting or moving IBANs, and managing webhooks be restricted to Vortex? If not, is there an audit log or notification for those actions? | Whoever holds the app credentials can redirect future mints | Open | |
+| M3 | Is the €10 per corporate account billed to SulPayments or to Vortex, and is it one-off or recurring? | Commercial planning | Open | |
+| M4 | What triggers a review on a refund, and can refunds to the original payer be cleared in advance? | Refund timing promise | Open | |
+| M5 | When an incoming payment is rejected before minting, is the EUR returned to the payer automatically, and how fast? | The `returned` status and client communication | Open | |
+| M6 | Monerium's corporate KYB guide lists "third-party payments" among prohibited business activities, and companies in restricted countries need their first payment in their own name. Does anything restrict incoming payments from third parties to a client's IBAN? | Who may pay in, and who a refund goes to | Open | |
+| M7 | Written confirmation of the items agreed verbally so far: the redemption-limitation disclosure, the issuer recovery backstop, SEPA recall and fraud loss allocation, per-IBAN suspension, and advance notice of changes to the link message. | Launch gate | Open | |
 
-### 12.2 SulPayments
+### 12.4 SulPayments
 
-| ID | Question | Why it matters | Status | Answer |
+| ID | Question or item to agree | Why it matters | Status | Answer |
 |---|---|---|---|---|
-| S1 | Onboarding volume: an initial batch of existing clients, then new clients one by one? How many, and when? | Decides when the destination API call is worth building | Open | |
-| S2 | Does SulPayments send client onboarding data, including KYB, directly to Monerium? Who are the contacts on each side? | Onboarding flow, section 4.2 | Open | Expected yes, see M1. |
-| S3 | How does SulPayments give Vortex each client's destination wallet? Who at SulPayments approves it? | The destination is fixed in the contract, so it must be right the first time | Proposal to confirm | Proposed: a new Vortex API call per client, section 4.2. For the pilot, the signed onboarding form. |
-| S4 | Plan: each client's IBAN is shown in the Vortex API and dashboard. Is that how SulPayments hands IBANs to clients? | Dashboard scope | Proposal to confirm | The IBAN is readable through the Vortex API today. A dashboard view is planned **[V3]**. |
-| S5 | Confirm that the Vortex addresses on each client's Monerium profile are managed by Vortex, and that clients never link or change them. | Only the forwarder may receive the minted EURe | Answered by design | Yes. Vortex links and manages the forwarder and, as proposed, the refund address. Clients never touch them. |
-| S6 | Do clients always pay from their own business bank accounts, or also from third parties? | Refund target and the refund wording in the terms | Open | |
-| S7 | Are destinations self-custody wallets or exchange deposit addresses? | Exchange addresses need an attestation that they do not rotate and accept contract transfers | Open | |
-| S8 | Are the three webhooks plus polling enough? Are reason codes needed on refunds? Webhook endpoint and support contacts. | Status reporting, section 9 | Open | |
-| S9 | Is a two-hour window before a full refund right for your clients? Will clients authorize Vortex to send refunds from their IBAN, as proposed in section 8.3? | Refund promise in the agreement | Open | |
-| S10 | The agreement names a "Coinbase EURC oracle". The implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint. Is that what was meant? | Pricing terms | Open | |
+| S1 | How many clients, and when? | Planning, and when the destination endpoint is needed | Open | |
+| S2 | Share the white-label app's production credentials with Vortex, and agree the usage rules in section 4.2: no address links, IBAN requests or moves, orders, or changes to Vortex's webhook subscription, and profile closures coordinated with Vortex. | Protects where client payments are minted | Open | |
+| S3 | Hand over each destination through the new Vortex endpoint by Monerium profile ID. Who at SulPayments approves a destination? | The destination is fixed in the contract | Proposal to confirm | |
+| S4 | Each client's IBAN is shown in the Vortex API, and later the dashboard. Is that how SulPayments hands IBANs to clients? | Dashboard scope | Proposal to confirm | |
+| S5 | Do clients always pay from their own business bank accounts, or also from third parties? | Refund target, see M6 | Open | |
+| S6 | Are destinations self-custody wallets or exchange deposit addresses? | Exchange addresses need an attestation that they do not rotate and accept contract transfers | Open | |
+| S7 | Are the three webhooks plus polling enough? Are reason codes needed on refunds? Webhook endpoint and support contacts. | Status reporting, section 9 | Open | |
+| S8 | Is a two-hour window before a full refund right? Will clients authorize Vortex to refund from their IBAN? A Monerium review can delay a refund within business hours. | Refund terms in the agreement | Open | |
+| S9 | The agreement names a "Coinbase EURC oracle". The implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint. Is that what was meant? | Pricing terms | Open | |
+| S10 | Who bears Monerium's €10 per corporate account? | Commercial | Open | |
 
-### 12.3 Vortex internal
+### 12.5 Vortex internal
 
 | ID | Question or task | Depends on | Status |
 |---|---|---|---|
-| V1 | Adapt onboarding: start from Monerium's approval notification matched by profile ID, and move an existing IBAN to the forwarder only if Monerium creates it first. | M1, M3, M14 | Open |
-| V2 | Refunds through per-client refund addresses: one refund key per client derived from one seed, linked at onboarding, one extra transfer per refund. No contract change. | M8 | Proposed, build after Monerium confirms |
-| V3 | Dashboard view for SulPayments with clients, IBANs, deposits and refunds. Today this is API only. | S4, M5 | Open |
-| V4 | Reason codes on refunds, and a webhook for payments Monerium returns before minting. | S8 | Open |
+| V1 | Start onboarding once the profile is approved and the destination is registered, whichever comes last. | V6, V8 | Open |
+| V2 | Refunds through per-client refund addresses: one refund key per client derived from one seed, linked at onboarding, one extra transfer per refund. No contract change. | M1 | Proposed, build after Monerium confirms |
+| V3 | Dashboard view for SulPayments with clients, IBANs, deposits and refunds. Today this is API only. | S4 | Open |
+| V4 | Reason codes on refunds, and a webhook for payments Monerium rejects before minting, using Monerium's rejection reason. | S7 | Open |
 | V5 | Named owners per alert, and the escalation path between Vortex, SulPayments and Monerium. | Meeting | Open |
-| V6 | Partner API call to register a client's destination: create-only, validated, no KYB data, operator approval in the pilot. The pilot can run without it through the signed onboarding form. | S1, S3 | Proposed |
+| V6 | Endpoint for SulPayments to register a destination by Monerium profile ID: checks the profile exists, create-only, validated, no KYB data. | S3 | Proposed |
+| V7 | Read the IBAN and the payer's IBAN back from Monerium's API instead of trusting webhook payloads, and check in the sandbox whether listing subscriptions exposes their secrets. | None | Open |
+| V8 | Separate Monerium credentials for the B2B module, apart from the retail onramp, and later one set per partner. | S2 | Open |
+| V9 | Detect a mint to a refund address routed by payment memo, and handle it as a refund. | V2 | Open |
+| V10 | Attach the standing agreement to refunds above €15,000 so they can run automatically. | V2 | Open |
+| V11 | Remove the unused `held` status. | None | Open |
 
 ## 13. Related documents
 
