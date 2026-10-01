@@ -93,7 +93,7 @@ function getFriendlyErrorMessage(error: unknown) {
  * @param params Quote parameters
  * @returns Quote payload for API request
  */
-const createQuotePayload = (params: QuoteParams): QuotePayload => {
+export const createQuotePayload = (params: QuoteParams): QuotePayload => {
   const { inputAmount, onChainToken, fiatToken, selectedNetwork, rampType } = params;
   const fiatDestination = mapFiatToDestination(fiatToken);
   const inputAmountStr = inputAmount?.toString() || "0";
