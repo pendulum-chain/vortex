@@ -14,9 +14,10 @@ state or a user's wallet.
   initializes only the networks required for ephemeral signing. Quote and registration
   HTTP calls do not wait for chain WebSockets.
 - `handlers/BrlHandler.ts`, `DomesticHandler.ts`, and `EurHandler.ts` adapt
-  corridor-specific registration and update data to the common lifecycle. `EurHandler`
-  registers the Monerium onramp with the user's linked wallet and keeps the legacy Mykobo
-  SELL adapter for persisted flows.
+  corridor-specific registration and update data to the common lifecycle, which
+  `handlers/BaseRampHandler.ts` implements once (register, persist ephemerals, presign,
+  update). `EurHandler` registers the Monerium onramp with the user's linked wallet and
+  keeps the legacy Mykobo SELL adapter for persisted flows.
 - `eip712.ts` classifies and attaches signatures for user-owned typed-data operations.
 - `storage.ts` optionally persists ephemeral recovery material for the caller.
 
