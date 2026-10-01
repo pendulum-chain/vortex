@@ -1,6 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
-import { KeyringPair } from "@polkadot/keyring/types";
 import { EventRecord, SignedBlock } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { encodeAddress, evmToAddress } from "@polkadot/util-crypto";
@@ -12,16 +11,6 @@ import {
   XcmSentEvent,
   XTokensEvent
 } from "../../index";
-
-export class TransactionInclusionError extends Error {
-  public readonly blockHash: string;
-
-  constructor(blockHash: string, _extrinsicHash: string, message?: string) {
-    super(message);
-    this.blockHash = blockHash;
-    Object.setPrototypeOf(this, TransactionInclusionError.prototype);
-  }
-}
 
 /// Error thrown when a transaction is temporarily banned by the RPC node (Error code 1012)
 export class TransactionTemporarilyBannedError extends Error {
@@ -38,51 +27,6 @@ export function substrateAddressEqual(a: string, b: string): boolean {
   if (a.length === 40 && b.length === 40) return evmToAddress(a, 0) === evmToAddress(b, 0);
   else return encodeAddress(a, 0) === encodeAddress(b, 0);
 }
-
-export const signAndSubmitXcm = async (
-  keyringPair: KeyringPair,
-  extrinsic: SubmittableExtrinsic<"promise">
-): Promise<{ hash: string }> => {
-  return new Promise((resolve, reject) => {
-    let inBlockHash: string | null = null;
-
-    extrinsic
-      .signAndSend(keyringPair, (submissionResult: ISubmittableResult) => {
-        const { status, dispatchError } = submissionResult;
-
-        if (status.isInBlock && !inBlockHash) {
-          inBlockHash = status.asInBlock.toString();
-        }
-
-        if (dispatchError) {
-          reject("Xcm transaction failed");
-        }
-
-        if (status.isFinalized) {
-          const hash = status.asFinalized.toString();
-
-          resolve({ hash });
-        }
-      })
-      .catch(error => {
-        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-        if (error?.message.includes("1012:")) {
-          reject(new TransactionTemporarilyBannedError("Transaction for xcm transfer is temporarily banned."));
-        }
-
-        if (inBlockHash) {
-          return reject(
-            new TransactionInclusionError(
-              inBlockHash,
-              `Transaction may have been included in block ${inBlockHash} despite error: ${error}`
-            )
-          );
-        }
-
-        reject(new Error(`Failed to do XCM transfer: ${error}`));
-      });
-  });
-};
 
 async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 60000): Promise<SignedBlock> {
   const pollIntervalMs = 1000;
