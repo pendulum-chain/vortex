@@ -385,7 +385,6 @@
       },
       "peerDependencies": {
         "@polkadot/api": "^16.4.6",
-        "stellar-sdk": "^13.1.0",
         "viem": "^2.37.9",
       },
     },
