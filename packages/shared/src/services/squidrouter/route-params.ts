@@ -1,8 +1,5 @@
-import splitReceiverABI from "../../contracts/moonbeam/splitReceiverABI.json";
 import { getNetworkId, Networks } from "../../index";
 import type { RouteParams } from "./route";
-
-export { splitReceiverABI };
 
 export function createGenericRouteParams(params: {
   fromAddress: string;
