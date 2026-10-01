@@ -11,7 +11,7 @@ import { Address, getAddress, Hex, keccak256, PublicClient, parseAbi, parseAbiIt
  * source on a block explorer.
  */
 
-export const MANIFEST_VERSION = 4;
+export const MANIFEST_VERSION = 5;
 
 export const MANIFEST_PURPOSE =
   "Consistency evidence for a VortexForwarder deployment (Monerium B2B onramp). " +
@@ -37,11 +37,12 @@ export const factoryAbi = parseAbi([
 ]);
 
 export const forwarderDeployedEvent = parseAbiItem(
-  "event ForwarderDeployed(address indexed forwarder, address indexed destination, uint32 targetPpm, uint32 floorPpm, bytes32 salt)"
+  "event ForwarderDeployed(address indexed forwarder, address indexed destination, address recoveryAddress, uint32 targetPpm, uint32 floorPpm, bytes32 salt)"
 );
 
 export const forwarderConfigAbi = parseAbi([
   "function destination() view returns (address)",
+  "function recoveryAddress() view returns (address)",
   "function targetPpm() view returns (uint32)",
   "function floorPpm() view returns (uint32)"
 ]);
@@ -56,7 +57,6 @@ export const implementationAbi = parseAbi([
   "function FACTORY() view returns (address)",
   "function ATTESTOR() view returns (address)",
   "function FEE_RECIPIENT() view returns (address)",
-  "function RECOVERY_WALLET() view returns (address)",
   "function MAX_ORACLE_AGE() view returns (uint256)",
   "function SLIPPAGE_BPS() view returns (uint16)",
   "function MAX_FEE_PPM() view returns (uint32)",
@@ -86,7 +86,6 @@ export interface ImplementationImmutables {
   ORACLE_DECIMALS: number;
   RECOVERY_DELAY: string;
   RECOVERY_HASH: Hex;
-  RECOVERY_WALLET: string;
   ROUTER: string;
   SLIPPAGE_BPS: number;
   TRIGGER_DELAY: string;
@@ -106,13 +105,14 @@ export interface ForwarderManifestEntry {
     targetPpm: number;
   };
   /**
-   * Fixed for the lifetime of the clone: the destination has no setter (a client wallet
-   * change means a new clone, runbook §5) and factory registration never changes.
-   * Mismatch = incident.
+   * Fixed for the lifetime of the clone: the destination and the client's refund wallet
+   * (`recoveryAddress`) have no setter (a change means a new clone, runbook §5) and
+   * factory registration never changes. Mismatch = incident.
    */
   immutables: {
     destination: string;
     isForwarder: boolean;
+    recoveryAddress: string;
   };
   /** keccak256 of the clone's runtime code; must equal the EIP-1167 code for `implementation.address`. */
   runtimeBytecodeHash: Hex;
@@ -332,7 +332,6 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
     slippageBps,
     maxFeePpm,
     maxReferenceDeviationBps,
-    recoveryWallet,
     recoveryDelay,
     triggerDelay,
     linkHash191,
@@ -352,7 +351,6 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
     read<number>(client, implementationAbi, implementation, "SLIPPAGE_BPS"),
     read<number>(client, implementationAbi, implementation, "MAX_FEE_PPM"),
     read<number>(client, implementationAbi, implementation, "MAX_REFERENCE_DEVIATION_BPS"),
-    read<Address>(client, implementationAbi, implementation, "RECOVERY_WALLET"),
     read<bigint>(client, implementationAbi, implementation, "RECOVERY_DELAY"),
     read<bigint>(client, implementationAbi, implementation, "TRIGGER_DELAY"),
     read<Hex>(client, implementationAbi, implementation, "LINK_HASH_191"),
@@ -396,7 +394,6 @@ export async function readCoreState(client: PublicClient, factoryAddress: Addres
         ORACLE_DECIMALS: Number(oracleDecimals),
         RECOVERY_DELAY: recoveryDelay.toString(),
         RECOVERY_HASH: recoveryHash,
-        RECOVERY_WALLET: getAddress(recoveryWallet),
         ROUTER: getAddress(router),
         SLIPPAGE_BPS: Number(slippageBps),
         TRIGGER_DELAY: triggerDelay.toString(),
@@ -416,8 +413,9 @@ export async function readForwarderEntry(
 ): Promise<ForwarderManifestEntry> {
   const factory = getAddress(factoryAddress);
   const forwarder = getAddress(forwarderAddress);
-  const [destination, targetPpm, floorPpm, isForwarder, forwarderCodeHash] = await Promise.all([
+  const [destination, recoveryAddress, targetPpm, floorPpm, isForwarder, forwarderCodeHash] = await Promise.all([
     read<Address>(client, forwarderConfigAbi, forwarder, "destination"),
+    read<Address>(client, forwarderConfigAbi, forwarder, "recoveryAddress"),
     read<number>(client, forwarderConfigAbi, forwarder, "targetPpm"),
     read<number>(client, forwarderConfigAbi, forwarder, "floorPpm"),
     read<boolean>(client, factoryAbi, factory, "isForwarder", [forwarder]),
@@ -436,7 +434,8 @@ export async function readForwarderEntry(
     },
     immutables: {
       destination: getAddress(destination),
-      isForwarder
+      isForwarder,
+      recoveryAddress: getAddress(recoveryAddress)
     },
     runtimeBytecodeHash: forwarderCodeHash
   };

@@ -157,7 +157,9 @@ contract VortexForwarderTest is Test {
         );
         usdc.mint(address(vault), 1_000e6);
         factory.setSubsidyVault(address(vault));
-        fwd = VortexForwarder(factory.deployForwarder(destination, TARGET_PPM, FLOOR_PPM, bytes32(uint256(1))));
+        fwd = VortexForwarder(
+            factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(1)))
+        );
     }
 
     // ---------------------------------------------------------------- helpers
@@ -175,7 +177,6 @@ contract VortexForwarderTest is Test {
             oracle: address(oracle),
             attestor: attestor,
             feeRecipient: feeRecipient,
-            recoveryWallet: recoveryWallet,
             maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
             slippageBps: 60, // P1: tolerates ~45 bps of weekend drift under a stale Chainlink round
             maxFeePpm: 10_000,
@@ -249,8 +250,9 @@ contract VortexForwarderTest is Test {
         VortexForwarderFactory f2 = new VortexForwarderFactory(
             _config(address(router), recoveryHash), 1e18, 50_000e18, 25e18, 10_000e18, _route(500, 500)
         );
-        VortexForwarder fwd2 =
-            VortexForwarder(f2.deployForwarder(destination, TARGET_PPM, FLOOR_PPM, bytes32(uint256(8))));
+        VortexForwarder fwd2 = VortexForwarder(
+            f2.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(8)))
+        );
         // Recovery hash validates with attestor binding; link still validates; others fail.
         bytes32 bound = keccak256(abi.encodePacked(block.chainid, address(fwd2), recoveryHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(attestorPk, bound);
@@ -284,8 +286,9 @@ contract VortexForwarderTest is Test {
     }
 
     function test_linkSignature_rejectsCrossCloneReplay() public {
-        VortexForwarder other =
-            VortexForwarder(factory.deployForwarder(destination, TARGET_PPM, FLOOR_PPM, bytes32(uint256(2))));
+        VortexForwarder other = VortexForwarder(
+            factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(2)))
+        );
         bytes32 h = fwd.LINK_HASH_191();
         // Signature bound to `fwd` must not validate on `other`.
         assertEq(other.isValidSignature(h, _attest(address(fwd), h)), bytes4(0xffffffff));
@@ -295,30 +298,48 @@ contract VortexForwarderTest is Test {
 
     function test_initialize_onlyFactory_andOnce() public {
         vm.expectRevert(VortexForwarder.NotFactory.selector);
-        fwd.initialize(rando, 0, 0);
+        fwd.initialize(rando, recoveryWallet, 0, 0);
 
         vm.prank(address(factory));
         vm.expectRevert(VortexForwarder.AlreadyInitialized.selector);
-        fwd.initialize(rando, 0, 0);
+        fwd.initialize(rando, recoveryWallet, 0, 0);
     }
 
     function test_implementation_isBricked() public {
         VortexForwarder impl = VortexForwarder(factory.implementation());
         vm.prank(address(factory));
         vm.expectRevert(VortexForwarder.AlreadyInitialized.selector);
-        impl.initialize(rando, 0, 0);
+        impl.initialize(rando, recoveryWallet, 0, 0);
     }
 
-    function test_deploy_rejectsRecoveryWalletAsDestination() public {
+    function test_deploy_fixesThePerClientRecoveryAddress() public view {
+        assertEq(fwd.recoveryAddress(), recoveryWallet);
+    }
+
+    function test_deploy_rejectsRecoveryAddressAsDestination() public {
         vm.expectRevert(VortexForwarder.InvalidConfigAddress.selector);
-        factory.deployForwarder(recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(3)));
+        factory.deployForwarder(recoveryWallet, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(3)));
     }
 
-    function test_implementation_rejectsZeroRecoveryWallet() public {
-        VortexForwarder.ImmutableConfig memory cfg = _config(address(router), bytes32(0));
-        cfg.recoveryWallet = address(0);
+    function test_deploy_rejectsZeroOrTokenRecoveryAddress() public {
         vm.expectRevert(VortexForwarder.ZeroAddress.selector);
-        new VortexForwarderFactory(cfg, 1e18, 50_000e18, 25e18, 10_000e18, _route(500, 500));
+        factory.deployForwarder(destination, address(0), TARGET_PPM, FLOOR_PPM, bytes32(uint256(3)));
+        vm.expectRevert(VortexForwarder.InvalidConfigAddress.selector);
+        factory.deployForwarder(destination, address(usdc), TARGET_PPM, FLOOR_PPM, bytes32(uint256(3)));
+    }
+
+    function test_recover_sendsToEachClonesOwnRecoveryAddress() public {
+        address otherRecovery = makeAddr("otherRecovery");
+        VortexForwarder other = VortexForwarder(
+            factory.deployForwarder(destination, otherRecovery, TARGET_PPM, FLOOR_PPM, bytes32(uint256(4)))
+        );
+        eure.mint(address(other), 300e18);
+        other.poke();
+        vm.warp(block.timestamp + other.RECOVERY_DELAY());
+        vm.prank(keeper);
+        other.recover(300e18, 0);
+        assertEq(eure.balanceOf(otherRecovery), 300e18);
+        assertEq(eure.balanceOf(recoveryWallet), 0);
     }
 
     // ---------------------------------------------------------------- swap + forward
@@ -550,8 +571,9 @@ contract VortexForwarderTest is Test {
             _config(address(evil), bytes32(0)), 1e18, 50_000e18, 25e18, 10_000e18, _route(500, 500)
         );
         f2.setKeeper(keeper, true);
-        VortexForwarder fwd2 =
-            VortexForwarder(f2.deployForwarder(destination, TARGET_PPM, FLOOR_PPM, bytes32(uint256(7))));
+        VortexForwarder fwd2 = VortexForwarder(
+            f2.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(7)))
+        );
         eure.mint(address(fwd2), 1_000e18);
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.Reentrancy.selector);
@@ -664,7 +686,7 @@ contract VortexForwarderTest is Test {
     function test_predictAddress_matchesDeployment() public {
         bytes32 salt = bytes32(uint256(42));
         address predicted = factory.predictAddress(salt);
-        address deployed = factory.deployForwarder(destination, TARGET_PPM, FLOOR_PPM, salt);
+        address deployed = factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
         assertEq(predicted, deployed);
     }
 
@@ -957,9 +979,9 @@ contract VortexForwarderTest is Test {
 
     function test_feePolicy_validatedAtDeploy() public {
         vm.expectRevert(VortexForwarder.InvalidFeePolicy.selector);
-        factory.deployForwarder(destination, 2_000, 1_500, bytes32(uint256(9))); // target above floor
+        factory.deployForwarder(destination, recoveryWallet, 2_000, 1_500, bytes32(uint256(9))); // target above floor
         vm.expectRevert(VortexForwarder.InvalidFeePolicy.selector);
-        factory.deployForwarder(destination, 1_000, 10_001, bytes32(uint256(9))); // floor above cap
+        factory.deployForwarder(destination, recoveryWallet, 1_000, 10_001, bytes32(uint256(9))); // floor above cap
     }
 
     function test_setFeePolicy_onlyGuardianAndValidated() public {

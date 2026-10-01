@@ -11,6 +11,7 @@ describe("manifest diff severity", () => {
 
   it("treats the per-clone destination and registration as immutable", () => {
     expect(severityFor("forwarders.0x123.immutables.destination")).toBe("FAIL");
+    expect(severityFor("forwarders.0x123.immutables.recoveryAddress")).toBe("FAIL");
     expect(severityFor("forwarders.0x123.immutables.isForwarder")).toBe("FAIL");
     expect(severityFor("forwarders.0x123.runtimeBytecodeHash")).toBe("FAIL");
   });

@@ -53,13 +53,13 @@ interface IVortexSubsidyVault {
 ///         ways assets can ever leave are:
 ///           1. a factory-whitelisted EURe -> USDC swap (oracle-floored, output kept here),
 ///           2. USDC to the client's `destination` (plus a fee <= MAX_FEE_PPM to FEE_RECIPIENT),
-///           3. EURe and USDC to the immutable Vortex RECOVERY_WALLET, only by the keeper and
+///           3. EURe and USDC to this client's fixed `recoveryAddress`, only by the keeper and
 ///              only once a batch has been open for RECOVERY_DELAY (the refund path).
 ///         The keeper converts a bank payment in `swap` chunks that accumulate as USDC on
 ///         the clone and pushes the whole payment to `destination` with one `forward`, so
 ///         the client sees one USDC transfer per pay-in. Vortex (guardian/keeper) can
-///         execute that policy, pause it, recover a stuck payment to its own wallet for a
-///         bank refund, and nothing else.
+///         execute that policy, pause it, recover a stuck payment to the client's refund
+///         wallet for a bank refund, and nothing else.
 /// @dev EIP-1271 is deliberately constrained to the fixed Monerium link message hash
 ///      signed by ATTESTOR and bound to this clone's address — it must never validate
 ///      redeem orders (that would hand Vortex fiat-payout power; see variant doc §3.2).
@@ -85,9 +85,6 @@ contract VortexForwarder {
     IVortexForwarderFactory public immutable FACTORY;
     address public immutable ATTESTOR; // signs the Monerium link attestation
     address public immutable FEE_RECIPIENT;
-    /// @dev The only address a recovery can move funds to: a Vortex wallet linked to a
-    ///      Vortex company profile at Monerium, from which the bank refund is redeemed.
-    address public immutable RECOVERY_WALLET;
     uint256 public immutable MAX_ORACLE_AGE; // registry P8
     uint16 public immutable SLIPPAGE_BPS; // registry P1: floor on the client's NET, after fee and subsidy
     uint32 public immutable MAX_FEE_PPM; // registry P2: caps both the fee and the floor policy
@@ -96,7 +93,7 @@ contract VortexForwarder {
     ///      MAX_FEE_PPM plus the vault's caps bound it further.
     uint16 public immutable MAX_REFERENCE_DEVIATION_BPS;
     /// @dev Registry P3: how long a batch must have been open before the keeper may move
-    ///      it to RECOVERY_WALLET — the promised conversion window, enforced on chain.
+    ///      it to `recoveryAddress` — the promised conversion window, enforced on chain.
     uint256 public immutable RECOVERY_DELAY;
     uint256 public immutable TRIGGER_DELAY; // registry P4
 
@@ -118,7 +115,6 @@ contract VortexForwarder {
         address oracle;
         address attestor;
         address feeRecipient;
-        address recoveryWallet;
         uint256 maxOracleAge;
         uint16 slippageBps;
         uint32 maxFeePpm;
@@ -133,6 +129,10 @@ contract VortexForwarder {
 
     bool public initialized;
     address public destination; // client's payout address (may be a CEX deposit address)
+    /// @dev The only address a recovery can move funds to: this client's Vortex-held refund
+    ///      wallet, linked to the client's Monerium profile, from which the bank refund is
+    ///      redeemed out of the client's own IBAN. Fixed at deployment, no setter.
+    address public recoveryAddress;
     /// @dev Fee policy, in ppm below the reference rate. The client is targeted at
     ///      reference x (1 - targetPpm): any fill above that becomes fee (<= MAX_FEE_PPM);
     ///      a fill below reference x (1 - floorPpm) is topped up from the subsidy vault.
@@ -158,7 +158,7 @@ contract VortexForwarder {
 
     // ----------------------------------------------------------------- events
 
-    event Initialized(address destination, uint32 targetPpm, uint32 floorPpm);
+    event Initialized(address destination, address recoveryAddress, uint32 targetPpm, uint32 floorPpm);
     event FeePolicyDecreased(uint32 previousTarget, uint32 previousFloor, uint32 target, uint32 floor);
     event FeePolicyIncreaseAnnounced(
         uint32 currentTarget, uint32 currentFloor, uint32 pendingTarget, uint32 pendingFloor, uint64 effectiveAt
@@ -211,8 +211,6 @@ contract VortexForwarder {
     // ------------------------------------------------------------ constructor
 
     constructor(ImmutableConfig memory cfg) {
-        // A zero recovery wallet would make `recover` burn client funds.
-        if (cfg.recoveryWallet == address(0)) revert ZeroAddress();
         EURE = IERC20(cfg.eure);
         EURC = IERC20(cfg.eurc);
         USDC = IERC20(cfg.usdc);
@@ -222,7 +220,6 @@ contract VortexForwarder {
         FACTORY = IVortexForwarderFactory(msg.sender);
         ATTESTOR = cfg.attestor;
         FEE_RECIPIENT = cfg.feeRecipient;
-        RECOVERY_WALLET = cfg.recoveryWallet;
         MAX_ORACLE_AGE = cfg.maxOracleAge;
         SLIPPAGE_BPS = cfg.slippageBps;
         MAX_FEE_PPM = cfg.maxFeePpm;
@@ -264,17 +261,22 @@ contract VortexForwarder {
     // ---------------------------------------------------------- initialization
 
     /// @notice Called by the factory in the same transaction as clone deployment.
-    function initialize(address destination_, uint32 targetPpm_, uint32 floorPpm_) external {
+    function initialize(address destination_, address recoveryAddress_, uint32 targetPpm_, uint32 floorPpm_) external {
         if (msg.sender != address(FACTORY)) revert NotFactory();
         if (initialized) revert AlreadyInitialized();
+        // A zero recovery address would make `recover` burn client funds; one equal to the
+        // destination would turn the refund path into an early, unpriced delivery.
         _validateConfigAddress(destination_);
+        _validateConfigAddress(recoveryAddress_);
+        if (recoveryAddress_ == destination_) revert InvalidConfigAddress();
         _validateFeePolicy(targetPpm_, floorPpm_);
 
         initialized = true;
         destination = destination_;
+        recoveryAddress = recoveryAddress_;
         targetPpm = targetPpm_;
         floorPpm = floorPpm_;
-        emit Initialized(destination_, targetPpm_, floorPpm_);
+        emit Initialized(destination_, recoveryAddress_, targetPpm_, floorPpm_);
     }
 
     // -------------------------------------------------------------- EIP-1271
@@ -517,7 +519,7 @@ contract VortexForwarder {
     // -------------------------------------------------------------- recovery
 
     /// @notice Moves a stuck bank payment — its unconverted EURe and its chunk-swapped
-    ///         USDC — to RECOVERY_WALLET so Vortex can refund the exact EUR amount to the
+    ///         USDC — to `recoveryAddress` so Vortex can refund the exact EUR amount to the
     ///         payer's bank account (docs/architecture-monerium-b2b-onramp.md, recovery).
     ///         Keeper/guardian only, and only once the batch has been open for
     ///         RECOVERY_DELAY: the contract, not the keeper, enforces the promised window.
@@ -529,8 +531,8 @@ contract VortexForwarder {
         if (eureAmount > EURE.balanceOf(address(this)) || usdcAmount > USDC.balanceOf(address(this))) {
             revert InvalidAmount();
         }
-        _transfer(EURE, RECOVERY_WALLET, eureAmount);
-        _transfer(USDC, RECOVERY_WALLET, usdcAmount);
+        _transfer(EURE, recoveryAddress, eureAmount);
+        _transfer(USDC, recoveryAddress, usdcAmount);
         _syncBatch(true);
         emit Recovered(msg.sender, eureAmount, usdcAmount);
     }
@@ -619,7 +621,7 @@ contract VortexForwarder {
         if (account == address(0)) revert ZeroAddress();
         if (
             account == address(EURE) || account == address(EURC) || account == address(USDC)
-                || account == address(ROUTER) || account == address(this) || account == RECOVERY_WALLET
+                || account == address(ROUTER) || account == address(this)
         ) revert InvalidConfigAddress();
     }
 

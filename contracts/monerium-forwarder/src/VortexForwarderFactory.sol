@@ -49,7 +49,12 @@ contract VortexForwarderFactory {
     address public subsidyVault;
 
     event ForwarderDeployed(
-        address indexed forwarder, address indexed destination, uint32 targetPpm, uint32 floorPpm, bytes32 salt
+        address indexed forwarder,
+        address indexed destination,
+        address recoveryAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
     );
     event KeeperSet(address indexed keeper, bool enabled);
     event GlobalPausedSet(bool paused);
@@ -97,15 +102,17 @@ contract VortexForwarderFactory {
     /// @notice Deploy and initialize a client forwarder in one transaction. The clone
     ///         address is deterministic (CREATE2) so it can be communicated/linked
     ///         reliably; predict it with `predictAddress` before deploying.
-    function deployForwarder(address destination, uint32 targetPpm, uint32 floorPpm, bytes32 salt)
-        external
-        onlyGuardian
-        returns (address forwarder)
-    {
+    function deployForwarder(
+        address destination,
+        address recoveryAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
+    ) external onlyGuardian returns (address forwarder) {
         forwarder = _cloneDeterministic(implementation, salt);
-        VortexForwarder(forwarder).initialize(destination, targetPpm, floorPpm);
+        VortexForwarder(forwarder).initialize(destination, recoveryAddress, targetPpm, floorPpm);
         isForwarder[forwarder] = true;
-        emit ForwarderDeployed(forwarder, destination, targetPpm, floorPpm, salt);
+        emit ForwarderDeployed(forwarder, destination, recoveryAddress, targetPpm, floorPpm, salt);
     }
 
     function predictAddress(bytes32 salt) external view returns (address) {

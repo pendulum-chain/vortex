@@ -6,8 +6,8 @@ Monerium link message from the Vortex attestor, a conversion policy that swaps o
 factory-whitelisted Uniswap v3 route and settles the fill against a partner reference
 rate (fee above the target, top-up from the shared `VortexSubsidyVault` below the floor,
 Chainlink floor on the client's net), whole-payment forwarding (chunks accumulate as USDC on the
-clone and leave in one `forward`), and a keeper-only, delay-gated `recover` to the immutable Vortex
-recovery wallet for bank refunds.
+clone and leave in one `forward`), and a keeper-only, delay-gated `recover` to the client's refund
+wallet, fixed per clone at deployment (`recoveryAddress`), for bank refunds.
 
 - Spec: [docs/architecture-monerium-b2b-onramp.md](../../docs/architecture-monerium-b2b-onramp.md) §2
   and its "Fees, reference rate and subsidy" section

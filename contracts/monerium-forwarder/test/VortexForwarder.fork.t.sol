@@ -59,7 +59,6 @@ contract VortexForwarderForkTest is Test {
                 oracle: CHAINLINK_EUR_USD,
                 attestor: attestor,
                 feeRecipient: makeAddr("feeRecipient"),
-                recoveryWallet: recoveryWallet,
                 maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 60,
                 maxFeePpm: 10_000,
@@ -80,7 +79,7 @@ contract VortexForwarderForkTest is Test {
         );
         deal(USDC, address(vault), 1_000e6);
         factory.setSubsidyVault(address(vault));
-        fwd = VortexForwarder(factory.deployForwarder(destination, 1_250, 1_500, bytes32(uint256(1))));
+        fwd = VortexForwarder(factory.deployForwarder(destination, recoveryWallet, 1_250, 1_500, bytes32(uint256(1))));
     }
 
     /// The keeper's reference in these tests is Chainlink itself (trivially inside the band).

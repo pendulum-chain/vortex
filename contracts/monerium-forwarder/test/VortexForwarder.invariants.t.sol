@@ -65,7 +65,6 @@ contract ForwarderHandler is Test {
                 oracle: address(oracle),
                 attestor: vm.addr(0xA11CE),
                 feeRecipient: feeRecipient,
-                recoveryWallet: recoveryWallet,
                 maxOracleAge: 52 hours, // P8: covers observed Chainlink weekend gaps up to 48h
                 slippageBps: 60,
                 maxFeePpm: 10_000,
@@ -87,7 +86,9 @@ contract ForwarderHandler is Test {
         usdc.mint(address(vault), VAULT_FUNDING);
         factory.setSubsidyVault(address(vault));
         fwd = VortexForwarder(
-            factory.deployForwarder(destination, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1)))
+            factory.deployForwarder(
+                destination, recoveryWallet, INITIAL_TARGET_PPM, INITIAL_FLOOR_PPM, bytes32(uint256(1))
+            )
         );
         ghostExpectedTargetPpm = INITIAL_TARGET_PPM;
         ghostExpectedFloorPpm = INITIAL_FLOOR_PPM;
