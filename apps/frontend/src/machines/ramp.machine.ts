@@ -155,9 +155,6 @@ export const rampMachine = setup({
     RESET_RAMP: {
       target: ".Resetting"
     },
-    RESET_RAMP_CALLBACK: {
-      actions: [{ type: "resetRamp" }, { type: "urlCleanerWithCallbackAction" }]
-    },
     SET_ADDRESS: {
       actions: assign({
         connectedWalletAddress: ({ event }) => event.address
@@ -355,13 +352,6 @@ export const rampMachine = setup({
     },
     EnterOTP: {
       on: {
-        CHANGE_EMAIL: {
-          actions: assign({
-            errorMessage: undefined,
-            userEmail: undefined
-          }),
-          target: "EnterEmail"
-        },
         ENTER_EMAIL: {
           actions: assign({
             errorMessage: undefined,
@@ -481,33 +471,17 @@ export const rampMachine = setup({
         REFRESH_FAILED: {
           actions: [{ type: "refreshQuoteActionWithDelay" }]
         },
-        UPDATE_QUOTE: [
-          {
-            actions: assign({
-              executionInput: ({ context, event }) =>
-                context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
-              isQuoteRedo: () => true,
-              quote: ({ event }) => event.quote,
-              quoteId: ({ event }) => event.quote.id
-            }),
-            guard: ({ context, event }) =>
-              context.paymentData !== undefined && event.quote.outputAmount !== context.quote?.outputAmount,
-            target: "QuoteReady"
-          },
-          {
-            actions: [
-              assign({
-                executionInput: ({ context, event }) =>
-                  context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
-                isQuoteExpired: false,
-                quote: ({ event }) => event.quote,
-                quoteId: ({ event }) => event.quote.id
-              })
-            ],
-            reenter: true,
-            target: "KycComplete"
-          }
-        ]
+        UPDATE_QUOTE: {
+          actions: assign({
+            executionInput: ({ context, event }) =>
+              context.executionInput ? { ...context.executionInput, quote: event.quote } : context.executionInput,
+            isQuoteExpired: false,
+            quote: ({ event }) => event.quote,
+            quoteId: ({ event }) => event.quote.id
+          }),
+          reenter: true,
+          target: "KycComplete"
+        }
       }
     },
     KycFailure: {

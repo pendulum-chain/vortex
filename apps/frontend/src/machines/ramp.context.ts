@@ -2,7 +2,6 @@ import { RampContext } from "./types";
 
 export const initialRampContext: RampContext = {
   apiKey: undefined,
-  authToken: undefined,
   callbackUrl: undefined,
   chainId: undefined,
   connectedWalletAddress: undefined,
@@ -14,11 +13,9 @@ export const initialRampContext: RampContext = {
   initializeFailedMessage: undefined,
   isAuthenticated: false,
   isQuoteExpired: false,
-  isQuoteRedo: false,
   kybLink: undefined,
   moneriumCallback: undefined,
   partnerId: undefined,
-  paymentData: undefined,
   postAuthTarget: undefined,
   quote: undefined,
   quoteId: undefined,
