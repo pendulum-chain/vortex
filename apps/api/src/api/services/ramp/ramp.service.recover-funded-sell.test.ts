@@ -21,7 +21,10 @@ afterEach(() => {
   RampState.findByPk = originalRampFindByPk;
 });
 
-function stubRampAndQuote(ramp: { state: Record<string, unknown>; type: RampDirection }, outputCurrency: string) {
+function stubRampAndQuote(
+  ramp: { from?: Networks; state: Record<string, unknown>; to?: string; type: RampDirection },
+  outputCurrency: string
+) {
   RampState.findByPk = mock(async () => ({
     createdAt: new Date(Date.now() - 60 * 60 * 1000),
     currentPhase: "initial",
@@ -58,6 +61,20 @@ describe("RampService.recoverFundedSellRamp guards", () => {
 
   it("refuses a domestic (AlfredPay) SELL whose reported hash FundEphemeral does not verify", async () => {
     stubRampAndQuote({ state: { squidRouterNoPermitTransferHash: "0xabc" }, type: RampDirection.SELL }, FiatToken.MXN);
+
+    await expect(new TestRampService().recoverFundedSellRamp("ramp-1")).rejects.toMatchObject(conflict);
+  });
+
+  it("refuses an AssetHub SELL whose reported Squid hash FundEphemeral does not verify", async () => {
+    stubRampAndQuote(
+      {
+        from: Networks.AssetHub,
+        state: { assethubToPendulumHash: "0xdef", squidRouterSwapHash: "0xabc" },
+        to: "sepa",
+        type: RampDirection.SELL
+      },
+      FiatToken.EURC
+    );
 
     await expect(new TestRampService().recoverFundedSellRamp("ramp-1")).rejects.toMatchObject(conflict);
   });

@@ -636,11 +636,12 @@ export class RampService extends BaseRampService {
         });
       }
       if (options.requireReportedSellSource) {
-        // Domestic (AlfredPay) SELLs are excluded: FundEphemeral only verifies the reported hash
-        // for the other EVM SELLs, so this recovery has no pre-spend proof for them.
+        // Domestic (AlfredPay) and AssetHub SELLs are excluded: FundEphemeral only verifies the
+        // reported hash for the other EVM SELLs, so this recovery has no pre-spend proof for them.
         const { squidRouterNoPermitTransferHash, squidRouterSwapHash } = rampState.state;
         if (
           rampState.type !== RampDirection.SELL ||
+          rampState.from === Networks.AssetHub ||
           isDomesticToken(quote.outputCurrency as FiatToken) ||
           !(squidRouterSwapHash || squidRouterNoPermitTransferHash)
         ) {
