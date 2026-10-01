@@ -4,9 +4,6 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "outDir": "dist",
-    "paths": {
-      "@packages/*": ["../../packages/*/src"]
-    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
