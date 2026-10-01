@@ -4,8 +4,8 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { TextField } from "../TextField";
 
 interface KybFormScreenProps {
   country: "MX" | "CO";
@@ -39,29 +39,6 @@ export function KybFormScreen({ country, defaults, onCancel, onSubmit, userEmail
     resolver: standardSchemaResolver(kybFormSchema)
   });
 
-  const field = (name: keyof KybFormValues, label: string, type = "text", readOnly = false) => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field: input }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input
-              className={readOnly ? "cursor-not-allowed bg-muted text-muted-foreground" : undefined}
-              readOnly={readOnly}
-              type={type}
-              {...input}
-              // repPep is the one boolean in this form and renders as its own checkbox below.
-              value={typeof input.value === "string" ? input.value : ""}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(values => onSubmit(mapKybFormValues(values)))}>
@@ -70,32 +47,32 @@ export function KybFormScreen({ country, defaults, onCancel, onSubmit, userEmail
             <h3 className="font-medium">Company details</h3>
             <p className="text-muted-foreground text-sm">Enter the legal details registered for this business.</p>
           </div>
-          {field("businessName", "Legal business name")}
+          <TextField control={form.control} label="Legal business name" name="businessName" />
           <div className="grid gap-4 sm:grid-cols-2">
-            {field("taxId", "Tax ID")}
-            {field("website", "Website", "url")}
+            <TextField control={form.control} label="Tax ID" name="taxId" />
+            <TextField control={form.control} label="Website" name="website" type="url" />
           </div>
-          {field("address", "Registered address")}
+          <TextField control={form.control} label="Registered address" name="address" />
           <div className="grid gap-4 sm:grid-cols-2">
-            {field("city", "City")}
-            {field("state", "State")}
+            <TextField control={form.control} label="City" name="city" />
+            <TextField control={form.control} label="State" name="state" />
           </div>
-          {field("zipCode", "Postal code")}
+          <TextField control={form.control} label="Postal code" name="zipCode" />
 
           <div className="border-t pt-4">
             <h3 className="font-medium">Authorized representative</h3>
             <p className="text-muted-foreground text-sm">This person's identity document is required on the next step.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {field("repFirstName", "First name")}
-            {field("repLastName", "Last name")}
+            <TextField control={form.control} label="First name" name="repFirstName" />
+            <TextField control={form.control} label="Last name" name="repLastName" />
           </div>
-          {field("repEmail", "Email", "email", !!userEmail)}
+          <TextField control={form.control} label="Email" name="repEmail" readOnly={!!userEmail} type="email" />
           <div className="grid gap-4 sm:grid-cols-2">
-            {field("repDateOfBirth", "Date of birth", "date")}
-            {field("repDni", "Document number")}
+            <TextField control={form.control} label="Date of birth" name="repDateOfBirth" type="date" />
+            <TextField control={form.control} label="Document number" name="repDni" />
           </div>
-          {field("repNationality", "Nationality (2-letter code)")}
+          <TextField control={form.control} label="Nationality (2-letter code)" name="repNationality" />
           <FormField
             control={form.control}
             name="repPep"
