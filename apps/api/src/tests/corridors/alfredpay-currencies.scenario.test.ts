@@ -506,7 +506,8 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     failNoncesProbe();
 
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    const customer = await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, "test-fiat-account-1");
     const quote = await createQuoteViaApi({
       from: Networks.Polygon,
       inputAmount: currency.offrampInputAmount,
@@ -710,7 +711,8 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     failNoncesProbe();
 
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    const customer = await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, "test-fiat-account-1");
     const quote = await createQuoteViaApi({
       from: source.network,
       inputAmount: currency.offrampInputAmount,
@@ -1017,7 +1019,8 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    const customer = await createTestAlfredpayCustomer(user.id, { country: currency.country });
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, "test-fiat-account-1");
     const quote = await createQuoteViaApi({
       from: Networks.Polygon,
       inputAmount: currency.offrampInputAmount,

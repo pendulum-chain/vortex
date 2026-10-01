@@ -59,6 +59,8 @@ const metadata: AlfredpayOfframpMetadata = {
   toToken: "0x2222222222222222222222222222222222222222" as const
 };
 
+const listOwnedAccounts = async () => [{ fiatAccountId: "fiat-1" }];
+
 function context() {
   return {
     authenticatedUser: { id: "user-1" },
@@ -94,7 +96,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
     const result = await registerDomesticOfframp(context(), {
       resolveCustomerId: async () => "customer-1",
@@ -127,7 +130,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1979",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
     await expect(
       registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
@@ -148,7 +152,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
     await expect(
       registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
@@ -169,7 +174,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1980",
         toCurrency: FiatToken.COP
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
     await expect(
       registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
@@ -190,7 +196,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-near-expiry",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
 
     await expect(
@@ -224,7 +231,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
 
     await expect(
@@ -258,7 +266,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-new",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
 
     await expect(
@@ -292,7 +301,8 @@ describe("Alfredpay offramp registration", () => {
         quoteId: "quote-short-lived",
         toAmount: "1980",
         toCurrency: FiatToken.MXN
-      }))
+      })),
+      listFiatAccounts: listOwnedAccounts
     } as never;
 
     const result = await registerDomesticOfframp(context(), {
@@ -330,7 +340,8 @@ describe("Alfredpay offramp registration", () => {
           quoteId: "quote-new",
           toAmount: "1980",
           toCurrency: FiatToken.MXN
-        }))
+        })),
+        listFiatAccounts: listOwnedAccounts
       } as never;
 
       await expect(
@@ -338,5 +349,46 @@ describe("Alfredpay offramp registration", () => {
       ).rejects.toThrow("Created Alfredpay offramp order drifted");
       expect(createOrder).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("rejects a payout account that is not in the customer's account list before creating an order", async () => {
+    const createOrder = mock(async () => ({}));
+    const listFiatAccounts = mock(async () => [{ fiatAccountId: "fiat-other" }]);
+    const service = {
+      createOfframp: createOrder,
+      createOfframpQuote: mock(async () => ({
+        chain: AlfredpayChain.MATIC,
+        expiration: safeExpiration,
+        fees: [{ amount: "1", currency: "MXN" }],
+        fromAmount: "99",
+        fromCurrency: AlfredpayOnChainCurrency.USDT,
+        quoteId: "quote-new",
+        toAmount: "1980",
+        toCurrency: FiatToken.MXN
+      })),
+      listFiatAccounts
+    } as never;
+
+    await expect(
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+    ).rejects.toMatchObject({ message: "This payout account is no longer registered. Add it again and retry.", status: 400 });
+    expect(listFiatAccounts).toHaveBeenCalledWith("customer-1");
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("fails the preflight when the account list cannot be read", async () => {
+    const createOrder = mock(async () => ({}));
+    const service = {
+      createOfframp: createOrder,
+      createOfframpQuote: mock(async () => ({})),
+      listFiatAccounts: mock(async () => {
+        throw new Error("Request failed with status '503'");
+      })
+    } as never;
+
+    await expect(
+      registerDomesticOfframp(context(), { resolveCustomerId: async () => "customer-1", service })
+    ).rejects.toThrow("preflight failed before order creation");
+    expect(createOrder).not.toHaveBeenCalled();
   });
 });

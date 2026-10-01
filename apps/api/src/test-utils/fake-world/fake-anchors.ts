@@ -19,6 +19,7 @@ import {
   type CreateAlfredpayOnrampRequest,
   type CreateAlfredpayOnrampResponse,
   type DomesticFiatAccount,
+  DomesticFiatAccountType,
   type DomesticOfframpQuote,
   type DomesticOnrampQuote,
   type GetAlfredpayOnrampTransactionResponse,
@@ -520,6 +521,20 @@ export class FakeAlfredpay {
     listFiatAccounts: async (customerId: string): Promise<DomesticFiatAccount[]> =>
       this.fiatAccountsByCustomer.get(customerId) ?? []
   };
+
+  /** Lists a payout account for the customer, which offramp registration requires. */
+  addFiatAccount(customerId: string, fiatAccountId: string): void {
+    this.fiatAccountsByCustomer.set(customerId, [
+      ...(this.fiatAccountsByCustomer.get(customerId) ?? []),
+      {
+        accountNumber: "646180157000000004",
+        accountType: "checking",
+        customerId,
+        fiatAccountId,
+        type: DomesticFiatAccountType.SPEI
+      }
+    ]);
+  }
 
   asService(): AlfredpayApiService {
     return unimplementedProxy<AlfredpayApiService>(this.impl, "FakeAlfredpay");

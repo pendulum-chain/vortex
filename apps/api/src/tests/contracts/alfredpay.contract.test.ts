@@ -540,6 +540,19 @@ describe.skipIf(!LIVE)("Alfredpay external API contract — live", () => {
     60_000
   );
 
+  // Offramp registration accepts a payout account only if it is in this customer's list.
+  test.skipIf(!FIAT_ACCOUNT_ID)(
+    "GET /fiatAccounts lists only the customer's own accounts",
+    async () => {
+      const accounts = await runLive("alfredpay listFiatAccounts for another customer", () =>
+        api().listFiatAccounts(AR_COMPLETED_CUSTOMER_ID)
+      );
+      if (!accounts) return;
+      expect(accounts.some(account => account.fiatAccountId === FIAT_ACCOUNT_ID)).toBe(false);
+    },
+    60_000
+  );
+
   for (const accountCase of FIAT_ACCOUNT_LIFECYCLE_CASES) {
     test(
       `POST, GET and DELETE a ${accountCase.country} fiat account satisfy their contracts`,

@@ -34,7 +34,7 @@ export async function registerDomesticOfframp(
   ctx: RegisterCtx<AlfredpayOfframpMetadata, AlfredpayOfframpRegistrationInput>,
   dependencies: {
     resolveCustomerId?: typeof resolveAlfredpayCustomerId;
-    service?: Pick<AlfredpayApiService, "createOfframp" | "createOfframpQuote">;
+    service?: Pick<AlfredpayApiService, "createOfframp" | "createOfframpQuote" | "listFiatAccounts">;
     sumFees?: typeof AlfredpayApiService.sumFeesByCurrency;
   } = {}
 ): Promise<RegistrationResult<AlfredpayOfframpRegistrationFacts, AlfredpayOfframpMetadata>> {
@@ -50,6 +50,7 @@ export async function registerDomesticOfframp(
   );
   let customerId: string;
   let freshQuote: Awaited<ReturnType<AlfredpayApiService["createOfframpQuote"]>>;
+  let ownsFiatAccount: boolean;
   const service = dependencies.service ?? AlfredpayApiService.getInstance();
   const toCurrency = ctx.metadata.currency as unknown as AlfredpayFiatCurrency;
   try {
@@ -65,10 +66,20 @@ export async function registerDomesticOfframp(
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency
     } satisfies CreateAlfredpayOfframpQuoteRequest);
+    // The payout account id comes from the caller. Accounts did not survive Alfred's platform
+    // migration, and the provider is the only other check that the account belongs to this customer.
+    const accounts = await service.listFiatAccounts(customerId);
+    ownsFiatAccount = accounts.some(account => account.fiatAccountId === ctx.input.fiatAccountId);
   } catch (error) {
     throw new FinancialOperationRejectedError(
       `Alfredpay offramp registration preflight failed before order creation: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+  if (!ownsFiatAccount) {
+    throw new APIError({
+      message: "This payout account is no longer registered. Add it again and retry.",
+      status: httpStatus.BAD_REQUEST
+    });
   }
   const originalInput = new Big(ctx.metadata.inputAmountDecimal as unknown as string);
   const freshInput = new Big(freshQuote.fromAmount);

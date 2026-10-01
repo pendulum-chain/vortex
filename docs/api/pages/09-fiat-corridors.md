@@ -169,7 +169,7 @@ Ramp registration resolves KYC and payment identity from the effective profile, 
 
 ### Fiat Accounts
 
-Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. The account is created during onboarding in the Vortex app or Widget; the ID is opaque to the SDK and the API client.
+Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. The account is created during onboarding in the Vortex app or Widget; the ID is opaque to the SDK and the API client. Registration checks that the account is still saved for the user and answers `400` otherwise, so a removed account must be added again before the sell.
 
 ### Payment Instructions On Buys
 

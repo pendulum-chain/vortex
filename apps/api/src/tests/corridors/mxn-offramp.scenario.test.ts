@@ -197,7 +197,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id);
+    const customer = await createTestAlfredpayCustomer(user.id);
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, FIAT_ACCOUNT_ID);
     const quote = await createQuoteViaApi(inputAmount);
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
@@ -417,7 +418,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
   it("registration can retry safely after a pre-order provider quote drift", async () => {
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id);
+    const customer = await createTestAlfredpayCustomer(user.id);
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, FIAT_ACCOUNT_ID);
     const quote = await createQuoteViaApi();
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
@@ -474,7 +476,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     expect(quote.outputAmount).toBe("19980.00");
 
     const user = await createTestUser();
-    await createTestAlfredpayCustomer(user.id);
+    const customer = await createTestAlfredpayCustomer(user.id);
+    world.alfredpay.addFiatAccount(customer.providerCustomerId as string, FIAT_ACCOUNT_ID);
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
     world.squidRouter.computeToAmountMin = () => parseUnits("900", 6).toString();
