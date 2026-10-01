@@ -19,12 +19,12 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
   - `pk_live_*` / `pk_test_*` — public value, sent as `X-Public-Key` for attribution and approved low-sensitivity reads. Quote/widget body `apiKey` remains compatibility transport; if both are present they must match.
   - `sk_live_*` / `sk_test_*` — secret value, sent only in `X-API-Key`. **Never expose `sk_*` in a browser or mobile app.** It is returned only when the credential is created.
   - If both values are configured, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. A valid secret may be used without a public value.
-  - **Ramp registration requires an authenticated profile in every corridor.** The SDK accepts either a secret credential for its bound profile or an `accessTokenProvider` for that profile's renewable Supabase Bearer session; raw API clients may use the secret credential or that Supabase Bearer session directly. Provider identity (BRL tax ID, Alfredpay customer, or Monerium profile) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
+  - **Ramp registration requires an authenticated profile in every corridor.** The SDK accepts either a secret credential for its bound profile or an `accessTokenProvider` for that profile's renewable Supabase Bearer session; raw API clients may use the secret credential or that Supabase Bearer session directly. Provider identity (BRL tax ID, bank-transfer customer, or EUR provider profile) is derived from the authenticated profile, never from request fields. Shared dummy/ownerless profiles are invalid.
   - Profile-managed credentials use `POST/GET/DELETE /v1/api-credentials` with a Supabase Bearer session. One profile may have at most five active non-expired credentials; revoke by credential ID disables both values atomically with no DELETE body.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Presigned counts**: this is **per ephemeral-signed transaction, not per ramp**. Each transaction an ephemeral key signs must be submitted as 5 presigned variants — 1 primary plus exactly 4 backups with consecutive nonces in `meta.additionalTxs` (`NUMBER_OF_PRESIGNED_TXS = 5`); the API rejects any other backup count. A ramp can contain several ephemeral-signed transactions across its phases. (The SDK builds these for you; only raw-API integrations need to construct them.)
-- **Currently implemented SDK corridors**: BRL via PIX, USD via ACH, MXN via SPEI, COP via ACH, and ARS via CBU support BUY and SELL; EUR via SEPA (Monerium) supports BUY only. EUR BUY needs `walletAddress` (the user's Monerium-linked wallet, linked in the Dashboard or Widget) and the returned owner permit signed through `submitUserTransactions`. Supply `customerType` to select the same individual or business Monerium profile used at onboarding; it is required when both types are bound (`MONERIUM_CUSTOMER_TYPE_REQUIRED` otherwise). `MONERIUM_ONBOARDING_REQUIRED` / `MONERIUM_REAUTHENTICATION_REQUIRED` mean the user must (re)connect Monerium first. These corridors deliver to EVM networks only (no AssetHub).
+- **Currently implemented SDK corridors**: BRL via PIX, USD via ACH, MXN via SPEI, COP via ACH, and ARS via CBU support BUY and SELL; EUR via SEPA supports BUY only, is available in sandbox with production activation pending, and needs the next `@vortexfi/sdk` release (0.9.0 has no EUR support; use the direct API until then). EUR BUY needs `walletAddress` (the wallet linked with the EUR provider in the Dashboard or Widget) and the returned owner permit signed through `submitUserTransactions`. Supply `customerType` to select the same individual or business EUR provider profile used at onboarding; it is required when both types are bound (`MONERIUM_CUSTOMER_TYPE_REQUIRED` otherwise). `MONERIUM_ONBOARDING_REQUIRED` / `MONERIUM_REAUTHENTICATION_REQUIRED` mean the user must (re)connect the EUR provider first. These corridors deliver to EVM networks only (no AssetHub).
 - **EUR currency value**: TypeScript uses the member `FiatToken.EURC`, which serializes to the wire value `"EUR"`. Raw JSON clients must send `"EUR"`, with `"sepa"` as the rail identifier.
 - **taxId is deprecated for BRL**: the user's tax ID is derived server-side from the authenticated profile. Sending a `taxId` that mismatches the derived one is rejected; stop sending it in new integrations.
 - **Deferred offramp funding**: the SDK checks the source wallet balance at `registerRamp` by default. Server integrations that register before funding a temporary wallet may configure `offrampFundingMode: "deferred"`. This skips only the SDK pre-flight; fund the exact `walletAddress` before signing/submitting user transactions, then update and start before the registration window expires. Backend execution-time balance checks remain authoritative.
@@ -267,22 +267,23 @@ triggers:
 ## When to use
 The user wants to buy crypto with EUR and is already corridor-ready: an approved Vortex EUR provider binding, a live approved provider profile, exactly one existing Polygon EOA/IBAN destination, and access to that EOA for typed-data signing. Both individual and business legal entities may qualify. The active route delivers to supported EVM destinations, Polygon included.
 
-Users become corridor-ready by completing Monerium OAuth onboarding in the Dashboard or Widget and linking the wallet they will pay in with (`POST /v1/monerium/wallet`); this flow does not cover onboarding, wallet linking, or IBAN provisioning. EUR SELL is unavailable.
+EUR BUY is available in sandbox; production activation is pending. Users become corridor-ready by completing the EUR provider's OAuth onboarding in the Dashboard or Widget and linking the wallet they will pay in with (`POST /v1/monerium/wallet`); this flow does not cover onboarding, wallet linking, or IBAN provisioning. EUR SELL is unavailable.
 
 ## Prerequisites
 - Quote with TypeScript member `inputCurrency: FiatToken.EURC` (raw JSON value `"EUR"`), `from: "sepa"`, and a supported EVM destination.
 - A secret credential or Supabase session for the corridor-ready legal entity.
-- `additionalData.destinationAddress`; do not submit profile, Monerium address, or IBAN identity.
+- `additionalData.destinationAddress`; do not submit profile, provider address, or IBAN identity.
 - `additionalData.customerType` (`"individual"` or `"business"`) when the user owns both legal profiles; use the same type as onboarding and wallet linking.
 - A fresh EVM ephemeral key and a wallet-signing channel for the profile-linked Polygon owner.
 
 ## SDK recipe
+Requires the next `@vortexfi/sdk` release; 0.9.0 has no EUR support.
 ```js
-// walletAddress must be the wallet linked to the Monerium profile; a mismatch throws EurOnrampError.
+// walletAddress must be the wallet linked to the EUR provider profile; a mismatch throws EurOnrampError.
 const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
   customerType: "individual",
   destinationAddress: "0xDestinationWallet",
-  walletAddress: "0xMoneriumLinkedWallet"
+  walletAddress: "0xProviderLinkedWallet"
 });
 
 // unsignedTransactions holds the owner's EIP-712 permit; the ephemeral txs are signed by the SDK.
@@ -313,7 +314,7 @@ The permit expires one week after preparation. If SEPA settlement arrives after 
 consumes its nonce, automatic execution stops for manual resolution.
 
 ## Common failures
-- `400` approved-profile error: the effective legal entity has no approved local Monerium/EUR binding or the live provider profile is not approved.
+- `400` approved-profile error: the effective legal entity has no approved local EUR provider binding or the live provider profile is not approved.
 - `409 MONERIUM_CUSTOMER_TYPE_REQUIRED`: both legal types are bound; repeat registration with the type used for wallet linking.
 - `409` expected-one-destination error: the profile does not have exactly one matching Polygon EOA/IBAN destination. Vortex does not create, select, or move one in this release.
 - Contract-wallet error: the linked mint destination must be an EOA for the ERC-2612 handoff.
@@ -351,7 +352,7 @@ The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. R
 ## Prerequisites
 - The user completed KYC for the corridor's country via the Vortex app or Widget, and the SDK is authenticated with that user's own `sk_*` key or Supabase session.
 - Buy: `destinationAddress` (required); `fiatAccountId`, `walletAddress` optional.
-- Sell: `fiatAccountId` and `walletAddress` (both required). List saved accounts with `vortex.listAlfredpayFiatAccounts(country)`.
+- Sell: `fiatAccountId` and `walletAddress` (both required). Verification does not create a pay-out account: the user adds one after verification (Dashboard **Add pay-out account**, the Widget, or `POST /v1/domestic/fiatAccounts`). List saved accounts with `vortex.listDomesticFiatAccounts(country)`.
 
 ## SDK recipe (onramp, MXN shown — substitute fiat + rail for USD/COP/ARS)
 ```js
@@ -369,20 +370,35 @@ const { rampProcess } = await vortex.registerRamp(quote, {
   destinationAddress: "0xUserWalletAddress"
 });
 
-const started = await vortex.startRamp(rampProcess.id);
+// Bank transfer instructions the user must pay arrive with the registered ramp
+// (registerRamp performs the update that releases them); startRamp does not repeat them.
+console.log(rampProcess.achPaymentData);
 
-// Bank transfer instructions the user must pay are on the START response:
-console.log(started.achPaymentData);
+// After the user initiates the transfer, start before the ramp's expiresAt.
+const started = await vortex.startRamp(rampProcess.id);
 ```
 
 No user-signed on-chain transactions on buys. Unlike BRL there is no QR code — display the `achPaymentData` deposit instructions verbatim; the ramp continues automatically once the fiat deposit is confirmed.
 
 ## SDK recipe (offramp)
 ```js
-const accounts = await vortex.listAlfredpayFiatAccounts("MEX");
+const sellQuote = await vortex.createQuote({
+  rampType: RampDirection.SELL,
+  from: Networks.Polygon,
+  to: EPaymentMethod.SPEI,
+  network: Networks.Polygon,
+  inputAmount: "10",
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.MXN
+});
 
-const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
-  fiatAccountId: accounts[0].id,
+const accounts = await vortex.listDomesticFiatAccounts(DomesticCountry.MX); // DomesticCountry from @vortexfi/sdk
+if (accounts.length === 0) {
+  throw new Error("Add a pay-out account for MX before selling");
+}
+
+const { rampProcess, unsignedTransactions } = await vortex.registerRamp(sellQuote, {
+  fiatAccountId: accounts[0].fiatAccountId,
   walletAddress: "0xUserWalletAddress"
 });
 
@@ -393,11 +409,11 @@ await vortex.submitUserTransactions(rampProcess.id, unsignedTransactions, {
 await vortex.startRamp(rampProcess.id);
 ```
 
-The SDK cannot **create** fiat accounts; they are created during onboarding in the Vortex app or Widget. `fiatAccountId` is opaque to the SDK.
+The SDK cannot **create** fiat accounts, and verification does not create one either: the user adds it in the Dashboard (**Add pay-out account**) or Widget, or a server calls `POST /v1/domestic/fiatAccounts`. `fiatAccountId` is opaque to the SDK.
 
 ## Common failures
-- `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
-- `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
+- `MissingDomesticOnrampParametersError` / `MissingDomesticOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
+- `DomesticOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
 - `400` "requires an API key linked to a user" on register — the supplied API credential or Bearer session is not bound to an eligible profile. Authenticate as the onboarded user or provision a managed profile and issue a credential for that explicit subject.
 - `InsufficientBalanceError` — in the default `"prefunded"` mode, the offramp pre-flight found the source wallet balance below the quote's input amount. A deliberate register-then-fund integration may use `offrampFundingMode: "deferred"`; it must fund before submitting user transactions and starting the ramp.
 
@@ -695,7 +711,7 @@ try {
 
 ## Current corridor reality (August 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
-- **EUR via SEPA**: BUY is active (`FiatToken.EURC`, rail `"sepa"`) for an approved Monerium user with one Polygon EOA/IBAN destination, through the SDK (`walletAddress` + `submitUserTransactions` for the owner permit), the Widget, the Dashboard, and the direct API. Onboarding and wallet linking happen in the Dashboard or Widget. Destinations: any supported EVM network. SELL is unavailable.
+- **EUR via SEPA**: BUY is available in sandbox, production activation pending (`FiatToken.EURC`, rail `"sepa"`), for an approved EUR provider user with one Polygon EOA/IBAN destination, through the SDK from its next release (`walletAddress` + `submitUserTransactions` for the owner permit), the Widget, the Dashboard, and the direct API. Onboarding and wallet linking happen in the Dashboard or Widget. Destinations: any supported EVM network. SELL is unavailable.
 - **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; registration requires an authenticated user identity. Route resolver determines availability per-combination.
 - Live corridors deliver to EVM networks; AssetHub ramp execution is currently disabled.
 
@@ -745,7 +761,7 @@ Include this payload (with secrets redacted) in any support ticket.
 | `InvalidNetworkError` | Network not in `Networks` enum | Use `discover-supported-corridors` |
 | `MissingRequiredFieldsError` / `MissingBrlParametersError` / `MissingBrlOfframpParametersError` | Body field missing | Fill the missing field; do not retry blindly |
 | `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
-| `AlfredpayOnrampKycRequiredError` | Bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
+| `DomesticOnrampKycRequiredError` | Bank-transfer-corridor KYC issue | Onboard or provision the credential's bound profile; do not retry programmatically |
 | Raw EUR registration `400` / `409` | Missing approved binding/profile or not exactly one Polygon EOA/IBAN match | Provision or reconcile the user out of band; do not submit caller-selected provider identity |
 | `VortexSdkError` with `code === "CREDENTIAL_MISMATCH"` | Configured public and secret values belong to different credentials | Load both values from the same credential; never infer pairing by name |
 | `VortexSdkError` with `code === "provider_limit_exceeded"` | The provider account limit is exhausted | Stop retrying registration; wait for provider capacity to reset or contact Vortex support |

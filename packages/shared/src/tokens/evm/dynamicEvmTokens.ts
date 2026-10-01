@@ -7,6 +7,7 @@ import { EvmTokenDetails } from "../types/evm";
 import { evmTokenConfig } from "./config";
 
 const SQUID_ROUTER_API_URL = "https://v2.api.squidrouter.com/v2/tokens";
+const SQUID_ROUTER_FETCH_TIMEOUT_MS = 10_000;
 
 // Token filtering configuration to exclude irrelevant tokens from EVM chains
 const TOKEN_FILTER_CONFIG = {
@@ -36,10 +37,14 @@ interface DynamicEvmTokensState {
   tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
   priceBySymbol: Map<string, number>;
   isLoaded: boolean;
+  // True only once the Squid list itself is installed. The static-only fallback sets isLoaded but not this,
+  // so initializeEvmTokens() keeps fetching until Squid answers.
+  loadedFromSquid: boolean;
 }
 
 const state: DynamicEvmTokensState = {
   isLoaded: false,
+  loadedFromSquid: false,
   priceBySymbol: new Map(),
   tokensByNetwork: {} as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 };
@@ -245,7 +250,8 @@ function buildPriceLookup(tokensByNetwork: Record<EvmNetworks, Partial<Record<st
 
 async function fetchSquidRouterTokens(): Promise<SquidRouterToken[]> {
   const response = await fetch(SQUID_ROUTER_API_URL, {
-    headers: { "x-integrator-id": squidRouterConfigBase.integratorId }
+    headers: { "x-integrator-id": squidRouterConfigBase.integratorId },
+    signal: AbortSignal.timeout(SQUID_ROUTER_FETCH_TIMEOUT_MS)
   });
   if (!response.ok) throw new Error(`Failed to fetch SquidRouter tokens: ${response.status}`);
   const data = await response.json();
@@ -277,12 +283,16 @@ function deriveAllTokens(tokensByNetwork: Record<EvmNetworks, Partial<Record<str
 
 /**
  * Initialize the dynamic EVM tokens service.
- * Call this once at app startup before React renders.
- * This function is idempotent - calling it multiple times is safe.
+ * Call this at app startup before React renders.
+ * This function is idempotent - calling it multiple times is safe. On a failed Squid fetch it installs the
+ * static-only fallback and resolves to false; call it again to retry. It never fetches again once the Squid
+ * list is loaded.
+ *
+ * @returns true when the Squid token list is loaded, false when only the static fallback is in use
  */
-export async function initializeEvmTokens(): Promise<void> {
-  if (state.isLoaded) {
-    return;
+export async function initializeEvmTokens(): Promise<boolean> {
+  if (state.loadedFromSquid) {
+    return true;
   }
 
   try {
@@ -295,6 +305,7 @@ export async function initializeEvmTokens(): Promise<void> {
     state.tokensByNetwork = mergeWithStaticConfig(groupedTokens);
     state.priceBySymbol = buildPriceLookup(state.tokensByNetwork);
     state.isLoaded = true;
+    state.loadedFromSquid = true;
     for (const listener of evmTokenListeners) {
       try {
         listener();
@@ -315,6 +326,7 @@ export async function initializeEvmTokens(): Promise<void> {
       logger.current.error("[DynamicEvmTokens] Error in EVM token listener", listenerErr);
     }
   }
+  return state.loadedFromSquid;
 }
 
 /**

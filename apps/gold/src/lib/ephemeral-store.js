@@ -38,16 +38,18 @@ async function getDeviceKey(db) {
 export async function storeEphemeralRampKeys(keys, rampId) {
   if (!window.isSecureContext) throw new Error("Secure HTTPS context required for ramp key recovery.");
   const db = await openDatabase();
-  const key = await getDeviceKey(db);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = new TextEncoder().encode(JSON.stringify(keys));
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
-  await transactionRequest(db, "ramps", "readwrite", (store) => store.put({ iv, ciphertext, createdAt: Date.now() }, rampId));
-  db.close();
+  // Close even when a step fails: an open connection blocks a later schema upgrade of the store.
+  try {
+    const key = await getDeviceKey(db);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const plaintext = new TextEncoder().encode(JSON.stringify(keys));
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+    await transactionRequest(db, "ramps", "readwrite", (store) => store.put({ iv, ciphertext, createdAt: Date.now() }, rampId));
+  } finally { db.close(); }
 }
 
 export async function deleteEphemeralRampKeys(rampId) {
   const db = await openDatabase();
-  await transactionRequest(db, "ramps", "readwrite", (store) => store.delete(rampId));
-  db.close();
+  try { await transactionRequest(db, "ramps", "readwrite", (store) => store.delete(rampId)); }
+  finally { db.close(); }
 }

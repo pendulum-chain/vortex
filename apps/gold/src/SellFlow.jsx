@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Bank, CheckCircle, Copy, WarningCircle } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { gramsToPaxg, readPaxgBalance } from "./lib/paxg.js";
-import { clearActiveRamp, getActiveRamp, saveActiveRamp } from "./lib/pilot-store.js";
-import { classifyRamp, createPaxgSellQuote, createVortexClient, getBrazilBuyReadiness, getPaxgAvailability, pollRamp, registerPaxgSell, requestVortexOtp, startRampSafely, submitWalletTransactions, verifyVortexOtp } from "./lib/vortex.js";
+import { clearActiveRamp, failActiveRamp, getActiveRamp, saveActiveRamp } from "./lib/pilot-store.js";
+import { classifyRamp, createPaxgSellQuote, createVortexClient, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, pollRamp, registerPaxgSell, requestVortexOtp, startRampSafely, submitWalletTransactions, verifyVortexOtp } from "./lib/vortex.js";
 
 const brl = (amount) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(amount));
 const gramsLabel = (amount) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 }).format(Number(amount));
@@ -37,6 +37,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     catch (e) {
       setError(e.code === 4001 ? "Confirmação cancelada. Você pode continuar esta mesma operação." : e.message || "Não foi possível continuar.");
       if (e.status === 401 || e.code === "AUTH_REQUIRED") { setSent(false); setOtp(""); setStep("otp"); }
+      if (e.code === "START_WINDOW_CLOSED") setStep("issue");
     } finally { actionLock.current = false; setBusy(false); }
   };
 
@@ -52,7 +53,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     const current = await client.current.getRampStatus(id);
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
-    if (classifyRamp(current) === "failure") { setStep("issue"); throw new Error("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); }
+    if (classifyRamp(current) === "failure") { failActiveRamp(current.id); setStep("issue"); throw new Error("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); }
     setStep(current.currentPhase === "initial" ? "sign" : "processing");
   };
   useEffect(() => { if (initialResume.current) run(recover); }, []);
@@ -62,7 +63,7 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     const controller = new AbortController();
     pollRamp(client.current, ramp.id, { signal: controller.signal, onUpdate: setRamp }).then((current) => {
       if (classifyRamp(current) === "success") complete(current);
-      else { setStep("issue"); setError("A venda não foi concluída. Consulte o suporte com o código da operação."); }
+      else { failActiveRamp(current.id); setStep("issue"); setError("A venda não foi concluída. Consulte o suporte com o código da operação."); }
     }).catch((e) => { if (e.name !== "AbortError") { setStep("recover"); setError(e.message); } });
     return () => controller.abort();
   }, [step, ramp?.id]);
@@ -80,11 +81,14 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
     setHasGas(balance > 0n);
     const result = await createPaxgSellQuote(maxAmount || gramsToPaxg(amount), walletAddress);
     client.current = result.client; setQuote(result.quote);
-    const readiness = await getBrazilBuyReadiness(result.client);
+    const readiness = await getBrazilBuyReadiness();
     if (readiness.kycStatus !== "approved") setStep("kyc");
     else if (!readiness.canSell) throw new Error("Sua conta ainda não está liberada para receber PIX. Verifique sua situação com a Vortex.");
     else setStep("review");
   };
+
+  // As in the buy flow: reuse a session verified in this tab for this e-mail, else ask for the code.
+  const continueFromAmount = () => hasVortexSession(otpEmail) ? run(prepareQuote) : setStep("otp");
 
   const chooseAll = () => run(async () => {
     if (demo) { setAmount(String(Math.floor(availableGrams * 1e6) / 1e6)); return; }
@@ -110,22 +114,22 @@ export function SellFlow({ ui: { Modal, OtpStep, KycStep }, email, name, walletA
 
   const continueSigning = () => run(async () => {
     if (!client.current) client.current = await createVortexClient();
-    const current = await client.current.getRampStatus(active.id);
+    const current = await getRampWithUnsignedTxs(active.id);
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
-    if (classifyRamp(current) === "failure") { setStep("issue"); throw new Error("Esta operação não pode ser retomada. Consulte o suporte."); }
+    if (classifyRamp(current) === "failure") { failActiveRamp(current.id); setStep("issue"); throw new Error("Esta operação não pode ser retomada. Consulte o suporte."); }
     if (current.currentPhase !== "initial") { setStep("processing"); return; }
     const saved = getActiveRamp(walletAddress);
     if (saved?.stage === "registering") throw new Error("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda.");
     const transactions = (current.unsignedTxs || []).filter((tx) => tx.signer?.toLowerCase() === walletAddress.toLowerCase());
     if (saved?.stage !== "ready" && !transactions.length) throw new Error("Não foi possível recuperar as confirmações. Consulte o suporte com o código abaixo.");
-    if (saved?.stage !== "ready") await submitWalletTransactions(client.current, current.id, transactions, walletAddress, await getEthereumProvider());
+    if (saved?.stage !== "ready") await submitWalletTransactions(client.current, current, transactions, walletAddress, await getEthereumProvider(), saved?.inputAmount);
     saveActiveRamp({ rampId: current.id, walletAddress, inputAmount: current.inputAmount, outputAmount: current.outputAmount, rampType: "SELL", stage: "ready" });
     setRamp(await startRampSafely(client.current, current.id)); setStep("processing");
   });
 
   return <Modal title="Vender ouro" onClose={onClose} wide closeDisabled={busy}>
-    {step === "amount" && <div className="flow-step"><div className="flow-title"><Bank size={28} /><div><h3>Ouro de volta em reais</h3><p>Receba na sua conta pelo PIX.</p></div></div><label className="amount-field"><span>Quantidade em gramas</span><div><input aria-label="Gramas para vender" inputMode="decimal" value={amount} onChange={(e) => { setMaxAmount(null); setAmount(e.target.value.replace(/[^\d,.]/g, "")); }} /><small>g</small></div></label><p className="conversion-hint">Disponível: {gramsLabel(availableGrams)} g <button className="inline-button" type="button" onClick={chooseAll} disabled={busy}>Usar tudo</button></p><label className="vortex-email-field"><span>Sua chave PIX</span><input value={pix} aria-label="Chave PIX" onChange={(e) => setPix(e.target.value)} placeholder="CPF, e-mail, celular ou chave aleatória" /></label><p className="legal-note">Use uma chave PIX da sua própria conta. Você revisará o valor líquido antes de confirmar.</p><button className="button button--dark button--full" disabled={!valid || busy} onClick={() => setStep("otp")}>Continuar</button></div>}
+    {step === "amount" && <div className="flow-step"><div className="flow-title"><Bank size={28} /><div><h3>Ouro de volta em reais</h3><p>Receba na sua conta pelo PIX.</p></div></div><label className="amount-field"><span>Quantidade em gramas</span><div><input aria-label="Gramas para vender" inputMode="decimal" value={amount} onChange={(e) => { setMaxAmount(null); setAmount(e.target.value.replace(/[^\d,.]/g, "")); }} /><small>g</small></div></label><p className="conversion-hint">Disponível: {gramsLabel(availableGrams)} g <button className="inline-button" type="button" onClick={chooseAll} disabled={busy}>Usar tudo</button></p><label className="vortex-email-field"><span>Sua chave PIX</span><input value={pix} aria-label="Chave PIX" onChange={(e) => setPix(e.target.value)} placeholder="CPF, e-mail, celular ou chave aleatória" /></label><p className="legal-note">Use uma chave PIX da sua própria conta. Você revisará o valor líquido antes de confirmar.</p><button className="button button--dark button--full" disabled={!valid || busy} onClick={continueFromAmount}>{busy ? "Cotando…" : "Continuar"}</button></div>}
     {step === "otp" && <OtpStep email={otpEmail} setEmail={setOtpEmail} otp={otp} setOtp={setOtp} sent={sent} loading={busy} error="" demo={demo} onSend={() => run(async () => { if (!demo) await requestVortexOtp(otpEmail); setSent(true); })} onVerify={() => run(async () => { if (demo) { if (otp !== "123456") throw new Error("Use 123456 no teste."); } else await verifyVortexOtp(otpEmail, otp); if (active) await recover(); else await prepareQuote(); })} />}
     {step === "kyc" && <KycStep quote={quote} email={otpEmail} initialName={name} onApproved={() => run(prepareQuote)} />}
     {step === "review" && quote && <div className="flow-step"><h3>Revise sua venda</h3><div className="quote-breakdown"><div><span>Ouro a vender</span><b>{gramsLabel(quote.grams)} g</b></div><div><span>Conversão e serviço</span><b>{brl(quote.serviceFee)}</b></div><div><span>Taxas na cotação</span><b>{brl(quote.networkFee)}</b></div><div className="quote-total"><span>Você recebe no PIX</span><b>{brl(quote.outputAmount)}</b></div><small>Taxas acima já descontadas do valor em reais.</small></div><p className="pix-recipient">Chave PIX: <strong>{pix}</strong></p><div className={hasGas === false ? "warning-card" : "info-card"}><WarningCircle size={22} /><span><b>Taxa da sua carteira Ethereum</b>As confirmações de rede são pagas em ETH e exibidas na carteira antes da aprovação. Essa taxa é adicional ao valor da cotação.{hasGas === false && " Sua carteira ainda não tem ETH. Adicione ETH na rede Ethereum ao endereço abaixo para continuar."}</span></div>{hasGas === false && <WalletAddress address={walletAddress} copied={copied} setCopied={setCopied} />}<label className="confirm-check"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Conferi minha chave PIX, o valor a receber e as taxas de rede.</span></label><button className="button button--dark button--full" disabled={!accepted || busy || hasGas === false} onClick={execute}>{busy ? "Preparando a venda…" : "Confirmar venda"}</button><button className="link-button centered" disabled={busy} onClick={() => run(prepareQuote)}>Atualizar cotação e saldo de ETH</button></div>}

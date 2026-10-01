@@ -2,6 +2,8 @@
 
 This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk` in Node.js or a modern browser.
 
+Ramping for your own account, for example from a trading bot? You need one onboarded profile and one API key, and no managed profiles. The step-by-step sequence is in section B.1 of [AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration).
+
 ## Install
 
 ```bash
@@ -11,6 +13,8 @@ bun add @vortexfi/sdk
 ```
 
 ## Initialize In Node.js
+
+Create the credential in the Vortex dashboard: sign in with your email, open **API keys**, and click **Create credential**. Existing customers sign in with the email of their onboarded profile. The secret key is shown once. The full steps are in [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
 ```js
 import {
@@ -160,10 +164,11 @@ const { rampProcess } = await sdk.registerRamp(quote, {
   // fiatAccountId is optional for onramp
 });
 
-const started = await sdk.startRamp(rampProcess.id);
-
 // Show the user how to pay via SPEI
-console.log(started.achPaymentData);
+console.log(rampProcess.achPaymentData);
+
+// After the user initiates the SPEI transfer, start the ramp.
+const started = await sdk.startRamp(rampProcess.id);
 ```
 
 No user-signed on-chain transactions are required for the bank-transfer onramp shown here. The SDK signs its ephemeral transactions during `registerRamp`.
@@ -172,7 +177,7 @@ Quotes can be requested without any key (anonymous rate discovery). Registering 
 
 The SDK cannot mint credentials or run KYC. Onboard the real user through the Vortex app or Widget, or use Vortex's managed-profile workflow, then use a credential bound to that profile. The secret is shown only once at creation; see [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys). This applies to buys and sells in all four bank-transfer corridors.
 
-EUR/SEPA BUY works through the SDK once the user is onboarded with Monerium and has linked the paying wallet (dashboard or widget): pass that wallet as `walletAddress`, then sign the returned owner permit with `submitUserTransactions` before the SEPA instructions are released. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). EUR SELL is unavailable.
+EUR/SEPA BUY is available in sandbox, with production activation pending. SDK support ships with the next `@vortexfi/sdk` release; 0.9.0 does not support EUR. With that release, once the user is onboarded with the EUR provider and has linked the paying wallet (Dashboard or Widget), pass that wallet as `walletAddress`, then sign the returned owner permit with `submitUserTransactions` before the SEPA instructions are released. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). EUR SELL is unavailable.
 
 ### Offramp (Sell)
 
