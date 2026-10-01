@@ -8,9 +8,9 @@ import {
 import { getBaseEvmClients, getConfig } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import type { RebalancePolicySummary } from "../usdc-brla-usdc-base/notifications.ts";
-import { checkInitialUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
+import { checkInitialUsdcBalanceOnBase, verifyFinalUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
 import { formatBrlaToUsdcBaseCompletionMessage } from "./notifications.ts";
-import { mainNablaSwapUsdcToBrlaOnBase, nablaSwapBrlaToUsdcOnBase, verifyFinalUsdcBalanceOnBase } from "./steps.ts";
+import { mainNablaSwapUsdcToBrlaOnBase, nablaSwapBrlaToUsdcOnBase } from "./steps.ts";
 
 export async function rebalanceBrlaToUsdcBase(usdcAmountRaw: string, forceRestart = false, policy?: RebalancePolicySummary) {
   console.log(`Starting USDC→BRLA→USDC rebalance on Base with amount: ${usdcAmountRaw} (raw USDC)`);

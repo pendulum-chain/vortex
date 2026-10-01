@@ -9,64 +9,32 @@ import {
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { erc20Abi } from "viem";
 import { base } from "viem/chains";
 import { BrlaToUsdcBaseRebalanceState, BrlaToUsdcBaseStateManager } from "../../services/stateManager.ts";
-import { getBaseEvmClients, getConfig } from "../../utils/config.ts";
+import { getBaseEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
-
-export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+import {
+  getBrlaBalanceOnBaseRaw,
+  getMainNablaConfig,
+  getUsdcBalanceOnBaseRaw,
+  NABLA_QUOTE_ABI,
+  USDC_BASE
+} from "../usdc-brla-usdc-base/steps.ts";
 
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
-const NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
 // BRLA→USDC swap uses the BRLA Nabla pool (not the main pool)
 const BRLA_NABLA_ROUTER = NABLA_ROUTER_BASE_BRLA;
 const BRLA_NABLA_QUOTER = NABLA_QUOTER_BASE_BRLA;
-
-export async function getUsdcBalanceOnBaseRaw(): Promise<string> {
-  const { publicClient, walletClient } = getBaseEvmClients();
-  const balance = await publicClient.readContract({
-    abi: erc20Abi,
-    address: USDC_BASE,
-    args: [walletClient.account.address],
-    functionName: "balanceOf"
-  });
-  return balance.toString();
-}
-
-export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
-  const { publicClient, walletClient } = getBaseEvmClients();
-  const balance = await publicClient.readContract({
-    abi: erc20Abi,
-    address: ERC20_BRLA_BASE,
-    args: [walletClient.account.address],
-    functionName: "balanceOf"
-  });
-  return balance.toString();
-}
 
 export async function quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw: string): Promise<string> {
   const { router, quoter } = getMainNablaConfig();
   const evmClientManager = EvmClientManager.getInstance();
 
   const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: MAIN_NABLA_QUOTE_ABI,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -221,40 +189,7 @@ export async function nablaSwapBrlaToUsdcOnBase(
   return usdcReceivedRaw;
 }
 
-export async function verifyFinalUsdcBalanceOnBase(): Promise<Big> {
-  const { walletClient } = getBaseEvmClients();
-  const balanceRaw = await getUsdcBalanceOnBaseRaw();
-  const balanceDecimal = multiplyByPowerOfTen(Big(balanceRaw), -6);
-  console.log(`Final USDC balance on Base (${walletClient.account.address}): ${balanceDecimal.toFixed(6)} USDC`);
-  return balanceDecimal;
-}
-
 // ── Main Nabla: USDC → BRLA swap (closes the rebalancing loop) ──────────────
-
-const MAIN_NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
-function getMainNablaConfig() {
-  const config = getConfig();
-  if (!config.mainNablaRouter || !config.mainNablaQuoter) {
-    throw new Error("Main Nabla route requires MAIN_NABLA_ROUTER and MAIN_NABLA_QUOTER env vars.");
-  }
-  return {
-    quoter: config.mainNablaQuoter,
-    router: config.mainNablaRouter
-  };
-}
 
 export async function mainNablaSwapUsdcToBrlaOnBase(
   usdcAmountRaw: string,

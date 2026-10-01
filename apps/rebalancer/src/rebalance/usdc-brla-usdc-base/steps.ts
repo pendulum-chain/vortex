@@ -33,6 +33,21 @@ const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 const STALE_PERSISTED_TX_MINUTES = 15;
 
+// quoteSwapExactTokensForTokens on a Nabla quoter; shared by every Nabla quote on Base.
+export const NABLA_QUOTE_ABI = [
+  {
+    inputs: [
+      { name: "_amountIn", type: "uint256" },
+      { name: "_tokenPath", type: "address[]" },
+      { name: "_routerPath", type: "address[]" }
+    ],
+    name: "quoteSwapExactTokensForTokens",
+    outputs: [{ name: "amountOut_", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
 interface TransactionReceiptStatusReader {
   getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ status: "success" | "reverted" }>;
 }
@@ -223,23 +238,9 @@ export async function nablaApproveAndSwapOnBase(
 
   if (!swapHash) {
     const evmClientManager = EvmClientManager.getInstance();
-    const quoteAbi = [
-      {
-        inputs: [
-          { name: "_amountIn", type: "uint256" },
-          { name: "_tokenPath", type: "address[]" },
-          { name: "_routerPath", type: "address[]" }
-        ],
-        name: "quoteSwapExactTokensForTokens",
-        outputs: [{ name: "amountOut_", type: "uint256" }],
-        stateMutability: "view",
-        type: "function"
-      }
-    ] as const;
-
     const { quoter } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
     const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: quoteAbi,
+      abi: NABLA_QUOTE_ABI,
       address: quoter,
       args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
       functionName: "quoteSwapExactTokensForTokens"
@@ -907,21 +908,7 @@ export async function verifyFinalUsdcBalanceOnBase(): Promise<Big> {
 
 // ── Main Nabla route (BRL → USDC on a second Nabla instance on Base) ─────────
 
-const MAIN_NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
-function getMainNablaConfig() {
+export function getMainNablaConfig() {
   const config = getConfig();
   if (!config.mainNablaRouter || !config.mainNablaQuoter) {
     throw new Error("Main Nabla route requires MAIN_NABLA_ROUTER and MAIN_NABLA_QUOTER env vars.");
@@ -943,7 +930,7 @@ export async function fetchMainNablaQuote(brlaAmountRaw: string): Promise<string
   const evmClientManager = EvmClientManager.getInstance();
 
   const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: MAIN_NABLA_QUOTE_ABI,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -969,23 +956,9 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
   console.log("Quoting first Nabla (USDC→BRLA) to estimate BRLA output for route comparison...");
 
   const evmClientManager = EvmClientManager.getInstance();
-  const quoteAbi = [
-    {
-      inputs: [
-        { name: "_amountIn", type: "uint256" },
-        { name: "_tokenPath", type: "address[]" },
-        { name: "_routerPath", type: "address[]" }
-      ],
-      name: "quoteSwapExactTokensForTokens",
-      outputs: [{ name: "amountOut_", type: "uint256" }],
-      stateMutability: "view",
-      type: "function"
-    }
-  ] as const;
-
   const { router, quoter } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
   const estimatedBrlaRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: quoteAbi,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -1116,7 +1089,7 @@ export async function mainNablaApproveAndSwap(
     const evmClientManager = EvmClientManager.getInstance();
     const { quoter } = getMainNablaConfig();
     const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: MAIN_NABLA_QUOTE_ABI,
+      abi: NABLA_QUOTE_ABI,
       address: quoter,
       args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
       functionName: "quoteSwapExactTokensForTokens"
