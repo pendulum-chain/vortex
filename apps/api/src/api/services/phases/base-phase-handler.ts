@@ -1,4 +1,3 @@
-import { ReadMessageResult } from "@pendulum-chain/api-solang";
 import { PresignedTx, RampErrorLog, RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
@@ -164,17 +163,6 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    */
   protected getPresignedTransaction(state: RampState, phase: RampPhase): PresignedTx {
     return state.presignedTxs?.find(tx => tx.phase === phase) as PresignedTx;
-  }
-
-  protected parseContractMessageResultError(result: ReadMessageResult) {
-    if (result.type === "error") {
-      return result.error;
-    } else if (result.type === "panic") {
-      return `${result.errorCode}: ${result.explanation}`;
-    } else if (result.type === "reverted") {
-      return `${result.description}`;
-    }
-    return "Could not extract error message for ReadMessageResult.";
   }
 
   /**

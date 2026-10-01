@@ -9,14 +9,8 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction, recoverTransactionAddress, type TransactionSerialized } from "viem";
-import { base, polygon } from "viem/chains";
 import logger from "../../../../../config/logger";
-import {
-  BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
-  GLMR_FUNDING_AMOUNT_RAW,
-  PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
-} from "../../../../../constants/constants";
+import { PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../../constants/constants";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 
@@ -42,32 +36,6 @@ export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string
   const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
 
   return Big(balance.free.toString()).gte(fundingAmountRaw);
-}
-
-export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonbeamNode: API): Promise<boolean> {
-  // @ts-ignore
-  const { data: balance } = await moonbeamNode.api.query.system.account(moonbeamEphemeralAddress);
-  return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
-}
-
-export async function isBaseEphemeralFunded(baseEphemeralAddress: string): Promise<boolean> {
-  const baseClient = EvmClientManager.getInstance().getClient(Networks.Base);
-  const balance = await baseClient.getBalance({ address: baseEphemeralAddress as `0x${string}` });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(BASE_EPHEMERAL_STARTING_BALANCE_UNITS, base.nativeCurrency.decimals).toFixed()
-  );
-
-  return Big(balance.toString()).gte(fundingAmountRaw);
-}
-
-export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string): Promise<boolean> {
-  const polygonClient = EvmClientManager.getInstance().getClient(Networks.Polygon);
-  const balance = await polygonClient.getBalance({ address: polygonEphemeralAddress as `0x${string}` });
-  const fundingAmountRaw = new Big(
-    multiplyByPowerOfTen(POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS, polygon.nativeCurrency.decimals).toFixed()
-  );
-
-  return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
 export function calculateDestinationFundingShortfallRaw(requiredFundingRaw: bigint, currentBalanceRaw: bigint): bigint {
