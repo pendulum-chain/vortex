@@ -99,10 +99,6 @@ export function getConfig() {
 
     evmAccountSecret: process.env.EVM_ACCOUNT_SECRET,
 
-    indexerFreshnessThresholdMinutes: process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES
-      ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
-      : 5,
-
     // Main Nabla instance on Base
     mainNablaQuoter: process.env.MAIN_NABLA_QUOTER as `0x${string}` | undefined,
     mainNablaRouter: process.env.MAIN_NABLA_ROUTER as `0x${string}` | undefined,
