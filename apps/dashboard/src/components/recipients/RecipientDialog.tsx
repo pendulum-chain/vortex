@@ -24,7 +24,7 @@ import { dashboardInviteUrl, inviteUrl } from "@/domain/recipient";
 import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/types";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
-import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
+import { notifyInviteCopied } from "@/lib/notify";
 import { CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
@@ -106,7 +106,6 @@ export function RecipientDialog({
     },
     onSuccess: (invite, values) => {
       const selected = CORRIDORS[values.corridorId];
-      notifyInviteLinkReady(selected.name);
       // Show the new invite as a pending recipient the moment it's created.
       queryClient.invalidateQueries({ queryKey: RECIPIENTS_QUERY_KEY });
       const url = invite.seededDiscounts?.length

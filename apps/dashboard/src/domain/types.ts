@@ -131,13 +131,3 @@ export interface Recipient {
   fiatAccountId?: string;
   createdAt: string;
 }
-
-export interface AppNotification {
-  id: string;
-  title: string;
-  body: string;
-  /** The address the notification relates to. */
-  email: string;
-  createdAt: string;
-  read: boolean;
-}
