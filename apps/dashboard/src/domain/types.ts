@@ -20,8 +20,8 @@ export type CorridorId = z.infer<typeof corridorIdSchema>;
 
 export type OnboardingKind = "kyb" | "kyc";
 
-/** How a corridor's onboarding is collected: in-dashboard wizard, external form, or partner redirect. */
-export type OnboardingRoute = "headless" | "google_form" | "redirect";
+/** How a corridor's onboarding is collected: in-dashboard wizard or partner redirect. */
+export type OnboardingRoute = "headless" | "redirect";
 
 export type AccountType = "company" | "individual";
 
@@ -31,16 +31,12 @@ export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
 
 export type KycProvider = "alfredpay" | "avenia" | "monerium" | "mykobo";
 
-/** Brazil & Europe are live; Alfredpay corridors are selectable but not yet verifiable. */
-export type CorridorAvailability = "live" | "coming_soon";
-
 export interface Corridor {
   id: CorridorId;
   name: string;
   flag: string;
   currency: string;
   provider: KycProvider;
-  availability: CorridorAvailability;
   recipientMethod: RecipientMethod;
   recipientLabel: string;
 }
