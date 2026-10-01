@@ -51,6 +51,8 @@ conditions are recorded:
 
 ## Production Parity Gate
 
+The gate script was retired after the production cleanup (it reads deleted tables and cannot
+run against the post-061 schema); restore it from git history to rehearse the gate elsewhere.
 Run the read-only gate with a database-owner or `BYPASSRLS` connection:
 
 ```bash
@@ -130,6 +132,5 @@ the release unsafe, stop the application, restore the validated pre-migration ba
 an application version compatible with that restored schema. Preserve the failed migration and
 smoke-test evidence for remediation.
 
-After production cleanup is verified, retire or replace
-`apps/api/scripts/schema-parity-checks.sql`; it intentionally reads deleted tables and cannot
-run against the post-061 schema.
+Production cleanup is verified: `apps/api/scripts/schema-parity-checks.sql` was retired because it
+intentionally reads deleted tables and cannot run against the post-061 schema. Git history keeps it.
