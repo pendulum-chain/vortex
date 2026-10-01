@@ -23,35 +23,6 @@ export const durations = {
 };
 
 /**
- * Transform-based expand/collapse animation (GPU-accelerated, no layout thrashing)
- * Use with overflow-hidden and transform-origin: top
- */
-export const expandVariants: Variants = {
-  collapsed: {
-    opacity: 0,
-    scaleY: 0
-  },
-  expanded: {
-    opacity: 1,
-    scaleY: 1
-  }
-};
-
-/**
- * Slide-based expand/collapse (alternative to height animation)
- */
-export const slideExpandVariants: Variants = {
-  collapsed: {
-    opacity: 0,
-    y: -10
-  },
-  expanded: {
-    opacity: 1,
-    y: 0
-  }
-};
-
-/**
  * Animation variants for word-by-word title animations
  * with 3D transform effects
  */
@@ -100,35 +71,9 @@ export const staggerContainer: Variants = {
 };
 
 /**
- * Feature card animations with alternating directions
- */
-export const featureCardVariants = {
-  hidden: (index: number) => ({
-    rotateZ: index % 2 === 0 ? -15 : 15,
-    scale: 0.9,
-    x: index % 2 === 0 ? -40 : 40,
-    y: 20
-  }),
-  visible: {
-    rotateZ: 0,
-    scale: 1,
-    transition: { duration: 0.4 },
-    x: 0,
-    y: 0
-  }
-};
-
-/**
  * Utility to check if user prefers reduced motion
  */
 export const prefersReducedMotion = (): boolean => {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-};
-
-/**
- * Get transition with reduced motion support
- */
-export const getTransition = (transition: object) => {
-  return prefersReducedMotion() ? { duration: 0 } : transition;
 };
