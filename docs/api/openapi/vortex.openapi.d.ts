@@ -4945,6 +4945,15 @@ export interface operations {
                     "application/json": components["schemas"]["DomesticErrorResponse"];
                 };
             };
+            /** @description Business verification is paused for this country (Colombia and Mexico). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomesticErrorResponse"];
+                };
+            };
         };
     };
     createDomesticIndividualCustomer: {

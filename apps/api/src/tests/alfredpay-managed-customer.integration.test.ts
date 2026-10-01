@@ -120,14 +120,14 @@ describe("managed Alfredpay customer creation", () => {
   });
 
   it("allows manager secret delegation for business creation", async () => {
-    const manager = await createManager(["CO"]);
+    const manager = await createManager(["US"]);
     const child = await createChild(manager.id, "business", "business@example.com");
     const credential = await createTestApiKey({ userId: manager.id });
     const createCustomer = mock(async () => ({ customerId: "alfred-business", createdAt: new Date().toISOString() }));
     provider(createCustomer);
 
     const response = await fetch(`${baseUrl}/createBusinessCustomer`, {
-      body: JSON.stringify({ country: "CO" }),
+      body: JSON.stringify({ country: "US" }),
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": credential.plaintextKey,
@@ -137,7 +137,7 @@ describe("managed Alfredpay customer creation", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(createCustomer).toHaveBeenCalledWith("business@example.com", DomesticCustomerType.BUSINESS, "CO");
+    expect(createCustomer).toHaveBeenCalledWith("business@example.com", DomesticCustomerType.BUSINESS, "US");
   });
 
   it("rejects the wrong child type and disallowed corridor before provider access", async () => {

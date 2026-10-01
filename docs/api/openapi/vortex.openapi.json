@@ -6193,6 +6193,16 @@
               }
             },
             "description": "The provider returned an invalid existing-customer response."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomesticErrorResponse"
+                }
+              }
+            },
+            "description": "Business verification is paused for this country (Colombia and Mexico)."
           }
         },
         "security": [

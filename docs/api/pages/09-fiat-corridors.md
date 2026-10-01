@@ -25,8 +25,8 @@ Pin the `requirementsVersion` you integrated against and re-check discovery when
 |---|---|---|
 | `BR` | `hybrid` (API + hosted liveness) | `api` (KYB Level 1) |
 | `AR` | `api` | not supported |
-| `CO` | `api` | `api` |
-| `MX` | `api` | `api` |
+| `CO` | `api` | paused |
+| `MX` | `api` | paused |
 | `US` | `hosted` | `hosted` |
 
 EUR onboarding is not part of discovery. The active EUR ramp accepts only users whose approved provider profile, Polygon EOA, and IBAN were provisioned out of band and bound to their Vortex legal entity. Automated onboarding, wallet linking, IBAN provisioning, and external-user import are not part of the current integration. Provider state is always authoritative: no discovery step, client notification, or completion event can mark a verification approved.
@@ -160,10 +160,10 @@ Identity numbers are checked before a submission is created: a Mexican `dni` mus
 Onboarding can be completed three ways:
 
 - **Vortex app or hosted Widget** — always available. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
-- **API-driven** (`mode: "api"` in discovery) — Argentina individuals, and Colombia and Mexico individuals and businesses. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. Discovery publishes these steps under `/v1/domestic/*`, which takes the country from each step's `fixedBody` discriminator. The `/v1/ar`, `/v1/co`, and `/v1/mx` prefixes are equivalent and pin the country through the URL instead, overriding any country supplied in the query or body. The legacy `/v1/alfredpay/*` prefix remains supported as a migration alias. Request shapes come from the referenced OpenAPI schemas, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls.
+- **API-driven** (`mode: "api"` in discovery) — Argentina, Colombia and Mexico individuals. The discovered steps create the provider customer, create the KYC/KYB submission, upload each required document (businesses also upload identity documents for each related person), and finalize the submission. Discovery publishes these steps under `/v1/domestic/*`, which takes the country from each step's `fixedBody` discriminator. The `/v1/ar`, `/v1/co`, and `/v1/mx` prefixes are equivalent and pin the country through the URL instead, overriding any country supplied in the query or body. The legacy `/v1/alfredpay/*` prefix remains supported as a migration alias. Request shapes come from the referenced OpenAPI schemas, and `derivedValues` carry the `submissionId` from the create-submission response into the upload and finalize calls.
 - **Provider-hosted** (`mode: "hosted"` in discovery) — United States, both customer types. After creating the provider customer, open the provider-hosted verification URL, then report `kycRedirectOpened` and, when the user says they finished, `kycRedirectFinished`. Both notifications are bookkeeping only — they never approve a verification; the provider's decision is authoritative.
 
-Argentina business onboarding is not supported. After finalizing any flow, track the outcome through `GET /v1/onboarding/status`; provider review is asynchronous and there is no synchronous approval response.
+Argentina business onboarding is not supported. Colombia and Mexico business onboarding is paused while the provider's business verification requirements change: discovery returns `404` for these combinations and `createBusinessCustomer` answers `503`. After finalizing any flow, track the outcome through `GET /v1/onboarding/status`; provider review is asynchronous and there is no synchronous approval response.
 
 Ramp registration resolves KYC and payment identity from the effective profile, not from payment or identity fields in the request. Authenticate as the user through a user-scoped key or Supabase Bearer session. Alternatively, an enabled managed-profile manager may use its secret key or session with `X-Managed-Profile-Id`; Vortex verifies the direct child relationship, corridor, immutable customer type, optional manager narrowing, and canonical corridor/type support before resolving the child's KYC/provider records. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
 

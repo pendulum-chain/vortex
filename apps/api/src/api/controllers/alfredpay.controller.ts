@@ -1,4 +1,5 @@
 import {
+  ALFREDPAY_BUSINESS_KYB_PAUSED_MESSAGE,
   AlfredPayStatus,
   AlfredpayApiError,
   AlfredpayApiService,
@@ -19,6 +20,7 @@ import {
   DomesticGetKycStatusResponse,
   DomesticStatusRequest,
   DomesticStatusResponse,
+  isAlfredpayBusinessKybPaused,
   SubmitKybInformationRequest,
   SubmitKycInformationRequest
 } from "@vortexfi/shared";
@@ -672,6 +674,10 @@ export class AlfredpayController {
 
       if (existingDbCustomer) {
         return res.status(400).json({ error: "Business customer already exists" });
+      }
+
+      if (isAlfredpayBusinessKybPaused(country)) {
+        return res.status(httpStatus.SERVICE_UNAVAILABLE).json({ error: ALFREDPAY_BUSINESS_KYB_PAUSED_MESSAGE });
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
