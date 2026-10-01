@@ -39,12 +39,6 @@ class NotificationDispatchWorker {
     this.reconcileJob.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping notification dispatch worker");
-    this.dispatchJob.stop();
-    this.reconcileJob.stop();
-  }
-
   // eslint-disable-next-line class-methods-use-this
   private async dispatch(): Promise<void> {
     try {

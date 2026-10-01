@@ -46,11 +46,6 @@ class AlfredpayStatusWorker {
     this.job.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping Alfredpay status worker");
-    this.job.stop();
-  }
-
   private async poll(): Promise<void> {
     try {
       const pending = await ProviderCustomer.findAll({

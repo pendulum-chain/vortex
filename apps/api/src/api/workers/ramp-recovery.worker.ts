@@ -39,14 +39,6 @@ class RampRecoveryWorker {
   }
 
   /**
-   * Stop the worker
-   */
-  public stop(): void {
-    logger.info("Stopping ramp recovery worker");
-    this.job.stop();
-  }
-
-  /**
    * Recover failed ramp states
    */
   // eslint-disable-next-line class-methods-use-this
