@@ -459,86 +459,60 @@ Monerium does not report a separate compliance-review state, so a payment under 
 shows as pending. The `held` status in the API is therefore never set and will be
 removed **[V11]**.
 
-### 9.2 What SulPayments receives today
+### 9.2 What SulPayments receives
 
 | Event | When | Key content |
 |---|---|---|
-| `DEPOSIT_RECEIVED` | EURe minted to the client's forwarder | Deposit ID, account, amount, mint transaction |
-| `DEPOSIT_CONVERTED` | The USDC transfer is 32 blocks deep | Per chunk: reference rate, fee, subsidy. The forward transaction hash |
-| `DEPOSIT_RETURNED` | The refund was processed by Monerium | Refunded amount, masked payer IBAN, Monerium redemption ID, recovery transaction |
+| `DEPOSIT_UPDATED` | Any change of a deposit | The full deposit snapshot: IDs, amounts, timestamps, waiting and refund reasons, every conversion chunk |
+| `ACCOUNT_UPDATED` | Any change of an account, including the IBAN being issued | The account snapshot: IBAN, status, IDs, destination, fee policy |
+| `DEPOSIT_RECEIVED` | EURe minted to the client's forwarder | Milestone: deposit ID, account, amount, mint transaction |
+| `DEPOSIT_CONVERTED` | The USDC transfer is 32 blocks deep | Milestone: per chunk reference rate, fee and subsidy, and the forward transaction |
+| `DEPOSIT_RETURNED` | The refund was processed by Monerium | Milestone: refunded amount, masked payer IBAN, redemption ID, recovery transaction |
 
 | API call | Returns |
 |---|---|
-| Account, per client | IBAN, account status, destination, forwarder address, fee policy |
-| Deposits, per client | Every deposit with status, amount and mint transaction, each conversion chunk with its pricing and transaction, the forward transaction, and the refund once started |
+| Accounts, all clients of the manager | Each client's account with IBAN and status, filterable by Monerium profile ID |
+| Account, per client | IBAN, status, IDs, destination, forwarder address, fee policy |
+| Deposits, per client | Every deposit as its full snapshot, the same shape as `DEPOSIT_UPDATED` |
 
-- SulPayments calls both with its manager API key plus a header naming the client's
-  Vortex profile ID, or with a key issued to the client itself.
+- The accounts call uses SulPayments' manager API key alone. The per-client calls add a
+  header naming the client's Vortex profile ID, or use a key issued to the client.
 - Webhooks are signed. SulPayments verifies each one against Vortex's published public
   key and deduplicates on the event ID.
-- **Fallback:** the deposits call returns the current status of every deposit, for
+- **Fallback:** the deposits call returns the current snapshot of every deposit, for
   polling if a webhook is missed.
-- **Reference IDs** in every event today: the deposit ID, the account ID, the client's
-  Vortex profile ID, the relevant transaction hash and, on a refund, Monerium's
-  redemption ID. Vortex stores Monerium's order ID and SulPayments' client reference per
-  deposit but does not send them yet **[V4]**.
-- Amounts are in base units: 18 decimals for EUR and EURe, 6 for USDC.
+- **Reference IDs** in every snapshot: deposit, account, Vortex profile, Monerium
+  profile, Monerium order, SulPayments' client reference, and every transaction hash.
+- Amounts come as a EUR decimal and in base units: 18 decimals for EUR and EURe, 6 for
+  USDC.
 
 ### 9.3 What SulPayments asked for
 
-SulPayments' requirements of 2026-09-30:
+SulPayments' requirements of 2026-09-30, built on 2026-10-01:
 
 - The API and webhooks expose the **full lifecycle**, from deposit through conversion to
   delivery, including IDs, amounts, timestamps, and hold or failure status.
 - **API-first:** SulPayments' frontend fetches each sub-account's IBAN from the Vortex
   backend.
 
-Gaps against what is built:
+How each stage is reported:
 
-| Stage | Webhook today | API today | Gap |
-|---|---|---|---|
-| Payment arrived at Monerium, not minted yet | None | Status pending | No event. Monerium cannot say whether it is minting or under review |
-| Rejected by Monerium before minting | None | Status returned | No event, no reason |
-| EURe minted to the forwarder | `DEPOSIT_RECEIVED` | Status minted | No mint timestamp, Monerium order ID, payer or payment reference |
-| Conversion chunk executed | None | Chunk with pricing and transaction | No event, no timestamp per chunk |
-| Conversion waiting on the market | None | None | No waiting status or reason |
-| Delivered as one USDC transfer | `DEPOSIT_CONVERTED` | Status forwarded | No delivery timestamp |
-| Refund started | None | Status recovering | No event, no reason |
-| Refunded | `DEPOSIT_RETURNED` | Status refunded | No reason, no timestamp |
-| Refund needs an operator | None | Status recovery failed | No event |
-| Account active with its IBAN | None | Account call | No event. Lookup only by Vortex profile ID, no list of all sub-accounts |
+| Stage | Status | Reported through |
+|---|---|---|
+| Payment arrived at Monerium, not minted yet | pending | `DEPOSIT_UPDATED` with waiting reason `monerium_pending`. Monerium does not tell minting apart from a compliance review |
+| Returned by Monerium before minting | returned | `DEPOSIT_UPDATED` with Monerium's rejection reason |
+| EURe minted to the forwarder | minted | `DEPOSIT_UPDATED` with the mint time and transaction, plus `DEPOSIT_RECEIVED` |
+| Conversion chunk sent and confirmed | converting | `DEPOSIT_UPDATED` with each chunk's pricing, transaction, and sent and confirmed times |
+| Conversion waiting on the market | minted or converting | `DEPOSIT_UPDATED` with waiting reason and start time: `below_floor`, `reference_unavailable`, `reference_out_of_band`, `oracle_unavailable` or `no_route` |
+| Delivered as one USDC transfer | forwarded | `DEPOSIT_UPDATED` with delivery time and transaction once 32 blocks deep, plus `DEPOSIT_CONVERTED` |
+| Refund started | recovering | `DEPOSIT_UPDATED` with refund reason and start time: `window_missed`, `compliance`, `incident` or `operator` |
+| Refunded | refunded | `DEPOSIT_UPDATED` with refund time, plus `DEPOSIT_RETURNED` |
+| Refund needs an operator | recovery failed | `DEPOSIT_UPDATED` |
+| Account set up, IBAN issued, status changed | | `ACCOUNT_UPDATED`, and the accounts call |
 
-**Proposed** to close the gaps **[V4, V12]**:
-
-- **One snapshot event.** Every deposit status change and every confirmed chunk sends a
-  `DEPOSIT_UPDATED` event carrying the full deposit, in the same shape as the deposits
-  call. SulPayments upserts one object and cannot miss a stage. The three milestone
-  events can stay or be dropped, since nothing is live yet.
-- **IDs:** deposit, account, Vortex profile, Monerium profile, Monerium order,
-  SulPayments' client reference, each conversion, and every transaction hash: mint,
-  swap, forward, recovery, and the refund's redemption order.
-- **Amounts:** the EUR amount as a decimal and in base units; per chunk the EURe in, USDC
-  gross, fee, subsidy, net and reference rate; the USDC delivered; the refund amount.
-- **Timestamps:** received at Monerium, minted, each chunk executed, delivered, refund
-  started, refunded.
-- **Hold status.** A waiting block with a start time and a reason while a payment waits:
-  pending at Monerium, market below the floor beyond the subsidy, spread too wide,
-  reference out of band, or Coinbase unavailable. Monerium does not tell review apart
-  from minting, so "pending at Monerium" is the only hold Vortex can report before the
-  mint.
-- **Failure status.** A reason code on every refund: window missed, below minimum,
-  compliance or incident. Monerium's own reason when it rejects a payment. An event when
-  a refund needs an operator.
-- **Account event.** `ACCOUNT_UPDATED` when the IBAN is issued and when the account
-  becomes active, suspended or closed.
-- **IBAN through the API.** The account call stays the source of the IBAN. The
-  destination endpoint returns the Vortex profile ID, or the account call accepts the
-  Monerium profile ID, and a list call returns all sub-accounts with IBAN and status.
-  SulPayments could also read the IBAN from Monerium with its app credentials, but only
-  Vortex knows when the account is ready.
-- **Docs fix.** Some partner-facing field descriptions still describe the older design:
-  the subsidy now goes to the forwarder, not the destination, and each conversion
-  belongs to exactly one deposit.
+Not included yet: the incoming payment's SEPA reference and the payer's name, and a
+separate refund reason for a remainder below the minimum swap, which is reported as
+`window_missed`. Add them when SulPayments needs them.
 
 ### 9.4 Exceptions and escalation
 
@@ -646,7 +620,7 @@ Gaps against what is built:
 | S4 | How does SulPayments get each client's IBAN? | API and dashboard scope | Answered 2026-09-30 | API-first: SulPayments' frontend fetches the IBAN from the Vortex API, section 9.3. |
 | S5 | Do clients always pay from their own business bank accounts, or also from third parties? | Refund target. Monerium allows third-party payers | Open | |
 | S6 | Are destinations self-custody wallets or exchange deposit addresses? | Exchange addresses need an attestation that they do not rotate and accept contract transfers | Open | |
-| S7 | Does the proposed event model in section 9.3 cover the lifecycle requirement? Webhook endpoint and support contacts. | Status reporting | Requirement received 2026-09-30, proposal to confirm | SulPayments wants the full lifecycle with IDs, amounts, timestamps, and hold and failure status. |
+| S7 | Does the event model in section 9.3 cover the lifecycle requirement? Webhook endpoint and support contacts. | Status reporting | Built 2026-10-01, to confirm with SulPayments | SulPayments wants the full lifecycle with IDs, amounts, timestamps, and hold and failure status. |
 | S8 | Is a two-hour window before a full refund right? Will clients authorize Vortex to refund from their IBAN? A Monerium review can delay a refund within business hours. | Refund terms in the agreement | Open | |
 | S9 | The agreement names a "Coinbase EURC oracle". The implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint. Is that what was meant? | Pricing terms | Open | |
 | S10 | Who bears Monerium's €10 per corporate account? | Commercial | Open | |
@@ -658,7 +632,7 @@ Gaps against what is built:
 | V1 | Start onboarding once the profile is approved and the destination is registered, whichever comes last. | V6, V8 | Open |
 | V2 | Refunds through per-client refund addresses: one refund key per client derived from one seed, linked at onboarding, one extra transfer per refund. No contract change. | M1 | Agreed for the pilot, not built |
 | V3 | Dashboard view for SulPayments with clients, IBANs, deposits and refunds. Optional, since SulPayments integrates API-first. | S4 | Deprioritized |
-| V4 | Full lifecycle deposit events, section 9.3: snapshot event on every change, IDs, amounts, timestamps, hold and failure reasons, an account event, and the docs fix. | S7 | Proposed |
+| V4 | Full lifecycle deposit events, section 9.3: snapshot event on every change, IDs, amounts, timestamps, hold and failure reasons, an account event, and the docs fix. | S7 | Built 2026-10-01 |
 | V5 | Named owners per alert, and the escalation path between Vortex, SulPayments and Monerium, including the joint Slack channel with Monerium. | Meeting | Open |
 | V6 | Endpoint for SulPayments to register a destination by Monerium profile ID: checks the profile exists, create-only, validated, no KYB data. | S3 | Proposed |
 | V7 | Read the IBAN and the payer's IBAN back from Monerium's API instead of trusting webhook payloads, and check in the sandbox whether listing subscriptions exposes their secrets. | None | Open |
@@ -667,7 +641,7 @@ Gaps against what is built:
 | V10 | Attach the standing agreement to refunds above €15,000 so they can run automatically. | V2 | Open |
 | V11 | Remove the unused `held` status. | None | Open |
 | V13 | Later: a fixed refund IBAN per client, given at onboarding, replacing the per-client refund addresses. | V2 | Later |
-| V12 | Partner account API: return the Vortex profile ID from the destination endpoint or accept the Monerium profile ID, and list all sub-accounts with IBAN and status. | S4, V6 | Proposed |
+| V12 | Partner account API: list all sub-accounts with IBAN and status, filterable by Monerium profile ID. | S4 | Built 2026-10-01 |
 
 ## 13. Related documents
 

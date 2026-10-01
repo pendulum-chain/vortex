@@ -95,7 +95,7 @@ flowchart LR
     FWD -- "stuck payment" --> RECOV
     ONB -- "link address + request IBAN" --> MAPI
     MONI -- "association / config reads" --> MAPI
-    OUTBOX -- "DEPOSIT_RECEIVED / CONVERTED / RETURNED" --> PAPI
+    OUTBOX -- "DEPOSIT_UPDATED / ACCOUNT_UPDATED\nand RECEIVED / CONVERTED / RETURNED" --> PAPI
     PAPI -- "poll (delegation)" --> READ
 ```
 
