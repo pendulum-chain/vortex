@@ -66,11 +66,16 @@ const kybBusinessFiles = {
   taxIdDocument: {} as File
 } as KybBusinessFiles;
 
+// MX/CO business verification is paused in production; the KYB tests lift the pause to keep the
+// form flow covered for its rework.
+const kybFlowEnabled = { isBusinessKybPaused: () => false };
+
 function createTestActor(
   actors: Parameters<typeof alfredpayKycMachine.provide>[0]["actors"],
-  input: AlfredpayKycContext = baseInput
+  input: AlfredpayKycContext = baseInput,
+  guards?: typeof kybFlowEnabled
 ) {
-  return createActor(alfredpayKycMachine.provide({ actors }), { input });
+  return createActor(alfredpayKycMachine.provide({ actors, guards }), { input });
 }
 
 beforeEach(() => {
@@ -369,7 +374,8 @@ describe("alfredpayKycMachine", () => {
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse),
           submitKybRelatedPersonBundleFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined)
         },
-        kybInput
+        kybInput,
+        kybFlowEnabled
       );
       actor.start();
 
@@ -397,7 +403,8 @@ describe("alfredpayKycMachine", () => {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
           submitKybInfo: fromPromise(async () => ({ submissionId: "" }) as SubmitKybInformationResponse)
         },
-        kybInput
+        kybInput,
+        kybFlowEnabled
       );
       actor.start();
 
@@ -417,7 +424,8 @@ describe("alfredpayKycMachine", () => {
           submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse)
         },
-        kybInput
+        kybInput,
+        kybFlowEnabled
       );
       actor.start();
 
@@ -452,7 +460,8 @@ describe("alfredpayKycMachine", () => {
             bundledIds = input.kybRelatedPersonIds;
           })
         },
-        kybInput
+        kybInput,
+        kybFlowEnabled
       );
       actor.start();
 
@@ -480,7 +489,8 @@ describe("alfredpayKycMachine", () => {
           submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse)
         },
-        kybInput
+        kybInput,
+        kybFlowEnabled
       );
       actor.start();
 
@@ -492,6 +502,55 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("Failure"));
       expect(actor.getSnapshot().context.error?.message).toContain("no relatedPersons[].idRelatedPerson");
+    });
+
+    it("pauses MX and CO business verification before making a provider request", async () => {
+      for (const country of ["MX", "CO"]) {
+        let statusCalls = 0;
+        const actor = createTestActor(
+          {
+            checkStatus: fromPromise(async () => {
+              statusCalls += 1;
+              return statusOf(AlfredPayStatus.Consulted);
+            })
+          },
+          { ...baseInput, business: true, country }
+        );
+        actor.start();
+
+        await waitFor(actor, s => s.matches("Failure"));
+        expect(statusCalls).toBe(0);
+        expect(actor.getSnapshot().context.error?.message).toBe(
+          "Business verification in Mexico and Colombia is temporarily unavailable"
+        );
+      }
+    });
+
+    it("stops an MX individual who switches to business before a business customer is created", async () => {
+      let createCalls = 0;
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise<DomesticStatusResponse, AlfredpayKycContext>(async () => {
+            throw new Error("Request failed with status 404");
+          }),
+          createCustomer: fromPromise(async () => {
+            createCalls += 1;
+            return { createdAt: new Date().toISOString() };
+          })
+        },
+        { ...baseInput, country: "MX" }
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("CustomerDefinition"));
+      actor.send({ type: "TOGGLE_BUSINESS" });
+      actor.send({ type: "USER_ACCEPT" });
+
+      await waitFor(actor, s => s.matches("Failure"));
+      expect(createCalls).toBe(0);
+      expect(actor.getSnapshot().context.error?.message).toBe(
+        "Business verification in Mexico and Colombia is temporarily unavailable"
+      );
     });
 
     it("rejects AR business before making a provider request", async () => {
@@ -597,7 +656,7 @@ describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
 
   it("merges the company form and the questionnaire into one Alfredpay payload", async () => {
     const { api, calls } = recordingApi();
-    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} }).provide({ guards: kybFlowEnabled });
     const actor = createActor(machine, { input: { business: true, country: "MX" } });
     actor.start();
 
@@ -611,7 +670,7 @@ describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
 
   it("uploads all four company documents and the representative pair against the discovered person", async () => {
     const { api, calls } = recordingApi();
-    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} }).provide({ guards: kybFlowEnabled });
     const actor = createActor(machine, { input: { business: true, country: "MX" } });
     actor.start();
 
@@ -640,7 +699,7 @@ describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
 
   it("uploads the licence and AML policy for a regulated business", async () => {
     const { api, calls } = recordingApi();
-    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} }).provide({ guards: kybFlowEnabled });
     const actor = createActor(machine, { input: { business: true, country: "MX" } });
     actor.start();
 
@@ -676,7 +735,7 @@ describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
 
   it("refuses to upload a regulated business's documents when the licence or AML policy is missing", async () => {
     const { api, calls } = recordingApi();
-    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} }).provide({ guards: kybFlowEnabled });
     const actor = createActor(machine, { input: { business: true, country: "MX" } });
     actor.start();
 

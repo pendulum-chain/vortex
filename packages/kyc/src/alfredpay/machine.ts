@@ -1,9 +1,11 @@
 import {
+  ALFREDPAY_BUSINESS_KYB_PAUSED_MESSAGE,
   AlfredPayStatus,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
   DomesticCustomerType,
+  isAlfredpayBusinessKybPaused,
   type SubmitKybInformationResponse,
   type SubmitKycInformationResponse
 } from "@vortexfi/shared";
@@ -72,7 +74,11 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         if (context.verificationUrl) {
           openVerificationUrl(context.verificationUrl);
         }
-      }
+      },
+      rejectPausedBusinessKyb: assign({
+        error: () =>
+          new AlfredpayKycMachineError(ALFREDPAY_BUSINESS_KYB_PAUSED_MESSAGE, AlfredpayKycMachineErrorType.UnknownError)
+      })
     },
     actors: {
       checkStatus: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -298,6 +304,9 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         throw new Error("Aborted");
       })
     },
+    guards: {
+      isBusinessKybPaused: ({ context }) => !!context.business && isAlfredpayBusinessKybPaused(context.country)
+    },
     types: {
       context: {} as AlfredpayKycContext,
       events: {} as
@@ -434,9 +443,10 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
             }),
             guard: ({ context }) => context.country !== "AR"
           },
-          USER_ACCEPT: {
-            target: "CreatingCustomer"
-          }
+          USER_ACCEPT: [
+            { actions: "rejectPausedBusinessKyb", guard: "isBusinessKybPaused", target: "Failure" },
+            { target: "CreatingCustomer" }
+          ]
         }
       },
       Done: {
@@ -915,6 +925,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
             guard: ({ context }) => context.country === "AR" && !!context.business,
             target: "Failure"
           },
+          { actions: "rejectPausedBusinessKyb", guard: "isBusinessKybPaused", target: "Failure" },
           { target: "CheckingStatus" }
         ]
       },

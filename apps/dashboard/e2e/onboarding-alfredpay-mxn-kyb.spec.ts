@@ -4,7 +4,26 @@ import { seedSession } from "./support/session";
 
 const documentFile = { buffer: Buffer.from("e2e-kyb-document"), mimeType: "application/pdf", name: "document.pdf" };
 
-test("Alfredpay MX business KYB submits the questionnaire and six documents, and reaches provider approval", async ({
+test("Alfredpay MX business KYB is paused with a clear message", async ({ page }) => {
+  await mockBackend(page, { alfredpayKyc: {}, companyMode: true });
+  await seedSession(page);
+  await page.goto("/overview");
+
+  await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Add corridor" }).click();
+  const addDialog = page.getByRole("dialog");
+  await addDialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Mexico/ }).click();
+  await addDialog.getByRole("button", { name: "Add card" }).click();
+
+  await page.getByRole("button", { name: "Start KYB" }).click();
+  await expect(
+    page.getByRole("dialog").getByText("Business verification in Mexico and Colombia is temporarily unavailable")
+  ).toBeVisible({ timeout: 20_000 });
+});
+
+// Paused with MX/CO business verification (isAlfredpayBusinessKybPaused); kept for the KYB form rework.
+test.skip("Alfredpay MX business KYB submits the questionnaire and six documents, and reaches provider approval", async ({
   page
 }) => {
   const backend = await mockBackend(page, { alfredpayKyc: {}, companyMode: true });
