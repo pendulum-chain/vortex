@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import Big from "big.js";
 import { getConfig } from "../utils/config";
 
 export class StateManager<T> {
@@ -51,100 +50,6 @@ export class StateManager<T> {
     if (error) {
       throw error;
     }
-  }
-}
-
-// --- BRLA-to-axlUSDC (Pendulum) rebalance flow ---
-
-export enum RebalancePhase {
-  Idle = "idle",
-  CheckInitialPendulumBalance = "checkInitialPendulumBalance",
-  SwapAxlusdcToBrla = "swapAxlusdcToBrla",
-  SendBrlaToMoonbeam = "sendBrlaToMoonbeam",
-  PollForSufficientBalance = "pollForSufficientBalance",
-  SwapBrlaToUsdcOnBrlaApiService = "swapBrlaToUsdcOnBrlaApiService",
-  TransferUsdcToMoonbeamWithSquidrouter = "transferUsdcToMoonbeamWithSquidrouter",
-  TriggerXcmFromMoonbeam = "triggerXcmFromMoonbeam",
-  WaitForAxlUsdcOnPendulum = "waitForAxlUsdcOnPendulum"
-}
-
-export const phaseOrder: Record<RebalancePhase, number> = {
-  [RebalancePhase.Idle]: 0,
-  [RebalancePhase.CheckInitialPendulumBalance]: 1,
-  [RebalancePhase.SwapAxlusdcToBrla]: 2,
-  [RebalancePhase.SendBrlaToMoonbeam]: 3,
-  [RebalancePhase.PollForSufficientBalance]: 4,
-  [RebalancePhase.SwapBrlaToUsdcOnBrlaApiService]: 5,
-  [RebalancePhase.TransferUsdcToMoonbeamWithSquidrouter]: 6,
-  [RebalancePhase.TriggerXcmFromMoonbeam]: 7,
-  [RebalancePhase.WaitForAxlUsdcOnPendulum]: 8
-};
-
-export interface RebalanceState {
-  squidRouterReceiverId: string | null;
-  currentPhase: RebalancePhase;
-  initialBalance: string | null;
-  usdcAmountRaw: string | null;
-  amountAxlUsdc: string | null;
-  brlaAmount: string | null;
-  brlaToUsdcAmountUsd: string | null;
-  startingTime: string;
-  updatedTime: string;
-}
-
-export interface RebalanceStateParsed {
-  squidRouterReceiverId: string | null;
-  currentPhase: RebalancePhase;
-  initialBalance: Big | null;
-  usdcAmountRaw: string | null;
-  amountAxlUsdc: string | null;
-  brlaAmount: Big | null;
-  brlaToUsdcAmountUsd: string | null;
-  startingTime: string;
-  updatedTime: string;
-}
-
-export class BrlaToAxlUsdcStateManager {
-  private inner: StateManager<RebalanceState>;
-
-  constructor() {
-    this.inner = new StateManager<RebalanceState>("rebalancer_state.json");
-  }
-
-  async getState(): Promise<RebalanceStateParsed | undefined> {
-    const rawState = await this.inner.getState();
-    if (!rawState) return undefined;
-
-    return {
-      ...rawState,
-      brlaAmount: rawState.brlaAmount ? Big(rawState.brlaAmount) : null,
-      initialBalance: rawState.initialBalance ? Big(rawState.initialBalance) : null
-    };
-  }
-
-  async saveState(state: RebalanceStateParsed): Promise<void> {
-    const rawState: RebalanceState = {
-      ...state,
-      brlaAmount: state.brlaAmount ? state.brlaAmount.toString() : null,
-      initialBalance: state.initialBalance ? state.initialBalance.toString() : null
-    };
-    await this.inner.saveState(rawState);
-  }
-
-  async startNewRebalance(amountAxlUsdc: string): Promise<RebalanceStateParsed> {
-    const state: RebalanceStateParsed = {
-      amountAxlUsdc,
-      brlaAmount: null,
-      brlaToUsdcAmountUsd: null,
-      currentPhase: RebalancePhase.CheckInitialPendulumBalance,
-      initialBalance: null,
-      squidRouterReceiverId: null,
-      startingTime: new Date().toISOString(),
-      updatedTime: new Date().toISOString(),
-      usdcAmountRaw: null
-    };
-    await this.saveState(state);
-    return state;
   }
 }
 
