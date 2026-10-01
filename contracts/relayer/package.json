@@ -26,8 +26,7 @@
     "deploy:ethereum": "hardhat ignition deploy ignition/modules/Relayer.ts --network ethereum",
     "deploy:polygon": "hardhat ignition deploy ignition/modules/Relayer.ts --network polygon",
     "node": "hardhat node",
-    "test": "hardhat test",
-    "test:local": "hardhat run test/local-flow.ts --network hardhat"
+    "test": "hardhat test"
   },
   "version": "1.0.0"
 }
