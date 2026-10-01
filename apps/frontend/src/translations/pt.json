@@ -1827,14 +1827,10 @@
     }
   },
   "toasts": {
-    "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
     "copyText": "Copiado para a área de transferência",
     "genericError": "Ocorreu um erro. Por favor, tente novamente.",
-    "kycCompleted": "Sucesso! Prepare-se para sacar.",
-    "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
     "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
     "rampLimitExceeded": "Este valor excede o limite restante de {{remaining}} BRL para sua conta.",
-    "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
     "signingRejected": "Assinatura rejeitada. Por favor, tente novamente.",
     "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente."
   }

@@ -86,7 +86,7 @@ describe("Offramp quote form (SELL)", () => {
       lastConstraintDirection: RampDirection.SELL,
       onChainToken: EvmToken.USDC
     });
-    useQuoteStore.setState({ error: null, exchangeRate: 0, loading: false, outputAmount: undefined, quote: undefined });
+    useQuoteStore.setState({ error: null, loading: false, outputAmount: undefined, quote: undefined });
     usePartnerStore.setState({ apiKey: null, partnerId: null });
   });
 
