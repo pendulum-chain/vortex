@@ -574,53 +574,6 @@ export async function fetchBlindpayShadowQuoteUsdc(brlaAmountDecimal: Big): Prom
   return outputUsdcRaw;
 }
 
-export async function compareRates(brlaAmountDecimal: Big): Promise<{
-  winningRoute: "squidrouter" | "avenia";
-  squidRouterQuoteUsdc: string | null;
-  aveniaQuoteUsdc: string | null;
-}> {
-  console.log("Comparing SquidRouter vs Avenia rates for BRLA -> USDC...");
-
-  let squidRouterQuoteUsdc: string | null = null;
-  let aveniaQuoteUsdc: string | null = null;
-
-  try {
-    squidRouterQuoteUsdc = await fetchSquidRouterQuote(brlaAmountDecimal);
-  } catch (error) {
-    console.warn("SquidRouter quote failed:", error);
-  }
-
-  try {
-    aveniaQuoteUsdc = await fetchAveniaQuote(brlaAmountDecimal);
-  } catch (error) {
-    console.warn("Avenia quote failed:", error);
-  }
-
-  if (!squidRouterQuoteUsdc && !aveniaQuoteUsdc) {
-    throw new Error("Both SquidRouter and Avenia quotes failed. Cannot proceed.");
-  }
-
-  if (!squidRouterQuoteUsdc) {
-    console.log("SquidRouter unavailable, using Avenia.");
-    return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute: "avenia" };
-  }
-
-  if (!aveniaQuoteUsdc) {
-    console.log("Avenia unavailable, using SquidRouter.");
-    return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute: "squidrouter" };
-  }
-
-  const squidUsdcDecimal = multiplyByPowerOfTen(Big(squidRouterQuoteUsdc), -6);
-  const aveniaUsdcDecimal = multiplyByPowerOfTen(Big(aveniaQuoteUsdc), -6);
-
-  console.log(`SquidRouter: ${squidUsdcDecimal.toFixed(6)} USDC | Avenia: ${aveniaUsdcDecimal.toFixed(6)} USDC`);
-
-  const winningRoute = squidUsdcDecimal.gt(aveniaUsdcDecimal) ? "squidrouter" : "avenia";
-  console.log(`Winner: ${winningRoute}`);
-
-  return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute };
-}
-
 export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promise<string> {
   console.log(`Requesting Avenia to transfer ${brlaAmountDecimal.toFixed(4)} BRLA from internal balance to Polygon...`);
 
