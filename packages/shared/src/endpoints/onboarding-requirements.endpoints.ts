@@ -1,4 +1,5 @@
 import type { CorridorCustomerType } from "../corridors";
+import { isAlfredpayBusinessKybPaused } from "../services/alfredpay/types";
 
 export type OnboardingRequirementsCountry = "AR" | "BR" | "CO" | "MX" | "US";
 export type OnboardingFlowMode = "api" | "hosted" | "hybrid";
@@ -426,5 +427,6 @@ export function getOnboardingRequirements(
   country: OnboardingRequirementsCountry,
   customerType: CorridorCustomerType
 ): GetOnboardingRequirementsResponse | undefined {
+  if (customerType === "business" && isAlfredpayBusinessKybPaused(country)) return undefined;
   return ONBOARDING_REQUIREMENTS[country][customerType];
 }

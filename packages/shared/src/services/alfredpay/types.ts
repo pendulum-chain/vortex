@@ -370,6 +370,15 @@ const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
 export const isDomesticToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
 /**
+ * Alfred's new platform requires KYB fields our MX/CO form and API do not collect yet (2026-09-30), so
+ * business verification there is paused instead of failing at submission. Remove once that is reworked.
+ */
+export const isAlfredpayBusinessKybPaused = (country: string | undefined): boolean =>
+  country === DomesticCountry.MX || country === DomesticCountry.CO;
+
+export const ALFREDPAY_BUSINESS_KYB_PAUSED_MESSAGE = "Business verification in Mexico and Colombia is temporarily unavailable";
+
+/**
  * Raw shape returned by `GET …/allConfigs`. `typeCustomer: null` means the pair applies
  * to both customer types. The listing contains junk rows (observed live, 2026-07-14):
  * `decimals` may be null or "", and `fromCurrency` may be null — consumers must skip

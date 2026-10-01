@@ -12,17 +12,23 @@ describe("GET /v1/onboarding/requirements", () => {
 
     try {
       const { port } = server.address() as AddressInfo;
-      const response = await fetch(`http://127.0.0.1:${port}/v1/onboarding/requirements?country=MX&customerType=business`);
+      const response = await fetch(`http://127.0.0.1:${port}/v1/onboarding/requirements?country=MX&customerType=individual`);
 
       expect(response.status).toBe(200);
       const body = (await response.json()) as Record<string, unknown>;
       expect(body).toMatchObject({
         country: "MX",
-        customerType: "business",
-        flow: "mx-business-api-kyb",
+        customerType: "individual",
+        flow: "mx-individual-api-kyc",
         family: "domestic"
       });
       expect(body).not.toHaveProperty("fields");
+
+      // Business verification is paused in MX and CO, so discovery must not advertise it.
+      for (const country of ["MX", "CO"]) {
+        const paused = await fetch(`http://127.0.0.1:${port}/v1/onboarding/requirements?country=${country}&customerType=business`);
+        expect(paused.status).toBe(404);
+      }
     } finally {
       server.close();
     }
