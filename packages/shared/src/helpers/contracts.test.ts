@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import Big from "big.js";
-import { multiplyByPowerOfTen } from "./helpers";
+import { multiplyByPowerOfTen } from "./contracts";
 
 describe("multiplyByPowerOfTen", () => {
   it("scales by a positive power of ten without touching the input", () => {

@@ -5,6 +5,7 @@ import {
   EvmClientManager,
   EvmNetworks,
   isNetworkEVM,
+  multiplyByPowerOfTen,
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -12,7 +13,6 @@ import { decodeFunctionData, erc20Abi, parseTransaction, recoverTransactionAddre
 import logger from "../../../../../config/logger";
 import { PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../../constants/constants";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 
 // Compatibility program for quotes created before dynamic destination funding
 // metadata existed. Keep these values and operation identities stable until all
