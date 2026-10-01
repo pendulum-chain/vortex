@@ -1,5 +1,6 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CORRIDOR_CAPABILITIES } from "@vortexfi/shared";
 import { Building2, Check, Copy, Link2, Plus, User } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -25,7 +26,6 @@ import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied } from "@/lib/notify";
-import { CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
 // Mirrors the backend's MAX_DISCOUNT_BPS: larger discounts cannot execute under the
@@ -95,8 +95,8 @@ export function RecipientDialog({
         // not by ISO country — CORRIDOR_COUNTRY's quote-flow proxy ("DE") would 400 here.
         country: values.corridorId,
         inviteeType: values.recipientType === "company" ? "business" : "individual",
-        payoutCurrency: CORRIDOR_RAIL[values.corridorId],
-        rail: CORRIDOR_RAIL[values.corridorId],
+        payoutCurrency: CORRIDOR_CAPABILITIES[values.corridorId].rail,
+        rail: CORRIDOR_CAPABILITIES[values.corridorId].rail,
         ...(isDiscountManager && (values.buyBps > 0 || values.sellBps > 0)
           ? { discounts: { buyBps: values.buyBps, sellBps: values.sellBps } }
           : {})

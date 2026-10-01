@@ -1,11 +1,11 @@
 import {
+  FIAT_TOKEN_CORRIDOR,
   type FiatToken,
   type GetRampHistoryTransaction,
   RampDirection,
   TransactionStatus as WireTransactionStatus
 } from "@vortexfi/shared";
 import type { Transaction, TransactionStatus } from "@/domain/types";
-import { CORRIDOR_BY_FIAT } from "./mappers";
 
 export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "currentPhase" | "status">): TransactionStatus {
   if (tx.currentPhase === "timedOut") {
@@ -28,7 +28,7 @@ export function mapRampHistoryTransaction(tx: GetRampHistoryTransaction, account
     return null;
   }
   const isOnramp = tx.type === RampDirection.BUY;
-  const corridorId = CORRIDOR_BY_FIAT[(isOnramp ? tx.fromCurrency : tx.toCurrency) as FiatToken];
+  const corridorId = FIAT_TOKEN_CORRIDOR[(isOnramp ? tx.fromCurrency : tx.toCurrency) as FiatToken];
   if (!corridorId) {
     return null;
   }
