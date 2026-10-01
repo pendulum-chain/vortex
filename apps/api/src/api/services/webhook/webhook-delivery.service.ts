@@ -4,6 +4,7 @@ import cryptoService from "../../../config/crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
+import { mapPhaseToTransactionStatus } from "../ramp/helpers";
 import webhookService from "./webhook.service";
 import { assertResolvesToPublicAddress } from "./webhook-url";
 
@@ -16,12 +17,6 @@ export class WebhookDeliveryService {
   // replayed later with a fresh timestamp. Consumers verify over `${timestamp}.${body}`.
   private generateSignature(timestamp: number, payload: string): string {
     return cryptoService.signPayload(`${timestamp}.${payload}`);
-  }
-
-  private mapPhaseToStatus(phase: string): TransactionStatus {
-    if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
-    return TransactionStatus.PENDING;
   }
 
   /**
@@ -159,7 +154,7 @@ export class WebhookDeliveryService {
           quoteId,
           sessionId,
           transactionId,
-          transactionStatus: this.mapPhaseToStatus(newPhase),
+          transactionStatus: mapPhaseToTransactionStatus(newPhase),
           transactionType: transactionType
         },
         timestamp: new Date().toISOString()
