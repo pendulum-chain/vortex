@@ -970,6 +970,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/monerium-b2b/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the manager's EUR onramp accounts
+         * @description Available in sandbox; production activation is pending. Lists the business EUR onramp accounts of every active managed profile under the calling manager, newest first, each with its IBAN and status. Filter by `moneriumProfileId` to find one client by the EUR provider's profile ID. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/monerium-b2b/deposits": {
         parameters: {
             query?: never;
@@ -979,7 +1001,7 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, each as its full lifecycle snapshot: IDs, amounts, timestamps, waiting and refund reasons, and every conversion chunk. A per-swap cap can split one deposit into several chunks, delivered together in one transfer. This is the polling surface; the `DEPOSIT_UPDATED` webhook pushes the same snapshot on every change. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -2864,50 +2886,145 @@ export interface components {
              * @description Set while the account is dormancy-paused.
              */
             dormantSince: string | null;
-            /** @description The client's self-custodied recovery address. */
-            fallbackAddress: string;
-            feeBps: number;
+            /** @description Your own client reference for this managed profile. */
+            externalSubjectId: string | null;
+            /** @description Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap. */
+            floorPpm: number;
             /** @description The account's on-chain forwarding contract. */
             forwarderAddress: string;
             /** @description The account's dedicated IBAN; null until issuance completes. */
             iban: string | null;
+            /** @description The EUR provider's profile ID for this client. */
+            moneriumProfileId: string;
+            /** @description The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls. */
+            profileId: string | null;
             /** @enum {string} */
             status: "onboarding" | "active" | "suspended" | "closed";
+            /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
+            targetPpm: number;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];
         };
+        MoneriumB2bAccountsResponse: {
+            accounts: components["schemas"]["MoneriumB2bAccount"][];
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
+            };
+        };
         MoneriumB2bDeposit: {
+            accountId: string;
+            /** @description EUR amount to the cent, for example "1234.56". */
+            amount: string;
             /** @description Deposit amount in 18-decimal base units of the deposit currency. */
             amountRaw: string;
-            /** @description Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit. */
+            /** @description The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits. */
             conversions: {
-                /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
+                /**
+                 * Format: date-time
+                 * @description When the chunk's swap confirmed; null while pending.
+                 */
+                confirmedAt: string | null;
+                /** @description EURe of this deposit consumed by the chunk in 18-decimal base units. */
                 eureInRaw: string;
+                /** @description The chunk's pricing: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the chunk is not yet confirmed. */
+                execution: {
+                    /** @description Fee taken on the chunk in 6-decimal base units. */
+                    feeRaw: string | null;
+                    /** @description Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
+                    referenceRateRaw: string | null;
+                    /** @description Subsidy paid by the vault onto the forwarding contract for the chunk, delivered with the deposit's transfer, in 6-decimal base units. */
+                    subsidyRaw: string | null;
+                };
                 executionId: string;
                 /**
-                 * @description Execution status.
+                 * Format: date-time
+                 * @description When the chunk's swap was sent.
+                 */
+                sentAt: string;
+                /**
+                 * @description Chunk status. Failed attempts are retried and not listed.
                  * @enum {string}
                  */
-                status: "pending" | "confirmed" | "failed";
-                /** @description The swap-and-forward transaction hash. */
+                status: "pending" | "confirmed";
+                /** @description The chunk swap transaction hash. */
                 txHash: string | null;
-                /** @description Net USDC from this execution attributed to this deposit in 6-decimal base units. */
+                /** @description Net USDC of the chunk (fill minus fee plus subsidy) in 6-decimal base units. */
                 usdcNetRaw: string;
             }[];
-            /** Format: date-time */
-            createdAt: string;
             currency: string;
-            depositId: string;
             /**
-             * @description Deposit status (forward-only).
+             * Format: date-time
+             * @description When the single transfer to the destination confirmed; null until forwarded.
+             */
+            deliveredAt: string | null;
+            depositId: string;
+            /** @description Your own client reference for this managed profile. */
+            externalSubjectId: string | null;
+            /** @description The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded. */
+            forwardTxHash: string | null;
+            /**
+             * Format: date-time
+             * @description When the EUR arrived on chain as EURe; the conversion window counts from here.
+             */
+            mintedAt: string | null;
+            /** @description The EUR provider's order ID for the incoming payment. */
+            moneriumOrderId: string;
+            /** @description The EUR provider's profile ID for this client. */
+            moneriumProfileId: string;
+            /** @description The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls. */
+            profileId: string;
+            /**
+             * Format: date-time
+             * @description When Vortex first saw the payment.
+             */
+            receivedAt: string;
+            /** @description Present once the deposit entered the refund path: why, when it started, the EUR amount refunded, the masked IBAN it goes to, the provider's redemption order ID, and the transaction that moved the deposit off the forwarding contract. Null otherwise. */
+            refund: {
+                /** @description The EUR amount refunded, to the cent: always the full issue amount. */
+                amount: string | null;
+                /** @description The payer's IBAN the refund goes to, masked to its first and last four characters. */
+                payerIbanMasked: string | null;
+                /**
+                 * @description Why the deposit is refunded: `window_missed` (not converted within the promised window), `compliance`, `incident`, or `operator` for another operator decision.
+                 * @enum {string|null}
+                 */
+                reason: "window_missed" | "compliance" | "incident" | "operator" | null;
+                /** @description The transaction that moved the deposit off the forwarding contract. */
+                recoverTxHash: string | null;
+                /** @description The provider's order ID for the outgoing SEPA refund. */
+                redeemOrderId: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the provider processed the refund; null until then.
+                 */
+                refundedAt: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the deposit entered the refund path.
+                 */
+                startedAt: string | null;
+            } | null;
+            /** @description The provider's reason when it returned the payment before minting. */
+            rejectedReason: string | null;
+            /**
+             * @description Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.
              * @enum {string}
              */
-            status: "pending" | "minted" | "held" | "returned";
+            status: "pending" | "minted" | "held" | "returned" | "converting" | "forwarded" | "recovering" | "refunded" | "recovery_failed";
             /** @description The on-chain mint transaction, when observed. */
             txHash: string | null;
-            /** @description Aggregate net USDC attributed to this deposit so far in 6-decimal base units. */
+            /** @description Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded. */
             usdcNetRaw: string;
+            /** @description Present while the deposit waits. `monerium_pending` until the EUR provider mints it: minting or a compliance review, which the provider does not tell apart. Afterwards, the reason Vortex is holding the next conversion chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor` (the market is below the client's floor by more than the subsidy currently allows). Null otherwise. */
+            waiting: {
+                /** @enum {string} */
+                reason: "monerium_pending" | "oracle_unavailable" | "reference_unavailable" | "reference_out_of_band" | "no_route" | "below_floor";
+                /** Format: date-time */
+                since: string;
+            } | null;
         };
         MoneriumB2bDepositsResponse: {
             deposits: components["schemas"]["MoneriumB2bDeposit"][];
@@ -6592,6 +6709,54 @@ export interface operations {
             };
             /** @description No account exists for the acting profile. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMoneriumB2bAccounts: {
+        parameters: {
+            query?: {
+                /** @description Only the account of this EUR provider profile. */
+                moneriumProfileId?: string;
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The manager's onramp accounts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bAccountsResponse"];
+                };
+            };
+            /** @description Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller is not an active manager for business EUR customers, or used a child's own credential. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

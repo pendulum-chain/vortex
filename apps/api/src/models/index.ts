@@ -13,8 +13,8 @@ import ManagedProfileManager from "./managedProfileManager.model";
 import MoneriumAccount from "./moneriumAccount.model";
 import MoneriumChainCursor from "./moneriumChainCursor.model";
 import MoneriumConversionExecution from "./moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "./moneriumDepositAllocation.model";
 import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
+import MoneriumRecovery from "./moneriumRecovery.model";
 import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
@@ -39,10 +39,10 @@ MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "
 MoneriumFiatDeposit.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
 MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions", foreignKey: "accountId" });
 MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
-MoneriumFiatDeposit.hasMany(MoneriumDepositAllocation, { as: "allocations", foreignKey: "depositId" });
-MoneriumDepositAllocation.belongsTo(MoneriumFiatDeposit, { as: "deposit", foreignKey: "depositId" });
-MoneriumConversionExecution.hasMany(MoneriumDepositAllocation, { as: "allocations", foreignKey: "executionId" });
-MoneriumDepositAllocation.belongsTo(MoneriumConversionExecution, { as: "execution", foreignKey: "executionId" });
+MoneriumFiatDeposit.hasMany(MoneriumConversionExecution, { as: "executions", foreignKey: "depositId" });
+MoneriumConversionExecution.belongsTo(MoneriumFiatDeposit, { as: "deposit", foreignKey: "depositId" });
+MoneriumFiatDeposit.hasOne(MoneriumRecovery, { as: "recovery", foreignKey: "depositId" });
+MoneriumRecovery.belongsTo(MoneriumFiatDeposit, { as: "deposit", foreignKey: "depositId" });
 MoneriumAccount.belongsTo(User, { as: "vortexProfile", foreignKey: "vortexProfileId" });
 User.hasOne(MoneriumAccount, { as: "moneriumAccount", foreignKey: "vortexProfileId" });
 Webhook.hasMany(WebhookDelivery, { as: "deliveries", foreignKey: "webhookId" });
@@ -146,8 +146,8 @@ const models = {
   MoneriumAccount,
   MoneriumChainCursor,
   MoneriumConversionExecution,
-  MoneriumDepositAllocation,
   MoneriumFiatDeposit,
+  MoneriumRecovery,
   MoneriumWebhookEvent,
   Notification,
   NotificationPreference,

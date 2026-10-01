@@ -3,13 +3,14 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
+import ManagedProfile from "../../models/managedProfile.model";
+import ManagedProfileManager from "../../models/managedProfileManager.model";
 import MoneriumAccount from "../../models/moneriumAccount.model";
-import MoneriumConversionExecution from "../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
-import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
+import { accountSnapshot, depositSnapshots, findRelationship } from "../services/monerium-b2b/manager-events";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
 import {
   MONERIUM_ID_HEADER,
@@ -91,30 +92,19 @@ export const getMoneriumB2bAccount = async (req: Request, res: Response, next: N
       accountNotFound(res);
       return;
     }
-    res.status(httpStatus.OK).json({
-      account: {
-        accountId: account.id,
-        createdAt: account.createdAt,
-        destination: account.destination,
-        dormantSince: account.dormantSince,
-        fallbackAddress: account.fallbackAddress,
-        feeBps: account.feeBps,
-        forwarderAddress: account.forwarderAddress,
-        iban: account.iban,
-        status: account.status
-      }
-    });
+    res.status(httpStatus.OK).json({ account: accountSnapshot(account, await findRelationship(account)) });
   } catch (error) {
     next(error);
   }
 };
 
 const DEPOSIT_LIST_MAX_LIMIT = 100;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * GET /v1/monerium-b2b/deposits — the acting profile's EUR deposits, newest first,
- * each with its allocated conversion execution once the swap has run. This is the
- * polling surface for "payment received / converted".
+ * each with its chunk conversions and, once the whole deposit reached the destination,
+ * the forward transaction. This is the polling surface for "payment received / converted".
  */
 export const listMoneriumB2bDeposits = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -138,45 +128,68 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
       where: { accountId: account.id, moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` } }
     });
 
-    const allocations = rows.length
-      ? await MoneriumDepositAllocation.findAll({
-          order: [["created_at", "ASC"]],
-          where: { depositId: rows.map(row => row.id) }
-        })
-      : [];
-    const executionIds = [...new Set(allocations.map(allocation => allocation.executionId))];
-    const executions = executionIds.length ? await MoneriumConversionExecution.findAll({ where: { id: executionIds } }) : [];
-    const executionById = new Map(executions.map(execution => [execution.id, execution]));
-    const allocationsByDeposit = new Map<string, MoneriumDepositAllocation[]>();
-    for (const allocation of allocations) {
-      const grouped = allocationsByDeposit.get(allocation.depositId) ?? [];
-      grouped.push(allocation);
-      allocationsByDeposit.set(allocation.depositId, grouped);
-    }
-
     res.status(httpStatus.OK).json({
-      deposits: rows.map(row => {
-        const depositAllocations = allocationsByDeposit.get(row.id) ?? [];
-        return {
-          amountRaw: row.amountRaw,
-          conversions: depositAllocations.map(allocation => {
-            const execution = executionById.get(allocation.executionId);
-            return {
-              eureInRaw: allocation.eureInRaw,
-              executionId: allocation.executionId,
-              status: execution?.status ?? "pending",
-              txHash: execution?.txHash ?? null,
-              usdcNetRaw: allocation.usdcNetRaw
-            };
-          }),
-          createdAt: row.createdAt,
-          currency: row.currency,
-          depositId: row.id,
-          status: row.status,
-          txHash: row.txHash,
-          usdcNetRaw: depositAllocations.reduce((sum, allocation) => sum + BigInt(allocation.usdcNetRaw), 0n).toString()
-        };
-      }),
+      deposits: await depositSnapshots(account, await findRelationship(account), rows),
+      pagination: { limit, offset, total: count }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /v1/monerium-b2b/accounts — every onramp account of the calling manager's active
+ * managed profiles, newest first, optionally narrowed to one Monerium profile. Manager
+ * credential only: no delegation header, no child credential.
+ */
+export const listMoneriumB2bAccounts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const managerProfileId = getAuthenticatedProfileId(req);
+    const manager = managerProfileId ? await ManagedProfileManager.findByPk(managerProfileId) : null;
+    if (
+      !manager?.isActive ||
+      !manager.allowedCorridors.includes("EU") ||
+      (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes("business"))
+    ) {
+      res.status(httpStatus.FORBIDDEN).json({
+        error: {
+          code: "MANAGED_PROFILE_ACCESS_DENIED",
+          message: "The authenticated profile does not manage business EUR onramp accounts",
+          status: httpStatus.FORBIDDEN
+        }
+      });
+      return;
+    }
+    const moneriumProfileId = req.query.moneriumProfileId;
+    if (moneriumProfileId !== undefined && (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId))) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "MONERIUM_B2B_INVALID_INPUT",
+          message: "moneriumProfileId must be a UUID",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+    const rawLimit = Number(req.query.limit ?? 20);
+    const rawOffset = Number(req.query.offset ?? 0);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, DEPOSIT_LIST_MAX_LIMIT) : 20;
+    const offset = Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
+    // ponytail: the manager's children go into one IN list; page the relationship query if a partner ever has thousands.
+    const relationships = await ManagedProfile.findAll({ where: { managerProfileId: manager.profileId, status: "active" } });
+    const byProfile = new Map(relationships.map(relationship => [relationship.profileId, relationship]));
+    const { count, rows } = await MoneriumAccount.findAndCountAll({
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+      where: {
+        vortexProfileId: { [Op.in]: [...byProfile.keys()] },
+        ...(moneriumProfileId ? { profileId: moneriumProfileId } : {})
+      }
+    });
+    res.status(httpStatus.OK).json({
+      accounts: rows.map(account => accountSnapshot(account, byProfile.get(account.vortexProfileId as string))),
       pagination: { limit, offset, total: count }
     });
   } catch (error) {
