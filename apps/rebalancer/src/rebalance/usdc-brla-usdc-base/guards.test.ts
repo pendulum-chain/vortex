@@ -162,4 +162,83 @@ describe("USDC Base rebalance guards", () => {
     expect(decision.shouldExecute).toBe(false);
     expect(decision.reason).toContain("hard cap");
   });
+
+  test("returns the full decision shape for every policy branch", () => {
+    const input = Big("100000000");
+    const decide = (output: string, deviationBps: number, mode: RebalancingCostPolicyConfig["mode"]) =>
+      evaluateRebalancingCostPolicy(input, Big(output), deviationBps, { ...policyConfig, mode });
+
+    expect(decide("99900000", 50, "auto")).toEqual({
+      allowedCostBps: 25,
+      band: "mild",
+      costBps: 10,
+      dryRun: false,
+      projectedCostRaw: "100000",
+      reason: "Projected cost 10 bps is within mild limit 25 bps.",
+      shouldExecute: true
+    });
+    expect(decide("99000000", 50, "auto")).toEqual({
+      allowedCostBps: 25,
+      band: "mild",
+      costBps: 100,
+      dryRun: false,
+      projectedCostRaw: "1000000",
+      reason: "Projected cost 100 bps exceeds mild limit 25 bps.",
+      shouldExecute: false
+    });
+    expect(decide("99900000", 50, "dry-run")).toEqual({
+      allowedCostBps: 25,
+      band: "mild",
+      costBps: 10,
+      dryRun: true,
+      projectedCostRaw: "100000",
+      reason: "Dry-run: would execute mild rebalance at 10 bps cost.",
+      shouldExecute: false
+    });
+    expect(decide("99000000", 50, "dry-run")).toEqual({
+      allowedCostBps: 25,
+      band: "mild",
+      costBps: 100,
+      dryRun: true,
+      projectedCostRaw: "1000000",
+      reason: "Dry-run: would skip mild rebalance at 100 bps cost.",
+      shouldExecute: false
+    });
+    expect(decide("99000000", 600, "always")).toEqual({
+      allowedCostBps: 250,
+      band: "severe",
+      costBps: 100,
+      dryRun: false,
+      projectedCostRaw: "1000000",
+      reason: "Always mode permits severe rebalance at 100 bps cost.",
+      shouldExecute: true
+    });
+    expect(decide("80000000", 250, "auto")).toEqual({
+      allowedCostBps: 75,
+      band: "moderate",
+      costBps: 2000,
+      dryRun: false,
+      projectedCostRaw: "20000000",
+      reason: "Projected cost 2000 bps exceeds hard cap 1000 bps.",
+      shouldExecute: false
+    });
+    expect(decide("80000000", 250, "dry-run")).toEqual({
+      allowedCostBps: 75,
+      band: "moderate",
+      costBps: 2000,
+      dryRun: true,
+      projectedCostRaw: "20000000",
+      reason: "Projected cost 2000 bps exceeds hard cap 1000 bps.",
+      shouldExecute: false
+    });
+    expect(decide("99900000", 600, "off")).toEqual({
+      allowedCostBps: 250,
+      band: "severe",
+      costBps: 10,
+      dryRun: false,
+      projectedCostRaw: "100000",
+      reason: "Rebalancing policy mode is off.",
+      shouldExecute: false
+    });
+  });
 });
