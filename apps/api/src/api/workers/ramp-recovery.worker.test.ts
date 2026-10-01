@@ -93,10 +93,11 @@ describe("RampRecoveryWorker funded SELL start", () => {
     ]);
     const createdAt = where.createdAt as Record<symbol, Date>;
     const minute = 60 * 1000;
-    expect(before - createdAt[Op.lt].getTime()).toBeGreaterThanOrEqual(16 * minute);
-    expect(after - createdAt[Op.lt].getTime()).toBeLessThan(16 * minute + 5000);
-    expect(before - createdAt[Op.gt].getTime()).toBeGreaterThanOrEqual(3 * 24 * 60 * minute);
-    expect(after - createdAt[Op.gt].getTime()).toBeLessThan(3 * 24 * 60 * minute + 5000);
+    // The worker reads the clock between `before` and `after`, so each cutoff lies in that window.
+    expect(createdAt[Op.lt].getTime()).toBeGreaterThanOrEqual(before - 16 * minute);
+    expect(createdAt[Op.lt].getTime()).toBeLessThanOrEqual(after - 16 * minute);
+    expect(createdAt[Op.gt].getTime()).toBeGreaterThanOrEqual(before - 3 * 24 * 60 * minute);
+    expect(createdAt[Op.gt].getTime()).toBeLessThanOrEqual(after - 3 * 24 * 60 * minute);
   });
 
   it("starts each selected ramp through the funded SELL path, not the phase processor", async () => {
