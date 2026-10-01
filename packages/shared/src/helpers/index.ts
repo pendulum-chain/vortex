@@ -3,6 +3,7 @@ export * from "./contracts";
 export * from "./conversions";
 export * from "./ephemerals";
 export * from "./functions";
+export * from "./jwt";
 export * from "./networks";
 export * from "./parseNumbers";
 export * from "./payment-method-mapper";
