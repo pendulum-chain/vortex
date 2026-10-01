@@ -10,7 +10,6 @@ import { assertResolvesToPublicAddress } from "./webhook-url";
 
 export class WebhookDeliveryService {
   private readonly maxRetries = 5;
-  private readonly timeoutMs = 30000;
   private readonly retryDelays = [1000, 2000, 4000, 8000, 16000];
 
   // The signature covers the timestamp header, so a captured body+signature cannot be
@@ -34,9 +33,6 @@ export class WebhookDeliveryService {
       const timestamp = Math.floor(Date.now() / 1000);
       const signature = this.generateSignature(timestamp, payloadString);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-
       const response = await fetchWithTimeout(webhook.url, {
         body: payloadString,
         headers: {
@@ -52,11 +48,8 @@ export class WebhookDeliveryService {
         },
         method: "POST",
         // A public host must not be able to bounce the request to a private one.
-        redirect: "error",
-        signal: controller.signal
+        redirect: "error"
       });
-
-      clearTimeout(timeoutId);
 
       if (response.ok) {
         return { error: null, ok: true };
