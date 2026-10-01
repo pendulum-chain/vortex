@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
+import { sendError } from "../helpers/sendError";
 
 /**
  * Middleware to authenticate admin requests using Bearer token
@@ -25,26 +26,24 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
         ip: req.ip,
         path: req.path
       });
-      res.status(httpStatus.UNAUTHORIZED).json({
-        error: {
-          code: "ADMIN_AUTH_REQUIRED",
-          message: "Admin authentication required. Provide Authorization header with Bearer token.",
-          status: httpStatus.UNAUTHORIZED
-        }
-      });
+      sendError(
+        res,
+        httpStatus.UNAUTHORIZED,
+        "ADMIN_AUTH_REQUIRED",
+        "Admin authentication required. Provide Authorization header with Bearer token."
+      );
       return;
     }
 
     // Check if it's a Bearer token
     const parts = authHeader.split(" ");
     if (parts.length !== 2 || parts[0] !== "Bearer") {
-      res.status(httpStatus.UNAUTHORIZED).json({
-        error: {
-          code: "INVALID_AUTH_FORMAT",
-          message: "Invalid authorization format. Use: Authorization: Bearer <token>",
-          status: httpStatus.UNAUTHORIZED
-        }
-      });
+      sendError(
+        res,
+        httpStatus.UNAUTHORIZED,
+        "INVALID_AUTH_FORMAT",
+        "Invalid authorization format. Use: Authorization: Bearer <token>"
+      );
       return;
     }
 
@@ -53,13 +52,12 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
     // Check if admin secret is configured
     if (!config.adminSecret) {
       logger.error("ADMIN_SECRET not configured in environment variables");
-      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-        error: {
-          code: "ADMIN_AUTH_NOT_CONFIGURED",
-          message: "Admin authentication is not properly configured",
-          status: httpStatus.INTERNAL_SERVER_ERROR
-        }
-      });
+      sendError(
+        res,
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "ADMIN_AUTH_NOT_CONFIGURED",
+        "Admin authentication is not properly configured"
+      );
       return;
     }
 
@@ -72,13 +70,7 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
         ip: req.ip,
         path: req.path
       });
-      res.status(httpStatus.FORBIDDEN).json({
-        error: {
-          code: "INVALID_ADMIN_TOKEN",
-          message: "Invalid admin token",
-          status: httpStatus.FORBIDDEN
-        }
-      });
+      sendError(res, httpStatus.FORBIDDEN, "INVALID_ADMIN_TOKEN", "Invalid admin token");
       return;
     }
 
@@ -86,13 +78,7 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
     next();
   } catch (error) {
     logger.error("Error in admin authentication:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "ADMIN_AUTH_ERROR",
-        message: "An error occurred during admin authentication",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "ADMIN_AUTH_ERROR", "An error occurred during admin authentication");
   }
 }
 

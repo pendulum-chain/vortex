@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import Partner from "../../models/partner.model";
+import { sendError } from "../helpers/sendError";
 import { UUID_PATTERN } from "../helpers/uuid";
 import {
   buildApiClientRequestMetadata,
@@ -47,13 +48,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       if (!apiKey) {
         if (options.required) {
           recordAuthFailure(req, 401, "auth_missing_api_key");
-          return res.status(401).json({
-            error: {
-              code: "API_KEY_REQUIRED",
-              message: "API key is required for this endpoint",
-              status: 401
-            }
-          });
+          return sendError(res, 401, "API_KEY_REQUIRED", "API key is required for this endpoint");
         }
         // Optional auth - continue without partner info
         return next();
@@ -63,25 +58,22 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       const keyType = getKeyType(apiKey);
       if (keyType !== "secret") {
         recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
-        return res.status(401).json({
-          error: {
-            code: "INVALID_SECRET_KEY",
-            message:
-              "X-API-Key header must contain a secret key (sk_live_* or sk_test_*). Use X-Public-Key for public credentials.",
-            status: 401
-          }
-        });
+        return sendError(
+          res,
+          401,
+          "INVALID_SECRET_KEY",
+          "X-API-Key header must contain a secret key (sk_live_* or sk_test_*). Use X-Public-Key for public credentials."
+        );
       }
 
       if (!isValidSecretKeyFormat(apiKey)) {
         recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
-        return res.status(401).json({
-          error: {
-            code: "INVALID_SECRET_KEY_FORMAT",
-            message: "Invalid secret key format. Expected sk_live_* or sk_test_* format.",
-            status: 401
-          }
-        });
+        return sendError(
+          res,
+          401,
+          "INVALID_SECRET_KEY_FORMAT",
+          "Invalid secret key format. Expected sk_live_* or sk_test_* format."
+        );
       }
 
       // Find and validate API key
@@ -89,13 +81,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
       if (!result) {
         recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
-        return res.status(401).json({
-          error: {
-            code: "INVALID_API_KEY",
-            message: "The provided API key is invalid or has expired",
-            status: 401
-          }
-        });
+        return sendError(res, 401, "INVALID_API_KEY", "The provided API key is invalid or has expired");
       }
 
       const partner = result.partner;
@@ -105,16 +91,12 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
         const publicResult = await validatePublicApiKey(req.headers["x-public-key"] as string);
         if (!publicResult) {
           recordAuthFailure(req, 401, "auth_invalid_public_key", getSafeApiKeyPrefix(req.headers["x-public-key"] as string));
-          return res.status(401).json({
-            error: { code: "INVALID_PUBLIC_KEY", message: "The provided public API key is invalid or expired", status: 401 }
-          });
+          return sendError(res, 401, "INVALID_PUBLIC_KEY", "The provided public API key is invalid or expired");
         }
         publicCredentialId = publicResult.credential.credentialId;
       }
       if (publicCredentialId && publicCredentialId !== result.credential.credentialId) {
-        return res.status(403).json({
-          error: { code: "CREDENTIAL_MISMATCH", message: "Public and secret credentials do not match", status: 403 }
-        });
+        return sendError(res, 403, "CREDENTIAL_MISMATCH", "Public and secret credentials do not match");
       }
 
       req.credential = result.credential;
@@ -129,24 +111,12 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
         const requestedPartner = await resolvePartner(req.body.partnerId);
         if (!requestedPartner) {
           recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
-          return res.status(404).json({
-            error: {
-              code: "PARTNER_NOT_FOUND",
-              message: "The requested partner was not found",
-              status: 404
-            }
-          });
+          return sendError(res, 404, "PARTNER_NOT_FOUND", "The requested partner was not found");
         }
 
         if (requestedPartner.id !== req.credential.partnerId) {
           recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
-          return res.status(403).json({
-            error: {
-              code: "PARTNER_MISMATCH",
-              message: "The authenticated partner does not match the requested partner",
-              status: 403
-            }
-          });
+          return sendError(res, 403, "PARTNER_MISMATCH", "The authenticated partner does not match the requested partner");
         }
       }
 
@@ -171,36 +141,18 @@ export function enforcePartnerAuth() {
     if (req.body?.partnerId) {
       if (!req.credential?.partnerId) {
         recordAuthFailure(req, 403, "auth_missing_api_key");
-        return res.status(403).json({
-          error: {
-            code: "AUTHENTICATION_REQUIRED",
-            message: "Authentication is required when partnerId is specified",
-            status: 403
-          }
-        });
+        return sendError(res, 403, "AUTHENTICATION_REQUIRED", "Authentication is required when partnerId is specified");
       }
 
       const requestedPartner = await resolvePartner(req.body.partnerId);
       if (!requestedPartner) {
         recordAuthFailure(req, 404, "auth_partner_not_found", null);
-        return res.status(404).json({
-          error: {
-            code: "PARTNER_NOT_FOUND",
-            message: "The requested partner was not found",
-            status: 404
-          }
-        });
+        return sendError(res, 404, "PARTNER_NOT_FOUND", "The requested partner was not found");
       }
 
       if (requestedPartner.id !== req.credential.partnerId) {
         recordAuthFailure(req, 403, "auth_partner_mismatch", null, req.authenticatedPartner);
-        return res.status(403).json({
-          error: {
-            code: "PARTNER_MISMATCH",
-            message: "The authenticated partner does not match the requested partner",
-            status: 403
-          }
-        });
+        return sendError(res, 403, "PARTNER_MISMATCH", "The authenticated partner does not match the requested partner");
       }
     }
 

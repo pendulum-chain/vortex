@@ -11,6 +11,7 @@ import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
+import { sendError } from "../../helpers/sendError";
 import { UUID_PATTERN } from "../../helpers/uuid";
 import { isSessionActive } from "../../services/impersonation.service";
 
@@ -154,9 +155,7 @@ export async function listAccounts(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     logger.error("Error listing admin-console accounts:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to list accounts", status: httpStatus.INTERNAL_SERVER_ERROR }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list accounts");
   }
 }
 
@@ -170,17 +169,13 @@ export async function getAccount(req: Request<{ profileId: string }>, res: Respo
   try {
     const { profileId } = req.params;
     if (!UUID_PATTERN.test(profileId)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: { code: "INVALID_PROFILE_ID", message: "profileId must be a valid UUID", status: httpStatus.BAD_REQUEST }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "INVALID_PROFILE_ID", "profileId must be a valid UUID");
       return;
     }
 
     const profile = await User.findByPk(profileId);
     if (!profile) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "USER_NOT_FOUND", message: "Profile was not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "USER_NOT_FOUND", "Profile was not found");
       return;
     }
 
@@ -283,8 +278,6 @@ export async function getAccount(req: Request<{ profileId: string }>, res: Respo
     });
   } catch (error) {
     logger.error("Error reading admin-console account detail:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to read account", status: httpStatus.INTERNAL_SERVER_ERROR }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to read account");
   }
 }

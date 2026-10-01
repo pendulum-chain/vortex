@@ -5,6 +5,7 @@ import { config } from "../../config/vars";
 import { CUSTOMER_ENTITY_TYPES } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import { sendError } from "../helpers/sendError";
 import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
 import {
@@ -28,7 +29,7 @@ function managerProfileId(req: Request): string {
   return profileId;
 }
 
-function sendError(res: Response, error: unknown): void {
+function sendLifecycleError(res: Response, error: unknown): void {
   if (error instanceof ApiCredentialServiceError) {
     const status =
       error.code === "CREDENTIAL_ACCESS_DENIED"
@@ -38,7 +39,7 @@ function sendError(res: Response, error: unknown): void {
           : error.code === "CREDENTIAL_LIMIT_REACHED"
             ? httpStatus.CONFLICT
             : httpStatus.BAD_REQUEST;
-    res.status(status).json({ error: { code: error.code, message: error.message, status } });
+    sendError(res, status, error.code, error.message);
     return;
   }
   if (error instanceof ManagedProfileLifecycleError || error instanceof ManagedProfileProvisioningError) {
@@ -50,17 +51,16 @@ function sendError(res: Response, error: unknown): void {
           : error.code === "MANAGED_PROFILE_CONFLICT"
             ? httpStatus.CONFLICT
             : httpStatus.FORBIDDEN;
-    res.status(status).json({ error: { code: error.code, message: error.message, status } });
+    sendError(res, status, error.code, error.message);
     return;
   }
   logger.error("Error handling managed profile lifecycle request", error);
-  res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to process managed profile lifecycle request",
-      status: httpStatus.INTERNAL_SERVER_ERROR
-    }
-  });
+  sendError(
+    res,
+    httpStatus.INTERNAL_SERVER_ERROR,
+    "INTERNAL_SERVER_ERROR",
+    "Failed to process managed profile lifecycle request"
+  );
 }
 
 function requireProfileId(profileId: string): void {
@@ -94,7 +94,7 @@ export async function postManagedProfile(req: Request, res: Response): Promise<v
     });
     res.status(result.created ? httpStatus.CREATED : httpStatus.OK).json({ managedProfile: result.managedProfile });
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -136,7 +136,7 @@ export async function readManagedProfiles(req: Request, res: Response): Promise<
       pagination: { limit: result.limit, offset: result.offset, total: result.total }
     });
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -146,7 +146,7 @@ export async function readManagedProfile(req: Request<{ profileId: string }>, re
     const managedProfile = await getManagedProfile(managerProfileId(req), req.params.profileId);
     res.status(httpStatus.OK).json({ managedProfile });
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -156,7 +156,7 @@ export async function removeManagedProfile(req: Request<{ profileId: string }>, 
     await deleteManagedProfile(managerProfileId(req), req.params.profileId);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -172,7 +172,7 @@ export async function postManagedProfileApiCredential(req: Request<{ profileId: 
     });
     res.status(httpStatus.CREATED).json(credential);
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -182,7 +182,7 @@ export async function readManagedProfileApiCredentials(req: Request<{ profileId:
     const credentials = await listManagedProfileCredentials(managerProfileId(req), req.params.profileId);
     res.status(httpStatus.OK).json({ credentials });
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }
 
@@ -198,6 +198,6 @@ export async function removeManagedProfileApiCredential(
     await revokeManagedProfileCredential(managerProfileId(req), req.params.profileId, req.params.credentialId);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
-    sendError(res, error);
+    sendLifecycleError(res, error);
   }
 }

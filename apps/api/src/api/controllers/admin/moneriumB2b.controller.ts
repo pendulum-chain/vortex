@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import { sendError } from "../../helpers/sendError";
 import { UUID_PATTERN } from "../../helpers/uuid";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
@@ -31,14 +32,12 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       typeof fallbackAddress !== "string" ||
       (feeBps !== undefined && typeof feeBps !== "number")
     ) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message:
-            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, destination, and fallbackAddress are required; feeBps must be a number when present",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, destination, and fallbackAddress are required; feeBps must be a number when present"
+      );
       return;
     }
 
@@ -56,7 +55,7 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
   } catch (error) {
     if (error instanceof MoneriumB2bProvisioningError) {
       const status = error.code === "MONERIUM_B2B_INVALID_INPUT" ? httpStatus.BAD_REQUEST : httpStatus.CONFLICT;
-      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      sendError(res, status, error.code, error.message);
       return;
     }
     if (error instanceof ManagedProfileProvisioningError) {
@@ -66,18 +65,12 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
           : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND"
             ? httpStatus.NOT_FOUND
             : httpStatus.BAD_REQUEST;
-      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      sendError(res, status, error.code, error.message);
       return;
     }
 
     logger.error("Error provisioning Monerium B2B account:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to provision Monerium B2B account",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to provision Monerium B2B account");
   }
 }
 
@@ -93,44 +86,39 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
   try {
     const { status } = req.body ?? {};
     if (!UUID_PATTERN.test(req.params.accountId) || typeof status !== "string" || !STATUS_VALUES.includes(status)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message: `accountId must be a UUID and status must be one of ${STATUS_VALUES.join(", ")}`,
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `accountId must be a UUID and status must be one of ${STATUS_VALUES.join(", ")}`
+      );
       return;
     }
 
     const account = await MoneriumAccount.findByPk(req.params.accountId);
     if (!account) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND", message: "Monerium account not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "Monerium account not found");
       return;
     }
     const targetStatus = status as MoneriumAccountStatus;
     if (targetStatus !== account.status && !STATUS_TRANSITIONS[account.status].includes(targetStatus)) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
-          message: `Monerium account cannot transition from ${account.status} to ${targetStatus}`,
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
+        `Monerium account cannot transition from ${account.status} to ${targetStatus}`
+      );
       return;
     }
     // Activation requires the issued IBAN: the penny test (runbook §7) cannot have
     // happened without it, and the association monitor needs the reference state.
     if (status === MoneriumAccountStatus.Active && account.iban === null) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "MONERIUM_B2B_ACCOUNT_NOT_READY",
-          message: "The account has no issued IBAN yet and cannot be activated",
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_ACCOUNT_NOT_READY",
+        "The account has no issued IBAN yet and cannot be activated"
+      );
       return;
     }
 
@@ -140,12 +128,6 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
     res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
   } catch (error) {
     logger.error("Error updating Monerium B2B account status:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to update Monerium B2B account status",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update Monerium B2B account status");
   }
 }

@@ -5,6 +5,7 @@ import CustomerEntity, { type CustomerEntityType } from "../../models/customerEn
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
+import { sendError } from "../helpers/sendError";
 import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId } from "./effectiveUser";
 
@@ -98,25 +99,23 @@ export function authorizeManagedProfile(options: ManagedProfileAuthOptions = {})
     }
 
     if (!UUID_PATTERN.test(subjectProfileId)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "INVALID_MANAGED_PROFILE_ID",
-          message: "X-Managed-Profile-Id must contain a valid profile UUID",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "INVALID_MANAGED_PROFILE_ID",
+        "X-Managed-Profile-Id must contain a valid profile UUID"
+      );
       return;
     }
 
     const actorProfileId = getAuthenticatedProfileId(req);
     if (!actorProfileId) {
-      res.status(httpStatus.UNAUTHORIZED).json({
-        error: {
-          code: "AUTHENTICATION_REQUIRED",
-          message: "Authentication is required to act for a managed profile",
-          status: httpStatus.UNAUTHORIZED
-        }
-      });
+      sendError(
+        res,
+        httpStatus.UNAUTHORIZED,
+        "AUTHENTICATION_REQUIRED",
+        "Authentication is required to act for a managed profile"
+      );
       return;
     }
 
@@ -203,13 +202,12 @@ async function authorizeCustomerType(
   const expectedCustomerType =
     typeof options.customerType === "function" ? await options.customerType(req) : options.customerType;
   if (options.customerType !== undefined && expectedCustomerType !== customerType) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: {
-        code: "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH",
-        message: "The operation customer type does not match the managed profile customer type",
-        status: httpStatus.BAD_REQUEST
-      }
-    });
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "MANAGED_PROFILE_CUSTOMER_TYPE_MISMATCH",
+      "The operation customer type does not match the managed profile customer type"
+    );
     return false;
   }
   if (
@@ -231,13 +229,12 @@ export function rejectManagedProfileSelection(req: Request, res: Response, next:
     return;
   }
 
-  res.status(httpStatus.BAD_REQUEST).json({
-    error: {
-      code: "MANAGED_PROFILE_UNSUPPORTED",
-      message: "Managed profile selection is not supported for this operation",
-      status: httpStatus.BAD_REQUEST
-    }
-  });
+  sendError(
+    res,
+    httpStatus.BAD_REQUEST,
+    "MANAGED_PROFILE_UNSUPPORTED",
+    "Managed profile selection is not supported for this operation"
+  );
 }
 
 export function rejectDirectManagedCredential(req: Request, res: Response, next: NextFunction): void {
@@ -250,11 +247,10 @@ export function rejectDirectManagedCredential(req: Request, res: Response, next:
 }
 
 function sendAccessDenied(res: Response): void {
-  res.status(httpStatus.FORBIDDEN).json({
-    error: {
-      code: "MANAGED_PROFILE_ACCESS_DENIED",
-      message: "The authenticated profile cannot perform this operation for the requested managed profile",
-      status: httpStatus.FORBIDDEN
-    }
-  });
+  sendError(
+    res,
+    httpStatus.FORBIDDEN,
+    "MANAGED_PROFILE_ACCESS_DENIED",
+    "The authenticated profile cannot perform this operation for the requested managed profile"
+  );
 }

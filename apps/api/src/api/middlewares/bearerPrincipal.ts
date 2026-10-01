@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
+import { sendError } from "../helpers/sendError";
 import { SupabaseAuthService } from "../services/auth";
 import { type ImpersonationContext, isImpersonationToken, resolveSession } from "../services/impersonation.service";
 
@@ -54,11 +55,10 @@ export function rejectImpersonation(req: Request, res: Response, next: NextFunct
 
 /** Shared with the routes that gate on impersonation inline instead of via the middleware. */
 export function impersonationNotAllowedResponse(res: Response): void {
-  res.status(httpStatus.FORBIDDEN).json({
-    error: {
-      code: "IMPERSONATION_NOT_ALLOWED",
-      message: "This action is not available while acting as another account.",
-      status: httpStatus.FORBIDDEN
-    }
-  });
+  sendError(
+    res,
+    httpStatus.FORBIDDEN,
+    "IMPERSONATION_NOT_ALLOWED",
+    "This action is not available while acting as another account."
+  );
 }
