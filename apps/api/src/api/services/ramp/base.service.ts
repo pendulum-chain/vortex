@@ -123,16 +123,6 @@ export class BaseRampService {
   }
 
   /**
-   * Update a ramp state
-   */
-  protected async updateRampState(id: string, data: Partial<RampStateAttributes>): Promise<[number, RampState[]]> {
-    return RampState.update(data, {
-      returning: true,
-      where: { id }
-    });
-  }
-
-  /**
    * Log a phase transition
    */
   protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
@@ -175,21 +165,6 @@ export class BaseRampService {
         where: { id, status: "pending" }
       }
     );
-  }
-
-  /**
-   * Check if a quote is valid (pending and not expired)
-   */
-  protected async isQuoteValid(id: string): Promise<boolean> {
-    const quote = await QuoteTicket.findOne({
-      where: { id }
-    });
-
-    if (!quote) {
-      return false;
-    }
-
-    return quote.status === "pending" && new Date(quote.expiresAt) > new Date();
   }
 
   /**
