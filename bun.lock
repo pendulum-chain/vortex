@@ -19,9 +19,6 @@
       "name": "vortex-backend",
       "version": "1.0.0",
       "dependencies": {
-        "@galacticcouncil/api-augment": "^0.8.1",
-        "@galacticcouncil/sdk": "^10.6.2",
-        "@paraspell/sdk-pjs": "^11.8.4",
         "@pendulum-chain/api-solang": "catalog:",
         "@polkadot/api": "catalog:",
         "@polkadot/api-contract": "catalog:",
@@ -942,22 +939,6 @@
     "@fontsource/dm-sans": ["@fontsource/dm-sans@5.3.0", "", {}, "sha512-lYJtMXXO28q1z+yz+z8XKd0s4hXaa9QdkETzkyD760sidCv5heI86weYA0sx0Nc4pAMAQTUuyf4gO44cYKKS9g=="],
 
     "@fontsource/roboto": ["@fontsource/roboto@5.2.10", "", {}, "sha512-8HlA5FtSfz//oFSr2eL7GFXAiE7eIkcGOtx7tjsLKq+as702x9+GU7K95iDeWFapHC4M2hv9RrpXKRTGGBI8Zg=="],
-
-    "@galacticcouncil/api-augment": ["@galacticcouncil/api-augment@0.8.1", "", {}, "sha512-Wb2Fify+4MJKpCbIBTCNZkMV0zULjn79WIuRvk3u1Nybu2DHAP/6t+Gi6Q9cd9KfjYoBNLwghArlnFytk1mtkQ=="],
-
-    "@galacticcouncil/math-hsm": ["@galacticcouncil/math-hsm@1.2.0", "", {}, "sha512-SGTYWqWQ6EFFCkJOANLWLx3MkKoJBLNE06BD2tqscuhp7J5kgmfLi1KzRjv4DIjBDFfWz/b6PPMvyu2P07O+4A=="],
-
-    "@galacticcouncil/math-lbp": ["@galacticcouncil/math-lbp@1.3.0", "", {}, "sha512-K+MYbS7NBzuPx8Sh03nceTxdhSxxiW8Hk+OFWaxWZVDBE0lIUwa26AAUTrKOVjVdSrCt2JGYMae50SU23CKWyw=="],
-
-    "@galacticcouncil/math-liquidity-mining": ["@galacticcouncil/math-liquidity-mining@1.3.0", "", {}, "sha512-tTEIjBfCihigiy3BTAZ75e2p1An6u6hEZAZ4LYNB81gftFiRN3nEF0dcHgtjt56ivVXgeDS1pBWYTm4aw2A20w=="],
-
-    "@galacticcouncil/math-omnipool": ["@galacticcouncil/math-omnipool@1.4.0", "", {}, "sha512-Agqe2uJc4Wqt0mTS0rT6kxHdr9M2R6ArxJ0G+WZtqJJtsKXwm8fuNyMRMhFRnStZDS6Q1FNrK3yskgVvqo4YzQ=="],
-
-    "@galacticcouncil/math-stableswap": ["@galacticcouncil/math-stableswap@2.5.0", "", {}, "sha512-96xh4NRg3Siyx+4UXRPGkpKYNzuBSZxohHKOFgOackYzHBtupnUtPpDpLFjs8IYEB1joPtQrgKz57bOkScOeUA=="],
-
-    "@galacticcouncil/math-xyk": ["@galacticcouncil/math-xyk@1.3.0", "", {}, "sha512-ZYVSyI5W2pQKCqpkaRM7t1AJqtPyxQ0P04T2+KpBEEABMRjSpQz2x44s1tk6r3DdFR8dICeZJEh5BI7eQYlT6w=="],
-
-    "@galacticcouncil/sdk": ["@galacticcouncil/sdk@10.8.0", "", { "dependencies": { "@galacticcouncil/math-hsm": "^1.2.0", "@galacticcouncil/math-lbp": "^1.3.0", "@galacticcouncil/math-liquidity-mining": "^1.3.0", "@galacticcouncil/math-omnipool": "^1.4.0", "@galacticcouncil/math-stableswap": "^2.5.0", "@galacticcouncil/math-xyk": "^1.3.0", "@noble/hashes": "^1.6.1", "@thi.ng/cache": "^2.1.35", "@thi.ng/memoize": "^4.0.2", "bignumber.js": "^9.1.0", "lodash.clonedeep": "^4.5.0" }, "peerDependencies": { "@polkadot/api": "~16.4.8", "@polkadot/api-augment": "~16.4.8", "@polkadot/types": "~16.4.8", "@polkadot/util": "~13.5.6", "@polkadot/util-crypto": "~13.5.6", "viem": "^2.38.3" } }, "sha512-qT2QXOOQ2ifthMX92Xqu7/5iM+kYUtqyzLVFPdqNpbprahu1Eo4Irof7O3gEPsHbSDV3ylEQGCnQtin2qROxIA=="],
 
     "@gemini-wallet/core": ["@gemini-wallet/core@0.3.2", "", { "dependencies": { "@metamask/rpc-errors": "7.0.2", "eventemitter3": "5.0.1" }, "peerDependencies": { "viem": ">=2.0.0" } }, "sha512-Z4aHi3ECFf5oWYWM3F1rW83GJfB9OvhBYPTmb5q+VyK3uvzvS48lwo+jwh2eOoCRWEuT/crpb9Vwp2QaS5JqgQ=="],
 
@@ -1978,34 +1959,6 @@
     "@testing-library/react": ["@testing-library/react@16.3.2", "", { "dependencies": { "@babel/runtime": "^7.12.5" }, "peerDependencies": { "@testing-library/dom": "^10.0.0", "@types/react": "^18.0.0 || ^19.0.0", "@types/react-dom": "^18.0.0 || ^19.0.0", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha512-XU5/SytQM+ykqMnAnvB2umaJNIOsLF3PVv//1Ew4CTcpz0/BRyy/af40qqrt7SjKpDdT1saBMc42CUok5gaw+g=="],
 
     "@testing-library/user-event": ["@testing-library/user-event@14.6.1", "", { "peerDependencies": { "@testing-library/dom": ">=7.21.4" } }, "sha512-vq7fv0rnt+QTXgPxr5Hjc210p6YKq2kmdziLgnsZGgLJ9e6VAShx1pACLuRjd/AS/sr7phAR58OIIpf0LlmQNw=="],
-
-    "@thi.ng/api": ["@thi.ng/api@8.12.27", "", {}, "sha512-M4KwSDQdIlUvFsudM54wP4WnCMAAebc3DeqafRAJkvHSoKSufpnVnchwAWT9ZGMXvc0BnCgjp4woBiBE6eZunA=="],
-
-    "@thi.ng/arrays": ["@thi.ng/arrays@2.14.24", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/checks": "^3.10.1", "@thi.ng/compare": "^2.5.15", "@thi.ng/equiv": "^2.1.116", "@thi.ng/errors": "^2.6.16", "@thi.ng/random": "^4.1.53" } }, "sha512-jSaafL9m+dZGcf4Vm4EcVi7Xf45IWQzK7c4Mm5HQLxiJj6SuPodV5QQGdQ4UH+A+kyNkZlMXFK2UcdkAqv/gRw=="],
-
-    "@thi.ng/cache": ["@thi.ng/cache@2.3.81", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/dcons": "^3.2.200" } }, "sha512-2TgLX2q+GTUpxJbdNw38EU7PZ2CGiiYuSPEvPsQ7UdmOf672sjkeS5lvYG+vy3A3WIH9Hg9nrKK1WFMKjyoNtw=="],
-
-    "@thi.ng/checks": ["@thi.ng/checks@3.10.1", "", {}, "sha512-824K6opNxMY0+ZDBHipFXgVEzARX/C/OwcAIJc02vZ/JdawuxxL6HVpOST3beQtco8zr5UQDs6Pl+F3GNSBdVA=="],
-
-    "@thi.ng/compare": ["@thi.ng/compare@2.5.15", "", { "dependencies": { "@thi.ng/api": "^8.12.27" } }, "sha512-hPQs2z/I3Ivdw/qexT1fzRRjXKAbNQLz9kA7eVl4j8hi/S87vLPZrJfWSnnUp2Pwv5FVmsUt6YgfxRENYZGB4Q=="],
-
-    "@thi.ng/compose": ["@thi.ng/compose@3.0.64", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/errors": "^2.6.16" } }, "sha512-eMjTnJg8cYHueIHi1qTcpBGpzHf+qcfzbd2MO7oMntaGAgKUWcK8F+HBCz/7o9GGLhIRnZqaz0Ro8mWY4MqYuw=="],
-
-    "@thi.ng/dcons": ["@thi.ng/dcons@3.2.200", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/checks": "^3.10.1", "@thi.ng/compare": "^2.5.15", "@thi.ng/equiv": "^2.1.116", "@thi.ng/errors": "^2.6.16", "@thi.ng/random": "^4.1.53", "@thi.ng/transducers": "^9.6.41" } }, "sha512-Mi5OGHJ4D5wf3l6YArFcF70AIdxrV6emVDm/5Jt3/2wCuChX9KSr9mkNleLGsAdBunHcFKIqIWk4bhf+iEyoNA=="],
-
-    "@thi.ng/equiv": ["@thi.ng/equiv@2.1.116", "", {}, "sha512-aX8phyg5KZCUcsIlhU1nFgyNbW16Q5uya8Ys3YkOHMmadnhbdQMES8u9kGUcJhBghM1OyJwzKmuBNOvEMli/jg=="],
-
-    "@thi.ng/errors": ["@thi.ng/errors@2.6.16", "", {}, "sha512-a7Lv/G0La5eTNUEIyLldpeYziyFSj3rOlWNeXFu8v+ZSb8w8EnQ/L0r0sKHux7Ru6RhUkAXrcaHU7xd1ZkWovA=="],
-
-    "@thi.ng/math": ["@thi.ng/math@5.15.16", "", { "dependencies": { "@thi.ng/api": "^8.12.27" } }, "sha512-l+KKT/ps32G8U6fy1Luhms5Rflz7TY4sfriu1kUzwdEbGhCDFXE2pDe4CmHm1hsqU8Ps+8sgJTFDayUKYWzVtA=="],
-
-    "@thi.ng/memoize": ["@thi.ng/memoize@4.0.51", "", { "dependencies": { "@thi.ng/api": "^8.12.27" } }, "sha512-fBMw/aDkctNLquciS8WqLPKpCWc/+75iZBsF+hM3E6AtZzKrQ/XV5iqR6Li3kFCQkwwTfGsDFiavPGBk/PtPhQ=="],
-
-    "@thi.ng/random": ["@thi.ng/random@4.1.53", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/errors": "^2.6.16" } }, "sha512-EbWxE8WRkqrJgGyngwb/sRDYic6ArPko1j8cOWJqfXK5QEGQRZRvS+JEQRrsAxf+p+jQpKTUN3A/cLGyC+dVtA=="],
-
-    "@thi.ng/timestamp": ["@thi.ng/timestamp@1.1.46", "", {}, "sha512-2rgZJoSJnUTERhBo2zptvNO1l1fxLEUpYxDJIOt6+tZ64ZzX4lGONlwtYO2Q0NQYT5bG8vk+jgqsPiVDnXCWZg=="],
-
-    "@thi.ng/transducers": ["@thi.ng/transducers@9.6.41", "", { "dependencies": { "@thi.ng/api": "^8.12.27", "@thi.ng/arrays": "^2.14.24", "@thi.ng/checks": "^3.10.1", "@thi.ng/compare": "^2.5.15", "@thi.ng/compose": "^3.0.64", "@thi.ng/errors": "^2.6.16", "@thi.ng/math": "^5.15.16", "@thi.ng/random": "^4.1.53", "@thi.ng/timestamp": "^1.1.46" } }, "sha512-1995PFGVqjmD9WqW8J/c0ZXiWi+g7hs/BOv4TyNY4wrxgD21Xyvuna0zSX5STY9qs1qHIxSSLQbM0pmOsifOcw=="],
 
     "@tokenizer/inflate": ["@tokenizer/inflate@0.2.7", "", { "dependencies": { "debug": "^4.4.0", "fflate": "^0.8.2", "token-types": "^6.0.0" } }, "sha512-MADQgmZT1eKjp06jpI2yozxaU9uVs4GzzgSL+uEq7bVcJ9V1ZXQkeGNql1fsSI0gMy1vhvNTNbUqrx+pZfJVmg=="],
 
