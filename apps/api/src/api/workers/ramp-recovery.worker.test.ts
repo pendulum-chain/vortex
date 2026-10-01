@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { EPaymentMethod, Networks, RampDirection } from "@vortexfi/shared";
 import { Op } from "sequelize";
+import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import phaseProcessor from "../services/phases/phase-processor";
@@ -114,9 +115,12 @@ describe("RampRecoveryWorker funded SELL start", () => {
       throw new Error("database unavailable");
     });
 
+    const info = spyOn(logger, "info");
     await runWorker();
     await runWorker();
 
+    expect(info).toHaveBeenCalledWith("Ramp recovery attempt completed. Successful: 0, Failed: 1");
+    info.mockRestore();
     expect(appendErrorLog).toHaveBeenCalledTimes(2);
     expect(appendErrorLog.mock.calls[0]?.[0]).toBe("funded-sell-ramp");
     expect(appendErrorLog.mock.calls[0]?.[1]).toMatchObject({ error: "database unavailable", phase: "initial" });

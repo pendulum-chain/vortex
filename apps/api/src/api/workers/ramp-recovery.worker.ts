@@ -140,7 +140,8 @@ class RampRecoveryWorker {
       const results = await Promise.allSettled(recoveryPromises);
 
       // Log summary of results
-      const successfulRecoveries = results.filter(r => r.status === "fulfilled").length;
+      // Each attempt catches its own error and resolves with its outcome in `value.status`.
+      const successfulRecoveries = results.filter(r => r.status === "fulfilled" && r.value.status === "fulfilled").length;
       const failedRecoveries = results.length - successfulRecoveries;
       logger.info(`Ramp recovery attempt completed. Successful: ${successfulRecoveries}, Failed: ${failedRecoveries}`);
     } catch (error) {
