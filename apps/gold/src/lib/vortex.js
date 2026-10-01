@@ -282,6 +282,15 @@ export function secondsUntilExpiry(expiresAt, now = Date.now()) {
   return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
 }
 
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException("Aborted", "AbortError")); return; }
+    const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
 // No response, a timeout, rate limiting or a server error; auth and validation errors are final.
 function isTransientError(error) {
   const status = Number(error?.status || 0);
@@ -301,13 +310,19 @@ export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, t
       onUpdate?.(ramp);
       if (["success", "failure"].includes(classifyRamp(ramp))) return ramp;
     }
-    await new Promise((resolve, reject) => {
-      const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
-      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, intervalMs);
-      signal?.addEventListener("abort", abort, { once: true });
-    });
+    await delay(intervalMs, signal);
   }
   throw new VortexError("A operação continua em processamento. Você pode fechar esta tela e acompanhar depois.", { code: "POLL_TIMEOUT" });
+}
+
+// Brazilian CPF check digits, so a typo is caught here instead of by the API or Avenia.
+export function isValidCpf(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  // Like the shared helper, reject digit runs: repeated digits and 01234567890 are the only runs whose
+  // check digits are valid.
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits) || digits === "01234567890") return false;
+  const checkDigit = (length) => [...digits.slice(0, length)].reduce((sum, digit, index) => sum + Number(digit) * (length + 1 - index), 0) * 10 % 11 % 10;
+  return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
 }
 
 export async function createBrazilSubaccount({ name, taxId, quoteId, sessionId }) {
@@ -323,19 +338,59 @@ export async function uploadKycDocument(uploadUrl, file) {
   if (!response.ok) throw new VortexError("Não foi possível enviar a foto do documento. Tente novamente.", { status: response.status, code: "DOCUMENT_UPLOAD_FAILED" });
 }
 
-export async function submitBrazilKyc(payload) { return authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+export async function submitBrazilKyc(payload) {
+  try { return await authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+  catch (error) {
+    // Avenia only allows a new attempt after a rejection or expiry it marks retryable; otherwise the API
+    // refuses the new documents with 409, and only support can reopen the verification.
+    if (error.status !== 409) throw error;
+    const reference = error.details?.requestId ? ` informando o código ${error.details.requestId}` : "";
+    throw new VortexError(`Não foi possível abrir uma nova verificação automaticamente. Consulte o suporte da Vortex${reference}.`, { status: 409, code: "KYC_NEW_ATTEMPT_BLOCKED", details: error.details });
+  }
+}
 export async function getBrazilKycStatus(taxId) { return authenticatedApi(`/v1/brl/getKycStatus?taxId=${encodeURIComponent(taxId)}`, { method: "GET" }); }
 
-export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, signal } = {}) {
+export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
   const startedAt = Date.now();
+  let failures = 0;
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const result = await getBrazilKycStatus(taxId);
-    onUpdate?.(result);
-    const status = String(result?.status || "").toUpperCase();
-    const outcome = String(result?.result || "").toUpperCase();
-    if (status === "COMPLETED" || ["APPROVED", "REJECTED"].includes(outcome)) return result;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    let result = null;
+    // Besides network blips, the API answers 404 until a just-submitted attempt is visible and 409 while a
+    // submission is reconciled; a 409 that persists needs an operator, so it ends in a support message.
+    try { result = await getBrazilKycStatus(taxId); failures = 0; }
+    catch (error) {
+      const reconciling = [404, 409].includes(error.status);
+      if (!(isTransientError(error) || reconciling)) throw error;
+      if (++failures >= maxConsecutiveErrors) {
+        if (!reconciling) throw error;
+        throw new VortexError("Não conseguimos confirmar sua verificação agora. Aguarde alguns minutos e tente novamente; se continuar, consulte o suporte da Vortex.", { status: error.status, code: "KYC_STATUS_UNAVAILABLE", details: error.details });
+      }
+    }
+    // An answer that arrives after the modal closed must not approve a flow that is gone.
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    if (result) {
+      onUpdate?.(result);
+      const status = String(result.status || "").toUpperCase();
+      const outcome = String(result.result || "").toUpperCase();
+      if (["COMPLETED", "EXPIRED"].includes(status) || ["APPROVED", "REJECTED"].includes(outcome)) return result;
+    }
+    await delay(intervalMs, signal);
   }
-  throw new VortexError("A verificação ainda está em análise. Você pode voltar ao painel e continuar mais tarde.", { code: "KYC_PENDING" });
+  throw new VortexError("A verificação ainda está em análise. Aguarde nesta tela e selecione \"Já concluí a selfie\" para consultar novamente.", { code: "KYC_PENDING" });
+}
+
+const KYC_REJECTION_MESSAGES = {
+  face: "A selfie não confirmou que o documento é seu. Faça a selfie novamente em um local bem iluminado.",
+  name: "O nome informado não confere com o documento. Corrija e tente novamente.",
+  birthdate: "A data de nascimento não confere com o documento. Corrija e tente novamente.",
+  // Avenia reports tax_id when the CPF does not exist, not when it differs from the document.
+  tax_id: "O CPF informado não foi encontrado. Confira o número e tente novamente.",
+};
+
+// Maps a finished Avenia attempt to what the user must do next; expired and rejected attempts start over.
+export function kycOutcome(result) {
+  if (String(result?.result || "").toUpperCase() === "APPROVED") return { approved: true, message: "" };
+  if (String(result?.status || "").toUpperCase() === "EXPIRED") return { approved: false, message: "O prazo da verificação terminou. Envie o documento e faça a selfie novamente." };
+  return { approved: false, message: KYC_REJECTION_MESSAGES[String(result?.failureReason || "").toLowerCase()] || "A verificação não foi aprovada. Confira seus dados e tente novamente." };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, requestVortexOtp, setVortexSession, getFreshAccessToken, getVortexSession, clearVortexSession, submitWalletTransactions, verifyVortexOtp } from '../src/lib/vortex.js';
+import { buildPaxgSellRequest, validatePaxgQuote, normalizeQuote, classifyRamp, getBrazilBuyReadiness, kycOutcome, pollBrazilKyc, submitBrazilKyc, getPaxgAvailability, getRampWithUnsignedTxs, hasVortexSession, requestVortexOtp, setVortexSession, getFreshAccessToken, getVortexSession, clearVortexSession, submitWalletTransactions, verifyVortexOtp } from '../src/lib/vortex.js';
 import { gramsToPaxg, ethereumTransaction, sendEthereumTransaction, assertPaxgSellTransactions, PAXG_ADDRESS, SQUID_ROUTER } from '../src/lib/paxg.js';
 import { encodeFunctionData, parseAbi, parseUnits } from 'viem';
 import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint, clearActiveRamp, failActiveRamp, getRampHistory } from '../src/lib/pilot-store.js';
@@ -182,5 +182,80 @@ test('a verified Vortex session is reused only for its own e-mail, across refres
     await getFreshAccessToken();
     assert.equal(getVortexSession().refresh_token,'rotated-test-only');
     assert.equal(hasVortexSession(' ANA@example.com'),true);
+  } finally {clearVortexSession();globalThis.fetch=old;}
+});
+test('KYC polling rides out blips and reconciliation, and stops on every final state',{timeout:5000},async()=>{
+  const old=globalThis.fetch;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  const script=(replies)=>{let calls=0;globalThis.fetch=async()=>{const reply=replies[Math.min(calls++,replies.length-1)];if(reply instanceof Error) throw reply;return new Response(JSON.stringify(reply.body),{status:reply.status});};return ()=>calls;};
+  const ok=(body)=>({status:200,body});
+  const poll=(options={})=>pollBrazilKyc('08786985906',{intervalMs:1,timeoutMs:2000,...options});
+  const inPortuguese=(error)=>/verificação/.test(error.message)&&!/not found|reconciliation/i.test(error.message);
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    let calls=script([new TypeError('Failed to fetch'),{status:404,body:{error:'KYC attempt not found'}},{status:409,body:{error:'The KYC submission requires reconciliation'}},{status:503,body:{}},ok({status:'PROCESSING'}),ok({status:'COMPLETED',result:'APPROVED'})]);
+    assert.equal((await poll()).result,'APPROVED'); assert.equal(calls(),6);
+    // Only consecutive failures count: four, an answer, four more still succeed.
+    const blip={status:503,body:{}};
+    calls=script([blip,blip,blip,blip,ok({status:'PROCESSING'}),blip,blip,blip,blip,ok({status:'COMPLETED',result:'APPROVED'})]);
+    assert.equal((await poll()).result,'APPROVED'); assert.equal(calls(),10);
+    for(const final of [{status:'EXPIRED'},{status:'COMPLETED',result:'REJECTED',failureReason:'face'}]){
+      calls=script([ok(final)]); assert.deepEqual(await poll(),final); assert.equal(calls(),1);
+    }
+    calls=script([{status:403,body:{error:'not yours'}}]);
+    await assert.rejects(poll()); assert.equal(calls(),1);
+    calls=script([{status:503,body:{}}]);
+    await assert.rejects(poll({maxConsecutiveErrors:3})); assert.equal(calls(),3);
+    // A 404 or 409 that never clears ends in Portuguese, not in the API's English text.
+    for(const error of ['KYC attempt not found','The KYC case requires reconciliation']){
+      calls=script([{status:error.startsWith('KYC')?404:409,body:{error}}]);
+      await assert.rejects(poll(),(thrown)=>thrown.code==='KYC_STATUS_UNAVAILABLE'&&inPortuguese(thrown)); assert.equal(calls(),5);
+    }
+    script([ok({status:'PROCESSING'})]);
+    await assert.rejects(poll({timeoutMs:5}),(error)=>error.code==='KYC_PENDING');
+  } finally {clearVortexSession();globalThis.fetch=old;}
+});
+test('a refused new KYC attempt points to support in Portuguese',async()=>{
+  const old=globalThis.fetch;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    globalThis.fetch=async()=>new Response(JSON.stringify({error:'The KYC submission does not match this request'}),{status:409,headers:{'X-Request-ID':'req-123'}});
+    await assert.rejects(submitBrazilKyc({taxIdNumber:'08786985906'}),(error)=>error.code==='KYC_NEW_ATTEMPT_BLOCKED'&&/suporte/.test(error.message)&&/req-123/.test(error.message)&&!/does not match/.test(error.message));
+    globalThis.fetch=async()=>new Response(JSON.stringify({error:'Invalid documentType'}),{status:400});
+    await assert.rejects(submitBrazilKyc({}),(error)=>error.status===400&&error.code!=='KYC_NEW_ATTEMPT_BLOCKED');
+  } finally {clearVortexSession();globalThis.fetch=old;}
+});
+test('a finished KYC attempt tells the user what to fix in Portuguese',()=>{
+  assert.deepEqual(kycOutcome({status:'COMPLETED',result:'APPROVED'}),{approved:true,message:''});
+  assert.match(kycOutcome({status:'EXPIRED'}).message,/prazo/);
+  const expected={face:/selfie/,name:/nome/,birthdate:/nascimento/,tax_id:/CPF.*não foi encontrado/};
+  for(const [reason,pattern] of Object.entries(expected)){
+    const {approved,message}=kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:reason});
+    assert.equal(approved,false); assert.match(message,pattern);
+    // Avenia's reason codes must never reach the Portuguese screen.
+    assert.doesNotMatch(message,/\b(face|name|birthdate|tax_id)\b/);
+  }
+  assert.match(kycOutcome({status:'COMPLETED',result:'REJECTED',failureReason:'unknown'}).message,/não foi aprovada/);
+  assert.equal(kycOutcome({status:'COMPLETED',result:'REJECTED'}).approved,false);
+});
+test('KYC polling stops when the modal closes, even with a status answer in flight',{timeout:2000},async()=>{
+  const old=globalThis.fetch;let calls=0;let release;
+  const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
+  const reply=(body)=>new Response(JSON.stringify(body));
+  try {
+    setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
+    globalThis.fetch=async()=>{calls++;return reply({status:'PROCESSING'});};
+    const waiting=new AbortController();setTimeout(()=>waiting.abort(),20);
+    await assert.rejects(pollBrazilKyc('08786985906',{intervalMs:60_000,signal:waiting.signal}),{name:'AbortError'});
+    assert.equal(calls,1);
+    await assert.rejects(pollBrazilKyc('08786985906',{signal:AbortSignal.abort()}),{name:'AbortError'});
+    assert.equal(calls,1);
+    globalThis.fetch=()=>new Promise((resolve)=>{release=()=>resolve(reply({status:'COMPLETED',result:'APPROVED'}));});
+    const closing=new AbortController();
+    const polling=pollBrazilKyc('08786985906',{intervalMs:1,signal:closing.signal});
+    await new Promise((resolve)=>setTimeout(resolve,10));
+    closing.abort();release();
+    await assert.rejects(polling,{name:'AbortError'});
   } finally {clearVortexSession();globalThis.fetch=old;}
 });
