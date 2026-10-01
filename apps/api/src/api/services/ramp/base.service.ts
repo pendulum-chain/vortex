@@ -1,6 +1,5 @@
 import { RampPhase } from "@vortexfi/shared";
 import { Op, QueryTypes, Transaction } from "sequelize";
-import { v4 as uuidv4 } from "uuid";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -99,7 +98,7 @@ export class BaseRampService {
   ): Promise<RampState> {
     return RampState.create(
       {
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         ...data,
         errorLogs: [],
         phaseHistory: [
