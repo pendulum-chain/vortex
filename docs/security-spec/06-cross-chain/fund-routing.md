@@ -11,6 +11,7 @@ The block catalog owns the subsidization and settlement executors across Substra
 **Block executors:**
 - `phases/blocks/phases/subsidize-pre/execution.ts` — Tops up the ephemeral before a Nabla swap to ensure it has the expected input amount
 - `phases/blocks/phases/subsidize-post/execution.ts` — Tops up the ephemeral after a Nabla swap
+- `phases/blocks/core/evm-subsidy-top-up.ts` — Shared EVM top-up used by both executors above: funding-wallet token/gas preflight, the reconciled `evm-subsidy-transfer` financial operation, and the post-send balance confirmation. Each executor keeps its own cap check
 - `phases/blocks/phases/final-settlement-subsidy/execution.ts` — Tops up an EVM ephemeral for cross-chain settlement, enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`, and records confirmed subsidies
 - `phases/blocks/phases/destination-transfer/execution.ts` — Sends the presigned EVM transfer from the ephemeral to the user's destination address
 
