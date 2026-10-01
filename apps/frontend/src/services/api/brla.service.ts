@@ -3,7 +3,6 @@ import {
   BrGetUserResponse,
   BrKYCDataUpload,
   BrKYCDataUploadRequest,
-  BrValidatePixKeyResponse,
   RampDirection
 } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
@@ -34,17 +33,6 @@ export class BrlaService {
   static async recordInitialKycAttempt(taxId: string, quoteId: string, sessionId?: string): Promise<Record<string, never>> {
     return apiRequest<Record<string, never>>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
   }
-  /**
-   * Validate a PIX key
-   * @param pixKey The PIX key to validate
-   * @returns Whether the PIX key is valid
-   */
-  static async validatePixKey(pixKey: string): Promise<BrValidatePixKeyResponse> {
-    return apiRequest<BrValidatePixKeyResponse>("get", `${this.BASE_PATH}/validatePixKey`, undefined, {
-      params: { pixKey }
-    });
-  }
-
   /**
    * Get the remaining limit for a user
    * @param taxId The user's tax ID
