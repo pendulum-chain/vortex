@@ -4,7 +4,6 @@ import { assertLegacyRebalancerDisabled } from "./cli.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
-import { selectEvaluatedUsdcToBrlaAmount, selectUsdcToBrlaAmount } from "./rebalance/usdc-brla-usdc-base/amountPolicy.ts";
 import { evaluatePaidRunDailyLimit, sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
 import {
   type DailyBridgeLimitDecision,
@@ -241,16 +240,11 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
 }> {
   const config = getConfig();
-  const standardAmountSelection = selectUsdcToBrlaAmount(
-    config.rebalancingUsdToBrlAmount,
-    config.rebalancingUsdToBrlAmount,
-    false,
-    manualAmount
-  );
-  const standardAmountRaw = toUsdcRaw(standardAmountSelection.amountUsdc);
+  const standardAmountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
+  const standardAmountRaw = toUsdcRaw(standardAmountUsdc);
   const standardPolicyDecision = await evaluateUsdcToBrlaPolicy(standardAmountRaw, coverageDeviationBps);
 
-  if (standardAmountSelection.reason === "manual") {
+  if (manualAmount) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
@@ -266,23 +260,17 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   }
 
   console.log(
-    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountSelection.amountUsdc} USDC, ` +
+    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountUsdc} USDC, ` +
       `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
   );
 
   await sleep(SQUIDROUTER_QUOTE_STAGGER_MS);
   const profitablePolicyDecision = await evaluateUsdcToBrlaPolicy(profitableAmountRaw, coverageDeviationBps);
 
-  const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
-    { amountUsdc: standardAmountSelection.amountUsdc, projectedProfitable: standardPolicyDecision.profitable },
-    { amountUsdc: config.rebalancingProfitableUsdToBrlAmount, projectedProfitable: profitablePolicyDecision.profitable },
-    null
-  );
-
-  if (selectedAmount.reason !== "profitable") {
+  if (!profitablePolicyDecision.profitable) {
     console.log(
       `Configured profitable amount ${config.rebalancingProfitableUsdToBrlAmount} USDC is not projected profitable. ` +
-        `Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
+        `Using standard amount ${standardAmountUsdc} USDC.`
     );
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
