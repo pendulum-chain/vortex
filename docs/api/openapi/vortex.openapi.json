@@ -3032,7 +3032,7 @@
                         "type": ["string", "null"]
                       },
                       "ramp": {
-                        "description": "EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error).",
+                        "description": "EUR onramp readiness of an approved EUR provider account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error).",
                         "oneOf": [
                           {
                             "type": "null"
@@ -3720,7 +3720,8 @@
         "type": "object"
       },
       "SimpleStatus": {
-        "description": "`PENDING`, `FAILED`, `COMPLETED`",
+        "description": "Overall ramp status. `COMPLETE` and `FAILED` are terminal; use this field, not `currentPhase`, to detect the end of a ramp.",
+        "enum": ["PENDING", "COMPLETE", "FAILED"],
         "type": "string"
       },
       "StartKYC2Request": {
@@ -8437,7 +8438,7 @@
     "/v1/monerium-b2b/account": {
       "get": {
         "deprecated": false,
-        "description": "Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "description": "Available in sandbox; production activation is pending. Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
         "operationId": "getMoneriumB2bAccount",
         "parameters": [
           {
@@ -8480,7 +8481,7 @@
     "/v1/monerium-b2b/deposits": {
       "get": {
         "deprecated": false,
-        "description": "Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "description": "Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
         "operationId": "listMoneriumB2bDeposits",
         "parameters": [
           {
@@ -8590,7 +8591,7 @@
     },
     "/v1/onboarding/requirements": {
       "get": {
-        "description": "Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.",
+        "description": "Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. EUR onboarding is not part of discovery; it runs in the Dashboard or Widget.",
         "operationId": "getOnboardingRequirements",
         "parameters": [
           {
@@ -11018,7 +11019,7 @@
                 "properties": {
                   "events": {
                     "items": {
-                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId.",
+                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId. Deposit events are available in sandbox; production activation is pending.",
                       "type": "string"
                     },
                     "type": "array"

@@ -347,7 +347,8 @@
         "invalidTransactionParameters": "Os parâmetros da transação fornecidos são inválidos. Verifique suas entradas.",
         "networkError": "Ocorreu um erro de rede. Verifique sua conexão com a internet.",
         "quoteExpired": "Sua cotação expirou. Atualize e solicite uma nova cotação.",
-        "serverError": "Ocorreu um erro no servidor ao processar sua solicitação. Tente novamente mais tarde."
+        "serverError": "Ocorreu um erro no servidor ao processar sua solicitação. Tente novamente mais tarde.",
+        "startWindowClosed": "Esta venda expirou antes do envio dos seus fundos. Seus fundos continuam na sua carteira. Inicie uma nova venda."
       },
       "retryButton": "Tentar Novamente",
       "title": "Algo deu errado"
