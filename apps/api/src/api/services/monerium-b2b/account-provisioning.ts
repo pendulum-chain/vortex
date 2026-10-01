@@ -7,6 +7,7 @@ import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/monerium
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import { type ProvisionManagedProfileResult, provisionManagedProfile } from "../managed-profile-provisioning.service";
 import { getPublicClient } from "./chain";
+import { refundAccountFor } from "./refund-wallet";
 
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,6 +70,7 @@ export function isValidFeePolicy(targetPpm: number, floorPpm: number): boolean {
 
 const forwarderConfigAbi = parseAbi([
   "function destination() view returns (address)",
+  "function recoveryAddress() view returns (address)",
   "function targetPpm() view returns (uint32)",
   "function floorPpm() view returns (uint32)",
   "function FACTORY() view returns (address)"
@@ -80,6 +82,8 @@ export interface ForwarderPolicyConfig {
   destination: string;
   factory: string;
   floorPpm: number;
+  /** The client's derived refund wallet (refund-wallet.ts): the clone's only recovery target. */
+  recoveryAddress: string;
   targetPpm: number;
 }
 
@@ -95,6 +99,9 @@ export function forwarderConfigMismatch(
   }
   if (onchain.destination.toLowerCase() !== expected.destination) {
     return `on-chain destination ${onchain.destination} differs from the submitted value`;
+  }
+  if (onchain.recoveryAddress.toLowerCase() !== expected.recoveryAddress.toLowerCase()) {
+    return `on-chain recovery address ${onchain.recoveryAddress} is not this client's refund wallet ${expected.recoveryAddress}`;
   }
   if (onchain.targetPpm !== expected.targetPpm) {
     return `on-chain targetPpm ${onchain.targetPpm} differs from the submitted ${expected.targetPpm}`;
@@ -116,6 +123,7 @@ export function forwarderConfigMismatch(
 async function verifyForwarderOnChain(
   forwarderAddress: string,
   destination: string,
+  moneriumProfileId: string,
   targetPpm: number,
   floorPpm: number
 ): Promise<void> {
@@ -133,8 +141,9 @@ async function verifyForwarderOnChain(
   const address = forwarderAddress as Address;
   let onchain: ForwarderPolicyConfig & { isForwarder: boolean };
   try {
-    const [onchainDestination, onchainTargetPpm, onchainFloorPpm, factory] = await Promise.all([
+    const [onchainDestination, onchainRecovery, onchainTargetPpm, onchainFloorPpm, factory] = await Promise.all([
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "destination" }),
+      client.readContract({ abi: forwarderConfigAbi, address, functionName: "recoveryAddress" }),
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "targetPpm" }),
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "floorPpm" }),
       client.readContract({ abi: forwarderConfigAbi, address, functionName: "FACTORY" })
@@ -150,6 +159,7 @@ async function verifyForwarderOnChain(
       factory,
       floorPpm: onchainFloorPpm,
       isForwarder,
+      recoveryAddress: onchainRecovery,
       targetPpm: onchainTargetPpm
     };
   } catch (error) {
@@ -160,7 +170,11 @@ async function verifyForwarderOnChain(
       }`
     );
   }
-  const mismatch = forwarderConfigMismatch({ destination, factory: trustedFactory, floorPpm, targetPpm }, onchain);
+  const recoveryAddress = refundAccountFor(moneriumProfileId).address;
+  const mismatch = forwarderConfigMismatch(
+    { destination, factory: trustedFactory, floorPpm, recoveryAddress, targetPpm },
+    onchain
+  );
   if (mismatch) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
@@ -287,7 +301,7 @@ export async function provisionMoneriumB2bAccount(
 
   // Before any persistence: a wrong clone address must fail here, not become a mapped
   // account whose config the monitors later legitimize.
-  await verifyForwarderOnChain(forwarderAddress, destination, targetPpm, floorPpm);
+  await verifyForwarderOnChain(forwarderAddress, destination, moneriumProfileId, targetPpm, floorPpm);
 
   let result: { account: { created: boolean; row: MoneriumAccount }; managedProfile: ProvisionManagedProfileResult };
   try {

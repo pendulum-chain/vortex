@@ -148,7 +148,7 @@ export const forwarderAbi = [
   },
   { inputs: [], name: "batchOpenedAt", outputs: [{ name: "", type: "uint64" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "RECOVERY_DELAY", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "RECOVERY_WALLET", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "recoveryAddress", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "guardianPaused", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "EURE", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { inputs: [], name: "ROUTER", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
@@ -259,7 +259,6 @@ export type KeeperWalletClient = WalletClient<Transport, undefined, Account>;
 let publicClientCache: PublicClient | null = null;
 let keeperClientCache: KeeperWalletClient | null = null;
 let guardianClientCache: KeeperWalletClient | null = null;
-let recoveryClientCache: KeeperWalletClient | null = null;
 let floatClientCache: KeeperWalletClient | null = null;
 let privateRpcWarned = false;
 
@@ -337,22 +336,9 @@ export function getGuardianWalletClient(): KeeperWalletClient | null {
   return guardianClientCache;
 }
 
-/**
- * Recovery-wallet client (MONERIUM_B2B_RECOVERY_PRIVATE_KEY): the immutable
- * RECOVERY_WALLET's key, which signs the refund's reverse swap and the Monerium redeem
- * message. Null when unset — the refund path then runs manually per the runbook.
- */
-export function getRecoveryWalletClient(): KeeperWalletClient | null {
-  if (!config.moneriumB2b.recoveryPrivateKey) {
-    return null;
-  }
-  if (!recoveryClientCache) {
-    recoveryClientCache = createWalletClient({
-      account: privateKeyToAccount(config.moneriumB2b.recoveryPrivateKey as Hex),
-      transport: http(submissionRpcUrl())
-    });
-  }
-  return recoveryClientCache;
+/** Client for one client's derived refund wallet (refund-wallet.ts): signs its reverse swap and redeem. */
+export function getRefundWalletClient(account: Account): KeeperWalletClient {
+  return createWalletClient({ account, transport: http(submissionRpcUrl()) });
 }
 
 /** Float-wallet client (MONERIUM_B2B_FLOAT_PRIVATE_KEY): the EURe float that tops a refund up to the exact amount. */
@@ -390,13 +376,14 @@ export interface ForwarderImmutables {
   oracleDecimals: number;
   /** Seconds a batch must have been open before the clone accepts `recover` (registry P3). */
   recoveryDelaySeconds: number;
-  recoveryWallet: Address;
+  /** This clone's fixed recovery address: the client's refund wallet. */
+  recoveryAddress: Address;
   slippageBps: number;
   usdc: Address;
 }
 
-// Implementation-level immutables shared by every clone, so one lookup per forwarder
-// address is enough for the process lifetime.
+// Implementation-level immutables shared by every clone plus the clone's own fixed
+// recovery address, so one lookup per forwarder address is enough for the process lifetime.
 const forwarderImmutablesCache = new Map<string, ForwarderImmutables>();
 
 export async function getForwarderImmutables(forwarderAddress: Address): Promise<ForwarderImmutables> {
@@ -417,7 +404,7 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
       | "MAX_FEE_PPM"
       | "MAX_REFERENCE_DEVIATION_BPS"
       | "RECOVERY_DELAY"
-      | "RECOVERY_WALLET"
+      | "recoveryAddress"
       | "ROUTER"
   >(
     functionName: T
@@ -432,7 +419,7 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     maxFeePpm,
     maxReferenceDeviationBps,
     recoveryDelay,
-    recoveryWallet,
+    recoveryAddress,
     router
   ] = await Promise.all([
     read("EURE"),
@@ -444,7 +431,7 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     read("MAX_FEE_PPM"),
     read("MAX_REFERENCE_DEVIATION_BPS"),
     read("RECOVERY_DELAY"),
-    read("RECOVERY_WALLET"),
+    read("recoveryAddress"),
     read("ROUTER")
   ]);
   const immutables: ForwarderImmutables = {
@@ -454,8 +441,8 @@ export async function getForwarderImmutables(forwarderAddress: Address): Promise
     maxReferenceDeviationBps: Number(maxReferenceDeviationBps),
     oracle,
     oracleDecimals: Number(oracleDecimals),
+    recoveryAddress,
     recoveryDelaySeconds: Number(recoveryDelay),
-    recoveryWallet,
     router,
     slippageBps: Number(slippageBps),
     usdc

@@ -18,7 +18,7 @@ import {
   getFloatWalletClient,
   getForwarderImmutables,
   getPublicClient,
-  getRecoveryWalletClient,
+  getRefundWalletClient,
   KeeperWalletClient,
   moneriumChainForChainId,
   readEnabledRoutes,
@@ -27,6 +27,7 @@ import {
 import { markDepositForRecovery } from "./conversion-executor";
 import { isForwardTransition, withForwarderLock } from "./deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
+import { refundAccountFor } from "./refund-wallet";
 
 /**
  * The refund path (docs/architecture-monerium-b2b-onramp.md, "the refund path"):
@@ -36,12 +37,14 @@ import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
  *     depending on MONERIUM_B2B_AUTO_RECOVERY. The keeper then sends `recover` once the
  *     clone's batch is RECOVERY_DELAY old (conversion-executor.ts).
  *  2. `runRecoveryOrchestrator` drives ONE recovery at a time from the confirmed `recover`
- *     to the bank refund: reverse-swap the USDC on the dedicated recovery wallet, top the
- *     wallet up from the EURe float to exactly the refund amount (or sweep a surplus back
- *     to the float), place the Monerium redeem order to the payer's IBAN, and mark the
- *     deposit `refunded` when Monerium processed it.
+ *     to the bank refund, on the client's own refund wallet (the clone's `recoveryAddress`,
+ *     derived in refund-wallet.ts and linked to the client's Monerium profile): reverse-swap
+ *     the USDC, top the wallet up from the EURe float to exactly the refund amount (or
+ *     sweep a surplus back to the float), place the Monerium redeem order to the payer's
+ *     IBAN, which pays out of the client's own IBAN, and mark the deposit `refunded` when
+ *     Monerium processed it.
  *
- * Crash safety rests on the recovery wallet being dedicated and empty between refunds:
+ * Crash safety rests on the refund wallet being dedicated and empty between refunds:
  * every step re-derives what is still to do from the wallet's balances, so a lost
  * transaction hash never repeats a value-moving send (a top-up already on chain makes the
  * remaining need zero). One recovery at a time is what keeps those balances meaningful;
@@ -53,6 +56,8 @@ import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
 /** Monerium requires a supporting document above this amount; such refunds stay manual (rollout G1). */
 export const SUPPORTING_DOCUMENT_THRESHOLD_EUR = 15_000;
+/** Gas the refund wallet's own transactions use (approve, reverse swap, surplus transfer), with margin. */
+const REFUND_WALLET_GAS_UNITS = 400_000n;
 const MAX_ATTEMPTS = 5;
 const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 const EURE_DECIMALS = 18;
@@ -138,7 +143,7 @@ export interface RecoveryDeps {
   oracle(): Promise<{ decimals: number; raw: bigint; slippageBps: number }>;
   /** Packed USDC -> ... -> EURe path (the first enabled route, reversed). */
   reverseRoute(): Promise<Hex>;
-  /** Sends the reverse swap from the recovery wallet; returns the swap tx hash. */
+  /** Sends the reverse swap from the client's refund wallet; returns the swap tx hash. */
   sendReverseSwap(amountIn: bigint, minOut: bigint, path: Hex): Promise<Hex>;
   sendEure(from: "float" | "recovery", to: Address, amount: bigint): Promise<Hex>;
   waitReceipt(hash: Hex): Promise<"reverted" | "success">;
@@ -157,18 +162,29 @@ function requireClient(client: KeeperWalletClient | null, name: string): KeeperW
   return client;
 }
 
-/** Live dependencies: chain clients from ./chain, the shared Monerium client, the two wallet keys. */
-export async function liveRecoveryDeps(forwarder: Address): Promise<RecoveryDeps> {
+/** Live dependencies: chain clients from ./chain, the shared Monerium client, the client's refund wallet and the float. */
+export async function liveRecoveryDeps(account: MoneriumAccount): Promise<RecoveryDeps> {
   const client = getPublicClient();
-  const immutables = await getForwarderImmutables(forwarder);
-  const recovery = requireClient(getRecoveryWalletClient(), "MONERIUM_B2B_RECOVERY_PRIVATE_KEY");
-  const float = requireClient(getFloatWalletClient(), "MONERIUM_B2B_FLOAT_PRIVATE_KEY");
-  if (recovery.account.address.toLowerCase() !== immutables.recoveryWallet.toLowerCase()) {
-    throw new Error("MONERIUM_B2B_RECOVERY_PRIVATE_KEY does not control the implementation's RECOVERY_WALLET");
+  const immutables = await getForwarderImmutables(account.forwarderAddress as Address);
+  const refundAccount = refundAccountFor(account.profileId);
+  if (refundAccount.address.toLowerCase() !== immutables.recoveryAddress.toLowerCase()) {
+    throw new Error(`MONERIUM_B2B_REFUND_SEED does not derive the recovery address of forwarder ${account.forwarderAddress}`);
   }
+  const recovery = getRefundWalletClient(refundAccount);
+  const float = requireClient(getFloatWalletClient(), "MONERIUM_B2B_FLOAT_PRIVATE_KEY");
   const balance = (token: Address, address: Address) =>
     client.readContract({ abi: erc20Abi, address: token, args: [address], functionName: "balanceOf" });
   const wallets = { float, recovery };
+  // The refund wallet pays for its own approve, swap and surplus transfer: before it sends,
+  // the float tops its ETH up to twice that cost at the current gas price. Balance-derived,
+  // so a repeat after a crash sends nothing once the first top-up landed.
+  const fundRefundGas = async () => {
+    const need = (await client.getGasPrice()) * REFUND_WALLET_GAS_UNITS;
+    const held = await client.getBalance({ address: recovery.account.address });
+    if (held >= need) return;
+    const hash = await float.sendTransaction({ chain: null, to: recovery.account.address, value: 2n * need - held });
+    await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS });
+  };
   return {
     async createRedeemOrder(request) {
       const result = await MoneriumApiService.getInstance().createRedemptionOrder(request);
@@ -209,6 +225,7 @@ export async function liveRecoveryDeps(forwarder: Address): Promise<RecoveryDeps
     },
     async sendEure(from, to, amount) {
       const wallet = wallets[from];
+      if (from === "recovery") await fundRefundGas();
       const { request } = await client.simulateContract({
         abi: erc20Abi,
         account: wallet.account,
@@ -219,6 +236,7 @@ export async function liveRecoveryDeps(forwarder: Address): Promise<RecoveryDeps
       return wallet.writeContract({ ...request, chain: null });
     },
     async sendReverseSwap(amountIn, minOut, path) {
+      await fundRefundGas();
       const allowance = await client.readContract({
         abi: erc20Abi,
         address: immutables.usdc,
@@ -295,7 +313,7 @@ export async function runRecoveryDeadlines(now: number = Date.now()): Promise<vo
 // ------------------------------------------------------------------ orchestrator
 
 /**
- * True while a recovered payment is (or is about to be) on the recovery wallet: a
+ * True while a recovered payment is (or is about to be) on a refund wallet: a
  * `recover` execution that is pending or confirmed whose deposit has not left the
  * refund path. The executor refuses to send another `recover` meanwhile.
  */
@@ -566,10 +584,11 @@ function errorText(error: unknown): string {
  * Runs one step of the active recovery, or opens the next one: the oldest deposit in
  * `recovering` whose `recover` execution is confirmed and that has no recovery row yet.
  * A recovery whose deposit is `recovery_failed` waits for the operator and blocks the
- * queue (one wallet, one refund at a time).
+ * queue (one refund at a time; ponytail: per-client wallets would allow one per client, add
+ * when refunds queue up).
  */
 export async function runRecoveryOrchestrator(
-  depsFor: (forwarder: Address) => Promise<RecoveryDeps> = liveRecoveryDeps
+  depsFor: (account: MoneriumAccount) => Promise<RecoveryDeps> = liveRecoveryDeps
 ): Promise<void> {
   let recovery = await MoneriumRecovery.findOne({
     order: [["created_at", "ASC"]],
@@ -612,7 +631,7 @@ export async function runRecoveryOrchestrator(
   const account = await MoneriumAccount.findByPk(deposit.accountId);
   if (!account) return;
   try {
-    const deps = await depsFor(account.forwarderAddress as Address);
+    const deps = await depsFor(account);
     await driveRecovery(recovery, deposit, deps);
   } catch (error) {
     logger.error(`monerium-b2b: refund step for deposit ${deposit.id} errored:`, error);

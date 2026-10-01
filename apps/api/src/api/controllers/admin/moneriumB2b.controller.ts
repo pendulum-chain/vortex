@@ -7,6 +7,7 @@ import { ManagedProfileProvisioningError } from "../../services/managed-profile-
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
 import { isForwardTransition, withForwarderLock } from "../../services/monerium-b2b/deposit-processor";
+import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -270,6 +271,34 @@ export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: st
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to update Monerium B2B deposit status",
         status: httpStatus.INTERNAL_SERVER_ERROR
+      }
+    });
+  }
+}
+
+/**
+ * GET /v1/admin/monerium-b2b/refund-address?moneriumProfileId= — the client's derived
+ * refund wallet, to pass as `recoveryAddress` when deploying its forwarder (runbook §1.2).
+ * Returns the address only; the key never leaves the backend.
+ */
+export async function getMoneriumB2bRefundAddress(req: Request, res: Response): Promise<void> {
+  const moneriumProfileId = req.query.moneriumProfileId;
+  if (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId)) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: { code: "MONERIUM_B2B_INVALID_INPUT", message: "moneriumProfileId must be a UUID", status: httpStatus.BAD_REQUEST }
+    });
+    return;
+  }
+  try {
+    const profileId = moneriumProfileId.toLowerCase();
+    res.status(httpStatus.OK).json({ moneriumProfileId: profileId, refundAddress: refundAccountFor(profileId).address });
+  } catch (error) {
+    logger.error("Error deriving a Monerium B2B refund address:", error);
+    res.status(httpStatus.SERVICE_UNAVAILABLE).json({
+      error: {
+        code: "MONERIUM_B2B_NOT_CONFIGURED",
+        message: "MONERIUM_B2B_REFUND_SEED is not configured",
+        status: httpStatus.SERVICE_UNAVAILABLE
       }
     });
   }

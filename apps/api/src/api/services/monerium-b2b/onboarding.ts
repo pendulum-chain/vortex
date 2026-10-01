@@ -1,4 +1,4 @@
-import type { MoneriumChain } from "@vortexfi/shared";
+import { MONERIUM_ADDRESS_OWNERSHIP_MESSAGE, type MoneriumChain } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import type { Address } from "viem";
 import logger from "../../../config/logger";
@@ -8,6 +8,7 @@ import { FinancialOperationRejectedError, runFinancialOperation } from "../phase
 import { signLinkAttestation } from "./attestor";
 import { getChainId, moneriumChainForChainId } from "./chain";
 import { getIbanForAddress, getProfileAddresses, isWhitelabelConfigured, linkAddress, requestIban } from "./monerium-api";
+import { refundAccountFor } from "./refund-wallet";
 
 const ONBOARDING_FLOW = { id: "monerium-b2b-onboarding", version: 1 } as const;
 
@@ -18,6 +19,8 @@ export interface OnboardingDeps {
   linkAddress(profileId: string, address: string, chain: MoneriumChain, signature: string): Promise<unknown>;
   requestIban(address: string, chain: MoneriumChain): Promise<unknown>;
   signLinkAttestation(chainId: bigint, forwarderAddress: Address): Promise<{ signature: string }>;
+  /** The client's refund wallet and its signature over Monerium's ownership message. */
+  signRefundLink(moneriumProfileId: string): Promise<{ address: string; signature: string }>;
 }
 
 const defaultDeps: OnboardingDeps = {
@@ -26,46 +29,57 @@ const defaultDeps: OnboardingDeps = {
   getProfileAddresses,
   linkAddress,
   requestIban,
-  signLinkAttestation
+  signLinkAttestation,
+  async signRefundLink(moneriumProfileId) {
+    const wallet = refundAccountFor(moneriumProfileId);
+    return { address: wallet.address, signature: await wallet.signMessage({ message: MONERIUM_ADDRESS_OWNERSHIP_MESSAGE }) };
+  }
 };
 
 export function isOnboardingConfigured(): boolean {
-  const { attestorPrivateKey, rpcUrl } = config.moneriumB2b;
-  return Boolean(attestorPrivateKey && rpcUrl && isWhitelabelConfigured());
+  const { attestorPrivateKey, refundSeed, rpcUrl } = config.moneriumB2b;
+  return Boolean(attestorPrivateKey && refundSeed && rpcUrl && isWhitelabelConfigured());
 }
 
 let configWarned = false;
 
-async function isForwarderLinked(
+async function isLinked(
   deps: OnboardingDeps,
   moneriumProfileId: string,
-  forwarderAddress: string,
+  address: string,
   chainName: MoneriumChain
 ): Promise<boolean> {
-  const forwarderKey = forwarderAddress.toLowerCase();
+  const key = address.toLowerCase();
   const addresses = await deps.getProfileAddresses(moneriumProfileId, chainName);
-  return addresses.some(address => address.toLowerCase() === forwarderKey);
+  return addresses.some(linked => linked.toLowerCase() === key);
 }
 
+/**
+ * Links `address` to the client's Monerium profile with `sign`'s ownership signature,
+ * exactly once. `phase` names the ledger operation: the forwarder and the refund wallet
+ * are separate provider writes.
+ */
 async function ensureLinked(
   deps: OnboardingDeps,
   account: MoneriumAccount,
-  chainId: number,
+  phase: "linkAddress" | "linkRefundAddress",
+  address: string,
+  sign: () => Promise<string>,
   chainName: MoneriumChain
 ): Promise<void> {
-  if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) return;
+  if (await isLinked(deps, account.profileId, address, chainName)) return;
   await runFinancialOperation({
     attemptClass: "provider-address-link",
     flow: ONBOARDING_FLOW,
     perform: async () => {
-      const attestation = await deps.signLinkAttestation(BigInt(chainId), account.forwarderAddress as Address);
+      const signature = await sign();
       try {
-        await deps.linkAddress(account.profileId, account.forwarderAddress, chainName, attestation.signature);
+        await deps.linkAddress(account.profileId, address, chainName, signature);
       } catch (error) {
         // Linking is synchronous upstream: if the address is not linked after a
         // failure, the call had no side effect — signal that so the ledger allows a
         // clean retry next cycle instead of parking the row in `unknown` forever.
-        if (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) {
+        if (await isLinked(deps, account.profileId, address, chainName)) {
           return { linked: true };
         }
         throw new FinancialOperationRejectedError(
@@ -74,13 +88,12 @@ async function ensureLinked(
       }
       return { linked: true };
     },
-    phase: "linkAddress",
+    phase,
     provider: "monerium",
     // A crash between the POST and its confirmation resolves by re-reading the
     // profile's linked addresses instead of issuing a second link call.
-    reconcile: async () =>
-      (await isForwarderLinked(deps, account.profileId, account.forwarderAddress, chainName)) ? { linked: true } : null,
-    request: { address: account.forwarderAddress.toLowerCase(), chain: chainName, moneriumProfileId: account.profileId },
+    reconcile: async () => ((await isLinked(deps, account.profileId, address, chainName)) ? { linked: true } : null),
+    request: { address: address.toLowerCase(), chain: chainName, moneriumProfileId: account.profileId },
     retryFailed: true,
     // vortexProfileId is non-null for every account this loop selects.
     scopeId: account.vortexProfileId as string,
@@ -126,17 +139,17 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
 
 /**
  * Advances every mapped account still in onboarding: links its forwarder to the
- * Monerium profile with the attestor signature, then requests IBAN issuance. Both
- * provider writes run through the profile-scoped financial-operation ledger, so a
- * crash or retry never repeats a claimed call. Activation stays a manual operator
- * step.
+ * Monerium profile with the attestor signature and the client's refund wallet with its
+ * own signature, then requests IBAN issuance for the forwarder. Every provider write
+ * runs through the profile-scoped financial-operation ledger, so a crash or retry never
+ * repeats a claimed call. Activation stays a manual operator step.
  */
 export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDeps): Promise<number> {
   if (!isOnboardingConfigured()) {
     if (!configWarned) {
       configWarned = true;
       logger.warn(
-        "monerium-b2b: onboarding automation disabled — requires MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_B2B_ATTESTOR_PRIVATE_KEY, and MONERIUM_B2B_RPC_URL"
+        "monerium-b2b: onboarding automation disabled — requires MONERIUM_WHITELABEL_CLIENT_ID/SECRET, MONERIUM_B2B_ATTESTOR_PRIVATE_KEY, MONERIUM_B2B_REFUND_SEED, and MONERIUM_B2B_RPC_URL"
       );
     }
     return 0;
@@ -158,7 +171,17 @@ export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDe
   let advanced = 0;
   for (const account of accounts) {
     try {
-      await ensureLinked(deps, account, chainId, chainName);
+      const forwarder = account.forwarderAddress;
+      await ensureLinked(
+        deps,
+        account,
+        "linkAddress",
+        forwarder,
+        async () => (await deps.signLinkAttestation(BigInt(chainId), forwarder as Address)).signature,
+        chainName
+      );
+      const refund = await deps.signRefundLink(account.profileId);
+      await ensureLinked(deps, account, "linkRefundAddress", refund.address, async () => refund.signature, chainName);
       await ensureIban(deps, account, chainName);
       advanced += 1;
     } catch (error) {

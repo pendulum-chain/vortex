@@ -15,6 +15,7 @@ import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import moneriumB2bRoutes from "../../routes/v1/admin/monerium-b2b.route";
 import { forwarderConfigMismatch } from "../../services/monerium-b2b/account-provisioning";
+import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
 
 const BASE_PATH = "/v1/admin/monerium-b2b";
 const ADMIN_HEADERS = { Authorization: "Bearer test-admin-secret", "Content-Type": "application/json" };
@@ -203,10 +204,12 @@ describe("monerium b2b account mapping admin route", () => {
   });
 
   it("compares submitted account data against the deployed clone config", () => {
+    const refundWallet = "0x9999999999999999999999999999999999999999";
     const expected = {
       destination: DESTINATION.toLowerCase(),
       factory: FACTORY.toLowerCase(),
       floorPpm: 1500,
+      recoveryAddress: refundWallet,
       targetPpm: 1250
     };
     const matching = {
@@ -214,6 +217,7 @@ describe("monerium b2b account mapping admin route", () => {
       factory: FACTORY,
       floorPpm: 1500,
       isForwarder: true,
+      recoveryAddress: refundWallet,
       targetPpm: 1250
     };
 
@@ -223,8 +227,28 @@ describe("monerium b2b account mapping admin route", () => {
     expect(
       forwarderConfigMismatch(expected, { ...matching, destination: "0x3333333333333333333333333333333333333333" })
     ).toContain("destination");
+    expect(
+      forwarderConfigMismatch(expected, { ...matching, recoveryAddress: "0x7777777777777777777777777777777777777777" })
+    ).toContain("refund wallet");
     expect(forwarderConfigMismatch(expected, { ...matching, targetPpm: 1_000 })).toContain("targetPpm");
     expect(forwarderConfigMismatch(expected, { ...matching, floorPpm: 2_000 })).toContain("floorPpm");
+  });
+
+  it("returns a client's derived refund wallet for deploying its forwarder", async () => {
+    const savedSeed = config.moneriumB2b.refundSeed;
+    config.moneriumB2b.refundSeed = `0x${"11".repeat(32)}`;
+    try {
+      const profileId = "0B8E7C2A-8F4E-4D43-9F2B-2F9F3C1D5A6E";
+      const response = await fetch(`${baseUrl}/refund-address?moneriumProfileId=${profileId}`, { headers: ADMIN_HEADERS });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        moneriumProfileId: profileId.toLowerCase(),
+        refundAddress: refundAccountFor(profileId.toLowerCase()).address
+      });
+      expect((await fetch(`${baseUrl}/refund-address?moneriumProfileId=nope`, { headers: ADMIN_HEADERS })).status).toBe(400);
+    } finally {
+      config.moneriumB2b.refundSeed = savedSeed;
+    }
   });
 
   it("rejects invalid input and unknown managers", async () => {

@@ -262,8 +262,12 @@ interface Config {
     privateRpcUrl: string | undefined;
     /** Promised conversion window from the mint, in minutes; the on-chain RECOVERY_DELAY is its floor. */
     recoveryDeadlineMinutes: number;
-    /** Key of the immutable RECOVERY_WALLET: signs the reverse swap and the Monerium redeem message. */
-    recoveryPrivateKey: string | undefined;
+    /**
+     * 32-byte secret every client's refund wallet key is derived from (refund-wallet.ts): the
+     * wallet each forwarder recovers to, linked to the client's Monerium profile, signs the
+     * reverse swap and the redeem from the client's own IBAN.
+     */
+    refundSeed: string | undefined;
     rpcUrl: string | undefined;
     /**
      * How much of a chunk's shortfall below the client's floor Vortex pays, as a ladder of
@@ -427,7 +431,7 @@ export const config: Config = {
     // the keeper falls back to the public RPC and logs a warning (see chain.ts).
     privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
     recoveryDeadlineMinutes: Number(process.env.MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES || 120),
-    recoveryPrivateKey: process.env.MONERIUM_B2B_RECOVERY_PRIVATE_KEY,
+    refundSeed: process.env.MONERIUM_B2B_REFUND_SEED,
     rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
     subsidyLadder: parseSubsidyLadder(process.env.MONERIUM_B2B_SUBSIDY_LADDER),
     webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
@@ -539,6 +543,7 @@ if (config.moneriumB2b.enabled) {
   if (!config.moneriumB2b.attestorPrivateKey) missing.push("MONERIUM_B2B_ATTESTOR_PRIVATE_KEY");
   if (!config.moneriumB2b.guardianPrivateKey) missing.push("MONERIUM_B2B_GUARDIAN_PRIVATE_KEY");
   if (!config.moneriumB2b.keeperPrivateKey) missing.push("MONERIUM_B2B_KEEPER_PRIVATE_KEY");
+  if (!config.moneriumB2b.refundSeed) missing.push("MONERIUM_B2B_REFUND_SEED");
   if (!config.moneriumB2b.rpcUrl) missing.push("MONERIUM_B2B_RPC_URL");
   if (!config.moneriumB2b.webhookSecret) missing.push("MONERIUM_B2B_WEBHOOK_SECRET");
   if (!config.moneriumB2b.forwarderFactoryAddress) missing.push("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS");
@@ -556,11 +561,8 @@ if (config.moneriumB2b.enabled) {
     throw new Error("MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS must be a valid EVM address");
   }
   if (config.moneriumB2b.autoRecovery === "auto") {
-    const missingRecovery: string[] = [];
-    if (!config.moneriumB2b.recoveryPrivateKey) missingRecovery.push("MONERIUM_B2B_RECOVERY_PRIVATE_KEY");
-    if (!config.moneriumB2b.floatPrivateKey) missingRecovery.push("MONERIUM_B2B_FLOAT_PRIVATE_KEY");
-    if (missingRecovery.length > 0) {
-      throw new Error(`MONERIUM_B2B_AUTO_RECOVERY=auto requires ${missingRecovery.join(", ")}`);
+    if (!config.moneriumB2b.floatPrivateKey) {
+      throw new Error("MONERIUM_B2B_AUTO_RECOVERY=auto requires MONERIUM_B2B_FLOAT_PRIVATE_KEY");
     }
   }
   if (!Number.isInteger(config.moneriumB2b.recoveryDeadlineMinutes) || config.moneriumB2b.recoveryDeadlineMinutes <= 0) {
@@ -573,15 +575,13 @@ if (config.moneriumB2b.enabled) {
     ["MONERIUM_B2B_ATTESTOR_PRIVATE_KEY", config.moneriumB2b.attestorPrivateKey],
     ["MONERIUM_B2B_GUARDIAN_PRIVATE_KEY", config.moneriumB2b.guardianPrivateKey],
     ["MONERIUM_B2B_KEEPER_PRIVATE_KEY", config.moneriumB2b.keeperPrivateKey],
-    ...(config.moneriumB2b.recoveryPrivateKey
-      ? ([["MONERIUM_B2B_RECOVERY_PRIVATE_KEY", config.moneriumB2b.recoveryPrivateKey]] as const)
-      : []),
+    ["MONERIUM_B2B_REFUND_SEED", config.moneriumB2b.refundSeed],
     ...(config.moneriumB2b.floatPrivateKey
       ? ([["MONERIUM_B2B_FLOAT_PRIVATE_KEY", config.moneriumB2b.floatPrivateKey]] as const)
       : [])
   ] as const) {
     if (!/^0x[0-9a-fA-F]{64}$/.test(value as string)) {
-      throw new Error(`${name} must be a 32-byte 0x-prefixed private key`);
+      throw new Error(`${name} must be a 32-byte 0x-prefixed hex value`);
     }
   }
   const b2bKeys = [
