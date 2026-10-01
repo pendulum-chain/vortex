@@ -1,4 +1,11 @@
-import { ApiManager, TOKEN_CONFIG, XCMTokenConfig } from "@vortexfi/shared";
+import {
+  ApiManager,
+  ChainDecimals,
+  multiplyByPowerOfTen,
+  nativeToDecimal,
+  TOKEN_CONFIG,
+  XCMTokenConfig
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
 import {
@@ -6,7 +13,6 @@ import {
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS
 } from "../../constants/constants";
-import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from "../services/pendulum/helpers";
 import { getFundingData } from "../services/pendulum/pendulum.service";
 import { SlackNotifier } from "../services/slack.service";
 import "@pendulum-chain/types"; // Import to augment the api types
