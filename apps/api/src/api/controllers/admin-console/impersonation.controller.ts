@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
 import User from "../../../models/user.model";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { impersonationNotAllowedResponse } from "../../middlewares/bearerPrincipal";
 import { hasVortexAdminRole, vortexAdminRequiredResponse } from "../../middlewares/vortexAdminAuth";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../../observability/apiClientEvent.service";
@@ -16,8 +17,6 @@ import {
   listSessions,
   revokeSession
 } from "../../services/impersonation.service";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /v1/admin-console/impersonation

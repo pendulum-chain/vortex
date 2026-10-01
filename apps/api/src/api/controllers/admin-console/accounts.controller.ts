@@ -11,11 +11,11 @@ import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { isSessionActive } from "../../services/impersonation.service";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function clampLimit(value: unknown): number {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : NaN;

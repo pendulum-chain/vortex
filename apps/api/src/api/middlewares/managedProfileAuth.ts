@@ -5,9 +5,8 @@ import CustomerEntity, { type CustomerEntityType } from "../../models/customerEn
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import User from "../../models/user.model";
+import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId } from "./effectiveUser";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface ManagedProfileContext {
   actorProfileId: string;

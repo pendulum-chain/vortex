@@ -18,6 +18,7 @@ import ProviderCustomer, { VerificationStatus } from "../../models/providerCusto
 import RecipientInvitation, { type RecipientInviteeType, type SeededDiscount } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
+import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 import { emitNotification } from "../services/notifications/notification.service";
@@ -33,8 +34,6 @@ import {
   isProviderApproved,
   providerForRail
 } from "../services/recipients/transfer-eligibility.service";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function recipientCorridor(
   invitation: RecipientInvitation | null,

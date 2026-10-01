@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { CUSTOMER_ENTITY_TYPES } from "../../../models/customerEntity.model";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { createManagedProfile, ManagedProfileLifecycleError } from "../../services/managed-profile-lifecycle.service";
 import {
   configureManagedProfileManager,
@@ -12,7 +13,6 @@ import {
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 
 const SUPPORTED_CORRIDORS = Object.keys(CORRIDOR_CAPABILITIES) as CorridorCountry[];
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isCorridorCountry(value: unknown): value is CorridorCountry {
   return typeof value === "string" && SUPPORTED_CORRIDORS.includes(value as CorridorCountry);

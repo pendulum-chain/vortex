@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import Partner from "../../models/partner.model";
+import { UUID_PATTERN } from "../helpers/uuid";
 import {
   buildApiClientRequestMetadata,
   getSafeApiKeyPrefix,
@@ -208,7 +209,7 @@ export function enforcePartnerAuth() {
 }
 
 async function resolvePartner(partnerIdOrName: string): Promise<Partner | null> {
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerIdOrName);
+  const isUUID = UUID_PATTERN.test(partnerIdOrName);
   return isUUID ? Partner.findByPk(partnerIdOrName) : Partner.findOne({ where: { name: partnerIdOrName } });
 }
 

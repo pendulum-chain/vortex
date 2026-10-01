@@ -5,6 +5,7 @@ import { config } from "../../config/vars";
 import { CUSTOMER_ENTITY_TYPES } from "../../models/customerEntity.model";
 import type { ManagedProfileStatus } from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId } from "../middlewares/effectiveUser";
 import {
   ApiCredentialServiceError,
@@ -21,7 +22,6 @@ import {
 } from "../services/managed-profile-lifecycle.service";
 import { ManagedProfileProvisioningError } from "../services/managed-profile-provisioning.service";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function managerProfileId(req: Request): string {
   const profileId = getAuthenticatedProfileId(req);
   if (!profileId) throw new ManagedProfileLifecycleError("MANAGED_PROFILE_ACCESS_DENIED", "Authentication is required");

@@ -9,12 +9,11 @@ import ProfileRole, {
   type ProfileRoleName
 } from "../../../models/profileRole.model";
 import User from "../../../models/user.model";
+import { UUID_PATTERN } from "../../helpers/uuid";
 
 function isProfileRoleName(role: unknown): role is ProfileRoleName {
   return typeof role === "string" && (PROFILE_ROLE_NAMES as string[]).includes(role);
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Admins address profiles by id or by email (unique on profiles) interchangeably. */
 async function findProfile(identifier: string): Promise<User | null> {
