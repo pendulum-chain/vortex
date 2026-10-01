@@ -4,9 +4,7 @@ const PENDULUM_FUNDING_AMOUNT_UNITS = "10"; // 10 PEN. Minimum balance of fundin
 const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = "10"; // 10 GLMR. Minimum balance of funding account
 const MOONBEAM_FUNDING_AMOUNT_UNITS = "10"; // 10 GLMR. Minimum balance of funding account
 const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = "5"; // 5 Subsidies considering maximum subsidy amount use on each (worst case scenario)
-const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = "0x2AB52086e8edaB28193172209407FF9df1103CDc";
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = "0.1"; // Amount to send to the new pendulum ephemeral account created
-const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = "1"; // Amount to send to the new moonbeam ephemeral account created
 const MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS = "0.34"; // GLMR reserve for source-chain EVM transactions
 const POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS = "1.5"; // Amount to send to the new polygon ephemeral account created
 const BASE_EPHEMERAL_STARTING_BALANCE_UNITS = "0.00015"; // Amount to send to the new base ephemeral account created
@@ -43,9 +41,7 @@ export {
   GLMR_FUNDING_AMOUNT_RAW,
   MAX_FINAL_SETTLEMENT_SUBSIDY_USD,
   MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
-  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
