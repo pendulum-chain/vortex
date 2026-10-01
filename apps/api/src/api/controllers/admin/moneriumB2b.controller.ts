@@ -168,7 +168,19 @@ export async function postMoneriumB2bDepositRecovery(req: Request<{ depositId: s
       });
       return;
     }
-    const refusal = await markDepositForRecovery(req.params.depositId);
+    // Partner-visible reason (DEPOSIT_UPDATED refund.reason); a missed window is marked by the deadline job.
+    const reason = req.body?.reason ?? "operator";
+    if (!["compliance", "incident", "operator"].includes(reason)) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "MONERIUM_B2B_INVALID_INPUT",
+          message: "reason must be compliance, incident or operator",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+    const refusal = await markDepositForRecovery(req.params.depositId, reason);
     if (refusal === "deposit not found") {
       res.status(httpStatus.NOT_FOUND).json({
         error: { code: "MONERIUM_B2B_DEPOSIT_NOT_FOUND", message: "Monerium deposit not found", status: httpStatus.NOT_FOUND }

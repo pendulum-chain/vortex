@@ -118,6 +118,7 @@ describe("parseOrderEvent", () => {
       state: "processed",
       payerIban: null,
       payerName: null,
+      rejectedReason: null,
       txHash: "0xabc"
     });
   });
@@ -457,7 +458,9 @@ describe("order-event inbox processing (end to end)", () => {
     await execution.update({ depositId: unattributed.id });
     await MoneriumWebhookEvent.create({
       eventId: "evt-first-seen-returned",
-      payload: orderEvent("rejected", { meta: { placedAt: "2026-08-26T00:00:00Z", txHashes: ["0xmint"] } })
+      payload: orderEvent("rejected", {
+        meta: { placedAt: "2026-08-26T00:00:00Z", rejectedReason: "Payer verification failed", txHashes: ["0xmint"] }
+      })
     });
 
     await processMoneriumWebhookInbox(PROCESSOR_DEPS);
@@ -467,6 +470,7 @@ describe("order-event inbox processing (end to end)", () => {
     expect(await MoneriumFiatDeposit.count()).toBe(2);
     expect(providerDeposit).toMatchObject({
       blockNumber: null,
+      rejectedReason: "Payer verification failed",
       status: MoneriumFiatDepositStatus.Returned,
       txHash: "0xmint"
     });

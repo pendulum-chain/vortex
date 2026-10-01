@@ -198,7 +198,7 @@ describe("monerium b2b account read surface", () => {
 
     const response = await app.request("/v1/webhook", {
       body: JSON.stringify({
-        events: ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED"],
+        events: ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED", "DEPOSIT_UPDATED", "ACCOUNT_UPDATED"],
         url: "https://manager.example.com/vortex/deposits"
       }),
       headers: { "Content-Type": "application/json", ...managerHeaders },
@@ -206,7 +206,7 @@ describe("monerium b2b account read surface", () => {
     });
     expect(response.status).toBe(201);
     const body = (await response.json()) as { id: string; events: string[]; quoteId: string | null };
-    expect(body.events).toEqual(["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED"]);
+    expect(body.events).toEqual(["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED", "DEPOSIT_RETURNED", "DEPOSIT_UPDATED", "ACCOUNT_UPDATED"]);
     expect(body.quoteId).toBeNull();
 
     // The transaction-family requirement still holds at the same HTTP surface.
@@ -216,5 +216,48 @@ describe("monerium b2b account read surface", () => {
       method: "POST"
     });
     expect(legacyWithoutTarget.status).toBe(400);
+  });
+
+  it("lists the manager's onramp accounts and finds one by Monerium profile ID", async () => {
+    const { delegatedHeaders, managerHeaders, mapped } = await setupMappedChild();
+
+    const all = await jsonRequest("/v1/monerium-b2b/accounts", managerHeaders);
+    expect(all.status).toBe(200);
+    expect(all.body).toMatchObject({
+      accounts: [
+        {
+          accountId: mapped.accountId,
+          externalSubjectId: "client-1",
+          iban: null,
+          moneriumProfileId: MONERIUM_PROFILE,
+          profileId: mapped.profileId,
+          status: "onboarding"
+        }
+      ],
+      pagination: { total: 1 }
+    });
+
+    const byProfile = await jsonRequest(`/v1/monerium-b2b/accounts?moneriumProfileId=${MONERIUM_PROFILE}`, managerHeaders);
+    expect((byProfile.body.accounts as unknown[]).length).toBe(1);
+    const other = await jsonRequest(`/v1/monerium-b2b/accounts?moneriumProfileId=${crypto.randomUUID()}`, managerHeaders);
+    expect((other.body.accounts as unknown[]).length).toBe(0);
+    expect((await jsonRequest("/v1/monerium-b2b/accounts?moneriumProfileId=nope", managerHeaders)).status).toBe(400);
+
+    // Manager key only: no delegation header, and a foreign manager sees nothing.
+    expect((await jsonRequest("/v1/monerium-b2b/accounts", delegatedHeaders)).status).toBe(400);
+    const stranger = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: stranger.id
+    });
+    const strangerCredential = await createTestApiKey({ userId: stranger.id });
+    const foreign = await jsonRequest("/v1/monerium-b2b/accounts", { "X-API-Key": strangerCredential.plaintextKey });
+    expect(foreign.body).toMatchObject({ accounts: [], pagination: { total: 0 } });
+
+    const notAManager = await createTestUser();
+    const plainCredential = await createTestApiKey({ userId: notAManager.id });
+    expect((await jsonRequest("/v1/monerium-b2b/accounts", { "X-API-Key": plainCredential.plaintextKey })).status).toBe(403);
   });
 });

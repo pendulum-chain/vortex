@@ -283,7 +283,7 @@ export async function runRecoveryDeadlines(now: number = Date.now()): Promise<vo
       );
       continue;
     }
-    const refusal = await markDepositForRecovery(deposit.id);
+    const refusal = await markDepositForRecovery(deposit.id, "window_missed");
     if (refusal) {
       logger.warn(`monerium-b2b: deposit ${deposit.id} is past its window but cannot be marked yet: ${refusal}`);
     } else {

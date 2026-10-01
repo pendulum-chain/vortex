@@ -47,6 +47,17 @@ export interface MoneriumFiatDepositAttributes {
   receivedEventAt: Date | null;
   convertedEventAt: Date | null;
   returnedEventAt: Date | null;
+  /** Why the keeper is waiting to convert (a DepositWaitingReason), and since when. */
+  waitingReason: string | null;
+  waitingSince: Date | null;
+  /** Monerium's reason when it rejected the payment before minting. */
+  rejectedReason: string | null;
+  /** Why the deposit entered the refund path (a DepositRefundReason), and when. */
+  refundReason: string | null;
+  refundStartedAt: Date | null;
+  /** Hash and time of the last DEPOSIT_UPDATED snapshot evaluated (set silently, never bumps updated_at). */
+  lifecycleEventHash: string | null;
+  lifecycleEventAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,6 +77,13 @@ type MoneriumFiatDepositCreationAttributes = Optional<
   | "receivedEventAt"
   | "convertedEventAt"
   | "returnedEventAt"
+  | "waitingReason"
+  | "waitingSince"
+  | "rejectedReason"
+  | "refundReason"
+  | "refundStartedAt"
+  | "lifecycleEventHash"
+  | "lifecycleEventAt"
   | "createdAt"
   | "updatedAt"
 >;
@@ -91,6 +109,13 @@ class MoneriumFiatDeposit
   declare receivedEventAt: Date | null;
   declare convertedEventAt: Date | null;
   declare returnedEventAt: Date | null;
+  declare waitingReason: string | null;
+  declare waitingSince: Date | null;
+  declare rejectedReason: string | null;
+  declare refundReason: string | null;
+  declare refundStartedAt: Date | null;
+  declare lifecycleEventHash: string | null;
+  declare lifecycleEventAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -145,6 +170,16 @@ MoneriumFiatDeposit.init(
       primaryKey: true,
       type: DataTypes.UUID
     },
+    lifecycleEventAt: {
+      allowNull: true,
+      field: "lifecycle_event_at",
+      type: DataTypes.DATE
+    },
+    lifecycleEventHash: {
+      allowNull: true,
+      field: "lifecycle_event_hash",
+      type: DataTypes.STRING(64)
+    },
     logIndex: {
       allowNull: true,
       field: "log_index",
@@ -176,6 +211,21 @@ MoneriumFiatDeposit.init(
       field: "received_event_at",
       type: DataTypes.DATE
     },
+    refundReason: {
+      allowNull: true,
+      field: "refund_reason",
+      type: DataTypes.STRING(32)
+    },
+    refundStartedAt: {
+      allowNull: true,
+      field: "refund_started_at",
+      type: DataTypes.DATE
+    },
+    rejectedReason: {
+      allowNull: true,
+      field: "rejected_reason",
+      type: DataTypes.STRING(500)
+    },
     returnedEventAt: {
       allowNull: true,
       field: "returned_event_at",
@@ -195,6 +245,16 @@ MoneriumFiatDeposit.init(
       allowNull: false,
       defaultValue: DataTypes.NOW,
       field: "updated_at",
+      type: DataTypes.DATE
+    },
+    waitingReason: {
+      allowNull: true,
+      field: "waiting_reason",
+      type: DataTypes.STRING(32)
+    },
+    waitingSince: {
+      allowNull: true,
+      field: "waiting_since",
       type: DataTypes.DATE
     }
   },

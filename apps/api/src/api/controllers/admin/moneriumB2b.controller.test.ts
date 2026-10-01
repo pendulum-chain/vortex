@@ -337,10 +337,24 @@ describe("monerium b2b account mapping admin route", () => {
     expect(await blocked.json()).toMatchObject({ error: { message: expect.stringContaining("pending execution") } });
     await pending.update({ status: MoneriumConversionExecutionStatus.Failed });
 
-    const marked = await recover(deposit.id);
+    const badReason = await fetch(`${baseUrl}/deposits/${deposit.id}/recover`, {
+      body: JSON.stringify({ reason: "because" }),
+      headers: ADMIN_HEADERS,
+      method: "POST"
+    });
+    expect(badReason.status).toBe(400);
+
+    const marked = await fetch(`${baseUrl}/deposits/${deposit.id}/recover`, {
+      body: JSON.stringify({ reason: "compliance" }),
+      headers: ADMIN_HEADERS,
+      method: "POST"
+    });
     expect(marked.status).toBe(200);
     expect(await marked.json()).toMatchObject({ deposit: { depositId: deposit.id, status: "recovering" } });
-    expect((await MoneriumFiatDeposit.findByPk(deposit.id))?.status).toBe(MoneriumFiatDepositStatus.Recovering);
+    const markedRow = await MoneriumFiatDeposit.findByPk(deposit.id);
+    expect(markedRow?.status).toBe(MoneriumFiatDepositStatus.Recovering);
+    expect(markedRow?.refundReason).toBe("compliance");
+    expect(markedRow?.refundStartedAt).not.toBeNull();
 
     // Forward-only: a recovering deposit cannot be marked again, but closes or retries.
     expect((await recover(deposit.id)).status).toBe(409);

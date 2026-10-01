@@ -2517,6 +2517,10 @@
             "format": "date-time",
             "type": ["string", "null"]
           },
+          "externalSubjectId": {
+            "description": "Your own client reference for this managed profile.",
+            "type": ["string", "null"]
+          },
           "floorPpm": {
             "description": "Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap.",
             "type": "integer"
@@ -2527,6 +2531,14 @@
           },
           "iban": {
             "description": "The account's dedicated IBAN; null until issuance completes.",
+            "type": ["string", "null"]
+          },
+          "moneriumProfileId": {
+            "description": "The EUR provider's profile ID for this client.",
+            "type": "string"
+          },
+          "profileId": {
+            "description": "The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls.",
             "type": ["string", "null"]
           },
           "status": {
@@ -2543,9 +2555,12 @@
           "createdAt",
           "destination",
           "dormantSince",
+          "externalSubjectId",
           "floorPpm",
           "forwarderAddress",
           "iban",
+          "moneriumProfileId",
+          "profileId",
           "status",
           "targetPpm"
         ],
@@ -2560,8 +2575,42 @@
         "required": ["account"],
         "type": "object"
       },
+      "MoneriumB2bAccountsResponse": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/MoneriumB2bAccount"
+            },
+            "type": "array"
+          },
+          "pagination": {
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": ["limit", "offset", "total"],
+            "type": "object"
+          }
+        },
+        "required": ["accounts", "pagination"],
+        "type": "object"
+      },
       "MoneriumB2bDeposit": {
         "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "amount": {
+            "description": "EUR amount to the cent, for example \"1234.56\".",
+            "type": "string"
+          },
           "amountRaw": {
             "description": "Deposit amount in 18-decimal base units of the deposit currency.",
             "type": "string"
@@ -2570,6 +2619,11 @@
             "description": "The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits.",
             "items": {
               "properties": {
+                "confirmedAt": {
+                  "description": "When the chunk's swap confirmed; null while pending.",
+                  "format": "date-time",
+                  "type": ["string", "null"]
+                },
                 "eureInRaw": {
                   "description": "EURe of this deposit consumed by the chunk in 18-decimal base units.",
                   "type": "string"
@@ -2596,9 +2650,14 @@
                 "executionId": {
                   "type": "string"
                 },
+                "sentAt": {
+                  "description": "When the chunk's swap was sent.",
+                  "format": "date-time",
+                  "type": "string"
+                },
                 "status": {
-                  "description": "Execution status.",
-                  "enum": ["pending", "confirmed", "failed"],
+                  "description": "Chunk status. Failed attempts are retried and not listed.",
+                  "enum": ["pending", "confirmed"],
                   "type": "string"
                 },
                 "txHash": {
@@ -2610,41 +2669,93 @@
                   "type": "string"
                 }
               },
-              "required": ["eureInRaw", "execution", "executionId", "status", "txHash", "usdcNetRaw"],
+              "required": ["confirmedAt", "eureInRaw", "execution", "executionId", "sentAt", "status", "txHash", "usdcNetRaw"],
               "type": "object"
             },
             "type": "array"
           },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
           "currency": {
             "type": "string"
           },
+          "deliveredAt": {
+            "description": "When the single transfer to the destination confirmed; null until forwarded.",
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
           "depositId": {
             "type": "string"
+          },
+          "externalSubjectId": {
+            "description": "Your own client reference for this managed profile.",
+            "type": ["string", "null"]
           },
           "forwardTxHash": {
             "description": "The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded.",
             "type": ["string", "null"]
           },
+          "mintedAt": {
+            "description": "When the EUR arrived on chain as EURe; the conversion window counts from here.",
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "moneriumOrderId": {
+            "description": "The EUR provider's order ID for the incoming payment.",
+            "type": "string"
+          },
+          "moneriumProfileId": {
+            "description": "The EUR provider's profile ID for this client.",
+            "type": "string"
+          },
+          "profileId": {
+            "description": "The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls.",
+            "type": "string"
+          },
+          "receivedAt": {
+            "description": "When Vortex first saw the payment.",
+            "format": "date-time",
+            "type": "string"
+          },
           "refund": {
-            "description": "Present once the deposit entered the refund path (it could not be converted within the promised window): the EUR amount refunded to the payer once known, Monerium's redeem order id, and the transaction that moved the deposit off the forwarding contract. Null otherwise.",
+            "description": "Present once the deposit entered the refund path: why, when it started, the EUR amount refunded, the masked IBAN it goes to, the provider's redemption order ID, and the transaction that moved the deposit off the forwarding contract. Null otherwise.",
             "properties": {
               "amount": {
-                "description": "The EUR amount refunded, to the cent; null until the refund order is placed.",
+                "description": "The EUR amount refunded, to the cent: always the full issue amount.",
+                "type": ["string", "null"]
+              },
+              "payerIbanMasked": {
+                "description": "The payer's IBAN the refund goes to, masked to its first and last four characters.",
+                "type": ["string", "null"]
+              },
+              "reason": {
+                "description": "Why the deposit is refunded: `window_missed` (not converted within the promised window), `compliance`, `incident`, or `operator` for another operator decision.",
+                "enum": ["window_missed", "compliance", "incident", "operator", null],
                 "type": ["string", "null"]
               },
               "recoverTxHash": {
+                "description": "The transaction that moved the deposit off the forwarding contract.",
                 "type": ["string", "null"]
               },
               "redeemOrderId": {
+                "description": "The provider's order ID for the outgoing SEPA refund.",
+                "type": ["string", "null"]
+              },
+              "refundedAt": {
+                "description": "When the provider processed the refund; null until then.",
+                "format": "date-time",
+                "type": ["string", "null"]
+              },
+              "startedAt": {
+                "description": "When the deposit entered the refund path.",
+                "format": "date-time",
                 "type": ["string", "null"]
               }
             },
-            "required": ["amount", "recoverTxHash", "redeemOrderId"],
+            "required": ["amount", "payerIbanMasked", "reason", "recoverTxHash", "redeemOrderId", "refundedAt", "startedAt"],
             "type": ["object", "null"]
+          },
+          "rejectedReason": {
+            "description": "The provider's reason when it returned the payment before minting.",
+            "type": ["string", "null"]
           },
           "status": {
             "description": "Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.",
@@ -2668,19 +2779,51 @@
           "usdcNetRaw": {
             "description": "Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded.",
             "type": "string"
+          },
+          "waiting": {
+            "description": "Present while the deposit waits. `monerium_pending` until the EUR provider mints it: minting or a compliance review, which the provider does not tell apart. Afterwards, the reason Vortex is holding the next conversion chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor` (the market is below the client's floor by more than the subsidy currently allows). Null otherwise.",
+            "properties": {
+              "reason": {
+                "enum": [
+                  "monerium_pending",
+                  "oracle_unavailable",
+                  "reference_unavailable",
+                  "reference_out_of_band",
+                  "no_route",
+                  "below_floor"
+                ],
+                "type": "string"
+              },
+              "since": {
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "required": ["reason", "since"],
+            "type": ["object", "null"]
           }
         },
         "required": [
+          "accountId",
+          "amount",
           "amountRaw",
           "conversions",
-          "createdAt",
           "currency",
+          "deliveredAt",
           "depositId",
+          "externalSubjectId",
           "forwardTxHash",
+          "mintedAt",
+          "moneriumOrderId",
+          "moneriumProfileId",
+          "profileId",
+          "receivedAt",
           "refund",
+          "rejectedReason",
           "status",
           "txHash",
-          "usdcNetRaw"
+          "usdcNetRaw",
+          "waiting"
         ],
         "type": "object"
       },
@@ -8540,10 +8683,78 @@
         "tags": ["Account Management"]
       }
     },
+    "/v1/monerium-b2b/accounts": {
+      "get": {
+        "deprecated": false,
+        "description": "Available in sandbox; production activation is pending. Lists the business EUR onramp accounts of every active managed profile under the calling manager, newest first, each with its IBAN and status. Filter by `moneriumProfileId` to find one client by the EUR provider's profile ID. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "operationId": "listMoneriumB2bAccounts",
+        "parameters": [
+          {
+            "description": "Only the account of this EUR provider profile.",
+            "in": "query",
+            "name": "moneriumProfileId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size (default 20, max 100).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0).",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bAccountsResponse"
+                }
+              }
+            },
+            "description": "The manager's onramp accounts."
+          },
+          "400": {
+            "description": "Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "The caller is not an active manager for business EUR customers, or used a child's own credential."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the manager's EUR onramp accounts",
+        "tags": ["Account Management"]
+      }
+    },
     "/v1/monerium-b2b/deposits": {
       "get": {
         "deprecated": false,
-        "description": "Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "description": "Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, each as its full lifecycle snapshot: IDs, amounts, timestamps, waiting and refund reasons, and every conversion chunk. A per-swap cap can split one deposit into several chunks, delivered together in one transfer. This is the polling surface; the `DEPOSIT_UPDATED` webhook pushes the same snapshot on every change. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
         "operationId": "listMoneriumB2bDeposits",
         "parameters": [
           {
@@ -11081,7 +11292,7 @@
                 "properties": {
                   "events": {
                     "items": {
-                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\", \"DEPOSIT_RETURNED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId. Deposit events are available in sandbox; production activation is pending.",
+                      "description": "(optional): Array of event types to subscribe to. Transaction events [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"] are the default when omitted. The account-scoped deposit events [\"DEPOSIT_RECEIVED\", \"DEPOSIT_CONVERTED\", \"DEPOSIT_RETURNED\", \"DEPOSIT_UPDATED\", \"ACCOUNT_UPDATED\"] must be requested explicitly, cannot be mixed with transaction events, require a profile-scoped secret credential, and take no quoteId/sessionId. Deposit events are available in sandbox; production activation is pending.",
                       "type": "string"
                     },
                     "type": "array"

@@ -107,6 +107,8 @@ interface ParsedOrderEvent {
   /** The payer's IBAN and name from the order's counterpart (Monerium "Issue orders" details), when present. */
   payerIban: string | null;
   payerName: string | null;
+  /** Monerium's reason on a rejected order. */
+  rejectedReason: string | null;
 }
 
 export interface ParsedIbanEvent {
@@ -194,6 +196,7 @@ export function parseOrderEvent(payload: unknown): ParsedOrderEvent | null {
         : null,
     payerName: typeof details.name === "string" && details.name.trim() ? details.name.trim().slice(0, 140) : null,
     profileId: data.profile,
+    rejectedReason: data.meta.rejectedReason?.trim().slice(0, 500) || null,
     state: data.state,
     txHash: data.meta.txHashes?.length === 1 ? data.meta.txHashes[0] : null
   };
@@ -365,13 +368,20 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
           moneriumOrderId: event.orderId,
           payerIban: event.payerIban,
           payerName: event.payerName,
+          rejectedReason: targetStatus === MoneriumFiatDepositStatus.Returned ? event.rejectedReason : null,
           status: targetStatus ?? MoneriumFiatDepositStatus.Pending,
           txHash: event.txHash
         },
         { transaction }
       );
     } else {
-      const updates: { payerIban?: string; payerName?: string; status?: MoneriumFiatDepositStatus; txHash?: string } = {};
+      const updates: {
+        payerIban?: string;
+        payerName?: string;
+        rejectedReason?: string;
+        status?: MoneriumFiatDepositStatus;
+        txHash?: string;
+      } = {};
       // The refund target: filled once, never overwritten by a later delivery.
       if (event.payerIban && !existing.payerIban) updates.payerIban = event.payerIban;
       if (event.payerName && !existing.payerName) updates.payerName = event.payerName;
@@ -379,6 +389,9 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
       if (targetStatus && targetStatus !== existing.status && !alreadyPastMint) {
         if (isForwardTransition(existing.status, targetStatus)) {
           updates.status = targetStatus;
+          if (targetStatus === MoneriumFiatDepositStatus.Returned && event.rejectedReason) {
+            updates.rejectedReason = event.rejectedReason;
+          }
         } else {
           logger.warn(
             `monerium-b2b: ignoring backward status transition ${existing.status} -> ${targetStatus} for order ${event.orderId}`

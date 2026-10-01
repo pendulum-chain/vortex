@@ -25,6 +25,8 @@ export interface MoneriumAccountAttributes {
   configVersion: number;
   status: MoneriumAccountStatus;
   dormantSince: Date | null;
+  /** Hash of the last ACCOUNT_UPDATED snapshot sent to the partner. */
+  lifecycleEventHash: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,7 @@ type MoneriumAccountCreationAttributes = Optional<
   | "configVersion"
   | "status"
   | "dormantSince"
+  | "lifecycleEventHash"
   | "createdAt"
   | "updatedAt"
 >;
@@ -58,6 +61,7 @@ class MoneriumAccount
   declare configVersion: number;
   declare status: MoneriumAccountStatus;
   declare dormantSince: Date | null;
+  declare lifecycleEventHash: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -107,6 +111,11 @@ MoneriumAccount.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       type: DataTypes.UUID
+    },
+    lifecycleEventHash: {
+      allowNull: true,
+      field: "lifecycle_event_hash",
+      type: DataTypes.STRING(64)
     },
     profileId: {
       allowNull: false,

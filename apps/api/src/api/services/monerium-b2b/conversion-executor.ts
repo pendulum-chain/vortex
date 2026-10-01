@@ -1,3 +1,4 @@
+import type { DepositRefundReason, DepositWaitingReason } from "@vortexfi/shared";
 import { Op, Transaction } from "sequelize";
 import { Address, encodeFunctionData, Hex, parseEventLogs, TransactionReceipt, TransactionReceiptNotFoundError } from "viem";
 import sequelize from "../../../config/database";
@@ -725,7 +726,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
 // ------------------------------------------------------------------ pricing
 
 export type PlannedSwap =
-  | { kind: "defer"; reason: string }
+  | { kind: "defer"; code: DepositWaitingReason; reason: string }
   | {
       kind: "ready";
       /** The tier cap in USDC (6 decimals): the `maxSubsidy` argument of the swap. */
@@ -735,8 +736,8 @@ export type PlannedSwap =
       routeIndex: number;
     };
 
-function deferSwap(reason: string): PlannedSwap {
-  return { kind: "defer", reason };
+function deferSwap(code: DepositWaitingReason, reason: string): PlannedSwap {
+  return { code, kind: "defer", reason };
 }
 
 /** Quotes every enabled route on the mainnet QuoterV2; a route that cannot be quoted is skipped with a warning. */
@@ -778,17 +779,18 @@ export async function pricePlannedSwap(
   ]);
   const oracleRaw = roundData[1];
   if (oracleRaw <= 0n) {
-    return deferSwap(`Chainlink EUR/USD answered ${oracleRaw}`);
+    return deferSwap("oracle_unavailable", `Chainlink EUR/USD answered ${oracleRaw}`);
   }
 
   let reference: ReferenceQuote;
   try {
     reference = await fetchCoinbaseReference(immutables.oracleDecimals);
   } catch (error) {
-    return deferSwap(`reference rate unavailable: ${errorText(error)}`);
+    return deferSwap("reference_unavailable", `reference rate unavailable: ${errorText(error)}`);
   }
   if (!isWithinReferenceBand(reference.rateRaw, oracleRaw, immutables.maxReferenceDeviationBps)) {
     return deferSwap(
+      "reference_out_of_band",
       `reference ${reference.price} is outside the ${immutables.maxReferenceDeviationBps} bps band around Chainlink ${oracleRaw}`
     );
   }
@@ -798,14 +800,14 @@ export async function pricePlannedSwap(
 
   const routes = await readEnabledRoutes(factory);
   if (routes.length === 0) {
-    return deferSwap("the factory has no enabled swap route");
+    return deferSwap("no_route", "the factory has no enabled swap route");
   }
   if ((await getChainId()) !== 1) {
     return { kind: "ready", maxSubsidyRaw, projection: null, reference, routeIndex: routes[0].index };
   }
   const quotes = await quoteRoutes(routes, amountIn);
   if (quotes.length === 0) {
-    return deferSwap("no enabled swap route could be quoted");
+    return deferSwap("no_route", "no enabled swap route could be quoted");
   }
   const best = quotes.reduce((leader, quote) => (quote.quotedOut > leader.quotedOut ? quote : leader));
   const vault = await readSubsidyVaultState(vaultAddress, immutables.usdc);
@@ -826,6 +828,7 @@ export async function pricePlannedSwap(
     // Calibration data for the ladder: the shortfall this attempt would have needed.
     const shortfallBps = referenceOut > 0n ? Number((projection.subsidy * BPS) / referenceOut) : 0;
     return deferSwap(
+      "below_floor",
       `${projection.defer} (route ${best.index} quoted ${best.quotedOut}, shortfall ${shortfallBps} bps, tier ${maxSubsidyBps} bps)`
     );
   }
@@ -1017,10 +1020,20 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       logger.warn(
         `monerium-b2b: deferring conversion for account ${account.id} (chunk waited ${planned.elapsedSeconds}s): ${plan.reason}`
       );
+      // Partner-visible hold reason (DEPOSIT_UPDATED); written only when it changes.
+      if (planned.deposit.waitingReason !== plan.code) {
+        await planned.deposit.update({
+          waitingReason: plan.code,
+          waitingSince: planned.deposit.waitingSince ?? new Date()
+        });
+      }
       if (pokeNeeded) {
         await sendPoke(forwarder);
       }
       return;
+    }
+    if (planned.deposit.waitingReason) {
+      await planned.deposit.update({ waitingReason: null, waitingSince: null });
     }
   }
   const readyPlan = plan;
@@ -1251,7 +1264,7 @@ async function sendPoke(forwarder: Address): Promise<void> {
  * race a chunk swap being reserved; the keeper then sends `recover` once the clone's
  * batch has been open for RECOVERY_DELAY. Returns the reason it could not, or null.
  */
-export async function markDepositForRecovery(depositId: string): Promise<string | null> {
+export async function markDepositForRecovery(depositId: string, reason: DepositRefundReason): Promise<string | null> {
   const deposit = await MoneriumFiatDeposit.findByPk(depositId);
   if (!deposit) return "deposit not found";
   const account = await MoneriumAccount.findByPk(deposit.accountId);
@@ -1272,7 +1285,10 @@ export async function markDepositForRecovery(depositId: string): Promise<string 
     if (pending > 0) {
       return "deposit has a pending execution; retry once it settled";
     }
-    await current.update({ status: MoneriumFiatDepositStatus.Recovering }, { transaction });
+    await current.update(
+      { refundReason: reason, refundStartedAt: new Date(), status: MoneriumFiatDepositStatus.Recovering },
+      { transaction }
+    );
     return null;
   });
 }

@@ -634,22 +634,30 @@ describe("pricePlannedSwap", () => {
 
   it("defers on a non-positive Chainlink answer", async () => {
     arrange({ oracleAnswer: 0n });
-    expect(await price()).toEqual({ kind: "defer", reason: "Chainlink EUR/USD answered 0" });
+    expect(await price()).toEqual({ code: "oracle_unavailable", kind: "defer", reason: "Chainlink EUR/USD answered 0" });
   });
 
   it("defers when the reference cannot be fetched", async () => {
     arrange({ reference: new Error("coinbase down") });
-    expect(await price()).toMatchObject({ kind: "defer", reason: expect.stringContaining("reference rate unavailable") });
+    expect(await price()).toMatchObject({
+      code: "reference_unavailable",
+      kind: "defer",
+      reason: expect.stringContaining("reference rate unavailable")
+    });
   });
 
   it("defers on a reference outside the Chainlink band", async () => {
     arrange({ reference: { ...reference, price: "1.12000000", rateRaw: 112_000_000n } }); // 175 bps below
-    expect(await price()).toMatchObject({ kind: "defer", reason: expect.stringContaining("outside the 100 bps band") });
+    expect(await price()).toMatchObject({
+      code: "reference_out_of_band",
+      kind: "defer",
+      reason: expect.stringContaining("outside the 100 bps band")
+    });
   });
 
   it("defers when the factory has no enabled route", async () => {
     arrange({ routes: [] });
-    expect(await price()).toEqual({ kind: "defer", reason: "the factory has no enabled swap route" });
+    expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "the factory has no enabled swap route" });
   });
 
   it("uses the first enabled route unprojected off mainnet, still carrying the tier cap", async () => {
@@ -659,7 +667,7 @@ describe("pricePlannedSwap", () => {
 
   it("defers when no route can be quoted", async () => {
     arrange({ quotes: { "0xaa": new Error("no pool"), "0xbb": new Error("no pool") } });
-    expect(await price()).toEqual({ kind: "defer", reason: "no enabled swap route could be quoted" });
+    expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "no enabled swap route could be quoted" });
   });
 
   it("picks the route with the highest quote and projects its settlement", async () => {
@@ -680,7 +688,7 @@ describe("pricePlannedSwap", () => {
       reason: expect.stringMatching(/per-swap cap.*\(route 0 quoted 1130000000, shortfall 72 bps, tier 100 bps\)/)
     });
     // A tier below the shortfall defers before the vault is even consulted.
-    expect(await price(0)).toMatchObject({ kind: "defer", reason: expect.stringContaining("current tier 0") });
+    expect(await price(0)).toMatchObject({ code: "below_floor", kind: "defer", reason: expect.stringContaining("current tier 0") });
   });
 });
 

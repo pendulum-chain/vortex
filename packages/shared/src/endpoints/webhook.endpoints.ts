@@ -5,7 +5,11 @@ export enum WebhookEventType {
   STATUS_CHANGE = "STATUS_CHANGE",
   DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED",
   DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED",
-  DEPOSIT_RETURNED = "DEPOSIT_RETURNED"
+  DEPOSIT_RETURNED = "DEPOSIT_RETURNED",
+  /** Every change of a deposit: the full snapshot, as returned by the deposits endpoint. */
+  DEPOSIT_UPDATED = "DEPOSIT_UPDATED",
+  /** Every change of an onramp account (IBAN issued, status): the full account snapshot. */
+  ACCOUNT_UPDATED = "ACCOUNT_UPDATED"
 }
 
 /**
@@ -17,7 +21,9 @@ export enum WebhookEventType {
 export const ACCOUNT_WEBHOOK_EVENT_TYPES = [
   WebhookEventType.DEPOSIT_RECEIVED,
   WebhookEventType.DEPOSIT_CONVERTED,
-  WebhookEventType.DEPOSIT_RETURNED
+  WebhookEventType.DEPOSIT_RETURNED,
+  WebhookEventType.DEPOSIT_UPDATED,
+  WebhookEventType.ACCOUNT_UPDATED
 ] as const;
 
 export enum DepositStatus {
@@ -120,17 +126,17 @@ export interface DepositReceivedWebhookPayload {
 }
 
 /**
- * How a whole execution was priced (docs/architecture-monerium-b2b-onramp.md, fees section):
- * the partner reference it was settled against, the fee Vortex took above the target
- * band, and the subsidy the vault paid to reach the floor. Totals for the execution,
- * not per deposit; a deposit's own share is its `usdcNetRaw`.
+ * How one conversion chunk was priced (docs/architecture-monerium-b2b-onramp.md, fees
+ * section): the reference it was settled against, the fee Vortex took above the target,
+ * and the subsidy the vault paid to reach the floor. Every chunk belongs to exactly one
+ * deposit.
  */
 export interface ConversionExecutionPricing {
   /** Fee taken on the execution (6-decimal base units). */
   feeRaw: string | null;
   /** Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
   referenceRateRaw: string | null;
-  /** Subsidy paid by the vault straight to the destination (6-decimal base units). */
+  /** Subsidy the vault paid onto the forwarder for this chunk (6-decimal base units). */
   subsidyRaw: string | null;
 }
 
@@ -144,12 +150,12 @@ export interface DepositConvertedWebhookPayload {
     conversions: Array<{
       /** EURe from this deposit consumed by this execution (18-decimal base units). */
       eureInRaw: string;
-      /** Execution-level pricing shared by every deposit portion the execution consumed. */
+      /** How this chunk was priced. */
       execution: ConversionExecutionPricing;
       executionId: string;
-      /** The swap-and-forward transaction. */
+      /** The chunk's swap transaction. */
       txHash: string | null;
-      /** Net USDC from this execution attributed to this deposit (6-decimal base units). */
+      /** Net USDC from this chunk after fee and subsidy (6-decimal base units). */
       usdcNetRaw: string;
     }>;
     /** The single transaction that pushed the whole converted deposit to the destination. */
@@ -179,12 +185,122 @@ export interface DepositReturnedWebhookPayload {
   };
 }
 
+/**
+ * Why a deposit is waiting: `monerium_pending` until Monerium mints it (minting or a
+ * compliance review, which Monerium does not tell apart), otherwise the reason the
+ * keeper is holding the next conversion chunk.
+ */
+export type DepositWaitingReason =
+  | "monerium_pending"
+  | "oracle_unavailable"
+  | "reference_unavailable"
+  | "reference_out_of_band"
+  | "no_route"
+  | "below_floor";
+
+/** Why a deposit entered the refund path. */
+export type DepositRefundReason = "window_missed" | "compliance" | "incident" | "operator";
+
+/** One conversion chunk of a deposit. Timestamps are ISO 8601. */
+export interface DepositConversionSnapshot {
+  executionId: string;
+  status: "pending" | "confirmed";
+  /** EURe converted by this chunk (18-decimal base units). */
+  eureInRaw: string;
+  execution: ConversionExecutionPricing;
+  /** Net USDC from this chunk after fee and subsidy (6-decimal base units). */
+  usdcNetRaw: string;
+  txHash: string | null;
+  sentAt: string;
+  confirmedAt: string | null;
+}
+
+/** The full state of one deposit, as sent by DEPOSIT_UPDATED and returned by the deposits endpoint. */
+export interface DepositSnapshot {
+  depositId: string;
+  accountId: string;
+  /** The client's Vortex managed profile, the `X-Managed-Profile-Id` value. */
+  profileId: string;
+  moneriumProfileId: string;
+  moneriumOrderId: string;
+  /** The partner's own client reference for this managed profile. */
+  externalSubjectId: string | null;
+  status: DepositStatus;
+  currency: string;
+  /** EUR amount to the cent, for example "1234.56". */
+  amount: string;
+  /** EUR amount in 18-decimal base units. */
+  amountRaw: string;
+  /** The on-chain mint transaction, when observed. */
+  txHash: string | null;
+  /** When Vortex first saw the payment. */
+  receivedAt: string;
+  mintedAt: string | null;
+  /** Present while the deposit waits, before the mint or between conversion chunks. */
+  waiting: { reason: DepositWaitingReason; since: string } | null;
+  /** Monerium's reason when it returned the payment before minting. */
+  rejectedReason: string | null;
+  conversions: DepositConversionSnapshot[];
+  /** Net USDC of the confirmed chunks (6-decimal base units). */
+  usdcNetRaw: string;
+  /** The single transfer of the whole converted deposit to the destination. */
+  forwardTxHash: string | null;
+  deliveredAt: string | null;
+  /** Present once the deposit entered the refund path. */
+  refund: {
+    reason: DepositRefundReason | null;
+    /** The EUR amount refunded, to the cent: always the full issue amount. */
+    amount: string | null;
+    payerIbanMasked: string | null;
+    recoverTxHash: string | null;
+    redeemOrderId: string | null;
+    startedAt: string | null;
+    refundedAt: string | null;
+  } | null;
+}
+
+/** The state of one onramp account, as sent by ACCOUNT_UPDATED and returned by the account endpoints. */
+export interface AccountSnapshot {
+  accountId: string;
+  /** The client's Vortex managed profile, the `X-Managed-Profile-Id` value. */
+  profileId: string | null;
+  moneriumProfileId: string;
+  externalSubjectId: string | null;
+  status: string;
+  /** Null until Monerium issued it. */
+  iban: string | null;
+  destination: string;
+  forwarderAddress: string;
+  targetPpm: number;
+  floorPpm: number;
+  dormantSince: string | null;
+  createdAt: string;
+}
+
+export interface DepositUpdatedWebhookPayload {
+  /** Unique per snapshot and stable across delivery retries: consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_UPDATED;
+  timestamp: string;
+  payload: DepositSnapshot;
+}
+
+export interface AccountUpdatedWebhookPayload {
+  /** Unique per snapshot and stable across delivery retries: consumers deduplicate on it. */
+  eventId: string;
+  eventType: WebhookEventType.ACCOUNT_UPDATED;
+  timestamp: string;
+  payload: AccountSnapshot;
+}
+
 export type WebhookPayload =
   | TransactionCreatedWebhookPayload
   | StatusChangeWebhookPayload
   | DepositReceivedWebhookPayload
   | DepositConvertedWebhookPayload
-  | DepositReturnedWebhookPayload;
+  | DepositReturnedWebhookPayload
+  | DepositUpdatedWebhookPayload
+  | AccountUpdatedWebhookPayload;
 
 export interface WebhookDeliveryAttempt {
   webhookId: string;

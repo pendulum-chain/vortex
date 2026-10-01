@@ -12,7 +12,7 @@ A diff here means: check backward compatibility for live integrations, and keep
 ## packages/shared — partner wire contract (`src/endpoints`)
 
 ```text
-ACCOUNT_WEBHOOK_EVENT_TYPES: readonly [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED, WebhookEventType.DEPOSIT_RETURNED]
+ACCOUNT_WEBHOOK_EVENT_TYPES: readonly [WebhookEventType.DEPOSIT_RECEIVED, WebhookEventType.DEPOSIT_CONVERTED, WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED, WebhookEventType.ACCOUNT_UPDATED]
 
 AcceptedRecipientInvite: {
   id: string;
@@ -29,6 +29,41 @@ AcceptedRecipientInvite: {
 AccountMeta: {
   address: string;
   type: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" };
+}
+
+AccountSnapshot: {
+  accountId: string;
+  createdAt: string;
+  destination: string;
+  dormantSince: null | string;
+  externalSubjectId: null | string;
+  floorPpm: number;
+  forwarderAddress: string;
+  iban: null | string;
+  moneriumProfileId: string;
+  profileId: null | string;
+  status: string;
+  targetPpm: number;
+}
+
+AccountUpdatedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.ACCOUNT_UPDATED;
+  payload: {
+    accountId: string;
+    createdAt: string;
+    destination: string;
+    dormantSince: null | string;
+    externalSubjectId: null | string;
+    floorPpm: number;
+    forwarderAddress: string;
+    iban: null | string;
+    moneriumProfileId: string;
+    profileId: null | string;
+    status: string;
+    targetPpm: number;
+  };
+  timestamp: string;
 }
 
 AlchemyPayPriceResponse: {
@@ -439,6 +474,21 @@ DeleteWebhookResponse: {
   success: boolean;
 }
 
+DepositConversionSnapshot: {
+  confirmedAt: null | string;
+  eureInRaw: string;
+  execution: {
+    feeRaw: null | string;
+    referenceRateRaw: null | string;
+    subsidyRaw: null | string;
+  };
+  executionId: string;
+  sentAt: string;
+  status: "confirmed" | "pending";
+  txHash: null | string;
+  usdcNetRaw: string;
+}
+
 DepositConvertedWebhookPayload: {
   eventId: string;
   eventType: WebhookEventType.DEPOSIT_CONVERTED;
@@ -483,6 +533,8 @@ DepositReceivedWebhookPayload: {
   timestamp: string;
 }
 
+DepositRefundReason: "compliance" | "incident" | "operator" | "window_missed"
+
 DepositReturnedWebhookPayload: {
   eventId: string;
   eventType: WebhookEventType.DEPOSIT_RETURNED;
@@ -505,7 +557,108 @@ DepositReturnedWebhookPayload: {
   timestamp: string;
 }
 
+DepositSnapshot: {
+  accountId: string;
+  amount: string;
+  amountRaw: string;
+  conversions: Array<{
+    confirmedAt: null | string;
+    eureInRaw: string;
+    execution: {
+      feeRaw: null | string;
+      referenceRateRaw: null | string;
+      subsidyRaw: null | string;
+    };
+    executionId: string;
+    sentAt: string;
+    status: "confirmed" | "pending";
+    txHash: null | string;
+    usdcNetRaw: string;
+  }>;
+  currency: string;
+  deliveredAt: null | string;
+  depositId: string;
+  externalSubjectId: null | string;
+  forwardTxHash: null | string;
+  mintedAt: null | string;
+  moneriumOrderId: string;
+  moneriumProfileId: string;
+  profileId: string;
+  receivedAt: string;
+  refund: null | {
+    amount: null | string;
+    payerIbanMasked: null | string;
+    reason: "compliance" | "incident" | "operator" | "window_missed" | null;
+    recoverTxHash: null | string;
+    redeemOrderId: null | string;
+    refundedAt: null | string;
+    startedAt: null | string;
+  };
+  rejectedReason: null | string;
+  status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
+  txHash: null | string;
+  usdcNetRaw: string;
+  waiting: null | {
+    reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+    since: string;
+  };
+}
+
 DepositStatus: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" }
+
+DepositUpdatedWebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_UPDATED;
+  payload: {
+    accountId: string;
+    amount: string;
+    amountRaw: string;
+    conversions: Array<{
+      confirmedAt: null | string;
+      eureInRaw: string;
+      execution: {
+        feeRaw: null | string;
+        referenceRateRaw: null | string;
+        subsidyRaw: null | string;
+      };
+      executionId: string;
+      sentAt: string;
+      status: "confirmed" | "pending";
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    currency: string;
+    deliveredAt: null | string;
+    depositId: string;
+    externalSubjectId: null | string;
+    forwardTxHash: null | string;
+    mintedAt: null | string;
+    moneriumOrderId: string;
+    moneriumProfileId: string;
+    profileId: string;
+    receivedAt: string;
+    refund: null | {
+      amount: null | string;
+      payerIbanMasked: null | string;
+      reason: "compliance" | "incident" | "operator" | "window_missed" | null;
+      recoverTxHash: null | string;
+      redeemOrderId: null | string;
+      refundedAt: null | string;
+      startedAt: null | string;
+    };
+    rejectedReason: null | string;
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
+    txHash: null | string;
+    usdcNetRaw: string;
+    waiting: null | {
+      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      since: string;
+    };
+  };
+  timestamp: string;
+}
+
+DepositWaitingReason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable"
 
 DepositWebhookPayloadBase: {
   accountId: string;
@@ -1697,7 +1850,7 @@ RegisterRampResponse: {
 }
 
 RegisterWebhookRequest: {
-  events?: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events?: Array<enum WebhookEventType { ACCOUNT_UPDATED = "ACCOUNT_UPDATED", DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", DEPOSIT_UPDATED = "DEPOSIT_UPDATED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   quoteId?: string;
   sessionId?: string;
   url: string;
@@ -1705,7 +1858,7 @@ RegisterWebhookRequest: {
 
 RegisterWebhookResponse: {
   createdAt: string;
-  events: Array<enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
+  events: Array<enum WebhookEventType { ACCOUNT_UPDATED = "ACCOUNT_UPDATED", DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", DEPOSIT_UPDATED = "DEPOSIT_UPDATED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }>;
   id: string;
   isActive: boolean;
   quoteId: null | string;
@@ -2458,6 +2611,24 @@ WebhookDeliveryAttempt: {
   nextRetryAt?: Date;
   payload: {
     eventId: string;
+    eventType: WebhookEventType.ACCOUNT_UPDATED;
+    payload: {
+      accountId: string;
+      createdAt: string;
+      destination: string;
+      dormantSince: null | string;
+      externalSubjectId: null | string;
+      floorPpm: number;
+      forwarderAddress: string;
+      iban: null | string;
+      moneriumProfileId: string;
+      profileId: null | string;
+      status: string;
+      targetPpm: number;
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
     eventType: WebhookEventType.DEPOSIT_CONVERTED;
     payload: {
       accountId: string;
@@ -2518,6 +2689,56 @@ WebhookDeliveryAttempt: {
     timestamp: string;
   } | {
     eventId: string;
+    eventType: WebhookEventType.DEPOSIT_UPDATED;
+    payload: {
+      accountId: string;
+      amount: string;
+      amountRaw: string;
+      conversions: Array<{
+        confirmedAt: null | string;
+        eureInRaw: string;
+        execution: {
+          feeRaw: null | string;
+          referenceRateRaw: null | string;
+          subsidyRaw: null | string;
+        };
+        executionId: string;
+        sentAt: string;
+        status: "confirmed" | "pending";
+        txHash: null | string;
+        usdcNetRaw: string;
+      }>;
+      currency: string;
+      deliveredAt: null | string;
+      depositId: string;
+      externalSubjectId: null | string;
+      forwardTxHash: null | string;
+      mintedAt: null | string;
+      moneriumOrderId: string;
+      moneriumProfileId: string;
+      profileId: string;
+      receivedAt: string;
+      refund: null | {
+        amount: null | string;
+        payerIbanMasked: null | string;
+        reason: "compliance" | "incident" | "operator" | "window_missed" | null;
+        recoverTxHash: null | string;
+        redeemOrderId: null | string;
+        refundedAt: null | string;
+        startedAt: null | string;
+      };
+      rejectedReason: null | string;
+      status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
+      txHash: null | string;
+      usdcNetRaw: string;
+      waiting: null | {
+        reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+        since: string;
+      };
+    };
+    timestamp: string;
+  } | {
+    eventId: string;
     eventType: WebhookEventType.STATUS_CHANGE;
     payload: {
       quoteId: string;
@@ -2543,9 +2764,27 @@ WebhookDeliveryAttempt: {
   webhookId: string;
 }
 
-WebhookEventType: enum WebhookEventType { DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
+WebhookEventType: enum WebhookEventType { ACCOUNT_UPDATED = "ACCOUNT_UPDATED", DEPOSIT_CONVERTED = "DEPOSIT_CONVERTED", DEPOSIT_RECEIVED = "DEPOSIT_RECEIVED", DEPOSIT_RETURNED = "DEPOSIT_RETURNED", DEPOSIT_UPDATED = "DEPOSIT_UPDATED", STATUS_CHANGE = "STATUS_CHANGE", TRANSACTION_CREATED = "TRANSACTION_CREATED" }
 
 WebhookPayload: {
+  eventId: string;
+  eventType: WebhookEventType.ACCOUNT_UPDATED;
+  payload: {
+    accountId: string;
+    createdAt: string;
+    destination: string;
+    dormantSince: null | string;
+    externalSubjectId: null | string;
+    floorPpm: number;
+    forwarderAddress: string;
+    iban: null | string;
+    moneriumProfileId: string;
+    profileId: null | string;
+    status: string;
+    targetPpm: number;
+  };
+  timestamp: string;
+} | {
   eventId: string;
   eventType: WebhookEventType.DEPOSIT_CONVERTED;
   payload: {
@@ -2602,6 +2841,56 @@ WebhookPayload: {
       payerIbanMasked: string;
       recoverTxHash: null | string;
       redeemOrderId: null | string;
+    };
+  };
+  timestamp: string;
+} | {
+  eventId: string;
+  eventType: WebhookEventType.DEPOSIT_UPDATED;
+  payload: {
+    accountId: string;
+    amount: string;
+    amountRaw: string;
+    conversions: Array<{
+      confirmedAt: null | string;
+      eureInRaw: string;
+      execution: {
+        feeRaw: null | string;
+        referenceRateRaw: null | string;
+        subsidyRaw: null | string;
+      };
+      executionId: string;
+      sentAt: string;
+      status: "confirmed" | "pending";
+      txHash: null | string;
+      usdcNetRaw: string;
+    }>;
+    currency: string;
+    deliveredAt: null | string;
+    depositId: string;
+    externalSubjectId: null | string;
+    forwardTxHash: null | string;
+    mintedAt: null | string;
+    moneriumOrderId: string;
+    moneriumProfileId: string;
+    profileId: string;
+    receivedAt: string;
+    refund: null | {
+      amount: null | string;
+      payerIbanMasked: null | string;
+      reason: "compliance" | "incident" | "operator" | "window_missed" | null;
+      recoverTxHash: null | string;
+      redeemOrderId: null | string;
+      refundedAt: null | string;
+      startedAt: null | string;
+    };
+    rejectedReason: null | string;
+    status: enum DepositStatus { CONVERTING = "converting", FORWARDED = "forwarded", HELD = "held", MINTED = "minted", PENDING = "pending", RECOVERING = "recovering", RECOVERY_FAILED = "recovery_failed", REFUNDED = "refunded", RETURNED = "returned" };
+    txHash: null | string;
+    usdcNetRaw: string;
+    waiting: null | {
+      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      since: string;
     };
   };
   timestamp: string;
