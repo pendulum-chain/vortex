@@ -11,11 +11,10 @@ procedures in [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-run
 verbal/Telegram statements; consolidate into the MSA or a side letter:
 
 1. Attestor-pattern acceptance (verbally accepted, conditional on fallback capability —
-   **re-approval needed (2026-09-17):** the fallback is now a Vortex-held recovery
-   wallet linked to a Vortex/SatoshiPay company profile, and that one profile refunds
-   many client corporates by SEPA; ask alongside whether `supportingDocumentId` is
-   required for a return-to-originator above EUR 15,000 and what outgoing limits apply —
-   mandatory by design, so the condition is met).
+   **re-approval needed (2026-09-17):** the fallback is now a Vortex-held refund wallet
+   per client, linked to the client's own profile, which refunds out of the client's
+   IBAN (2026-10-01; one address per profile and the reusable supporting document were
+   confirmed 2026-09-30) — mandatory by design, so the condition is met).
 2. Redemption-limitation disclosure obligation (their request; our commitment — §Terms 1).
 3. Issuer recovery backstop: burn from a linked address, payout only to the customer's
    own external bank account, no fees, re-verification possible — **including the
@@ -67,9 +66,8 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    route (direct EURe→USDC or other tiers) is worth whitelisting from day one.
 4. Deploy implementation + factory with the final parameters (ADR table: 52 h oracle
    age, 60 bps floor on the net, 1% fee cap, 100 bps reference band, 2 h recovery / 24 h
-   trigger delays, the recovery wallet address (a dedicated linked address on the Vortex
-   company profile — onboard that profile in the whitelabel app first),
-   €1 floor/€50k ceiling, initial 5 bps/5 bps route); set operational `minSwapAmount`
+   trigger delays, €1 floor/€50k ceiling, initial 5 bps/5 bps route; the recovery address
+   is per client, passed at each clone's deployment); set operational `minSwapAmount`
    €1 and `perSwapCap` €10k; register the keeper key.
 4a. Deploy `VortexSubsidyVault` (USDC, the fee Safe as treasury, the factory, 50 bps per
    swap, 200 USDC per day — P13), point the factory at it (`setSubsidyVault`), and fund
@@ -78,7 +76,8 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    publish the manifest.
 6. Production whitelabel credentials from Monerium; configure the keeper backend (the
    mykobo flow variant only): credentials, attestor/keeper/guardian keys (three distinct;
-   keeper funded), read RPC + private orderflow RPC, webhook secret, and
+   keeper funded), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
+   read RPC + private orderflow RPC, webhook secret, and
    `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`; the backend needs outbound HTTPS to
    `api.exchange.coinbase.com` for the reference rate (P12) — without it every swap
    defers. Keep `MONERIUM_B2B_ENABLED=false` until every remaining gate is complete.
@@ -181,10 +180,10 @@ fee policy 12.5 bps target / 15 bps floor (B1).
    deploy the account, run the conversion, pause it, tune bounded parameters, adjust the
    fee policy within the disclosed cap and timelock, choose the swap route among an
    on-chain validated set, fund or limit its own subsidy budget, and — for a payment
-   the promised window was missed on, and only then — move that payment to its own
-   recovery wallet in order to refund it. What Vortex cannot do: redirect funds. The
-   contract can pay only the client's payout address, Vortex's fee treasury, and the
-   fixed Vortex recovery wallet, and it refuses a recovery before the window has
+   the promised window was missed on, and only then — move that payment to the client's
+   refund wallet, which Vortex holds, in order to refund it from the client's IBAN. What
+   Vortex cannot do: redirect funds. The contract can pay only the client's payout
+   address, Vortex's fee treasury, and the client's fixed refund wallet, and it refuses a recovery before the window has
    elapsed. Vortex holds custody of a client's funds only on that refund path; the
    client has no key of their own and no unilateral exit — the partner accepts this
    (written confirmation, G1). Should Vortex disappear, anyone may complete conversions
@@ -204,8 +203,8 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 | Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint (spot, since 2026-09-18) — confirm that is what was meant |
 | Subsidy ladder calibration | Ops ↔ product | Launch ladder in P14; retune from the `deferring conversion` shortfall lines and the vault spend after the first weeks; raise the vault's per-swap cap to the ladder's top before enabling |
 | Reference band value (P12, 100 bps) | Engineering | Confirm against observed weekend Chainlink gaps before the implementation deploy (immutable). The effective downside margin is `SLIPPAGE_BPS − floorPpm` ≈ 45 bps after the 2026-09-17 move to 60 bps: the twelve-month replay on spot (2026-09-18, ADR amendment 3) shows six minute-long blips a year at that margin outside the 2025-10 depeg weekend, so ordinary weekends do not refund; the depeg weekend (39.7 h out of the 100 bps band) does, by design |
-| Recovery wallet + float wallet | Ops ↔ Monerium | Onboard a Vortex/SatoshiPay company profile in the whitelabel app; link one dedicated address as `RECOVERY_WALLET` (immutable at implementation deploy) and one as the EURe float; fund the float; keys into the keeper's KMS before recovery is automated |
-| Refund automation | Ops | Implemented (`recovery.ts`): ship with `MONERIUM_B2B_AUTO_RECOVERY=alert`, observe one sandbox refund end to end, then `auto` with the recovery and float keys set; refunds of EUR 15,000 or more stay manual until G1 settles the supporting-document question |
+| Refund seed + float wallet | Ops | Generate `MONERIUM_B2B_REFUND_SEED` (32 random bytes; every client's refund wallet derives from it, and onboarding links each to its client's profile) and the EURe float key; fund the float with EURe and ETH (it pays the refund wallets' gas); both into the keeper's KMS. No Vortex company profile is needed |
+| Refund automation | Ops | Implemented (`recovery.ts`): ship with `MONERIUM_B2B_AUTO_RECOVERY=alert`, observe one sandbox refund end to end, then `auto` with the float key set; refunds of EUR 15,000 or more stay manual until G1 settles the supporting-document question |
 | Sandbox SEPA simulation: payer counterpart | Engineering (needs Marcel's sandbox login) | Capture one real issue-order webhook to confirm `counterpart.identifier.iban` / `details.name` arrive as the spec says (the refund target) |
 | Subsidy vault funding and refill cadence | Ops | Before first activation; runbook §2.6 |
 | GA items | Engineering | Backend volume-limit enforcement (revisit), guardian key to hardware/multisig, O1 migration endpoint when first needed |

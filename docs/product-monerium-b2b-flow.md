@@ -36,7 +36,7 @@ market reference, and sends the whole payment to the client's wallet as **one US
 transfer**. If a payment cannot be converted within **two hours**, Vortex refunds the
 **full EUR amount** to the bank account it came from. The forwarder can only ever pay
 three places: the client's fixed wallet, Vortex's fee treasury, and, for a refund after
-the two-hour window, Vortex's recovery wallet.
+the two-hour window, the client's own refund wallet, which Vortex holds.
 
 ## 2. Who is involved
 
@@ -49,8 +49,8 @@ the two-hour window, Vortex's recovery wallet.
 | **Forwarder contract** | One per client on Ethereum. Receives the minted EURe, swaps it, holds the USDC until the payment is complete, then forwards it. |
 | **Subsidy vault** | A Vortex-funded USDC pool that tops up a swap when the market delivers less than the client's guaranteed floor. |
 | **Fee treasury** | Vortex multisig that receives the conversion fee. |
-| **Recovery wallet and float wallet** | Two Vortex wallets used only for refunds. The recovery wallet receives a payment whose window was missed, and the float covers round-trip losses. |
-| **Refund address** | **Proposed.** One Vortex address per client, linked to the client's Monerium profile, from which a refund is paid out through the client's own IBAN. Confirmed as technically possible by Monerium. |
+| **Refund wallet** | One Vortex-held wallet per client, fixed in the client's forwarder at deployment and linked to the client's Monerium profile. A payment whose window was missed moves there, and the refund is paid out from it through the client's own IBAN. |
+| **Float wallet** | A Vortex wallet that covers round-trip losses so a refund is always the exact amount, and pays the refund wallets' gas. |
 | **Price sources** | Coinbase Exchange EURC-USDC market for the reference rate, Chainlink EUR/USD as the on-chain safety bound, Uniswap v3 where the swaps execute. |
 
 ## 3. The flow at a glance
@@ -70,7 +70,7 @@ flowchart LR
         VAULT["Subsidy vault"]
         TREAS["Fee treasury"]
         DEST["Client wallet<br/>fixed destination"]
-        REC["Vortex recovery wallet<br/>and refund address"]
+        REC["Client refund wallet"]
     end
     subgraph Vx["Vortex"]
         KEEP["Keeper service"]
@@ -106,8 +106,8 @@ subsidy on a swap, or the refund path.
   points at the forwarder**. Monerium mints to whatever address the IBAN points at, so
   this is what routes every payment through the conversion. An IBAN pointing at the
   client's own wallet would deliver EURe, not USDC.
-- **Proposed:** a Vortex **refund address** is linked to the client's profile as well, so
-  a refund can leave from the client's own IBAN (section 8.3).
+- The client's **refund wallet** is linked to the client's profile as well, so a refund
+  leaves from the client's own IBAN (section 8.3).
 - Vortex has mapped the client under **SulPayments' partner account**, so webhooks and
   API reads reach SulPayments.
 
@@ -134,7 +134,7 @@ sequenceDiagram
     V->>M: Check the profile exists in SulPayments' app
     M-->>V: profile.updated, state approved
     V->>C: Deploy forwarder with destination and fee policy
-    V->>M: Link forwarder and refund address to the profile
+    V->>M: Link forwarder and refund wallet to the profile
     V->>M: Request the IBAN for the forwarder
     M-->>V: iban.updated, IBAN issued
     V->>M: Read the IBAN back from the API [V7]
@@ -193,12 +193,13 @@ Notes on the flow:
 - SulPayments can read the account and its IBAN through the Vortex API with its manager
   key. There is no dashboard view **[V3]**.
 - The backend uses one Monerium credential pair, shared with Vortex's retail EUR onramp.
-- Adopting the proposal changes five things. The B2B module gets its own credentials for
+- Adopting the proposal changes four things. The B2B module gets its own credentials for
   SulPayments' app **[V8]**. SulPayments supplies the destination by profile ID through
   the new endpoint **[V6]**. Onboarding starts once the profile is approved and the
-  destination is registered **[V1]**. The keeper links a refund address next to the
-  forwarder **[V2]**. The IBAN and the payer's IBAN are read back from Monerium's API
-  **[V7]**.
+  destination is registered **[V1]**. The IBAN and the payer's IBAN are read back from
+  Monerium's API **[V7]**.
+- The keeper already links the client's refund wallet next to the forwarder, built on
+  2026-10-01.
 
 ### 4.4 Decisions behind onboarding
 
@@ -254,9 +255,9 @@ sequenceDiagram
   address is linked to the client's profile, Monerium mints there instead of to the
   forwarder. Monerium's guide describes only that case, which implies an unlinked
   address is ignored and the payment mints to the forwarder as usual. The only other
-  address linked to a client profile is the proposed refund address, which Vortex
+  address linked to a client profile is the client's refund wallet, which Vortex
   controls. Clients are unlikely to use this, so it stays enabled, and a mint to a
-  refund address is handled by operations **[V9]**.
+  refund wallet is handled by operations **[V9]**.
 
 ## 6. Conversion: EURe to USDC
 
@@ -340,7 +341,6 @@ flowchart TD
 - It was **not converted within two hours** of the mint. Typical causes are a market
   move beyond the bounds, thin liquidity, an exhausted subsidy budget, or an operational
   fault.
-- It is **below the €1 minimum swap**.
 - An operator triggers it after a **compliance decision or an incident**.
 
 A payment is never partly delivered. If any part cannot be converted in time, the whole
@@ -352,10 +352,9 @@ payment is refunded, including chunks that were already converted.
 sequenceDiagram
     participant V as Vortex keeper
     participant F as Forwarder
-    participant R as Recovery wallet
+    participant R as Client's refund wallet
     participant U as Uniswap
     participant FL as Float wallet
-    participant RA as Client's refund address
     participant M as Monerium
     participant B as Payer's bank
     participant SP as SulPayments
@@ -365,23 +364,18 @@ sequenceDiagram
     F->>R: EURe and USDC, contract refuses before 2 hours
     R->>U: Swap USDC back to EURe
     FL->>R: Top up to the exact original amount
-    R->>RA: Exact EURe amount, proposed step
-    RA->>M: Redeem order to the payer's IBAN
+    R->>M: Redeem order to the payer's IBAN
     M->>B: SEPA payout from the client's IBAN
     M-->>V: order.updated, redemption processed
-    V-->>SP: DEPOSIT_RETURNED webhook
+    V-->>SP: DEPOSIT_RETURNED and DEPOSIT_UPDATED
 ```
-
-Everything up to the top-up is built. The hop through the client's refund address is the
-proposal in section 8.3. As built today, the recovery wallet places the redeem itself,
-from the Vortex/SatoshiPay company profile.
 
 - The payer gets back the **exact EUR amount**. Losses from the round trip and fees
   already taken on converted chunks are Vortex's cost, paid from the float wallet.
 - The contract **enforces the two-hour window**. The forwarder cannot move funds to the
-  recovery wallet any earlier.
-- With the proposal, the refund leaves from the **client's own IBAN**, in the client's
-  name, with a reference to the original payment.
+  refund wallet any earlier, and it can only move them to that one wallet.
+- The refund leaves from the **client's own IBAN**, in the client's name, with a
+  reference to the original payment.
 - SEPA Instant is used when the payer's bank supports it, otherwise next business day.
 - Monerium requires a **supporting document** on redemptions above €15,000 and accepts
   the same agreement every time, so one standing document per client can be uploaded
@@ -395,42 +389,41 @@ from the Vortex/SatoshiPay company profile.
   each refund. It switches to **automatic** after the first refund has been observed end
   to end.
 
-### 8.3 Proposed: refund from the client's own IBAN
+### 8.3 Refund from the client's own IBAN
 
-A Monerium profile can have several linked addresses, and per Monerium's spec any linked
-address can use the profile's IBAN for outgoing payments. An address belongs to exactly
-one profile. The proposal builds on that:
+A Monerium profile can have several linked addresses, any linked address can use the
+profile's IBAN for outgoing payments, and an address belongs to exactly one profile. The
+refund path builds on that, built on 2026-10-01:
 
-- At onboarding, Vortex links a second address to each client profile next to the
-  forwarder: a Vortex-controlled **refund address**, one per client.
-- For a refund, the recovery wallet sends the exact EURe amount to that client's refund
-  address, which places the redeem order. The payer receives the refund from the
-  client's own IBAN, in the client's name.
+- Each client gets its own **refund wallet**: a plain Vortex-held wallet whose key is
+  derived from one Vortex secret and the client's Monerium profile ID. One secret covers
+  every client, and the wallet is known before the forwarder is deployed.
+- The wallet is fixed in the client's forwarder at deployment as the only address a
+  recovery can pay, with no way to change it. Vortex refuses to map a forwarder whose
+  refund wallet is not the client's derived one.
+- Onboarding links the wallet to the client's Monerium profile next to the forwarder.
+- On a refund the forwarder sends the stuck EURe and USDC straight to that wallet, which
+  swaps back, receives the float's top-up, and places the redeem order. Monerium pays it
+  out of the client's own IBAN.
+- The wallet pays gas for its own transactions; the float tops its ETH up before it
+  sends.
+- No Vortex company profile at Monerium is needed, and different clients' refunds never
+  share a wallet.
 - The client authorizes Vortex to send these refunds in the SulPayments terms.
 
-What it changes:
-
-- **No contract change.** The backend derives one refund key per client from a single
-  seed, links it at onboarding, and adds one transfer to the refund steps **[V2]**.
-- **No company profile needed for refunds.** The recovery and float wallets no longer
-  need to be linked at Monerium, so the Vortex/SatoshiPay company profile stops being a
-  prerequisite for deploying the contracts.
-- **Short holding time.** A refund address only ever holds the payment being refunded,
-  between the missed window and the payout.
-
-Status: agreed with Monerium on 2026-09-30 for the pilot. An address belongs to exactly
-one profile, so one refund address per client is needed, and a redeem from it leaves
-from the profile's IBAN. Not built yet **[V2]**. Later, each client may instead name a
-fixed refund IBAN at onboarding, so every refund follows the same path **[V13]**.
+Status: agreed with Monerium on 2026-09-30 for the pilot. Later, each client may instead
+name a fixed refund IBAN at onboarding, so every refund follows the same path **[V13]**.
+A refund contract that only pays that fixed IBAN would then replace the plain wallet,
+which means a new forwarder for existing clients.
 
 Alternatives considered:
 
-- **Built today:** the redeem is placed from the Vortex/SatoshiPay company profile. It
-  works without further changes, but the payer sees SatoshiPay as the sender, and one
-  company profile pays many unrelated payers.
+- **One Vortex recovery wallet on a Vortex/SatoshiPay company profile.** The previous
+  design. The payer would see SatoshiPay as the sender, and one company profile would
+  pay many unrelated payers.
 - **Redeem signed by the forwarder contract.** The refund would also leave from the
-  client's IBAN, but it needs contract changes, an allowlist of payer IBANs per client,
-  and a new audit.
+  client's IBAN, but it needs an allowlist of payer IBANs per client and a larger
+  contract change.
 
 ## 9. Status, reporting and support
 
@@ -510,9 +503,8 @@ How each stage is reported:
 | Refund needs an operator | recovery failed | `DEPOSIT_UPDATED` |
 | Account set up, IBAN issued, status changed | | `ACCOUNT_UPDATED`, and the accounts call |
 
-Not included yet: the incoming payment's SEPA reference and the payer's name, and a
-separate refund reason for a remainder below the minimum swap, which is reported as
-`window_missed`. Add them when SulPayments needs them.
+Not included yet: the incoming payment's SEPA reference and the payer's name. Add them
+when SulPayments needs them.
 
 ### 9.4 Exceptions and escalation
 
@@ -533,14 +525,13 @@ separate refund reason for a remainder below the minimum swap, which is reported
 - Change a client's fee policy within the 1% cap. Raising it takes effect only after a
   24-hour on-chain notice. Lowering it is immediate.
 - Fund or limit its own subsidy budget.
-- Move a payment to its recovery wallet, only after the two-hour window, to refund it.
-  As proposed, the refund is then paid out from the refund address Vortex holds on the
-  client's profile.
+- Move a payment to the client's refund wallet, only after the two-hour window, to
+  refund it from the client's own IBAN.
 
 **Vortex cannot:**
 
 - Redirect funds. A forwarder pays only the client's fixed destination, the fee
-  treasury, and, after two hours, the recovery wallet.
+  treasury, and, after two hours, the client's own refund wallet.
 - Deliver a conversion below the Chainlink rate minus 0.6%.
 - Stop a client's conversion permanently. After 24 hours anyone can complete it.
 - Prevent incoming SEPA payments. Payments made during a pause wait safely as EURe and
@@ -569,8 +560,8 @@ separate refund reason for a remainder below the minimum swap, which is reported
 
 ### 12.1 Assumptions (2026-09-30)
 
-- Refunds start with per-client refund addresses. A fixed refund IBAN per client may
-  replace them later **[V13]**.
+- Refunds run through per-client refund wallets. A fixed refund IBAN per client may
+  replace the dynamic payer IBAN later **[V13]**.
 - SulPayments delivers KYB directly to its own white-label app. Vortex never handles
   KYB data.
 - No SulPayments client has an existing Monerium profile.
@@ -583,21 +574,21 @@ separate refund reason for a remainder below the minimum swap, which is reported
 | Topic | Answer |
 |---|---|
 | Whose white-label app | A dedicated app in SulPayments' Monerium account, under SulPayments' reliance agreement. Vortex uses that app's client ID and secret. |
-| Onboarding steps | Confirmed: create profile, submit details, form and verifications, wait for `profile.updated` approved, link the forwarder and the refund address, request the IBAN. |
+| Onboarding steps | Confirmed: create profile, submit details, form and verifications, wait for `profile.updated` approved, link the forwarder and the refund wallet, request the IBAN. |
 | KYB route and speed | Corporates use the reliance endpoints. Approval takes seconds when the data follows Monerium's guidelines. |
 | Profile visibility | Only the credentials of the app that onboarded a profile can read it. |
 | Readable profile data | Only the bare minimum, such as the name. Full KYB details are not returned. |
 | Payment notifications | `order.created` when the payment hits the IBAN, `order.updated` on state changes. Pending covers both minting and compliance review. |
 | IBAN | Only for an address already linked to the profile. It can be moved to another linked address. |
 | Batching | None. Each client is its own request. |
-| Refund address | One address per profile, so one refund address per client. A redeem from it leaves from the profile's IBAN. |
+| Refund wallet | One address per profile, so one refund wallet per client. A redeem from it leaves from the profile's IBAN. |
 | Supporting document above €15,000 | The same agreement can be reused every time. |
 | Refund limits and fees | None. Some refunds are reviewed during business hours. |
 | Account fee | €10 per corporate account, per the agreement. |
 | Partner apps | Each partner gets its own white-label app. SulPayments delivers KYB data and files directly; Vortex could proxy those calls later as tech provider. |
 | Held and rejected payments | Monerium's monitoring holds payments for review during office hours, contacts the payer directly if it needs documents, and returns the funds if it cannot mint them. |
 | Third-party payers | Allowed. Monerium watches transaction patterns so accounts are not misused. |
-| Refund address approach | Agreed for the pilot. A fixed refund IBAN per client may replace it later. |
+| Refund wallet approach | Agreed for the pilot. A fixed refund IBAN per client may replace it later. |
 | Communication | A joint Slack channel with Monerium is to be set up. |
 | SulPayments' onboarding at Monerium | Documents in review on 2026-09-30, onboarding starting 2026-10-01. |
 
@@ -630,17 +621,17 @@ separate refund reason for a remainder below the minimum swap, which is reported
 | ID | Question or task | Depends on | Status |
 |---|---|---|---|
 | V1 | Start onboarding once the profile is approved and the destination is registered, whichever comes last. | V6, V8 | Open |
-| V2 | Refunds through per-client refund addresses: one refund key per client derived from one seed, linked at onboarding, one extra transfer per refund. No contract change. | M1 | Agreed for the pilot, not built |
+| V2 | Refunds through per-client refund wallets: derived from one seed, fixed in each forwarder as its recovery address, linked at onboarding. | None | Built 2026-10-01 |
 | V3 | Dashboard view for SulPayments with clients, IBANs, deposits and refunds. Optional, since SulPayments integrates API-first. | S4 | Deprioritized |
 | V4 | Full lifecycle deposit events, section 9.3: snapshot event on every change, IDs, amounts, timestamps, hold and failure reasons, an account event, and the docs fix. | S7 | Built 2026-10-01 |
 | V5 | Named owners per alert, and the escalation path between Vortex, SulPayments and Monerium, including the joint Slack channel with Monerium. | Meeting | Open |
 | V6 | Endpoint for SulPayments to register a destination by Monerium profile ID: checks the profile exists, create-only, validated, no KYB data. | S3 | Proposed |
 | V7 | Read the IBAN and the payer's IBAN back from Monerium's API instead of trusting webhook payloads, and check in the sandbox whether listing subscriptions exposes their secrets. | None | Open |
 | V8 | Separate Monerium credentials for the B2B module, apart from the retail onramp, with one app and credential pair per partner. | S2 | Open |
-| V9 | Detect a mint to a refund address routed by payment memo, and handle it as a refund. | V2 | Open |
+| V9 | Detect a mint to a refund wallet routed by payment memo, and handle it as a refund. | V2 | Open |
 | V10 | Attach the standing agreement to refunds above €15,000 so they can run automatically. | V2 | Open |
 | V11 | Remove the unused `held` status. | None | Open |
-| V13 | Later: a fixed refund IBAN per client, given at onboarding, replacing the per-client refund addresses. | V2 | Later |
+| V13 | Later: a fixed refund IBAN per client, given at onboarding, with a refund contract that only pays that IBAN. | V2 | Later |
 | V12 | Partner account API: list all sub-accounts with IBAN and status, filterable by Monerium profile ID. | S4 | Built 2026-10-01 |
 
 ## 13. Related documents

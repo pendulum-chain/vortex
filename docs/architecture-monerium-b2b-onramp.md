@@ -23,8 +23,8 @@ below the floor is topped up from the subsidy vault, Chainlink bounds the net) �
 accumulates on the forwarder, and one `forward(amount)` pushes the whole converted
 payment to the client's fixed destination wallet, so the client sees one transfer per
 pay-in. A payment that cannot be converted inside the promised window is moved to the
-Vortex recovery wallet (`recover`, keeper-only, contract-gated by `RECOVERY_DELAY`) and
-refunded to the payer's bank account — see "Chunking, forwarding and the refund path".
+client's refund wallet (`recover`, keeper-only, contract-gated by `RECOVERY_DELAY`) and
+refunded to the payer's bank account out of the client's own IBAN — see "Chunking, forwarding and the refund path".
 The flow is deliberately **not** a ramp: no quote, no `ramp_states` — the account is
 permanent and repeatedly funded. Inside Vortex the client is a **managed child profile** under the
 partner manager, which is what carries KYB records, API credentials, the read API, and
@@ -58,7 +58,7 @@ flowchart LR
         VAULT["VortexSubsidyVault\n(shared, treasury-funded)"]
         DEST[Client wallet]
         TREAS[Treasury FEE_RECIPIENT]
-        RECOV["Vortex recovery wallet\n(refund to the payer's IBAN)"]
+        RECOV["Client refund wallet\n(refund to the payer's IBAN)"]
     end
 
     subgraph Reference["Reference rate"]
@@ -102,7 +102,7 @@ flowchart LR
 Trust boundaries worth holding onto: **Monerium controls where EURe mints** (the IBAN's
 linked default address — which is why the association monitor exists); **the contract
 controls where funds can go** (fixed `destination`, fee to the immutable treasury, and
-the immutable Vortex recovery wallet, reachable only by the keeper and only once a batch
+the client's refund wallet fixed in the clone, reachable only by the keeper and only once a batch
 has been open for `RECOVERY_DELAY` — the keeper can trigger and, for a stuck payment,
 recover, never redirect); **Vortex controls
 timing, route choice and the reference within on-chain bounds** (a validated route set,
@@ -120,11 +120,13 @@ sequenceDiagram
     participant C as Ethereum
 
     Note over M: Monerium onboards the corporate under partner reliance - profile "approved"
-    Op->>C: deployForwarder(destination, targetPpm, floorPpm) via factory
+    Op->>Adm: GET /v1/admin/monerium-b2b/refund-address (derived refund wallet)
+    Op->>C: deployForwarder(destination, refundWallet, targetPpm, floorPpm) via factory
     Op->>Adm: POST /v1/admin/monerium-b2b/accounts
     Adm->>C: verify clone against configured trusted factory + config read-back
     Adm->>Adm: atomically commit managed child + KYB mirror + account
     K->>M: POST /addresses (attestor-signed link)  [exactly-once]
+    K->>M: POST /addresses (refund wallet, EOA-signed link)  [exactly-once]
     K->>M: POST /ibans for the forwarder address   [exactly-once]
     M-->>K: iban.updated webhook -> IBAN recorded
     Op->>M: optional penny test (simulated/real small SEPA)
@@ -137,14 +139,18 @@ Steps in prose:
    profile arrives `approved`. (Vortex's KYB submission API is a deliberate 501 stub —
    registry T3.)
 2. **Operator deploys the forwarder clone** with the client's `destination` (no setter:
-   a wallet change means a new clone, runbook §5) and the initial fee policy
-   (`targetPpm`, `floorPpm`); manifest generated and verified.
+   a wallet change means a new clone, runbook §5), the client's refund wallet as
+   `recoveryAddress` (derived from `MONERIUM_B2B_REFUND_SEED` and the Monerium profile ID,
+   read from the admin refund-address endpoint; no setter either) and the initial fee
+   policy (`targetPpm`, `floorPpm`); manifest generated and verified.
 3. **Admin mapping** — one idempotent call provisions the managed child, mirrors the
    approved KYB into `provider_customers` + `kyc_cases`, verifies the clone against the
-   configured trusted factory on chain, and creates the account row bound via
+   configured trusted factory on chain (including that its `recoveryAddress` is the
+   client's derived refund wallet), and creates the account row bound via
    `vortex_profile_id`. All local records commit in one database transaction.
-4. **Keeper automation** links the forwarder (attestor signature) and requests the IBAN,
-   each exactly-once through the profile-scoped `financial_operations` ledger; the
+4. **Keeper automation** links the forwarder (attestor signature) and the client's refund
+   wallet (its own signature), then requests the IBAN for the forwarder, each
+   exactly-once through the profile-scoped `financial_operations` ledger; the
    `iban.updated` webhook records the IBAN.
 5. **Optional penny test**, then activation via the admin status endpoint.
 
@@ -169,7 +175,7 @@ sequenceDiagram
         V->>CB: top of book -> bid/ask midpoint (reference, recorded on the execution row)
         V->>V: quote every route, project fee/subsidy, defer above the subsidy tier for the chunk's wait or beyond the vault
         V->>F: swap(reference, bestRoute, chunk, maxSubsidy = tier)  [execution row bound to the deposit, committed first]
-        F->>F: swap the chunk on the route; fee above target (to treasury), floor on the net; USDC stays here
+        F->>F: swap the chunk on the route, fee above target (to treasury), floor on the net, USDC stays here
         F->>S: pay(shortfall) when the fill is below the floor
         S->>F: subsidy USDC onto the clone
         V->>V: finalize from SwapExecuted (fee, subsidy, reference, route)
@@ -313,7 +319,7 @@ and sends at most one transaction per account per cycle:
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
-  immutable `RECOVERY_WALLET`, and only once the clone's `batchOpenedAt` marker is older
+  clone's fixed `recoveryAddress` (the client's refund wallet), and only once the clone's `batchOpenedAt` marker is older
   than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive, is never
   re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
   recovery, so a younger payment sharing the clone gets its own clock. The keeper
@@ -323,14 +329,16 @@ and sends at most one transaction per account per cycle:
   the window; `off` leaves everything to runbook §2.7): once the `recover` is confirmed
   a `monerium_recoveries` row walks `moved → swapping → swapped → topping_up →
   topped_up → redeeming → redeemed` — the USDC is swapped back to EURe on the reversed
-  whitelisted route with a Chainlink-derived minimum, the EURe float tops the recovery
+  whitelisted route with a Chainlink-derived minimum, the EURe float tops the refund
   wallet up to exactly the issue amount (or a surplus is swept back to the float), and a
-  Monerium redeem order from the recovery wallet returns the exact amount to the payer's
-  IBAN (`payer_iban` / `payer_name`, captured from the issue order's counterpart). The
+  Monerium redeem order from the refund wallet returns the exact amount to the payer's
+  IBAN out of the client's own IBAN (`payer_iban` / `payer_name`, captured from the issue
+  order's counterpart). The float also tops up the refund wallet's ETH for its own
+  transactions, at twice their cost at the current gas price. The
   deposit becomes `refunded` when Monerium processes the order, and the partner receives
   one `DEPOSIT_RETURNED` (refunded amount, masked payer IBAN, redeem order, recover
   transaction). One refund runs at a
-  time: every step re-derives what is left to do from the dedicated recovery wallet's
+  time: every step re-derives what is left to do from the client's refund wallet's
   balances (so a lost transaction hash never repeats a send), and the keeper refuses a
   second `recover` while one is in flight. A step that fails beyond its retries, a
   missing payer, or an amount that needs a supporting document (EUR 15,000 and above)

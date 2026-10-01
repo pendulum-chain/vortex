@@ -60,21 +60,22 @@ Supporting decisions, all in force:
 - **No client key on the clone** (amended 2026-09-17; superseded the mandatory
   self-custodied `fallbackAddress` of 2026-07-17 and its `sweep`/config functions and
   dead-man sweep). The only exits are the client's fixed `destination` and, for a payment
-  the promised window was missed on, the Vortex recovery wallet — see the second
-  amendment. A destination change means a new clone (runbook §5).
+  the promised window was missed on, the client's refund wallet held by Vortex — see
+  the amendments of 2026-09-17 and 2026-10-01. A destination change means a new clone (runbook §5).
 - **Never send raw EURe to a CEX destination** — EURe leaves a clone only to the router
-  or the Vortex recovery wallet.
+  or the client's refund wallet.
 - **No on-contract redeem validator.** The forwarder's EIP-1271 still validates only the
   link message. Returning a deposit to its sender happens off the clone: the keeper moves
-  the payment to the Vortex recovery wallet and Vortex redeems from there (amendment
-  2026-09-17), so the whitelabel credentials plus the attestor key still cannot drain a
-  clone to an arbitrary IBAN. Monerium's issuer recovery stays the break-glass backstop
+  the payment to the client's refund wallet and Vortex redeems from there (amendments
+  2026-09-17 and 2026-10-01), so the whitelabel credentials plus the attestor key still
+  cannot drain a clone to an arbitrary IBAN. Monerium's issuer recovery stays the break-glass backstop
   (see T1 below).
 - **EIP-191 hash only, chainid-bound** (the raw-keccak variant was removed after the G0
   sandbox validation; chainid binding closes cross-chain replay — review r1).
 - **Three distinct Vortex keys** (attestor / keeper / guardian), none able to redirect
-  funds; the keeper can move a payment only to the immutable recovery wallet and only
-  once the clone's batch has been open for `RECOVERY_DELAY` (amendment 2026-09-17); the
+  funds; the keeper can move a payment only to the clone's fixed refund wallet and only
+  once the clone's batch has been open for `RECOVERY_DELAY` (amendments 2026-09-17 and
+  2026-10-01); the
   keeper runs on exactly one backend (the mykobo flow variant).
 - **Managed-profile integration:** each client is a managed child profile under the
   partner manager (KYB mirror, credentials, read API, webhook tenancy). The flow is
@@ -156,7 +157,8 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   share a swap and the N:M attribution of 2026-08 is gone. Approach A of the proposal
   (no escrow contract): smallest audit delta, per-client blast radius, USDC never
   leaves the client's clone until it goes to the destination.
-- **Vortex-held recovery wallet, on-chain delay.** `recover(eure, usdc)` is keeper-only,
+- **Vortex-held recovery wallet, on-chain delay** (the single company-profile wallet was
+  replaced by per-client refund wallets, amendment 2026-10-01). `recover(eure, usdc)` is keeper-only,
   pays only the immutable `RECOVERY_WALLET` — one wallet linked to a Vortex/SatoshiPay
   company profile at Monerium — and only once the clone's batch marker has been open for
   `RECOVERY_DELAY` = **2 hours** (immutable, P3). The clock starts when funds first
@@ -262,6 +264,34 @@ for that refund is agreed commercially. Decisions (the proposal that led here is
   requirement. A wrong or rotated destination is now caught by the penny test only when
   one is run, otherwise by the dormancy gate; the loss allocation under B5 is unchanged.
 
+## Amendment 2026-10-01: per-client refund wallets
+
+- **One refund wallet per client, fixed in its forwarder.** The implementation-wide
+  `RECOVERY_WALLET` is gone. Each clone takes a `recoveryAddress` at deployment
+  (`deployForwarder(destination, recoveryAddress, targetPpm, floorPpm, salt)`), with no
+  setter, rejected when zero, a token, the router, the clone itself or equal to the
+  destination. `recover` pays only that address, still keeper-only and only after
+  `RECOVERY_DELAY`.
+- **A plain wallet, derived.** The refund wallet is an EOA whose key is
+  `keccak256(MONERIUM_B2B_REFUND_SEED ++ "vortex-b2b-refund:" ++ moneriumProfileId)`, so one
+  secret covers every client, the address is known before the clone is deployed (admin
+  `GET /v1/admin/monerium-b2b/refund-address`), and a replacement clone for the same client
+  keeps the same wallet. Account mapping refuses a clone whose `recoveryAddress` is not
+  the derived wallet. A refund contract was considered and deferred: while refunds go to
+  whichever IBAN paid in, a contract cannot know the payer and would sign whatever the
+  keeper supplies, the same trust as a held key, with more audit surface. It becomes
+  worthwhile with a fixed refund IBAN per client, when it can refuse every other IBAN;
+  switching an existing client then means a new clone (runbook §5).
+- **Linked to the client's profile, refunded from the client's IBAN.** Onboarding links
+  the refund wallet to the client's Monerium profile next to the forwarder (an address
+  belongs to exactly one profile, confirmed by Monerium 2026-09-30). The refund runs on
+  that wallet as before: reverse swap, float top-up to the exact amount, redeem to the
+  payer, which Monerium pays out of the client's own IBAN. The float also tops up the
+  wallet's ETH for its own transactions, sized from the current gas price. No Vortex
+  company profile at Monerium is needed, and recovered funds of different clients never
+  share a wallet. `MONERIUM_B2B_RECOVERY_PRIVATE_KEY` is replaced by
+  `MONERIUM_B2B_REFUND_SEED`, required whenever the module is enabled.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -336,13 +366,13 @@ example (oversized-deposit allocation).
 - **Stuck-state table** (route death, feed retirement, depeg beyond bound, blacklisted
   destination, reference feed outage, exhausted subsidy budget): all fail-safe — swaps
   revert or the keeper defers, funds accumulate as EURe; past the promised window the
-  payment is refunded through the recovery wallet, past 24 h anyone may convert and
+  payment is refunded through the client's refund wallet, past 24 h anyone may convert and
   forward permissionlessly; the issuer backstop remains. Accepted.
 - **Bounded keeper pricing power.** A compromised keeper can pick any whitelisted route
   and any reference inside the Chainlink band: worst case the fee reaches `MAX_FEE_PPM`
   or the vault pays up to its caps. Bounded by the band, the fee cap, the vault limits
   and the floor on the net; it can still never redirect funds — only, after the on-chain
-  delay, move them to the recovery wallet. Accepted.
+  delay, move them to the client's refund wallet. Accepted.
 - **Subsidy exposure.** Up to the per-swap cap per swap and the daily budget per day,
   plus the widened sandwich band (amendment). Accepted; both limits are live-tunable.
 - **Operational residuals:** reorgs deeper than the watcher's 12-block lag;

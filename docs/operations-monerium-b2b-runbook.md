@@ -12,9 +12,9 @@ Ground rules that shape every procedure here:
 - **Vortex powers are bounded, not custodial by default.** Guardian/keeper can pause,
   execute the policy (chunk swaps, one forward per payment) and — only for a payment
   whose batch has been open for `RECOVERY_DELAY` (2 h) — move that payment to the
-  immutable Vortex recovery wallet for a bank refund (§2.7). Nothing else can move
-  funds, and nothing can redirect them: the clone pays the client's destination, the
-  fee treasury and the recovery wallet, full stop.
+  client's refund wallet fixed in the clone for a bank refund (§2.7). Nothing else can
+  move funds, and nothing can redirect them: the clone pays the client's destination,
+  the fee treasury and the client's refund wallet, full stop.
 - **Pauses block swaps and forwards, never a recovery.** Pause-then-recover is the
   incident sequence. Past 24 h anyone may swap and forward permissionlessly, so a
   pause plus a dead keeper still cannot trap converted funds. There is no client key
@@ -24,7 +24,7 @@ Ground rules that shape every procedure here:
   to the treasury; funding, limits and pause are ordinary operations (§2.6), never a
   client-funds question.
 - **Never send raw EURe to a CEX destination.** EURe leaves a clone only to the router
-  or the Vortex recovery wallet.
+  or the client's refund wallet.
 - **Run migrations from one deployment instance only.** Migration 080 refuses to run
   while an execution from the former allocation model spans several deposits; reconcile
   such rows by hand rather than guessing an attribution.
@@ -49,9 +49,10 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
   EIP-55 checksum, not zero/dead/precompile/token/router (the contract re-rejects
   token/router/self at init), warn-and-attest for contract addresses and CEX addresses
   (rotation risk — terms).
-- (No client recovery address: the recovery wallet is Vortex's, immutable in the
-  implementation. The destination has no setter — a client wallet change is a new clone,
-  §5 — so get it right; a penny test is recommended for exchange destinations.)
+- (No client-held recovery address: the clone's `recoveryAddress` is the client's refund
+  wallet, derived by Vortex, step 1.2. The destination has no setter — a client wallet
+  change is a new clone, §5 — so get it right; a penny test is recommended for exchange
+  destinations.)
 - `targetPpm` / `floorPpm` — the client's fee policy in ppm below the reference rate;
   launch policy 1250 / 1500 (12.5 / 15 bps, ADR B1). Adjustable later via the
   guardian's timelocked `setFeePolicy` (raising either value waits 24 h).
@@ -60,13 +61,18 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
 ### 1.2 Deploy the forwarder clone
 
 ```bash
+# the client's refund wallet, derived from MONERIUM_B2B_REFUND_SEED and the Monerium profile ID
+curl -s -H "Authorization: Bearer $ADMIN_SECRET" \
+  "$API/v1/admin/monerium-b2b/refund-address?moneriumProfileId=$MONERIUM_PROFILE_ID"
 # predict, then deploy (guardian-only); salt = any unused bytes32, convention: client index
 cast call $FACTORY "predictAddress(bytes32)(address)" $SALT --rpc-url $RPC
-cast send $FACTORY "deployForwarder(address,uint32,uint32,bytes32)" \
-  $DESTINATION $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $FACTORY "deployForwarder(address,address,uint32,uint32,bytes32)" \
+  $DESTINATION $REFUND_ADDRESS $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-The clone is initialized atomically in the deploy tx (`ForwarderDeployed` event).
+The clone is initialized atomically in the deploy tx (`ForwarderDeployed` event). The
+refund wallet is fixed for the clone's lifetime; the account mapping (§1.4) refuses a
+clone whose `recoveryAddress` is not this client's derived wallet.
 Record the forwarder address + deploy tx hash.
 
 ### 1.3 Manifest: generate, verify, publish
@@ -112,7 +118,8 @@ overwrite.
 The keeper's onboarding step picks up every mapped `onboarding` account and,
 exactly-once via the profile-scoped `financial_operations` ledger: links the forwarder
 with the attestor signature (`POST /addresses` — HTTP 201, `state: linked`, zero client
-interaction), then requests IBAN issuance (`POST /ibans`, async 202). The IBAN lands on
+interaction), links the client's refund wallet with its own signature, then requests IBAN
+issuance for the forwarder (`POST /ibans`, async 202). The IBAN lands on
 the account row via the `iban.updated` webhook; from then on the association monitor
 treats the DB record as the reference state. Nothing to do manually — verify the row
 has its IBAN before activation, and check the logs if it stays empty for more than
@@ -194,8 +201,8 @@ Suspected vulnerability in `VortexForwarder`/factory:
    output, or `cast call <eure> "balanceOf(address)" <forwarder>`); run the manifest
    verifier against the live deployment.
 5. **If funds must move: the refund path.** Mark every open deposit for recovery
-   (§2.7); once each clone's batch is 2 h old the keeper moves the funds to the
-   recovery wallet and the payments are refunded to the payers' bank accounts. The
+   (§2.7); once each clone's batch is 2 h old the keeper moves the funds to that
+   client's refund wallet and the payments are refunded to the payers' bank accounts. The
    issuer recovery backstop (burn + payout to the client's own bank account; validates
    the already-whitelisted ownership message) is the last resort.
 6. **Ship the fix as a migration** (§5): new implementation + factory (new audit), new
@@ -250,23 +257,25 @@ deferrals become routine; both are instant. The ladder itself
 
 Trigger: a deposit the promised window (2 h) was missed on, a remainder below
 `minSwapAmount`, a compliance decision, or a critical incident (§2.4). Prerequisites: the
-recovery wallet (`RECOVERY_WALLET()` on the implementation) is a linked address of the
-Vortex company profile at Monerium, its key and the EURe float wallet's key are in the
-operator's custody, and the float holds EURe.
+client's refund wallet (the clone's `recoveryAddress()`) is linked to the client's
+Monerium profile (onboarding does this, §1.5), `MONERIUM_B2B_REFUND_SEED` and the EURe
+float wallet's key are in the operator's custody, and the float holds EURe and some ETH
+(it also pays the refund wallet's gas).
 
 **Automation.** `MONERIUM_B2B_AUTO_RECOVERY` selects the mode: `off` (default) leaves
 every step below to the operator; `alert` logs `REFUND DUE` for deposits past
 `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (120, counted from the mint) and nothing else;
-`auto` marks them, and — with `MONERIUM_B2B_RECOVERY_PRIVATE_KEY` (must control the
-implementation's `RECOVERY_WALLET`) and `MONERIUM_B2B_FLOAT_PRIVATE_KEY` set — runs
-steps 2–6 itself, one refund at a time, reporting through the refund monitor (§3).
+`auto` marks them, and — with `MONERIUM_B2B_FLOAT_PRIVATE_KEY` set and the seed deriving
+the clone's `recoveryAddress` — runs steps 2–6 itself, one refund at a time, reporting
+through the refund monitor (§3).
 Start on `alert`, switch to `auto` once a sandbox refund has been observed end to end.
 What stays manual in `auto`: refunds of EUR 15,000 or more (Monerium's supporting
 document), deposits whose issue order carried no payer IBAN/name, orders Monerium
 rejects, and any step that failed five times — all park the deposit as
 `recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`);
 fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` resumes
-from that phase. While one refund is `recovery_failed` the queue waits (one wallet).
+from that phase. While one refund is `recovery_failed` the queue waits (one refund at a
+time).
 
 1. **Mark the deposit.** `POST /v1/admin/monerium-b2b/deposits/<depositId>/recover`
    (`Authorization: Bearer $ADMIN_SECRET`). Refused (409) while a keeper transaction for
@@ -282,20 +291,22 @@ from that phase. While one refund is `recovery_failed` the queue waits (one wall
    FROM monerium_conversion_executions WHERE deposit_id = '<depositId>' ORDER BY created_at;
    ```
 
-3. **Swap the USDC back** from the recovery wallet over the reverse whitelisted route
+3. **Swap the USDC back** from the client's refund wallet (its key derived from the seed
+   and the Monerium profile ID; fund it with a little ETH first) over the reverse whitelisted route
    (USDC → EURC → EURe on the same pools; `exactInput` on the router with a
-   Chainlink-derived minimum, 60 bps tolerance), or leave the USDC in the recovery
+   Chainlink-derived minimum, 60 bps tolerance), or leave the USDC in the refund
    wallet and let the float cover the whole difference when the market is thin.
-4. **Top up from the float:** transfer `issueAmount − EURe on the recovery wallet` EURe
-   from the float wallet to the recovery wallet. Book that amount as the refund's
+4. **Top up from the float:** transfer `issueAmount − EURe on the refund wallet` EURe
+   from the float wallet to the refund wallet. Book that amount as the refund's
    subsidy; book any EURe surplus from step 3 to the treasury.
-5. **Redeem the exact amount.** `POST /orders` from the recovery wallet: `kind: redeem`,
+5. **Redeem the exact amount.** `POST /orders` from the refund wallet: `kind: redeem`,
    `amount` = the issue order's `amount` string, `counterpart.identifier.iban` = the issue
    order's `counterpart.identifier.iban`, `details.companyName` = its `details.name`
    (individual payers: `firstName`/`lastName`), `country` from the IBAN prefix, `memo`
    naming the original payment, the message `Send EUR <amount> to <iban> at <minute>`
-   signed by the recovery key; attach `supportingDocumentId` above EUR 15,000 (G1 item
-   1 asks whether returns are exempt). Watch `order.updated` for `processed`.
+   signed by the refund wallet's key; attach `supportingDocumentId` above EUR 15,000 (the
+   same client agreement can be reused, Monerium 2026-09-30). Monerium pays the refund
+   out of the client's own IBAN. Watch `order.updated` for `processed`.
 6. **Close the deposit.** `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status`
    with `{"status": "refunded"}`; use `recovery_failed` when a step cannot complete (and
    `recovering` again to retry later). Record deposit id, recover tx, reverse-swap tx,
@@ -389,8 +400,8 @@ the IBAN's current default address; the old clone stays linked but inert.
 | Key | Blast radius | Response |
 |---|---|---|
 | Attestor | Can link addresses to profiles; never move funds (recovery payouts go only to the client's own bank account) | Rotate key; new forwarders need a new implementation (ATTESTOR is immutable); existing links unaffected |
-| Keeper | `poke`/`swap`/`forward`/`recover`: can pick any whitelisted route and any reference inside the Chainlink band — worst case the fee reaches the 1% cap or the vault pays up to its caps, plus gas theft — and can move a payment whose batch is 2 h old to the Vortex recovery wallet (never anywhere else, never a redirect) | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; pause the vault while rotating; reconcile executions against Coinbase history; audit `Recovered` events against marked deposits; refund gas |
-| Recovery wallet | Holds recovered payments between `recover` and the bank refund; can redeem EURe from the Vortex company profile to any IBAN | Move any balance to a fresh linked address, rotate the key, redeploy the implementation (the address is immutable) before the next recovery; reconcile open recoveries against the ops ledger |
+| Keeper | `poke`/`swap`/`forward`/`recover`: can pick any whitelisted route and any reference inside the Chainlink band — worst case the fee reaches the 1% cap or the vault pays up to its caps, plus gas theft — and can move a payment whose batch is 2 h old to the client's refund wallet (never anywhere else, never a redirect) | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; pause the vault while rotating; reconcile executions against Coinbase history; audit `Recovered` events against marked deposits; refund gas |
+| Refund seed (`MONERIUM_B2B_REFUND_SEED`) | Derives every client's refund wallet; each holds funds only between that client's `recover` and its bank refund, and can redeem them out of the client's IBAN to any IBAN | Set `MONERIUM_B2B_AUTO_RECOVERY=off`, finish or reconcile open refunds by hand, rotate the seed, then give every client a new clone with its new refund wallet and move the IBANs (§5); the old wallets hold nothing between refunds |
 | Guardian | Pause/unpause, bounded params, timelocked fee policy, route whitelist (validated), vault limits and withdrawal to treasury — delay-only griefing plus Vortex-money exposure | Two-step `transferGuardian`/`acceptGuardian`; audit pause, pending-policy, route and vault state after |
 | Whitelabel API credentials | Control-plane: can re-link/move IBANs (future mints only) — S1 | §2.5 full sequence |
 | `ADMIN_SECRET` | Map/suspend accounts (mapping is bounded by on-chain clone verification) | Rotate; audit recent admin mutations |
@@ -533,7 +544,6 @@ fixtures:
 | `MAX_FEE_PPM` | 10000 |
 | `MAX_REFERENCE_DEVIATION_BPS` | 100 |
 | `RECOVERY_DELAY` | 2 hours |
-| `RECOVERY_WALLET` | a local EOA (immutable; a zero address is refused) |
 | `TRIGGER_DELAY` | 24 hours |
 | Initial route | EURe → EURC → USDC, 500 / 500 (packed path constructor argument) |
 | `RECOVERY_HASH` | `bytes32(0)` |
@@ -558,8 +568,10 @@ and point the factory at it with `setSubsidyVault`. Fund it with USDC from an
 impersonated mainnet holder if you want to exercise a below-floor top-up; left empty,
 a below-floor fill makes the keeper defer, which is also a valid outcome to observe.
 
-Deploy a client clone with the launch policy (1250 / 1500) as in §1.2. Use a fresh salt
-and record the predicted address and receipt. Read back `destination()`,
+Deploy a client clone with the launch policy (1250 / 1500) as in §1.2, passing the
+refund address the backend derives for the fixture's Monerium profile ID (the account
+mapping verifies it). Use a fresh salt and record the predicted address and receipt.
+Read back `destination()`, `recoveryAddress()`,
 `targetPpm()`, `floorPpm()`, and `FACTORY()`, then require
 `factory.isForwarder(forwarder) == true` before continuing. The keeper computes its
 reference from live Coinbase candles before each swap, so the backend needs outbound
