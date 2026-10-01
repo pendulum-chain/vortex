@@ -135,9 +135,80 @@ export interface RebalanceHistoryEntry {
   costRelative: string;
 }
 
-export interface UsdcBaseRebalanceContainer {
-  state: UsdcBaseRebalanceState;
+interface RebalanceContainer<S> {
+  state: S;
   history: RebalanceHistoryEntry[];
+}
+
+// One Supabase Storage object per flow, holding the current run's state next to the history of completed runs.
+class FlowStateManager<S extends { updatedTime: string }> {
+  private inner: StateManager<RebalanceContainer<S>>;
+
+  constructor(
+    filename: string,
+    private options: {
+      // When set, a history entry recorded without a stored state is written next to this fresh state; otherwise it is skipped.
+      createFreshState?: () => S;
+      // Reads a pre-container file (the bare state object) as the state of an empty-history container.
+      migrateFlatState?: boolean;
+    } = {}
+  ) {
+    this.inner = new StateManager<RebalanceContainer<S>>(filename);
+  }
+
+  private async getContainer(): Promise<RebalanceContainer<S> | undefined> {
+    const raw = await this.inner.getState();
+    if (!raw) return undefined;
+
+    if (this.options.migrateFlatState && "currentPhase" in raw && !("state" in raw)) {
+      return { history: [], state: raw as unknown as S };
+    }
+
+    return raw;
+  }
+
+  async getState(): Promise<S | undefined> {
+    const container = await this.getContainer();
+    return container?.state;
+  }
+
+  async getHistory(): Promise<RebalanceHistoryEntry[]> {
+    const container = await this.getContainer();
+    return container?.history ?? [];
+  }
+
+  async saveState(state: S): Promise<void> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+    state.updatedTime = new Date().toISOString();
+    await this.inner.saveState({ history, state });
+  }
+
+  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
+    const existing = await this.getContainer();
+    if (!existing?.state) {
+      if (!this.options.createFreshState) {
+        console.warn("No existing state found for addHistoryEntry. Skipping history entry.");
+        return;
+      }
+      console.warn("No existing state found for addHistoryEntry. Writing entry to fresh history.");
+      await this.inner.saveState({ history: [entry], state: this.options.createFreshState() });
+      return;
+    }
+    existing.history.push(entry);
+    existing.state.updatedTime = new Date().toISOString();
+    await this.inner.saveState(existing);
+  }
+
+  // The new state is created after the stored history is read, as the callers' start time is recorded in it.
+  protected async startNew(createState: () => S): Promise<S> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+
+    const state = createState();
+    await this.inner.saveState({ history, state });
+    return state;
+  }
 }
 
 export interface UsdcBaseRebalanceStartOptions {
@@ -190,61 +261,15 @@ function createFreshState(): UsdcBaseRebalanceState {
   return createUsdcBaseRebalanceState(null, UsdcBaseRebalancePhase.Idle);
 }
 
-export class UsdcBaseStateManager {
-  private inner: StateManager<UsdcBaseRebalanceContainer>;
-
+export class UsdcBaseStateManager extends FlowStateManager<UsdcBaseRebalanceState> {
   constructor() {
-    this.inner = new StateManager<UsdcBaseRebalanceContainer>("rebalancer_state_usdc_base.json");
+    super("rebalancer_state_usdc_base.json", { createFreshState, migrateFlatState: true });
   }
 
-  // Handles migration from old flat UsdcBaseRebalanceState to new UsdcBaseRebalanceContainer.
-  private async getContainer(): Promise<UsdcBaseRebalanceContainer | undefined> {
-    const raw = await this.inner.getState();
-    if (!raw) return undefined;
-
-    if ("currentPhase" in raw && !("state" in raw)) {
-      return { history: [], state: raw as unknown as UsdcBaseRebalanceState };
-    }
-
-    return raw;
-  }
-
-  async getState(): Promise<UsdcBaseRebalanceState | undefined> {
-    const container = await this.getContainer();
-    return container?.state;
-  }
-
-  async getHistory(): Promise<RebalanceHistoryEntry[]> {
-    const container = await this.getContainer();
-    return container?.history ?? [];
-  }
-
-  async saveState(state: UsdcBaseRebalanceState): Promise<void> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-    state.updatedTime = new Date().toISOString();
-    await this.inner.saveState({ history, state });
-  }
-
-  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
-    const existing = await this.getContainer();
-    if (!existing?.state) {
-      console.warn("No existing state found for addHistoryEntry. Writing entry to fresh history.");
-      await this.inner.saveState({ history: [entry], state: createFreshState() });
-      return;
-    }
-    existing.history.push(entry);
-    existing.state.updatedTime = new Date().toISOString();
-    await this.inner.saveState(existing);
-  }
-
-  async startNewRebalance(usdcAmountRaw: string, options: UsdcBaseRebalanceStartOptions = {}): Promise<UsdcBaseRebalanceState> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-
-    const state = createUsdcBaseRebalanceState(usdcAmountRaw, UsdcBaseRebalancePhase.CheckInitialUsdcBalance, options);
-    await this.inner.saveState({ history, state });
-    return state;
+  startNewRebalance(usdcAmountRaw: string, options: UsdcBaseRebalanceStartOptions = {}): Promise<UsdcBaseRebalanceState> {
+    return this.startNew(() =>
+      createUsdcBaseRebalanceState(usdcAmountRaw, UsdcBaseRebalancePhase.CheckInitialUsdcBalance, options)
+    );
   }
 }
 
@@ -283,55 +308,13 @@ export interface BrlaToUsdcBaseRebalanceState {
   updatedTime: string;
 }
 
-export interface BrlaToUsdcBaseRebalanceContainer {
-  state: BrlaToUsdcBaseRebalanceState;
-  history: RebalanceHistoryEntry[];
-}
-
-export class BrlaToUsdcBaseStateManager {
-  private inner: StateManager<BrlaToUsdcBaseRebalanceContainer>;
-
+export class BrlaToUsdcBaseStateManager extends FlowStateManager<BrlaToUsdcBaseRebalanceState> {
   constructor() {
-    this.inner = new StateManager<BrlaToUsdcBaseRebalanceContainer>("rebalancer_state_brla_to_usdc_base.json");
+    super("rebalancer_state_brla_to_usdc_base.json");
   }
 
-  private async getContainer(): Promise<BrlaToUsdcBaseRebalanceContainer | undefined> {
-    return this.inner.getState();
-  }
-
-  async getState(): Promise<BrlaToUsdcBaseRebalanceState | undefined> {
-    const container = await this.getContainer();
-    return container?.state;
-  }
-
-  async getHistory(): Promise<RebalanceHistoryEntry[]> {
-    const container = await this.getContainer();
-    return container?.history ?? [];
-  }
-
-  async saveState(state: BrlaToUsdcBaseRebalanceState): Promise<void> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-    state.updatedTime = new Date().toISOString();
-    await this.inner.saveState({ history, state });
-  }
-
-  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
-    const existing = await this.getContainer();
-    if (!existing?.state) {
-      console.warn("No existing state found for addHistoryEntry. Skipping history entry.");
-      return;
-    }
-    existing.history.push(entry);
-    existing.state.updatedTime = new Date().toISOString();
-    await this.inner.saveState(existing);
-  }
-
-  async startNewRebalance(usdcAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-
-    const state: BrlaToUsdcBaseRebalanceState = {
+  startNewRebalance(usdcAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
+    return this.startNew(() => ({
       currentPhase: BrlaToUsdcBaseRebalancePhase.CheckInitialUsdcBalance,
       finalUsdcBalance: null,
       initialUsdcBalance: null,
@@ -346,8 +329,6 @@ export class BrlaToUsdcBaseStateManager {
       usdcAmountRaw,
       usdcBalanceBeforeNablaRaw: null,
       usdcReceivedRaw: null
-    };
-    await this.inner.saveState({ history, state });
-    return state;
+    }));
   }
 }
