@@ -371,7 +371,9 @@ export const createSubaccount = async (
   res: Response<BrCreateSubaccountResponse | BrErrorResponse>
 ): Promise<void> => {
   try {
-    const { name, taxId, accountType: requestAccountType } = req.body;
+    const { taxId, accountType: requestAccountType } = req.body;
+    // validateSubaccountCreation bounded the trimmed name, so every use below sends that same value.
+    const name = req.body.name.trim();
     const effectiveUserId = getEffectiveUserId(req);
 
     // Reject callers that do not resolve to a user (anonymous requests
@@ -449,7 +451,7 @@ export const createSubaccount = async (
       provider: "avenia",
       request: {
         accountType,
-        name: name.trim(),
+        name,
         ownerProfileId: effectiveUserId,
         taxReferenceHash
       },
@@ -459,7 +461,7 @@ export const createSubaccount = async (
 
     let companyName: string | null = null;
     if (accountType === AveniaAccountType.COMPANY) {
-      companyName = name.trim();
+      companyName = name;
       try {
         const account = await brlaApiService.subaccountInfo(id);
         companyName = account?.accountInfo.name?.trim() || account?.accountInfo.fullName?.trim() || companyName;

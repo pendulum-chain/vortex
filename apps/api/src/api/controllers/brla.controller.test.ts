@@ -1918,6 +1918,20 @@ describe("createSubaccount", () => {
     });
   });
 
+  it("sends the provider the trimmed name the validator measured", async () => {
+    mockBrlaApi();
+    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
+    ProviderCustomer.create = mock(async (values: Record<string, unknown>) => ({
+      ...values
+    })) as unknown as typeof ProviderCustomer.create;
+    const name = "a".repeat(255);
+
+    const res = await submitThroughRoute({ ...validBody, name: ` ${name} ` }, "new-user");
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(createAveniaSubaccountMock).toHaveBeenCalledWith(AveniaAccountType.INDIVIDUAL, name);
+  });
+
   it("rejects overwrite when a started record belongs to another entity", async () => {
     mockBrlaApi();
     createAveniaSubaccountMock.mockClear();
