@@ -157,6 +157,14 @@ function toView(record: ProviderCustomer): AlfredpayCustomerView {
     status: toAlfredPayStatus(record),
     type: customerTypeToAlfredpayType(record.customerType),
     async update(changes) {
+      // Alfred's new platform reports UPDATE_REQUIRED for customers it lists as ACTIVE (2026-09-30), and
+      // /retryKyc only reopens FAILED, so a status read must not move an approved customer there.
+      if (
+        this.status === AlfredPayStatus.Success &&
+        changes.statusExternal?.toUpperCase() === AlfredpayKycStatus.UPDATE_REQUIRED
+      ) {
+        return;
+      }
       await record.update({
         ...(changes.verificationStatus !== undefined
           ? { status: changes.verificationStatus }

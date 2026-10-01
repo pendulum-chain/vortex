@@ -9,7 +9,8 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 // GET /alfredpayStatus treats an upstream 404 for the customer's submission as a stale local
 // status and sends the customer back to onboarding. Alfred's platform migration can answer 404 for
-// data it has not moved yet, so that reset must never demote an approved customer.
+// data it has not moved yet, and UPDATE_REQUIRED for customers it lists as active, so no status read
+// may demote an approved customer.
 
 let api: TestApp;
 let fakeAuth: FakeSupabaseAuth;
@@ -114,4 +115,48 @@ describe("GET /getKycStatus when Alfredpay reports no submission", () => {
     const customer = await statusWithoutSubmission("in-review-empty@example.com", AlfredPayStatus.UserCompleted);
     expect(customer?.status).toBe(VerificationStatus.Pending);
   });
+});
+
+describe("status reads when Alfredpay reports UPDATE_REQUIRED", () => {
+  async function readStatus(route: "alfredpayStatus" | "getKycStatus", email: string, stored: AlfredPayStatus) {
+    const user = await createTestUser({ email });
+    await createAlfredpayCustomer(user.id, {
+      alfredPayId: "ap-update-required",
+      country: DomesticCountry.MX,
+      status: stored,
+      type: DomesticCustomerType.INDIVIDUAL
+    });
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKycStatus: mock(async () => ({ status: "UPDATE_REQUIRED", updatedAt: "2026-09-15T00:00:00.000Z" })),
+          getLastKycSubmission: mock(async () => ({ submissionId: "sub-update-required" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request(`/v1/alfredpay/${route}?country=MX`, {
+      headers: { Authorization: `Bearer ${testUserToken(user.id, email)}` }
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { status: AlfredPayStatus };
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-update-required" } });
+    return { customer, reported: body.status };
+  }
+
+  for (const route of ["alfredpayStatus", "getKycStatus"] as const) {
+    it(`GET /${route} keeps an approved customer approved`, async () => {
+      const { customer, reported } = await readStatus(route, `approved-update-${route}@example.com`, AlfredPayStatus.Success);
+
+      expect(reported).toBe(AlfredPayStatus.Success);
+      expect(customer?.status).toBe(VerificationStatus.Approved);
+      expect(customer?.statusExternal).not.toBe("UPDATE_REQUIRED");
+    });
+
+    it(`GET /${route} still moves an unapproved customer to UPDATE_REQUIRED`, async () => {
+      const { customer, reported } = await readStatus(route, `review-update-${route}@example.com`, AlfredPayStatus.UserCompleted);
+
+      expect(reported).toBe(AlfredPayStatus.UpdateRequired);
+      expect(customer?.status).toBe(VerificationStatus.Started);
+    });
+  }
 });

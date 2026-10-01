@@ -588,7 +588,7 @@ export class AlfredpayController {
         alfred_pay_id: alfredPayCustomer.alfredPayId,
         country: alfredPayCustomer.country,
         lastFailure: updateData.lastFailureReasons?.[0] || alfredPayCustomer.lastFailureReasons?.[0], // Get the latest failure reason
-        status: (newStatus || alfredPayCustomer.status) as AlfredPayStatus,
+        status: alfredPayCustomer.status,
         updated_at: alfredPayCustomer.updatedAt.toISOString()
       };
 
