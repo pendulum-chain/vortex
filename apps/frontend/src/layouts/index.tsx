@@ -1,13 +1,13 @@
-import { FC, ReactNode, useEffect } from "react";
+import { FC, ReactNode } from "react";
 import { Footer } from "../components/Footer";
 import { MaintenanceBanner } from "../components/MaintenanceBanner";
 import { Navbar } from "../components/Navbar";
 import Stepper from "../components/Stepper";
 import { useIsQuoteComponentDisplayed } from "../hooks/ramp/useIsQuoteComponentDisplayed";
 import { useInitTokenBalances } from "../hooks/useInitTokenBalances";
+import { useMaintenanceStatus } from "../hooks/useMaintenanceStatus";
 import { useStepper } from "../hooks/useStepper";
 import { useWidgetMode } from "../hooks/useWidgetMode";
-import { useFetchMaintenanceStatus } from "../stores/maintenanceStore";
 
 interface BaseLayoutProps {
   main: ReactNode;
@@ -21,7 +21,7 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
   const isQuoteComponentDisplayed = useIsQuoteComponentDisplayed();
 
   useInitTokenBalances();
-  useFetchMaintenanceStatus();
+  useMaintenanceStatus();
 
   const isStepperHidden = isWidgetMode && isQuoteComponentDisplayed;
 
