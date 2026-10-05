@@ -369,7 +369,7 @@ contract VortexForwarder {
         whenNotPaused
     {
         bool privileged = _privileged();
-        if (!privileged) _requireBatchAge(TRIGGER_DELAY, NotAuthorizedYet.selector);
+        if (!privileged && !_batchOlderThan(TRIGGER_DELAY)) revert NotAuthorizedYet();
 
         if (amountIn < FACTORY.minSwapAmount()) revert BelowMinimum();
         if (amountIn > FACTORY.perSwapCap() || amountIn > EURE.balanceOf(address(this))) revert InvalidAmount();
@@ -508,7 +508,7 @@ contract VortexForwarder {
     ///         TRIGGER_DELAY, so a Vortex outage can never trap converted funds on chain.
     ///         Batches may merge on that path — the per-payment mapping is the keeper's.
     function forwardAll() external nonReentrant whenNotPaused {
-        if (!_privileged()) _requireBatchAge(TRIGGER_DELAY, NotAuthorizedYet.selector);
+        if (!_privileged() && !_batchOlderThan(TRIGGER_DELAY)) revert NotAuthorizedYet();
         uint256 amount = USDC.balanceOf(address(this));
         if (amount == 0) revert InvalidAmount();
         _transfer(USDC, destination, amount);
@@ -526,7 +526,7 @@ contract VortexForwarder {
     ///         Deliberately NOT gated on pause flags: pause-then-recover is the incident
     ///         sequence. Amounts are explicit because a younger payment may share the clone.
     function recover(uint256 eureAmount, uint256 usdcAmount) external nonReentrant onlyKeeper {
-        _requireBatchAge(RECOVERY_DELAY, DelayNotElapsed.selector);
+        if (!_batchOlderThan(RECOVERY_DELAY)) revert DelayNotElapsed();
         if (eureAmount == 0 && usdcAmount == 0) revert InvalidAmount();
         if (eureAmount > EURE.balanceOf(address(this)) || usdcAmount > USDC.balanceOf(address(this))) {
             revert InvalidAmount();
@@ -600,15 +600,9 @@ contract VortexForwarder {
         return msg.sender == FACTORY.guardian() || FACTORY.isKeeper(msg.sender);
     }
 
-    /// @dev Reverts with `err` unless the batch marker is armed and older than `delay`.
-    function _requireBatchAge(uint256 delay, bytes4 err) internal view {
-        if (batchOpenedAt == 0 || block.timestamp - batchOpenedAt < delay) {
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                mstore(0, err)
-                revert(0, 4)
-            }
-        }
+    /// @dev Whether the batch marker is armed and older than `delay`.
+    function _batchOlderThan(uint256 delay) internal view returns (bool) {
+        return batchOpenedAt != 0 && block.timestamp - batchOpenedAt >= delay;
     }
 
     /// @dev The floor is the worse-for-the-client bound, so it may never sit above the
