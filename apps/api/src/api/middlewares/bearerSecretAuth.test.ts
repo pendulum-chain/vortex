@@ -68,6 +68,13 @@ for (const testCase of cases) {
     const originalSecret = config[testCase.configKey];
     let warn: ReturnType<typeof spyOn>;
     let error: ReturnType<typeof spyOn>;
+    // The logger is process-global: fire-and-forget work from earlier test files can log while a
+    // request is in flight, so assertions only count the lines this middleware can emit.
+    const ownMessages = new Set<unknown>([
+      ...Object.values(testCase.logs),
+      `${testCase.envName} not configured in environment variables`
+    ]);
+    const own = (spy: ReturnType<typeof spyOn>) => spy.mock.calls.filter((call: unknown[]) => ownMessages.has(call[0]));
 
     beforeEach(() => {
       config[testCase.configKey] = "s3cret-value";
@@ -116,10 +123,8 @@ for (const testCase of cases) {
       expect(result.text).toBe(errorBody(testCase.codes.required, testCase.messages.required, 401));
       expect(result.headers.get("content-type")).toBe("application/json; charset=utf-8");
       expect(result.headers.get("www-authenticate")).toBeNull();
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn.mock.calls[0][0]).toBe(testCase.logs.missingHeader);
-      expect(warn.mock.calls[0][1]).toEqual({ ip: expect.any(String), path: "/guarded" });
-      expect(error).not.toHaveBeenCalled();
+      expect(own(warn)).toEqual([[testCase.logs.missingHeader, { ip: expect.any(String), path: "/guarded" }]]);
+      expect(own(error)).toEqual([]);
     });
 
     it("answers a missing header with 401 even when the secret is not configured", async () => {
@@ -137,8 +142,8 @@ for (const testCase of cases) {
         expect(result.status).toBe(401);
         expect(result.text).toBe(INVALID_FORMAT_BODY);
         expect(result.headers.get("www-authenticate")).toBeNull();
-        expect(warn).not.toHaveBeenCalled();
-        expect(error).not.toHaveBeenCalled();
+        expect(own(warn)).toEqual([]);
+        expect(own(error)).toEqual([]);
       });
     }
 
@@ -148,9 +153,8 @@ for (const testCase of cases) {
 
       expect(result.status).toBe(500);
       expect(result.text).toBe(errorBody(testCase.codes.notConfigured, testCase.messages.notConfigured, 500));
-      expect(error).toHaveBeenCalledTimes(1);
-      expect(error.mock.calls[0]).toEqual([`${testCase.envName} not configured in environment variables`]);
-      expect(warn).not.toHaveBeenCalled();
+      expect(own(error)).toEqual([[`${testCase.envName} not configured in environment variables`]]);
+      expect(own(warn)).toEqual([]);
     });
 
     // Same-length, shorter and longer tokens
@@ -161,10 +165,8 @@ for (const testCase of cases) {
         expect(result.status).toBe(403);
         expect(result.text).toBe(errorBody(testCase.codes.invalidToken, testCase.messages.invalidToken, 403));
         expect(result.headers.get("www-authenticate")).toBeNull();
-        expect(warn).toHaveBeenCalledTimes(1);
-        expect(warn.mock.calls[0][0]).toBe(testCase.logs.failed);
-        expect(warn.mock.calls[0][1]).toEqual({ ip: expect.any(String), path: "/guarded" });
-        expect(error).not.toHaveBeenCalled();
+        expect(own(warn)).toEqual([[testCase.logs.failed, { ip: expect.any(String), path: "/guarded" }]]);
+        expect(own(error)).toEqual([]);
       });
     }
 
@@ -173,8 +175,8 @@ for (const testCase of cases) {
 
       expect(result.status).toBe(200);
       expect(result.text).toBe('{"reached":true}');
-      expect(warn).not.toHaveBeenCalled();
-      expect(error).not.toHaveBeenCalled();
+      expect(own(warn)).toEqual([]);
+      expect(own(error)).toEqual([]);
     });
 
     // Called directly: HTTP clients mangle non-ASCII header values before they reach the middleware.
@@ -221,8 +223,7 @@ for (const testCase of cases) {
 
       expect(result.status).toBe(500);
       expect(result.text).toBe(errorBody(testCase.codes.error, testCase.messages.error, 500));
-      expect(error).toHaveBeenCalledTimes(1);
-      expect(error.mock.calls[0]).toEqual([testCase.logs.error, boom]);
+      expect(own(error)).toEqual([[testCase.logs.error, boom]]);
     });
   });
 }
