@@ -54,8 +54,8 @@ export const NOTIFY_CONFIRMATION_DEPTH = 32;
 
 export const eureTransferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
-// Standalone event items for getLogs-based crash recovery, one per keeper transaction
-// kind (must stay in sync with the entries in forwarderAbi below).
+// The forwarder events the keeper decodes (receipts and getLogs-based crash recovery), one
+// per keeper transaction kind.
 export const swapExecutedEvent = parseAbiItem(
   "event SwapExecuted(address indexed caller, uint256 routeIndex, uint256 eureIn, uint256 usdcOut, uint256 referenceRate, uint256 fee, uint256 subsidy)"
 );
@@ -166,52 +166,7 @@ export const forwarderAbi = [
     type: "function"
   },
   { inputs: [], name: "targetPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
-  {
-    anonymous: false,
-    inputs: [{ indexed: false, name: "batchOpenedAt", type: "uint64" }],
-    name: "Poked",
-    type: "event"
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "caller", type: "address" },
-      { indexed: false, name: "routeIndex", type: "uint256" },
-      { indexed: false, name: "eureIn", type: "uint256" },
-      { indexed: false, name: "usdcOut", type: "uint256" },
-      { indexed: false, name: "referenceRate", type: "uint256" },
-      { indexed: false, name: "fee", type: "uint256" },
-      { indexed: false, name: "subsidy", type: "uint256" }
-    ],
-    name: "SwapExecuted",
-    type: "event"
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "caller", type: "address" },
-      { indexed: false, name: "amount", type: "uint256" }
-    ],
-    name: "Forwarded",
-    type: "event"
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "caller", type: "address" },
-      { indexed: false, name: "eureAmount", type: "uint256" },
-      { indexed: false, name: "usdcAmount", type: "uint256" }
-    ],
-    name: "Recovered",
-    type: "event"
-  },
-  {
-    anonymous: false,
-    inputs: [{ indexed: false, name: "paused", type: "bool" }],
-    name: "GuardianPausedSet",
-    type: "event"
-  }
+  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" }
 ] as const;
 
 export const factoryAbi = [
