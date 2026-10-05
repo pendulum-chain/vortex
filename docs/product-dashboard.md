@@ -146,8 +146,12 @@ lifecycle reconciliation and external-profile import remain deferred.
 **Maintenance windows.** While an operator-scheduled window is active, every app page shows a
 banner with its message and end time. Starting an offramp or onramp and confirming an onramp
 payment are disabled, and the API rejects quote creation and ramp register/update/start for the
-window anyway. Quote errors on the transfer and quote pages then say quotes are paused. The status is refetched every five minutes and when the tab regains focus
-(implemented).
+window anyway. Quote errors on the transfer and quote pages then say quotes are paused. Open
+payment instructions explain that confirming is paused, or are hidden when the window outlasts the
+ramp's start deadline, so nobody pays into a ramp that can no longer start. Before the wallet signs
+an offramp, the dashboard re-checks the status so a window that opened in the meantime stops the
+transfer before funds move. The status is refetched every five minutes, just after an active
+window's end, and when the tab regains focus (implemented).
 
 ### Transactions
 - As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,

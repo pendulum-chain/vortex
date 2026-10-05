@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { MAINTENANCE_DETAILS, mockBackend } from "./support/mockBackend";
 import { injectMockWallet } from "./support/mockWallet";
 import { seedSession } from "./support/session";
@@ -50,27 +50,56 @@ test("Quote errors during an active maintenance window say quotes are paused", a
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
-test("A maintenance window that starts during payment setup blocks the payment confirmation", async ({ page }) => {
-  const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: "MXN" });
-  await seedSession(page);
+async function openPaymentInstructions(page: Page) {
   await page.goto("/transfer?mode=onramp");
-
   await page.getByLabel("Destination wallet address").fill(DESTINATION);
   await page.getByLabel("You pay (MXN)").fill("100");
   const continueButton = page.getByRole("button", { name: "Continue to payment" });
   await expect(continueButton).toBeEnabled({ timeout: 20_000 });
   await continueButton.click();
-  const confirmButton = page.getByRole("button", { name: "I have made the payment" });
-  await expect(confirmButton).toBeEnabled({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "I have made the payment" })).toBeEnabled({ timeout: 20_000 });
+}
 
-  backend.maintenance.active = true;
-  // React Query refetches on visibilitychange, as when the sender returns to the tab. Repeat it: the
-  // status request fired when the instructions mounted may still be in flight with the old answer.
+// React Query refetches on visibilitychange, as when the sender returns to the tab. Repeat it: the status request
+// fired when the instructions mounted may still be in flight with the old answer.
+async function refetchUntilBannerShows(page: Page) {
   await expect(async () => {
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange", { bubbles: true })));
     await expect(page.getByText(MAINTENANCE_DETAILS.title)).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
-  await expect(confirmButton).toBeDisabled();
+}
+
+test("A window that opens during payment setup and ends before the ramp expires pauses only the confirmation", async ({
+  page
+}) => {
+  const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: "MXN" });
+  await seedSession(page);
+  await openPaymentInstructions(page);
+
+  backend.maintenance.active = true;
+  backend.maintenance.endsAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  await refetchUntilBannerShows(page);
+
+  await expect(page.getByText("Confirming is paused until maintenance ends.", { exact: false })).toBeVisible();
+  await expect(page.getByText("CLABE", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "I have made the payment" })).toBeDisabled();
+  expect(backend.startRequests).toEqual([]);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
+test("A window that outlasts the ramp's start deadline hides the payment details", async ({ page }) => {
+  // The mock's default window runs an hour; the registered ramp expires after 15 minutes.
+  const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: "MXN" });
+  await seedSession(page);
+  await openPaymentInstructions(page);
+
+  backend.maintenance.active = true;
+  await refetchUntilBannerShows(page);
+
+  await expect(page.getByRole("heading", { name: "Payment paused for maintenance" })).toBeVisible();
+  await expect(page.getByText("CLABE", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "I have made the payment" })).toHaveCount(0);
   expect(backend.startRequests).toEqual([]);
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

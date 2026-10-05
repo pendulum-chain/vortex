@@ -100,6 +100,8 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   const rows = instructionRows(ramp);
   const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
   const expired = Number.isFinite(expiresAt) && expiresAt <= now;
+  // The ramp can only be started before it expires; allow a minute after the window to notice the end and confirm.
+  const pausedPastExpiry = !!maintenance && Date.parse(maintenance.end_datetime) + 60_000 >= expiresAt;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -135,14 +137,18 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
     navigate({ to: "/transactions" });
   }
 
-  if (expired) {
+  if (expired || pausedPastExpiry) {
     return (
       <div className="grid gap-5">
         <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive">
           <TriangleAlert className="mt-px size-5 shrink-0" />
           <div className="grid gap-1">
-            <h2 className="font-semibold">Payment instructions expired</h2>
-            <p className="text-sm">Do not send money using these details. Get a new quote and fresh payment instructions.</p>
+            <h2 className="font-semibold">{expired ? "Payment instructions expired" : "Payment paused for maintenance"}</h2>
+            <p className="text-sm">
+              {expired
+                ? "Do not send money using these details. Get a new quote and fresh payment instructions."
+                : "Do not send money using these details: they expire before maintenance ends. Get a new quote once it is over."}
+            </p>
           </div>
         </div>
         <Button onClick={resetTransferState} size="lg" type="button">
@@ -186,6 +192,15 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
             <p>{startError}</p>
             <p>Your payment details are unchanged — you can safely try again.</p>
           </div>
+        </div>
+      )}
+
+      {maintenance && (
+        <div className="flex items-start gap-2 rounded-lg border border-warning bg-warning/10 p-3 text-sm" role="status">
+          <TriangleAlert className="mt-px size-4 shrink-0" />
+          <p>
+            Confirming is paused until maintenance ends. These details stay valid past that, so you can confirm once it is over.
+          </p>
         </div>
       )}
 
