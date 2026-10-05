@@ -37,7 +37,7 @@ describe("BaseLayout", () => {
   });
 
   afterEach(() => {
-    useMaintenanceStore.getState().reset();
+    useMaintenanceStore.setState({ error: null, isLoading: false, lastFetched: null, maintenanceStatus: null });
   });
 
   it("fetches the maintenance status on mount and shows an active maintenance banner in the widget", async () => {
