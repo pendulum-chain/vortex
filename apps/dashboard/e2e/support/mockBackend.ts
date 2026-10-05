@@ -299,6 +299,9 @@ interface MockBackendOptions {
   rampRegisterError?: string;
   // Fail this many POST /v1/ramp/start calls with a 500 before succeeding.
   rampStartFailures?: number;
+  // Fail this many POST /v1/ramp/update calls that report wallet hashes (the offramp's final
+  // update) with the maintenance guard's 503 before succeeding.
+  rampHashUpdateFailures?: number;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
   quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
   tokenBalances?: TokenBalances | null | ((requestIndex: number, network: BalanceNetwork) => TokenBalances | null);
@@ -1000,6 +1003,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/ramp/update" && method === "POST") {
       updateRequests.push(request.postDataJSON() as Record<string, unknown>);
+      const hashUpdates = updateRequests.filter(body => body.additionalData).length;
+      if (updateRequests.at(-1)?.additionalData && hashUpdates <= (options.rampHashUpdateFailures ?? 0)) {
+        await fulfillJson(
+          { message: "Vortex services are temporarily unavailable during scheduled maintenance: Upgrade - Back soon." },
+          503
+        );
+        return;
+      }
       const isOnramp = quoteRequests.at(-1)?.rampType === "BUY";
       const paymentData = isOnramp
         ? options.onrampCurrency === "BRL"

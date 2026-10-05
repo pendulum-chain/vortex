@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_FIAT_ACCOUNT_ID, E2E_FIAT_ACCOUNT_ID_2, E2E_QUOTE_ID, E2E_RAMP_ID, mockBackend } from "./support/mockBackend";
-import { injectMockWallet, MOCK_WALLET_ADDRESS, MOCK_WALLET_TX_HASH } from "./support/mockWallet";
+import { injectMockWallet, MOCK_WALLET_ADDRESS, MOCK_WALLET_SEND_COUNT_KEY, MOCK_WALLET_TX_HASH } from "./support/mockWallet";
 import { seedSession } from "./support/session";
 
 const EXPECTED_PAYIN_USDC = "54.054054";
@@ -120,6 +120,47 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   await expect.poll(() => backend.status.polls, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
 
   // Nothing escaped to a real server or a real chain.
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
+// Once the wallet has broadcast, the tokens sit on the ramp's ephemeral account. A failed final
+// update (here the maintenance guard's 503) must keep the ramp and its hash, survive a reload, and
+// resend that same update on retry, never the wallet transaction.
+test("SELL retries a failed post-broadcast update after a reload without re-broadcasting", async ({ page }) => {
+  const backend = await mockBackend(page, { rampHashUpdateFailures: 1 });
+  await injectMockWallet(page, { chainIdHex: "0x89" });
+  await seedSession(page);
+  await page.goto("/transfer?network=polygon");
+
+  const amountInput = page.locator("#token-amount");
+  await expect(amountInput).toBeVisible({ timeout: 20_000 });
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
+  const sendButton = page.getByRole("button", { name: /Send/ });
+  await expect(sendButton).toBeEnabled({ timeout: 20_000 });
+  await sendButton.click();
+
+  const notStarted = page.getByRole("alert").filter({ hasText: "Your transfer hasn’t started yet" });
+  await expect(notStarted).toBeVisible({ timeout: 30_000 });
+  await expect(notStarted).toContainText("scheduled maintenance");
+  await expect(page.getByText(/Try again within \d+ min/)).toBeVisible();
+  expect(backend.updateRequests).toHaveLength(2);
+  expect(backend.startRequests).toHaveLength(0);
+
+  await page.reload();
+  await expect(page.getByText("The page was reloaded before the transfer started.")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
+  await expect(page).toHaveURL(/\/transactions/);
+
+  expect(backend.registerRequests).toHaveLength(1);
+  expect(backend.updateRequests).toHaveLength(3);
+  expect(backend.updateRequests[2]).toEqual(backend.updateRequests[1]);
+  expect((backend.updateRequests[2] as { additionalData?: Record<string, unknown> }).additionalData).toEqual({
+    squidRouterNoPermitTransferHash: MOCK_WALLET_TX_HASH
+  });
+  expect(backend.startRequests).toHaveLength(1);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), MOCK_WALLET_SEND_COUNT_KEY)).toBe("1");
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
