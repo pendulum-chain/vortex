@@ -143,6 +143,12 @@ lifecycle reconciliation and external-profile import remain deferred.
   an editable EVM destination address. A connected AppKit wallet prefills that address but is not
   required and never signs a BUY transaction (implemented).
 
+**Maintenance windows.** While an operator-scheduled window is active, every app page shows a
+banner with its message and end time. Starting an offramp or onramp and confirming an onramp
+payment are disabled, and the API rejects quote creation and ramp register/update/start for the
+window anyway. The status is refetched every five minutes and when the tab regains focus
+(implemented).
+
 ### Transactions
 - As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,
   status (`processing · completed · failed · cancelled`), and the reason a payout failed. Ramps that

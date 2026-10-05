@@ -22,6 +22,7 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
+import { useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
 import { transferActor } from "@/machines/transferActor";
@@ -133,6 +134,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
         }
       : null;
   const { data: quote, isFetching, error } = useQuote(quoteParams);
+  const maintenance = useActiveMaintenance();
 
   function submitTransfer(submit: FundingSubmit) {
     if (!selected || !isSendable || !quote || !quoteParams || !activeOwnerProfileId || !canStartTransfer || !pixReady) {
@@ -311,7 +313,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
               </div>
               <QuoteSummary isFetching={isFetching} quote={quote} />
               <FundingMethods
-                disabled={!canStartTransfer || isFetching}
+                disabled={!canStartTransfer || isFetching || !!maintenance}
                 onSubmit={submitTransfer}
                 quote={quote}
                 submitting={submitting || isFetching}

@@ -17,6 +17,7 @@ import { CORRIDORS } from "@/domain/corridors";
 import { eurOnrampBlocker, getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
 import type { CorridorId, SenderAccount } from "@/domain/types";
+import { useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { transferActor } from "@/machines/transferActor";
@@ -110,6 +111,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         }
       : null;
   const { data: quote, error, isFetching } = useQuote(quoteParams);
+  const maintenance = useActiveMaintenance();
   const eurRamp = account.onboardings.EU?.ramp ?? null;
   const eurBlocker = corridorId === "EU" ? eurOnrampBlocker(eurRamp, address) : null;
   const transferState = useSelector(transferActor, snapshot => snapshot);
@@ -342,7 +344,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
               </span>
             </div>
             <QuoteSummary isFetching={isFetching} quote={quote} />
-            <Button disabled={activeTransfer || isFetching || !!eurBlocker} size="lg" type="submit">
+            <Button disabled={activeTransfer || isFetching || !!eurBlocker || !!maintenance} size="lg" type="submit">
               {transferState.matches("Registering")
                 ? "Preparing payment…"
                 : transferState.matches("SigningUserTxs")

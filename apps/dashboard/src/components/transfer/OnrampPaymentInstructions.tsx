@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { resetTransferState, transferActor } from "@/machines/transferActor";
 
 function copy(value: string) {
@@ -94,6 +95,7 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   const navigate = useNavigate();
   const starting = useSelector(transferActor, snapshot => snapshot.matches("Starting"));
   const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
+  const maintenance = useActiveMaintenance();
   const [now, setNow] = useState(() => Date.now());
   const rows = instructionRows(ramp);
   const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
@@ -187,7 +189,7 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         </div>
       )}
 
-      <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
+      <Button disabled={starting || !!maintenance} onClick={confirmPayment} size="lg" type="button">
         <Check /> {starting ? "Starting transfer…" : startError ? "Try again" : "I have made the payment"}
       </Button>
       <Button disabled={starting} onClick={leavePaymentSetup} type="button" variant="ghost">
