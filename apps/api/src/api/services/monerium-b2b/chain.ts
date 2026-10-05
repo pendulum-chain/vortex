@@ -214,7 +214,6 @@ export type KeeperWalletClient = WalletClient<Transport, undefined, Account>;
 let publicClientCache: PublicClient | null = null;
 let keeperClientCache: KeeperWalletClient | null = null;
 let guardianClientCache: KeeperWalletClient | null = null;
-let floatClientCache: KeeperWalletClient | null = null;
 let privateRpcWarned = false;
 
 export function isKeeperChainConfigured(): boolean {
@@ -298,16 +297,8 @@ export function getRefundWalletClient(account: Account): KeeperWalletClient {
 
 /** Float-wallet client (MONERIUM_B2B_FLOAT_PRIVATE_KEY): the EURe float that tops a refund up to the exact amount. */
 export function getFloatWalletClient(): KeeperWalletClient | null {
-  if (!config.moneriumB2b.floatPrivateKey) {
-    return null;
-  }
-  if (!floatClientCache) {
-    floatClientCache = createWalletClient({
-      account: privateKeyToAccount(config.moneriumB2b.floatPrivateKey as Hex),
-      transport: http(submissionRpcUrl())
-    });
-  }
-  return floatClientCache;
+  const key = config.moneriumB2b.floatPrivateKey;
+  return key ? createWalletClient({ account: privateKeyToAccount(key as Hex), transport: http(submissionRpcUrl()) }) : null;
 }
 
 // ------------------------------------------------------------------ cached chain lookups
