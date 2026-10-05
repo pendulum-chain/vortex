@@ -1,14 +1,8 @@
-import { ArrowRight, ExternalLink, FileText, RotateCcw } from "lucide-react";
+import { ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  isCorridorOnboardingDisabled,
-  isOnboardingAvailable,
-  onboardingKindFor,
-  PROVIDER_LABEL,
-  routeFor
-} from "@/domain/corridors";
+import { isOnboardingAvailable, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
 import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
 import { STATUS_META } from "@/domain/status";
 import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
@@ -24,8 +18,7 @@ interface CorridorCardProps {
   verificationReadOnly?: boolean;
 }
 
-const ROUTE_HINT: Record<OnboardingRoute, { icon: typeof FileText; label: string } | null> = {
-  google_form: { icon: FileText, label: "Completed via external Google Form" },
+const ROUTE_HINT: Record<OnboardingRoute, { icon: typeof ExternalLink; label: string } | null> = {
   headless: null,
   redirect: { icon: ExternalLink, label: "Completed via partner redirect" }
 };
@@ -44,8 +37,8 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
   const kind = onboardingKindFor(corridor, account.type);
   const available = isOnboardingAvailable(corridor, kind);
   const onboarding = account.onboardings[corridor.id];
-  // Suppress every actionable state (start, continue, retry, re-authenticate) while the
-  // corridor is disabled; purely informational buttons (awaiting review, complete) stay.
+  // Actionable states (start, continue, retry, re-authenticate) are the ones a read-only session
+  // blocks; purely informational buttons (awaiting review, complete) stay.
   // An approved Monerium profile still needs the pay-in wallet linked and the IBAN pointed at it.
   const walletLinkRequired = corridor.provider === "monerium" && moneriumWalletLinkRequired(onboarding);
   const actionable =
@@ -56,7 +49,6 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
     onboarding.status === "rejected" ||
     (onboarding.status === "in_review" && onboarding.reauthenticationRequired === true) ||
     (onboarding.status === "approved" && (walletLinkRequired || onboarding.reauthenticationRequired === true));
-  const disabled = isCorridorOnboardingDisabled(corridor) && actionable;
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
   const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
   const managesPayoutAccounts = corridor.provider === "alfredpay" && onboarding?.status === "approved";
@@ -126,10 +118,6 @@ export function CorridorCard({ account, corridor, onStart, verificationReadOnly 
         ) : verificationReadOnly && actionable ? (
           <Button className="w-full" disabled variant="outline">
             {kind.toUpperCase()} is read-only while acting
-          </Button>
-        ) : disabled ? (
-          <Button className="w-full" disabled variant="outline">
-            {kind.toUpperCase()} is temporarily unavailable
           </Button>
         ) : !available && (!onboarding || onboarding.status === "not_started" || onboarding.status === "rejected") ? (
           <Button className="w-full" disabled variant="outline">

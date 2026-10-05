@@ -8,6 +8,7 @@ import {
   EphemeralAccountType,
   ERC20_BRLA_BASE,
   EvmClientManager,
+  EvmTransactionData,
   getNablaBasePool,
   getNetworkId,
   getRoute,
@@ -32,6 +33,21 @@ export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 const STALE_PERSISTED_TX_MINUTES = 15;
+
+// quoteSwapExactTokensForTokens on a Nabla quoter; shared by every Nabla quote on Base.
+export const NABLA_QUOTE_ABI = [
+  {
+    inputs: [
+      { name: "_amountIn", type: "uint256" },
+      { name: "_tokenPath", type: "address[]" },
+      { name: "_routerPath", type: "address[]" }
+    ],
+    name: "quoteSwapExactTokensForTokens",
+    outputs: [{ name: "amountOut_", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
 
 interface TransactionReceiptStatusReader {
   getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ status: "success" | "reverted" }>;
@@ -164,6 +180,70 @@ export async function checkInitialUsdcBalanceOnBase(usdcAmountRaw: string): Prom
   return balanceDecimal;
 }
 
+type BaseClients = ReturnType<typeof getBaseEvmClients>;
+
+/**
+ * Broadcasts a Nabla approve (skipped when one is already recorded) and, once it is confirmed,
+ * the swap. Each hash is persisted through its callback as soon as it is sent; waiting for the
+ * swap receipt is left to the caller.
+ */
+export async function sendNablaApproveAndSwap(params: {
+  approve: EvmTransactionData;
+  baseNonce: NonceManager;
+  existingApproveHash: string | null;
+  label: string;
+  onApproveSent: (hash: string) => Promise<void>;
+  onSwapSent: (hash: string) => Promise<void>;
+  publicClient: BaseClients["publicClient"];
+  swap: EvmTransactionData;
+  walletClient: BaseClients["walletClient"];
+}): Promise<{ approveHash: string; swapHash: string }> {
+  const { approve, baseNonce, existingApproveHash, label, onApproveSent, onSwapSent, publicClient, swap, walletClient } =
+    params;
+
+  let approveHash = existingApproveHash;
+  if (!approveHash) {
+    console.log(`Sending ${label} approve transaction on Base...`);
+    const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+    approveHash = await walletClient.sendTransaction({
+      account: walletClient.account,
+      chain: base,
+      data: approve.data,
+      gas: BigInt(approve.gas),
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce: baseNonce.next(),
+      to: approve.to,
+      value: BigInt(approve.value)
+    });
+    await onApproveSent(approveHash);
+    console.log(`${label} approve tx sent: ${approveHash}`);
+  } else {
+    console.log(`Resuming ${label} approval with existing tx: ${approveHash}`);
+  }
+
+  await waitForTransactionConfirmation(approveHash, publicClient);
+  console.log(`${label} approval confirmed.`);
+
+  console.log(`Sending ${label} swap transaction on Base...`);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+  const swapHash = await walletClient.sendTransaction({
+    account: walletClient.account,
+    chain: base,
+    data: swap.data,
+    gas: BigInt(swap.gas),
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    nonce: baseNonce.next(),
+    to: swap.to,
+    value: BigInt(swap.value)
+  });
+  await onSwapSent(swapHash);
+  console.log(`${label} swap tx sent: ${swapHash}`);
+
+  return { approveHash, swapHash };
+}
+
 export async function nablaApproveAndSwapOnBase(
   usdcAmountRaw: string,
   baseNonce: NonceManager,
@@ -223,23 +303,9 @@ export async function nablaApproveAndSwapOnBase(
 
   if (!swapHash) {
     const evmClientManager = EvmClientManager.getInstance();
-    const quoteAbi = [
-      {
-        inputs: [
-          { name: "_amountIn", type: "uint256" },
-          { name: "_tokenPath", type: "address[]" },
-          { name: "_routerPath", type: "address[]" }
-        ],
-        name: "quoteSwapExactTokensForTokens",
-        outputs: [{ name: "amountOut_", type: "uint256" }],
-        stateMutability: "view",
-        type: "function"
-      }
-    ] as const;
-
     const { quoter } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
     const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: quoteAbi,
+      abi: NABLA_QUOTE_ABI,
       address: quoter,
       args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
       functionName: "quoteSwapExactTokensForTokens"
@@ -262,46 +328,23 @@ export async function nablaApproveAndSwapOnBase(
       router
     );
 
-    if (!approveHash) {
-      console.log("Sending Nabla approve transaction on Base...");
-      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
-      approveHash = await walletClient.sendTransaction({
-        account: walletClient.account,
-        chain: base,
-        data: approve.data,
-        gas: BigInt(approve.gas),
-        maxFeePerGas: approveFee,
-        maxPriorityFeePerGas: approveTip,
-        nonce: baseNonce.next(),
-        to: approve.to,
-        value: BigInt(approve.value)
-      });
-      state.nablaApproveHash = approveHash;
-      await stateManager.saveState(state);
-      console.log(`Approve tx sent: ${approveHash}`);
-    } else {
-      console.log(`Resuming Nabla approval with existing tx: ${approveHash}`);
-    }
-
-    await waitForTransactionConfirmation(approveHash, publicClient);
-    console.log("Nabla approval confirmed.");
-
-    console.log("Sending Nabla swap transaction on Base...");
-    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
-    swapHash = await walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: base,
-      data: swap.data,
-      gas: BigInt(swap.gas),
-      maxFeePerGas: swapFee,
-      maxPriorityFeePerGas: swapTip,
-      nonce: baseNonce.next(),
-      to: swap.to,
-      value: BigInt(swap.value)
-    });
-    state.nablaSwapHash = swapHash;
-    await stateManager.saveState(state);
-    console.log(`Swap tx sent: ${swapHash}`);
+    ({ approveHash, swapHash } = await sendNablaApproveAndSwap({
+      approve,
+      baseNonce,
+      existingApproveHash: approveHash,
+      label: "Nabla",
+      onApproveSent: async hash => {
+        state.nablaApproveHash = hash;
+        await stateManager.saveState(state);
+      },
+      onSwapSent: async hash => {
+        state.nablaSwapHash = hash;
+        await stateManager.saveState(state);
+      },
+      publicClient,
+      swap,
+      walletClient
+    }));
   } else {
     console.log(`Resuming Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
   }
@@ -572,53 +615,6 @@ export async function fetchBlindpayShadowQuoteUsdc(brlaAmountDecimal: Big): Prom
   const outputUsdcRaw = multiplyByPowerOfTen(Big(quote.result_amount).div(100), 6).toFixed(0, 0);
   console.log(`BlindPay shadow quote: ${outputUsdcRaw} ${blindpayToken} (raw, 6 decimals)`);
   return outputUsdcRaw;
-}
-
-export async function compareRates(brlaAmountDecimal: Big): Promise<{
-  winningRoute: "squidrouter" | "avenia";
-  squidRouterQuoteUsdc: string | null;
-  aveniaQuoteUsdc: string | null;
-}> {
-  console.log("Comparing SquidRouter vs Avenia rates for BRLA -> USDC...");
-
-  let squidRouterQuoteUsdc: string | null = null;
-  let aveniaQuoteUsdc: string | null = null;
-
-  try {
-    squidRouterQuoteUsdc = await fetchSquidRouterQuote(brlaAmountDecimal);
-  } catch (error) {
-    console.warn("SquidRouter quote failed:", error);
-  }
-
-  try {
-    aveniaQuoteUsdc = await fetchAveniaQuote(brlaAmountDecimal);
-  } catch (error) {
-    console.warn("Avenia quote failed:", error);
-  }
-
-  if (!squidRouterQuoteUsdc && !aveniaQuoteUsdc) {
-    throw new Error("Both SquidRouter and Avenia quotes failed. Cannot proceed.");
-  }
-
-  if (!squidRouterQuoteUsdc) {
-    console.log("SquidRouter unavailable, using Avenia.");
-    return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute: "avenia" };
-  }
-
-  if (!aveniaQuoteUsdc) {
-    console.log("Avenia unavailable, using SquidRouter.");
-    return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute: "squidrouter" };
-  }
-
-  const squidUsdcDecimal = multiplyByPowerOfTen(Big(squidRouterQuoteUsdc), -6);
-  const aveniaUsdcDecimal = multiplyByPowerOfTen(Big(aveniaQuoteUsdc), -6);
-
-  console.log(`SquidRouter: ${squidUsdcDecimal.toFixed(6)} USDC | Avenia: ${aveniaUsdcDecimal.toFixed(6)} USDC`);
-
-  const winningRoute = squidUsdcDecimal.gt(aveniaUsdcDecimal) ? "squidrouter" : "avenia";
-  console.log(`Winner: ${winningRoute}`);
-
-  return { aveniaQuoteUsdc, squidRouterQuoteUsdc, winningRoute };
 }
 
 export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promise<string> {
@@ -954,21 +950,7 @@ export async function verifyFinalUsdcBalanceOnBase(): Promise<Big> {
 
 // ── Main Nabla route (BRL → USDC on a second Nabla instance on Base) ─────────
 
-const MAIN_NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
-function getMainNablaConfig() {
+export function getMainNablaConfig() {
   const config = getConfig();
   if (!config.mainNablaRouter || !config.mainNablaQuoter) {
     throw new Error("Main Nabla route requires MAIN_NABLA_ROUTER and MAIN_NABLA_QUOTER env vars.");
@@ -990,7 +972,7 @@ export async function fetchMainNablaQuote(brlaAmountRaw: string): Promise<string
   const evmClientManager = EvmClientManager.getInstance();
 
   const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: MAIN_NABLA_QUOTE_ABI,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -1016,23 +998,9 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
   console.log("Quoting first Nabla (USDC→BRLA) to estimate BRLA output for route comparison...");
 
   const evmClientManager = EvmClientManager.getInstance();
-  const quoteAbi = [
-    {
-      inputs: [
-        { name: "_amountIn", type: "uint256" },
-        { name: "_tokenPath", type: "address[]" },
-        { name: "_routerPath", type: "address[]" }
-      ],
-      name: "quoteSwapExactTokensForTokens",
-      outputs: [{ name: "amountOut_", type: "uint256" }],
-      stateMutability: "view",
-      type: "function"
-    }
-  ] as const;
-
   const { router, quoter } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
   const estimatedBrlaRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: quoteAbi,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -1163,7 +1131,7 @@ export async function mainNablaApproveAndSwap(
     const evmClientManager = EvmClientManager.getInstance();
     const { quoter } = getMainNablaConfig();
     const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: MAIN_NABLA_QUOTE_ABI,
+      abi: NABLA_QUOTE_ABI,
       address: quoter,
       args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
       functionName: "quoteSwapExactTokensForTokens"
@@ -1183,46 +1151,23 @@ export async function mainNablaApproveAndSwap(
       router
     );
 
-    if (!approveHash) {
-      console.log("Sending Main Nabla approve transaction on Base...");
-      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
-      approveHash = await walletClient.sendTransaction({
-        account: walletClient.account,
-        chain: base,
-        data: approve.data,
-        gas: BigInt(approve.gas),
-        maxFeePerGas: approveFee,
-        maxPriorityFeePerGas: approveTip,
-        nonce: baseNonce.next(),
-        to: approve.to,
-        value: BigInt(approve.value)
-      });
-      state.mainNablaApproveHash = approveHash;
-      await stateManager.saveState(state);
-      console.log(`Main Nabla approve tx sent: ${approveHash}`);
-    } else {
-      console.log(`Resuming Main Nabla approval with existing tx: ${approveHash}`);
-    }
-
-    await waitForTransactionConfirmation(approveHash, publicClient);
-    console.log("Main Nabla approval confirmed.");
-
-    console.log("Sending Main Nabla swap transaction on Base...");
-    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
-    swapHash = await walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: base,
-      data: swap.data,
-      gas: BigInt(swap.gas),
-      maxFeePerGas: swapFee,
-      maxPriorityFeePerGas: swapTip,
-      nonce: baseNonce.next(),
-      to: swap.to,
-      value: BigInt(swap.value)
-    });
-    state.mainNablaSwapHash = swapHash;
-    await stateManager.saveState(state);
-    console.log(`Main Nabla swap tx sent: ${swapHash}`);
+    ({ approveHash, swapHash } = await sendNablaApproveAndSwap({
+      approve,
+      baseNonce,
+      existingApproveHash: approveHash,
+      label: "Main Nabla",
+      onApproveSent: async hash => {
+        state.mainNablaApproveHash = hash;
+        await stateManager.saveState(state);
+      },
+      onSwapSent: async hash => {
+        state.mainNablaSwapHash = hash;
+        await stateManager.saveState(state);
+      },
+      publicClient,
+      swap,
+      walletClient
+    }));
   } else {
     console.log(`Resuming Main Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
   }

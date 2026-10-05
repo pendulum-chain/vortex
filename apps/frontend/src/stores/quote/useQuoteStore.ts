@@ -45,7 +45,6 @@ interface QuoteState {
   loading: boolean;
   error: string | null; // This is either the error message or the key of the translation
   outputAmount: Big | undefined;
-  exchangeRate: number;
 }
 
 const friendlyErrorMessages: Record<QuoteError, string> = {
@@ -94,7 +93,7 @@ function getFriendlyErrorMessage(error: unknown) {
  * @param params Quote parameters
  * @returns Quote payload for API request
  */
-const createQuotePayload = (params: QuoteParams): QuotePayload => {
+export const createQuotePayload = (params: QuoteParams): QuotePayload => {
   const { inputAmount, onChainToken, fiatToken, selectedNetwork, rampType } = params;
   const fiatDestination = mapFiatToDestination(fiatToken);
   const inputAmountStr = inputAmount?.toString() || "0";
@@ -121,23 +120,8 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
   return payloadMap[rampType];
 };
 
-/**
- * Calculates exchange rate and output amount from quote response
- * @param quoteResponse The API response
- * @returns Object containing output amount and exchange rate
- */
-const processQuoteResponse = (quoteResponse: QuoteResponse) => {
-  const outputAmount = parseBig(quoteResponse.outputAmount);
-  // Calculate exchange rate safely using Big division, converting to Number at the end
-  const inputAmount = parseBig(quoteResponse.inputAmount);
-  const exchangeRate = inputAmount.eq(0) ? 0 : Number(outputAmount.div(inputAmount));
-
-  return { exchangeRate, outputAmount };
-};
-
 const DEFAULT_QUOTE_STORE_VALUES: QuoteState = {
   error: null,
-  exchangeRate: 0,
   loading: false,
   outputAmount: undefined,
   quote: undefined
@@ -172,12 +156,9 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
               partnerId
             );
 
-            const { outputAmount, exchangeRate } = processQuoteResponse(quoteResponse);
-
             set({
-              exchangeRate,
               loading: false,
-              outputAmount,
+              outputAmount: parseBig(quoteResponse.outputAmount),
               quote: quoteResponse
             });
           } catch (error) {
@@ -190,13 +171,11 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
           }
         },
         forceSetQuote: (quote: QuoteResponse) => {
-          const { outputAmount, exchangeRate } = processQuoteResponse(quote);
-          set({ exchangeRate, loading: false, outputAmount, quote });
+          set({ loading: false, outputAmount: parseBig(quote.outputAmount), quote });
         },
         reset: () => {
           set({
             error: null,
-            exchangeRate: 0,
             loading: false,
             outputAmount: undefined,
             quote: undefined
@@ -219,8 +198,6 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
   )
 );
 
-export const useQuoteOutputAmount = () => useQuoteStore(state => state.outputAmount);
-export const useQuoteExchangeRate = () => useQuoteStore(state => state.exchangeRate);
 export const useQuoteLoading = () => useQuoteStore(state => state.loading);
 export const useQuoteError = () => useQuoteStore(state => state.error);
 export const useQuote = () => useQuoteStore(state => state.quote);

@@ -17,11 +17,6 @@ class ApiClientEventsRetentionWorker {
     this.job.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping API client events retention worker");
-    this.job.stop();
-  }
-
   private async cleanup(): Promise<void> {
     logger.info("Running API client events retention worker cycle");
 

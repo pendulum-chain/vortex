@@ -7,9 +7,6 @@ jobs:
   build:
     name: Running ci
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [ 18 ]
     env:
       CI: true
 

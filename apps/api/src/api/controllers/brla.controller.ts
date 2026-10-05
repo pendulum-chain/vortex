@@ -85,9 +85,6 @@ import { resolveAveniaAccountForUser } from "../services/avenia-account";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 import { runFinancialOperation } from "../services/phases/blocks/core/financial-operation";
 
-// map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
-const _lastInteractionMap = new Map<string, number>();
-
 // Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   logger.error(`Error while performing ${apiMethod}: `, error);

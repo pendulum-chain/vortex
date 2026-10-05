@@ -110,7 +110,7 @@ describe("Onramp quote form (BUY)", () => {
       inputAmount: "100",
       lastConstraintDirection: RampDirection.BUY
     });
-    useQuoteStore.setState({ error: null, exchangeRate: 0, loading: false, outputAmount: undefined, quote: undefined });
+    useQuoteStore.setState({ error: null, loading: false, outputAmount: undefined, quote: undefined });
     // null (as opposed to undefined) means "resolved from the URL: no partner" — quotes may be fetched.
     usePartnerStore.setState({ apiKey: null, partnerId: null });
   });

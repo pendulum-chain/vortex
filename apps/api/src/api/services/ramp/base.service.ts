@@ -1,6 +1,5 @@
 import { RampPhase } from "@vortexfi/shared";
 import { Op, QueryTypes, Transaction } from "sequelize";
-import { v4 as uuidv4 } from "uuid";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -99,7 +98,7 @@ export class BaseRampService {
   ): Promise<RampState> {
     return RampState.create(
       {
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         ...data,
         errorLogs: [],
         phaseHistory: [
@@ -119,16 +118,6 @@ export class BaseRampService {
   protected async getRampState(id: string): Promise<RampState | null> {
     return RampState.findByPk(id, {
       include: [{ as: "quote", model: QuoteTicket }]
-    });
-  }
-
-  /**
-   * Update a ramp state
-   */
-  protected async updateRampState(id: string, data: Partial<RampStateAttributes>): Promise<[number, RampState[]]> {
-    return RampState.update(data, {
-      returning: true,
-      where: { id }
     });
   }
 
@@ -175,21 +164,6 @@ export class BaseRampService {
         where: { id, status: "pending" }
       }
     );
-  }
-
-  /**
-   * Check if a quote is valid (pending and not expired)
-   */
-  protected async isQuoteValid(id: string): Promise<boolean> {
-    const quote = await QuoteTicket.findOne({
-      where: { id }
-    });
-
-    if (!quote) {
-      return false;
-    }
-
-    return quote.status === "pending" && new Date(quote.expiresAt) > new Date();
   }
 
   /**

@@ -1,4 +1,5 @@
 import {
+  CORRIDOR_FIAT_TOKEN,
   type CreateQuoteRequest,
   type EvmNetworks,
   type OnChainToken,
@@ -7,7 +8,7 @@ import {
 } from "@vortexfi/shared";
 import type { CorridorId } from "@/domain/types";
 import { apiClient } from "./api-client";
-import { CORRIDOR_COUNTRY, CORRIDOR_FIAT, CORRIDOR_PAYMENT_METHOD } from "./mappers";
+import { CORRIDOR_COUNTRY, CORRIDOR_PAYMENT_METHOD } from "./mappers";
 
 export interface QuoteParams {
   corridorId: CorridorId;
@@ -24,7 +25,7 @@ export interface QuoteParams {
  */
 export function buildQuoteRequest(params: QuoteParams): CreateQuoteRequest {
   const { corridorId, direction, inputAmount, network, token } = params;
-  const fiat = CORRIDOR_FIAT[corridorId];
+  const fiat = CORRIDOR_FIAT_TOKEN[corridorId];
   const paymentMethod = CORRIDOR_PAYMENT_METHOD[corridorId];
   const isBuy = direction === RampDirection.BUY;
 

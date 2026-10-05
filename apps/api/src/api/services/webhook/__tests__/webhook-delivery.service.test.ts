@@ -28,12 +28,10 @@ const fakeWebhook = (overrides: Record<string, unknown> = {}) => ({
 });
 
 // Real timers, but backoff shrunk from 1s..16s to 1ms per attempt so the
-// retry tests finish instantly. timeoutMs is shrunk so the per-attempt abort
-// timer left dangling on rejected fetches fires (harmlessly) right away.
+// retry tests finish instantly.
 const createService = () => {
   const service = new WebhookDeliveryService();
   (service as unknown as { retryDelays: number[] }).retryDelays = [1, 1, 1, 1, 1];
-  (service as unknown as { timeoutMs: number }).timeoutMs = 50;
   return service;
 };
 

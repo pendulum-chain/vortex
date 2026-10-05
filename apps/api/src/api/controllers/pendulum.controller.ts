@@ -1,51 +1,21 @@
 import {
   ApiManager,
-  PendulumFundEphemeralErrorResponse,
-  PendulumFundEphemeralRequest,
-  PendulumFundEphemeralResponse,
+  ChainDecimals,
+  multiplyByPowerOfTen,
+  nativeToDecimal,
   TOKEN_CONFIG,
   XCMTokenConfig
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { Request, Response } from "express";
-import httpStatus from "http-status";
 import logger from "../../config/logger";
 import {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS
 } from "../../constants/constants";
-import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from "../services/pendulum/helpers";
-import { fundEphemeralAccount, getFundingData } from "../services/pendulum/pendulum.service";
+import { getFundingData } from "../services/pendulum/pendulum.service";
 import { SlackNotifier } from "../services/slack.service";
 import "@pendulum-chain/types"; // Import to augment the api types
-
-// DEPRECATED
-export const fundEphemeralAccountController = async (
-  req: Request<unknown, unknown, PendulumFundEphemeralRequest>,
-  res: Response<PendulumFundEphemeralResponse | PendulumFundEphemeralErrorResponse>
-) => {
-  const { ephemeralAddress, requiresGlmr } = req.body;
-  const networkName = "pendulum";
-
-  if (!ephemeralAddress) {
-    res.status(httpStatus.BAD_REQUEST).send({ error: "Invalid request parameters" });
-    return;
-  }
-
-  try {
-    const result = await fundEphemeralAccount(networkName, ephemeralAddress, Boolean(requiresGlmr));
-    if (result) {
-      res.json({ data: undefined, status: "success" });
-      return;
-    }
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: "Funding error" });
-    return;
-  } catch (error) {
-    logger.error("Error funding ephemeral account:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: "Internal Server Error" });
-  }
-};
 
 interface StatusResponse {
   status: boolean;

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { MANAGED_PROFILE_SUBJECT_TYPES, type ManagedProfileSubjectType } from "../../../models/partnerManagedProfile.model";
+import { sendError } from "../../helpers/sendError";
 import { createManagedProfile, ManagedProfileServiceError } from "../../services/managed-profile.service";
 
 function isSubjectType(value: unknown): value is ManagedProfileSubjectType {
@@ -16,13 +17,12 @@ export async function postManagedProfile(req: Request, res: Response): Promise<v
     typeof partnerId !== "string" ||
     !isSubjectType(subjectType)
   ) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: {
-        code: "MANAGED_PROFILE_INVALID_INPUT",
-        message: `email, externalUserId, partnerId and subjectType (${MANAGED_PROFILE_SUBJECT_TYPES.join("|")}) are required`,
-        status: httpStatus.BAD_REQUEST
-      }
-    });
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "MANAGED_PROFILE_INVALID_INPUT",
+      `email, externalUserId, partnerId and subjectType (${MANAGED_PROFILE_SUBJECT_TYPES.join("|")}) are required`
+    );
     return;
   }
 
@@ -39,17 +39,11 @@ export async function postManagedProfile(req: Request, res: Response): Promise<v
             : error.code === "MANAGED_PROFILE_CONFLICT"
               ? httpStatus.CONFLICT
               : httpStatus.BAD_GATEWAY;
-      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      sendError(res, status, error.code, error.message);
       return;
     }
 
     logger.error("Error creating managed profile", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create managed profile",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create managed profile");
   }
 }

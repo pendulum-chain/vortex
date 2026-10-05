@@ -233,7 +233,7 @@ const POLL_INTERVAL_MS = 3000;
 
 /**
  * Polls /ramp/:id until a terminal phase, invoking onStatus on every tick.
- * Returns a stop() function; mirrors the widget's RampService.pollRampStatus.
+ * Returns a stop() function.
  */
 export function pollRampUntilTerminal(
   rampId: string,

@@ -14,7 +14,7 @@ import type {
   UpdateRampResponse
 } from "@vortexfi/shared";
 import { handleAPIResponse } from "../errors.js";
-import type { AccessTokenProvider, BrlKycResponse } from "../types.js";
+import type { AccessTokenProvider } from "../types.js";
 
 export class ApiService {
   constructor(
@@ -42,123 +42,72 @@ export class ApiService {
     return headers;
   }
 
-  async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/quotes`, {
-      body: JSON.stringify(request),
+  /**
+   * `endpoint` is the label handleAPIResponse reports in error messages; it defaults to `path`.
+   */
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    options: { body?: unknown; endpoint?: string } = {}
+  ): Promise<T> {
+    const response = await fetch(`${this.apiBaseUrl}${path}`, {
+      ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
       headers: await this.buildHeaders(),
-      method: "POST"
+      method
     });
 
-    return handleAPIResponse<QuoteResponse>(response, "/v1/quotes");
+    return handleAPIResponse<T>(response, options.endpoint ?? path);
+  }
+
+  async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
+    return this.request("POST", "/v1/quotes", { body: request });
   }
 
   async getQuote(quoteId: string): Promise<QuoteResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/quotes/${quoteId}`, {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<QuoteResponse>(response, `/v1/quotes/${quoteId}`);
+    return this.request("GET", `/v1/quotes/${quoteId}`);
   }
 
   async registerRamp(request: RegisterRampRequest): Promise<RegisterRampResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/ramp/register`, {
-      body: JSON.stringify(request),
-      headers: await this.buildHeaders(),
-      method: "POST"
-    });
-
-    return handleAPIResponse<RegisterRampResponse>(response, "/v1/ramp/register");
+    return this.request("POST", "/v1/ramp/register", { body: request });
   }
 
   async updateRamp(request: UpdateRampRequest): Promise<UpdateRampResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/ramp/update`, {
-      body: JSON.stringify(request),
-      headers: await this.buildHeaders(),
-      method: "POST"
-    });
-    return handleAPIResponse<UpdateRampResponse>(response, "/v1/ramp/update");
+    return this.request("POST", "/v1/ramp/update", { body: request });
   }
 
   async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/ramp/start`, {
-      body: JSON.stringify(request),
-      headers: await this.buildHeaders(),
-      method: "POST"
-    });
-
-    return handleAPIResponse<StartRampResponse>(response, "/v1/ramp/start");
+    return this.request("POST", "/v1/ramp/start", { body: request });
   }
 
   async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
-    const url = new URL(`${this.apiBaseUrl}/v1/ramp/${rampId}`);
-    const response = await fetch(url.toString(), {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<GetRampStatusResponse>(response, `/v1/ramp/status?id=${rampId}`);
+    return this.request("GET", `/v1/ramp/${rampId}`, { endpoint: `/v1/ramp/status?id=${rampId}` });
   }
 
   async getRampInfo(): Promise<GetRampInfoResponse> {
-    const response = await fetch(`${this.apiBaseUrl}/v1/ramp-info`, {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<GetRampInfoResponse>(response, "/v1/ramp-info");
-  }
-
-  async getBrlKycStatus(taxId?: string): Promise<BrlKycResponse> {
-    const url = new URL(`${this.apiBaseUrl}/v1/brla/getUser`);
-    if (taxId) {
-      url.searchParams.append("taxId", taxId);
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<BrlKycResponse>(response, "/v1/brla/getUser");
+    return this.request("GET", "/v1/ramp-info");
   }
 
   async getBrlRemainingLimit(taxId: string | undefined, direction: RampDirection): Promise<{ remainingLimit: number }> {
-    const url = new URL(`${this.apiBaseUrl}/v1/brla/getUserRemainingLimit`);
+    const query = new URLSearchParams();
     if (taxId) {
-      url.searchParams.append("taxId", taxId);
+      query.append("taxId", taxId);
     }
-    url.searchParams.append("direction", direction);
+    query.append("direction", direction);
 
-    const response = await fetch(url.toString(), {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<{ remainingLimit: number }>(response, "/v1/brla/getUserRemainingLimit");
+    return this.request("GET", `/v1/brla/getUserRemainingLimit?${query}`, { endpoint: "/v1/brla/getUserRemainingLimit" });
   }
 
   async validateBrlPixKey(pixKey: string): Promise<{ valid: boolean }> {
-    const url = new URL(`${this.apiBaseUrl}/v1/brla/validatePixKey`);
-    url.searchParams.append("pixKey", pixKey);
+    const query = new URLSearchParams({ pixKey });
 
-    const response = await fetch(url.toString(), {
-      headers: await this.buildHeaders(),
-      method: "GET"
-    });
-
-    return handleAPIResponse<{ valid: boolean }>(response, "/v1/brla/validatePixKey");
+    return this.request("GET", `/v1/brla/validatePixKey?${query}`, { endpoint: "/v1/brla/validatePixKey" });
   }
 
   async listDomesticFiatAccounts(country: DomesticCountry): Promise<DomesticFiatAccount[]> {
-    const url = new URL(`${this.apiBaseUrl}/v1/domestic/fiatAccounts`);
-    url.searchParams.append("country", country);
+    const query = new URLSearchParams({ country });
 
-    const response = await fetch(url.toString(), {
-      headers: await this.buildHeaders(),
-      method: "GET"
+    return this.request("GET", `/v1/domestic/fiatAccounts?${query}`, {
+      endpoint: `/v1/domestic/fiatAccounts?country=${country}`
     });
-
-    return handleAPIResponse<DomesticFiatAccount[]>(response, `/v1/domestic/fiatAccounts?country=${country}`);
   }
 }

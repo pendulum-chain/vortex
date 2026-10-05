@@ -122,15 +122,10 @@ function makeStateMetadata(overrides: Partial<StateMetadata>): StateMetadata {
     destinationAddress: "0x2222222222222222222222222222222222222222",
     distributeFeeHash: "",
     evmEphemeralAddress: "",
-    finalUserAddress: "",
     ibanPaymentData: {
       bic: "",
       iban: "",
       receiverName: ""
-    },
-    moonbeamEphemeralAccount: {
-      address: "",
-      secret: ""
     },
     moonbeamXcmTransactionHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
     nabla: {

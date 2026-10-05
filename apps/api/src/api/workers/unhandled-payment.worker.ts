@@ -61,11 +61,6 @@ class UnhandledPaymentWorker {
     this.job.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping unhandled payment worker");
-    this.job.stop();
-  }
-
   private async checkUnhandledPayments(): Promise<void> {
     logger.info("Running unhandled payment worker cycle");
     try {

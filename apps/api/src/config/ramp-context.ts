@@ -36,13 +36,3 @@ export function runWithRampContext<T>(rampId: string, fn: () => Promise<T>): Pro
 export function getRampId(): string | undefined {
   return rampContextStorage.getStore()?.rampId;
 }
-
-/**
- * Get the full ramp context from AsyncLocalStorage.
- * Returns undefined if not running within a ramp context.
- *
- * @returns The current ramp context or undefined
- */
-export function getRampContext(): RampProcessingContext | undefined {
-  return rampContextStorage.getStore();
-}
