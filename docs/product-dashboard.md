@@ -146,7 +146,7 @@ lifecycle reconciliation and external-profile import remain deferred.
 **Maintenance windows.** While an operator-scheduled window is active, every app page shows a
 banner with its message and end time. Starting an offramp or onramp and confirming an onramp
 payment are disabled, and the API rejects quote creation and ramp register/update/start for the
-window anyway. The status is refetched every five minutes and when the tab regains focus
+window anyway. Quote errors on the transfer and quote pages then say quotes are paused. The status is refetched every five minutes and when the tab regains focus
 (implemented).
 
 ### Transactions

@@ -213,8 +213,9 @@ different set of endpoints than the widget. Covered so far:
   `Account` view. The connected-wallet-only funding gate remains pinned.
 - **Maintenance windows** (`maintenance.spec.ts`): an active window from
   `/v1/maintenance/status` shows the shell banner and disables the offramp `Send`, onramp
-  `Continue to payment`, and `I have made the payment` buttons. The last case flips the mock's
-  `maintenance.active` flag mid-flow and relies on React Query's refetch when the tab regains
+  `Continue to payment`, and `I have made the payment` buttons, and quote errors on the onramp,
+  offramp, and quote-explorer pages name the maintenance pause. The mid-flow case flips the mock's
+  `maintenance.active` flag and relies on React Query's refetch when the tab regains
   focus. The mock serves an inactive window by default, so the other specs' `unmatchedRequests`
   checks still pass.
 - **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, manager child

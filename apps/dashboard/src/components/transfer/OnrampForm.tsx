@@ -17,7 +17,7 @@ import { CORRIDORS } from "@/domain/corridors";
 import { eurOnrampBlocker, getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
 import type { CorridorId, SenderAccount } from "@/domain/types";
-import { useActiveMaintenance } from "@/hooks/useActiveMaintenance";
+import { MAINTENANCE_QUOTE_ERROR, useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { transferActor } from "@/machines/transferActor";
@@ -329,7 +329,11 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         {error ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm">
             <TriangleAlert className="mt-px size-4 shrink-0" />
-            <p>We couldn’t fetch a pay-in quote right now. Try another amount or token.</p>
+            <p>
+              {maintenance
+                ? MAINTENANCE_QUOTE_ERROR
+                : "We couldn’t fetch a pay-in quote right now. Try another amount or token."}
+            </p>
           </div>
         ) : Number(amount) <= 0 ? (
           <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">

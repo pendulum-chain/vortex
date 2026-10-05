@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { type MaintenanceDetails, MaintenanceService } from "@/services/api/maintenance.service";
 
+export const MAINTENANCE_QUOTE_ERROR = "Quotes are paused for scheduled maintenance. Try again once it ends.";
+
 /** The active maintenance window, or null. The API rejects quotes and ramp mutations while one is active. */
 export function useActiveMaintenance(): MaintenanceDetails | null {
   const { data } = useQuery({
