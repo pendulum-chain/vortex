@@ -123,8 +123,10 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
     transferState.matches("CheckingBalance") ||
     transferState.matches("Registering") ||
     transferState.matches("SigningUserTxs") ||
+    transferState.matches("SubmittingUserTxs") ||
     transferState.matches("AwaitingPayment") ||
     transferState.matches("Starting") ||
+    transferState.matches("AwaitingRetry") ||
     transferState.matches("Tracking");
 
   if (transferState.matches("AwaitingPayment") && transferState.context.ramp && belongsToActiveOwner) {
@@ -343,7 +345,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
             </div>
             <QuoteSummary isFetching={isFetching} quote={quote} />
             <Button disabled={activeTransfer || isFetching || !!eurBlocker} size="lg" type="submit">
-              {transferState.matches("Registering")
+              {transferState.matches("Registering") || transferState.matches("SubmittingUserTxs")
                 ? "Preparing payment…"
                 : transferState.matches("SigningUserTxs")
                   ? "Confirm in your wallet…"

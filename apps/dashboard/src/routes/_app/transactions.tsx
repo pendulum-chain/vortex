@@ -20,11 +20,14 @@ function TransactionsPage() {
   const account = useActiveAccount();
   const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
-  const resumableRamp = useSelector(transferActor, snapshot =>
-    snapshot.matches("AwaitingPayment") &&
+  const resumable = useSelector(transferActor, snapshot =>
     snapshot.context.meta?.ownerProfileId === snapshot.context.activeOwnerProfileId &&
     snapshot.context.meta.accountId === account?.id
-      ? snapshot.context.ramp
+      ? snapshot.matches("AwaitingPayment")
+        ? "payment"
+        : snapshot.matches("AwaitingRetry")
+          ? "start"
+          : null
       : null
   );
 
@@ -42,19 +45,23 @@ function TransactionsPage() {
         <p className="text-muted-foreground">Pay-in and pay-out history for {account.name}.</p>
       </StaggerItem>
 
-      {resumableRamp && (
+      {resumable && (
         <StaggerItem>
           <Card className="border-warning/40 bg-warning/5">
             <CardContent className="flex flex-wrap items-center justify-between gap-4">
               <div className="grid gap-1">
-                <p className="font-medium">Payment awaiting confirmation</p>
+                <p className="font-medium">
+                  {resumable === "payment" ? "Payment awaiting confirmation" : "Transfer not started yet"}
+                </p>
                 <p className="text-muted-foreground text-sm">
-                  Your payment instructions are saved until the payment window expires.
+                  {resumable === "payment"
+                    ? "Your payment instructions are saved until the payment window expires."
+                    : "Your tokens left your wallet. Start the transfer before its start window closes."}
                 </p>
               </div>
               <Button asChild>
-                <Link search={{ mode: "onramp" }} to="/transfer">
-                  Resume payment
+                <Link search={{ mode: resumable === "payment" ? "onramp" : "offramp" }} to="/transfer">
+                  {resumable === "payment" ? "Resume payment" : "Resume transfer"}
                   <ArrowRight />
                 </Link>
               </Button>
