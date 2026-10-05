@@ -9,7 +9,7 @@ vi.mock("../services/api/maintenance.service", () => ({ getMaintenanceStatus }))
 
 afterEach(() => {
   vi.useRealTimers();
-  useMaintenanceStore.getState().reset();
+  useMaintenanceStore.setState({ error: null, isLoading: false, lastFetched: null, maintenanceStatus: null });
 });
 
 it("refetches on every 5-minute poll and stops after unmount", async () => {
