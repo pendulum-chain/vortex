@@ -152,8 +152,8 @@ export interface RecoveryDeps {
   createRedeemOrder(request: MoneriumRedeemOrderRequest): Promise<{ id: string | null }>;
   getOrder(orderId: string): Promise<{ rejectedReason?: string; state: string }>;
   signMessage(message: string): Promise<string>;
-  /** Forward-only deposit transition under the forwarder lock (a no-op for an illegal edge). */
-  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<void>;
+  /** Forward-only deposit transition under the forwarder lock (a no-op for an illegal edge; the refund path ignores the refusal). */
+  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<unknown>;
   now(): Date;
 }
 
@@ -333,14 +333,22 @@ export async function activeRecoveryExists(): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<void> {
+/** Forward-only status change under the forwarder lock: why it was refused, or null once the deposit has `status`. */
+export async function setDepositStatus(
+  deposit: MoneriumFiatDeposit,
+  status: MoneriumFiatDepositStatus
+): Promise<string | null> {
   const account = await MoneriumAccount.findByPk(deposit.accountId);
-  if (!account) return;
-  await withForwarderLock(account.forwarderAddress, async transaction => {
+  if (!account) return "Monerium account not found";
+  return withForwarderLock(account.forwarderAddress, async transaction => {
     const current = await MoneriumFiatDeposit.findByPk(deposit.id, { transaction });
-    if (current && isForwardTransition(current.status, status)) {
-      await current.update({ status }, { transaction });
+    if (!current) return "missing";
+    if (current.status === status) return null;
+    if (!isForwardTransition(current.status, status)) {
+      return `Monerium deposit cannot transition from ${current.status} to ${status}`;
     }
+    await current.update({ status }, { transaction });
+    return null;
   });
 }
 
