@@ -24,7 +24,7 @@ import {
   readEnabledRoutes,
   swapRouter02Abi
 } from "./chain";
-import { markDepositForRecovery } from "./conversion-executor";
+import { errorText, markDepositForRecovery, RECEIPT_TIMEOUT_MS } from "./conversion-executor";
 import { isForwardTransition, withForwarderLock } from "./deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
 import { refundAccountFor } from "./refund-wallet";
@@ -59,7 +59,6 @@ export const SUPPORTING_DOCUMENT_THRESHOLD_EUR = 15_000;
 /** Gas the refund wallet's own transactions use (approve, reverse swap, surplus transfer), with margin. */
 const REFUND_WALLET_GAS_UNITS = 400_000n;
 const MAX_ATTEMPTS = 5;
-const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 const EURE_DECIMALS = 18;
 const USDC_DECIMALS = 6;
 const BPS = 10_000n;
@@ -582,10 +581,6 @@ export async function driveRecovery(
     case MoneriumRecoveryPhase.Redeemed:
       return;
   }
-}
-
-function errorText(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
 /**

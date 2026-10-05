@@ -3,9 +3,8 @@ import { QueryTypes } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
-import { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
 import { isKeeperChainConfigured } from "../services/monerium-b2b/chain";
-import { runConversionExecutor } from "../services/monerium-b2b/conversion-executor";
+import { runConversionExecutor, SETTLING_STATUSES } from "../services/monerium-b2b/conversion-executor";
 import { processMoneriumWebhookInbox, pruneProcessedWebhookEvents } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-events";
@@ -112,13 +111,7 @@ class MoneriumB2bWorker {
        WHERE status IN (:settling)
          AND block_number IS NOT NULL`,
       {
-        replacements: {
-          settling: [
-            MoneriumFiatDepositStatus.Minted,
-            MoneriumFiatDepositStatus.Converting,
-            MoneriumFiatDepositStatus.Recovering
-          ]
-        },
+        replacements: { settling: SETTLING_STATUSES },
         type: QueryTypes.SELECT
       }
     );

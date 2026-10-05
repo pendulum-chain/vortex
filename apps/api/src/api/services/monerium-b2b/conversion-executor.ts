@@ -58,7 +58,7 @@ const RETRY_BASE_MS = 60_000;
 const RETRY_MAX_MS = 60 * 60_000;
 
 /** How long one cycle waits for the receipt before deferring to the next cycle. */
-const RECEIPT_TIMEOUT_MS = 3 * 60_000;
+export const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 
 /**
  * A nonce-less pending row is a live pre-send reservation until this deadline. The
@@ -74,7 +74,7 @@ const RECOVERY_LOG_BLOCK_RANGE = 2000n;
 const RECOVERY_ELIGIBILITY_MARGIN_MS = 30_000;
 
 /** Deposit states the keeper still has work for. */
-const SETTLING_STATUSES = [
+export const SETTLING_STATUSES = [
   MoneriumFiatDepositStatus.Minted,
   MoneriumFiatDepositStatus.Converting,
   MoneriumFiatDepositStatus.Recovering
@@ -326,7 +326,7 @@ async function settlingDeposits(accountId: string, transaction?: Transaction): P
 
 // ------------------------------------------------------------------ finalization
 
-function errorText(error: unknown): string {
+export function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
