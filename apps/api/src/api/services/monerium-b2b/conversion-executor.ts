@@ -269,11 +269,8 @@ export function planChunk(remaining: bigint, minSwapAmount: bigint, perSwapCap: 
 // ------------------------------------------------------------------ deposit bookkeeping
 
 export interface DepositSettlementState {
-  /** Confirmed chunk swaps of the deposit, oldest first. */
-  swaps: MoneriumConversionExecution[];
   /** When the newest confirmed chunk settled: the next chunk's clock starts here. */
   lastSwapAt: Date | null;
-  convertedEureRaw: bigint;
   remainingEureRaw: bigint;
   /** Sum of the confirmed chunks' net USDC: what a forward or a recovery moves. */
   usdcNetRaw: bigint;
@@ -291,7 +288,7 @@ export function settlementState(
     (latest, swap) => (swap.updatedAt && (!latest || swap.updatedAt > latest) ? swap.updatedAt : latest),
     null
   );
-  return { convertedEureRaw, lastSwapAt, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, swaps, usdcNetRaw };
+  return { lastSwapAt, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, usdcNetRaw };
 }
 
 async function loadSettlementState(deposit: MoneriumFiatDeposit, transaction?: Transaction): Promise<DepositSettlementState> {
@@ -731,7 +728,6 @@ export type PlannedSwap =
       kind: "ready";
       /** The tier cap in USDC (6 decimals): the `maxSubsidy` argument of the swap. */
       maxSubsidyRaw: bigint;
-      projection: SwapProjection | null;
       reference: ReferenceQuote;
       routeIndex: number;
     };
@@ -803,7 +799,7 @@ export async function pricePlannedSwap(
     return deferSwap("no_route", "the factory has no enabled swap route");
   }
   if ((await getChainId()) !== 1) {
-    return { kind: "ready", maxSubsidyRaw, projection: null, reference, routeIndex: routes[0].index };
+    return { kind: "ready", maxSubsidyRaw, reference, routeIndex: routes[0].index };
   }
   const quotes = await quoteRoutes(routes, amountIn);
   if (quotes.length === 0) {
@@ -836,7 +832,7 @@ export async function pricePlannedSwap(
     `monerium-b2b: priced swap of ${amountIn} on route ${best.index}: quoted ${best.quotedOut}, ` +
       `reference ${reference.price}, fee ${projection.fee}, subsidy ${projection.subsidy}, tier ${maxSubsidyBps} bps`
   );
-  return { kind: "ready", maxSubsidyRaw, projection, reference, routeIndex: best.index };
+  return { kind: "ready", maxSubsidyRaw, reference, routeIndex: best.index };
 }
 
 // ------------------------------------------------------------------ action planning
