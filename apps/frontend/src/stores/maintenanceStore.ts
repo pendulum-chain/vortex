@@ -14,7 +14,8 @@ interface MaintenanceStore {
   reset: () => void;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+// Below the hook's 5-minute poll: lastFetched lands after the response, so an equal window skips every other poll.
+const CACHE_DURATION = 60 * 1000;
 
 export const useMaintenanceStore = create<MaintenanceStore>((set, get) => ({
   clearError: () => set({ error: null }),
