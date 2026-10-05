@@ -46,7 +46,7 @@ const wagmiAdapter = new WagmiAdapter({
 // AppKit registers custom elements and a browser-global modal singleton, so it must not run
 // during prerender: `__root.tsx` imports this module for `wagmiConfig`, which would otherwise
 // drag the whole modal into the server bundle for every marketing page. Every consumer of the
-// AppKit hooks (EVMWalletButton, SwapSubmitButton, QuoteSubmitButtons) lives under the widget
+// AppKit hooks (EVMWalletButton, QuoteSubmitButtons) lives under the widget
 // route, which is `ssr: false`, so they only ever render after this has run in the browser.
 if (typeof window !== "undefined") {
   createAppKit({

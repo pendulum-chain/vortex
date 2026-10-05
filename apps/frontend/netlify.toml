@@ -25,3 +25,15 @@
   # apps/gold or the shared/sdk packages would be skipped as "no content change". Build when
   # any input of this site changed (paths are relative to the base directory).
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../gold ../../packages/shared ../../packages/sdk"
+
+# Gold signs Ethereum transactions and collects PIX keys and KYC data, so it must not be framed
+# by other sites (clickjacking) and keeps the baseline headers of its standalone release
+# (gold.satoshipay.io). Scoped to Gold so the rest of the site, e.g. the widget, is unchanged.
+[[headers]]
+  for = "/pt-br/gold/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"

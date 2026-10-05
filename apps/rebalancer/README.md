@@ -16,9 +16,8 @@ ALCHEMY_API_KEY=your_alchemy_api_key
 EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
 ```
 
-Only the Base rebalancing flows are executable. The historical Pendulum/Moonbeam implementation and state schema remain
-in the repository for inspection and compatibility, but the CLI rejects `--legacy` before loading runtime configuration or
-connecting to a chain.
+Only the Base rebalancing flows exist. The historical Pendulum/Moonbeam flow has been removed, and the CLI rejects
+`--legacy` before loading runtime configuration or connecting to a chain.
 
 For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
 `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.

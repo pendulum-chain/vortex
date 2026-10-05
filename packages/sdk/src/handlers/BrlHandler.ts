@@ -1,58 +1,12 @@
-import {
-  AccountMeta,
-  EphemeralAccount,
-  EphemeralAccountType,
-  PresignedTx,
-  RampDirection,
-  RampProcess,
-  RegisterRampRequest,
-  UnsignedTx,
-  UpdateRampRequest
-} from "@vortexfi/shared";
+import { RampDirection, RampProcess, UnsignedTx } from "@vortexfi/shared";
 import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors.js";
-import type { ApiService } from "../services/ApiService.js";
-import type {
-  BrlOfframpAdditionalData,
-  BrlOfframpUpdateAdditionalData,
-  BrlOnrampAdditionalData,
-  RampHandler,
-  VortexSdkContext
-} from "../types.js";
+import type { BrlOfframpAdditionalData, BrlOfframpUpdateAdditionalData, BrlOnrampAdditionalData } from "../types.js";
+import { BaseRampHandler } from "./BaseRampHandler.js";
 
-export class BrlHandler implements RampHandler {
-  private apiService: ApiService;
-  private context: VortexSdkContext;
-  private generateEphemerals: () => Promise<{
-    ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
-    accountMetas: AccountMeta[];
-  }>;
-  private signTransactions: (
-    unsignedTxs: UnsignedTx[],
-    ephemerals: {
-      substrateEphemeral?: EphemeralAccount;
-      evmEphemeral?: EphemeralAccount;
-    }
-  ) => Promise<PresignedTx[]>;
-
-  constructor(
-    apiService: ApiService,
-    context: VortexSdkContext,
-    generateEphemerals: () => Promise<{
-      ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount };
-      accountMetas: AccountMeta[];
-    }>,
-    signTransactions: (
-      unsignedTxs: UnsignedTx[],
-      ephemerals: {
-        substrateEphemeral?: EphemeralAccount;
-        evmEphemeral?: EphemeralAccount;
-      }
-    ) => Promise<PresignedTx[]>
-  ) {
-    this.apiService = apiService;
-    this.context = context;
-    this.generateEphemerals = generateEphemerals;
-    this.signTransactions = signTransactions;
+export class BrlHandler extends BaseRampHandler {
+  // BRL presigns every transaction the backend returns, not only the ephemeral-owned ones.
+  protected selectTransactionsToSign(unsignedTxs: UnsignedTx[]): UnsignedTx[] {
+    return unsignedTxs;
   }
 
   async registerBrlOnramp(quoteId: string, additionalData: BrlOnrampAdditionalData): Promise<RampProcess> {
@@ -61,35 +15,10 @@ export class BrlHandler implements RampHandler {
 
     await this.assertWithinBrlLimit(taxId, quoteId, RampDirection.BUY);
 
-    const { ephemerals, accountMetas } = await this.generateEphemerals();
-
-    const registerRequest: RegisterRampRequest = {
-      additionalData: {
-        destinationAddress: additionalData.destinationAddress,
-        taxId: taxId || undefined
-      },
-      quoteId,
-      signingAccounts: accountMetas
-    };
-
-    const rampProcess = await this.apiService.registerRamp(registerRequest);
-
-    await this.context.storeEphemerals(ephemerals, rampProcess.id);
-
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
-      evmEphemeral: ephemerals.EVM,
-      substrateEphemeral: ephemerals.Substrate
+    return this.registerAndPresign(quoteId, {
+      destinationAddress: additionalData.destinationAddress,
+      taxId: taxId || undefined
     });
-
-    const updateRequest: UpdateRampRequest = {
-      additionalData: {},
-      presignedTxs: signedTxs,
-      rampId: rampProcess.id
-    };
-
-    const updatedRampProcess = await this.apiService.updateRamp(updateRequest);
-
-    return updatedRampProcess;
   }
 
   async registerBrlOfframp(quoteId: string, additionalData: BrlOfframpAdditionalData): Promise<RampProcess> {
@@ -99,59 +28,16 @@ export class BrlHandler implements RampHandler {
     await this.assertValidPixKey(additionalData.pixDestination);
     await this.assertWithinBrlLimit(taxId, quoteId, RampDirection.SELL);
 
-    const { ephemerals, accountMetas } = await this.generateEphemerals();
-
-    const registerRequest: RegisterRampRequest = {
-      additionalData: {
-        pixDestination: additionalData.pixDestination,
-        receiverTaxId: receiverTaxId || undefined,
-        taxId: taxId || undefined,
-        walletAddress: additionalData.walletAddress
-      },
-      quoteId,
-      signingAccounts: accountMetas
-    };
-
-    const rampProcess = await this.apiService.registerRamp(registerRequest);
-
-    await this.context.storeEphemerals(ephemerals, rampProcess.id);
-
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
-      evmEphemeral: ephemerals.EVM,
-      substrateEphemeral: ephemerals.Substrate
+    return this.registerAndPresign(quoteId, {
+      pixDestination: additionalData.pixDestination,
+      receiverTaxId: receiverTaxId || undefined,
+      taxId: taxId || undefined,
+      walletAddress: additionalData.walletAddress
     });
-
-    const updateRequest: UpdateRampRequest = {
-      additionalData: {},
-      presignedTxs: signedTxs,
-      rampId: rampProcess.id
-    };
-
-    const updatedRampProcess = await this.apiService.updateRamp(updateRequest);
-
-    return updatedRampProcess;
   }
 
   async updateBrlOfframp(rampId: string, additionalData: BrlOfframpUpdateAdditionalData): Promise<RampProcess> {
-    const rampProcess = await this.apiService.getRampStatus(rampId);
-    if (rampProcess.currentPhase !== "initial") {
-      throw new Error(
-        `Invalid ramp id. Ramp must be on initial phase to be updated. Current phase: ${rampProcess.currentPhase}`
-      );
-    }
-
-    const updateRequest: UpdateRampRequest = {
-      additionalData: {
-        assethubToPendulumHash: additionalData.assethubToPendulumHash,
-        squidRouterApproveHash: additionalData.squidRouterApproveHash,
-        squidRouterSwapHash: additionalData.squidRouterSwapHash
-      },
-      presignedTxs: [], // Presigned transactions are sent during the initial update, on the registerBrlOfframp of this class.
-      rampId: rampProcess.id
-    };
-
-    const updatedRampProcess = await this.apiService.updateRamp(updateRequest);
-    return updatedRampProcess;
+    return this.updateOfframp(rampId, additionalData);
   }
 
   private async assertValidPixKey(pixKey: string): Promise<void> {

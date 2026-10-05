@@ -10,9 +10,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "paths": {
-      "@packages/*": ["../../packages/*/src"]
-    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,

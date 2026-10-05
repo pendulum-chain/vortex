@@ -364,8 +364,8 @@ provider-shaped rather than UI-shaped.
   #2 stops at "onboarded", not "payable". The product and provider contract must define how
   payout instruments are created for both senders creating links and recipients redeeming them,
   while keeping raw bank PII provider-side.
-- The notification feed rendered in the dashboard shell is still client-mocked even though
-  `/v1/notifications` exists; wiring it up is listed under next steps. The Settings email
+- The dashboard has no in-app notification feed; corridor and transfer outcomes surface as
+  toasts only, even though `/v1/notifications` exists. The Settings email
   preference toggles are wired to `/v1/notifications/preferences`: "Onboarding updates" maps to
   the three `verification_*` types and "Transfer status" to `ramp_completed`, the stored type
   strings the email dispatch worker consults at delivery time (shared `EmailNotificationType`
@@ -376,7 +376,7 @@ provider-shaped rather than UI-shaped.
 
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
-- Connect the dashboard notification feed to the backend.
+- Add a dashboard notification feed backed by `/v1/notifications`.
 - Consider persisting intended corridor selection independently of provider entities. A small
   backend table could support adding/removing tracked corridors and explicit status management;
   provider-created entities remain the authoritative persisted onboarding state meanwhile.

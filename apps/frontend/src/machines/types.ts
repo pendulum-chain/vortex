@@ -1,7 +1,7 @@
 import { WalletAccount } from "@talismn/connect-wallets";
 import type { MoneriumOAuthCallback } from "@vortexfi/kyc";
 import { AlfredpayKycContext, AveniaKycContext } from "@vortexfi/kyc";
-import { FiatToken, PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import { FiatToken, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ActorRef, ActorRefFrom, Snapshot, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -19,13 +19,11 @@ export interface RampContext {
   /** Monerium OAuth callback (`?code&state` or `?error`) waiting for the restored KYC child. */
   moneriumCallback?: MoneriumOAuthCallback;
   connectedWalletAddress: string | undefined; // The address of the connected wallet (EVM or Substrate)
-  authToken?: string;
   chainId: number | undefined;
   executionInput: RampExecutionInput | undefined;
   getMessageSignature: GetMessageSignatureCallback | undefined;
   initializeFailedMessage: string | undefined;
   isQuoteExpired: boolean;
-  paymentData?: PaymentData;
   apiKey?: string;
   partnerId?: string;
   quote: QuoteResponse | undefined;
@@ -41,7 +39,6 @@ export interface RampContext {
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
-  isQuoteRedo?: boolean;
   errorMessage?: string;
   kycFormData?: KYCFormData;
   enteredViaForm?: boolean; // True if user navigated from the Quote form, false if entered via direct URL
@@ -49,8 +46,6 @@ export interface RampContext {
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
-  isAuthLoading?: boolean;
-  alfredpayCustomer?: unknown;
   postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
   // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
   kybLink?: {
@@ -70,13 +65,11 @@ export type RampMachineEvents =
   | { type: "SET_ADDRESS"; address: string | undefined }
   | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
-  | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
   | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined; current?: number; max?: number }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }
-  | { type: "RESET_RAMP_CALLBACK" }
   | { type: "FINISH_OFFRAMPING" }
   | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
   | { type: "PROCEED_TO_REGISTRATION"; selectedFiatAccountId?: string }
@@ -90,17 +83,12 @@ export type RampMachineEvents =
   | { type: "REFRESH_FAILED" }
   // Auth events
   | { type: "ENTER_EMAIL"; email: string }
-  | { type: "CHANGE_EMAIL" }
-  | { type: "EMAIL_VERIFIED" }
-  | { type: "OTP_SENT" }
   | { type: "VERIFY_OTP"; code: string }
   | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
-  | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
   | { type: "GO_BACK" }
   | { type: "START_KYB_LINK"; invite?: string; region?: string; locked?: boolean }
   | { type: "MONERIUM_CALLBACK"; callback: MoneriumOAuthCallback }
-  | { type: "MONERIUM_REFRESH" }
   | { type: "RETRY_INVITE" }
   | { type: "SELECT_REGION"; fiatToken: FiatToken };
 

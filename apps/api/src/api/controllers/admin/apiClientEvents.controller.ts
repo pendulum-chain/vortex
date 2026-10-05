@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import { Op, WhereOptions } from "sequelize";
 import logger from "../../../config/logger";
 import ApiClientEvent, { ApiClientEventAttributes } from "../../../models/apiClientEvent.model";
+import { sendError } from "../../helpers/sendError";
 import { ApiClientErrorType, ApiClientEventStatus, ApiClientOperation } from "../../observability/types";
 
 type ApiClientEventsQuery = {
@@ -146,12 +147,6 @@ export async function listApiClientEvents(
     });
   } catch (error) {
     logger.error("Error listing API client events:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to list API client events",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list API client events");
   }
 }

@@ -4,7 +4,6 @@ import { LocalStorageKeys } from "../hooks/useLocalStorage";
 import { useVortexAccount } from "../hooks/useVortexAccount";
 import { storageService } from "../services/storage/local";
 import { useInputAmount } from "../stores/quote/useQuoteFormStore";
-import { RampState } from "../types/phases";
 import { useNetwork } from "./network";
 
 declare global {
@@ -13,26 +12,11 @@ declare global {
   }
 }
 
-const UNIQUE_EVENT_TYPES: TrackableEvent["event"][] = [
-  "click_details",
-  "click_support",
-  "transaction_confirmation",
-  "kyc_started",
-  "kyc_completed",
-  "signing_requested",
-  "transaction_signed",
-  "transaction_success",
-  "transaction_failure",
-  "email_submission"
-];
+const UNIQUE_EVENT_TYPES: TrackableEvent["event"][] = ["transaction_failure", "email_submission"];
 
 export interface AmountTypeEvent {
   event: "amount_type";
   input_amount: string;
-}
-
-export interface ClickDetailsEvent {
-  event: "click_details";
 }
 
 export interface WalletConnectEvent {
@@ -51,7 +35,7 @@ export interface RampParameters {
 }
 
 export type TransactionEvent = RampParameters & {
-  event: "transaction_confirmation" | "kyc_started" | "kyc_completed" | "transaction_success" | "transaction_failure";
+  event: "transaction_failure";
 };
 
 export type TransactionFailedEvent = RampParameters & {
@@ -74,23 +58,8 @@ export interface ProgressEvent {
   phase_index: number;
 }
 
-export interface SigningRequestedEvent {
-  event: "signing_requested";
-  index: number;
-}
-
-export interface TransactionSignedEvent {
-  event: "transaction_signed";
-  index: number;
-}
-
 export interface EmailSubmissionEvent {
   event: "email_submission";
-  transaction_status: "success" | "failure";
-}
-
-export interface ClickSupportEvent {
-  event: "click_support";
   transaction_status: "success" | "failure";
 }
 
@@ -128,16 +97,12 @@ type InitializationErrorMessage =
 
 export type TrackableEvent =
   | AmountTypeEvent
-  | ClickDetailsEvent
   | WalletConnectEvent
   | TransactionEvent
   | TransactionFailedEvent
   | CompareQuoteEvent
-  | ClickSupportEvent
   | FormErrorEvent
   | EmailSubmissionEvent
-  | SigningRequestedEvent
-  | TransactionSignedEvent
   | ProgressEvent
   | NetworkChangeEvent
   | InitializationErrorEvent
@@ -196,10 +161,6 @@ const useEvents = () => {
     }
 
     window.dataLayer.push(event);
-  }, []);
-
-  const resetUniqueEvents = useCallback(() => {
-    trackedEventTypes.current = new Set();
   }, []);
 
   // Schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
@@ -301,7 +262,6 @@ const useEvents = () => {
   }, [inputAmount, selectedNetwork, address, trackEvent]);
 
   return {
-    resetUniqueEvents,
     schedulePrice,
     trackEvent
   };
@@ -321,18 +281,4 @@ export function EventsProvider({ children }: PropsWithChildren) {
   const useEventsResult = useEvents();
 
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
-}
-
-export function createTransactionEvent(type: TransactionEvent["event"], state: RampState) {
-  return {
-    event: type,
-    from_amount: state.quote.inputAmount,
-    from_asset: state.quote.inputCurrency,
-    to_amount: state.quote.outputAmount,
-    to_asset: state.quote.outputCurrency
-  };
-}
-
-export function clearPersistentErrorEventStore() {
-  storageService.remove(LocalStorageKeys.FIRED_INITIALIZATION_EVENTS);
 }

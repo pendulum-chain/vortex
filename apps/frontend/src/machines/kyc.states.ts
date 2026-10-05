@@ -227,9 +227,6 @@ export const kycStateNode = {
           }),
           reenter: true,
           target: "Monerium"
-        },
-        MONERIUM_REFRESH: {
-          actions: sendTo("moneriumKyc", { type: "REFRESH" })
         }
       }
     },

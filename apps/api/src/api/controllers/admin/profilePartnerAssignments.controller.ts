@@ -6,6 +6,7 @@ import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import ProfilePartnerAssignment, { ProfilePartnerAssignmentAttributes } from "../../../models/profilePartnerAssignment.model";
 import User from "../../../models/user.model";
+import { sendError } from "../../helpers/sendError";
 
 const PROFILE_NOT_FOUND_AFTER_LOCK = "PROFILE_NOT_FOUND_AFTER_LOCK";
 
@@ -44,25 +45,13 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
     const { userId, partnerName, expiresAt } = req.body;
 
     if (!userId || typeof userId !== "string" || !partnerName || typeof partnerName !== "string") {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "INVALID_ASSIGNMENT_INPUT",
-          message: "userId and partnerName are required string fields",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "INVALID_ASSIGNMENT_INPUT", "userId and partnerName are required string fields");
       return;
     }
 
     const user = await User.findByPk(userId);
     if (!user) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "USER_NOT_FOUND",
-          message: "Profile was not found",
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "USER_NOT_FOUND", "Profile was not found");
       return;
     }
 
@@ -74,13 +63,7 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
     });
 
     if (!partner) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "PARTNER_NOT_FOUND",
-          message: `No active partners found with name: ${partnerName}`,
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "PARTNER_NOT_FOUND", `No active partners found with name: ${partnerName}`);
       return;
     }
 
@@ -124,46 +107,27 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
     });
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("expiresAt")) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "INVALID_EXPIRES_AT",
-          message: error.message,
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "INVALID_EXPIRES_AT", error.message);
       return;
     }
 
     if (error instanceof Error && error.message === PROFILE_NOT_FOUND_AFTER_LOCK) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "USER_NOT_FOUND",
-          message: "Profile was not found",
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "USER_NOT_FOUND", "Profile was not found");
       return;
     }
 
     if (error instanceof UniqueConstraintError) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "ASSIGNMENT_CONFLICT",
-          message: "An active assignment already exists for this profile. Please retry the request.",
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "ASSIGNMENT_CONFLICT",
+        "An active assignment already exists for this profile. Please retry the request."
+      );
       return;
     }
 
     logger.error("Error creating profile partner assignment:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create profile partner assignment",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create profile partner assignment");
   }
 }
 
@@ -194,13 +158,7 @@ export async function listProfilePartnerAssignments(
     });
   } catch (error) {
     logger.error("Error listing profile partner assignments:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to list profile partner assignments",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list profile partner assignments");
   }
 }
 
@@ -210,13 +168,7 @@ export async function revokeProfilePartnerAssignment(req: Request<{ assignmentId
     const assignment = await ProfilePartnerAssignment.findByPk(assignmentId);
 
     if (!assignment) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "ASSIGNMENT_NOT_FOUND",
-          message: "Profile partner assignment was not found",
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "ASSIGNMENT_NOT_FOUND", "Profile partner assignment was not found");
       return;
     }
 
@@ -224,12 +176,6 @@ export async function revokeProfilePartnerAssignment(req: Request<{ assignmentId
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error revoking profile partner assignment:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to revoke profile partner assignment",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to revoke profile partner assignment");
   }
 }

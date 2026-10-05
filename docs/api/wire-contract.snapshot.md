@@ -1269,15 +1269,6 @@ KycFailureReason: enum KycFailureReason { BIRTHDATE = "birthdate", FACE = "face"
 
 LimitsCorridor: "AR" | "BR" | "CO" | "MX" | "US"
 
-MoonbeamExecuteXcmRequest: {
-  id: string;
-  payload: string;
-}
-
-MoonbeamExecuteXcmResponse: {
-  hash: `0x${string}`;
-}
-
 MoonpayPriceResponse: {
   direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   provider: "moonpay";
@@ -1395,21 +1386,6 @@ PaymentMethodName: enum PaymentMethodName { ACH = "ACH", CBU = "CBU", PIX = "PIX
 PaymentMethodType: "buy" | "sell"
 
 PaymentMethodTypes: enum PaymentMethodTypes { BUY = "buy", SELL = "sell" }
-
-PendulumFundEphemeralErrorResponse: {
-  details?: string;
-  error: string;
-}
-
-PendulumFundEphemeralRequest: {
-  ephemeralAddress: string;
-  requiresGlmr?: boolean;
-}
-
-PendulumFundEphemeralResponse: {
-  data: undefined;
-  status: "success";
-}
 
 PresignedTx: {
   meta: {
@@ -2173,31 +2149,6 @@ SubmitContactRequest: {
 }
 
 SubmitContactResponse: {
-  message: string;
-}
-
-SubsidizeErrorResponse: {
-  details?: string;
-  error: string;
-}
-
-SubsidizePostSwapRequest: {
-  address: string;
-  amountRaw: string;
-  token: string;
-}
-
-SubsidizePostSwapResponse: {
-  message: string;
-}
-
-SubsidizePreSwapRequest: {
-  address: string;
-  amountRaw: string;
-  tokenToSubsidize: string;
-}
-
-SubsidizePreSwapResponse: {
   message: string;
 }
 

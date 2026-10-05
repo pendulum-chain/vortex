@@ -1,4 +1,4 @@
-import { isAuthRetryableFetchError, type User } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import logger from "../../../config/logger";
 import { supabase, supabaseAdmin } from "../../../config/supabase";
 
@@ -238,22 +238,5 @@ export class SupabaseAuthService {
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token
     };
-  }
-
-  /**
-   * Get user profile from Supabase
-   */
-  static async getUserProfile(userId: string): Promise<User> {
-    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data.user) {
-      throw new Error(`Supabase user ${userId} not found`);
-    }
-
-    return data.user;
   }
 }

@@ -47,7 +47,6 @@ const baseContext = {
     },
     sourceOrDestinationAddress: "0x2222222222222222222222222222222222222222"
   },
-  paymentData: undefined,
   userEmail: "user@example.com"
 } as unknown as RampContext;
 

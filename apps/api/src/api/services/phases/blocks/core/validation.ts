@@ -1,4 +1,4 @@
-import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@vortexfi/shared";
+import { FiatToken, getAnyFiatTokenDetails, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../config/logger";
@@ -8,7 +8,6 @@ import {
   ResolvedAlfredpayLimits,
   resolveAlfredpayQuoteLimits
 } from "../../../alfredpay/alfredpay.helpers";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { QuoteContext } from "../../../quote/core/types";
 import { requiresEvmPartnerPayout } from "./helpers";
 

@@ -5,6 +5,7 @@ import {
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   getNetworkFromDestination,
+  multiplyByPowerOfTen,
   Networks,
   PENDULUM_USDC_ASSETHUB,
   PENDULUM_USDC_AXL,
@@ -17,7 +18,6 @@ import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { findPartnerWithPricing } from "../../../partners/partner-pricing.service";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { getZenlinkIdForAsset } from "../../../zenlink";
 import { getTargetFiatCurrency } from "./helpers";
 

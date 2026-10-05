@@ -3,7 +3,6 @@ import type { AccountType, Corridor, CorridorId, OnboardingKind, OnboardingRoute
 
 export const CORRIDORS: Record<CorridorId, Corridor> = {
   AR: {
-    availability: "live",
     currency: "ARS",
     flag: "🇦🇷",
     id: "AR",
@@ -13,7 +12,6 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     recipientMethod: "ach"
   },
   BR: {
-    availability: "live",
     currency: "BRL",
     flag: "🇧🇷",
     id: "BR",
@@ -23,7 +21,6 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     recipientMethod: "pix"
   },
   CO: {
-    availability: "live",
     currency: "COP",
     flag: "🇨🇴",
     id: "CO",
@@ -33,7 +30,6 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     recipientMethod: "ach"
   },
   EU: {
-    availability: "live",
     currency: "EURC",
     flag: "🇪🇺",
     id: "EU",
@@ -43,7 +39,6 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     recipientMethod: "iban"
   },
   MX: {
-    availability: "live",
     currency: "MXN",
     flag: "🇲🇽",
     id: "MX",
@@ -53,7 +48,6 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     recipientMethod: "spei"
   },
   US: {
-    availability: "live",
     currency: "USD",
     flag: "🇺🇸",
     id: "US",
@@ -105,14 +99,4 @@ export function isOnboardingAvailable(corridor: Corridor, kind: OnboardingKind):
     return false;
   }
   return isCorridorAvailableForAccountType(corridor.id, kind === "kyb" ? "company" : "individual");
-}
-
-/**
- * Corridors whose onboarding is switched off. When one is, the corridor card replaces every
- * actionable button (start, continue, retry, re-authenticate) with a disabled, explanatory one
- * and the wizard refuses the corridor even via the `?onboarding=<id>` deep link. None today:
- * EU was off while the Monerium onramp was rebuilt and runs through Monerium OAuth again.
- */
-export function isCorridorOnboardingDisabled(_corridor: Corridor): boolean {
-  return false;
 }

@@ -3,13 +3,13 @@ import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import { sendError } from "../../helpers/sendError";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
 import { isForwardTransition, withForwarderLock } from "../../services/monerium-b2b/deposit-processor";
 import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function postMoneriumB2bAccount(req: Request, res: Response): Promise<void> {
   try {
@@ -36,14 +36,12 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
       (targetPpm !== undefined && typeof targetPpm !== "number") ||
       (floorPpm !== undefined && typeof floorPpm !== "number")
     ) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message:
-            "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, and destination are required; targetPpm and floorPpm must be numbers when present",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        "managerProfileId (UUID), moneriumProfileId, externalSubjectId (1-255 characters), contactEmail, forwarderAddress, and destination are required; targetPpm and floorPpm must be numbers when present"
+      );
       return;
     }
 
@@ -61,7 +59,7 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
   } catch (error) {
     if (error instanceof MoneriumB2bProvisioningError) {
       const status = error.code === "MONERIUM_B2B_INVALID_INPUT" ? httpStatus.BAD_REQUEST : httpStatus.CONFLICT;
-      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      sendError(res, status, error.code, error.message);
       return;
     }
     if (error instanceof ManagedProfileProvisioningError) {
@@ -71,18 +69,12 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
           : error.code === "MANAGED_PROFILE_MANAGER_NOT_FOUND"
             ? httpStatus.NOT_FOUND
             : httpStatus.BAD_REQUEST;
-      res.status(status).json({ error: { code: error.code, message: error.message, status } });
+      sendError(res, status, error.code, error.message);
       return;
     }
 
     logger.error("Error provisioning Monerium B2B account:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to provision Monerium B2B account",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to provision Monerium B2B account");
   }
 }
 
@@ -98,44 +90,39 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
   try {
     const { status } = req.body ?? {};
     if (!UUID_PATTERN.test(req.params.accountId) || typeof status !== "string" || !STATUS_VALUES.includes(status)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message: `accountId must be a UUID and status must be one of ${STATUS_VALUES.join(", ")}`,
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `accountId must be a UUID and status must be one of ${STATUS_VALUES.join(", ")}`
+      );
       return;
     }
 
     const account = await MoneriumAccount.findByPk(req.params.accountId);
     if (!account) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND", message: "Monerium account not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "Monerium account not found");
       return;
     }
     const targetStatus = status as MoneriumAccountStatus;
     if (targetStatus !== account.status && !STATUS_TRANSITIONS[account.status].includes(targetStatus)) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
-          message: `Monerium account cannot transition from ${account.status} to ${targetStatus}`,
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
+        `Monerium account cannot transition from ${account.status} to ${targetStatus}`
+      );
       return;
     }
     // Activation requires the issued IBAN: the client cannot pay in without it, and the
     // association monitor needs the reference state.
     if (status === MoneriumAccountStatus.Active && account.iban === null) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "MONERIUM_B2B_ACCOUNT_NOT_READY",
-          message: "The account has no issued IBAN yet and cannot be activated",
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_ACCOUNT_NOT_READY",
+        "The account has no issued IBAN yet and cannot be activated"
+      );
       return;
     }
 
@@ -145,13 +132,7 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
     res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
   } catch (error) {
     logger.error("Error updating Monerium B2B account status:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to update Monerium B2B account status",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update Monerium B2B account status");
   }
 }
 
@@ -164,34 +145,22 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
 export async function postMoneriumB2bDepositRecovery(req: Request<{ depositId: string }>, res: Response): Promise<void> {
   try {
     if (!UUID_PATTERN.test(req.params.depositId)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: { code: "MONERIUM_B2B_INVALID_INPUT", message: "depositId must be a UUID", status: httpStatus.BAD_REQUEST }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "depositId must be a UUID");
       return;
     }
     // Partner-visible reason (DEPOSIT_UPDATED refund.reason); a missed window is marked by the deadline job.
     const reason = req.body?.reason ?? "operator";
     if (!["compliance", "incident", "operator"].includes(reason)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message: "reason must be compliance, incident or operator",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "reason must be compliance, incident or operator");
       return;
     }
     const refusal = await markDepositForRecovery(req.params.depositId, reason);
     if (refusal === "deposit not found") {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "MONERIUM_B2B_DEPOSIT_NOT_FOUND", message: "Monerium deposit not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_DEPOSIT_NOT_FOUND", "Monerium deposit not found");
       return;
     }
     if (refusal) {
-      res.status(httpStatus.CONFLICT).json({
-        error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION", message: refusal, status: httpStatus.CONFLICT }
-      });
+      sendError(res, httpStatus.CONFLICT, "MONERIUM_B2B_INVALID_STATUS_TRANSITION", refusal);
       return;
     }
     res
@@ -199,13 +168,7 @@ export async function postMoneriumB2bDepositRecovery(req: Request<{ depositId: s
       .json({ deposit: { depositId: req.params.depositId, status: MoneriumFiatDepositStatus.Recovering } });
   } catch (error) {
     logger.error("Error marking Monerium B2B deposit for recovery:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to mark the deposit for recovery",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to mark the deposit for recovery");
   }
 }
 
@@ -224,27 +187,22 @@ export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: st
   try {
     const { status } = req.body ?? {};
     if (!UUID_PATTERN.test(req.params.depositId) || typeof status !== "string" || !OPERATOR_DEPOSIT_STATUSES.includes(status)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message: `depositId must be a UUID and status must be one of ${OPERATOR_DEPOSIT_STATUSES.join(", ")}`,
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `depositId must be a UUID and status must be one of ${OPERATOR_DEPOSIT_STATUSES.join(", ")}`
+      );
       return;
     }
     const deposit = await MoneriumFiatDeposit.findByPk(req.params.depositId);
     if (!deposit) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "MONERIUM_B2B_DEPOSIT_NOT_FOUND", message: "Monerium deposit not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_DEPOSIT_NOT_FOUND", "Monerium deposit not found");
       return;
     }
     const account = await MoneriumAccount.findByPk(deposit.accountId);
     if (!account) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: { code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND", message: "Monerium account not found", status: httpStatus.NOT_FOUND }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "Monerium account not found");
       return;
     }
     const targetStatus = status as MoneriumFiatDepositStatus;
@@ -258,21 +216,13 @@ export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: st
       return "updated";
     });
     if (outcome !== "updated" && outcome !== "same") {
-      res.status(httpStatus.CONFLICT).json({
-        error: { code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION", message: outcome, status: httpStatus.CONFLICT }
-      });
+      sendError(res, httpStatus.CONFLICT, "MONERIUM_B2B_INVALID_STATUS_TRANSITION", outcome);
       return;
     }
     res.status(httpStatus.OK).json({ deposit: { depositId: deposit.id, status: targetStatus } });
   } catch (error) {
     logger.error("Error updating Monerium B2B deposit status:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to update Monerium B2B deposit status",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update Monerium B2B deposit status");
   }
 }
 
@@ -284,9 +234,7 @@ export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: st
 export async function getMoneriumB2bRefundAddress(req: Request, res: Response): Promise<void> {
   const moneriumProfileId = req.query.moneriumProfileId;
   if (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId)) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: { code: "MONERIUM_B2B_INVALID_INPUT", message: "moneriumProfileId must be a UUID", status: httpStatus.BAD_REQUEST }
-    });
+    sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "moneriumProfileId must be a UUID");
     return;
   }
   try {
@@ -294,12 +242,6 @@ export async function getMoneriumB2bRefundAddress(req: Request, res: Response): 
     res.status(httpStatus.OK).json({ moneriumProfileId: profileId, refundAddress: refundAccountFor(profileId).address });
   } catch (error) {
     logger.error("Error deriving a Monerium B2B refund address:", error);
-    res.status(httpStatus.SERVICE_UNAVAILABLE).json({
-      error: {
-        code: "MONERIUM_B2B_NOT_CONFIGURED",
-        message: "MONERIUM_B2B_REFUND_SEED is not configured",
-        status: httpStatus.SERVICE_UNAVAILABLE
-      }
-    });
+    sendError(res, httpStatus.SERVICE_UNAVAILABLE, "MONERIUM_B2B_NOT_CONFIGURED", "MONERIUM_B2B_REFUND_SEED is not configured");
   }
 }

@@ -26,12 +26,6 @@ class WebhookOutboxWorker {
     this.reconcileJob.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping webhook outbox worker");
-    this.dispatchJob.stop();
-    this.reconcileJob.stop();
-  }
-
   private async dispatchCycle(): Promise<void> {
     if (this.running) return;
     this.running = true;

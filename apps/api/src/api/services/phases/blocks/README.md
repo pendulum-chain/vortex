@@ -96,13 +96,11 @@ apps/api/src/api/services/phases/blocks/
     io.ts                                      # typed fiat/EVM/AssetHub request resolvers, evmIO
     metadata.ts                                # simulation context descriptors and accessors
     flow.ts                                    # FlowBuilder + metadata accumulation
-    combinators.ts                             # branch(), passthrough()
     fees.ts                                    # computeFees(ctx)
     phase-flow.ts                              # assemblePhaseFlow(flow) -> RampPhase[]
     prepare.ts                                 # nonce allocation + native prefunding aggregation
     quote.ts                                   # production simulation, validation, persistence
     quote-response.ts                          # public response from flow metadata
-    register.ts                                # persisted-flow assertion/preparation adapter
     settlement.ts                              # structural settlement baseline helpers
   flows/catalog.ts                             # authoritative request -> flow mapping
   register-handlers.ts                         # catalog-derived executor registration
@@ -373,15 +371,6 @@ subsidy, settlement, delivery) into the flow explicitly. Verbosity in flow
 definitions is the deliberate tradeoff: a corridor's full execution shape
 is readable top-to-bottom in one file.
 
-### `branch()` and `passthrough()` (`core/combinators.ts`)
-
-Kept as available primitives but **not relied upon**: destination variants
-are expressed as a flow *family* (a factory over brands) rather than
-runtime branches. Reach for `branch` only when a flow genuinely needs to
-fork at simulate time; prefer separate flows otherwise. Note `branch`'s
-static `phases` union is only valid when all branches expand to the same
-`RampPhase` list.
-
 ### Representative phase catalog
 
 Every step in a corridor — including the "bookend" steps (funding, fee
@@ -569,8 +558,6 @@ declared signature bridges them.
 | `SubsidizePost<Token, Chain>()` | type-args only | ctx-derived |
 | `FinalSettlementSubsidy<Token, Chain>()` | type-args only | ctx-derived |
 | `DestinationTransfer<Token, Chain>()` | type-args only | pure passthrough in simulation |
-| `passthrough<Token, Chain>()` | type-args only | pure no-op |
-| `branch<I, O>(select, branches)` | generic function | runtime decision point |
 
 **Brands are always enum member types** (`typeof EvmToken.BRLA`,
 `typeof Networks.Base`), never plain string literals — keep this consistent

@@ -2,7 +2,6 @@ export * from "./axelar";
 export * from "./config";
 export * from "./offramp";
 export * from "./onramp";
-export * from "./payload";
 export * from "./route";
 export * from "./route-cache";
 export * from "./route-params";
