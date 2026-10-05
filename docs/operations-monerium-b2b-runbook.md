@@ -547,19 +547,15 @@ fixtures:
 | `TRIGGER_DELAY` | 24 hours |
 | Initial route | EURe → EURC → USDC, 500 / 500 (packed path constructor argument) |
 | `RECOVERY_HASH` | `bytes32(0)` |
-| `MIN_SWAP_FLOOR` | `25e18` |
+| `MIN_SWAP_FLOOR` | `1e18` |
 | `CAP_CEILING` | `50000e18` |
-| Initial `minSwapAmount` | `250e18` |
-| Initial `perSwapCap` | `25000e18` |
+| Initial `minSwapAmount` | `1e18` |
+| Initial `perSwapCap` | `10000e18` |
 
-After deployment, register Anvil account 1 as a keeper and lower the mutable minimum to
-the immutable 25 EURe floor for this exercise:
+After deployment, register Anvil account 1 as a keeper:
 
 ```bash
 cast send "$FACTORY" "setKeeper(address,bool)" "$KEEPER" true \
-  --private-key "$GUARDIAN_KEY" --rpc-url http://127.0.0.1:8545
-
-cast send "$FACTORY" "setMinSwapAmount(uint256)" 25000000000000000000 \
   --private-key "$GUARDIAN_KEY" --rpc-url http://127.0.0.1:8545
 ```
 
@@ -574,7 +570,7 @@ mapping verifies it). Use a fresh salt and record the predicted address and rece
 Read back `destination()`, `recoveryAddress()`,
 `targetPpm()`, `floorPpm()`, and `FACTORY()`, then require
 `factory.isForwarder(forwarder) == true` before continuing. The keeper computes its
-reference from live Coinbase candles before each swap, so the backend needs outbound
+reference from the live Coinbase ticker before each swap, so the backend needs outbound
 HTTPS during the run.
 
 ### 7.4 Create the local account fixture
