@@ -13,9 +13,6 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "paths": {
-      "@packages/*": ["../../packages/*/src"]
-    },
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",

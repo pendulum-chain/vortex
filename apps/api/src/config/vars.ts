@@ -176,8 +176,6 @@ interface Config {
   demoProviderEnabled: boolean;
   flowVariant: FlowVariant;
   port: string | number;
-  amplitudeWss: string;
-  pendulumWss: string;
   rateLimitMaxRequests: string | number;
   rateLimitWindowMinutes: string | number;
   rateLimitNumberOfProxies: string | number;
@@ -311,7 +309,6 @@ interface Config {
 
   sandboxEnabled: boolean;
   rampWidgetUrl: string;
-  backendTestStarterAccount: string | undefined;
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
@@ -350,8 +347,6 @@ export function parseSubsidyLadder(raw: string | undefined): Array<{ afterSecond
 
 export const config: Config = {
   adminSecret: process.env.ADMIN_SECRET || "",
-  amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
-  backendTestStarterAccount: process.env.BACKEND_TEST_STARTER_ACCOUNT,
   database: {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
@@ -439,7 +434,6 @@ export const config: Config = {
   mykobo: {
     feeFallback: readMykoboFeeFallback()
   },
-  pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
     alchemyPay: {

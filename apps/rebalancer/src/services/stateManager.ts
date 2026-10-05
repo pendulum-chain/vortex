@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import Big from "big.js";
 import { getConfig } from "../utils/config";
 
 export class StateManager<T> {
@@ -51,100 +50,6 @@ export class StateManager<T> {
     if (error) {
       throw error;
     }
-  }
-}
-
-// --- BRLA-to-axlUSDC (Pendulum) rebalance flow ---
-
-export enum RebalancePhase {
-  Idle = "idle",
-  CheckInitialPendulumBalance = "checkInitialPendulumBalance",
-  SwapAxlusdcToBrla = "swapAxlusdcToBrla",
-  SendBrlaToMoonbeam = "sendBrlaToMoonbeam",
-  PollForSufficientBalance = "pollForSufficientBalance",
-  SwapBrlaToUsdcOnBrlaApiService = "swapBrlaToUsdcOnBrlaApiService",
-  TransferUsdcToMoonbeamWithSquidrouter = "transferUsdcToMoonbeamWithSquidrouter",
-  TriggerXcmFromMoonbeam = "triggerXcmFromMoonbeam",
-  WaitForAxlUsdcOnPendulum = "waitForAxlUsdcOnPendulum"
-}
-
-export const phaseOrder: Record<RebalancePhase, number> = {
-  [RebalancePhase.Idle]: 0,
-  [RebalancePhase.CheckInitialPendulumBalance]: 1,
-  [RebalancePhase.SwapAxlusdcToBrla]: 2,
-  [RebalancePhase.SendBrlaToMoonbeam]: 3,
-  [RebalancePhase.PollForSufficientBalance]: 4,
-  [RebalancePhase.SwapBrlaToUsdcOnBrlaApiService]: 5,
-  [RebalancePhase.TransferUsdcToMoonbeamWithSquidrouter]: 6,
-  [RebalancePhase.TriggerXcmFromMoonbeam]: 7,
-  [RebalancePhase.WaitForAxlUsdcOnPendulum]: 8
-};
-
-export interface RebalanceState {
-  squidRouterReceiverId: string | null;
-  currentPhase: RebalancePhase;
-  initialBalance: string | null;
-  usdcAmountRaw: string | null;
-  amountAxlUsdc: string | null;
-  brlaAmount: string | null;
-  brlaToUsdcAmountUsd: string | null;
-  startingTime: string;
-  updatedTime: string;
-}
-
-export interface RebalanceStateParsed {
-  squidRouterReceiverId: string | null;
-  currentPhase: RebalancePhase;
-  initialBalance: Big | null;
-  usdcAmountRaw: string | null;
-  amountAxlUsdc: string | null;
-  brlaAmount: Big | null;
-  brlaToUsdcAmountUsd: string | null;
-  startingTime: string;
-  updatedTime: string;
-}
-
-export class BrlaToAxlUsdcStateManager {
-  private inner: StateManager<RebalanceState>;
-
-  constructor() {
-    this.inner = new StateManager<RebalanceState>("rebalancer_state.json");
-  }
-
-  async getState(): Promise<RebalanceStateParsed | undefined> {
-    const rawState = await this.inner.getState();
-    if (!rawState) return undefined;
-
-    return {
-      ...rawState,
-      brlaAmount: rawState.brlaAmount ? Big(rawState.brlaAmount) : null,
-      initialBalance: rawState.initialBalance ? Big(rawState.initialBalance) : null
-    };
-  }
-
-  async saveState(state: RebalanceStateParsed): Promise<void> {
-    const rawState: RebalanceState = {
-      ...state,
-      brlaAmount: state.brlaAmount ? state.brlaAmount.toString() : null,
-      initialBalance: state.initialBalance ? state.initialBalance.toString() : null
-    };
-    await this.inner.saveState(rawState);
-  }
-
-  async startNewRebalance(amountAxlUsdc: string): Promise<RebalanceStateParsed> {
-    const state: RebalanceStateParsed = {
-      amountAxlUsdc,
-      brlaAmount: null,
-      brlaToUsdcAmountUsd: null,
-      currentPhase: RebalancePhase.CheckInitialPendulumBalance,
-      initialBalance: null,
-      squidRouterReceiverId: null,
-      startingTime: new Date().toISOString(),
-      updatedTime: new Date().toISOString(),
-      usdcAmountRaw: null
-    };
-    await this.saveState(state);
-    return state;
   }
 }
 
@@ -230,9 +135,80 @@ export interface RebalanceHistoryEntry {
   costRelative: string;
 }
 
-export interface UsdcBaseRebalanceContainer {
-  state: UsdcBaseRebalanceState;
+interface RebalanceContainer<S> {
+  state: S;
   history: RebalanceHistoryEntry[];
+}
+
+// One Supabase Storage object per flow, holding the current run's state next to the history of completed runs.
+class FlowStateManager<S extends { updatedTime: string }> {
+  private inner: StateManager<RebalanceContainer<S>>;
+
+  constructor(
+    filename: string,
+    private options: {
+      // When set, a history entry recorded without a stored state is written next to this fresh state; otherwise it is skipped.
+      createFreshState?: () => S;
+      // Reads a pre-container file (the bare state object) as the state of an empty-history container.
+      migrateFlatState?: boolean;
+    } = {}
+  ) {
+    this.inner = new StateManager<RebalanceContainer<S>>(filename);
+  }
+
+  private async getContainer(): Promise<RebalanceContainer<S> | undefined> {
+    const raw = await this.inner.getState();
+    if (!raw) return undefined;
+
+    if (this.options.migrateFlatState && "currentPhase" in raw && !("state" in raw)) {
+      return { history: [], state: raw as unknown as S };
+    }
+
+    return raw;
+  }
+
+  async getState(): Promise<S | undefined> {
+    const container = await this.getContainer();
+    return container?.state;
+  }
+
+  async getHistory(): Promise<RebalanceHistoryEntry[]> {
+    const container = await this.getContainer();
+    return container?.history ?? [];
+  }
+
+  async saveState(state: S): Promise<void> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+    state.updatedTime = new Date().toISOString();
+    await this.inner.saveState({ history, state });
+  }
+
+  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
+    const existing = await this.getContainer();
+    if (!existing?.state) {
+      if (!this.options.createFreshState) {
+        console.warn("No existing state found for addHistoryEntry. Skipping history entry.");
+        return;
+      }
+      console.warn("No existing state found for addHistoryEntry. Writing entry to fresh history.");
+      await this.inner.saveState({ history: [entry], state: this.options.createFreshState() });
+      return;
+    }
+    existing.history.push(entry);
+    existing.state.updatedTime = new Date().toISOString();
+    await this.inner.saveState(existing);
+  }
+
+  // The new state is created after the stored history is read, as the callers' start time is recorded in it.
+  protected async startNew(createState: () => S): Promise<S> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+
+    const state = createState();
+    await this.inner.saveState({ history, state });
+    return state;
+  }
 }
 
 export interface UsdcBaseRebalanceStartOptions {
@@ -285,61 +261,15 @@ function createFreshState(): UsdcBaseRebalanceState {
   return createUsdcBaseRebalanceState(null, UsdcBaseRebalancePhase.Idle);
 }
 
-export class UsdcBaseStateManager {
-  private inner: StateManager<UsdcBaseRebalanceContainer>;
-
+export class UsdcBaseStateManager extends FlowStateManager<UsdcBaseRebalanceState> {
   constructor() {
-    this.inner = new StateManager<UsdcBaseRebalanceContainer>("rebalancer_state_usdc_base.json");
+    super("rebalancer_state_usdc_base.json", { createFreshState, migrateFlatState: true });
   }
 
-  // Handles migration from old flat UsdcBaseRebalanceState to new UsdcBaseRebalanceContainer.
-  private async getContainer(): Promise<UsdcBaseRebalanceContainer | undefined> {
-    const raw = await this.inner.getState();
-    if (!raw) return undefined;
-
-    if ("currentPhase" in raw && !("state" in raw)) {
-      return { history: [], state: raw as unknown as UsdcBaseRebalanceState };
-    }
-
-    return raw;
-  }
-
-  async getState(): Promise<UsdcBaseRebalanceState | undefined> {
-    const container = await this.getContainer();
-    return container?.state;
-  }
-
-  async getHistory(): Promise<RebalanceHistoryEntry[]> {
-    const container = await this.getContainer();
-    return container?.history ?? [];
-  }
-
-  async saveState(state: UsdcBaseRebalanceState): Promise<void> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-    state.updatedTime = new Date().toISOString();
-    await this.inner.saveState({ history, state });
-  }
-
-  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
-    const existing = await this.getContainer();
-    if (!existing?.state) {
-      console.warn("No existing state found for addHistoryEntry. Writing entry to fresh history.");
-      await this.inner.saveState({ history: [entry], state: createFreshState() });
-      return;
-    }
-    existing.history.push(entry);
-    existing.state.updatedTime = new Date().toISOString();
-    await this.inner.saveState(existing);
-  }
-
-  async startNewRebalance(usdcAmountRaw: string, options: UsdcBaseRebalanceStartOptions = {}): Promise<UsdcBaseRebalanceState> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-
-    const state = createUsdcBaseRebalanceState(usdcAmountRaw, UsdcBaseRebalancePhase.CheckInitialUsdcBalance, options);
-    await this.inner.saveState({ history, state });
-    return state;
+  startNewRebalance(usdcAmountRaw: string, options: UsdcBaseRebalanceStartOptions = {}): Promise<UsdcBaseRebalanceState> {
+    return this.startNew(() =>
+      createUsdcBaseRebalanceState(usdcAmountRaw, UsdcBaseRebalancePhase.CheckInitialUsdcBalance, options)
+    );
   }
 }
 
@@ -378,55 +308,13 @@ export interface BrlaToUsdcBaseRebalanceState {
   updatedTime: string;
 }
 
-export interface BrlaToUsdcBaseRebalanceContainer {
-  state: BrlaToUsdcBaseRebalanceState;
-  history: RebalanceHistoryEntry[];
-}
-
-export class BrlaToUsdcBaseStateManager {
-  private inner: StateManager<BrlaToUsdcBaseRebalanceContainer>;
-
+export class BrlaToUsdcBaseStateManager extends FlowStateManager<BrlaToUsdcBaseRebalanceState> {
   constructor() {
-    this.inner = new StateManager<BrlaToUsdcBaseRebalanceContainer>("rebalancer_state_brla_to_usdc_base.json");
+    super("rebalancer_state_brla_to_usdc_base.json");
   }
 
-  private async getContainer(): Promise<BrlaToUsdcBaseRebalanceContainer | undefined> {
-    return this.inner.getState();
-  }
-
-  async getState(): Promise<BrlaToUsdcBaseRebalanceState | undefined> {
-    const container = await this.getContainer();
-    return container?.state;
-  }
-
-  async getHistory(): Promise<RebalanceHistoryEntry[]> {
-    const container = await this.getContainer();
-    return container?.history ?? [];
-  }
-
-  async saveState(state: BrlaToUsdcBaseRebalanceState): Promise<void> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-    state.updatedTime = new Date().toISOString();
-    await this.inner.saveState({ history, state });
-  }
-
-  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
-    const existing = await this.getContainer();
-    if (!existing?.state) {
-      console.warn("No existing state found for addHistoryEntry. Skipping history entry.");
-      return;
-    }
-    existing.history.push(entry);
-    existing.state.updatedTime = new Date().toISOString();
-    await this.inner.saveState(existing);
-  }
-
-  async startNewRebalance(usdcAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
-    const existing = await this.getContainer();
-    const history = existing?.history ?? [];
-
-    const state: BrlaToUsdcBaseRebalanceState = {
+  startNewRebalance(usdcAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
+    return this.startNew(() => ({
       currentPhase: BrlaToUsdcBaseRebalancePhase.CheckInitialUsdcBalance,
       finalUsdcBalance: null,
       initialUsdcBalance: null,
@@ -441,8 +329,6 @@ export class BrlaToUsdcBaseStateManager {
       usdcAmountRaw,
       usdcBalanceBeforeNablaRaw: null,
       usdcReceivedRaw: null
-    };
-    await this.inner.saveState({ history, state });
-    return state;
+    }));
   }
 }

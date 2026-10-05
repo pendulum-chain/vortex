@@ -26,11 +26,6 @@ export interface FeeComponentsResult {
   feeCurrency: RampCurrency;
 }
 
-export interface PreNablaDeductibleFeesResult {
-  preNablaDeductibleFeeAmount: Big;
-  feeCurrency: RampCurrency;
-}
-
 /**
  * Helper function to calculate a fee component (absolute or relative)
  * @param feeValue - The fee value from the database
@@ -234,73 +229,6 @@ async function calculateAnchorFee(
   }
 
   return totalAnchorFee;
-}
-
-/**
- * Calculate fees that are deducted before the Nabla swap
- * @param inputAmount - The original user input amount
- * @param inputCurrency - The input currency
- * @param outputCurrency - The output currency
- * @param rampType - The type of ramp operation
- * @param from - The source destination type
- * @param to - The target destination type
- * @param partnerId - Optional partner id for custom fees
- * @returns Promise resolving to the pre-Nabla deductible fees
- */
-export async function calculatePreNablaDeductibleFees(
-  inputAmount: string,
-  inputCurrency: RampCurrency,
-  outputCurrency: RampCurrency,
-  rampType: RampDirection,
-  from: DestinationType,
-  to: DestinationType,
-  partnerId?: string
-): Promise<PreNablaDeductibleFeesResult> {
-  try {
-    // Validate chain support
-    validateChainSupport(rampType, from, to);
-
-    // Determine the target fiat currency for fees
-    const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
-
-    let preNablaDeductibleFeeAmount = new Big(0);
-
-    if (rampType === RampDirection.BUY) {
-      // For on-ramp: Only Anchor Fee is deducted before Nabla
-      const anchorFee = await calculateAnchorFee(rampType, from, to, inputAmount, inputAmount);
-
-      // Convert anchor fee to fee currency if needed
-      if (feeCurrency !== inputCurrency) {
-        const anchorFeeInFeeCurrency = await priceFeedService.convertCurrency(anchorFee.toString(), inputCurrency, feeCurrency);
-        preNablaDeductibleFeeAmount = new Big(anchorFeeInFeeCurrency);
-      } else {
-        preNablaDeductibleFeeAmount = anchorFee;
-      }
-    } else {
-      // For off-ramp: Vortex Fee + Partner Markup Fee
-      const { partnerMarkupFee, vortexFee } = await calculatePartnerAndVortexFees(
-        inputAmount,
-        rampType,
-        partnerId,
-        inputCurrency,
-        feeCurrency
-      );
-
-      preNablaDeductibleFeeAmount = vortexFee.plus(partnerMarkupFee);
-    }
-
-    return {
-      feeCurrency,
-      preNablaDeductibleFeeAmount
-    };
-  } catch (error) {
-    logger.error("Error calculating pre-Nabla deductible fees:", error);
-
-    throw new APIError({
-      message: QuoteError.FailedToCalculatePreNablaDeductibleFees,
-      status: httpStatus.INTERNAL_SERVER_ERROR
-    });
-  }
 }
 
 /**

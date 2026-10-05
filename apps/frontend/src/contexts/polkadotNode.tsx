@@ -2,7 +2,7 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, type JSX, useContext, useEffect } from "react";
 
-import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from "../constants/constants";
+import { ASSETHUB_WSS } from "../constants/constants";
 import { useToastMessage } from "../helpers/notifications";
 
 export interface ApiComponents {
@@ -18,8 +18,6 @@ export interface ApiComponents {
 
 interface NetworkState {
   assethub?: ApiComponents;
-  pendulum?: ApiComponents;
-  moonbeam?: ApiComponents;
 }
 
 interface PolkadotNodeContextInterface {
@@ -72,19 +70,13 @@ const usePolkadotNodes = () => {
 };
 
 enum NodeName {
-  AssetHub = "assethub",
-  Pendulum = "pendulum",
-  Moonbeam = "moonbeam"
+  AssetHub = "assethub"
 }
 
 const getSocketUrl = (nodeName: NodeName): string => {
   switch (nodeName) {
     case NodeName.AssetHub:
       return ASSETHUB_WSS;
-    case NodeName.Pendulum:
-      return PENDULUM_WSS;
-    case NodeName.Moonbeam:
-      return MOONBEAM_WSS;
   }
 
   throw new Error(`Unsupported Polkadot node: ${nodeName}`);
@@ -117,11 +109,9 @@ const usePolkadotNode = (nodeName: NodeName, enabled = false) => {
 };
 
 const useAssetHubNode = (enabled = false) => usePolkadotNode(NodeName.AssetHub, enabled);
-const usePendulumNode = (enabled = false) => usePolkadotNode(NodeName.Pendulum, enabled);
-const useMoonbeamNode = (enabled = false) => usePolkadotNode(NodeName.Moonbeam, enabled);
 
 const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
   return <PolkadotNodeContext.Provider value={{ state: {} }}>{children}</PolkadotNodeContext.Provider>;
 };
 
-export { PolkadotNodeProvider, useAssetHubNode, usePendulumNode, useMoonbeamNode };
+export { PolkadotNodeProvider, useAssetHubNode };

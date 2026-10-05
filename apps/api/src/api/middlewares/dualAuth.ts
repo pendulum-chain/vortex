@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
+import { sendError } from "../helpers/sendError";
 import {
   buildApiClientRequestMetadata,
   getSafeApiKeyPrefix,
@@ -41,13 +42,7 @@ export function requireProfileBoundPrincipal(req: Request, res: Response, next: 
     return;
   }
 
-  res.status(401).json({
-    error: {
-      code: "AUTHENTICATION_REQUIRED",
-      message: "A profile-bound secret key or Bearer token is required.",
-      status: 401
-    }
-  });
+  sendError(res, 401, "AUTHENTICATION_REQUIRED", "A profile-bound secret key or Bearer token is required.");
 }
 
 function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }) {
@@ -60,39 +55,28 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
         const keyType = getKeyType(apiKey);
         if (keyType !== "secret" || !isValidSecretKeyFormat(apiKey)) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
-          return res.status(401).json({
-            error: {
-              code: "INVALID_SECRET_KEY",
-              message: "X-API-Key header must contain a valid secret key (sk_live_* or sk_test_*).",
-              status: 401
-            }
-          });
+          return sendError(
+            res,
+            401,
+            "INVALID_SECRET_KEY",
+            "X-API-Key header must contain a valid secret key (sk_live_* or sk_test_*)."
+          );
         }
 
         const result = await validateSecretApiKey(apiKey);
         if (!result) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
-          return res.status(401).json({
-            error: {
-              code: "INVALID_API_KEY",
-              message: "The provided API key is invalid or has expired.",
-              status: 401
-            }
-          });
+          return sendError(res, 401, "INVALID_API_KEY", "The provided API key is invalid or has expired.");
         }
 
         const publicKey = req.headers["x-public-key"] as string | undefined;
         if (publicKey) {
           const publicResult = await validatePublicApiKey(publicKey);
           if (!publicResult) {
-            return res.status(401).json({
-              error: { code: "INVALID_PUBLIC_KEY", message: "The provided public API key is invalid or expired.", status: 401 }
-            });
+            return sendError(res, 401, "INVALID_PUBLIC_KEY", "The provided public API key is invalid or expired.");
           }
           if (publicResult.credential.credentialId !== result.credential.credentialId) {
-            return res.status(403).json({
-              error: { code: "CREDENTIAL_MISMATCH", message: "Public and secret credentials do not match", status: 403 }
-            });
+            return sendError(res, 403, "CREDENTIAL_MISMATCH", "Public and secret credentials do not match");
           }
         }
 
@@ -126,23 +110,16 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
             requestId: req.headers["x-request-id"]
           });
           recordDualAuthFailure(req, unavailable ? 503 : 401, unavailable ? "service_unavailable" : "auth_invalid_api_key");
-          return res.status(unavailable ? 503 : 401).json({
-            error: {
-              code: unavailable ? "AUTH_SERVICE_UNAVAILABLE" : "INVALID_BEARER_TOKEN",
-              message: unavailable ? "Authentication service unavailable" : "Authentication failed",
-              status: unavailable ? 503 : 401
-            }
-          });
+          return sendError(
+            res,
+            unavailable ? 503 : 401,
+            unavailable ? "AUTH_SERVICE_UNAVAILABLE" : "INVALID_BEARER_TOKEN",
+            unavailable ? "Authentication service unavailable" : "Authentication failed"
+          );
         }
         if (!result.valid) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key");
-          return res.status(401).json({
-            error: {
-              code: "INVALID_BEARER_TOKEN",
-              message: "Invalid or expired Bearer token.",
-              status: 401
-            }
-          });
+          return sendError(res, 401, "INVALID_BEARER_TOKEN", "Invalid or expired Bearer token.");
         }
 
         req.userId = result.userId;
@@ -156,13 +133,12 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
       }
 
       recordDualAuthFailure(req, 401, "auth_missing_api_key");
-      return res.status(401).json({
-        error: {
-          code: "AUTHENTICATION_REQUIRED",
-          message: "Authentication required: provide either an X-API-Key header (sk_*) or an Authorization: Bearer token.",
-          status: 401
-        }
-      });
+      return sendError(
+        res,
+        401,
+        "AUTHENTICATION_REQUIRED",
+        "Authentication required: provide either an X-API-Key header (sk_*) or an Authorization: Bearer token."
+      );
     } catch (error) {
       logger.error("Dual auth middleware error:", error);
       next(error);

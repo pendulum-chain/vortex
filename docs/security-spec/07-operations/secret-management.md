@@ -38,7 +38,6 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | Secret | Purpose | Blast Radius |
 |---|---|---|
 | `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for active Base/Polygon automation and the historically derived Moonbeam account. | Drain of active rebalancer funds and exposure of any unreconciled historical Moonbeam balance. |
-| `PENDULUM_ACCOUNT_SECRET` | Historical rebalancer Pendulum account seed retained for manual legacy-state reconciliation. The CLI rejects `--legacy`. | Drain of any remaining rebalancer Pendulum funds; not used by active automation. |
 
 ### Shared
 
@@ -51,8 +50,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 1. **All secrets MUST be loaded from environment variables at startup** — No secrets hardcoded in source code. No secrets in configuration files committed to the repository.
 2. **Secrets MUST NOT appear in logs** — Error handlers, debug logging, and request/response logging must not include secret values, private keys, or seeds.
 3. **`WEBHOOK_PRIVATE_KEY` MUST be set in production** — If missing, `CryptoService` generates an ephemeral RSA keypair at startup. This key is non-persistent: webhook signatures generated before a restart cannot be verified after a restart, and vice versa. Consumers would see signature validation failures.
-4. **`ADMIN_SECRET` MUST be a high-entropy value** — Used as a bearer token for admin endpoints. Compared via `safeCompare()` which has a known timing leak on length (see `01-auth/admin-auth.md`).
-5. **Rebalancer keys MUST be isolated from API service keys** — The rebalancer's `EVM_ACCOUNT_SECRET` mnemonic and legacy `PENDULUM_ACCOUNT_SECRET` operate separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
+4. **`ADMIN_SECRET` MUST be a high-entropy value** — Used as a bearer token for admin endpoints. Compared via `constantTimeEquals()`, which runs a dummy comparison before rejecting a token of a different length (see `01-auth/admin-auth.md`).
+5. **Rebalancer keys MUST be isolated from API service keys** — The rebalancer's `EVM_ACCOUNT_SECRET` mnemonic operates separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
 6. **`SUPABASE_SERVICE_KEY` MUST NOT be exposed to clients** — This key bypasses Row Level Security. It must only be used server-side.
 7. **Database credentials (`DB_*`) MUST NOT be accessible from the public internet** — Direct PostgreSQL access should be restricted to the application server's network.
 8. **No secret MUST be passed as a URL query parameter** — Query parameters are logged by proxies, CDNs, and web servers. Secrets must only travel in headers or request bodies.
@@ -87,7 +86,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [ ] Verify database credentials (`DB_*`) are not accessible from outside the VPC/private network. **N/A** — requires infrastructure audit, not code audit.
 - [x] Verify the `.env.example` file does not contain real secret values (only placeholder/dummy values). **PASS** — example files contain placeholder values only.
 - [x] Verify `.env` is in `.gitignore` — no secret files committed to the repository. **PASS** — `.env` in `.gitignore`.
-- [x] Verify the rebalancer's three chain keys are different from the API's funding keys — not the same private key reused. **PASS** — separate env var names and documented as separate accounts.
+- [x] Verify the rebalancer's chain keys are different from the API's funding keys — not the same private key reused. **PASS** — separate env var names and documented as separate accounts.
 - [ ] Verify `ADMIN_SECRET` entropy — is it a randomly generated string of sufficient length (>= 32 characters)? **N/A** — requires production configuration inspection.
 - [x] Verify no API endpoint returns environment variables or server configuration to clients. **PASS** — no endpoint exposes `process.env` or server config.
 - [x] Check whether `GOOGLE_PRIVATE_KEY` contains newlines that might be mis-parsed — a common issue with PEM keys in env vars. **PASS** — PEM key handling present; standard env var parsing.

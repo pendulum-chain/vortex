@@ -260,42 +260,6 @@ describe("AuthService impersonation session", () => {
     assert.equal(AuthService.getImpersonationSession(), null);
   });
 
-  it("rejects a legacy session without a bearer profile and removes its keys on the next write", () => {
-    values.set("vortex_dashboard_impersonation_token", "vtx_imp_legacy");
-    values.set("vortex_dashboard_impersonation_session_id", "legacy-session");
-    values.set(
-      "vortex_dashboard_impersonation_expires_at",
-      "2026-01-01T00:00:00.000Z",
-    );
-    values.set(
-      "vortex_dashboard_impersonation_target_email",
-      "legacy@example.com",
-    );
-
-    assert.equal(AuthService.getImpersonationSession(), null);
-
-    AuthService.storeImpersonationSession({
-      expiresAt: "2026-02-01T00:00:00.000Z",
-      sessionId: "session-2",
-      targetEmail: "current@example.com",
-      targetProfileId: "customer-2",
-      token: "vtx_imp_current",
-    });
-    assert.equal(values.has("vortex_dashboard_impersonation_token"), false);
-    assert.equal(
-      values.has("vortex_dashboard_impersonation_session_id"),
-      false,
-    );
-    assert.equal(
-      values.has("vortex_dashboard_impersonation_expires_at"),
-      false,
-    );
-    assert.equal(
-      values.has("vortex_dashboard_impersonation_target_email"),
-      false,
-    );
-  });
-
   it("prefers the impersonation token over the operator's own access token", () => {
     assert.equal(AuthService.getEffectiveAccessToken(), "expired-access-token");
 

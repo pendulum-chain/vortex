@@ -1,11 +1,13 @@
 import {describe, expect, test} from "bun:test";
 import {createUsdcBaseRebalanceState, UsdcBaseRebalancePhase} from "../../services/stateManager.ts";
+import {NonceManager} from "../../utils/nonce.ts";
 import {
   ensurePolygonBrlaAvailableForSquidSwap,
   recoverAveniaPolygonTransferFromBalance,
   recoverSquidUsdcOutputFromBaseBalance,
   resetFailedNablaSwapOnResume,
-  resetFailedSquidRouterSwapOnResume
+  resetFailedSquidRouterSwapOnResume,
+  sendNablaApproveAndSwap
 } from "./steps.ts";
 
 describe("USDC Base SquidRouter steps", () => {
@@ -246,5 +248,100 @@ describe("USDC Base SquidRouter steps", () => {
     ).resolves.toBeNull();
     expect(state.brlaAmountRaw).toBeNull();
     expect(state.brlaAmountDecimal).toBeNull();
+  });
+});
+
+describe("sendNablaApproveAndSwap", () => {
+  const approve = { data: "0xapprovedata", gas: "50000", maxFeePerGas: "0", maxPriorityFeePerGas: "0", nonce: 0, to: "0xtoken", value: "0" } as const;
+  const swap = { data: "0xswapdata", gas: "300000", maxFeePerGas: "0", maxPriorityFeePerGas: "0", nonce: 0, to: "0xrouter", value: "0" } as const;
+
+  function setup(receiptStatus: "success" | "reverted" = "success") {
+    const events: string[] = [];
+    const sent: Array<Record<string, unknown>> = [];
+    const publicClient = {
+      estimateFeesPerGas: async () => {
+        events.push("estimate");
+        return { maxFeePerGas: 7n, maxPriorityFeePerGas: 2n };
+      },
+      waitForTransactionReceipt: async ({ hash }: { hash: string }) => {
+        events.push(`confirm:${hash}`);
+        return { status: receiptStatus };
+      }
+    };
+    const walletClient = {
+      account: { address: "0xexecutor" },
+      sendTransaction: async (tx: Record<string, unknown>) => {
+        sent.push(tx);
+        events.push(`send:${tx.to}`);
+        return `0xhash${sent.length}`;
+      }
+    };
+    const params = {
+      approve,
+      baseNonce: new NonceManager(5),
+      existingApproveHash: null as string | null,
+      label: "Nabla",
+      onApproveSent: async (hash: string) => {
+        events.push(`persist-approve:${hash}`);
+      },
+      onSwapSent: async (hash: string) => {
+        events.push(`persist-swap:${hash}`);
+      },
+      publicClient: publicClient as never,
+      swap,
+      walletClient: walletClient as never
+    };
+    return { events, params, sent };
+  }
+
+  test("sends the approve, waits for it, then sends the swap with the next nonce", async () => {
+    const { events, params, sent } = setup();
+
+    await expect(sendNablaApproveAndSwap(params)).resolves.toEqual({ approveHash: "0xhash1", swapHash: "0xhash2" });
+
+    expect(events).toEqual([
+      "estimate",
+      "send:0xtoken",
+      "persist-approve:0xhash1",
+      "confirm:0xhash1",
+      "estimate",
+      "send:0xrouter",
+      "persist-swap:0xhash2"
+    ]);
+    expect(sent[0]).toMatchObject({
+      account: { address: "0xexecutor" },
+      data: "0xapprovedata",
+      gas: 50000n,
+      maxFeePerGas: 7n,
+      maxPriorityFeePerGas: 2n,
+      nonce: 5,
+      to: "0xtoken",
+      value: 0n
+    });
+    expect(sent[1]).toMatchObject({ data: "0xswapdata", gas: 300000n, nonce: 6, to: "0xrouter", value: 0n });
+    expect((sent[0]?.chain as { id: number }).id).toBe(8453);
+  });
+
+  test("reuses a recorded approve hash instead of sending a new approve", async () => {
+    const { events, params, sent } = setup();
+
+    await expect(sendNablaApproveAndSwap({ ...params, existingApproveHash: "0xapproved" })).resolves.toEqual({
+      approveHash: "0xapproved",
+      swapHash: "0xhash1"
+    });
+
+    expect(events).toEqual(["confirm:0xapproved", "estimate", "send:0xrouter", "persist-swap:0xhash1"]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ nonce: 5, to: "0xrouter" });
+  });
+
+  test("does not send the swap when the approve did not succeed", async () => {
+    const { events, params, sent } = setup("reverted");
+
+    await expect(sendNablaApproveAndSwap(params)).rejects.toThrow("Error waiting for transaction confirmation");
+
+    expect(sent).toHaveLength(1);
+    expect(events).not.toContain("send:0xrouter");
+    expect(events.some(event => event.startsWith("persist-swap"))).toBe(false);
   });
 });

@@ -2,7 +2,6 @@ import { RampState } from "../types/phases";
 
 interface FakeRampContext {
   initializeFailedMessage?: string;
-  isQuoteRedo?: boolean;
   rampState?: RampState;
   walletLocked?: string;
 }

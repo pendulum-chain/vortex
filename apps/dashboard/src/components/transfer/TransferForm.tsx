@@ -22,6 +22,7 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
+import { MAINTENANCE_QUOTE_ERROR, useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
 import { transferActor } from "@/machines/transferActor";
@@ -133,6 +134,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
         }
       : null;
   const { data: quote, isFetching, error } = useQuote(quoteParams);
+  const maintenance = useActiveMaintenance();
 
   function submitTransfer(submit: FundingSubmit) {
     if (!selected || !isSendable || !quote || !quoteParams || !activeOwnerProfileId || !canStartTransfer || !pixReady) {
@@ -291,7 +293,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
           ) : error ? (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
               <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
-              <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
+              <p className="text-destructive">{maintenance ? MAINTENANCE_QUOTE_ERROR : friendlyQuoteError(error.message)}</p>
             </div>
           ) : !amountReady ? (
             <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
@@ -311,7 +313,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
               </div>
               <QuoteSummary isFetching={isFetching} quote={quote} />
               <FundingMethods
-                disabled={!canStartTransfer || isFetching}
+                disabled={!canStartTransfer || isFetching || !!maintenance}
                 onSubmit={submitTransfer}
                 quote={quote}
                 submitting={submitting || isFetching}

@@ -1,11 +1,11 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import type { AveniaKycFormData } from "@vortexfi/kyc";
-import { type Control, type FieldPath, type FieldValues, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
+import { TextField } from "../TextField";
 
 interface AveniaKycFormScreenProps {
   initialData?: AveniaKycFormData;
@@ -82,33 +82,5 @@ export function AveniaKycFormScreen({ initialData, onCancel, onSubmit }: AveniaK
         </DialogFooter>
       </form>
     </Form>
-  );
-}
-
-function TextField<T extends FieldValues>({
-  control,
-  label,
-  name,
-  type = "text"
-}: {
-  control: Control<T>;
-  label: string;
-  name: FieldPath<T>;
-  type?: string;
-}) {
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input type={type} {...field} value={field.value ?? ""} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
   );
 }

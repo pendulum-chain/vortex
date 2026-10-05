@@ -256,6 +256,8 @@ interface MockBackendOptions {
   apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
+  // Serve an active window on GET /v1/maintenance/status (default: none). Specs can change `maintenance` later.
+  maintenanceActive?: boolean;
   onboardingState?: OnboardingState;
   companyMode?: boolean;
   selectionRequired?: boolean;
@@ -303,6 +305,13 @@ interface MockBackendOptions {
   quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
   tokenBalances?: TokenBalances | null | ((requestIndex: number, network: BalanceNetwork) => TokenBalances | null);
 }
+
+export const MAINTENANCE_DETAILS = {
+  estimated_time_remaining_seconds: 3600,
+  message: "Ramps are paused while we upgrade.",
+  start_datetime: "2026-10-05T08:00:00.000Z",
+  title: "Scheduled maintenance"
+};
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
 const ALFREDPAY_SUCCESS = "SUCCESS";
@@ -435,6 +444,11 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     startRequests: [] as Array<Record<string, unknown>>
   };
   const auth = { refreshes: 0 };
+  const maintenance = {
+    active: options.maintenanceActive ?? false,
+    // An hour from now outlasts a freshly registered ramp's 15-minute start deadline.
+    endsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  };
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
@@ -592,6 +606,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
+      return;
+    }
+
+    if (path === "/v1/maintenance/status" && method === "GET") {
+      await fulfillJson({
+        is_maintenance_active: maintenance.active,
+        maintenance_details: maintenance.active ? { ...MAINTENANCE_DETAILS, end_datetime: maintenance.endsAt } : null
+      });
       return;
     }
 
@@ -1173,6 +1195,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     kyc,
     kycFormSubmissions,
     limitsRequests,
+    maintenance,
     monerium,
     quoteRequests,
     registerRequests,

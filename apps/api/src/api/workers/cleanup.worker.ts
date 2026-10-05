@@ -39,14 +39,6 @@ class CleanupWorker {
   }
 
   /**
-   * Stop the cleanup worker
-   */
-  public stop(): void {
-    logger.info("Stopping cleanup worker");
-    this.job.stop();
-  }
-
-  /**
    * Process a single state with appropriate cleanup handlers
    * @param state The state to process
    */

@@ -1,3 +1,4 @@
+import { decodeJwtExpiryMs } from "@vortexfi/shared";
 import { API_BASE_URL } from "./api/base-url";
 
 export interface AuthTokens {
@@ -46,10 +47,6 @@ export class AuthService {
   // One atomic record prevents readers from combining fields from different cross-tab writes.
   static readonly IMPERSONATION_STORAGE_KEY = "vortex_dashboard_impersonation_session";
   static readonly MANAGED_PROFILE_STORAGE_KEY = "vortex_dashboard_managed_profile_selection";
-  private static readonly LEGACY_IMPERSONATION_TOKEN_KEY = "vortex_dashboard_impersonation_token";
-  private static readonly LEGACY_IMPERSONATION_SESSION_ID_KEY = "vortex_dashboard_impersonation_session_id";
-  private static readonly LEGACY_IMPERSONATION_EXPIRES_AT_KEY = "vortex_dashboard_impersonation_expires_at";
-  private static readonly LEGACY_IMPERSONATION_TARGET_EMAIL_KEY = "vortex_dashboard_impersonation_target_email";
   private static readonly impersonationListeners = new Set<() => void>();
   private static readonly managedProfileListeners = new Set<() => void>();
   private static acceptedImpersonationSnapshot: string | null | undefined;
@@ -128,7 +125,6 @@ export class AuthService {
       })
     );
     this.acceptedImpersonationSnapshot = this.getImpersonationSessionSnapshot();
-    this.clearLegacyImpersonationKeys();
     this.notifyImpersonationListeners(previousSnapshot);
   }
 
@@ -158,18 +154,9 @@ export class AuthService {
     else localStorage.setItem(this.IMPERSONATION_STORAGE_KEY, snapshot);
   }
 
-  /** Stable serialized snapshot for `useSyncExternalStore`. Also reads complete legacy data. */
+  /** Stable serialized snapshot for `useSyncExternalStore`. */
   static getImpersonationSessionSnapshot(): string | null {
-    const current = localStorage.getItem(this.IMPERSONATION_STORAGE_KEY);
-    if (current !== null) {
-      return current;
-    }
-
-    const token = localStorage.getItem(this.LEGACY_IMPERSONATION_TOKEN_KEY);
-    const sessionId = localStorage.getItem(this.LEGACY_IMPERSONATION_SESSION_ID_KEY);
-    const expiresAt = localStorage.getItem(this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY);
-    const targetEmail = localStorage.getItem(this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY);
-    return token && sessionId && expiresAt && targetEmail ? JSON.stringify({ expiresAt, sessionId, targetEmail, token }) : null;
+    return localStorage.getItem(this.IMPERSONATION_STORAGE_KEY);
   }
 
   static parseImpersonationSessionSnapshot(snapshot: string | null): ImpersonationSession | null {
@@ -202,7 +189,7 @@ export class AuthService {
   static subscribeImpersonationSession(listener: () => void): () => void {
     this.impersonationListeners.add(listener);
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === null || this.isImpersonationStorageKey(event.key)) {
+      if (event.key === null || event.key === this.IMPERSONATION_STORAGE_KEY) {
         listener();
       }
     };
@@ -222,7 +209,6 @@ export class AuthService {
     if (expectedSnapshot !== undefined && storedSnapshot !== expectedSnapshot) return false;
     const previousSnapshot = this.getAcceptedImpersonationSessionSnapshot();
     localStorage.removeItem(this.IMPERSONATION_STORAGE_KEY);
-    this.clearLegacyImpersonationKeys();
     this.acceptedImpersonationSnapshot = null;
     this.notifyImpersonationListeners(previousSnapshot);
     return true;
@@ -332,29 +318,13 @@ export class AuthService {
     if (!tokens) {
       return false;
     }
-    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    const expiryMs = decodeJwtExpiryMs(tokens.accessToken);
     return expiryMs === null || expiryMs > Date.now();
   }
 
   static getAccessTokenExpiryMs(): number | null {
     const tokens = this.getTokens();
-    return tokens ? this.decodeJwtExpiryMs(tokens.accessToken) : null;
-  }
-
-  private static decodeJwtExpiryMs(token: string): number | null {
-    try {
-      const payload = token.split(".")[1];
-      if (!payload) {
-        return null;
-      }
-      // JWT segments are base64url and usually unpadded; convert to base64 and re-pad before decoding.
-      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-      const decoded = JSON.parse(atob(padded)) as { exp?: number };
-      return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
-    } catch {
-      return null;
-    }
+    return tokens ? decodeJwtExpiryMs(tokens.accessToken) : null;
   }
 
   /**
@@ -426,23 +396,6 @@ export class AuthService {
     this.clearManagedProfileSelection();
     this.clearImpersonationSession();
     this.clearTokens();
-  }
-
-  private static clearLegacyImpersonationKeys(): void {
-    localStorage.removeItem(this.LEGACY_IMPERSONATION_TOKEN_KEY);
-    localStorage.removeItem(this.LEGACY_IMPERSONATION_SESSION_ID_KEY);
-    localStorage.removeItem(this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY);
-    localStorage.removeItem(this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY);
-  }
-
-  private static isImpersonationStorageKey(key: string): boolean {
-    return [
-      this.IMPERSONATION_STORAGE_KEY,
-      this.LEGACY_IMPERSONATION_TOKEN_KEY,
-      this.LEGACY_IMPERSONATION_SESSION_ID_KEY,
-      this.LEGACY_IMPERSONATION_EXPIRES_AT_KEY,
-      this.LEGACY_IMPERSONATION_TARGET_EMAIL_KEY
-    ].includes(key);
   }
 
   private static notifyImpersonationListeners(previousSnapshot: string | null): void {

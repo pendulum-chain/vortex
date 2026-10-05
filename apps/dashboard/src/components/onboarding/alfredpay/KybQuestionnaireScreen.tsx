@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { TextField } from "../TextField";
 
 interface KybQuestionnaireScreenProps {
   /** Answers already given, so stepping back from the documents does not blank the form. */
@@ -44,23 +45,6 @@ export function KybQuestionnaireScreen({ defaults, onBack, onSubmit }: KybQuesti
 
   const transmitsCustomerFunds = form.watch("transmitsCustomerFunds");
   const conductsComplianceScreening = form.watch("conductsComplianceScreening");
-
-  const textField = (name: keyof KybQuestionnaireValues, label: string, description?: string, placeholder?: string) => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          {description && <FormDescription>{description}</FormDescription>}
-          <FormControl>
-            <Input placeholder={placeholder} {...field} value={typeof field.value === "string" ? field.value : ""} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
 
   const numberField = (
     name: "expectedMonthlyVolumeUsd" | "expectedMonthlyTransactions",
@@ -120,25 +104,32 @@ export function KybQuestionnaireScreen({ defaults, onBack, onSubmit }: KybQuesti
             <h3 className="font-medium">Compliance questionnaire</h3>
             <p className="text-muted-foreground text-sm">Alfredpay requires these answers before it can review the business.</p>
           </div>
-          {textField(
-            "sourceOfFunds",
-            "Source of funds",
-            "The primary source of the company's revenue or the funds used with Alfredpay.",
-            "Sale of goods/services, investments, venture capital"
-          )}
-          {textField(
-            "businessActivities",
-            "Business activities",
-            undefined,
-            "Money services, lending, FX, virtual currencies brokerage"
-          )}
-          {textField("accountPurpose", "Primary account purpose", undefined, "Treasury management, cross-border transfers")}
-          {textField(
-            "walletAddresses",
-            "Wallet addresses",
-            "List the wallets that will interact with Alfredpay and their chain. Enter N/A if the business will not transact on-chain.",
-            "ETH - 0x1234abcd…; TRX - TAbcd1234…"
-          )}
+          <TextField
+            control={form.control}
+            description="The primary source of the company's revenue or the funds used with Alfredpay."
+            label="Source of funds"
+            name="sourceOfFunds"
+            placeholder="Sale of goods/services, investments, venture capital"
+          />
+          <TextField
+            control={form.control}
+            label="Business activities"
+            name="businessActivities"
+            placeholder="Money services, lending, FX, virtual currencies brokerage"
+          />
+          <TextField
+            control={form.control}
+            label="Primary account purpose"
+            name="accountPurpose"
+            placeholder="Treasury management, cross-border transfers"
+          />
+          <TextField
+            control={form.control}
+            description="List the wallets that will interact with Alfredpay and their chain. Enter N/A if the business will not transact on-chain."
+            label="Wallet addresses"
+            name="walletAddresses"
+            placeholder="ETH - 0x1234abcd…; TRX - TAbcd1234…"
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             {numberField("expectedMonthlyVolumeUsd", "Expected monthly volume (USD)", "50000")}
             {numberField("expectedMonthlyTransactions", "Expected monthly transactions", "120")}
@@ -151,14 +142,14 @@ export function KybQuestionnaireScreen({ defaults, onBack, onSubmit }: KybQuesti
           {checkboxField("transmitsCustomerFunds", "We transmit funds on behalf of our customers")}
           {transmitsCustomerFunds &&
             checkboxField("conductsComplianceScreening", "We conduct compliance screening (KYC, KYB and AML)")}
-          {transmitsCustomerFunds &&
-            conductsComplianceScreening &&
-            textField(
-              "complianceScreeningDescription",
-              "Describe your compliance screening",
-              undefined,
-              "KYC, KYB and AML checks on every counterparty"
-            )}
+          {transmitsCustomerFunds && conductsComplianceScreening && (
+            <TextField
+              control={form.control}
+              label="Describe your compliance screening"
+              name="complianceScreeningDescription"
+              placeholder="KYC, KYB and AML checks on every counterparty"
+            />
+          )}
           {checkboxField("operatesInSanctionedCountries", "We operate in Cuba, Iran, Myanmar, North Korea or Syria")}
           {checkboxField("isRegulatedBusiness", "We perform regulated activities", "Adds two documents to the next step.")}
         </div>

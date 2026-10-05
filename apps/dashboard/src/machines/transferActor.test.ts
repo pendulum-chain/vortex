@@ -85,7 +85,6 @@ async function recoverySnapshot(ownerProfileId: string, accountId: string): Prom
   return persisted;
 }
 
-values.set("vortex-dashboard-transfer-state", "unowned legacy state");
 const { activateTransferOwner, canChangeEffectiveIdentity, clearAllTransferRecovery, resetTransferState, transferActor } =
   await import("./transferActor");
 
@@ -99,8 +98,7 @@ after(() => {
 });
 
 describe("transferActor owner recovery", () => {
-  it("rejects legacy state and restores only the selected owner's snapshot", async () => {
-    assert.equal(values.has("vortex-dashboard-transfer-state"), false);
+  it("restores only the selected owner's snapshot", async () => {
     const ownerOneKey = "vortex-dashboard-transfer-state:owner:profile-1";
     const ownerTwoKey = "vortex-dashboard-transfer-state:owner:profile-2";
     values.set(ownerOneKey, await recoverySnapshot("profile-1", "account-1"));

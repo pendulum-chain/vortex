@@ -17,7 +17,7 @@ export function buildRegisterRampAdditionalData(
   input: RampContext,
   connectedWalletAddress: string
 ): RegisterRampRequest["additionalData"] {
-  const { executionInput, paymentData } = input;
+  const { executionInput } = input;
 
   if (!executionInput) {
     throw new RegisterRampError("Execution input is required to register ramp.", RegisterRampErrorType.InvalidInput);
@@ -85,7 +85,6 @@ export function buildRegisterRampAdditionalData(
   }
 
   return {
-    paymentData,
     sessionId: input.externalSessionId,
     walletAddress: connectedWalletAddress
   };

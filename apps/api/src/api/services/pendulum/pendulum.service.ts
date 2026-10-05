@@ -1,11 +1,16 @@
 import { Keyring } from "@polkadot/api";
 import { KeyringPair } from "@polkadot/keyring/types";
-import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG, waitUntilTrueWithTimeout } from "@vortexfi/shared";
+import {
+  ApiManager,
+  multiplyByPowerOfTen,
+  SubstrateApiNetwork,
+  TOKEN_CONFIG,
+  waitUntilTrueWithTimeout
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
-import { multiplyByPowerOfTen } from "./helpers";
 
 export function getFundingData(
   ss58Format: number,

@@ -7,17 +7,11 @@ const env = (import.meta.env.VITE_ENVIRONMENT || nodeEnv) as Environment;
 
 export const config = {
   alchemyApiKey,
-  applicationClientDomain: "satoshipay.io",
   env,
-  isDev: env === "development",
   isProd: env === "production",
   isSandbox: sandboxEnabled,
   maybeSignerServiceUrl,
-  nodeEnv,
   supportUrl: "https://forms.gle/bgH4XTTbQ3YbwQ3t7",
-  swap: {
-    deadlineMinutes: 60 * 24 * 7 // 1 week
-  },
   test: {
     overwriteMinimumTransferAmount: false
   },

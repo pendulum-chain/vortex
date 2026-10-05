@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
+import { sendError } from "../helpers/sendError";
 import {
   ApiCredentialServiceError,
   createCredential,
@@ -11,9 +12,7 @@ import {
 
 function requireProfile(req: Request, res: Response): string | null {
   if (req.userId) return req.userId;
-  res.status(httpStatus.UNAUTHORIZED).json({
-    error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication required to manage API credentials", status: 401 }
-  });
+  sendError(res, httpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Authentication required to manage API credentials");
   return null;
 }
 
@@ -25,7 +24,7 @@ function sendServiceError(res: Response, error: unknown): boolean {
       : error.code === "CREDENTIAL_NOT_FOUND" || error.code === "CREDENTIAL_SUBJECT_REQUIRED"
         ? httpStatus.NOT_FOUND
         : httpStatus.BAD_REQUEST;
-  res.status(status).json({ error: { code: error.code, message: error.message, status } });
+  sendError(res, status, error.code, error.message);
   return true;
 }
 
@@ -44,7 +43,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
   } catch (error) {
     if (sendServiceError(res, error)) return;
     logger.error("Error creating API credential", error);
-    res.status(500).json({ error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to create API credential", status: 500 } });
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", "Failed to create API credential");
   }
 }
 
@@ -55,7 +54,7 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
     res.status(httpStatus.OK).json({ credentials: await listCredentials({ profileId }) });
   } catch (error) {
     logger.error("Error listing API credentials", error);
-    res.status(500).json({ error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to list API credentials", status: 500 } });
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", "Failed to list API credentials");
   }
 }
 
@@ -68,6 +67,6 @@ export async function revokeUserApiKey(req: Request<{ credentialId: string }>, r
   } catch (error) {
     if (sendServiceError(res, error)) return;
     logger.error("Error revoking API credential", error);
-    res.status(500).json({ error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to revoke API credential", status: 500 } });
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", "Failed to revoke API credential");
   }
 }

@@ -54,7 +54,7 @@ import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
-import { getFinalTransactionHashForRampV2 } from "./helpers";
+import { getFinalTransactionHashForRampV2, mapPhaseToTransactionStatus } from "./helpers";
 
 const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
   "assethubToPendulumHash",
@@ -413,7 +413,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: filterUnsignedTxsForResponse(rampState, false),
@@ -547,7 +547,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass),
@@ -676,7 +676,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
@@ -787,7 +787,7 @@ export class RampService extends BaseRampService {
       processingFeeUsd,
       quoteId: rampState.quoteId,
       sessionId: rampState.state.sessionId,
-      status: this.mapPhaseToStatus(rampState.currentPhase),
+      status: mapPhaseToTransactionStatus(rampState.currentPhase),
       ...(subsidyDisplay
         ? {
             discountCurrency: subsidyDisplay.currency,
@@ -924,7 +924,7 @@ export class RampService extends BaseRampService {
           fromAmount: quote.inputAmount,
           fromCurrency: quote.inputCurrency,
           id: ramp.id,
-          status: this.mapPhaseToStatus(ramp.currentPhase),
+          status: mapPhaseToTransactionStatus(ramp.currentPhase),
           to: ramp.to,
           toAmount: quote.outputAmount,
           toCurrency: quote.outputCurrency,
@@ -935,15 +935,6 @@ export class RampService extends BaseRampService {
     );
 
     return { totalCount, transactions };
-  }
-
-  /**
-   * Map ramp phase to a user-friendly status
-   */
-  private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
-    if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
-    return TransactionStatus.PENDING;
   }
 
   /**
@@ -1121,15 +1112,9 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private mapPhaseToWebhookStatus(phase: RampPhase): TransactionStatus {
-    if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
-    return TransactionStatus.PENDING;
-  }
-
   private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
-    const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
-    const newStatus = this.mapPhaseToWebhookStatus(newPhase);
+    const oldStatus = mapPhaseToTransactionStatus(oldPhase);
+    const newStatus = mapPhaseToTransactionStatus(newPhase);
 
     // Only notify if status has changed and new status is not FAILED
     if (oldStatus !== newStatus && newStatus !== TransactionStatus.FAILED) {

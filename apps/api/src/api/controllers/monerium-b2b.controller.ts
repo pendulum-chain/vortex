@@ -8,6 +8,8 @@ import ManagedProfileManager from "../../models/managedProfileManager.model";
 import MoneriumAccount from "../../models/moneriumAccount.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
+import { sendError } from "../helpers/sendError";
+import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { accountSnapshot, depositSnapshots, findRelationship } from "../services/monerium-b2b/manager-events";
@@ -71,13 +73,7 @@ async function findAccountForEffectiveUser(req: Request): Promise<MoneriumAccoun
 }
 
 function accountNotFound(res: Response): void {
-  res.status(httpStatus.NOT_FOUND).json({
-    error: {
-      code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND",
-      message: "No Monerium account exists for the acting profile",
-      status: httpStatus.NOT_FOUND
-    }
-  });
+  sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "No Monerium account exists for the acting profile");
 }
 
 /**
@@ -99,7 +95,6 @@ export const getMoneriumB2bAccount = async (req: Request, res: Response, next: N
 };
 
 const DEPOSIT_LIST_MAX_LIMIT = 100;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * GET /v1/monerium-b2b/deposits — the acting profile's EUR deposits, newest first,
@@ -151,24 +146,17 @@ export const listMoneriumB2bAccounts = async (req: Request, res: Response, next:
       !manager.allowedCorridors.includes("EU") ||
       (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes("business"))
     ) {
-      res.status(httpStatus.FORBIDDEN).json({
-        error: {
-          code: "MANAGED_PROFILE_ACCESS_DENIED",
-          message: "The authenticated profile does not manage business EUR onramp accounts",
-          status: httpStatus.FORBIDDEN
-        }
-      });
+      sendError(
+        res,
+        httpStatus.FORBIDDEN,
+        "MANAGED_PROFILE_ACCESS_DENIED",
+        "The authenticated profile does not manage business EUR onramp accounts"
+      );
       return;
     }
     const moneriumProfileId = req.query.moneriumProfileId;
     if (moneriumProfileId !== undefined && (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId))) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "MONERIUM_B2B_INVALID_INPUT",
-          message: "moneriumProfileId must be a UUID",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "moneriumProfileId must be a UUID");
       return;
     }
     const rawLimit = Number(req.query.limit ?? 20);

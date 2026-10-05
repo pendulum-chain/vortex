@@ -15,6 +15,7 @@ import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
+import { sendError } from "../helpers/sendError";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { refreshAlfredpayCustomerStatus } from "../services/alfredpay/alfredpay-customer.service";
 import {
@@ -43,36 +44,33 @@ export function getOnboardingRequirements(req: Request, res: Response): void {
   const customerType = typeof req.query.customerType === "string" ? req.query.customerType.toLowerCase() : "";
 
   if (!country || (customerType !== "individual" && customerType !== "business")) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: {
-        code: "INVALID_ONBOARDING_REQUIREMENTS_QUERY",
-        message: "country and customerType (individual or business) are required",
-        status: httpStatus.BAD_REQUEST
-      }
-    });
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "INVALID_ONBOARDING_REQUIREMENTS_QUERY",
+      "country and customerType (individual or business) are required"
+    );
     return;
   }
 
   if (!(country in ONBOARDING_REQUIREMENTS)) {
-    res.status(httpStatus.NOT_FOUND).json({
-      error: {
-        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
-        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
-        status: httpStatus.NOT_FOUND
-      }
-    });
+    sendError(
+      res,
+      httpStatus.NOT_FOUND,
+      "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+      `No API-driven onboarding requirements are published for ${country} ${customerType}`
+    );
     return;
   }
 
   const requirements = findOnboardingRequirements(country as OnboardingRequirementsCountry, customerType);
   if (!requirements) {
-    res.status(httpStatus.NOT_FOUND).json({
-      error: {
-        code: "ONBOARDING_REQUIREMENTS_NOT_FOUND",
-        message: `No API-driven onboarding requirements are published for ${country} ${customerType}`,
-        status: httpStatus.NOT_FOUND
-      }
-    });
+    sendError(
+      res,
+      httpStatus.NOT_FOUND,
+      "ONBOARDING_REQUIREMENTS_NOT_FOUND",
+      `No API-driven onboarding requirements are published for ${country} ${customerType}`
+    );
     return;
   }
 
@@ -101,9 +99,7 @@ function shouldRefreshProviderStatus(customerId: string): boolean {
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
   const userId = getEffectiveUserId(req);
   if (!userId) {
-    res.status(httpStatus.UNAUTHORIZED).json({
-      error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication required", status: httpStatus.UNAUTHORIZED }
-    });
+    sendError(res, httpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Authentication required");
     return;
   }
 
@@ -397,33 +393,19 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
     });
   } catch (error) {
     logger.error("Error aggregating onboarding status:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to read onboarding status",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to read onboarding status");
   }
 }
 
 export async function putActiveEntity(req: Request, res: Response): Promise<void> {
   if (!req.userId) {
-    res.status(httpStatus.UNAUTHORIZED).json({
-      error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication required", status: httpStatus.UNAUTHORIZED }
-    });
+    sendError(res, httpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Authentication required");
     return;
   }
 
   const type = req.body?.type;
   if (type !== "individual" && type !== "business") {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: {
-        code: "INVALID_ACTIVE_ENTITY_TYPE",
-        message: "type must be individual or business",
-        status: httpStatus.BAD_REQUEST
-      }
-    });
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_ACTIVE_ENTITY_TYPE", "type must be individual or business");
     return;
   }
 
@@ -433,18 +415,10 @@ export async function putActiveEntity(req: Request, res: Response): Promise<void
   } catch (error) {
     if (error instanceof APIError) {
       const status = error.status ?? httpStatus.INTERNAL_SERVER_ERROR;
-      res.status(status).json({
-        error: { code: error.type ?? "ACTIVE_ENTITY_SELECTION_FAILED", message: error.message, status }
-      });
+      sendError(res, status, error.type ?? "ACTIVE_ENTITY_SELECTION_FAILED", error.message);
       return;
     }
     logger.error("Error selecting active customer entity:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to select active customer entity",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to select active customer entity");
   }
 }

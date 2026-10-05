@@ -1,8 +1,9 @@
-import { EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
+import { EvmClientManager, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
 import cryptoService from "./config/crypto";
 import { testDatabaseConnection } from "./config/database";
+import { loadEvmTokens } from "./config/evmTokens";
 import app from "./config/express";
 import logger from "./config/logger";
 import { config } from "./config/vars";
@@ -63,8 +64,8 @@ const initializeApp = async () => {
     // Sandbox demo deployments only; a no-op everywhere else.
     installDemoProviders();
 
-    // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
-    await initializeEvmTokens();
+    // Initialize dynamic EVM tokens from SquidRouter API (static config on failure, retried in the background)
+    await loadEvmTokens();
 
     // Test database connection
     await testDatabaseConnection();

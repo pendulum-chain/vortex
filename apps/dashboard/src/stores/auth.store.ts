@@ -7,7 +7,6 @@ import { AdminConsoleService } from "@/services/api/admin-console.service";
 import { AuthAPI } from "@/services/api/auth.api";
 import { AuthService, type AuthTokens } from "@/services/auth";
 import { restoreAuthSession } from "@/services/sessionRestore";
-import { useNotificationsStore } from "@/stores/notifications.store";
 
 interface AuthUser {
   name: string;
@@ -48,7 +47,6 @@ function userFromTokens(tokens: AuthTokens): AuthUser {
 
 export function clearAccountState(): void {
   queryClient.clear();
-  useNotificationsStore.getState().clear();
   if (typeof document !== "undefined") void disconnect(wagmiConfig);
 }
 

@@ -2,7 +2,6 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
-import * as path from "path";
 import { defineConfig } from "vite";
 
 // Marketing routes are static, so they are prerendered to HTML at build time and served by
@@ -83,11 +82,6 @@ export default defineConfig({
       project: "vortex"
     })
   ],
-  resolve: {
-    alias: {
-      shared: path.resolve(__dirname, "../shared/dist/esm/index.js")
-    }
-  },
   server: {
     host: true
   }
