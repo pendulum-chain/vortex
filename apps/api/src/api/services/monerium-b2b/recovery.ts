@@ -437,10 +437,12 @@ export async function driveRecovery(
           );
           return;
         }
+        // Only the transfer just sent may carry a hash: ToppingUp waits on whichever is set.
         await recovery.update({
           floatTopupRaw: topUp.toString(),
           floatTopupTxHash: hash,
-          phase: MoneriumRecoveryPhase.ToppingUp
+          phase: MoneriumRecoveryPhase.ToppingUp,
+          surplusTxHash: null
         });
         return;
       }
@@ -458,7 +460,12 @@ export async function driveRecovery(
           );
           return;
         }
-        await recovery.update({ phase: MoneriumRecoveryPhase.ToppingUp, surplusRaw: surplus.toString(), surplusTxHash: hash });
+        await recovery.update({
+          floatTopupTxHash: null,
+          phase: MoneriumRecoveryPhase.ToppingUp,
+          surplusRaw: surplus.toString(),
+          surplusTxHash: hash
+        });
         return;
       }
       await recovery.update({ phase: MoneriumRecoveryPhase.ToppedUp });
