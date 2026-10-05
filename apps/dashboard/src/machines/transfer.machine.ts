@@ -5,7 +5,7 @@ import {
   type RampProcess,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
+import { and, assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
 import {
   type CheckTransferBalanceInput,
@@ -18,7 +18,8 @@ import {
   registerTransfer,
   signUserTransactions,
   type TransferQuoteRequest,
-  UserRejectedError
+  UserRejectedError,
+  type UserTxSubmission
 } from "./transfer.actors";
 
 /** Everything the transactions table needs, captured at submit time. */
@@ -37,6 +38,8 @@ export interface TransferContext {
   meta: TransferMeta | null;
   ramp: RampProcess | null;
   userTxs: UnsignedTx[];
+  /** Wallet output not yet accepted by /ramp/update. Kept so a retry resends it instead of re-signing. */
+  userTxSubmission: UserTxSubmission | null;
   lastStatus: GetRampStatusResponse | null;
   errorMessage: string | null;
 }
@@ -53,6 +56,7 @@ export type TransferEvent =
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
   | { type: "PAYMENT_CONFIRMED"; ownerProfileId: string }
+  | { type: "RETRY"; ownerProfileId: string }
   | { type: "ACTIVATE_OWNER"; ownerProfileId: string; recovery: TransferContext | null }
   | { type: "RESET" };
 
@@ -70,6 +74,7 @@ const initialContext: TransferContext = {
   quote: null,
   quoteRequest: null,
   ramp: null,
+  userTxSubmission: null,
   userTxs: []
 };
 
@@ -107,12 +112,14 @@ export const transferMachine = setup({
     checkTransferBalance: fromPromise(({ input }: { input: CheckTransferBalanceInput }) => checkTransferBalance(input)),
     refreshTransferQuote: fromPromise(({ input }: { input: RefreshTransferQuoteInput }) => refreshTransferQuote(input)),
     registerTransfer: fromPromise(({ input }: { input: RegisterTransferInput }) => registerTransfer(input)),
-    signUserTransactions: fromPromise(({ input }: { input: { ramp: RampProcess; userTxs: UnsignedTx[] } }) =>
-      signUserTransactions(input)
-    ),
+    signUserTransactions: fromPromise(({ input }: { input: { userTxs: UnsignedTx[] } }) => signUserTransactions(input)),
     startRamp: fromPromise(async ({ input }: { input: { rampId: string } }) => {
       const { RampService } = await import("@/services/api/ramp.service");
       return RampService.startRamp(input.rampId);
+    }),
+    submitUserTxs: fromPromise(async ({ input }: { input: { rampId: string; submission: UserTxSubmission } }) => {
+      const { RampService } = await import("@/services/api/ramp.service");
+      return RampService.updateRamp(input.rampId, input.submission.signedTxs, input.submission.additionalData);
     }),
     trackRamp: fromCallback<TransferEvent, { rampId: string }>(({ sendBack, input }) =>
       pollRampUntilTerminal(
@@ -123,6 +130,8 @@ export const transferMachine = setup({
     )
   },
   guards: {
+    hasPendingUserTxs: ({ context }) => context.userTxSubmission !== null,
+    isOfframpRecovery: ({ event }) => event.type === "ACTIVATE_OWNER" && event.recovery?.quote?.rampType === RampDirection.SELL,
     isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY,
     isOnrampWithoutUserTxs: ({ context, event }) => {
       const output = (event as unknown as { output?: RegisterTransferOutput }).output;
@@ -148,6 +157,11 @@ export const transferMachine = setup({
     ACTIVATE_OWNER: [
       {
         actions: assign(({ event }) => ({ ...event.recovery, activeOwnerProfileId: event.ownerProfileId })),
+        guard: "isOfframpRecovery",
+        target: ".AwaitingRetry"
+      },
+      {
+        actions: assign(({ event }) => ({ ...event.recovery, activeOwnerProfileId: event.ownerProfileId })),
         guard: "isRecoveryActivation",
         target: ".AwaitingPayment"
       },
@@ -169,6 +183,25 @@ export const transferMachine = setup({
           guard: "isOwnerEvent",
           target: "Starting"
         }
+      }
+    },
+    // An offramp whose wallet transactions are already broadcast, but whose /ramp/update or
+    // /ramp/start failed. The funds sit on the ephemeral account, so the ramp and the wallet
+    // output must survive: RETRY resends the failed call, never the wallet transactions.
+    AwaitingRetry: {
+      on: {
+        RETRY: [
+          {
+            actions: assign(() => ({ errorMessage: null })),
+            guard: and(["isOwnerEvent", "hasPendingUserTxs"]),
+            target: "SubmittingUserTxs"
+          },
+          {
+            actions: assign(() => ({ errorMessage: null })),
+            guard: "isOwnerEvent",
+            target: "Starting"
+          }
+        ]
       }
     },
     CheckingBalance: {
@@ -297,32 +330,11 @@ export const transferMachine = setup({
     },
     SigningUserTxs: {
       invoke: {
-        input: ({ context }) => {
-          if (!context.ramp) {
-            throw new Error("Ramp is missing");
-          }
-          return { ramp: context.ramp, userTxs: context.userTxs };
+        input: ({ context }) => ({ userTxs: context.userTxs }),
+        onDone: {
+          actions: assign(({ event }) => ({ userTxSubmission: event.output })),
+          target: "SubmittingUserTxs"
         },
-        onDone: [
-          {
-            // An onramp releases its payment instructions only once the owner-signed
-            // transactions are in, so keep whatever the update returned.
-            actions: assign(({ context, event }) => ({
-              ramp: {
-                ...event.output,
-                achPaymentData: event.output.achPaymentData ?? context.ramp?.achPaymentData,
-                depositQrCode: event.output.depositQrCode ?? context.ramp?.depositQrCode,
-                ibanPaymentData: event.output.ibanPaymentData ?? context.ramp?.ibanPaymentData
-              }
-            })),
-            guard: "isOnramp",
-            target: "AwaitingPayment"
-          },
-          {
-            actions: assign(({ event }) => ({ ramp: event.output })),
-            target: "Starting"
-          }
-        ],
         onError: {
           actions: [
             assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
@@ -353,8 +365,9 @@ export const transferMachine = setup({
           })),
           target: "Tracking"
         },
-        // A BUY user may already have paid, so the ramp and its instructions must survive a
-        // failed start: back to AwaitingPayment, where PAYMENT_CONFIRMED retries the same ramp.
+        // A BUY user may already have paid, and a SELL user's tokens have already left the wallet,
+        // so the ramp must survive a failed start: back to AwaitingPayment (PAYMENT_CONFIRMED) or
+        // AwaitingRetry (RETRY), both of which retry the same ramp.
         onError: [
           {
             actions: [
@@ -369,11 +382,63 @@ export const transferMachine = setup({
               assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
               emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
             ],
-            target: "Failed"
+            target: "AwaitingRetry"
           }
         ],
         src: "startRamp"
       }
+    },
+    SubmittingUserTxs: {
+      invoke: {
+        input: ({ context }) => {
+          if (!context.ramp || !context.userTxSubmission) {
+            throw new Error("Signed wallet transactions are missing");
+          }
+          return { rampId: context.ramp.id, submission: context.userTxSubmission };
+        },
+        onDone: [
+          {
+            // An onramp releases its payment instructions only once the owner-signed
+            // transactions are in, so keep whatever the update returned.
+            actions: assign(({ context, event }) => ({
+              ramp: {
+                ...event.output,
+                achPaymentData: event.output.achPaymentData ?? context.ramp?.achPaymentData,
+                depositQrCode: event.output.depositQrCode ?? context.ramp?.depositQrCode,
+                ibanPaymentData: event.output.ibanPaymentData ?? context.ramp?.ibanPaymentData
+              },
+              userTxSubmission: null
+            })),
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: assign(({ event }) => ({ ramp: event.output, userTxSubmission: null })),
+            target: "Starting"
+          }
+        ],
+        // An onramp's wallet only signed a permit, so nothing has moved yet. An offramp's
+        // wallet has already broadcast: keep everything so the same update can be resent.
+        onError: [
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            guard: "isOnramp",
+            target: "Failed"
+          },
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            target: "AwaitingRetry"
+          }
+        ],
+        src: "submitUserTxs"
+      },
+      on: { ACTIVATE_OWNER: {} }
     },
     Tracking: {
       entry: emit(({ context }) => {
