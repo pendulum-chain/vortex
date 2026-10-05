@@ -4,11 +4,13 @@ import { DataTypes, QueryInterface } from "sequelize";
 // a deposit records when its EURe was minted (the promised window counts from there)
 // and who paid it (the refund target, from the issue order's counterpart); a recovery
 // row drives one deposit from the keeper's `recover` through the reverse swap, the
-// float top-up and the Monerium redeem order, one recovery at a time.
+// float top-up and the Monerium redeem order, one recovery at a time. The DEPOSIT_RETURNED
+// marker, like the received/converted markers, makes that event fire once per refund.
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addColumn("monerium_fiat_deposits", "minted_at", { allowNull: true, type: DataTypes.DATE });
   await queryInterface.addColumn("monerium_fiat_deposits", "payer_iban", { allowNull: true, type: DataTypes.STRING(34) });
   await queryInterface.addColumn("monerium_fiat_deposits", "payer_name", { allowNull: true, type: DataTypes.STRING(140) });
+  await queryInterface.addColumn("monerium_fiat_deposits", "returned_event_at", { allowNull: true, type: DataTypes.DATE });
 
   await queryInterface.createTable("monerium_recoveries", {
     attempts: { allowNull: false, defaultValue: 0, type: DataTypes.INTEGER },
@@ -43,6 +45,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.dropTable("monerium_recoveries", {});
   await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_monerium_recoveries_phase"');
+  await queryInterface.removeColumn("monerium_fiat_deposits", "returned_event_at");
   await queryInterface.removeColumn("monerium_fiat_deposits", "payer_name");
   await queryInterface.removeColumn("monerium_fiat_deposits", "payer_iban");
   await queryInterface.removeColumn("monerium_fiat_deposits", "minted_at");
