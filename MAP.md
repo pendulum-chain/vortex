@@ -45,6 +45,6 @@ The full placement and lifecycle policy is in [`docs/README.md`](docs/README.md)
 |---|---|
 | `scripts` | Repository coverage and maintenance tooling. |
 | `supabase` | Supabase configuration, migrations, snippets, and email templates. |
-| `.agents/skills` | Purpose-built, repository-specific agent workflows (currently Vortex integration and Sentry guidance). |
+| `.agents/skills` | Purpose-built, repository-specific agent workflows (review, shipping, PR feedback, cleanup rules, Vortex integration, and Sentry guidance). |
 | `.claude` | Shared Claude Code settings and worktree configuration. |
 | `.clinerules` | Pointer from Cline to the canonical `CLAUDE.md` and documentation policy. |
