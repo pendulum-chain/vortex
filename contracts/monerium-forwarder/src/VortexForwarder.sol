@@ -42,7 +42,7 @@ interface IVortexForwarderFactory {
 }
 
 interface IVortexSubsidyVault {
-    function pay(address to, uint256 amount, uint256 referenceOut) external;
+    function pay(uint256 amount, uint256 referenceOut) external;
 }
 
 /// @title VortexForwarder
@@ -459,7 +459,7 @@ contract VortexForwarder {
         // The vault is guardian-settable without a timelock, so its word is not enough:
         // count the subsidy only once exactly that amount has landed here.
         uint256 before = USDC.balanceOf(address(this));
-        IVortexSubsidyVault(vault).pay(address(this), subsidy, referenceOut);
+        IVortexSubsidyVault(vault).pay(subsidy, referenceOut);
         if (USDC.balanceOf(address(this)) - before != subsidy) revert SubsidyUnavailable();
         return (0, subsidy);
     }

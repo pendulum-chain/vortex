@@ -27,7 +27,6 @@ contract VortexSubsidyVaultTest is Test {
 
     address treasury = makeAddr("treasury");
     address forwarder = makeAddr("forwarder");
-    address destination = makeAddr("destination");
     address rando = makeAddr("rando");
 
     uint32 constant MAX_SUBSIDY_PPM = 5_000; // 50 bps
@@ -47,39 +46,39 @@ contract VortexSubsidyVaultTest is Test {
     function test_pay_onlyRegisteredForwarders() public {
         vm.prank(rando);
         vm.expectRevert(VortexSubsidyVault.NotForwarder.selector);
-        vault.pay(destination, 1e6, REFERENCE_OUT);
+        vault.pay(1e6, REFERENCE_OUT);
 
         factory.register(forwarder, false);
         vm.prank(forwarder);
         vm.expectRevert(VortexSubsidyVault.NotForwarder.selector);
-        vault.pay(destination, 1e6, REFERENCE_OUT);
+        vault.pay(1e6, REFERENCE_OUT);
     }
 
     function test_pay_transfersAndCountsAgainstTheDay() public {
         vm.prank(forwarder);
-        vault.pay(destination, 30e6, REFERENCE_OUT);
-        assertEq(usdc.balanceOf(destination), 30e6);
+        vault.pay(30e6, REFERENCE_OUT);
+        assertEq(usdc.balanceOf(forwarder), 30e6);
         assertEq(vault.spentToday(), 30e6);
         assertEq(vault.currentDay(), block.timestamp / 1 days);
     }
 
     function test_pay_enforcesPerSwapCap() public {
         vm.prank(forwarder);
-        vault.pay(destination, 50e6, REFERENCE_OUT); // exactly the cap is fine
+        vault.pay(50e6, REFERENCE_OUT); // exactly the cap is fine
         vm.prank(forwarder);
         vm.expectRevert(VortexSubsidyVault.SubsidyCapExceeded.selector);
-        vault.pay(destination, 50e6 + 1, REFERENCE_OUT);
+        vault.pay(50e6 + 1, REFERENCE_OUT);
     }
 
     function test_pay_enforcesDailyBudget_andResetsNextDay() public {
         vm.startPrank(forwarder);
-        vault.pay(destination, 50e6, REFERENCE_OUT);
-        vault.pay(destination, 50e6, REFERENCE_OUT); // budget fully used
+        vault.pay(50e6, REFERENCE_OUT);
+        vault.pay(50e6, REFERENCE_OUT); // budget fully used
         vm.expectRevert(VortexSubsidyVault.BudgetExhausted.selector);
-        vault.pay(destination, 1, REFERENCE_OUT);
+        vault.pay(1, REFERENCE_OUT);
 
         vm.warp((block.timestamp / 1 days + 1) * 1 days); // next UTC day
-        vault.pay(destination, 50e6, REFERENCE_OUT);
+        vault.pay(50e6, REFERENCE_OUT);
         assertEq(vault.spentToday(), 50e6);
         vm.stopPrank();
     }
@@ -88,14 +87,14 @@ contract VortexSubsidyVaultTest is Test {
         vault.setPaused(true);
         vm.prank(forwarder);
         vm.expectRevert(VortexSubsidyVault.VaultPaused.selector);
-        vault.pay(destination, 1e6, REFERENCE_OUT);
+        vault.pay(1e6, REFERENCE_OUT);
         vault.setPaused(false);
 
         vault.withdraw(1_000e6); // drain to treasury
         assertEq(usdc.balanceOf(treasury), 1_000e6);
         vm.prank(forwarder);
         vm.expectRevert(VortexSubsidyVault.TransferFailed.selector);
-        vault.pay(destination, 1e6, REFERENCE_OUT);
+        vault.pay(1e6, REFERENCE_OUT);
     }
 
     function test_guardianAuthority_gated() public {
@@ -116,7 +115,7 @@ contract VortexSubsidyVaultTest is Test {
         assertEq(vault.dailyBudget(), 1e6);
         vm.prank(forwarder);
         vm.expectRevert(VortexSubsidyVault.SubsidyCapExceeded.selector);
-        vault.pay(destination, 10e6 + 1, REFERENCE_OUT); // new cap: 10 USDC
+        vault.pay(10e6 + 1, REFERENCE_OUT); // new cap: 10 USDC
     }
 
     function test_withdraw_onlyEverReachesTreasury() public {

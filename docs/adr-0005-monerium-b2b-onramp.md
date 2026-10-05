@@ -114,8 +114,8 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
   between floor and target is passed through untouched; a fill below `reference × (1 −
   floor)` is topped up to the floor from the vault. The 2.5 bps dead band is intended.
 - **Subsidy vault.** One `VortexSubsidyVault` shared by every clone, treasury-funded,
-  pays only when called by a factory-registered clone, to the destination that clone
-  passes (its own immutable one), within a guardian-settable per-swap cap and UTC-daily
+  pays only when called by a factory-registered clone, to that clone itself, within a
+  guardian-settable per-swap cap and UTC-daily
   budget, can be paused, and withdraws only to the treasury. A vault that cannot cover
   reverts the whole swap, and the clone reverts unless exactly the shortfall arrived at
   its destination — a swap is never partially subsidized and a guardian-set vault cannot
