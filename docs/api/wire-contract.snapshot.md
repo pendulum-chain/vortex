@@ -9018,6 +9018,9 @@ POST /v1/admin/managed-profile-managers/:profileId/managed-profiles
 POST /v1/admin/managed-profiles
 POST /v1/admin/monerium-b2b/accounts
 PATCH /v1/admin/monerium-b2b/accounts/:accountId/status
+POST /v1/admin/monerium-b2b/deposits/:depositId/recover
+PATCH /v1/admin/monerium-b2b/deposits/:depositId/status
+GET /v1/admin/monerium-b2b/refund-address
 POST /v1/admin/partner-pricing-configs
 DELETE /v1/admin/partner-pricing-configs/:configId
 GET /v1/admin/partners/:partnerName/api-credentials
@@ -9164,6 +9167,7 @@ POST /v1/managed-profiles/:profileId/api-credentials
 DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId
 GET /v1/metrics/volumes
 GET /v1/monerium-b2b/account
+GET /v1/monerium-b2b/accounts
 GET /v1/monerium-b2b/deposits
 POST /v1/monerium-b2b/webhook
 POST /v1/monerium/iban/move
