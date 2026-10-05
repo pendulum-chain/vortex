@@ -258,7 +258,7 @@ provider-shaped rather than UI-shaped.
 
 - **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
   quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet
-  signature → start → poll; BUY
+  signature/broadcast → `/ramp/update` with the signatures and hashes → start → poll; BUY
   runs quote freshness check → register → presign ephemeral → `AwaitingPayment` → explicit payment
   confirmation → start → poll. The dashboard schedules form quote refreshes from `createdAt` and
   `expiresAt` when 60% of validity remains. The machine repeats that check before registration; if
@@ -273,12 +273,21 @@ provider-shaped rather than UI-shaped.
   `@vortexfi/shared`. `RampService` is loaded via a dynamic
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not
-  currently avoid it. The machine snapshot is persisted under a dashboard-specific key — only in
-  the recoverable `AwaitingPayment` state, never mid-request — so provider payment instructions
-  survive navigation and reload. A failed BUY start returns to `AwaitingPayment` with the same
-  ramp, so a user who already sent fiat keeps the instructions and can retry start. Registered
-  instructions remain visible until their 15-minute start window closes; once expired, the
-  dashboard hides the stale details and allows resetting for a new quote.
+  currently avoid it. The machine snapshot is persisted under a dashboard-specific key in the
+  recoverable states — BUY `AwaitingPayment`, and a SELL from its wallet broadcast until tracking
+  (`SubmittingUserTxs`, `Starting`, `AwaitingRetry`) — so provider payment instructions and
+  already-broadcast offramps survive navigation and reload. A failed BUY start returns to
+  `AwaitingPayment` with the same ramp, so a user who already sent fiat keeps the instructions and
+  can retry start. Registered instructions remain visible until their 15-minute start window
+  closes; once expired, the dashboard hides the stale details and allows resetting for a new quote.
+  A SELL whose post-broadcast `/ramp/update` or `/ramp/start` fails (a maintenance-window 503, a
+  network error) moves to `AwaitingRetry` with the ramp and any unsubmitted signatures and hashes;
+  **Try again** resends only the failed call and never re-signs or re-broadcasts. The pay-out form
+  shows the ramp's 15-minute start deadline (`expiresAt`); once it passes, the API refuses the
+  start, so the dashboard shows the ramp ID for a support-led recovery from the local ephemeral
+  archive and allows starting a new transfer. The transactions page offers **Resume transfer** for
+  that state. A partially broadcast wallet sequence (one transaction sent, a later one rejected)
+  still ends in `Failed`.
 
 - **Preserve ramp recovery keys.** The dashboard stores each ramp's EVM and Substrate ephemeral
   secrets locally before registration (under a
@@ -291,8 +300,9 @@ provider-shaped rather than UI-shaped.
   to the account that created the ramp; switching accounts does not expose its payment details.
   Managed-child selection extends this rule by keying resumable snapshots to the effective owner
   profile rather than using one global snapshot. Selection changes are forbidden while the machine
-  is in `CheckingQuote`, `CheckingBalance`, `Registering`, or `SigningUserTxs`. Once registration
-  and signing updates are durably accepted, its owner-scoped `AwaitingPayment` snapshot or backend
+  is in `CheckingQuote`, `CheckingBalance`, `Registering`, `SigningUserTxs`, or
+  `SubmittingUserTxs`. Once registration and signing updates are durably accepted, its owner-scoped
+  recovery snapshot or backend
   transaction record survives selection changes and is available again when that owner is selected.
   Ramp ephemeral storage is independent recovery custody and is never pruned or cleared by
   manager/child selection.
