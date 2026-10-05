@@ -386,7 +386,6 @@ function OfframpStartRetry({ ramp }: { ramp: RampProcess }) {
         navigate({ to: "/transactions" });
       } else if (snapshot.matches("AwaitingRetry")) {
         subscription.unsubscribe();
-        toast.error("Could not start transfer", { description: snapshot.context.errorMessage ?? undefined });
       }
     });
     transferActor.send({ ownerProfileId, type: "RETRY" });

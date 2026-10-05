@@ -421,18 +421,12 @@ export const transferMachine = setup({
         // wallet has already broadcast: keep everything so the same update can be resent.
         onError: [
           {
-            actions: [
-              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
-              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
-            ],
+            actions: assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
             guard: "isOnramp",
             target: "Failed"
           },
           {
-            actions: [
-              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
-              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
-            ],
+            actions: assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
             target: "AwaitingRetry"
           }
         ],
