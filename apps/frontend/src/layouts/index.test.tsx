@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../test/i18n";
+import { useMaintenanceStore } from "../stores/maintenanceStore";
 import { API_BASE_URL, server } from "../test/msw-server";
+
+const widgetMode = vi.hoisted(() => ({ value: true }));
 
 // Only the maintenance wiring is under test; stub the layout's unrelated chrome and hooks.
 vi.mock("../components/Navbar", () => ({ Navbar: () => null }));
@@ -11,13 +14,13 @@ vi.mock("../components/Footer", () => ({ Footer: () => null }));
 vi.mock("../components/Stepper", () => ({ default: () => null }));
 vi.mock("../hooks/useInitTokenBalances", () => ({ useInitTokenBalances: () => undefined }));
 vi.mock("../hooks/useStepper", () => ({ useStepper: () => ({ steps: [] }) }));
-vi.mock("../hooks/useWidgetMode", () => ({ useWidgetMode: () => false }));
+vi.mock("../hooks/useWidgetMode", () => ({ useWidgetMode: () => widgetMode.value }));
 vi.mock("../hooks/ramp/useIsQuoteComponentDisplayed", () => ({ useIsQuoteComponentDisplayed: () => false }));
 
 import { BaseLayout } from "./index";
 
 describe("BaseLayout", () => {
-  it("fetches the maintenance status on mount and shows an active maintenance banner", async () => {
+  beforeEach(() => {
     server.use(
       http.get(`${API_BASE_URL}/maintenance/status`, () =>
         HttpResponse.json({
@@ -31,9 +34,26 @@ describe("BaseLayout", () => {
         })
       )
     );
+  });
+
+  afterEach(() => {
+    useMaintenanceStore.getState().reset();
+  });
+
+  it("fetches the maintenance status on mount and shows an active maintenance banner in the widget", async () => {
+    widgetMode.value = true;
 
     render(<BaseLayout main={<div />} />);
 
-    expect(await screen.findByText("Scheduled maintenance")).toBeTruthy();
+    expect(await screen.findByText("Scheduled maintenance")).toBeInTheDocument();
+  });
+
+  it("keeps the maintenance banner off the marketing pages", async () => {
+    widgetMode.value = false;
+
+    render(<BaseLayout main={<div />} />);
+
+    await waitFor(() => expect(useMaintenanceStore.getState().maintenanceStatus?.is_maintenance_active).toBe(true));
+    expect(screen.queryByText("Scheduled maintenance")).not.toBeInTheDocument();
   });
 });

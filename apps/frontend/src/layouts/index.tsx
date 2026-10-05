@@ -29,9 +29,9 @@ export const BaseLayout: FC<BaseLayoutProps> = ({ main, modals }) => {
     <>
       {modals}
       <Navbar />
-      <MaintenanceBanner />
       {isWidgetMode && (
         <>
+          <MaintenanceBanner />
           <div className="container relative z-20 mx-auto px-4 md:w-120">
             {isStepperHidden ? <div className="h-[56px]" /> : <Stepper steps={steps} />}
           </div>
