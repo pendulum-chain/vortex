@@ -8,7 +8,7 @@ export interface MaintenanceDetails {
   end_datetime: string;
 }
 
-interface MaintenanceStatusResponse {
+export interface MaintenanceStatusResponse {
   is_maintenance_active: boolean;
   maintenance_details: MaintenanceDetails | null;
 }
