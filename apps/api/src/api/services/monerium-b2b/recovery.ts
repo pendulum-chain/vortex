@@ -65,31 +65,17 @@ const BPS = 10_000n;
 
 // ------------------------------------------------------------------ pure helpers
 
-/** Reverses a packed Uniswap V3 path (token, fee, token[, fee, token]) so the same pools run the other way. */
+/**
+ * Reverses a packed Uniswap V3 path so the same pools run the other way. The factory only
+ * admits token(20) fee(3) token(20) and token fee token fee token, so the two hex layouts
+ * are sliced directly.
+ */
 export function reversePath(path: Hex): Hex {
-  const bytes = path.slice(2);
-  if (bytes.length !== 86 && bytes.length !== 132) {
-    throw new Error(`unexpected packed path length ${bytes.length / 2}`);
-  }
-  const tokens: string[] = [];
-  const fees: string[] = [];
-  let offset = 0;
-  while (offset < bytes.length) {
-    tokens.push(bytes.slice(offset, offset + 40));
-    offset += 40;
-    if (offset < bytes.length) {
-      fees.push(bytes.slice(offset, offset + 6));
-      offset += 6;
-    }
-  }
-  tokens.reverse();
-  fees.reverse();
-  let out = "0x";
-  tokens.forEach((token, index) => {
-    out += token;
-    if (index < fees.length) out += fees[index];
-  });
-  return out as Hex;
+  const hex = path.slice(2);
+  if (hex.length === 86) return `0x${hex.slice(46)}${hex.slice(40, 46)}${hex.slice(0, 40)}`;
+  if (hex.length === 132)
+    return `0x${hex.slice(92)}${hex.slice(86, 92)}${hex.slice(46, 86)}${hex.slice(40, 46)}${hex.slice(0, 40)}`;
+  throw new Error(`unexpected packed path length ${hex.length / 2}`);
 }
 
 /**
