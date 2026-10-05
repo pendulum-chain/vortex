@@ -21,6 +21,7 @@ import { CORRIDOR_LIST, CORRIDORS } from "@/domain/corridors";
 import { getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId } from "@/domain/types";
+import { MAINTENANCE_QUOTE_ERROR, useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
@@ -164,6 +165,7 @@ export function QuoteExplorer() {
         }
       : null;
   const { data: quote, error, isFetching } = useQuote(quoteParams);
+  const maintenance = useActiveMaintenance();
 
   return (
     <div className="grid gap-5">
@@ -205,7 +207,11 @@ export function QuoteExplorer() {
             transition={springSnappy}
           >
             <TriangleAlert className="mt-px size-4 shrink-0" />
-            <p className="text-pretty">We couldn’t price that right now. Try another amount, token, or currency.</p>
+            <p className="text-pretty">
+              {maintenance
+                ? MAINTENANCE_QUOTE_ERROR
+                : "We couldn’t price that right now. Try another amount, token, or currency."}
+            </p>
           </motion.div>
         ) : quote ? (
           // The result is two distinct chunks, so it cascades in rather than landing as one block. The

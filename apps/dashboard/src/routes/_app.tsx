@@ -2,6 +2,7 @@ import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/rea
 import { motion } from "motion/react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
+import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { ManagedProfileBanner } from "@/components/layout/ManagedProfileBanner";
 import { Topbar } from "@/components/layout/Topbar";
 import { isChildModePathForbidden } from "@/components/managed-profiles/managed-profile-ui";
@@ -59,6 +60,7 @@ function AppLayout() {
       <AppSidebar />
       <SidebarInset>
         <div className="sticky top-0 z-30">
+          <MaintenanceBanner />
           <ImpersonationBanner />
           <ManagedProfileBanner />
           <Topbar />
