@@ -256,6 +256,8 @@ interface MockBackendOptions {
   apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
+  // Serve an active window on GET /v1/maintenance/status (default: none). Specs can flip `maintenance.active` later.
+  maintenanceActive?: boolean;
   onboardingState?: OnboardingState;
   companyMode?: boolean;
   selectionRequired?: boolean;
@@ -303,6 +305,14 @@ interface MockBackendOptions {
   quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
   tokenBalances?: TokenBalances | null | ((requestIndex: number, network: BalanceNetwork) => TokenBalances | null);
 }
+
+export const MAINTENANCE_DETAILS = {
+  end_datetime: "2026-10-05T18:00:00.000Z",
+  estimated_time_remaining_seconds: 3600,
+  message: "Ramps are paused while we upgrade.",
+  start_datetime: "2026-10-05T08:00:00.000Z",
+  title: "Scheduled maintenance"
+};
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
 const ALFREDPAY_SUCCESS = "SUCCESS";
@@ -435,6 +445,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     startRequests: [] as Array<Record<string, unknown>>
   };
   const auth = { refreshes: 0 };
+  const maintenance = { active: options.maintenanceActive ?? false };
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
@@ -592,6 +603,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
+      return;
+    }
+
+    if (path === "/v1/maintenance/status" && method === "GET") {
+      await fulfillJson({
+        is_maintenance_active: maintenance.active,
+        maintenance_details: maintenance.active ? MAINTENANCE_DETAILS : null
+      });
       return;
     }
 
@@ -1173,6 +1192,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     kyc,
     kycFormSubmissions,
     limitsRequests,
+    maintenance,
     monerium,
     quoteRequests,
     registerRequests,
