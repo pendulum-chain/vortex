@@ -157,6 +157,33 @@ Before finalizing, make a simplification pass. Remove speculative flexibility, d
 state, unnecessary branches, single-use helpers, and indirection that do not protect a
 demonstrated requirement. Keep the regression test that proves the leaner fix is safe.
 
+## Compatibility Contract
+
+Every change, and especially every refactor or cleanup (including ponytail audits), must
+keep existing integrators working. Simplification never justifies breaking them.
+
+- **HTTP API**: every route mounted from `apps/api/src/config/express.ts` keeps its path,
+  method, request validation, status codes, error codes/messages, and response bodies.
+  Never remove a mounted endpoint because nothing in this repo calls it; partners might.
+- **SDK**: the exports of `packages/sdk/src/index.ts`, its emitted types, its runtime
+  behavior, and the HTTP requests it sends stay unchanged. Relaxing a requirement (for
+  example dropping an unused peer dependency) is fine.
+- **`@vortexfi/shared`** is published to npm: never remove or change anything the SDK
+  source or its emitted types reference. Other removed exports need a version bump on the
+  next publish.
+- **Persisted formats** stay readable: ramp state and its metadata, rebalancer state files,
+  browser storage keys, and webhook payloads.
+- **Refactors** need tests that prove equivalence. Where existing tests don't, write
+  characterization tests against the old code first; if equivalence can't be shown, skip
+  the refactor. No exceptions in fund-moving code (`apps/api/src/api/services/phases/`,
+  `apps/rebalancer`).
+- A **cleanup** must remove net code. Moving lines into a new abstraction is not cleanup.
+
+`bun run wire-contract:check` (CI) snapshots the shared endpoint types, the SDK surface,
+and every mounted `METHOD /path`; a snapshot diff is a compatibility review, not a
+formality. Cleanup and ponytail runs also follow
+[`.agents/skills/vortex-cleanup/SKILL.md`](.agents/skills/vortex-cleanup/SKILL.md).
+
 ## Testing
 
 These apply to every agent working in this repo:
