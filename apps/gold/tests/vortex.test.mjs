@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPaxgBuyRequest, classifyRamp, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
+import { hasPrivySession } from "../src/lib/privy-session.js";
+import { buildPaxgBuyRequest, classifyRamp, isValidCpf, normalizeQuote, pollRamp, rampStartDeadline, resolveApiBase, secondsUntilExpiry } from "../src/lib/vortex.js";
 
 test("builds the locked BRL PIX to Ethereum PAXG corridor", () => {
   assert.deepEqual(buildPaxgBuyRequest(500), {
@@ -82,4 +83,30 @@ test("ramp polling surfaces persistent outages and final errors", async () => {
   const signedOut = { getRampStatus: async () => { calls += 1; throw Object.assign(new Error("Unauthorized"), { status: 401 }); } };
   await assert.rejects(pollRamp(signedOut, "r1", { intervalMs: 1 }), /Unauthorized/);
   assert.equal(calls, 1);
+});
+
+test("accepts only CPFs with valid check digits", () => {
+  for (const cpf of ["08786985906", "087.869.859-06", "52998224725"]) assert.equal(isValidCpf(cpf), true, cpf);
+  // 08786985914 is wrong only in the first check digit, 08786985907 only in the second.
+  for (const cpf of ["08786985914", "08786985907", "12345678901", "11111111111", "01234567890", "0878698590", "087869859060", "", undefined]) assert.equal(isValidCpf(cpf), false, String(cpf));
+});
+
+test("ramp polling stops as soon as it is aborted", { timeout: 2000 }, async () => {
+  let calls = 0;
+  const client = { getRampStatus: async () => { calls += 1; return { status: "PENDING", currentPhase: "hydrationSwap" }; } };
+  const waiting = new AbortController();
+  setTimeout(() => waiting.abort(), 20);
+  await assert.rejects(pollRamp(client, "r1", { intervalMs: 60_000, signal: waiting.signal }), { name: "AbortError" });
+  assert.equal(calls, 1);
+  await assert.rejects(pollRamp(client, "r1", { signal: AbortSignal.abort() }), { name: "AbortError" });
+  assert.equal(calls, 1);
+});
+
+test("a stored Privy session or a Google sign-in return keeps the loader instead of the landing", () => {
+  assert.equal(hasPrivySession(["privy:token"], ""), true);
+  assert.equal(hasPrivySession(["privy:clabc:refresh_token"], ""), true);
+  const redirectKeys = ["privy:state_code", "privy:code_verifier", "privy:caid"];
+  assert.equal(hasPrivySession(redirectKeys, "?privy_oauth_code=x&privy_oauth_state=y&privy_oauth_provider=google"), true);
+  assert.equal(hasPrivySession(redirectKeys, ""), false);
+  assert.equal(hasPrivySession(["privy:id_token", "privy:pat", "satoshi:vortex-session:v2"], "?utm_source=ad"), false);
 });

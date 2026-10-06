@@ -34,11 +34,6 @@ class MoneriumB2bWorker {
     this.job.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping Monerium B2B keeper worker");
-    this.job.stop();
-  }
-
   private async cycle(): Promise<void> {
     if (this.running) {
       return; // previous cycle (e.g. waiting on a receipt) still in progress

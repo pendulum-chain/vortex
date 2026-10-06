@@ -1,9 +1,7 @@
-import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { FiatToken, isFiatToken } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
-import { useTranslation } from "react-i18next";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { useRampForm } from "../../../hooks/ramp/useRampForm";
@@ -36,12 +34,10 @@ export interface FormData {
 }
 
 export const DetailsStep = ({ className }: DetailsStepProps) => {
-  const { t } = useTranslation();
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
   const rampActor = useRampActor();
-  const { walletLockedFromState, isQuoteRedo } = useSelector(rampActor, state => ({
-    isQuoteRedo: state.context.isQuoteRedo,
+  const { walletLockedFromState } = useSelector(rampActor, state => ({
     walletLockedFromState: state.context.walletLocked
   }));
 
@@ -107,14 +103,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
               isWalletAddressDisabled={!!walletLockedFromState}
               signingState={signingState}
             />
-            {isQuoteRedo && (
-              <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
-                <div className="flex items-center space-x-3">
-                  <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-                  <p className="text-gray-700 text-sm">{t("pages.widget.details.quoteChangedWarning")}</p>
-                </div>
-              </div>
-            )}
           </div>
           <StepFooter>
             <DetailsStepActions

@@ -1,5 +1,5 @@
 import { type QuoteResponse, RampDirection, type RampProcess } from "@vortexfi/shared";
-import { type Actor, createActor } from "xstate";
+import { createActor } from "xstate";
 import { TRANSACTIONS_QUERY_KEY } from "@/hooks/useTransactions";
 import { notifyTransferCompleted } from "@/lib/notify";
 import { queryClient } from "@/lib/queryClient";
@@ -10,8 +10,7 @@ import { type TransferContext, type TransferMeta, transferMachine } from "./tran
  * keeps running here after the form unmounts. Transaction rows come from the backend ramp
  * history, so each status change just invalidates that query to pull the latest.
  */
-const LEGACY_TRANSFER_STATE_STORAGE_KEY = "vortex-dashboard-transfer-state";
-const TRANSFER_STATE_STORAGE_PREFIX = `${LEGACY_TRANSFER_STATE_STORAGE_KEY}:owner:`;
+const TRANSFER_STATE_STORAGE_PREFIX = "vortex-dashboard-transfer-state:owner:";
 const TRANSFER_RECOVERY_VERSION = 1;
 
 interface PersistedTransferRecovery {
@@ -78,13 +77,7 @@ function readPersistedTransferState(ownerProfileId: string): TransferContext | u
   }
 }
 
-function startTransferActor(): Actor<typeof transferMachine> {
-  // Ownerless legacy state cannot be attributed safely and must never be adopted.
-  localStorage.removeItem(LEGACY_TRANSFER_STATE_STORAGE_KEY);
-  return createActor(transferMachine).start();
-}
-
-export const transferActor = startTransferActor();
+export const transferActor = createActor(transferMachine).start();
 
 const notifiedRampIds = new Set<string>();
 
@@ -119,7 +112,6 @@ export function activateTransferOwner(ownerProfileId: string): boolean {
 
 export function clearAllTransferRecovery(): void {
   notifiedRampIds.clear();
-  localStorage.removeItem(LEGACY_TRANSFER_STATE_STORAGE_KEY);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith(TRANSFER_STATE_STORAGE_PREFIX)) {

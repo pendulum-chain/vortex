@@ -143,6 +143,16 @@ lifecycle reconciliation and external-profile import remain deferred.
   an editable EVM destination address. A connected AppKit wallet prefills that address but is not
   required and never signs a BUY transaction (implemented).
 
+**Maintenance windows.** While an operator-scheduled window is active, every app page shows a
+banner with its message and end time. Starting an offramp or onramp and confirming an onramp
+payment are disabled, and the API rejects quote creation and ramp register/update/start for the
+window anyway. Quote errors on the transfer and quote pages then say quotes are paused. Open
+payment instructions explain that confirming is paused, or are hidden when the window outlasts the
+ramp's start deadline, so nobody pays into a ramp that can no longer start. Before the wallet signs
+an offramp, the dashboard re-checks the status so a window that opened in the meantime stops the
+transfer before funds move. The status is refetched every five minutes, just after an active
+window's end, and when the tab regains focus (implemented).
+
 ### Transactions
 - As a sender, I see my started onramp and offramp history — destination, corridor, amounts in and out,
   status (`processing · completed · failed · cancelled`), and the reason a payout failed. Ramps that
@@ -364,8 +374,8 @@ provider-shaped rather than UI-shaped.
   #2 stops at "onboarded", not "payable". The product and provider contract must define how
   payout instruments are created for both senders creating links and recipients redeeming them,
   while keeping raw bank PII provider-side.
-- The notification feed rendered in the dashboard shell is still client-mocked even though
-  `/v1/notifications` exists; wiring it up is listed under next steps. The Settings email
+- The dashboard has no in-app notification feed; corridor and transfer outcomes surface as
+  toasts only, even though `/v1/notifications` exists. The Settings email
   preference toggles are wired to `/v1/notifications/preferences`: "Onboarding updates" maps to
   the three `verification_*` types and "Transfer status" to `ramp_completed`, the stored type
   strings the email dispatch worker consults at delivery time (shared `EmailNotificationType`
@@ -376,7 +386,7 @@ provider-shaped rather than UI-shaped.
 
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
-- Connect the dashboard notification feed to the backend.
+- Add a dashboard notification feed backed by `/v1/notifications`.
 - Consider persisting intended corridor selection independently of provider entities. A small
   backend table could support adding/removing tracked corridors and explicit status management;
   provider-created entities remain the authoritative persisted onboarding state meanwhile.

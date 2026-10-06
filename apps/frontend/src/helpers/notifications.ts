@@ -3,11 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ToastOptions, toast } from "react-toastify";
 
 export enum ToastMessage {
-  AMOUNT_MISMATCH = "AMOUNT_MISMATCH",
   RAMP_LIMIT_EXCEEDED = "RAMP_LIMIT_EXCEEDED",
-  KYC_COMPLETED = "KYC_COMPLETED",
-  KYC_VERIFICATION_FAILED = "KYC_VERIFICATION_FAILED",
-  SIGNING_FAILED = "SIGNING_FAILED",
   POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = "POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION",
   ERROR = "ERROR",
   NODE_CONNECTION_ERROR = "NODE_CONNECTION_ERROR",
@@ -22,34 +18,6 @@ const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey:
       type: "success"
     },
     translationKey: "toasts.copyText"
-  },
-  [ToastMessage.AMOUNT_MISMATCH]: {
-    options: {
-      toastId: ToastMessage.AMOUNT_MISMATCH,
-      type: "error"
-    },
-    translationKey: "toasts.amountMismatch"
-  },
-  [ToastMessage.KYC_COMPLETED]: {
-    options: {
-      toastId: ToastMessage.KYC_COMPLETED,
-      type: "success"
-    },
-    translationKey: "toasts.kycCompleted"
-  },
-  [ToastMessage.KYC_VERIFICATION_FAILED]: {
-    options: {
-      toastId: ToastMessage.KYC_VERIFICATION_FAILED,
-      type: "error"
-    },
-    translationKey: "toasts.kycVerificationFailed"
-  },
-  [ToastMessage.SIGNING_FAILED]: {
-    options: {
-      toastId: ToastMessage.SIGNING_FAILED,
-      type: "error"
-    },
-    translationKey: "toasts.signingFailed"
   },
   [ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
     options: {
@@ -108,8 +76,4 @@ export function useToastMessage() {
     showToast,
     ToastMessage
   };
-}
-
-export function showToastRaw(message: ToastMessage, customMessage: string) {
-  return toast(customMessage, toastConfig[message].options);
 }

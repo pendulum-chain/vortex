@@ -15,8 +15,8 @@ architecture and commands. Run commands from `apps/api/` unless noted.
 
 ### Ramp state machine
 
-The ramping process runs through defined phases; metadata and valid transitions live in
-PostgreSQL, seeded via `bun seed:phase-metadata`.
+The ramping process runs through defined phases; the phase flows and their valid transitions
+live in code under `src/api/services/phases/`.
 
 - **Offramp**: prepareTransactions → squidRouter → pendulumFundEphemeral → subsidizePreSwap → nablaApprove → nablaSwap → subsidizePostSwap → performBrlaPayout → pendulumCleanup
 - **Onramp**: brlaTeleport → createMoonbeamEphemeral → executeMoonbeamToPendulumXCM → subsidizePreSwap → nablaApprove → nablaSwap → executePendulumToAssetHubXCM → pendulumCleanup
@@ -31,7 +31,6 @@ bun test phase-processor.integration.test.ts --timeout X   # integration test
 bun migrate                      # run migrations
 bun migrate:revert              # revert ALL migrations (destructive — dev only)
 bun migrate:revert-last          # revert last migration
-bun seed:phase-metadata          # seed phase configuration
 ```
 
 Lint with the repo Biome config: from repo root `bun lint:fix`, or target a path with

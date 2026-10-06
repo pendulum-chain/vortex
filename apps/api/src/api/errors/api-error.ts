@@ -1,5 +1,4 @@
 import httpStatus from "http-status";
-import ExtendableError from "./extendable-error";
 
 interface APIErrorParams {
   message: string;
@@ -12,9 +11,19 @@ interface APIErrorParams {
 
 /**
  * Class representing an API error.
- * @extends ExtendableError
+ * @extends Error
  */
-export class APIError extends ExtendableError {
+export class APIError extends Error {
+  readonly errors?: unknown[];
+
+  readonly status?: number;
+
+  readonly isPublic: boolean;
+
+  readonly isOperational: boolean;
+
+  readonly type?: string;
+
   /**
    * Creates an API error.
    * @param {string} message - Error message.
@@ -22,13 +31,14 @@ export class APIError extends ExtendableError {
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
   constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false, type }: APIErrorParams) {
-    super({
-      errors,
-      isPublic,
-      message,
-      stack,
-      status,
-      type
-    });
+    super(message);
+    this.name = this.constructor.name;
+    this.message = message;
+    this.errors = errors;
+    this.status = status;
+    this.isPublic = isPublic;
+    this.isOperational = true;
+    this.stack = stack;
+    this.type = type;
   }
 }

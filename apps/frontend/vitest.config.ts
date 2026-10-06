@@ -14,7 +14,6 @@ export default defineConfig({
         "src/stories/**",
         "src/contracts/**",
         "src/routeTree.gen.ts",
-        "src/setupTests.ts",
         "src/test/**"
       ],
       provider: "v8",

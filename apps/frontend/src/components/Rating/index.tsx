@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { validator } from "web3";
+import { isAddress } from "viem";
 import { useVortexAccount } from "../../hooks/useVortexAccount";
 import { RatingService } from "../../services/api";
 import { CloseButton } from "../buttons/CloseButton";
@@ -16,7 +16,7 @@ export function Rating() {
   const { address: walletAddress } = useVortexAccount();
   const [rating, setRating] = useState(0);
 
-  const isValidAddress = !!walletAddress && validator.isAddress(walletAddress);
+  const isValidAddress = !!walletAddress && isAddress(walletAddress);
 
   const {
     mutate: saveUserRatingMutation,

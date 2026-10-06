@@ -3,13 +3,15 @@ import { ReactNode, useCallback, useLayoutEffect } from "react";
 import { useIsQuoteComponentDisplayed } from "./useIsQuoteComponentDisplayed";
 import { useRampComponentState } from "./useRampComponentState";
 
+type Screen = "success" | "failure" | "progress" | "quote" | "form";
+
 function getActiveScreen(
   currentPhase: string | undefined,
   status: TransactionStatus | undefined,
   rampStateDefined: boolean,
   machineValue: string,
   isQuoteDisplayed: boolean
-): string {
+): Screen {
   if (status === TransactionStatus.COMPLETE || currentPhase === "complete") return "success";
   if (status === TransactionStatus.FAILED || currentPhase === "failed") return "failure";
   if (rampStateDefined && machineValue === "RampFollowUp") return "progress";
@@ -41,34 +43,17 @@ export const useRampNavigation = (
     }
   }, [activeScreen]);
 
-  const getCurrentComponent = useCallback(() => {
-    if (rampState?.ramp?.status === TransactionStatus.COMPLETE || rampState?.ramp?.currentPhase === "complete") {
-      return successComponent;
-    }
-
-    if (rampState?.ramp?.status === TransactionStatus.FAILED || rampState?.ramp?.currentPhase === "failed") {
-      return failureComponent;
-    }
-
-    if (rampState !== undefined && rampMachineState.value === "RampFollowUp") {
-      return progressComponent;
-    }
-
-    if (isQuoteDisplayed) {
-      return quoteComponent;
-    }
-
-    return formComponent;
-  }, [
-    rampState,
-    rampMachineState.value,
-    successComponent,
-    failureComponent,
-    progressComponent,
-    formComponent,
-    quoteComponent,
-    isQuoteDisplayed
-  ]);
+  const getCurrentComponent = useCallback(
+    () =>
+      ({
+        failure: failureComponent,
+        form: formComponent,
+        progress: progressComponent,
+        quote: quoteComponent,
+        success: successComponent
+      })[activeScreen],
+    [activeScreen, successComponent, failureComponent, progressComponent, formComponent, quoteComponent]
+  );
 
   return {
     currentPhase: rampState?.ramp?.currentPhase,

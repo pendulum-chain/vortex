@@ -5,6 +5,7 @@ import { MIN_BUY, QUICK_BUY_VALUES, DEFAULT_BUY, validBuyAmount, buyFeePercent }
 import { QRCodeSVG } from "qrcode.react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { CHART_PERIODS, chartWindow, fetchPaxgMarket, getDemoMarket } from "./lib/market.js";
+import { deleteEphemeralRampKeys } from "./lib/ephemeral-store.js";
 import { readPaxgBalance } from "./lib/paxg.js";
 import { addRampHistory, clearActiveRamp, failActiveRamp, getActiveRamp, getRampHistory, saveActiveRamp } from "./lib/pilot-store.js";
 import {
@@ -17,6 +18,8 @@ import {
   getPaxgAvailability,
   getBrazilKycUploads,
   hasVortexSession,
+  isValidCpf,
+  kycOutcome,
   pollBrazilKyc,
   pollRamp,
   rampStartDeadline,
@@ -46,14 +49,18 @@ const IconButton = ({ label, children, className = "", ...props }) => <button cl
 
 function Modal({ title, description, onClose, children, wide = false, closeDisabled = false }) {
   const closeRef = useRef(null);
+  // Callers pass a new onClose on every render, and the app re-renders on its balance and availability
+  // polls; re-running the focus effect then pulled focus out of the field being typed in.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement;
     closeRef.current?.focus();
-    const onKey = (event) => event.key === "Escape" && !closeDisabled && onClose();
+    const onKey = (event) => event.key === "Escape" && !closeDisabled && onCloseRef.current();
     document.addEventListener("keydown", onKey);
     document.body.classList.add("no-scroll");
     return () => { document.removeEventListener("keydown", onKey); document.body.classList.remove("no-scroll"); previous?.focus?.(); };
-  }, [closeDisabled, onClose]);
+  }, [closeDisabled]);
   return <div className="modal-backdrop" role="presentation" onMouseDown={() => !closeDisabled && onClose()}><section className={`sheet ${wide ? "sheet--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-describedby={description ? "sheet-description" : undefined} onMouseDown={(event) => event.stopPropagation()}>{!closeDisabled && <IconButton label="Fechar" className="sheet-close" onClick={onClose} ref={closeRef}><X size={21} /></IconButton>}<h2 id="sheet-title">{title}</h2>{description && <p id="sheet-description" className="sheet-description">{description}</p>}{children}</section></div>;
 }
 
@@ -63,7 +70,7 @@ function Landing({ onStart, onLearn }) {
 
 function Login({ onClose, onLogin, loading }) {
   const [showOtherMethods, setShowOtherMethods] = useState(false);
-  return <Modal title="Seu ouro começa aqui." description="Entre sem senha com uma conta que você já usa. Uma carteira segura será criada automaticamente para você." onClose={onClose}><div className="login-trust"><span><Fingerprint size={21} /> Você confirma cada movimentação</span><span><LockKey size={21} /> Seu ouro fica na sua carteira</span></div><div className="login-methods"><button className="button button--google" type="button" onClick={() => onLogin("google")} disabled={Boolean(loading)}><span className="google-mark" aria-hidden="true">G</span>{loading === "google" ? "Entrando…" : "Continuar com Google"}</button><button className="login-other-trigger" type="button" onClick={() => setShowOtherMethods((current) => !current)} aria-expanded={showOtherMethods}><span>Outras formas de entrar</span><CaretDown size={16} className={showOtherMethods ? "open" : ""} /></button>{showOtherMethods && <button className="button button--email" type="button" onClick={() => onLogin("email")} disabled={Boolean(loading)}><EnvelopeSimple size={22} />{loading === "email" ? "Entrando…" : "Continuar com e-mail"}</button>}</div><p className="legal-note">Ao continuar, você aceita os <a href="/pt-br/terms-and-conditions/" target="_blank" rel="noreferrer">Termos de Uso</a> e a <a href="/pt-br/privacy-policy/" target="_blank" rel="noreferrer">Política de Privacidade</a>.</p></Modal>;
+  return <Modal title="Seu ouro começa aqui." description="Entre sem senha com uma conta que você já usa. Uma carteira segura será criada automaticamente para você." onClose={onClose}><div className="login-trust"><span><Fingerprint size={21} /> Você confirma cada movimentação</span><span><LockKey size={21} /> Seu ouro fica na sua carteira</span></div><div className="login-methods"><button className="button button--google" type="button" onClick={() => onLogin("google")} disabled={Boolean(loading)}><span className="google-mark" aria-hidden="true">G</span>{{ google: "Entrando…", privy: "Carregando…" }[loading] || "Continuar com Google"}</button><button className="login-other-trigger" type="button" onClick={() => setShowOtherMethods((current) => !current)} aria-expanded={showOtherMethods}><span>Outras formas de entrar</span><CaretDown size={16} className={showOtherMethods ? "open" : ""} /></button>{showOtherMethods && <button className="button button--email" type="button" onClick={() => onLogin("email")} disabled={Boolean(loading)}><EnvelopeSimple size={22} />{{ email: "Entrando…", privy: "Carregando…" }[loading] || "Continuar com e-mail"}</button>}</div>{loading === "unavailable" && <p className="field-error flow-error" role="alert">Não foi possível carregar o login. Recarregue a página.</p>}<p className="legal-note">Ao continuar, você aceita os <a href="/pt-br/terms-and-conditions/" target="_blank" rel="noreferrer">Termos de Uso</a> e a <a href="/pt-br/privacy-policy/" target="_blank" rel="noreferrer">Política de Privacidade</a>.</p></Modal>;
 }
 
 function Welcome({ firstName, onContinue }) {
@@ -121,9 +128,14 @@ function KycStep({ quote, email, initialName, onApproved }) {
   const [livenessUrl, setLivenessUrl] = useState("");
   const [prepared, setPrepared] = useState(null);
   const submittedKyc = useRef(false);
+  const pollAbort = useRef(null);
+  useEffect(() => () => pollAbort.current?.abort(), []);
+  // A rejection returns to the long form, so bring the explanation into view and announce it.
+  const errorRef = useRef(null);
+  useEffect(() => { if (error) errorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [error, phase]);
   const [form, setForm] = useState({ fullName: initialName || "", taxId: "", dateOfBirth: "", state: "", city: "", zipCode: "", streetAddress: "", documentType: "DRIVERS-LICENSE", front: null, back: null });
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const valid = form.fullName.trim().length > 4 && cleanCpf(form.taxId).length === 11 && form.dateOfBirth && form.state.length === 2 && form.city.trim() && form.zipCode.replace(/\D/g, "").length === 8 && form.streetAddress.trim().length > 5 && form.front && (form.documentType !== "ID" || form.back);
+  const valid = form.fullName.trim().length > 4 && isValidCpf(form.taxId) && form.dateOfBirth && form.state.length === 2 && form.city.trim() && form.zipCode.replace(/\D/g, "").length === 8 && form.streetAddress.trim().length > 5 && form.front && (form.documentType !== "ID" || form.back);
 
   const prepare = async () => {
     const livenessWindow = window.open("about:blank", "ouro-avenia");
@@ -150,18 +162,27 @@ function KycStep({ quote, email, initialName, onApproved }) {
 
   const finish = async () => {
     setLoading(true); setError(""); setPhase("checking");
+    pollAbort.current = new AbortController();
     try {
       if (!submittedKyc.current) { await submitBrazilKyc(prepared); submittedKyc.current = true; }
-      const status = await pollBrazilKyc(prepared.taxIdNumber);
-      if (String(status?.result || "").toUpperCase() !== "APPROVED") throw new Error(status?.failureReason ? `A verificação não foi aprovada (${status.failureReason}). Confira os dados e tente novamente.` : "A verificação ainda não foi aprovada. Aguarde alguns minutos e tente novamente.");
-      onApproved();
-    } catch (nextError) { setError(nextError.message || "Não foi possível concluir a verificação."); setPhase("liveness"); }
+      const outcome = kycOutcome(await pollBrazilKyc(prepared.taxIdNumber, { signal: pollAbort.current.signal }));
+      // In the sell flow the quote can still find the account unapproved while Avenia syncs; the approved
+      // screen then lets the user continue instead of waiting on a spinner that never ends.
+      if (outcome.approved) { setPhase("approved"); onApproved(); return; }
+      // A rejected or expired attempt needs a new document upload and selfie, submitted as a new attempt.
+      submittedKyc.current = false; setPhase("form"); setError(outcome.message);
+    } catch (nextError) {
+      if (nextError.name === "AbortError") return;
+      setError(nextError.message || "Não foi possível concluir a verificação.");
+      // "Já concluí a selfie" would only resubmit the refused attempt.
+      setPhase(nextError.code === "KYC_NEW_ATTEMPT_BLOCKED" ? "form" : "liveness");
+    }
     finally { setLoading(false); }
   };
 
-  if (phase !== "form") return <div className="flow-step"><div className="flow-title"><span className="flow-icon"><Fingerprint size={24} /></span><div><h3>{phase === "checking" ? "Validando seus dados" : "Faça a selfie segura"}</h3><p>{phase === "checking" ? "A Avenia está conferindo sua identidade." : "Conclua a verificação na janela da Avenia e volte aqui."}</p></div></div>{phase === "checking" ? <div className="processing-inline"><span /><b>Isso pode levar alguns minutos.</b><small>Não feche esta tela.</small></div> : <><div className="kyc-card"><span className="avenia-mark">A</span><div><b>Ambiente seguro da Avenia</b><p>A selfie confirma que o documento pertence a você. Suas imagens são enviadas para a verificação da Avenia.</p></div></div><a className="button button--outline button--full external-button" href={livenessUrl} target="ouro-avenia" rel="noreferrer">Abrir verificação da Avenia <ArrowRight size={18} /></a><button className="button button--dark button--full" type="button" onClick={finish} disabled={loading}>{loading ? "Conferindo…" : "Já concluí a selfie"}</button></>}{error && <p className="field-error flow-error">{error}</p>}</div>;
+  if (phase !== "form") return <div className="flow-step"><div className="flow-title"><span className="flow-icon"><Fingerprint size={24} /></span><div><h3>{phase === "checking" ? "Validando seus dados" : phase === "approved" ? "Identidade verificada" : "Faça a selfie segura"}</h3><p>{phase === "checking" ? "A Avenia está conferindo sua identidade." : phase === "approved" ? "A Avenia confirmou sua identidade." : "Conclua a verificação na janela da Avenia e volte aqui."}</p></div></div>{phase === "checking" ? <div className="processing-inline"><span /><b>Isso pode levar alguns minutos.</b><small>Não feche esta tela.</small></div> : phase === "approved" ? <button className="button button--dark button--full" type="button" onClick={onApproved}>Continuar <ArrowRight size={18} /></button> : <><div className="kyc-card"><span className="avenia-mark">A</span><div><b>Ambiente seguro da Avenia</b><p>A selfie confirma que o documento pertence a você. Suas imagens são enviadas para a verificação da Avenia.</p></div></div><a className="button button--outline button--full external-button" href={livenessUrl} target="ouro-avenia" rel="noreferrer">Abrir verificação da Avenia <ArrowRight size={18} /></a><button className="button button--dark button--full" type="button" onClick={finish} disabled={loading}>{loading ? "Conferindo…" : "Já concluí a selfie"}</button></>}{error && <p ref={errorRef} role="alert" className="field-error flow-error">{error}</p>}</div>;
 
-  return <div className="flow-step"><div className="flow-title"><span className="flow-icon"><Fingerprint size={24} /></span><div><h3>Uma verificação rápida</h3><p>Antes do primeiro PIX, a Avenia precisa confirmar sua identidade.</p></div></div><div className="kyc-card"><span className="avenia-mark">A</span><div><b>Feita pela Avenia</b><p>Tenha seu CPF e documento com foto em mãos. Seus dados não ficam armazenados neste aparelho.</p></div></div><div className="form-grid"><label className="field field--wide"><span>Nome completo</span><input value={form.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" /></label><label className="field"><span>CPF</span><input value={form.taxId} onChange={(event) => update("taxId", cleanCpf(event.target.value))} inputMode="numeric" placeholder="11 dígitos" /></label><label className="field"><span>Data de nascimento</span><input type="date" value={form.dateOfBirth} onChange={(event) => update("dateOfBirth", event.target.value)} /></label><label className="field"><span>Estado (UF)</span><input value={form.state} onChange={(event) => update("state", event.target.value.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase())} maxLength={2} placeholder="SP" /></label><label className="field"><span>Cidade</span><input value={form.city} onChange={(event) => update("city", event.target.value)} autoComplete="address-level2" /></label><label className="field"><span>CEP</span><input value={form.zipCode} onChange={(event) => update("zipCode", event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="postal-code" /></label><label className="field field--wide"><span>Endereço completo</span><input value={form.streetAddress} onChange={(event) => update("streetAddress", event.target.value)} placeholder="Rua, número, bairro e complemento" autoComplete="street-address" /></label><label className="field field--wide"><span>Documento</span><select value={form.documentType} onChange={(event) => update("documentType", event.target.value)}><option value="DRIVERS-LICENSE">CNH</option><option value="ID">RG</option></select></label><label className="file-field"><span>{form.documentType === "ID" ? "Frente do documento" : "Foto do documento"}</span><input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(event) => update("front", event.target.files?.[0] || null)} /><small>{form.front?.name || "JPG, PNG ou PDF"}</small></label>{form.documentType === "ID" && <label className="file-field"><span>Verso do documento</span><input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(event) => update("back", event.target.files?.[0] || null)} /><small>{form.back?.name || "JPG, PNG ou PDF"}</small></label>}</div>{error && <p className="field-error flow-error">{error}</p>}<button className="button button--dark button--full" type="button" onClick={prepare} disabled={!valid || loading}>{loading ? "Enviando com segurança…" : "Continuar para a selfie"} <ArrowRight size={18} /></button><p className="legal-note">Ao continuar, estes dados são enviados diretamente à Avenia para verificação obrigatória.</p></div>;
+  return <div className="flow-step"><div className="flow-title"><span className="flow-icon"><Fingerprint size={24} /></span><div><h3>Uma verificação rápida</h3><p>Antes do primeiro PIX, a Avenia precisa confirmar sua identidade.</p></div></div><div className="kyc-card"><span className="avenia-mark">A</span><div><b>Feita pela Avenia</b><p>Tenha seu CPF e documento com foto em mãos. Seus dados não ficam armazenados neste aparelho.</p></div></div><div className="form-grid"><label className="field field--wide"><span>Nome completo</span><input value={form.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" /></label><label className="field"><span>CPF</span><input value={form.taxId} onChange={(event) => update("taxId", cleanCpf(event.target.value))} inputMode="numeric" placeholder="11 dígitos" aria-invalid={form.taxId.length === 11 && !isValidCpf(form.taxId)} aria-describedby={form.taxId.length === 11 && !isValidCpf(form.taxId) ? "kyc-cpf-error" : undefined} />{form.taxId.length === 11 && !isValidCpf(form.taxId) && <small id="kyc-cpf-error" className="field-error">Confira o CPF: os dígitos não conferem.</small>}</label><label className="field"><span>Data de nascimento</span><input type="date" value={form.dateOfBirth} onChange={(event) => update("dateOfBirth", event.target.value)} /></label><label className="field"><span>Estado (UF)</span><input value={form.state} onChange={(event) => update("state", event.target.value.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase())} maxLength={2} placeholder="SP" /></label><label className="field"><span>Cidade</span><input value={form.city} onChange={(event) => update("city", event.target.value)} autoComplete="address-level2" /></label><label className="field"><span>CEP</span><input value={form.zipCode} onChange={(event) => update("zipCode", event.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="postal-code" /></label><label className="field field--wide"><span>Endereço completo</span><input value={form.streetAddress} onChange={(event) => update("streetAddress", event.target.value)} placeholder="Rua, número, bairro e complemento" autoComplete="street-address" /></label><label className="field field--wide"><span>Documento</span><select value={form.documentType} onChange={(event) => update("documentType", event.target.value)}><option value="DRIVERS-LICENSE">CNH</option><option value="ID">RG</option></select></label><label className="file-field"><span>{form.documentType === "ID" ? "Frente do documento" : "Foto do documento"}</span><input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(event) => update("front", event.target.files?.[0] || null)} /><small>{form.front?.name || "JPG, PNG ou PDF"}</small></label>{form.documentType === "ID" && <label className="file-field"><span>Verso do documento</span><input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(event) => update("back", event.target.files?.[0] || null)} /><small>{form.back?.name || "JPG, PNG ou PDF"}</small></label>}</div>{error && <p ref={errorRef} role="alert" className="field-error flow-error">{error}</p>}<button className="button button--dark button--full" type="button" onClick={prepare} disabled={!valid || loading}>{loading ? "Enviando com segurança…" : "Continuar para a selfie"} <ArrowRight size={18} /></button><p className="legal-note">Ao continuar, estes dados são enviados diretamente à Avenia para verificação obrigatória.</p></div>;
 }
 
 function ConfirmStep({ amount, quote, market, onNext, loading, error }) {
@@ -389,11 +410,13 @@ export function App({ auth, demo = true }) {
     const next = addRampHistory({ rampId: ramp.id, walletAddress: auth.address?.toLowerCase(), inputAmount: ramp.inputAmount, outputAmount: ramp.outputAmount, transactionExplorerLink: ramp.transactionExplorerLink, rampType: ramp.type || "BUY" });
     setHistory(next.filter((item) => item.walletAddress === auth.address?.toLowerCase()));
     setPending(null);
+    // Completed ramps are swept server-side; the stored keys only matter for recovering failed ones.
+    if (!demo) deleteEphemeralRampKeys(ramp.id).catch(() => {});
     if (demo) setGrams((value) => Math.max(0, value + (ramp.type === "SELL" ? -Number(ramp.inputAmount) : Number(ramp.outputAmount)) * 31.1034768));
     window.setTimeout(loadBalance, 2_000);
   };
   const closeFlow = () => { setFlowOpen(false); setPending(getActiveRamp(auth.address)); setHistory(getRampHistory(auth.address)); loadBalance(); };
 
-  if (!signedIn) return <><Landing onStart={() => setLoginOpen(true)} onLearn={() => setLearnOpen(true)} />{loginOpen && <Login onClose={() => setLoginOpen(false)} onLogin={startLogin} loading={authLoading} />}{learnOpen && <LearnModal onClose={() => setLearnOpen(false)} />}</>;
+  if (!signedIn) return <><Landing onStart={() => setLoginOpen(true)} onLearn={() => setLearnOpen(true)} />{loginOpen && <Login onClose={() => setLoginOpen(false)} onLogin={startLogin} loading={auth.error ? "unavailable" : auth.ready === false ? "privy" : authLoading} />}{learnOpen && <LearnModal onClose={() => setLearnOpen(false)} />}</>;
   return <><Dashboard user={auth.user} address={auth.address} grams={grams} balanceLoading={balanceLoading} balanceError={balanceError} market={market} onBuy={() => { setFlowType(pending?.rampType || "BUY"); setFlowOpen(true); }} onSell={() => { setFlowType(pending?.rampType || "SELL"); setFlowOpen(true); }} availability={availability} onLogout={logout} onLearn={() => setLearnOpen(true)} history={history} demo={demo} pending={pending} onResume={() => { setFlowType(pending?.rampType || "BUY"); setFlowOpen(true); }} />{welcomeOpen && <Welcome firstName={auth.user?.firstName || "Olá"} onContinue={() => setWelcomeOpen(false)} />}{flowOpen && flowType === "SELL" && <SellFlow ui={{ Modal, OtpStep, KycStep }} email={auth.user?.email || (demo ? DEMO_EMAIL : "")} name={auth.user?.name} walletAddress={auth.address} getEthereumProvider={auth.getEthereumProvider} demo={demo} availableGrams={grams} resumeRamp={pending} onClose={closeFlow} onComplete={completeTransaction} />}{flowOpen && flowType !== "SELL" && <TransactionFlow email={auth.user?.email || (demo ? DEMO_EMAIL : "")} name={auth.user?.name} market={market} walletAddress={auth.address} getEthereumProvider={auth.getEthereumProvider || (async () => null)} onClose={closeFlow} onComplete={completeTransaction} demo={demo} resumeRamp={pending} />}{learnOpen && <LearnModal onClose={() => setLearnOpen(false)} />}</>;
 }

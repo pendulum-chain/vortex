@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
+import { constantTimeEquals } from "../../helpers/constantTimeEquals";
 
 /**
  * Monerium B2B webhook authentication + durable inbox (plan §3, R06).
@@ -12,15 +13,6 @@ import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
 export const MONERIUM_ID_HEADER = "webhook-id";
 export const MONERIUM_SIGNATURE_HEADER = "webhook-signature";
 export const MONERIUM_TIMESTAMP_HEADER = "webhook-timestamp";
-
-function constantTimeEquals(a: Buffer, b: Buffer): boolean {
-  if (a.length !== b.length) {
-    // Compare against self to keep timing independent of the mismatch position.
-    crypto.timingSafeEqual(a, a);
-    return false;
-  }
-  return crypto.timingSafeEqual(a, b);
-}
 
 function decodeBase64(value: string, minBytes: number, maxBytes: number): Buffer | null {
   if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) return null;

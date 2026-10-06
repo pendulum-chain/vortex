@@ -23,7 +23,6 @@ import {
   RampDirection,
   SubmitKybInformationRequest,
   SubmitKycInformationRequest,
-  TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
@@ -59,12 +58,6 @@ export interface PriceQuery {
 interface ChangeOpBody extends CreationBody {
   sequence: string;
   paymentData: unknown;
-}
-
-interface SwapBody {
-  amountRaw: string;
-  address: string;
-  token?: keyof TokenConfig;
 }
 
 interface SiweCreateBody {
@@ -274,54 +267,6 @@ export const validateStorageInput = validateRequestBodyValuesForTransactionStore
 export const validateContactInput = validateRequestBodyValues(CONTACT_SHEET_HEADER_VALUES);
 export const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 export const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
-export const validateExecuteXCM = validateRequestBodyValues(["id", "payload"]);
-
-export const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
-  const { amountRaw, address } = req.body as SwapBody;
-
-  if (amountRaw === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
-    return;
-  }
-
-  if (typeof amountRaw !== "string") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
-    return;
-  }
-
-  if (address === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
-    return;
-  }
-
-  next();
-};
-
-export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
-  const { amountRaw, address, token } = req.body as Required<SwapBody>;
-
-  if (amountRaw === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
-    return;
-  }
-
-  if (typeof amountRaw !== "string") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
-    return;
-  }
-
-  if (address === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
-    return;
-  }
-
-  if (token === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "token" parameter' });
-    return;
-  }
-
-  next();
-};
 
 export const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;

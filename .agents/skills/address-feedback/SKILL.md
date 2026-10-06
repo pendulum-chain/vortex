@@ -55,7 +55,7 @@ Run what the change touches:
 - `bun typecheck`.
 - Affected package/app test suites (commands in each subdirectory's CLAUDE.md).
 - `bun run build:shared` when `packages/shared` changed, then re-run dependent suites.
-- `bun run wire-contract:check` when shared endpoint types or the SDK surface changed;
+- `bun run wire-contract:check` when shared endpoint types, the SDK surface, or API routes changed;
   if the change is intentional, `bun run wire-contract:update` and commit the snapshot
   diff with an explicit note on backward compatibility.
 

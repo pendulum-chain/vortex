@@ -1,16 +1,5 @@
 {
   "components": {
-    "airdropBanner": {
-      "button": "Mais informações",
-      "description": "Compre ou venda USDT/C por apenas R$5 ou €10 - receba 20 USDT de graça!",
-      "list": {
-        "1": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT.",
-        "2": "As recompensas ganhas são enviadas diretamente para sua carteira. <1>Não é necessário reivindicar!</1>",
-        "3": "Uma recompensa por pessoa, paga diariamente – <1>confira seu status</1> <2>aqui</2>.",
-        "4": "Sua confiança é importante – <1>o Vortex é</1> <2>open source</2> para total transparência."
-      },
-      "title": "Oferta especial até 27 Maio"
-    },
     "alfredpayKycFlow": {
       "cancel": "Cancelar",
       "completeInNewWindow": "Por favor, complete o processo {{kycOrKyb}} na nova janela. Quando terminar, clique no botão abaixo.",
@@ -580,9 +569,6 @@
       "continue": "Continuar",
       "documentVerifiedAlt": "Documento verificado"
     },
-    "kycLevel2Toggle": {
-      "temporarilyDisabled": "Temporariamente desativado"
-    },
     "maintenance": {
       "banner": {
         "ends": "Término previsto",
@@ -725,7 +711,6 @@
       "openApp": "Abrir App",
       "payments": "Pagamentos",
       "sellCrypto": "Vender Cripto",
-      "solutions": "Soluções",
       "toggleMobileMenu": "Alternar menu móvel",
       "vortexLogo": "Logo Vortex",
       "widget": "Widget"
@@ -907,10 +892,6 @@
       "confirmPayment": "Eu fiz o pagamento.",
       "processing": "Processando"
     },
-    "termsAndConditions": {
-      "link": "Termos e Condições",
-      "text": "Eu li e aceito os"
-    },
     "transactionId": {
       "label": "ID da Transação"
     },
@@ -926,15 +907,6 @@
     "useGetRampRegistrationErrorMessage": {
       "default": "Algo deu errado",
       "quoteNotFound": "A cotação expirou. Por favor, tente novamente."
-    },
-    "useSubmitOfframp": {
-      "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
-      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte.",
-      "maintenance": "Manutenção temporária em andamento - por favor, volte mais tarde."
-    },
-    "useTokenAmountOut": {
-      "default": "Algo deu errado",
-      "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde."
     }
   },
   "menus": {
@@ -1593,7 +1565,6 @@
       }
     },
     "swap": {
-      "developedBy": "Desenvolvido por",
       "error": {
         "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
         "amountOutOfRange": {
@@ -1703,7 +1674,6 @@
           "next": "Próximo"
         },
         "eurRampUnavailable": "Estamos melhorando a sua rampa de EUR. Ela voltará em breve.",
-        "quoteChangedWarning": "Sua cotação foi alterada. Por favor, confirme o novo valor de saída antes de continuar.",
         "title": "Insira os detalhes"
       }
     }
@@ -1768,10 +1738,6 @@
       },
       "title": "Como vender criptomoedas online <br class='hidden md:block' /> com Vortex"
     },
-    "pitch": {
-      "description": "Complete tudo em uma única etapa simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> desfrute de transações rápidas, seguras e as melhores taxas do mercado.",
-      "title": "Compre e Venda <1>Stablecoins</1> - <br class='hidden sm:block' /> diretamente com sua conta bancária"
-    },
     "popularTokens": {
       "countries": {
         "description": "Faça on e off-ramp nestas moedas fiduciárias populares",
@@ -1785,12 +1751,6 @@
         "description": "Negocie em várias redes blockchain",
         "title": "Redes Suportadas"
       }
-    },
-    "popularTokensPartners": {
-      "circlePartner": "Somos parceiros oficiais da Circle.",
-      "joinNetwork": "Junte-se à nossa rede de parceiros oficiais",
-      "pendulumPowered": "Nossa infraestrutura é alimentada por Pendulum.",
-      "title": "Vortex em todos os lugares"
     },
     "trustedBy": {
       "comingSoon": "Em breve",
@@ -1827,14 +1787,10 @@
     }
   },
   "toasts": {
-    "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
     "copyText": "Copiado para a área de transferência",
     "genericError": "Ocorreu um erro. Por favor, tente novamente.",
-    "kycCompleted": "Sucesso! Prepare-se para sacar.",
-    "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
     "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
     "rampLimitExceeded": "Este valor excede o limite restante de {{remaining}} BRL para sua conta.",
-    "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
     "signingRejected": "Assinatura rejeitada. Por favor, tente novamente.",
     "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente."
   }

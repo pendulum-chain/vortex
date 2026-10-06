@@ -68,6 +68,9 @@ export function buildRampProcess(overrides: Record<string, unknown> = {}) {
     createdAt: new Date().toISOString(),
     currentPhase: "initial",
     depositQrCode: E2E_DEPOSIT_QR_CODE,
+    // The API sets createdAt + RAMP_START_EXPIRATION_TIME_SECONDS (15 min); the SELL start-deadline
+    // guard in sign.actor.ts fails closed without it.
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     from: "pix",
     id: E2E_RAMP_ID,
     inputAmount: "100",

@@ -56,27 +56,6 @@ export class MaintenanceService {
   }
 
   /**
-   * Add a new maintenance schedule to the database
-   */
-  public async addSchedule(scheduleData: {
-    title: string;
-    startDatetime: Date;
-    endDatetime: Date;
-    messageToDisplay: string;
-    isActiveConfig: boolean;
-    notes?: string;
-  }): Promise<MaintenanceSchedule> {
-    try {
-      const newSchedule = await MaintenanceSchedule.create(scheduleData);
-      logger.info(`Added new maintenance schedule: ${newSchedule.title} (${newSchedule.id})`);
-      return newSchedule;
-    } catch (error) {
-      logger.error("Error adding maintenance schedule:", error);
-      throw new Error("Failed to add maintenance schedule");
-    }
-  }
-
-  /**
    * Update the active status of a maintenance schedule
    */
   public async updateScheduleActiveStatus(id: string, isActive: boolean): Promise<boolean> {
@@ -155,75 +134,6 @@ export class MaintenanceService {
     } catch (error) {
       logger.error("Error checking maintenance status:", error);
       throw new Error("Failed to retrieve maintenance status");
-    }
-  }
-
-  /**
-   * Get a specific maintenance schedule by ID
-   */
-  public async getScheduleById(id: string): Promise<MaintenanceSchedule | null> {
-    try {
-      const schedule = await MaintenanceSchedule.findByPk(id);
-      return schedule;
-    } catch (error) {
-      logger.error("Error fetching maintenance schedule by ID:", error);
-      throw new Error("Failed to retrieve maintenance schedule");
-    }
-  }
-
-  /**
-   * Delete a maintenance schedule
-   */
-  public async deleteSchedule(id: string): Promise<boolean> {
-    try {
-      const deletedRowsCount = await MaintenanceSchedule.destroy({
-        where: { id }
-      });
-
-      if (deletedRowsCount === 0) {
-        logger.warn(`Maintenance schedule not found for deletion: ${id}`);
-        return false;
-      }
-
-      logger.info(`Deleted maintenance schedule: ${id}`);
-      return true;
-    } catch (error) {
-      logger.error("Error deleting maintenance schedule:", error);
-      throw new Error("Failed to delete maintenance schedule");
-    }
-  }
-
-  /**
-   * Update a maintenance schedule
-   */
-  public async updateSchedule(
-    id: string,
-    updateData: Partial<{
-      title: string;
-      startDatetime: Date;
-      endDatetime: Date;
-      messageToDisplay: string;
-      isActiveConfig: boolean;
-      notes: string;
-    }>
-  ): Promise<MaintenanceSchedule | null> {
-    try {
-      const [updatedRowsCount] = await MaintenanceSchedule.update(updateData, {
-        where: { id }
-      });
-
-      if (updatedRowsCount === 0) {
-        logger.warn(`Maintenance schedule not found for update: ${id}`);
-        return null;
-      }
-
-      // Fetch and return the updated schedule
-      const updatedSchedule = await MaintenanceSchedule.findByPk(id);
-      logger.info(`Updated maintenance schedule: ${id}`);
-      return updatedSchedule;
-    } catch (error) {
-      logger.error("Error updating maintenance schedule:", error);
-      throw new Error("Failed to update maintenance schedule");
     }
   }
 }

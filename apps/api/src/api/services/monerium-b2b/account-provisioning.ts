@@ -5,11 +5,11 @@ import { config } from "../../../config/vars";
 import KycCase from "../../../models/kycCase.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { type ProvisionManagedProfileResult, provisionManagedProfile } from "../managed-profile-provisioning.service";
 import { getPublicClient } from "./chain";
 
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class MoneriumB2bProvisioningError extends Error {
   constructor(

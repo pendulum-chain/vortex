@@ -10,14 +10,12 @@ interface MaintenanceStore {
 
   // Actions
   fetchMaintenanceStatus: () => Promise<void>;
-  clearError: () => void;
-  reset: () => void;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+// Below the hook's 5-minute poll: lastFetched lands after the response, so an equal window skips every other poll.
+const CACHE_DURATION = 60 * 1000;
 
 export const useMaintenanceStore = create<MaintenanceStore>((set, get) => ({
-  clearError: () => set({ error: null }),
   error: null,
 
   // Actions
@@ -50,22 +48,11 @@ export const useMaintenanceStore = create<MaintenanceStore>((set, get) => ({
   isLoading: false,
   lastFetched: null,
   // Initial state
-  maintenanceStatus: null,
-
-  reset: () =>
-    set({
-      error: null,
-      isLoading: false,
-      lastFetched: null,
-      maintenanceStatus: null
-    })
+  maintenanceStatus: null
 }));
 
 // Selectors for easier access
-export const useMaintenanceStatus = () => useMaintenanceStore(state => state.maintenanceStatus);
 export const useIsMaintenanceActive = () =>
   useMaintenanceStore(state => state.maintenanceStatus?.is_maintenance_active ?? false);
 export const useMaintenanceDetails = () => useMaintenanceStore(state => state.maintenanceStatus?.maintenance_details ?? null);
-export const useMaintenanceLoading = () => useMaintenanceStore(state => state.isLoading);
-export const useMaintenanceError = () => useMaintenanceStore(state => state.error);
 export const useFetchMaintenanceStatus = () => useMaintenanceStore(state => state.fetchMaintenanceStatus);

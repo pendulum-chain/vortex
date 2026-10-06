@@ -4,10 +4,10 @@ import { assertLegacyRebalancerDisabled } from "./cli.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
-import { selectEvaluatedUsdcToBrlaAmount, selectUsdcToBrlaAmount } from "./rebalance/usdc-brla-usdc-base/amountPolicy.ts";
-import { evaluatePaidRunDailyLimit, sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
+import { sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
 import {
   type DailyBridgeLimitDecision,
+  evaluateDailyBridgeLimit,
   evaluateRebalancingCostPolicy,
   isProjectedProfit,
   type RebalancingCostPolicyDecision,
@@ -39,26 +39,6 @@ if (forcedRoute && !["squidrouter", "avenia", "nabla-main"].includes(forcedRoute
   process.exit(1);
 }
 
-async function getTodayBridgedUsdRaw(): Promise<Big> {
-  const usdcStateManager = new UsdcBaseStateManager();
-  const brlaStateManager = new BrlaToUsdcBaseStateManager();
-
-  const [usdcHistory, brlaHistory] = await Promise.all([usdcStateManager.getHistory(), brlaStateManager.getHistory()]);
-
-  return sumTodayBridgedUsdRaw(usdcHistory, brlaHistory);
-}
-
-async function getDailyBridgeLimitContext(): Promise<{ bridgedToday: Big; dailyLimitRaw: Big }> {
-  const config = getConfig();
-  const bridgedToday = await getTodayBridgedUsdRaw();
-  const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
-  console.log(
-    `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
-  );
-
-  return { bridgedToday, dailyLimitRaw };
-}
-
 interface CurrentRunDailyLimitEvaluation {
   dailyVolume: {
     bypassedForProfit: boolean;
@@ -81,7 +61,15 @@ async function evaluateCurrentRunDailyLimit(
   profitable: boolean
 ): Promise<CurrentRunDailyLimitEvaluation> {
   const config = getConfig();
-  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
+  const [usdcHistory, brlaHistory] = await Promise.all([
+    new UsdcBaseStateManager().getHistory(),
+    new BrlaToUsdcBaseStateManager().getHistory()
+  ]);
+  const bridgedToday = sumTodayBridgedUsdRaw(usdcHistory, brlaHistory);
+  const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
+  console.log(
+    `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
+  );
   const dailyVolume = {
     bypassedForProfit: profitable,
     limitRaw: dailyLimitRaw.toFixed(0, 0),
@@ -96,13 +84,9 @@ async function evaluateCurrentRunDailyLimit(
     return { dailyVolume };
   }
 
-  const dailyLimitDecision = await evaluatePaidRunDailyLimit(amountUsdcRaw, profitable, async () => ({
-    bridgedToday,
-    dailyLimitRaw
-  }));
-  if (!dailyLimitDecision) return { dailyVolume };
-  logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
-  return { dailyVolume, decision: dailyLimitDecision };
+  const decision = evaluateDailyBridgeLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw);
+  logDailyLimitDecision(decision, config.rebalancingDailyBridgeLimitUsd);
+  return { dailyVolume, decision };
 }
 
 function getQuoteForRoute(
@@ -241,16 +225,11 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
 }> {
   const config = getConfig();
-  const standardAmountSelection = selectUsdcToBrlaAmount(
-    config.rebalancingUsdToBrlAmount,
-    config.rebalancingUsdToBrlAmount,
-    false,
-    manualAmount
-  );
-  const standardAmountRaw = toUsdcRaw(standardAmountSelection.amountUsdc);
+  const standardAmountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
+  const standardAmountRaw = toUsdcRaw(standardAmountUsdc);
   const standardPolicyDecision = await evaluateUsdcToBrlaPolicy(standardAmountRaw, coverageDeviationBps);
 
-  if (standardAmountSelection.reason === "manual") {
+  if (manualAmount) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
@@ -266,23 +245,17 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   }
 
   console.log(
-    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountSelection.amountUsdc} USDC, ` +
+    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountUsdc} USDC, ` +
       `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
   );
 
   await sleep(SQUIDROUTER_QUOTE_STAGGER_MS);
   const profitablePolicyDecision = await evaluateUsdcToBrlaPolicy(profitableAmountRaw, coverageDeviationBps);
 
-  const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
-    { amountUsdc: standardAmountSelection.amountUsdc, projectedProfitable: standardPolicyDecision.profitable },
-    { amountUsdc: config.rebalancingProfitableUsdToBrlAmount, projectedProfitable: profitablePolicyDecision.profitable },
-    null
-  );
-
-  if (selectedAmount.reason !== "profitable") {
+  if (!profitablePolicyDecision.profitable) {
     console.log(
       `Configured profitable amount ${config.rebalancingProfitableUsdToBrlAmount} USDC is not projected profitable. ` +
-        `Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
+        `Using standard amount ${standardAmountUsdc} USDC.`
     );
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }

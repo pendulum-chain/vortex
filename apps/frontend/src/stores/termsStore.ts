@@ -59,11 +59,4 @@ export const useTermsStore = create<TermsState>()((set, get) => ({
   termsError: false
 }));
 
-export const useTermsChecked = () => useTermsStore(state => state.termsChecked);
-export const useTermsAccepted = () => useTermsStore(state => state.termsAccepted);
-export const useTermsError = () => useTermsStore(state => state.termsError);
-export const useTermsAnimationKey = () => useTermsStore(state => state.termsAnimationKey);
-export const useTermsIsValid = () => useTermsStore(state => state.isValid);
-
-export const useTermsActions = () => useTermsStore(state => state.actions);
 export const useValidateTerms = () => useTermsStore(state => state.actions.validateTerms);

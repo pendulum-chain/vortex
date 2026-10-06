@@ -6,7 +6,7 @@ import { RecipientDialog } from "@/components/recipients/RecipientDialog";
 import { RecipientsTable } from "@/components/recipients/RecipientsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CORRIDOR_LIST, CORRIDORS } from "@/domain/corridors";
+import { CORRIDOR_LIST } from "@/domain/corridors";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
@@ -23,10 +23,10 @@ function RecipientsPage() {
     return null;
   }
 
-  // Any approved corridor unlocks inviting to every live corridor; default to the first approved one.
+  // Any approved corridor unlocks inviting to every corridor; default to the first approved one.
   const hasApprovedCorridor = approvedIds.size > 0;
-  const corridors = hasApprovedCorridor ? CORRIDOR_LIST.filter(corridor => corridor.availability === "live") : [];
-  const defaultCorridorId = [...approvedIds].map(id => CORRIDORS[id]).find(corridor => corridor.availability === "live")?.id;
+  const corridors = hasApprovedCorridor ? CORRIDOR_LIST : [];
+  const [defaultCorridorId] = approvedIds;
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">

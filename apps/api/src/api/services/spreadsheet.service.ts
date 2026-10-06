@@ -9,12 +9,6 @@ export interface GoogleCredentials {
   key?: string;
 }
 
-interface SpreadsheetService {
-  initGoogleSpreadsheet: (sheetId: string, credentials: GoogleCredentials) => Promise<GoogleSpreadsheet>;
-  getOrCreateSheet: (doc: GoogleSpreadsheet, headerValues: string[]) => Promise<GoogleSpreadsheetWorksheet>;
-  appendData: (sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) => Promise<void>;
-}
-
 export const initGoogleSpreadsheet = async (sheetId: string, credentials: GoogleCredentials): Promise<GoogleSpreadsheet> => {
   if (!credentials.email || !credentials.key) {
     throw new Error("Missing required Google credentials");
@@ -69,9 +63,3 @@ export const appendData = async (sheet: GoogleSpreadsheetWorksheet, data: Record
 
 const doHeadersMatch = (existingHeaders: string[], newHeaders: string[]): boolean =>
   existingHeaders.length === newHeaders.length && existingHeaders.every((header, index) => header === newHeaders[index]);
-
-export const spreadsheetService: SpreadsheetService = {
-  appendData,
-  getOrCreateSheet,
-  initGoogleSpreadsheet
-};

@@ -30,7 +30,6 @@
   "name": "@vortexfi/sdk",
   "peerDependencies": {
     "@polkadot/api": "^16.4.6",
-    "stellar-sdk": "^13.1.0",
     "viem": "^2.37.9"
   },
   "publishConfig": {
@@ -45,10 +44,9 @@
   "scripts": {
     "analyze": "bun build ./src/index.ts --outdir ./dist/analysis --target=browser --format=esm --minify --splitting --metafile=./dist/analysis/meta.json",
     "analyze:size": "bun run analyze && ls -lah ./dist/analysis/",
-    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --format=esm --external=\"@polkadot/api\" --external=\"stellar-sdk\" --minify-syntax --minify-whitespace && bun ./scripts/build.ts",
+    "build": "rm -rf ./dist && bun x tsc -p tsconfig.json && bun build ./src/index.ts --outdir ./dist --target=node --format=esm --external=\"@polkadot/api\" --minify-syntax --minify-whitespace && bun ./scripts/build.ts",
     "clean": "rm -rf ./dist",
     "dev": "bun run --watch ./src/index.ts",
-    "format": "prettier --write .",
     "lint": "eslint . --ext .ts --max-warnings 0",
     "prepublishOnly": "bun run build",
     "test": "bun run lint && bun test && bun run build && bun run test:package-types && bun run test:package-node && bun run test:package-browser",
