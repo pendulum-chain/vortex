@@ -525,4 +525,32 @@ describe("SquidRouterPayExecutor approved-not-executed recovery", () => {
     expect(state.state.squidRouterAxelarExecuteTxHash).toBeUndefined();
     expect(sendTransaction).not.toHaveBeenCalled();
   });
+
+  it("uses the approved destination token when it differs from the source call", async () => {
+    const { handler } = makeExecuteHandler();
+    const status = approvedNotExecutedStatus({
+      approved: {
+        block_timestamp: 0,
+        returnValues: {
+          amount: "15702688",
+          contractAddress: SQUID_ROUTER,
+          payloadHash: keccak256(PAYLOAD),
+          sourceAddress: SQUID_ROUTER,
+          sourceChain: "base",
+          symbol: "USDC"
+        }
+      }
+    });
+
+    await handler.maybeExecuteApprovedGmp(makeState(), makeQuote(Networks.Base), status);
+
+    const tx = sendTransaction.mock.calls[0]![0] as { data: `0x${string}` };
+    const decoded = decodeFunctionData({
+      abi: parseAbi([
+        "function executeWithToken(bytes32 commandId, string sourceChain, string sourceAddress, bytes payload, string tokenSymbol, uint256 amount)"
+      ]),
+      data: tx.data
+    });
+    expect(decoded.args[4]).toBe("USDC");
+  });
 });

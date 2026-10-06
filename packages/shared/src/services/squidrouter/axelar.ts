@@ -42,7 +42,15 @@ export interface AxelarScanStatusResponse {
   // Gateway approval on the destination chain; after it, execution is permissionless.
   approved?: {
     block_timestamp?: number; // seconds
-    returnValues?: { contractAddress?: string; sourceChain?: string; sourceAddress?: string; payloadHash?: string };
+    returnValues?: {
+      contractAddress?: string;
+      sourceChain?: string;
+      sourceAddress?: string;
+      payloadHash?: string;
+      // Destination-side token; can differ from the source call's (e.g. axlUSDC on Base, USDC on Ethereum).
+      symbol?: string;
+      amount?: string;
+    };
   };
   // Present once a relayer sent (executing) or landed (executed) the destination call.
   executing?: unknown;

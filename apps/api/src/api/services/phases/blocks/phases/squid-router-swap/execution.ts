@@ -819,8 +819,9 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
 
     const { sourceChain, sourceAddress } = approved;
-    const symbol = call.returnValues?.symbol;
-    const amount = call.returnValues?.amount;
+    // The gateway validates the destination approval's token, which can differ from the source call's.
+    const symbol = approved.symbol ?? call.returnValues?.symbol;
+    const amount = approved.amount ?? call.returnValues?.amount;
     let data: Hex;
     if (call.event === "ContractCallWithToken" && symbol && amount) {
       data = encodeFunctionData({
