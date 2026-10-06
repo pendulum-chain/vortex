@@ -38,6 +38,7 @@ bun run start [amount] [--restart] [--route=squidrouter|avenia|nabla-main]
 - `REBALANCING_MAX_COST_BPS_MILD` / `REBALANCING_MAX_COST_BPS_MODERATE` / `REBALANCING_MAX_COST_BPS_SEVERE` — maximum projected round-trip cost per urgency band.
 - `REBALANCING_HARD_MAX_COST_BPS` — final projected-cost ceiling enforced even in `always` mode.
 - `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` — maximum projected route cost for in-range opportunistic USDC → BRLA → USDC execution (default 10 bps).
+- `REBALANCING_MAX_USDC_COVERAGE` — optional cap on the Base Nabla USDC pool coverage ratio (e.g. `1.3`) that a USDC → BRLA → USDC run may leave behind. Unset means no cap.
 - `REBALANCING_USD_TO_BRL_AMOUNT` / `REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT` — standard and projected-profitable USDC → BRLA → USDC sizing. The profitable amount defaults to the standard amount when unset and is used only when the Base USDC balance covers it and a fresh quote for that larger size projects profit.
 
 ---
@@ -45,6 +46,8 @@ bun run start [amount] [--restart] [--route=squidrouter|avenia|nabla-main]
 ### Flow 1: USDC → BRLA → USDC (Base, default high-coverage flow)
 
 **Trigger condition:** Base Nabla BRLA pool coverage ratio > `1 + REBALANCING_THRESHOLD_USDC_TO_BRLA` (default upper bound `1.01`). Falls back to `REBALANCING_THRESHOLD` when the route-specific threshold is unset. This makes the flow eligible for evaluation; cost policy may still skip fresh execution. If coverage is inside the configured bounds, the same flow can run opportunistically with zero coverage deviation only when the selected quote's projected route cost is below `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` (default 10 bps).
+
+**USDC pool coverage cap:** The flow swaps its USDC amount into the Base Nabla USDC pool. When `REBALANCING_MAX_USDC_COVERAGE` is set, both the regular and the opportunistic trigger read that pool's reserve and liabilities before any quote and skip a fresh run whose amount would push `(reserve + amount) / liabilities` above the cap. The larger profitable amount is only evaluated when it also fits under the cap. Resumed in-flight runs are not re-checked.
 
 **Daily bridge limit:** Total requested USDC amount recorded by Base-flow history per calendar day (UTC), including the amount about to be rebalanced, must not exceed `REBALANCING_DAILY_BRIDGE_LIMIT_USD` (default 10,000) for paid current runs. Profit is inferred from projected output USDC greater than input USDC, which also yields negative projected cost bps. Projected-profitable current runs bypass the cap entirely. For paid runs, the limit decision is checked against both `UsdcBaseStateManager` and `BrlaToUsdcBaseStateManager` history after quote/cost-policy evaluation and before any fresh Base state write or transaction. Completed profitable runs still write normal history entries, so they remain visible in later paid-run daily accounting.
 
@@ -140,6 +143,7 @@ bun run start [amount] [--restart] [--route=squidrouter|avenia|nabla-main]
 21. **SquidRouter swaps MUST require available Polygon BRLA before submission** — Before requesting and submitting a fresh SquidRouter Polygon BRLA → Base USDC swap, the flow must verify the Polygon account still holds at least the BRLA amount selected for the swap. If the balance is insufficient and Base USDC recovery does not prove completion, the flow MUST throw instead of submitting an inevitably failing transaction.
 22. **`EVM_ACCOUNT_SECRET` retains a cross-chain derivation blast radius** — A single BIP-39 mnemonic derives the same address on Base, Polygon, and historically Moonbeam. Active automation uses Base/Polygon, but compromise may still expose any unreconciled historical Moonbeam balance.
 23. **Terminal Avenia ticket failures MUST NOT poll indefinitely** — `checkTicketStatusPaid` treats `FAILED` as terminal and throws immediately instead of retrying until timeout. `PARTIAL-FAILED` is surfaced as a retryable ticket-specific status so the SquidRouter BRLA-to-Polygon branch can reconcile partial arrival and create a replacement ticket only for the remaining amount.
+24. **USDC → BRLA → USDC MUST respect the configured USDC pool coverage cap** — When `REBALANCING_MAX_USDC_COVERAGE` is set, a fresh run (regular or opportunistic) must not start, or be quoted, if adding its amount to the Base Nabla USDC pool reserve would exceed the cap times the pool's liabilities. The check reads the pool on-chain each invocation, before route quotes, and skips rather than fails.
 
 ## Threat Vectors & Mitigations
 
