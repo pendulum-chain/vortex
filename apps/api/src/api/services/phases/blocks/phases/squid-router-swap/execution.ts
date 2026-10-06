@@ -61,6 +61,8 @@ type TerminalBridgeEvidence = Pick<SquidRouterDeliveryEvidence, "kind" | "observ
 
 type SquidRouterStatusWithSource = SquidRouterPayResponse & {
   evidenceProvider: "axelar" | "squid";
+  // Set by the Axelar fallback so the polling loop does not search the same GMP twice.
+  axelarScanStatus?: AxelarScanStatusResponse;
 };
 
 // Port of the production SquidRouterPhaseHandler for block-owned bridge and passthrough routes.
@@ -527,7 +529,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
 
         if (isGmp) {
-          const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
+          const axelarScanStatus =
+            squidRouterStatus?.axelarScanStatus ?? (await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal)));
           lastAxelarScanStatus = axelarScanStatus ?? undefined;
 
           if (!axelarScanStatus) {
@@ -985,6 +988,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             : axelarScanStatus.status;
 
         return {
+          axelarScanStatus,
           evidenceProvider: "axelar",
           id: "",
           isGMPTransaction: true,

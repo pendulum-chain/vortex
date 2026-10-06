@@ -317,4 +317,27 @@ describe("SquidRouterPayExecutor reliability", () => {
     await handler.executeFundTransaction(makeState(), Networks.Base, "1", SWAP_HASH, 1, "initial-gas-payment");
     expect(sendTransaction.mock.calls[1]?.[0]).toMatchObject({ maxFeePerGas: 20n, maxPriorityFeePerGas: 6n });
   });
+
+  it("searches Axelarscan once per poll when the Squid status falls back to it", async () => {
+    getStatus
+      .mockImplementationOnce(async () => {
+        throw new Error("squid unavailable");
+      })
+      .mockImplementationOnce(async () => ({
+        id: "",
+        isGMPTransaction: true,
+        routeStatus: [],
+        squidTransactionStatus: "",
+        status: "success"
+      }));
+    getStatusAxelarScan.mockImplementation(async () => ({ id: `${SWAP_HASH}_17_1`, status: "approved" }) as never);
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+    handler.initialDelayMs = 0;
+    handler.pollIntervalMs = 0;
+    handler.stuckAlertThresholdMs = Number.POSITIVE_INFINITY;
+
+    await handler.checkBridgeStatus(makeState(), SWAP_HASH, makeQuote(Networks.Base), 1000);
+
+    expect(getStatusAxelarScan).toHaveBeenCalledTimes(1);
+  });
 });
