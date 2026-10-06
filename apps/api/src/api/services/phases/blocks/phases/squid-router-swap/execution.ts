@@ -815,6 +815,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
 
     const guidanceByClassification: Record<GmpClassification, string> = {
+      approved_not_executed: "approved but Axelar's relayer never executed; manual execute possible on Axelarscan",
       executed: "",
       execution_failed: "destination execution failed; external; retry the execution manually from the Axelarscan page",
       insufficient_gas: "Vortex-actionable: Axelar reports the paid gas as insufficient",
