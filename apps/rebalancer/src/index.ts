@@ -11,7 +11,8 @@ import {
   evaluateRebalancingCostPolicy,
   isProjectedProfit,
   type RebalancingCostPolicyDecision,
-  shouldTriggerOpportunisticUsdcToBrla
+  shouldTriggerOpportunisticUsdcToBrla,
+  wouldExceedUsdcPoolCoverage
 } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import {
   checkInitialUsdcBalanceOnBase,
@@ -19,7 +20,7 @@ import {
   getUsdcBalanceOnBaseRaw
 } from "./rebalance/usdc-brla-usdc-base/steps.ts";
 import { resumeInFlightRebalance, runRebalanceCycle, shouldQuoteProfitableAmount } from "./rebalanceCycle.ts";
-import { getBaseNablaCoverageRatio } from "./services/indexer";
+import { getBaseNablaCoverageRatio, getBaseNablaUsdcPool } from "./services/indexer";
 import { BrlaToUsdcBaseStateManager, UsdcBaseStateManager, type WinningRoute } from "./services/stateManager.ts";
 import { getConfig } from "./utils/config.ts";
 
@@ -220,13 +221,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Checked before quoting: the pool's own coverage cap reverts the quote and would crash the run.
+async function exceedsUsdcPoolCoverageCap(amountUsdcRaw: string): Promise<boolean> {
+  const maxCoverage = getConfig().rebalancingMaxUsdcCoverage;
+  if (maxCoverage === undefined) return false;
+
+  const pool = await getBaseNablaUsdcPool();
+  if (!wouldExceedUsdcPoolCoverage(pool, amountUsdcRaw, maxCoverage)) return false;
+
+  const toUsdc = (raw: string) => Big(raw).div(1e6).toFixed(6);
+  console.log(
+    `Base Nabla USDC pool reserve ${toUsdc(pool.reserveRaw)} / liabilities ${toUsdc(pool.liabilitiesRaw)}: adding ` +
+      `${toUsdc(amountUsdcRaw)} USDC would exceed REBALANCING_MAX_USDC_COVERAGE ${maxCoverage}. Skipping this USDC->BRLA->USDC amount.`
+  );
+  return true;
+}
+
 async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promise<{
   amountUsdcRaw: string;
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
-}> {
+} | null> {
   const config = getConfig();
   const standardAmountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
   const standardAmountRaw = toUsdcRaw(standardAmountUsdc);
+  if (await exceedsUsdcPoolCoverageCap(standardAmountRaw)) return null;
   const standardPolicyDecision = await evaluateUsdcToBrlaPolicy(standardAmountRaw, coverageDeviationBps);
 
   if (manualAmount) {
@@ -240,7 +258,7 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
     profitableAmountRaw,
     standardAmountRaw
   });
-  if (!quoteProfitableAmount) {
+  if (!quoteProfitableAmount || (await exceedsUsdcPoolCoverageCap(profitableAmountRaw))) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
@@ -265,7 +283,9 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
 
 async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
   const config = getConfig();
-  const { amountUsdcRaw, policyDecision } = await selectUsdcToBrlaPolicyAmount(0);
+  const selectedAmount = await selectUsdcToBrlaPolicyAmount(0);
+  if (!selectedAmount) return false;
+  const { amountUsdcRaw, policyDecision } = selectedAmount;
   const opportunisticMaxCostBps = config.rebalancingCostPolicy.opportunisticUsdcToBrlaMaxCostBps;
 
   if (!policyDecision.shouldExecute) return false;
@@ -314,6 +334,7 @@ async function evaluateBrlaToUsdcPolicy(
 
 async function runUsdcToBrla(coverageDeviationBps: number) {
   const selectedAmount = await selectUsdcToBrlaPolicyAmount(coverageDeviationBps);
+  if (!selectedAmount) return;
   const policyDecision = selectedAmount.policyDecision;
   if (!policyDecision.shouldExecute) return;
   await executeUsdcToBrlaRebalance(selectedAmount.amountUsdcRaw, coverageDeviationBps, policyDecision);

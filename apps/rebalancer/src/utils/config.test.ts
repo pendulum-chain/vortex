@@ -3,6 +3,7 @@ import {
   getConfig,
   getRebalancingCostPolicyConfig,
   parseRebalancingDailyBridgeLimitUsd,
+  parseRebalancingMaxUsdcCoverage,
   parseRebalancingPolicyMode
 } from "./config.ts";
 
@@ -60,6 +61,21 @@ describe("parseRebalancingDailyBridgeLimitUsd", () => {
     expect(() => parseRebalancingDailyBridgeLimitUsd("not-a-number")).toThrow(
       "REBALANCING_DAILY_BRIDGE_LIMIT_USD must be a non-negative number."
     );
+  });
+});
+
+describe("parseRebalancingMaxUsdcCoverage", () => {
+  test("leaves the cap off when the env value is missing or blank", () => {
+    expect(parseRebalancingMaxUsdcCoverage(undefined)).toBeUndefined();
+    expect(parseRebalancingMaxUsdcCoverage(" ")).toBeUndefined();
+  });
+
+  test("parses a coverage ratio", () => {
+    expect(parseRebalancingMaxUsdcCoverage("1.3")).toBe(1.3);
+  });
+
+  test("rejects invalid values", () => {
+    expect(() => parseRebalancingMaxUsdcCoverage("-1")).toThrow("REBALANCING_MAX_USDC_COVERAGE must be a non-negative number.");
   });
 });
 
