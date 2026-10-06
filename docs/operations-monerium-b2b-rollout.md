@@ -47,6 +47,8 @@ fee policy 12.5 bps target / 15 bps floor (B1).
 
 ## Deploy checklist (mainnet bring-up)
 
+The Sepolia sandbox follows its own procedure in the runbook (§8).
+
 1. Apply database migrations from exactly one deployment instance. Migration execution
    is not serialized across replicas; do not let multiple instances run the migrator
    concurrently. Migrations 076/077 install allocation accounting and its exact

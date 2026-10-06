@@ -1,7 +1,7 @@
 # Monerium B2B Onramp — Operations Runbook
 
 All operator procedures for the B2B onramp in one place: onboarding, incident response,
-alert triage, dormancy, and client migration. Architecture:
+alert triage, dormancy, client migration, and the Sepolia sandbox bring-up (§8). Architecture:
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); decisions
 and parameters: [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md);
 security invariants:
@@ -753,3 +753,211 @@ Required results:
   monitor received the expected provider `403` for the fake profile, and the large-size
   executable-depth quote timed out once; neither monitor was part of the conversion
   success criterion.
+
+## 8. Sepolia sandbox bring-up
+
+Monerium's sandbox mints EURe on Ethereum Sepolia, and `api-sandbox.vortexfinance.co`
+(the `vortex-sandbox` Render service, deployed from `main`) runs the keeper for it.
+This section is the Sepolia counterpart of the mainnet deploy checklist in the rollout
+doc. Every command below was dry-run on a local fork of Sepolia on 2026-10-06: pool,
+factory, vault and clone, a payment converted in two chunks and forwarded, and the
+refund leg (recover after the window, reverse swap). Set the B2B variables on the
+`vortex-sandbox` service only, never in the shared "Vortex API" env group, which
+production and staging both read; production stays dark.
+
+### 8.1 Sepolia addresses (verified on chain 2026-10-06)
+
+| Contract | Address |
+|---|---|
+| EURe (Monerium sandbox) | `0x67b34b93ac295c985e856E5B8A20D83026b580Eb` |
+| EURC (Circle) | `0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4` |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| Chainlink EUR/USD (8 decimals) | `0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910` |
+| Uniswap v3 factory | `0x0227628f3F023bb0B980b67D528571c95c6DaC1c` |
+| Uniswap SwapRouter02 | `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E` |
+| Uniswap NonfungiblePositionManager | `0x1238536071E1c677A632429e3655c799b22cDA52` |
+| Mispriced EURe/USDC 5 bps pool (never whitelist) | `0xaC4D4fe930cb78b6eAC08e8Ec3cCA5Ea12059aD2` |
+
+The July 2026 link-test deployment (factory `0xcBE354…`) used other tokens and a
+placeholder router; it is not reusable.
+
+### 8.2 What differs from mainnet
+
+- **Vortex runs the pool.** The only EURe/USDC pool with liquidity prices EURe at 0.71
+  USDC (Chainlink: 1.127 on 2026-10-06), so a swap there misses the floor (Chainlink
+  − `SLIPPAGE_BPS`) and reverts, and every payment would end in a refund. Vortex seeds
+  its own 1 bps pool at the Chainlink price (§8.4).
+- **No quoting.** Off mainnet the keeper does not quote routes; it swaps on the first
+  enabled factory route. Make the 1 bps pool the initial route and add no other.
+- **No arbitrage.** Nothing pulls the pool back to the market, and each conversion moves
+  it a little. Re-centre it before every test session (§8.9). The mispriced 5 bps pool
+  is an open arbitrage against it: if its USDC disappears between sessions, re-seed.
+- **Fresh keys only.** The well-known development keys (anvil's) carry delegated code on
+  Sepolia that sweeps any ETH sent to them.
+- **No private orderflow.** `MONERIUM_B2B_PRIVATE_RPC_URL` is required only when
+  `DEPLOYMENT_ENV=production`.
+
+### 8.3 Keys and funding
+
+- Fresh EOAs: guardian, keeper and attestor (three distinct keys), the float wallet
+  (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`), and a fee recipient address Vortex controls.
+  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
+- Sepolia ETH: about 0.2 each for the guardian (deployments), the keeper (swaps,
+  forwards, recoveries) and the float (it tops up the refund wallets' gas).
+- Sandbox EURe for the guardian (pool seeding) and the float (refund top-ups): link the
+  address to a Vortex profile in Monerium's sandbox and use "Simulate bank transfer" on
+  that profile's IBAN. Sandbox EURe costs nothing.
+- USDC: buy it with sandbox EURe from the mispriced 5 bps pool; its price is irrelevant
+  when the EURe is free. 2,000 EURe bought about 1,385 USDC in the dry run.
+
+```bash
+RPC=<Sepolia RPC URL>
+EURE=0x67b34b93ac295c985e856E5B8A20D83026b580Eb
+EURC=0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4
+USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+ORACLE=0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910
+ROUTER=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+NPM=0x1238536071E1c677A632429e3655c799b22cDA52
+UNI_FACTORY=0x0227628f3F023bb0B980b67D528571c95c6DaC1c
+GUARDIAN=$(cast wallet address $GUARDIAN_KEY)
+
+cast send $EURE "approve(address,uint256)" $ROUTER 2000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+  "($EURE,$USDC,500,$GUARDIAN,2000000000000000000000,0,0)" --rpc-url $RPC --private-key $GUARDIAN_KEY
+```
+
+### 8.4 Seed the 1 bps pool at the Chainlink price
+
+USDC sorts before EURe, so the pool's price is EURe base units per USDC base unit,
+`1e20 / answer` for a Chainlink answer with 8 decimals. The position spans ±1% (100
+ticks at the 1 bps tier's spacing of 1). 1,000 USDC and about 890 EURe keep a €100
+payment's price impact around 0.1%.
+
+```bash
+ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+read SQRT_PRICE TICK_LOWER TICK_UPPER < <(python3 -c "
+import math; a=$ANSWER
+tick = math.floor(math.log(10**20 / a, 1.0001))
+print(math.isqrt(10**20 * 2**192 // a), tick - 100, tick + 100)")
+
+cast send $NPM "createAndInitializePoolIfNecessary(address,address,uint24,uint160)" $USDC $EURE 100 $SQRT_PRICE \
+  --rpc-url $RPC --private-key $GUARDIAN_KEY
+POOL=$(cast call $UNI_FACTORY "getPool(address,address,uint24)(address)" $USDC $EURE 100 --rpc-url $RPC)
+cast send $USDC "approve(address,uint256)" $NPM 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $EURE "approve(address,uint256)" $NPM 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+# the gas estimate is too low for a mint that moves EURe; pass a limit
+cast send $NPM "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))" \
+  "($USDC,$EURE,100,$TICK_LOWER,$TICK_UPPER,1000000000,1000000000000000000000,0,0,$GUARDIAN,$(( $(date +%s) + 3600 )))" \
+  --gas-limit 1500000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 1000000000
+```
+
+### 8.5 Deploy the factory, register the keeper, deploy the vault
+
+The parameters are the ADR's (§7.3 table) except `perSwapCap`: €25 lets a €60 test
+payment convert in three chunks. It is operational; `setPerSwapCap` changes it later.
+The initial route is the 1 bps pool, EURe → USDC.
+
+From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER` and `FEE_RECIPIENT` set
+to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
+
+```bash
+ROUTE=$(cast concat-hex $EURE 0x000064 $USDC)   # fee 100 as three bytes
+forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
+  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,7200,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
+  1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
+cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
+cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
+
+# vault: 1% per swap (the ladder's top), 50 USDC per day
+forge create src/VortexSubsidyVault.sol:VortexSubsidyVault --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
+  --constructor-args $USDC $FEE_RECIPIENT $FACTORY 10000 50000000
+cast send $FACTORY "setSubsidyVault(address)" $VAULT --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $USDC "transfer(address,uint256)" $VAULT 20000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+```
+
+Then generate and verify the manifest as in §1.3. Sepolia's public RPCs prune old logs,
+so pass `--logs-rpc` with an endpoint that serves the full history, and commit the
+result to `manifests/`.
+
+### 8.6 Sandbox backend configuration
+
+On the `vortex-sandbox` service only:
+
+| Variable | Value |
+|---|---|
+| `FLOW_VARIANT` | `mykobo` (startup refuses B2B otherwise; the sandbox's retail EUR onramp then runs on Mykobo) |
+| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | SulPayments' sandbox white-label app (S11) |
+| `MONERIUM_B2B_RPC_URL` | Sepolia RPC |
+| `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` | `$FACTORY` |
+| `MONERIUM_B2B_KEEPER_PRIVATE_KEY`, `MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, `MONERIUM_B2B_ATTESTOR_PRIVATE_KEY` | the three keys of §8.3 |
+| `MONERIUM_B2B_REFUND_SEED`, `MONERIUM_B2B_FLOAT_PRIVATE_KEY` | §8.3 |
+| `MONERIUM_B2B_AUTO_RECOVERY` | `auto`, so the refund test runs end to end |
+| `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
+| `MONERIUM_B2B_ENABLED` | `true`, set last |
+
+Register Vortex's webhook subscription on SulPayments' sandbox app with the same
+secret, from `apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at
+Monerium's sandbox API:
+
+```bash
+SECRET=<MONERIUM_B2B_WEBHOOK_SECRET> MONERIUM_WHITELABEL_CLIENT_ID=... MONERIUM_WHITELABEL_CLIENT_SECRET=... \
+MONERIUM_API_URL=https://api.monerium.dev bun -e '
+import { MoneriumApiService } from "@vortexfi/shared";
+console.log(await MoneriumApiService.getInstance().createWebhook({
+  secret: process.env.SECRET, types: ["iban.updated", "order.created", "order.updated", "profile.updated"],
+  url: "https://api-sandbox.vortexfinance.co/v1/monerium-b2b/webhook" }));'
+```
+
+Restart the service. Startup fails if a required setting is missing; once it is up,
+`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
+
+### 8.7 Partner and test clients
+
+1. Make SulPayments' sandbox profile a manager:
+   `PUT /v1/admin/managed-profile-managers/<profileId>` with corridor `EU` and customer
+   type `business`. SulPayments then takes a key from dashboard-sandbox and registers
+   its webhook through `POST /v1/webhook` (`DEPOSIT_UPDATED`, `ACCOUNT_UPDATED`).
+2. Per test client, once SulPayments confirms the Monerium profile is approved: §1.2
+   (refund address, deploy the clone), §1.4 (map), §1.5 (automatic link and IBAN),
+   §1.7 (activate). Until the destination endpoint (V6) exists, SulPayments sends the
+   profile ID and the Sepolia destination to Vortex directly.
+
+### 8.8 Test payments
+
+SulPayments simulates each SEPA payment on the client's profile in its Monerium sandbox
+app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes over.
+
+| Test | Payment | Expected |
+|---|---|---|
+| Normal | €20 | One chunk, one forward. The destination receives the reference less the client's target (12.5 bps); the fee treasury the surplus over it |
+| Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
+| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After two hours the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
+
+`DEPOSIT_UPDATED` reports every step to SulPayments, and `GET /v1/monerium-b2b/deposits`
+shows the same snapshots.
+
+### 8.9 Re-centre the pool before a session
+
+Each conversion sells EURe into the pool and pushes its price away from Chainlink. A
+swap with a price limit moves it back exactly:
+
+```bash
+ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $ANSWER))")
+CURRENT=$(cast call $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)" --rpc-url $RPC | head -1 | awk '{print $1}')
+if python3 -c "import sys; sys.exit(0 if $CURRENT > $TARGET else 1)"; then
+  # EURe cheaper than Chainlink: buy EURe with USDC up to the target price
+  cast send $USDC "approve(address,uint256)" $ROUTER 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+  cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+    "($USDC,$EURE,100,$GUARDIAN,1000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+else
+  # EURe dearer than Chainlink: sell EURe for USDC down to the target price
+  cast send $EURE "approve(address,uint256)" $ROUTER 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+  cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+    "($EURE,$USDC,100,$GUARDIAN,1000000000000000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+fi
+```
+
+The router pulls only what the move needs. Chainlink's Sepolia feed must stay under the
+52-hour `MAX_ORACLE_AGE`; it was four hours old when checked.
