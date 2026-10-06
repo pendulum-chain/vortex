@@ -11,6 +11,7 @@ import MaintenanceSchedule from "./maintenanceSchedule.model";
 import ManagedProfile from "./managedProfile.model";
 import ManagedProfileManager from "./managedProfileManager.model";
 import MoneriumAccount from "./moneriumAccount.model";
+import MoneriumAccountRegistration from "./moneriumAccountRegistration.model";
 import MoneriumChainCursor from "./moneriumChainCursor.model";
 import MoneriumConversionExecution from "./moneriumConversionExecution.model";
 import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
@@ -144,6 +145,7 @@ const models = {
   ManagedProfile,
   ManagedProfileManager,
   MoneriumAccount,
+  MoneriumAccountRegistration,
   MoneriumChainCursor,
   MoneriumConversionExecution,
   MoneriumFiatDeposit,
