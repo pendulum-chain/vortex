@@ -1,3 +1,4 @@
+import { sleep } from "../../helpers/functions";
 import logger from "../../logger";
 
 export interface AxelarScanStatusFees {
@@ -161,19 +162,31 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
   return rpcJson.result.hash;
 }
 
+const AXELARSCAN_MAX_RETRY_AFTER_MS = 5000;
+
 export async function getStatusAxelarScan(swapHash: string, signal?: AbortSignal): Promise<AxelarScanStatusResponse> {
   try {
     // POST call, https://api.axelarscan.io/gmp/searchGMP
-    const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {
-      body: JSON.stringify({
-        txHash: swapHash
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      },
-      method: "POST",
-      signal
-    });
+    const search = () =>
+      fetch("https://api.axelarscan.io/gmp/searchGMP", {
+        body: JSON.stringify({
+          txHash: swapHash
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST",
+        signal
+      });
+    let response = await search();
+
+    // Rate-limited: retry once after Retry-After (capped), so a 429 does not hide the GMP state.
+    if (response.status === 429) {
+      const retryAfterSeconds = Number(response.headers?.get("retry-after"));
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 1000;
+      await sleep(Math.min(retryAfterMs, AXELARSCAN_MAX_RETRY_AFTER_MS), signal);
+      response = await search();
+    }
 
     if (!response.ok) {
       throw new Error(`Error fetching status from axelar scan API: ${response.statusText}`);

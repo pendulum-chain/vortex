@@ -70,6 +70,20 @@ describe("getStatusAxelarScan", () => {
 
     await expect(getStatusAxelarScan(TX_HASH, abortController.signal)).rejects.toThrow();
   });
+
+  it("retries a rate-limited search once after Retry-After", async () => {
+    let calls = 0;
+    globalThis.fetch = mock(async () => {
+      calls++;
+      if (calls === 1) {
+        return { headers: new Headers({ "retry-after": "0.01" }), ok: false, status: 429 } as Response;
+      }
+      return jsonResponse({ data: [{ id: "0xabc_1_2", status: "approved" }] });
+    }) as unknown as typeof fetch;
+
+    await expect(getStatusAxelarScan(TX_HASH)).resolves.toMatchObject({ status: "approved" });
+    expect(calls).toBe(2);
+  });
 });
 
 describe("recoverAxelarStuckConfirm", () => {
