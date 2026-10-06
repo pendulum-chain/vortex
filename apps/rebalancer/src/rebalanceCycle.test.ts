@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import type { RebalancingPolicyMode } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import {
   calculateCoverageDeviationBps,
+  exceedsUsdcPoolCoverageCap,
   type InFlightResumeDeps,
   type RebalanceCycleDeps,
   resumeInFlightRebalance,
@@ -78,6 +79,10 @@ describe("resumeInFlightRebalance", () => {
 
 function cycleDeps(calls: string[], overrides: Partial<RebalanceCycleDeps> = {}) {
   return {
+    alertUsdcToBrlaCapped: mock(async (_brlaCoverageRatio: number) => {
+      calls.push("alert");
+    }),
+    isUsdcToBrlaCapped: mock(async () => false),
     lowerBound: 0.99,
     readCoverage: mock(async () => {
       calls.push("coverage");
@@ -154,6 +159,42 @@ describe("runRebalanceCycle", () => {
     expect(calls).toEqual(["resume", "usdcToBrla"]);
   });
 
+  test("skips the opportunistic run silently when the USDC pool cap is reached", async () => {
+    const calls: string[] = [];
+    const deps = cycleDeps(calls, { isUsdcToBrlaCapped: mock(async () => true) });
+
+    await runRebalanceCycle(deps);
+
+    expect(deps.tryOpportunisticUsdcToBrla).not.toHaveBeenCalled();
+    expect(calls).toEqual(["coverage", "resume"]);
+  });
+
+  test("alerts instead of running USDC->BRLA when high coverage is blocked by the USDC pool cap", async () => {
+    const calls: string[] = [];
+    const deps = cycleDeps(calls, {
+      isUsdcToBrlaCapped: mock(async () => true),
+      readCoverage: mock(async () => ({ brlaCoverageRatio: 1.02 }))
+    });
+
+    await runRebalanceCycle(deps);
+
+    expect(deps.runUsdcToBrla).not.toHaveBeenCalled();
+    expect(deps.alertUsdcToBrlaCapped).toHaveBeenCalledWith(1.02);
+    expect(calls).toEqual(["resume", "alert"]);
+  });
+
+  test("never checks the USDC pool cap for BRLA->USDC or a resumed run", async () => {
+    const calls: string[] = [];
+    const low = cycleDeps(calls, { readCoverage: mock(async () => ({ brlaCoverageRatio: 0.98 })) });
+    const resumed = cycleDeps(calls, { resumeInFlight: mock(async () => true) });
+
+    await runRebalanceCycle(low);
+    await runRebalanceCycle(resumed);
+
+    expect(low.isUsdcToBrlaCapped).not.toHaveBeenCalled();
+    expect(resumed.isUsdcToBrlaCapped).not.toHaveBeenCalled();
+  });
+
   test("measures the deviation from the crossed bound", () => {
     expect(calculateCoverageDeviationBps(1.0738, 1.01)).toBe(638);
   });
@@ -188,5 +229,31 @@ describe("shouldQuoteProfitableAmount", () => {
     const getBaseUsdcRaw = mock(async () => "2500000000");
 
     expect(await shouldQuoteProfitableAmount({ ...amounts, getBaseUsdcRaw, mode: "auto" })).toBe(true);
+  });
+});
+
+describe("exceedsUsdcPoolCoverageCap", () => {
+  const pool = { liabilitiesRaw: "10000000000", reserveRaw: "12000000000" };
+
+  test("an unset cap never reads the pool", async () => {
+    const readUsdcPool = mock(async () => pool);
+
+    expect(await exceedsUsdcPoolCoverageCap("1000000000", { maxCoverage: undefined, readUsdcPool })).toBe(false);
+    expect(readUsdcPool).not.toHaveBeenCalled();
+  });
+
+  test("compares the coverage after the amount is swapped in", async () => {
+    const readUsdcPool = mock(async () => pool);
+
+    expect(await exceedsUsdcPoolCoverageCap("1000000000", { maxCoverage: 1.3, readUsdcPool })).toBe(false);
+    expect(await exceedsUsdcPoolCoverageCap("2000000000", { maxCoverage: 1.3, readUsdcPool })).toBe(true);
+  });
+
+  test("fails closed when the pool cannot be read", async () => {
+    const readUsdcPool = mock(async () => {
+      throw new Error("rpc down");
+    });
+
+    await expect(exceedsUsdcPoolCoverageCap("1000000000", { maxCoverage: 1.3, readUsdcPool })).rejects.toThrow("rpc down");
   });
 });
