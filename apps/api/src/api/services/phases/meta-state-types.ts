@@ -73,6 +73,9 @@ export interface StateMetadata {
   // the tx hash after; any present value prevents further top-ups, so a crash or
   // send failure in between can never cause a second payment.
   squidRouterExtraGasTxHash?: string;
+  // Destination execute sent by the funding wallet for an approved GMP call the Axelar
+  // relayer never executed. Same "pending"-then-hash claim as squidRouterExtraGasTxHash.
+  squidRouterAxelarExecuteTxHash?: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
   // Set to true once update-time validation gate passes (all presigned txs valid + complete,

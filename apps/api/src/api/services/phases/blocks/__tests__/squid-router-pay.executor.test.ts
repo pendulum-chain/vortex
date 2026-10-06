@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
 import { Networks } from "@vortexfi/shared";
 import Big from "big.js";
+import { decodeFunctionData, keccak256, parseAbi } from "viem";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
 import * as financialOperationNamespace from "../core/financial-operation";
@@ -22,6 +23,8 @@ const recoverAxelarStuckConfirm = mock(async (..._args: unknown[]) => "AXELAR_RE
 const checkEvmBalanceForToken = mock(async (..._args: unknown[]) => new Big("900100"));
 const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n }));
 const sendTransaction = mock(async (_transaction: Record<string, unknown>) => "0xgasfunding" as `0x${string}`);
+const estimateGas = mock(async (..._args: unknown[]) => 318_000n);
+const getBalance = mock(async (..._args: unknown[]) => 10n ** 18n);
 const fundingAccount = { address: "0x1111111111111111111111111111111111111111" as `0x${string}` };
 
 mock.module("@vortexfi/shared", () => ({
@@ -31,6 +34,8 @@ mock.module("@vortexfi/shared", () => ({
       getClient: () => ({
         chain: {},
         estimateFeesPerGas,
+        estimateGas,
+        getBalance,
         getTransactionCount: async () => 0,
         waitForTransactionReceipt: async () => ({ status: "success" })
       }),
@@ -62,6 +67,9 @@ beforeEach(() => {
   checkEvmBalanceForToken.mockClear();
   estimateFeesPerGas.mockClear();
   sendTransaction.mockClear();
+  estimateGas.mockClear();
+  getBalance.mockClear();
+  estimateGas.mockImplementation(async () => 318_000n);
   getStatus.mockImplementation(async () => ({
     id: "",
     isGMPTransaction: true,
@@ -339,5 +347,182 @@ describe("SquidRouterPayExecutor reliability", () => {
     await handler.checkBridgeStatus(makeState(), SWAP_HASH, makeQuote(Networks.Base), 1000);
 
     expect(getStatusAxelarScan).toHaveBeenCalledTimes(1);
+  });
+});
+
+const SQUID_ROUTER = "0xce16F69375520ab01377ce7B88f5BA8C48F8D666";
+const PAYLOAD = "0x00000000000000000000000000000000000000000000000000000000000000400000" as const;
+const COMMAND_ID = "0x2d130523637b387cd09fa4859e8a4b8210a08a5d7247b67d6054aabdfd25ee01";
+
+// Shape of the 2026-10-05/06 incidents: approved on BSC, relayer never executed.
+function approvedNotExecutedStatus(overrides: Record<string, unknown> = {}) {
+  return {
+    approved: {
+      block_timestamp: Math.floor(Date.now() / 1000) - 30 * 60,
+      returnValues: {
+        contractAddress: SQUID_ROUTER,
+        payloadHash: keccak256(PAYLOAD),
+        sourceAddress: SQUID_ROUTER,
+        sourceChain: "base"
+      }
+    },
+    call: {
+      chain: "base",
+      event: "ContractCallWithToken",
+      returnValues: { amount: "15702688", payload: PAYLOAD, symbol: "axlUSDC" }
+    },
+    command_id: COMMAND_ID,
+    gas_status: null,
+    id: `${SWAP_HASH}_17_1`,
+    is_insufficient_fee: false,
+    no_gas_remain: true,
+    status: "executing",
+    ...overrides
+  } as never;
+}
+
+function makeExecuteHandler(claimedRows = 1) {
+  const sendMessage = mock(async (_message: { text: string }) => undefined);
+  const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+  handler.stuckAlertThresholdMs = 0;
+  handler.slackNotifier = { sendMessage };
+  handler.patchStateKey = mock(async (target: RampState, key: string, value: string) => {
+    if (claimedRows === 0) return 0;
+    target.state = { ...target.state, [key]: value };
+    return 1;
+  });
+  return { handler, sendMessage };
+}
+
+describe("SquidRouterPayExecutor approved-not-executed recovery", () => {
+  it("executes the approved call once on the destination chain and reports it", async () => {
+    sendTransaction.mockImplementation(async () => "0xexecute" as `0x${string}`);
+    const state = makeState();
+    const { handler, sendMessage } = makeExecuteHandler();
+
+    await handler.monitorStuckGmp(state, SWAP_HASH, makeQuote(Networks.Base), approvedNotExecutedStatus());
+    await handler.monitorStuckGmp(state, SWAP_HASH, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+    const tx = sendTransaction.mock.calls[0]![0] as { data: `0x${string}`; to: string; gas: bigint; value?: bigint };
+    expect(tx.to).toBe(SQUID_ROUTER);
+    expect(tx.value).toBeUndefined();
+    expect(tx.gas).toBe((318_000n * 6n) / 5n);
+    const decoded = decodeFunctionData({
+      abi: parseAbi([
+        "function executeWithToken(bytes32 commandId, string sourceChain, string sourceAddress, bytes payload, string tokenSymbol, uint256 amount)"
+      ]),
+      data: tx.data
+    });
+    expect(decoded.args).toEqual([COMMAND_ID, "base", SQUID_ROUTER, PAYLOAD, "axlUSDC", 15702688n]);
+    expect(handler.patchStateKey).toHaveBeenCalledWith(
+      state,
+      "squidRouterAxelarExecuteTxHash",
+      "pending",
+      `state->>'squidRouterAxelarExecuteTxHash' IS NULL`
+    );
+    expect(state.state.squidRouterAxelarExecuteTxHash).toBe("0xexecute");
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage.mock.calls[0]![0].text).toContain("classification: approved_not_executed");
+    expect(sendMessage.mock.calls[0]![0].text).toContain("executed the approved call on base (0xexecute)");
+  });
+
+  it("uses execute() for a ContractCall without tokens", async () => {
+    const { handler } = makeExecuteHandler();
+    const status = approvedNotExecutedStatus({ call: { chain: "base", event: "ContractCall", returnValues: { payload: PAYLOAD } } });
+
+    await handler.monitorStuckGmp(makeState(), SWAP_HASH, makeQuote(Networks.Base), status);
+
+    const tx = sendTransaction.mock.calls[0]![0] as { data: `0x${string}` };
+    const decoded = decodeFunctionData({
+      abi: parseAbi(["function execute(bytes32 commandId, string sourceChain, string sourceAddress, bytes payload)"]),
+      data: tx.data
+    });
+    expect(decoded.args).toEqual([COMMAND_ID, "base", SQUID_ROUTER, PAYLOAD]);
+  });
+
+  it("does not execute before the stuck threshold", async () => {
+    const { handler, sendMessage } = makeExecuteHandler();
+    handler.stuckAlertThresholdMs = Number.POSITIVE_INFINITY;
+
+    await handler.monitorStuckGmp(makeState(), SWAP_HASH, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when the call was already executed or the relayer is executing", async () => {
+    const { handler } = makeExecuteHandler();
+
+    await handler.monitorStuckGmp(
+      makeState(),
+      SWAP_HASH,
+      makeQuote(Networks.Base),
+      approvedNotExecutedStatus({ executed: { transactionHash: "0xrelayer" }, status: "executed" })
+    );
+    await handler.monitorStuckGmp(
+      makeState(),
+      SWAP_HASH,
+      makeQuote(Networks.Base),
+      approvedNotExecutedStatus({ executing: { transactionHash: "0xrelayer" } })
+    );
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when the processor aborted the execution", async () => {
+    const { handler } = makeExecuteHandler();
+    const controller = new AbortController();
+    controller.abort(new Error("phase timed out"));
+
+    await handler.monitorStuckGmp(makeState(), SWAP_HASH, makeQuote(Networks.Base), approvedNotExecutedStatus(), controller.signal);
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when a concurrent execution holds the claim", async () => {
+    const { handler } = makeExecuteHandler(0);
+
+    const outcome = await handler.maybeExecuteApprovedGmp(makeState(), makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(outcome).toContain("claimed by a concurrent execution");
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses to send and alerts when the payload does not match the approved hash", async () => {
+    const { handler, sendMessage } = makeExecuteHandler();
+    const status = approvedNotExecutedStatus({
+      approved: { block_timestamp: 0, returnValues: { contractAddress: SQUID_ROUTER, payloadHash: keccak256("0x1234"), sourceAddress: SQUID_ROUTER, sourceChain: "base" } }
+    });
+
+    await handler.monitorStuckGmp(makeState(), SWAP_HASH, makeQuote(Networks.Base), status);
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(handler.patchStateKey).not.toHaveBeenCalledWith(expect.anything(), "squidRouterAxelarExecuteTxHash", "pending", expect.anything());
+    expect(sendMessage.mock.calls[0]![0].text).toContain("refusing to execute: payload does not match");
+  });
+
+  it("refuses to send and alerts when the simulation reverts", async () => {
+    estimateGas.mockImplementation(async () => {
+      throw new Error("execution reverted: NotApprovedByGateway");
+    });
+    const { handler, sendMessage } = makeExecuteHandler();
+
+    await handler.monitorStuckGmp(makeState(), SWAP_HASH, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(sendMessage.mock.calls[0]![0].text).toContain("refusing to execute: simulation failed");
+  });
+
+  it("does not claim when the funding wallet lacks native gas on the destination chain", async () => {
+    getBalance.mockImplementationOnce(async () => 0n);
+    const state = makeState();
+    const { handler } = makeExecuteHandler();
+
+    const outcome = await handler.maybeExecuteApprovedGmp(state, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(outcome).toContain("lacks native gas on base");
+    expect(state.state.squidRouterAxelarExecuteTxHash).toBeUndefined();
+    expect(sendTransaction).not.toHaveBeenCalled();
   });
 });
