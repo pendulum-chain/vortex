@@ -58,7 +58,7 @@ const RETRY_BASE_MS = 60_000;
 const RETRY_MAX_MS = 60 * 60_000;
 
 /** How long one cycle waits for the receipt before deferring to the next cycle. */
-const RECEIPT_TIMEOUT_MS = 3 * 60_000;
+export const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 
 /**
  * A nonce-less pending row is a live pre-send reservation until this deadline. The
@@ -74,7 +74,7 @@ const RECOVERY_LOG_BLOCK_RANGE = 2000n;
 const RECOVERY_ELIGIBILITY_MARGIN_MS = 30_000;
 
 /** Deposit states the keeper still has work for. */
-const SETTLING_STATUSES = [
+export const SETTLING_STATUSES = [
   MoneriumFiatDepositStatus.Minted,
   MoneriumFiatDepositStatus.Converting,
   MoneriumFiatDepositStatus.Recovering
@@ -269,11 +269,8 @@ export function planChunk(remaining: bigint, minSwapAmount: bigint, perSwapCap: 
 // ------------------------------------------------------------------ deposit bookkeeping
 
 export interface DepositSettlementState {
-  /** Confirmed chunk swaps of the deposit, oldest first. */
-  swaps: MoneriumConversionExecution[];
   /** When the newest confirmed chunk settled: the next chunk's clock starts here. */
   lastSwapAt: Date | null;
-  convertedEureRaw: bigint;
   remainingEureRaw: bigint;
   /** Sum of the confirmed chunks' net USDC: what a forward or a recovery moves. */
   usdcNetRaw: bigint;
@@ -291,7 +288,7 @@ export function settlementState(
     (latest, swap) => (swap.updatedAt && (!latest || swap.updatedAt > latest) ? swap.updatedAt : latest),
     null
   );
-  return { convertedEureRaw, lastSwapAt, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, swaps, usdcNetRaw };
+  return { lastSwapAt, remainingEureRaw: remainingEureRaw < 0n ? 0n : remainingEureRaw, usdcNetRaw };
 }
 
 async function loadSettlementState(deposit: MoneriumFiatDeposit, transaction?: Transaction): Promise<DepositSettlementState> {
@@ -329,7 +326,7 @@ async function settlingDeposits(accountId: string, transaction?: Transaction): P
 
 // ------------------------------------------------------------------ finalization
 
-function errorText(error: unknown): string {
+export function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
@@ -731,7 +728,6 @@ export type PlannedSwap =
       kind: "ready";
       /** The tier cap in USDC (6 decimals): the `maxSubsidy` argument of the swap. */
       maxSubsidyRaw: bigint;
-      projection: SwapProjection | null;
       reference: ReferenceQuote;
       routeIndex: number;
     };
@@ -803,7 +799,7 @@ export async function pricePlannedSwap(
     return deferSwap("no_route", "the factory has no enabled swap route");
   }
   if ((await getChainId()) !== 1) {
-    return { kind: "ready", maxSubsidyRaw, projection: null, reference, routeIndex: routes[0].index };
+    return { kind: "ready", maxSubsidyRaw, reference, routeIndex: routes[0].index };
   }
   const quotes = await quoteRoutes(routes, amountIn);
   if (quotes.length === 0) {
@@ -836,7 +832,7 @@ export async function pricePlannedSwap(
     `monerium-b2b: priced swap of ${amountIn} on route ${best.index}: quoted ${best.quotedOut}, ` +
       `reference ${reference.price}, fee ${projection.fee}, subsidy ${projection.subsidy}, tier ${maxSubsidyBps} bps`
   );
-  return { kind: "ready", maxSubsidyRaw, projection, reference, routeIndex: best.index };
+  return { kind: "ready", maxSubsidyRaw, reference, routeIndex: best.index };
 }
 
 // ------------------------------------------------------------------ action planning

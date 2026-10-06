@@ -41,63 +41,33 @@ export function isWithinReferenceBand(rateRaw: bigint, oracleRaw: bigint, bandBp
   return rateRaw + tolerance >= oracleRaw && rateRaw <= oracleRaw + tolerance;
 }
 
-export interface TopOfBook {
-  ask: string;
-  bid: string;
-}
-
-/** Extracts the top of book from a Coinbase ticker response; anything but two positive decimals throws. */
-export function parseTicker(body: unknown): TopOfBook {
-  const ticker = body as { ask?: unknown; bid?: unknown } | null;
-  const bid = ticker?.bid;
-  const ask = ticker?.ask;
-  if (typeof bid !== "string" || typeof ask !== "string" || !/^\d+(\.\d+)?$/.test(bid) || !/^\d+(\.\d+)?$/.test(ask)) {
-    throw new Error("Coinbase ticker response is malformed");
-  }
-  return { ask, bid };
-}
-
-/** Spread of the top of book in bps of the midpoint (floored). */
-export function spreadBps(book: TopOfBook, decimals: number): number {
-  const bid = parseUnits(book.bid, decimals);
-  const ask = parseUnits(book.ask, decimals);
-  if (bid <= 0n || ask < bid) {
-    throw new Error(`Coinbase top of book is inverted or empty (bid ${book.bid}, ask ${book.ask})`);
-  }
-  const mid = (bid + ask) / 2n;
-  return Number(((ask - bid) * 10_000n) / mid);
-}
-
-/** The bid/ask midpoint scaled to `decimals`, floored to the unit. */
-export function computeMid(book: TopOfBook, decimals: number): bigint {
-  return (parseUnits(book.bid, decimals) + parseUnits(book.ask, decimals)) / 2n;
-}
-
-export type FetchLike = (
-  url: string,
-  init?: { signal?: AbortSignal }
-) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+const DECIMAL = /^\d+(\.\d+)?$/;
 
 /** Reads the ticker and returns the midpoint. Any failure throws; the caller defers. */
-export async function fetchCoinbaseReference(
-  decimals: number,
-  fetchImpl: FetchLike = fetch,
-  nowMs: number = Date.now()
-): Promise<ReferenceQuote> {
-  const response = await fetchImpl(COINBASE_EURC_TICKER_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+export async function fetchCoinbaseReference(decimals: number): Promise<ReferenceQuote> {
+  const time = new Date();
+  const response = await fetch(COINBASE_EURC_TICKER_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`Coinbase ticker responded ${response.status}`);
   }
-  const book = parseTicker(await response.json());
-  const spread = spreadBps(book, decimals);
+  const ticker = (await response.json()) as { ask?: unknown; bid?: unknown } | null;
+  const bid = ticker?.bid;
+  const ask = ticker?.ask;
+  if (typeof bid !== "string" || typeof ask !== "string" || !DECIMAL.test(bid) || !DECIMAL.test(ask)) {
+    throw new Error("Coinbase ticker response is malformed");
+  }
+  const bidRaw = parseUnits(bid, decimals);
+  const askRaw = parseUnits(ask, decimals);
+  if (bidRaw <= 0n || askRaw < bidRaw) {
+    throw new Error(`Coinbase top of book is inverted or empty (bid ${bid}, ask ${ask})`);
+  }
+  // The midpoint, floored to the unit; the spread in bps of it (floored).
+  const rateRaw = (bidRaw + askRaw) / 2n;
+  const spread = Number(((askRaw - bidRaw) * 10_000n) / rateRaw);
   if (spread > MAX_SPREAD_BPS) {
     throw new Error(`Coinbase ${COINBASE_REFERENCE_PRODUCT} spread of ${spread} bps exceeds ${MAX_SPREAD_BPS} bps`);
   }
-  const rateRaw = computeMid(book, decimals);
-  if (rateRaw <= 0n) {
-    throw new Error(`Coinbase ${COINBASE_REFERENCE_PRODUCT} midpoint is zero`);
-  }
-  return { price: formatUnits(rateRaw, decimals), rateRaw, source: COINBASE_REFERENCE_SOURCE, time: new Date(nowMs) };
+  return { price: formatUnits(rateRaw, decimals), rateRaw, source: COINBASE_REFERENCE_SOURCE, time };
 }
 
 // ------------------------------------------------------------------ venue status
@@ -119,8 +89,8 @@ export function classifyReferenceVenue(product: CoinbaseProductStatus): string |
 }
 
 /** Live status of the reference product. Any failure throws; the monitor reports it. */
-export async function fetchCoinbaseProductStatus(fetchImpl: FetchLike = fetch): Promise<CoinbaseProductStatus> {
-  const response = await fetchImpl(COINBASE_EURC_PRODUCT_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+export async function fetchCoinbaseProductStatus(): Promise<CoinbaseProductStatus> {
+  const response = await fetch(COINBASE_EURC_PRODUCT_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`Coinbase product responded ${response.status}`);
   }

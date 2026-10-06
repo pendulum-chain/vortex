@@ -24,7 +24,7 @@ import {
   readEnabledRoutes,
   swapRouter02Abi
 } from "./chain";
-import { markDepositForRecovery } from "./conversion-executor";
+import { errorText, markDepositForRecovery, RECEIPT_TIMEOUT_MS } from "./conversion-executor";
 import { isForwardTransition, withForwarderLock } from "./deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
 import { refundAccountFor } from "./refund-wallet";
@@ -59,38 +59,23 @@ export const SUPPORTING_DOCUMENT_THRESHOLD_EUR = 15_000;
 /** Gas the refund wallet's own transactions use (approve, reverse swap, surplus transfer), with margin. */
 const REFUND_WALLET_GAS_UNITS = 400_000n;
 const MAX_ATTEMPTS = 5;
-const RECEIPT_TIMEOUT_MS = 3 * 60_000;
 const EURE_DECIMALS = 18;
 const USDC_DECIMALS = 6;
 const BPS = 10_000n;
 
 // ------------------------------------------------------------------ pure helpers
 
-/** Reverses a packed Uniswap V3 path (token, fee, token[, fee, token]) so the same pools run the other way. */
+/**
+ * Reverses a packed Uniswap V3 path so the same pools run the other way. The factory only
+ * admits token(20) fee(3) token(20) and token fee token fee token, so the two hex layouts
+ * are sliced directly.
+ */
 export function reversePath(path: Hex): Hex {
-  const bytes = path.slice(2);
-  if (bytes.length !== 86 && bytes.length !== 132) {
-    throw new Error(`unexpected packed path length ${bytes.length / 2}`);
-  }
-  const tokens: string[] = [];
-  const fees: string[] = [];
-  let offset = 0;
-  while (offset < bytes.length) {
-    tokens.push(bytes.slice(offset, offset + 40));
-    offset += 40;
-    if (offset < bytes.length) {
-      fees.push(bytes.slice(offset, offset + 6));
-      offset += 6;
-    }
-  }
-  tokens.reverse();
-  fees.reverse();
-  let out = "0x";
-  tokens.forEach((token, index) => {
-    out += token;
-    if (index < fees.length) out += fees[index];
-  });
-  return out as Hex;
+  const hex = path.slice(2);
+  if (hex.length === 86) return `0x${hex.slice(46)}${hex.slice(40, 46)}${hex.slice(0, 40)}`;
+  if (hex.length === 132)
+    return `0x${hex.slice(92)}${hex.slice(86, 92)}${hex.slice(46, 86)}${hex.slice(40, 46)}${hex.slice(0, 40)}`;
+  throw new Error(`unexpected packed path length ${hex.length / 2}`);
 }
 
 /**
@@ -152,8 +137,8 @@ export interface RecoveryDeps {
   createRedeemOrder(request: MoneriumRedeemOrderRequest): Promise<{ id: string | null }>;
   getOrder(orderId: string): Promise<{ rejectedReason?: string; state: string }>;
   signMessage(message: string): Promise<string>;
-  /** Forward-only deposit transition under the forwarder lock (a no-op for an illegal edge). */
-  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<void>;
+  /** Forward-only deposit transition under the forwarder lock (a no-op for an illegal edge; the refund path ignores the refusal). */
+  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<unknown>;
   now(): Date;
 }
 
@@ -333,14 +318,22 @@ export async function activeRecoveryExists(): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<void> {
+/** Forward-only status change under the forwarder lock: why it was refused, or null once the deposit has `status`. */
+export async function setDepositStatus(
+  deposit: MoneriumFiatDeposit,
+  status: MoneriumFiatDepositStatus
+): Promise<string | null> {
   const account = await MoneriumAccount.findByPk(deposit.accountId);
-  if (!account) return;
-  await withForwarderLock(account.forwarderAddress, async transaction => {
+  if (!account) return "Monerium account not found";
+  return withForwarderLock(account.forwarderAddress, async transaction => {
     const current = await MoneriumFiatDeposit.findByPk(deposit.id, { transaction });
-    if (current && isForwardTransition(current.status, status)) {
-      await current.update({ status }, { transaction });
+    if (!current) return "missing";
+    if (current.status === status) return null;
+    if (!isForwardTransition(current.status, status)) {
+      return `Monerium deposit cannot transition from ${current.status} to ${status}`;
     }
+    await current.update({ status }, { transaction });
+    return null;
   });
 }
 
@@ -444,10 +437,12 @@ export async function driveRecovery(
           );
           return;
         }
+        // Only the transfer just sent may carry a hash: ToppingUp waits on whichever is set.
         await recovery.update({
           floatTopupRaw: topUp.toString(),
           floatTopupTxHash: hash,
-          phase: MoneriumRecoveryPhase.ToppingUp
+          phase: MoneriumRecoveryPhase.ToppingUp,
+          surplusTxHash: null
         });
         return;
       }
@@ -465,7 +460,12 @@ export async function driveRecovery(
           );
           return;
         }
-        await recovery.update({ phase: MoneriumRecoveryPhase.ToppingUp, surplusRaw: surplus.toString(), surplusTxHash: hash });
+        await recovery.update({
+          floatTopupTxHash: null,
+          phase: MoneriumRecoveryPhase.ToppingUp,
+          surplusRaw: surplus.toString(),
+          surplusTxHash: hash
+        });
         return;
       }
       await recovery.update({ phase: MoneriumRecoveryPhase.ToppedUp });
@@ -574,10 +574,6 @@ export async function driveRecovery(
     case MoneriumRecoveryPhase.Redeemed:
       return;
   }
-}
-
-function errorText(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
 /**

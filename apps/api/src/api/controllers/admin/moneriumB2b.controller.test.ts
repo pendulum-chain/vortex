@@ -389,8 +389,18 @@ describe("monerium b2b account mapping admin route", () => {
     expect(retried.status).toBe(200);
     const refunded = await patchStatus(deposit.id, "refunded");
     expect(refunded.status).toBe(200);
-    expect((await patchStatus(deposit.id, "recovering")).status).toBe(409);
+    expect(await refunded.json()).toEqual({ deposit: { depositId: deposit.id, status: "refunded" } });
+    expect((await patchStatus(deposit.id, "refunded")).status).toBe(200);
+    const reopened = await patchStatus(deposit.id, "recovering");
+    expect(reopened.status).toBe(409);
+    expect(await reopened.json()).toMatchObject({
+      error: {
+        code: "MONERIUM_B2B_INVALID_STATUS_TRANSITION",
+        message: "Monerium deposit cannot transition from refunded to recovering"
+      }
+    });
     expect((await MoneriumFiatDeposit.findByPk(deposit.id))?.status).toBe(MoneriumFiatDepositStatus.Refunded);
+    expect((await patchStatus(crypto.randomUUID(), "refunded")).status).toBe(404);
 
     expect((await recover(crypto.randomUUID())).status).toBe(404);
     expect((await recover("not-a-uuid")).status).toBe(400);

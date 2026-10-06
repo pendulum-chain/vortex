@@ -4,6 +4,8 @@ export const MOCK_WALLET_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 export const MOCK_WALLET_NAME = "E2E Mock Wallet";
 /** The hash the stub returns for every eth_sendTransaction. */
 export const MOCK_WALLET_TX_HASH = `0x${"cd".repeat(32)}`;
+/** sessionStorage key counting eth_sendTransaction calls in the tab; it survives reloads. */
+export const MOCK_WALLET_SEND_COUNT_KEY = "e2e-mock-wallet-sends";
 
 // Copied from apps/frontend/e2e/support/mockWallet.ts. Injects a minimal EIP-1193 provider
 // announced via EIP-6963 before the app loads. wagmi discovers announced providers by default
@@ -14,7 +16,7 @@ export const MOCK_WALLET_TX_HASH = `0x${"cd".repeat(32)}`;
 // a mid-flow chain switch in signAndSubmitEvmTransaction.
 export async function injectMockWallet(page: Page, options: { chainIdHex?: string } = {}) {
   await page.addInitScript(
-    ({ address, name, chainIdHex, txHash }) => {
+    ({ address, name, chainIdHex, sendCountKey, txHash }) => {
       // biome-ignore lint/suspicious/noExplicitAny: minimal EIP-1193 stub
       const listeners: Record<string, Array<(...args: any[]) => void>> = {};
       const provider = {
@@ -46,6 +48,7 @@ export async function injectMockWallet(page: Page, options: { chainIdHex?: strin
               return `0x${"ab".repeat(65)}`;
             // The offramp's user-owned squidRouterNoPermitTransfer is broadcast through here.
             case "eth_sendTransaction":
+              sessionStorage.setItem(sendCountKey, String(Number(sessionStorage.getItem(sendCountKey) ?? 0) + 1));
               return txHash;
             case "eth_getTransactionReceipt":
               return {
@@ -89,6 +92,7 @@ export async function injectMockWallet(page: Page, options: { chainIdHex?: strin
       address: MOCK_WALLET_ADDRESS,
       chainIdHex: options.chainIdHex ?? "0x2105",
       name: MOCK_WALLET_NAME,
+      sendCountKey: MOCK_WALLET_SEND_COUNT_KEY,
       txHash: MOCK_WALLET_TX_HASH
     }
   );

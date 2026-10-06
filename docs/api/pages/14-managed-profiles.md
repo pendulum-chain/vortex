@@ -91,7 +91,7 @@ X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 Content-Type: application/json
 
-{ "accountType": "INDIVIDUAL", "name": "Ana Maria Silva", "taxId": "12345678901" }
+{ "accountType": "INDIVIDUAL", "name": "Ana Maria Silva", "taxId": "52998224725" }
 ```
 
 ```http
@@ -131,7 +131,7 @@ Register, sign, and start exactly as described in [Ramp Lifecycle](https://api-d
 Two things behave differently for managed children:
 
 - **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
-- **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED`/`DEPOSIT_RETURNED` for all their children's accounts — see the Webhooks page.
+- **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives the lifecycle events `DEPOSIT_UPDATED`/`ACCOUNT_UPDATED` and the milestones `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED`/`DEPOSIT_RETURNED` for all their children's accounts — see the Webhooks page.
 
 ## Common Errors
 

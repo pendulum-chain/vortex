@@ -1,4 +1,4 @@
-import { multiplyByPowerOfTen } from "@vortexfi/shared";
+import { multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
 import { assertLegacyRebalancerDisabled } from "./cli.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
@@ -18,8 +18,14 @@ import {
   compareRoutesUpfront,
   getUsdcBalanceOnBaseRaw
 } from "./rebalance/usdc-brla-usdc-base/steps.ts";
-import { resumeInFlightRebalance, runRebalanceCycle, shouldQuoteProfitableAmount } from "./rebalanceCycle.ts";
-import { getBaseNablaCoverageRatio } from "./services/indexer";
+import {
+  exceedsUsdcPoolCoverageCap,
+  resumeInFlightRebalance,
+  runRebalanceCycle,
+  shouldQuoteProfitableAmount,
+  type UsdcPoolCoverageCapDeps
+} from "./rebalanceCycle.ts";
+import { getBaseNablaCoverageRatio, getBaseNablaUsdcPool } from "./services/indexer";
 import { BrlaToUsdcBaseStateManager, UsdcBaseStateManager, type WinningRoute } from "./services/stateManager.ts";
 import { getConfig } from "./utils/config.ts";
 
@@ -220,6 +226,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function usdcPoolCoverageCapDeps(): UsdcPoolCoverageCapDeps {
+  return { maxCoverage: getConfig().rebalancingMaxUsdcCoverage, readUsdcPool: getBaseNablaUsdcPool };
+}
+
+async function alertUsdcToBrlaCapped(brlaCoverageRatio: number) {
+  const message =
+    `REBALANCE BLOCKED: BRLA coverage ${brlaCoverageRatio} is above the upper bound, but USDC->BRLA->USDC would push ` +
+    `the Base Nabla USDC pool above REBALANCING_MAX_USDC_COVERAGE ${getConfig().rebalancingMaxUsdcCoverage}.`;
+  console.log(message);
+  // ponytail: stateless hourly throttle, only the first 5-minute cron slot of each hour posts.
+  // Persist a last-sent timestamp if the cron schedule becomes denser than every 5 minutes.
+  if (new Date().getUTCMinutes() >= 5) return;
+  await new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN).sendMessage({ text: message });
+}
+
 async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promise<{
   amountUsdcRaw: string;
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
@@ -240,7 +261,7 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
     profitableAmountRaw,
     standardAmountRaw
   });
-  if (!quoteProfitableAmount) {
+  if (!quoteProfitableAmount || (await exceedsUsdcPoolCoverageCap(profitableAmountRaw, usdcPoolCoverageCapDeps()))) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
@@ -349,6 +370,9 @@ async function checkForRebalancing() {
   const config = getConfig();
 
   await runRebalanceCycle({
+    alertUsdcToBrlaCapped,
+    isUsdcToBrlaCapped: () =>
+      exceedsUsdcPoolCoverageCap(toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount), usdcPoolCoverageCapDeps()),
     lowerBound: 1 - config.rebalancingThresholdBrlaToUsdc,
     readCoverage: getBaseNablaCoverageRatio,
     resumeInFlight: () =>

@@ -27,7 +27,7 @@ contract VortexSubsidyVault {
     uint256 public spentToday;
     bool public paused;
 
-    event SubsidyPaid(address indexed forwarder, address indexed to, uint256 amount);
+    event SubsidyPaid(address indexed forwarder, uint256 amount);
     event MaxSubsidyPpmSet(uint32 value);
     event DailyBudgetSet(uint256 value);
     event PausedSet(bool paused);
@@ -63,11 +63,11 @@ contract VortexSubsidyVault {
         dailyBudget = initialDailyBudget;
     }
 
-    /// @notice Pays `amount` USDC to `to` on behalf of the calling clone. Reverts — and
+    /// @notice Pays `amount` USDC to the calling clone. Reverts — and
     ///         with it the clone's whole swap — whenever the cap, the budget, the pause
     ///         or the balance cannot cover it, so a swap is never partially subsidized.
     /// @param referenceOut The swap's reference value in USDC base units; the cap basis.
-    function pay(address to, uint256 amount, uint256 referenceOut) external {
+    function pay(uint256 amount, uint256 referenceOut) external {
         if (!FACTORY.isForwarder(msg.sender)) revert NotForwarder();
         if (paused) revert VaultPaused();
         if (amount > (referenceOut * maxSubsidyPpm) / PPM) revert SubsidyCapExceeded();
@@ -80,8 +80,8 @@ contract VortexSubsidyVault {
         if (spentToday + amount > dailyBudget) revert BudgetExhausted();
         spentToday += amount;
 
-        _transfer(to, amount);
-        emit SubsidyPaid(msg.sender, to, amount);
+        _transfer(msg.sender, amount);
+        emit SubsidyPaid(msg.sender, amount);
     }
 
     // ----------------------------------------------------------- guardian authority

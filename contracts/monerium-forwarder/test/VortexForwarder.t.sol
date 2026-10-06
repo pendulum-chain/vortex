@@ -98,7 +98,7 @@ contract MockReentrantRouter {
 /// Vault that accepts pay() and transfers nothing: what a misconfigured or hostile
 /// guardian-set vault looks like from the forwarder's side.
 contract NoopVault {
-    function pay(address, uint256, uint256) external {}
+    function pay(uint256, uint256) external {}
 }
 
 contract VortexForwarderTest is Test {

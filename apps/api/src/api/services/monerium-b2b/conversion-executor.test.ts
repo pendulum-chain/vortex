@@ -113,7 +113,7 @@ describe("settlementState", () => {
       swapRow(60n * EUR, 65n * USDC),
       swapRow(30n * EUR, 32n * USDC)
     ]);
-    expect(state).toMatchObject({ convertedEureRaw: 90n * EUR, remainingEureRaw: 10n * EUR, usdcNetRaw: 97n * USDC });
+    expect(state).toMatchObject({ remainingEureRaw: 10n * EUR, usdcNetRaw: 97n * USDC });
   });
 
   it("never reports a negative remainder", () => {
@@ -662,7 +662,7 @@ describe("pricePlannedSwap", () => {
 
   it("uses the first enabled route unprojected off mainnet, still carrying the tier cap", async () => {
     arrange({ chainId: 11_155_111 });
-    expect(await price()).toEqual({ kind: "ready", maxSubsidyRaw: 5_700_000n, projection: null, reference, routeIndex: 0 });
+    expect(await price()).toEqual({ kind: "ready", maxSubsidyRaw: 5_700_000n, reference, routeIndex: 0 });
   });
 
   it("defers when no route can be quoted", async () => {
@@ -670,12 +670,11 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "no enabled swap route could be quoted" });
   });
 
-  it("picks the route with the highest quote and projects its settlement", async () => {
+  it("picks the route with the highest quote", async () => {
     arrange();
     expect(await price()).toEqual({
       kind: "ready",
       maxSubsidyRaw: 5_700_000n, // 50 bps of the 1140 USDC reference value
-      projection: { defer: null, fee: 425_000n, net: 1_138_575_000n, subsidy: 0n },
       reference,
       routeIndex: 1
     });

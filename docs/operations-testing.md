@@ -44,6 +44,11 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
   `failed`. Locks are released on terminal states; only `currentPhase`/`phaseHistory` are
   updated by the processor.
 - Presigned transaction and ephemeral address validation (F-021, F-038 class).
+- The start deadline is relaxed only for worker-driven recovery: public `/ramp/update` and
+  `/ramp/start` keep rejecting an expired ramp even with a source hash reported, while the
+  recovery worker starts (and completes) a non-domestic SELL ramp with a reported hash between
+  16 minutes and 3 days old and leaves every other `initial` ramp untouched
+  (`corridors/brl-offramp-crosschain.scenario.test.ts`, `brl-offramp.scenario.test.ts`).
 - External swap/route outputs are validated against expectations before funds move (F-030).
 
 When a new security finding is fixed, add a regression test in the same PR and reference the
@@ -198,7 +203,9 @@ different set of endpoints than the widget. Covered so far:
   Alfredpay fiat account → quote → registration with fresh ephemeral keypairs → in-page ephemeral
   signing asserted via the raw EIP-1559 txs posted to `/ramp/update` → USER-WALLET broadcast of the
   `squidRouterNoPermitTransfer` with its hash reported in a second update → `/ramp/start` → status
-  polling to a terminal phase while the form navigates to `/transactions`. A second test pins
+  polling to a terminal phase while the form navigates to `/transactions`. A retry test fails that
+  second update with the maintenance 503, reloads, and asserts **Try again** resends the identical
+  update then starts, with exactly one wallet broadcast across the reload. Another test pins
   payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
   one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
 - **Onramps and transfer modes** (`onramp-journeys.spec.ts`): route-backed Offramp/Onramp/

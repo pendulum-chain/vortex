@@ -28,7 +28,7 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { QueryTypes } from "sequelize";
-import { encodeFunctionData, Hash } from "viem";
+import { encodeFunctionData, Hash, Hex, keccak256, parseAbi } from "viem";
 import logger from "../../../../../../config/logger";
 import { axelarGasServiceAbi } from "../../../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -54,6 +54,11 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000";
 const AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS = 10 * 60 * 1000;
 const STUCK_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
 const EXTRA_GAS_PENDING_MARKER = "pending";
+const AXELAR_EXECUTE_PENDING_MARKER = "pending";
+const AXELAR_EXECUTABLE_ABI = parseAbi([
+  "function execute(bytes32 commandId, string sourceChain, string sourceAddress, bytes payload)",
+  "function executeWithToken(bytes32 commandId, string sourceChain, string sourceAddress, bytes payload, string tokenSymbol, uint256 amount)"
+]);
 const STATUS_REQUEST_TIMEOUT_MS = 30000;
 const DESTINATION_BALANCE_FALLBACK_MIN_RATIO_BPS = 9000;
 
@@ -61,6 +66,8 @@ type TerminalBridgeEvidence = Pick<SquidRouterDeliveryEvidence, "kind" | "observ
 
 type SquidRouterStatusWithSource = SquidRouterPayResponse & {
   evidenceProvider: "axelar" | "squid";
+  // Set by the Axelar fallback so the polling loop does not search the same GMP twice.
+  axelarScanStatus?: AxelarScanStatusResponse;
 };
 
 // Port of the production SquidRouterPhaseHandler for block-owned bridge and passthrough routes.
@@ -527,7 +534,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
 
         if (isGmp) {
-          const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
+          const axelarScanStatus =
+            squidRouterStatus?.axelarScanStatus ?? (await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal)));
           lastAxelarScanStatus = axelarScanStatus ?? undefined;
 
           if (!axelarScanStatus) {
@@ -701,6 +709,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         actionTaken =
           context.recoveryOutcome ??
           (await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus?.call?.chain, signal));
+      } else if (classification === "approved_not_executed") {
+        actionTaken = await this.maybeExecuteApprovedGmp(state, quote, axelarScanStatus, signal);
       }
 
       await this.alertStuckGmp(
@@ -776,6 +786,137 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     return `sent one-time gas top-up ${extraGasTxHash} (${nativeToDecimal(nativeToFundRaw, 18).toNumber()} native units)`;
   }
 
+  // Sends the destination execute the Axelar relayer never sent. Execution is permissionless
+  // once the gateway approved the call, and the gateway rejects a second execution, so a race
+  // with the relayer only costs gas. The payload delivers to the ramp's ephemeral.
+  private async maybeExecuteApprovedGmp(
+    state: RampState,
+    quote: QuoteTicket,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const previous = state.state.squidRouterAxelarExecuteTxHash;
+    if (previous === AXELAR_EXECUTE_PENDING_MARKER) {
+      return "destination execute previously attempted with unknown outcome; not retrying; check the funding wallet's transactions manually";
+    }
+    if (previous) {
+      return `destination execute already sent (${previous}); not sending again`;
+    }
+
+    const commandId = axelarScanStatus?.command_id as Hex | undefined;
+    const approved = axelarScanStatus?.approved?.returnValues;
+    const call = axelarScanStatus?.call;
+    const payload = call?.returnValues?.payload as Hex | undefined;
+    const destinationChain = this.resolveBridgeToChain(quote);
+    if (!commandId || !call || !approved?.contractAddress || !approved.sourceChain || !approved.sourceAddress || !payload) {
+      return "cannot execute: Axelar status lacks the command id, approval or payload";
+    }
+    if (!destinationChain || !isNetworkEVM(destinationChain)) {
+      return `cannot execute: destination ${destinationChain} is not an EVM chain`;
+    }
+    if (keccak256(payload).toLowerCase() !== approved.payloadHash?.toLowerCase()) {
+      return "refusing to execute: payload does not match the approved payload hash";
+    }
+
+    const { sourceChain, sourceAddress } = approved;
+    // The gateway validates the destination approval's token, which can differ from the source call's.
+    const symbol = approved.symbol ?? call.returnValues?.symbol;
+    const amount = approved.amount ?? call.returnValues?.amount;
+    let data: Hex;
+    if (call.event === "ContractCallWithToken" && symbol && amount) {
+      data = encodeFunctionData({
+        abi: AXELAR_EXECUTABLE_ABI,
+        args: [commandId, sourceChain, sourceAddress, payload, symbol, BigInt(amount)],
+        functionName: "executeWithToken"
+      });
+    } else if (call.event === "ContractCall") {
+      data = encodeFunctionData({
+        abi: AXELAR_EXECUTABLE_ABI,
+        args: [commandId, sourceChain, sourceAddress, payload],
+        functionName: "execute"
+      });
+    } else {
+      return `cannot execute: unsupported Axelar call event ${call.event} (or missing token symbol/amount)`;
+    }
+
+    const network = destinationChain as EvmNetworks;
+    const to = approved.contractAddress as `0x${string}`;
+    const evmClientManager = EvmClientManager.getInstance();
+    const publicClient = evmClientManager.getClient(network);
+    const fundingAccount = getEvmFundingAccount(network);
+
+    let estimatedGas: bigint;
+    try {
+      estimatedGas = await abortableCall(signal, () => publicClient.estimateGas({ account: fundingAccount.address, data, to }));
+    } catch (error) {
+      return `refusing to execute: simulation failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    // Caps the gas Axelarscan-supplied data can make the funding wallet burn.
+    if (estimatedGas > BigInt(DEFAULT_SQUIDROUTER_GAS_ESTIMATE)) {
+      return `refusing to execute: estimated gas ${estimatedGas} exceeds ${DEFAULT_SQUIDROUTER_GAS_ESTIMATE}`;
+    }
+    const gas = (estimatedGas * 6n) / 5n;
+    const { maxFeePerGas, maxPriorityFeePerGas } = await abortableCall(signal, () => publicClient.estimateFeesPerGas());
+    const balance = await abortableCall(signal, () => publicClient.getBalance({ address: fundingAccount.address }));
+    if (balance < gas * maxFeePerGas) {
+      return `cannot execute: funding wallet ${fundingAccount.address} lacks native gas on ${network} (has ${balance} wei, needs ${gas * maxFeePerGas})`;
+    }
+
+    if (signal?.aborted) {
+      return "execution aborted before destination execute; not sending";
+    }
+    const claimedRows = await this.patchStateKey(
+      state,
+      "squidRouterAxelarExecuteTxHash",
+      AXELAR_EXECUTE_PENDING_MARKER,
+      `state->>'squidRouterAxelarExecuteTxHash' IS NULL`
+    );
+    if (claimedRows === 0) {
+      return "destination execute already claimed by a concurrent execution; not sending";
+    }
+
+    try {
+      const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
+      const { hash } = await runSerializedEvmFundingOperation(
+        network,
+        async () => {
+          const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+          return this.runFinancialOperation(state, {
+            attemptClass: "axelar-destination-execute",
+            externalId: operation => operation.hash,
+            perform: async () => {
+              const hash = await walletClient.sendTransaction({
+                account: fundingAccount,
+                chain: publicClient.chain,
+                data,
+                gas,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                nonce,
+                to
+              });
+              const receipt = await publicClient.waitForTransactionReceipt({ hash });
+              if (receipt.status !== "success") {
+                throw new FinancialOperationRejectedError(`Axelar destination execute ${hash} reverted`);
+              }
+              return { hash };
+            },
+            provider: network,
+            request: { commandId, network, to },
+            settleAfterAbort: true,
+            signal
+          });
+        },
+        signal
+      );
+      await this.patchStateKey(state, "squidRouterAxelarExecuteTxHash", hash);
+      logger.warn(`SQUIDROUTER_AXELAR_EXECUTED: sent approved GMP execute. ramp=${state.id} network=${network} tx=${hash}`);
+      return `executed the approved call on ${network} (${hash})`;
+    } catch (error) {
+      return `destination execute failed after claim, not retrying; check manually: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
   private async alertStuckGmp(
     state: RampState,
     swapHash: string,
@@ -812,6 +953,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
 
     const guidanceByClassification: Record<GmpClassification, string> = {
+      approved_not_executed: "approved but Axelar's relayer never executed; Vortex sends the destination execute itself",
       executed: "",
       execution_failed: "destination execution failed; external; retry the execution manually from the Axelarscan page",
       insufficient_gas: "Vortex-actionable: Axelar reports the paid gas as insufficient",
@@ -985,6 +1127,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             : axelarScanStatus.status;
 
         return {
+          axelarScanStatus,
           evidenceProvider: "axelar",
           id: "",
           isGMPTransaction: true,

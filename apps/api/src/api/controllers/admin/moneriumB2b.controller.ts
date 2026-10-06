@@ -8,7 +8,7 @@ import { UUID_PATTERN } from "../../helpers/uuid";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
-import { isForwardTransition, withForwarderLock } from "../../services/monerium-b2b/deposit-processor";
+import { setDepositStatus } from "../../services/monerium-b2b/recovery";
 import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
 
 export async function postMoneriumB2bAccount(req: Request, res: Response): Promise<void> {
@@ -200,23 +200,10 @@ export async function patchMoneriumB2bDepositStatus(req: Request<{ depositId: st
       sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_DEPOSIT_NOT_FOUND", "Monerium deposit not found");
       return;
     }
-    const account = await MoneriumAccount.findByPk(deposit.accountId);
-    if (!account) {
-      sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "Monerium account not found");
-      return;
-    }
     const targetStatus = status as MoneriumFiatDepositStatus;
-    const outcome = await withForwarderLock(account.forwarderAddress, async transaction => {
-      const current = await MoneriumFiatDeposit.findByPk(deposit.id, { transaction });
-      if (!current) return "missing";
-      if (targetStatus === current.status) return "same";
-      if (!isForwardTransition(current.status, targetStatus))
-        return `Monerium deposit cannot transition from ${current.status} to ${targetStatus}`;
-      await current.update({ status: targetStatus }, { transaction });
-      return "updated";
-    });
-    if (outcome !== "updated" && outcome !== "same") {
-      sendError(res, httpStatus.CONFLICT, "MONERIUM_B2B_INVALID_STATUS_TRANSITION", outcome);
+    const refusal = await setDepositStatus(deposit, targetStatus);
+    if (refusal) {
+      sendError(res, httpStatus.CONFLICT, "MONERIUM_B2B_INVALID_STATUS_TRANSITION", refusal);
       return;
     }
     res.status(httpStatus.OK).json({ deposit: { depositId: deposit.id, status: targetStatus } });

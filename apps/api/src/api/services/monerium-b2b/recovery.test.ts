@@ -228,6 +228,35 @@ describe("driveRecovery", () => {
     expect(recovery.phase).toBe(MoneriumRecoveryPhase.ToppedUp);
   });
 
+  it("waits for a surplus sweep sent after a confirmed top-up, not for the top-up again", async () => {
+    // More EURe reached the wallet after an earlier top-up confirmed; the sweep of the
+    // excess lands only once its own receipt arrives, as on chain.
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 103n * EUR]]), usdc: new Map() };
+    const sweeps: bigint[] = [];
+    const deps = fakeDeps(ledger, {
+      sendEure: async (_from, _to, amount) => {
+        sweeps.push(amount);
+        return "0xsweeptx" as Hex;
+      },
+      waitReceipt: async hash => {
+        if (hash === "0xsweeptx") ledger.eure.set(RECOVERY, 100n * EUR);
+        return "success";
+      }
+    });
+    const recovery = recoveryRow({
+      floatTopupRaw: (1n * EUR).toString(),
+      floatTopupTxHash: "0xfloattx",
+      phase: MoneriumRecoveryPhase.Swapped
+    });
+    const deposit = depositRow();
+
+    await driveRecovery(recovery, deposit, deps);
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
+    await driveRecovery(recovery, deposit, deps);
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.ToppedUp);
+    expect(sweeps).toEqual([3n * EUR]);
+  });
+
   it("re-derives a lost swap from balances instead of swapping twice", async () => {
     // The swap landed (USDC gone, EURe up) but the hash never persisted.
     const ledger: Ledger = { eure: new Map([[RECOVERY, 99n * EUR]]), usdc: new Map([[RECOVERY, 0n]]) };

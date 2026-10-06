@@ -21,6 +21,20 @@ export function parseRebalancingDailyBridgeLimitUsd(value = process.env.REBALANC
   return parseNonNegativeNumber("REBALANCING_DAILY_BRIDGE_LIMIT_USD", value, DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD);
 }
 
+// Unset means no cap: USDC->BRLA->USDC runs ignore the Base Nabla USDC pool coverage.
+// Parsed strictly: "1,3" must not become 13 (no cap), and a ratio below 1 would block every run.
+export function parseRebalancingMaxUsdcCoverage(value = process.env.REBALANCING_MAX_USDC_COVERAGE): number | undefined {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) return undefined;
+
+  const maxCoverage = Number(trimmedValue);
+  if (!Number.isFinite(maxCoverage) || maxCoverage < 1) {
+    throw new Error("REBALANCING_MAX_USDC_COVERAGE must be a coverage ratio of at least 1 (e.g. 1.3).");
+  }
+
+  return maxCoverage;
+}
+
 export function parseRebalancingPolicyMode(value = process.env.REBALANCING_POLICY_MODE): RebalancingPolicyMode {
   const mode = value?.trim() || "auto";
   if (!REBALANCING_POLICY_MODES.includes(mode as RebalancingPolicyMode)) {
@@ -105,6 +119,8 @@ export function getConfig() {
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
     rebalancingCostPolicy: getRebalancingCostPolicyConfig(),
     rebalancingDailyBridgeLimitUsd: parseRebalancingDailyBridgeLimitUsd(),
+    /// Maximum Base Nabla USDC pool coverage a USDC→BRLA→USDC run may leave behind (e.g. 1.3 = 130%).
+    rebalancingMaxUsdcCoverage: parseRebalancingMaxUsdcCoverage(),
     /// The larger USDC amount to evaluate for USDC→BRLA→USDC runs and use when that larger amount is projected profitable.
     rebalancingProfitableUsdToBrlAmount:
       process.env.REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT || process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",

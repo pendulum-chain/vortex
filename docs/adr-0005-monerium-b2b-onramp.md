@@ -114,8 +114,8 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
   between floor and target is passed through untouched; a fill below `reference × (1 −
   floor)` is topped up to the floor from the vault. The 2.5 bps dead band is intended.
 - **Subsidy vault.** One `VortexSubsidyVault` shared by every clone, treasury-funded,
-  pays only when called by a factory-registered clone, to the destination that clone
-  passes (its own immutable one), within a guardian-settable per-swap cap and UTC-daily
+  pays only when called by a factory-registered clone, to that clone itself, within a
+  guardian-settable per-swap cap and UTC-daily
   budget, can be paused, and withdraws only to the treasury. A vault that cannot cover
   reverts the whole swap, and the clone reverts unless exactly the shortfall arrived at
   its destination — a swap is never partially subsidized and a guardian-set vault cannot
@@ -147,15 +147,15 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 Product requirements from the partner (SulPayments): one USDC transfer per bank
 payment, and an automatic refund of the exact EUR amount to the payer's bank account
 when a payment cannot be converted inside the promised window. Vortex holding the funds
-for that refund is agreed commercially. Decisions (the proposal that led here is
-[`proposal-monerium-b2b-settlement-and-recovery.md`](proposal-monerium-b2b-settlement-and-recovery.md)):
+for that refund is agreed commercially. Decisions (the proposal that led here,
+`proposal-monerium-b2b-settlement-and-recovery.md`, is in git history):
 
 - **Chunks accumulate on the clone; one forward per payment.** `swap(reference, route,
   amountIn)` converts an explicit chunk and keeps the USDC (subsidy included) on the
   clone; `forward(amount)` pushes the whole converted payment to `destination`. The
   keeper serves one deposit at a time (1 deposit : N swap executions), so deposits never
-  share a swap and the N:M attribution of 2026-08 is gone. Approach A of the proposal
-  (no escrow contract): smallest audit delta, per-client blast radius, USDC never
+  share a swap and the N:M attribution of 2026-08 is gone. Chosen over a shared
+  settlement escrow contract: smallest audit delta, per-client blast radius, USDC never
   leaves the client's clone until it goes to the destination.
 - **Vortex-held recovery wallet, on-chain delay** (the single company-profile wallet was
   replaced by per-client refund wallets, amendment 2026-10-01). `recover(eure, usdc)` is keeper-only,
