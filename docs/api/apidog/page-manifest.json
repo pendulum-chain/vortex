@@ -262,8 +262,8 @@
     {
       "order": 10,
       "seo": {
-        "keywords": ["sandbox", "test environment", "crypto API testing", "test API keys", "mock KYC accounts"],
-        "metaDescription": "Test Vortex integrations end-to-end in the sandbox: base URLs, pk_test_/sk_test_ keys, and pre-configured KYC-approved mock accounts.",
+        "keywords": ["sandbox", "test environment", "crypto API testing", "test API keys", "sandbox KYC"],
+        "metaDescription": "Test Vortex integrations end-to-end in the sandbox: self-service sign-up, pk_test_/sk_test_ keys, auto-approved KYC and KYB, and fast mock ramp completion.",
         "metaTitle": "Sandbox \u2014 Test Your Vortex Integration"
       },
       "slug": "sandbox",

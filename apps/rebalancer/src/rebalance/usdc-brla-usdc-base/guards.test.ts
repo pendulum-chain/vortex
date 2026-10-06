@@ -11,7 +11,8 @@ import {
   isProjectedProfit,
   type RebalancingCostPolicyConfig,
   shouldTriggerOpportunisticUsdcToBrla,
-  wouldExceedDailyBridgeLimit
+  wouldExceedDailyBridgeLimit,
+  wouldExceedUsdcPoolCoverage
 } from "./guards.ts";
 
 const policyConfig: RebalancingCostPolicyConfig = {
@@ -71,6 +72,17 @@ describe("USDC Base rebalance guards", () => {
     expect(shouldTriggerOpportunisticUsdcToBrla(-1, maxCostBps)).toBe(true);
     expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps - 0.01, maxCostBps)).toBe(true);
     expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps, maxCostBps)).toBe(false);
+  });
+
+  test("caps USDC pool coverage after the run amount is swapped in", () => {
+    // Live pool on 2026-10-06: 37,747 USDC reserve over 19,345 USDC liabilities (~1.95).
+    const livePool = { liabilitiesRaw: "19344706790", reserveRaw: "37747254751" };
+    expect(wouldExceedUsdcPoolCoverage(livePool, "1000000000", 1.3)).toBe(true);
+
+    const pool = { liabilitiesRaw: "10000000000", reserveRaw: "12000000000" };
+    expect(wouldExceedUsdcPoolCoverage(pool, "1000000000", 1.3)).toBe(false);
+    expect(wouldExceedUsdcPoolCoverage(pool, "1000000001", 1.3)).toBe(true);
+    expect(wouldExceedUsdcPoolCoverage({ liabilitiesRaw: "0", reserveRaw: "0" }, "1", 1.3)).toBe(true);
   });
 
   test("allows fallback routes only when they satisfy opportunistic policy checks", () => {

@@ -91,7 +91,7 @@ X-API-Key: sk_live_...
 X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
 Content-Type: application/json
 
-{ "accountType": "INDIVIDUAL", "name": "Ana Maria Silva", "taxId": "12345678901" }
+{ "accountType": "INDIVIDUAL", "name": "Ana Maria Silva", "taxId": "52998224725" }
 ```
 
 ```http

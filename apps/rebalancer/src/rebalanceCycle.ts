@@ -1,5 +1,5 @@
 import Big from "big.js";
-import type { RebalancingPolicyMode } from "./rebalance/usdc-brla-usdc-base/guards.ts";
+import { type RebalancingPolicyMode, wouldExceedUsdcPoolCoverage } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import { BrlaToUsdcBaseRebalancePhase, UsdcBaseRebalancePhase } from "./services/stateManager.ts";
 
 export interface InFlightResumeDeps {
@@ -70,12 +70,34 @@ function toUsdc(raw: string): string {
   return Big(raw).div(1e6).toFixed(6);
 }
 
+export interface UsdcPoolCoverageCapDeps {
+  maxCoverage: number | undefined;
+  readUsdcPool: () => Promise<{ reserveRaw: string; liabilitiesRaw: string }>;
+}
+
+// Checked before quoting: the pool's own coverage cap reverts the quote and would crash the run.
+// A failed pool read throws, so an unreadable pool never bypasses the cap.
+export async function exceedsUsdcPoolCoverageCap(amountUsdcRaw: string, deps: UsdcPoolCoverageCapDeps): Promise<boolean> {
+  if (deps.maxCoverage === undefined) return false;
+
+  const pool = await deps.readUsdcPool();
+  if (!wouldExceedUsdcPoolCoverage(pool, amountUsdcRaw, deps.maxCoverage)) return false;
+
+  console.log(
+    `Base Nabla USDC pool reserve ${toUsdc(pool.reserveRaw)} / liabilities ${toUsdc(pool.liabilitiesRaw)}: adding ` +
+      `${toUsdc(amountUsdcRaw)} USDC would exceed REBALANCING_MAX_USDC_COVERAGE ${deps.maxCoverage}. Skipping this USDC->BRLA->USDC amount.`
+  );
+  return true;
+}
+
 export interface RebalanceCycleDeps {
   lowerBound: number;
   upperBound: number;
   readCoverage: () => Promise<{ brlaCoverageRatio: number } | null | undefined>;
   resumeInFlight: () => Promise<boolean>;
   tryOpportunisticUsdcToBrla: () => Promise<boolean>;
+  isUsdcToBrlaCapped: () => Promise<boolean>;
+  alertUsdcToBrlaCapped: (brlaCoverageRatio: number) => Promise<void>;
   runBrlaToUsdc: (deviationBps: number) => Promise<void>;
   runUsdcToBrla: (deviationBps: number) => Promise<void>;
 }
@@ -98,7 +120,7 @@ export async function runRebalanceCycle(deps: RebalanceCycleDeps): Promise<void>
   const ratio = coverage.brlaCoverageRatio;
 
   if (ratio >= lowerBound && ratio <= upperBound) {
-    if (await deps.tryOpportunisticUsdcToBrla()) return;
+    if (!(await deps.isUsdcToBrlaCapped()) && (await deps.tryOpportunisticUsdcToBrla())) return;
     console.log(`BRLA coverage ${ratio} in range [${lowerBound}, ${upperBound}]. No rebalancing needed.`);
     return;
   }
@@ -112,5 +134,10 @@ export async function runRebalanceCycle(deps: RebalanceCycleDeps): Promise<void>
 
   const deviationBps = calculateCoverageDeviationBps(ratio, upperBound);
   console.log(`BRLA coverage ${ratio} > ${upperBound}. Evaluating USDC->BRLA (${deviationBps} bps deviation).`);
+  // Unlike an opportunistic skip, this leaves a real BRLA imbalance in place, so it must not stay silent.
+  if (await deps.isUsdcToBrlaCapped()) {
+    await deps.alertUsdcToBrlaCapped(ratio);
+    return;
+  }
   await deps.runUsdcToBrla(deviationBps);
 }

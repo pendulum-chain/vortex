@@ -76,6 +76,15 @@ export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRa
   return Number(inputAmountRaw.minus(projectedOutputRaw).div(inputAmountRaw).mul(10_000).toFixed(2));
 }
 
+// USDC->BRLA->USDC swaps the run amount into the Base Nabla USDC pool, raising its coverage.
+export function wouldExceedUsdcPoolCoverage(
+  pool: { reserveRaw: string; liabilitiesRaw: string },
+  amountUsdcRaw: string,
+  maxCoverage: number
+): boolean {
+  return Big(pool.reserveRaw).plus(amountUsdcRaw).gt(Big(pool.liabilitiesRaw).mul(maxCoverage));
+}
+
 export function shouldTriggerOpportunisticUsdcToBrla(costBps: number, maxCostBps: number): boolean {
   return costBps < maxCostBps;
 }

@@ -25,6 +25,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`architecture-email-notifications.md`](architecture-email-notifications.md) | Current transactional/auth email architecture: queue, dispatch, producers |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
 | [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md) | Current end-to-end architecture of the B2B EUR onramp: onboarding, deposit-to-payout, batching, fees, data model |
+| [`operations-brl-tax-id-claim-release.md`](operations-brl-tax-id-claim-release.md) | Operator runbook for releasing a BRL tax ID squatted through `createSubaccount` (RISK-026) |
 | [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
 | [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md) | Launch gates, deploy checklist, and terms inputs for the B2B onramp pilot |

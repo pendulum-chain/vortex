@@ -109,7 +109,7 @@ export interface paths {
         put?: never;
         /**
          * Create user or retry KYC
-         * @description `companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`
+         * @description Creates the provider subaccount for a Brazilian individual (`INDIVIDUAL`, CPF) or company (`COMPANY`, CNPJ). The tax ID is reserved for the calling account as soon as this succeeds, so `taxId` must be the CPF/CNPJ of the person or company being onboarded; it is validated (format and check digits) before anything is created. Repeating the call for a tax ID the account already owns returns the existing `subAccountId`.
          *
          *     `quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.
          *
@@ -2271,6 +2271,7 @@ export interface components {
             /** @enum {string} */
             sourceOfFundsAndIncome: "business_loans" | "grants" | "inter_company_funds" | "investment_proceeds" | "legal_settlement" | "owners_capital" | "pension_retirement" | "sale_of_assets" | "sales_of_goods_and_services" | "third_party_funds" | "treasury_reserves";
             taxIdentificationDocumentId: string;
+            /** @description The CNPJ the company subaccount was created with. Punctuation is ignored; a different value is rejected with `400`. */
             taxIdentificationNumberTin: string;
             uboIds: string[];
             /** Format: uri */
@@ -2387,11 +2388,14 @@ export interface components {
         CreateSubaccountRequest: {
             /** @enum {string} */
             accountType: "INDIVIDUAL" | "COMPANY";
-            /** @description Individual full name or company legal name. */
+            /** @description Individual full name or company legal name (1 to 255 characters after trimming). */
             name: string;
             quoteId?: string;
             sessionId?: string;
-            /** @description CPF for an individual or CNPJ for a company. */
+            /**
+             * @description CPF for an `INDIVIDUAL` account or CNPJ for a `COMPANY` account. Check digits are validated; punctuation is optional (`529.982.247-25` and `52998224725` are equivalent).
+             * @example 529.982.247-25
+             */
             taxId: string;
         };
         CreateSubaccountResponse: {
@@ -2789,6 +2793,7 @@ export interface components {
             state: string;
             streetAddress: string;
             subAccountId: string;
+            /** @description The CPF the subaccount was created with. Punctuation is ignored; a different CPF is rejected with `400`. */
             taxIdNumber: string;
             uploadedDocumentId: string;
             uploadedSelfieId: string;
@@ -3951,8 +3956,9 @@ export interface operations {
             };
             /**
              * @description Bad Request. Possible reasons:
-             *     - Missing required fields (cpf, cnpj, companyName, startDate)
-             *     - Subaccount already created and KYC level > 0
+             *     - `accountType` is not `INDIVIDUAL` or `COMPANY`
+             *     - `name` is missing, blank, or longer than 255 characters
+             *     - `taxId` is missing, is not a string, or is not a valid CPF (`INDIVIDUAL`) / CNPJ (`COMPANY`); punctuation is optional, the check digits are verified
              *     - Other invalid request details
              */
             400: {
@@ -4503,7 +4509,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Invalid submission or document state. */
+            /** @description Invalid submission or document state, including a `taxIdentificationNumberTin` that does not match the CNPJ the company subaccount was created with (punctuation is ignored). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4858,7 +4864,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Validation failure. */
+            /** @description Validation failure, including a `taxIdNumber` that does not match the CPF the subaccount was created with (punctuation is ignored). Submit the same CPF used for `createSubaccount`. */
             400: {
                 headers: {
                     [name: string]: unknown;

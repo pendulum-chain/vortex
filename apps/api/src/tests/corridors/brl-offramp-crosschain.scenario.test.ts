@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as shared from "@vortexfi/shared";
 import {
   AveniaTicketStatus,
@@ -18,6 +18,8 @@ import {
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import rampService from "../../api/services/ramp/ramp.service";
+import RampRecoveryWorker from "../../api/workers/ramp-recovery.worker";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { resolvePersistedBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
 import { assertPersistedBlockFlowVersionsSupported } from "../../api/services/phases/blocks/register-handlers";
@@ -78,6 +80,7 @@ interface CorridorSetup {
   approveHash: `0x${string}`;
   /** Hash of the user's broadcast squidRouterSwap on Polygon. */
   swapHash: `0x${string}`;
+  userId: string;
 }
 
 /**
@@ -201,6 +204,28 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     });
   }
 
+  /**
+   * Signs a blueprint plus the four required same-call backups at the following
+   * nonces, shaped for /v1/ramp/update.
+   */
+  async function signBlueprintWithBackups(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx) {
+    const additionalTxs: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+    for (let i = 1; i <= 4; i++) {
+      additionalTxs[`${blueprint.phase}${i}`] = {
+        nonce: blueprint.nonce + i,
+        txData: await signBlueprint(ephemeral, { ...blueprint, nonce: blueprint.nonce + i })
+      };
+    }
+    return {
+      meta: { additionalTxs },
+      network: blueprint.network,
+      nonce: blueprint.nonce,
+      phase: blueprint.phase,
+      signer: ephemeral.address,
+      txData: await signBlueprint(ephemeral, blueprint)
+    };
+  }
+
   /** Broadcasts a user-wallet blueprint on its source chain exactly as issued. */
   function broadcastUserBlueprint(userWallet: PrivateKeyAccount, blueprint: UnsignedTx): `0x${string}` {
     const txData = blueprint.txData as unknown as { to: `0x${string}`; data: `0x${string}`; value?: string };
@@ -217,7 +242,7 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
    * plus the ephemeral's presigned Base-side transactions the way the
    * frontend/SDK would via /v1/ramp/update.
    */
-  async function setUpRegisteredRamp(options: { reportHashes?: boolean } = {}): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { reportHashes?: boolean; viaApi?: boolean } = {}): Promise<CorridorSetup> {
     const reportHashes = options.reportHashes ?? true;
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
@@ -266,16 +291,39 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     const approveHash = broadcastUserBlueprint(userWallet, approveBlueprint);
     const swapHash = broadcastUserBlueprint(userWallet, swapBlueprint);
 
-    await rampState.update({
-      presignedTxs: [
-        presign(nablaApproveBlueprint, signedNablaApprove),
-        presign(nablaSwapBlueprint, signedNablaSwap),
-        presign(payoutBlueprint, signedPayout)
-      ],
-      state: reportHashes
-        ? { ...rampState.state, squidRouterApproveHash: approveHash, squidRouterSwapHash: swapHash }
-        : rampState.state
-    });
+    let effectiveSignedNablaSwap = signedNablaSwap;
+    let effectiveSignedPayout = signedPayout;
+    if (options.viaApi) {
+      // Full API flow: sign EVERY ephemeral blueprint (with the required backups) and submit
+      // through /v1/ramp/update, so the later /v1/ramp/start validation sees a complete set.
+      const apiPresignedTxs = [];
+      for (const blueprint of unsignedTxs.filter(tx => tx.signer.toLowerCase() === ephemeral.address.toLowerCase())) {
+        apiPresignedTxs.push(await signBlueprintWithBackups(ephemeral, blueprint));
+      }
+      effectiveSignedNablaSwap = apiPresignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as `0x${string}`;
+      effectiveSignedPayout = apiPresignedTxs.find(tx => tx.phase === "brlaPayoutOnBase")?.txData as `0x${string}`;
+      const updateResponse = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          additionalData: reportHashes ? { squidRouterApproveHash: approveHash, squidRouterSwapHash: swapHash } : {},
+          presignedTxs: apiPresignedTxs,
+          rampId: ramp.id
+        }),
+        headers: { Authorization: `Bearer ${testUserToken(user.id)}`, "Content-Type": "application/json" },
+        method: "POST"
+      });
+      expect(updateResponse.status).toBe(200);
+    } else {
+      await rampState.update({
+        presignedTxs: [
+          presign(nablaApproveBlueprint, signedNablaApprove),
+          presign(nablaSwapBlueprint, signedNablaSwap),
+          presign(payoutBlueprint, signedPayout)
+        ],
+        state: reportHashes
+          ? { ...rampState.state, squidRouterApproveHash: approveHash, squidRouterSwapHash: swapHash }
+          : rampState.state
+      });
+    }
 
     return {
       approveBlueprint,
@@ -283,12 +331,13 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
       ephemeral,
       quoteId: quote.id,
       rampId: ramp.id,
-      signedNablaSwap,
-      signedPayout,
+      signedNablaSwap: effectiveSignedNablaSwap,
+      signedPayout: effectiveSignedPayout,
       swapBlueprint,
       swapHash,
       swapInputRaw,
       swapOutputRaw,
+      userId: user.id,
       userWallet
     };
   }
@@ -485,6 +534,164 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     },
     30000
   );
+
+  describe("recovery worker starts funded SELL ramps the client never started", () => {
+    const MINUTE = 60 * 1000;
+    let startSpy: ReturnType<typeof spyOn<typeof rampService, "recoverFundedSellRamp">>;
+
+    beforeEach(() => {
+      startSpy = spyOn(rampService, "recoverFundedSellRamp");
+    });
+
+    afterEach(() => {
+      startSpy.mockRestore();
+    });
+
+    async function backdate(rampId: string, ageMs: number): Promise<void> {
+      await RampState.update({ createdAt: new Date(Date.now() - ageMs) }, { where: { id: rampId } });
+    }
+
+    async function runRecoveryWorker(): Promise<void> {
+      const worker = new RampRecoveryWorker("*/5 * * * *", false) as unknown as { recover: () => Promise<void> };
+      await worker.recover();
+    }
+
+    async function waitForPhase(rampId: string, phase: RampPhase): Promise<RampState> {
+      const deadline = Date.now() + 20000;
+      for (;;) {
+        const ramp = await RampState.findByPk(rampId);
+        if (ramp?.currentPhase === phase) {
+          return ramp;
+        }
+        if (Date.now() > deadline) {
+          throw new Error(`Ramp ${rampId} did not reach ${phase}; stuck in ${ramp?.currentPhase}`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+
+    // The worker's only way to start a ramp is recoverFundedSellRamp, and a started ramp advances
+    // asynchronously, so the spy (not the persisted phase alone) proves nothing was started.
+    async function expectStillInitialAndUntouched(setup: CorridorSetup): Promise<void> {
+      expect(startSpy).not.toHaveBeenCalled();
+      const ramp = await RampState.findByPk(setup.rampId);
+      expect(ramp?.currentPhase).toBe("initial");
+      expect(ramp?.errorLogs).toEqual([]);
+      expect(ramp?.phaseHistory.map(entry => entry.phase)).toEqual(["initial"]);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+    }
+
+    it(
+      "starts and completes a ramp whose hash was reported inside the window but was never started",
+      async () => {
+        const setup = await setUpRegisteredRamp({ viaApi: true });
+        scriptHappyWorld(setup);
+        const pixOutBefore = world.brla.pixOutputTickets.length;
+        await backdate(setup.rampId, 17 * MINUTE);
+
+        await runRecoveryWorker();
+
+        expect(startSpy).toHaveBeenCalledTimes(1);
+        expect(startSpy).toHaveBeenCalledWith(setup.rampId);
+        const final = await waitForPhase(setup.rampId, "complete");
+        expect(final.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+        expect(submissionsOf(setup.signedNablaSwap)).toBe(1);
+        expect(submissionsOf(setup.signedPayout)).toBe(1);
+        expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+        expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
+      },
+      60000
+    );
+
+    it("keeps the public start and update strict: both still reject the same ramp with 400 after the deadline", async () => {
+      const setup = await setUpRegisteredRamp({ viaApi: true });
+      await backdate(setup.rampId, 17 * MINUTE);
+      const headers = { Authorization: `Bearer ${testUserToken(setup.userId)}`, "Content-Type": "application/json" };
+
+      const start = await app.request("/v1/ramp/start", {
+        body: JSON.stringify({ rampId: setup.rampId }),
+        headers,
+        method: "POST"
+      });
+      const update = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          additionalData: { squidRouterSwapHash: setup.swapHash },
+          presignedTxs: [],
+          rampId: setup.rampId
+        }),
+        headers,
+        method: "POST"
+      });
+
+      expect(start.status).toBe(400);
+      expect(await start.text()).toContain("Maximum time window to start process exceeded");
+      expect(update.status).toBe(400);
+      expect(await update.text()).toContain("Maximum time window to start process exceeded");
+      await expectStillInitialAndUntouched(setup);
+    });
+
+    it("leaves a ramp whose source hash was never reported initial", async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false, viaApi: true });
+      scriptHappyWorld(setup);
+      await backdate(setup.rampId, 17 * MINUTE);
+
+      await runRecoveryWorker();
+
+      await expectStillInitialAndUntouched(setup);
+    });
+
+    for (const ageMinutes of [14, 15.5]) {
+      it(`leaves a ramp untouched while the public start window or its one-minute grace is open (${ageMinutes} min)`, async () => {
+        const setup = await setUpRegisteredRamp({ viaApi: true });
+        scriptHappyWorld(setup);
+        await backdate(setup.rampId, ageMinutes * MINUTE);
+
+        await runRecoveryWorker();
+
+        await expectStillInitialAndUntouched(setup);
+      });
+    }
+
+    it("leaves a ramp older than the three-day recovery window untouched", async () => {
+      const setup = await setUpRegisteredRamp({ viaApi: true });
+      scriptHappyWorld(setup);
+      await backdate(setup.rampId, 3 * 24 * 60 * MINUTE + 60 * MINUTE);
+
+      await runRecoveryWorker();
+
+      await expectStillInitialAndUntouched(setup);
+    });
+
+    it(
+      "security: a reported hash whose calldata differs from the blueprint fails the started ramp before any spend",
+      async () => {
+        const setup = await setUpRegisteredRamp({ reportHashes: false, viaApi: true });
+        scriptHappyWorld(setup);
+        const swapTxData = setup.swapBlueprint.txData as unknown as { to: `0x${string}`; value?: string };
+        const tamperedHash = world.evm.broadcastUserTransaction(Networks.Polygon, setup.userWallet.address, {
+          data: "0xdeadbeef",
+          to: swapTxData.to,
+          value: BigInt(swapTxData.value ?? "0")
+        });
+        const rampState = await RampState.findByPk(setup.rampId);
+        await rampState?.update({
+          state: { ...rampState.state, squidRouterApproveHash: setup.approveHash, squidRouterSwapHash: tamperedHash }
+        });
+        await backdate(setup.rampId, 17 * MINUTE);
+
+        await runRecoveryWorker();
+
+        const final = await waitForPhase(setup.rampId, "failed");
+        expect(final.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+        expect(final.errorLogs.some(log => log.error.includes("calldata does not match"))).toBe(true);
+        expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+        expect(submissionsOf(setup.signedPayout)).toBe(0);
+        expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
+      },
+      60000
+    );
+  });
 
   async function requestSellQuote(inputCurrency: string, inputAmount: string, network: Networks = Networks.Ethereum) {
     return app.request("/v1/quotes", {
