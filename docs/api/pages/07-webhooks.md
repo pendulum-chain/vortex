@@ -6,7 +6,7 @@ You can subscribe to:
 
 - **Transaction creation** — a new ramp is registered.
 - **Status changes** — a ramp's status moves between `PENDING`, `COMPLETE`, and `FAILED`.
-- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`) or converted and forwarded (`DEPOSIT_CONVERTED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery. Business EUR onramp accounts are available in sandbox; production activation is pending.
+- **Deposit events** — for partner managers with business EUR onramp accounts: a client's EUR deposit was received (`DEPOSIT_RECEIVED`), converted and forwarded (`DEPOSIT_CONVERTED`), or refunded because it could not be converted within the promised window (`DEPOSIT_RETURNED`). See [Deposit Events](#deposit-events) — they follow account-scoped rules and durable delivery. Business EUR onramp accounts are available in sandbox; production activation is pending.
 
 ## Security Model
 
@@ -111,11 +111,12 @@ Managers whose business clients hold EUR onramp accounts can subscribe to deposi
 
 - Register with your **manager profile's own secret key** (no `X-Managed-Profile-Id` header, no `quoteId`/`sessionId`) and an explicit `events` list containing only deposit events. Mixing them with transaction events is rejected, as is a partner-scoped credential.
 - One subscription covers **all your managed children's accounts**; the payload identifies the child by `profileId` and the account by `accountId`.
+- For the full lifecycle, subscribe to `DEPOSIT_UPDATED` and `ACCOUNT_UPDATED`. The milestone events `DEPOSIT_RECEIVED`, `DEPOSIT_CONVERTED` and `DEPOSIT_RETURNED` remain for integrations that only need those three moments.
 
 ```json
 {
   "url": "https://manager.example.com/vortex/deposits",
-  "events": ["DEPOSIT_RECEIVED", "DEPOSIT_CONVERTED"]
+  "events": ["DEPOSIT_UPDATED", "ACCOUNT_UPDATED"]
 }
 ```
 
@@ -144,7 +145,7 @@ Fired once when a client's EUR deposit has been matched to the corresponding on-
 
 ### `DEPOSIT_CONVERTED`
 
-Fired once per deposit after the full deposit has been converted and every contributing execution has reached a safe confirmation depth on chain. A deposit split by the per-swap cap still produces one final aggregate event.
+Fired once per deposit after the whole deposit has been converted and forwarded to the destination in a single transfer, and that transfer has reached a safe confirmation depth on chain. A deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract; the destination still receives one transfer and you receive one event.
 
 ```json
 {
@@ -157,28 +158,143 @@ Fired once per deposit after the full deposit has been converted and every contr
     "depositId": "9f6f6a7e-...",
     "amountRaw": "100000000000000000000",
     "currency": "eur",
-    "status": "minted",
+    "status": "forwarded",
     "txHash": "0x...",
     "conversions": [
       {
         "eureInRaw": "60000000000000000000",
+        "execution": { "feeRaw": "81000", "referenceRateRaw": "108140000", "subsidyRaw": "0" },
         "executionId": "e77a...",
         "txHash": "0x...",
         "usdcNetRaw": "64800000"
       },
       {
         "eureInRaw": "40000000000000000000",
+        "execution": { "feeRaw": "0", "referenceRateRaw": "108120000", "subsidyRaw": "120000" },
         "executionId": "f88b...",
         "txHash": "0x...",
         "usdcNetRaw": "43200000"
       }
     ],
+    "forwardTxHash": "0x...",
     "usdcNetRaw": "108000000"
   }
 }
 ```
 
-Each `conversions[]` entry contains the EURe portion consumed and the net USDC attributed to this deposit by that execution. The payload-level `usdcNetRaw` is their aggregate. When one execution consumes several deposits, its output is divided proportionally by allocated EURe; floor dust goes to the largest allocation.
+Each `conversions[]` entry is one chunk swap of this deposit: the EURe it consumed and its net USDC. Chunks are never shared between deposits. `forwardTxHash` is the transaction that pushed the whole converted deposit to the destination, and the payload-level `usdcNetRaw` is the amount that single transfer carried (the sum of the chunks' nets).
+
+Deposit `status` values: `pending`, `minted`, `held`, `returned` (provider states), then `converting`, `forwarded`, or — when a payment cannot be converted within the promised window — `recovering`, `refunded`, `recovery_failed`. `DEPOSIT_RECEIVED` may already report `converting` when conversion started within the same minute.
+
+The nested `execution` object is the chunk's pricing: `referenceRateRaw` is the EUR/USD reference the swap was settled against, the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap (8 decimals), `feeRaw` the fee taken above the agreed target, and `subsidyRaw` the top-up paid to reach the agreed floor (both 6-decimal USDC base units). The chunk's `usdcNetRaw` already includes both.
+
+### `DEPOSIT_RETURNED`
+
+Fired once per deposit that could not be converted within the promised window (or that an operator withdrew from conversion), after Vortex refunded the full EUR amount to the bank account the payment came from. Chunks already converted are swapped back and any shortfall is covered by Vortex; the payer always receives the exact issue amount.
+
+```json
+{
+  "eventId": "deposit-returned:9f6f6a7e-...",
+  "eventType": "DEPOSIT_RETURNED",
+  "timestamp": "2025-01-15T13:05:00.000Z",
+  "payload": {
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "depositId": "9f6f6a7e-...",
+    "amountRaw": "100000000000000000000",
+    "currency": "eur",
+    "status": "refunded",
+    "txHash": "0x...",
+    "refund": {
+      "amount": "100.00",
+      "payerIbanMasked": "DE89…3000",
+      "redeemOrderId": "8c0fd7b1-...",
+      "recoverTxHash": "0x..."
+    }
+  }
+}
+```
+
+`refund.amount` is the EUR amount refunded, to the cent — always the full issue amount. `payerIbanMasked` identifies the receiving account by its first and last four characters, `redeemOrderId` is the EUR provider's order for the outgoing SEPA transfer, and `recoverTxHash` the transaction that moved the deposit off the forwarding contract.
+
+### `DEPOSIT_UPDATED`
+
+Fired whenever anything about a deposit changes: the payment arrives at the EUR provider, EURe is minted, a conversion chunk is sent or confirmed, the deposit starts or stops waiting, the converted USDC is delivered, or the deposit enters and completes the refund path. The payload is the deposit's full snapshot, the same object `GET /v1/monerium-b2b/deposits` returns, so you can upsert it by `depositId` and never miss a stage. A deposit is reported as `forwarded` once its transfer reached the same safe confirmation depth as `DEPOSIT_CONVERTED`.
+
+```json
+{
+  "eventId": "deposit-updated:9f6f6a7e-...:3b1c9e0f2a7d4e61",
+  "eventType": "DEPOSIT_UPDATED",
+  "timestamp": "2025-01-15T10:36:20.000Z",
+  "payload": {
+    "depositId": "9f6f6a7e-...",
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "externalSubjectId": "client-1",
+    "moneriumProfileId": "0b8e...",
+    "moneriumOrderId": "5a2c...",
+    "status": "converting",
+    "currency": "eur",
+    "amount": "15000.00",
+    "amountRaw": "15000000000000000000000",
+    "txHash": "0x...",
+    "receivedAt": "2025-01-15T10:34:58.000Z",
+    "mintedAt": "2025-01-15T10:35:00.000Z",
+    "waiting": { "reason": "below_floor", "since": "2025-01-15T10:36:20.000Z" },
+    "rejectedReason": null,
+    "conversions": [
+      {
+        "executionId": "e77a...",
+        "status": "confirmed",
+        "eureInRaw": "10000000000000000000000",
+        "execution": { "feeRaw": "81000", "referenceRateRaw": "108140000", "subsidyRaw": "0" },
+        "usdcNetRaw": "10800000000",
+        "txHash": "0x...",
+        "sentAt": "2025-01-15T10:35:20.000Z",
+        "confirmedAt": "2025-01-15T10:35:44.000Z"
+      }
+    ],
+    "usdcNetRaw": "10800000000",
+    "forwardTxHash": null,
+    "deliveredAt": null,
+    "refund": null
+  }
+}
+```
+
+- **IDs:** `depositId`, `accountId`, `profileId` (your managed child, the `X-Managed-Profile-Id` value), `externalSubjectId` (your own client reference), and `moneriumProfileId` and `moneriumOrderId` (the EUR provider's IDs for the client and for the incoming payment). Every transaction hash is included: the mint (`txHash`), each chunk, the forward, and on a refund the recovery transaction and the provider's redemption order.
+- **Amounts:** `amount` is the EUR amount to the cent and `amountRaw` the same in 18-decimal base units. Each chunk carries the EURe it converted and its net USDC; the top-level `usdcNetRaw` is the sum of the confirmed chunks, which the single transfer delivers.
+- **Timestamps:** `receivedAt`, `mintedAt` (the conversion window counts from here), each chunk's `sentAt` and `confirmedAt`, `deliveredAt`, and on a refund `refund.startedAt` and `refund.refundedAt`.
+- **Hold status:** `waiting` is set while the deposit waits. `monerium_pending` means the EUR provider has not minted it yet: it is minting or under a compliance review, which the provider does not tell apart. After the mint, the reason Vortex is holding the next chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor`, when the market is below the client's floor by more than the subsidy currently allows.
+- **Failure status:** `rejectedReason` holds the provider's reason when it returned the payment before minting (`status` is then `returned`). `refund.reason` says why a deposit is refunded: `window_missed`, `compliance`, `incident`, or `operator`.
+
+`eventId` is unique per snapshot. If retries deliver an older snapshot after a newer one, keep the one with the later `timestamp`.
+
+### `ACCOUNT_UPDATED`
+
+Fired whenever an onramp account's snapshot changes: when it is set up, when its IBAN is issued, and when its status or dormancy changes. Use it to learn when a client's IBAN is ready. The payload is the account object returned by `GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/accounts`.
+
+```json
+{
+  "eventId": "account-updated:c2a5...:9d04b7e2c1aa5f30",
+  "eventType": "ACCOUNT_UPDATED",
+  "timestamp": "2025-01-14T09:12:00.000Z",
+  "payload": {
+    "accountId": "c2a5...",
+    "profileId": "7d1b...",
+    "externalSubjectId": "client-1",
+    "moneriumProfileId": "0b8e...",
+    "status": "active",
+    "iban": "EE12 3456 7890 1234 5678",
+    "destination": "0x...",
+    "forwarderAddress": "0x...",
+    "targetPpm": 1250,
+    "floorPpm": 1500,
+    "dormantSince": null,
+    "createdAt": "2025-01-14T09:00:00.000Z"
+  }
+}
+```
 
 ### Delivery Semantics
 

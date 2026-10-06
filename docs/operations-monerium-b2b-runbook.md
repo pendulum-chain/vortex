@@ -1,7 +1,7 @@
 # Monerium B2B Onramp — Operations Runbook
 
 All operator procedures for the B2B onramp in one place: onboarding, incident response,
-alert triage, dormancy, and client migration. Architecture:
+alert triage, dormancy, client migration, and the Sepolia sandbox bring-up (§8). Architecture:
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); decisions
 and parameters: [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md);
 security invariants:
@@ -9,26 +9,35 @@ security invariants:
 
 Ground rules that shape every procedure here:
 
-- **Vortex powers are delay-only.** Guardian/keeper can pause and execute the policy —
-  never move or redirect funds. There is no Vortex-side rescue path by design.
-- **Pauses never trap client funds.** `fallbackAddress` functions (`sweep`,
-  `setDestination`, `setFallbackAddress`, `setClientPaused`) and the permissionless
-  dead-man sweep (`sweepStrandedEure`, after 60 days) work while paused. Do not promise
-  otherwise in comms.
-- **Never send raw EURe to a CEX destination.** EURe recovery targets are
-  `fallbackAddress` only.
-- **Treat allocation migrations as forward-only after use.** Run migrations from one
-  deployment instance only. Migration 076 refuses rollback when any
-  `monerium_deposit_allocations` row exists; take a database backup and roll forward
-  rather than deleting financial attribution records.
+- **Vortex powers are bounded, not custodial by default.** Guardian/keeper can pause,
+  execute the policy (chunk swaps, one forward per payment) and — only for a payment
+  whose batch has been open for `RECOVERY_DELAY` (2 h) — move that payment to the
+  client's refund wallet fixed in the clone for a bank refund (§2.7). Nothing else can
+  move funds, and nothing can redirect them: the clone pays the client's destination,
+  the fee treasury and the client's refund wallet, full stop.
+- **Pauses block swaps and forwards, never a recovery.** Pause-then-recover is the
+  incident sequence. Past 24 h anyone may swap and forward permissionlessly, so a
+  pause plus a dead keeper still cannot trap converted funds. There is no client key
+  on the clone any more (ADR amendment 2026-09-17).
+- **The subsidy vault holds Vortex money only.** It tops a chunk up to the floor on the
+  clone (the top-up is forwarded with the payment), within its caps, and withdraws only
+  to the treasury; funding, limits and pause are ordinary operations (§2.6), never a
+  client-funds question.
+- **Never send raw EURe to a CEX destination.** EURe leaves a clone only to the router
+  or the client's refund wallet.
+- **Run migrations from one deployment instance only.** Migration 080 refuses to run
+  while an execution from the former allocation model spans several deposits; reconcile
+  such rows by hand rather than guessing an attribution.
 
 ## 1. Client onboarding
 
-Deploy → manifest → verify → map → (automated: link + IBAN) → penny test → activate.
+Deploy → manifest → verify → map → (automated: link + IBAN) → optional penny test →
+activate.
 One pass per client. Prerequisites: guardian key funded on the target chain;
 `MONERIUM_B2B_ENABLED=true` and the complete `MONERIUM_B2B_*` env set on the one
 `mykobo` keeper backend (including the trusted factory address, read/private RPCs,
-webhook secret, and three keys); partner paperwork complete; the client
+webhook secret, and three keys); the factory's subsidy vault deployed, pointed at and
+funded (§2.6); partner paperwork complete; the client
 company onboarded and KYB-approved on Monerium's side (partner KYC reliance) with its
 Monerium profile UUID at hand; the partner configured as a managed-profile manager
 (`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type
@@ -40,23 +49,30 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
   EIP-55 checksum, not zero/dead/precompile/token/router (the contract re-rejects
   token/router/self at init), warn-and-attest for contract addresses and CEX addresses
   (rotation risk — terms).
-- `fallbackAddress` — client's **self-custodied** recovery address. Mandatory, no
-  exceptions (Monerium acceptance condition). Must be distinct from custodial/CEX
-  addresses.
-- `feeBps` — per-client; pilot `0`, GA starting point 15 bps (ADR B1). Adjustable
-  later via the guardian's timelocked setter.
+- (No client-held recovery address: the clone's `recoveryAddress` is the client's refund
+  wallet, derived by Vortex, step 1.2. The destination has no setter — a client wallet
+  change is a new clone, §5 — so get it right; a penny test is recommended for exchange
+  destinations.)
+- `targetPpm` / `floorPpm` — the client's fee policy in ppm below the reference rate;
+  launch policy 1250 / 1500 (12.5 / 15 bps, ADR B1). Adjustable later via the
+  guardian's timelocked `setFeePolicy` (raising either value waits 24 h).
 - Signed terms including the redemption-limitation disclosure (rollout doc, Terms §1).
 
 ### 1.2 Deploy the forwarder clone
 
 ```bash
+# the client's refund wallet, derived from MONERIUM_B2B_REFUND_SEED and the Monerium profile ID
+curl -s -H "Authorization: Bearer $ADMIN_SECRET" \
+  "$API/v1/admin/monerium-b2b/refund-address?moneriumProfileId=$MONERIUM_PROFILE_ID"
 # predict, then deploy (guardian-only); salt = any unused bytes32, convention: client index
 cast call $FACTORY "predictAddress(bytes32)(address)" $SALT --rpc-url $RPC
-cast send $FACTORY "deployForwarder(address,address,uint16,bytes32)" \
-  $DESTINATION $FALLBACK $FEE_BPS $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $FACTORY "deployForwarder(address,address,uint32,uint32,bytes32)" \
+  $DESTINATION $REFUND_ADDRESS $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-The clone is initialized atomically in the deploy tx (`ForwarderDeployed` event).
+The clone is initialized atomically in the deploy tx (`ForwarderDeployed` event). The
+refund wallet is fixed for the clone's lifetime; the account mapping (§1.4) refuses a
+clone whose `recoveryAddress` is not this client's derived wallet.
 Record the forwarder address + deploy tx hash.
 
 ### 1.3 Manifest: generate, verify, publish
@@ -89,8 +105,8 @@ POST /v1/admin/monerium-b2b/accounts        (Authorization: Bearer $ADMIN_SECRET
   "moneriumProfileId": "<Monerium profile UUID>",
   "forwarderAddress":  "<deployed clone>",
   "destination":       "<client payout address>",
-  "fallbackAddress":   "<client self-custody recovery>",
-  "feeBps":            0
+  "targetPpm":         1250,
+  "floorPpm":          1500
 }
 ```
 
@@ -102,24 +118,23 @@ overwrite.
 The keeper's onboarding step picks up every mapped `onboarding` account and,
 exactly-once via the profile-scoped `financial_operations` ledger: links the forwarder
 with the attestor signature (`POST /addresses` — HTTP 201, `state: linked`, zero client
-interaction), then requests IBAN issuance (`POST /ibans`, async 202). The IBAN lands on
+interaction), links the client's refund wallet with its own signature, then requests IBAN
+issuance for the forwarder (`POST /ibans`, async 202). The IBAN lands on
 the account row via the `iban.updated` webhook; from then on the association monitor
 treats the DB record as the reference state. Nothing to do manually — verify the row
-has its IBAN before the penny test, and check the logs if it stays empty for more than
+has its IBAN before activation, and check the logs if it stays empty for more than
 a few cycles.
 
-### 1.6 Penny test
+### 1.6 Penny test (optional)
 
-Prove the destination actually credits contract-originated USDC transfers (CEXes can
-rotate or mis-credit) before real volume flows:
+Optional, and recommended for exchange destinations (ADR amendment 2026-09-29): prove
+the destination actually credits contract-originated USDC transfers (CEXes can rotate
+or mis-credit) before real volume flows. Skipping it does not block activation.
 
 1. Send a small SEPA deposit to the new IBAN (sandbox: dashboard → Receive → "Simulate
    bank transfer"). Target forward amount: 5 USDC (ADR B2).
-2. The keeper converts automatically once the balance reaches `minSwapAmount`; for a
-   sub-minimum penny test, temporarily lower `minSwapAmount` (guardian, bounded by the
-   floor) or fund up to the minimum.
-3. **Partner/client confirms credit at the destination** in writing (a terms diligence
-   commitment).
+2. The keeper converts it like any other payment (the minimum swap is €1).
+3. **Partner/client confirms credit at the destination** in writing.
 
 ### 1.7 Activate
 
@@ -148,9 +163,15 @@ cast send <forwarderAddress> "setGuardianPaused(bool)" true --rpc-url $RPC --pri
 cast send $FACTORY "setGlobalPaused(bool)" true --rpc-url $RPC --private-key $GUARDIAN_KEY
 # Availability lever: reduce the per-swap cap (instant, bounded by immutables)
 cast send $FACTORY "setPerSwapCap(uint256)" <newCapRaw> --rpc-url $RPC --private-key $GUARDIAN_KEY
+# Route lever: disable a route whose pool went bad (indices are stable; the keeper re-quotes each cycle)
+cast send $FACTORY "setRouteEnabled(uint256,bool)" <index> false --rpc-url $RPC --private-key $GUARDIAN_KEY
+# Subsidy lever: stop topping up (below-floor swaps then defer instead of executing)
+cast send $VAULT "setPaused(bool)" true --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-Both pauses block `swapAndForward` only; unpause = same call with `false`.
+Both pauses block `swap`, `forward` and `forwardAll` only — never `recover`; unpause =
+same call with `false`. Pausing the vault pauses nothing on the forwarders: swaps that
+need no subsidy keep executing.
 
 ### 2.2 Monerium IBAN suspension ask
 
@@ -165,8 +186,9 @@ negotiation record. While unsuspended, inbound SEPA keeps minting EURe to the fo
 
 Clients have no Vortex UI; comms run through the partner plus direct email: notify the
 partner ops contact first; email affected clients (**stop sending EUR to your IBAN until
-further notice**; deposits already sent convert after resolution or are recoverable via
-the fallback address — nothing is lost by pausing); status page entry if global.
+further notice**; deposits already sent convert after resolution or are refunded to the
+sending bank account through the recovery path — nothing is lost by pausing); status
+page entry if global.
 
 ### 2.4 Critical-vulnerability sequence (the 02:00-UTC drill)
 
@@ -178,14 +200,14 @@ Suspected vulnerability in `VortexForwarder`/factory:
 4. **Assess.** Funds at risk = EURe balances on forwarders (stranded-balance monitor
    output, or `cast call <eure> "balanceOf(address)" <forwarder>`); run the manifest
    verifier against the live deployment.
-5. **If funds must move: only clients can move them.** Instruct clients (via partner)
-   to sweep EURe with their fallback key: `sweep(EURE, <their address>)` from
-   `fallbackAddress` — provide exact calldata and a verification walkthrough. The
+5. **If funds must move: the refund path.** Mark every open deposit for recovery
+   (§2.7); once each clone's batch is 2 h old the keeper moves the funds to that
+   client's refund wallet and the payments are refunded to the payers' bank accounts. The
    issuer recovery backstop (burn + payout to the client's own bank account; validates
    the already-whitelisted ownership message) is the last resort.
 6. **Ship the fix as a migration** (§5): new implementation + factory (new audit), new
-   clones, re-link, move IBANs, penny-test, republish the manifest. Old clones stay
-   paused; residual balances leave via fallback or dead-man sweep.
+   clones, re-link, move IBANs, optionally penny-test, republish the manifest. Old clones stay
+   paused; residual balances leave through the refund path.
 7. **Unpause / decommission** only contracts confirmed unaffected.
 
 ### 2.5 Whitelabel-credential compromise (S1)
@@ -199,19 +221,121 @@ Monerium-side links/IBANs against the DB for every account, treating the associa
 monitor's history as the timeline. Blast radius = deposit flow between the unauthorized
 change and suspension.
 
+### 2.6 Subsidy vault operations
+
+One `VortexSubsidyVault` per factory, deployed once (USDC, the fee Safe as treasury, the
+factory, launch limits 50 bps per swap and 200 USDC per day — ADR P13), then pointed at
+by the factory and funded from the treasury. All guardian-key calls are ordinary
+operations: the vault never holds client funds.
+
+```bash
+# once: point the factory at the vault
+cast send $FACTORY "setSubsidyVault(address)" $VAULT --rpc-url $RPC --private-key $GUARDIAN_KEY
+# fund (from the treasury Safe): plain USDC transfer to $VAULT
+# tune limits (instant)
+cast send $VAULT "setMaxSubsidyPpm(uint32)" 5000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $VAULT "setDailyBudget(uint256)" 200000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+# read runway
+cast call $VAULT "dailyBudget()(uint256)" --rpc-url $RPC
+cast call $VAULT "spentToday()(uint256)" --rpc-url $RPC
+cast call $USDC "balanceOf(address)(uint256)" $VAULT --rpc-url $RPC
+# return funds (treasury only — there is no other target)
+cast send $VAULT "withdraw(uint256)" <amountRaw> --rpc-url $RPC --private-key $GUARDIAN_KEY
+```
+
+Sizing: the vault's per-swap cap must be at least the subsidy ladder's top (100 bps, so
+`setMaxSubsidyPpm(10000)` at launch), because the keeper's tier is the effective cap and
+the vault's is the ceiling. At the €10k per-swap cap a top-up at the ladder's top is
+about 115 USDC, so size the daily budget from the expected number of chunks that reach
+the late tiers, not from one worst case; raise the budget or lower `perSwapCap` if
+deferrals become routine; both are instant. The ladder itself
+(`MONERIUM_B2B_SUBSIDY_LADDER`, seconds:bps steps) and the re-quote cadence
+(`MONERIUM_B2B_KEEPER_CYCLE_SECONDS`) are backend settings; tune the ladder from the
+`deferring conversion ... shortfall N bps, tier M bps` log lines.
+
+### 2.7 Refund (recovery) procedure
+
+Trigger: a deposit the promised window (2 h) was missed on, a remainder below
+`minSwapAmount`, a compliance decision, or a critical incident (§2.4). Prerequisites: the
+client's refund wallet (the clone's `recoveryAddress()`) is linked to the client's
+Monerium profile (onboarding does this, §1.5), `MONERIUM_B2B_REFUND_SEED` and the EURe
+float wallet's key are in the operator's custody, and the float holds EURe and some ETH
+(it also pays the refund wallet's gas).
+
+**Automation.** `MONERIUM_B2B_AUTO_RECOVERY` selects the mode: `off` (default) leaves
+every step below to the operator; `alert` logs `REFUND DUE` for deposits past
+`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (120, counted from the mint) and nothing else;
+`auto` marks them, and — with `MONERIUM_B2B_FLOAT_PRIVATE_KEY` set and the seed deriving
+the clone's `recoveryAddress` — runs steps 2–6 itself, one refund at a time, reporting
+through the refund monitor (§3).
+Start on `alert`, switch to `auto` once a sandbox refund has been observed end to end.
+What stays manual in `auto`: refunds of EUR 15,000 or more (Monerium's supporting
+document), deposits whose issue order carried no payer IBAN/name, orders Monerium
+rejects, and any step that failed five times — all park the deposit as
+`recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`);
+fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` resumes
+from that phase. While one refund is `recovery_failed` the queue waits (one refund at a
+time).
+
+1. **Mark the deposit.** `POST /v1/admin/monerium-b2b/deposits/<depositId>/recover`
+   (`Authorization: Bearer $ADMIN_SECRET`). Refused (409) while a keeper transaction for
+   the deposit is pending — retry once it settled — or when the deposit is not
+   `minted`/`converting`. The deposit becomes `recovering`; the keeper stops chunking it.
+2. **Wait for the keeper's `recover`.** It sends `recover(eureRemaining, usdcConverted)`
+   once the clone's `batchOpenedAt` is `RECOVERY_DELAY` old (the contract refuses
+   earlier; younger deposits keep converting meanwhile). Verify the `recover` execution
+   row is `confirmed` and the `Recovered(eure, usdc)` event amounts match:
+
+   ```sql
+   SELECT kind, eure_in_raw, usdc_net_raw, tx_hash, status, error
+   FROM monerium_conversion_executions WHERE deposit_id = '<depositId>' ORDER BY created_at;
+   ```
+
+3. **Swap the USDC back** from the client's refund wallet (its key derived from the seed
+   and the Monerium profile ID; fund it with a little ETH first) over the reverse whitelisted route
+   (USDC → EURC → EURe on the same pools; `exactInput` on the router with a
+   Chainlink-derived minimum, 60 bps tolerance), or leave the USDC in the refund
+   wallet and let the float cover the whole difference when the market is thin.
+4. **Top up from the float:** transfer `issueAmount − EURe on the refund wallet` EURe
+   from the float wallet to the refund wallet. Book that amount as the refund's
+   subsidy; book any EURe surplus from step 3 to the treasury.
+5. **Redeem the exact amount.** `POST /orders` from the refund wallet: `kind: redeem`,
+   `amount` = the issue order's `amount` string, `counterpart.identifier.iban` = the issue
+   order's `counterpart.identifier.iban`, `details.companyName` = its `details.name`
+   (individual payers: `firstName`/`lastName`), `country` from the IBAN prefix, `memo`
+   naming the original payment, the message `Send EUR <amount> to <iban> at <minute>`
+   signed by the refund wallet's key; attach `supportingDocumentId` above EUR 15,000 (the
+   same client agreement can be reused, Monerium 2026-09-30). Monerium pays the refund
+   out of the client's own IBAN. Watch `order.updated` for `processed`.
+6. **Close the deposit.** `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status`
+   with `{"status": "refunded"}`; use `recovery_failed` when a step cannot complete (and
+   `recovering` again to retry later). Record deposit id, recover tx, reverse-swap tx,
+   float top-up, redeem order id and payer IBAN (masked) in the ops ledger.
+
 ## 3. Alert triage (monitoring log lines → action)
 
 Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-b2b:`.
 
 | Log line contains | Meaning | Action |
 |---|---|---|
-| `PAUSE THRESHOLD — quote impact at minSwapAmount exceeds SLIPPAGE_BPS` | Executable depth below even minimum-size swaps; swaps would revert on minOut | Global pause (§2.1); investigate pool state (LP exit, depeg); consider lowering `perSwapCap`; re-run the liquidity-baseline methodology before unpausing |
-| `executable depth below perSwapCap` | Cap-sized swaps would revert; availability, not fund risk | Lower `perSwapCap` or accept keeper retries; watch for escalation |
+| `DEPTH BELOW FLOOR — raw quote impact at minSwapAmount exceeds SLIPPAGE_BPS` | Even minimum-size fills land below Chainlink − 60 bps on every route before settlement. The floor is enforced on the client's net, so the keeper still executes while the vault covers the shortfall (up to the per-swap cap; beyond it the keeper defers and logs `deferring conversion`), but every swap of that size now costs a subsidy and the unsubsidized permissionless path would revert | Investigate pool state (LP exit, depeg) and watch the vault spend (§2.6); whitelist a better route or lower `perSwapCap`; global pause (§2.1) if it is a depeg or the vault is being drained; re-run the liquidity-baseline methodology before trusting the route again |
+| `raw quote impact at perSwapCap exceeds SLIPPAGE_BPS` | Cap-sized swaps would need a vault subsidy; availability and vault spend, not fund risk | Lower `perSwapCap`, add a route, or accept the subsidies; watch for escalation |
+| `deferring conversion for account` | The keeper declined to swap this cycle; the reason follows: `reference rate unavailable` (Coinbase unreachable, a malformed ticker, or `spread of N bps exceeds 50 bps` — a thin book; check egress and the venue), `outside the ... band around Chainlink` (EURC/EUR basis or a stale Chainlink round), `exceeds the current tier` (normal while the chunk waits for the market; the line names the shortfall and the tier), `projected subsidy ... exceeds` cap/budget/balance (§2.6: fund, raise limits, or wait for the market), `below the oracle floor` (only on the permissionless path since 2026-09-18: keeper swaps are settled up to the Chainlink floor by fee and tier-bounded subsidy, or defer on the tier/cap lines above), `no enabled swap route could be quoted` or `the factory has no enabled swap route` (§2.1 route lever) | Funds wait with the batch marker open; a deferral that outlives the 2 h window means the payment is refunded (§2.7) rather than converted late — communicate; after 24 h the permissionless path can execute unsubsidized |
+| `SUBSIDY VAULT —` (error) | Vault paused or empty: every below-floor swap defers | §2.6: fund or unpause; check why it emptied (budget too high for the market?) |
+| `subsidy vault ... refill before below-floor swaps start deferring` | Less than a day of budget left, or today's budget spent | §2.6 refill; consider the budget vs. observed spreads |
+| `no subsidy vault is configured on the factory` | `setSubsidyVault` never ran; below-floor swaps defer | §2.6 |
+| `route ... could not be quoted` | One whitelisted route's pool is unquotable (drained, removed) | Disable it (§2.1) so the keeper stops trying; keep at least one healthy route |
 | `ASSOCIATION CHANGE` | Monerium-side association diverged from the DB (IBAN moved, address linked) — the S1 detective control | §2.5 — potential credential compromise unless the change was an announced migration (§5) |
-| `stranded EURe on forwarder` (warn ≥12h) | Keeper is not converting | Check worker liveness, RPC health, keeper gas, oracle staleness (`StalePrice` reverts) |
-| `stranded EURe ... past TRIGGER_DELAY` | Permissionless trigger now live; SLA long broken | Escalate the keeper outage; anyone may call `swapAndForward()` (same policy applies); communicate the delay |
+| `stranded funds on forwarder ... past RECOVERY_DELAY` (warn) | A batch has been open longer than the promised 2 h window and is neither forwarded nor recovering | Check worker liveness, RPC health, keeper gas, oracle staleness (`StalePrice` reverts), `deferring conversion` lines; if the payment cannot complete, mark it for recovery (§2.7) |
+| `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; SLA long broken (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
+| `REFERENCE VENUE —` (error) | The Coinbase product the reference reads is delisted or halted; every keeper swap defers silently | Change `COINBASE_REFERENCE_PRODUCT` (a live EURC market), redeploy the backend; the venue is an operational, not an on-chain, setting |
+| `REFUND DUE — deposit ...` (error, `alert` mode) | A deposit outlived the promised window and the mode only reports | Mark it (§2.7 step 1) or switch to `auto` |
+| `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: finish by hand from the named phase, or fix the cause and set the deposit back to `recovering` |
+| `FLOAT UNDERFUNDED` / `FLOAT EMPTY` (error) | The EURe float cannot cover a top-up; the refund waits at `swapped` | Fund the float wallet named in the line; the step retries every cycle |
+| `refund of deposit ... in phase ... since` (warn ≥1 h, error ≥4 h) | The active refund lingers | Check the recovery wallet's balances and pending transactions, RPC health, Monerium order state; escalate per §2.7 |
 | `untrusted factory` / `config violation` / `bytecode is not the EIP-1167 clone` / `not registered on trusted factory` | Should-be-impossible state | Full incident: global pause, verify `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`, run the manifest verifier, compare against manifest history |
-| `reconciled owner-authorized config change` | Client rotated destination/fallback, or a guardian fee change applied — expected, DB updated | No incident. Unexpected destination change → confirm with the partner; a surprise suggests a compromised fallback key (client should `setClientPaused(true)` and rotate) |
+| `reconciled guardian-authorized fee policy change` | A timelocked fee-policy change applied — expected, DB updated | No incident; confirm it matches the announced change |
+| `config violation ... destination changed on chain` | Should be impossible: the clone has no destination setter | Full incident (see the row above) |
 | `onboarding advance failed` (repeating for one account) | Link/IBAN automation stuck | Check the `financial_operations` row: `failed` retries itself; `unknown` needs manual reconciliation (compare Monerium-side state, then update the row) |
 | `delivery ... abandoned after N attempts` | Partner webhook endpoint down > backoff horizon | Contact partner; deliveries are not retried after abandonment — partner should poll `GET /v1/monerium-b2b/deposits` to catch up |
 | `MONERIUM_B2B_PRIVATE_RPC_URL is not set` | Keeper writes in the public mempool | Set the private orderflow RPC (operational finding on mainnet) |
@@ -224,14 +348,18 @@ address the client no longer controls. The gate converts that silent loss into a
 
 **Automatic:** an `active` account with no confirmed conversion for 60 days is paused
 (`setGuardianPaused(true)` with the guardian key; log-only if the key is unset) and
-`dormant_since` is recorded; the conversion executor skips it (the stranding marker
-still arms — the dead-man sweep clock is unaffected). EURe arriving during dormancy
-accumulates safely; past the sweep delay it flows to `fallbackAddress` automatically.
+`dormant_since` is recorded; the conversion executor stops swapping and forwarding for
+it but still recovers deposits marked for the refund path (`recover` ignores the pause).
+EURe arriving during dormancy accumulates safely; a deposit into a dormant account is
+therefore refunded through §2.7 once the window is missed, unless re-confirmation
+arrives first.
 
 **Re-confirmation (manual, via partner):** partner re-confirms in writing that the
-destination is valid and client-controlled (ADR B5). If the destination changed, the
-**client** updates it via their fallback key (`setDestination`) — Vortex cannot and must
-not — and CEX destinations re-run the penny test. Archive the confirmation.
+destination is valid and client-controlled (ADR B5). If the destination changed, deploy
+a new clone with the new destination and migrate (§5) — the clone has no setter and
+Vortex must never redirect — and re-running the penny test is recommended for CEX
+destinations. Archive the
+confirmation.
 
 **Un-pause (both steps, always):**
 
@@ -256,13 +384,13 @@ monitor's alerts are expected, then:
 
 1. Deploy the new clone (§1.2) and verify it (`isForwarder` + config read-back —
    Vortex tooling only ever targets factory clones).
-2. Let the keeper drain the old clone (or client sweeps the remainder via fallback).
+2. Let the keeper drain the old clone (forward every open deposit; refund a remainder below the minimum via §2.7).
 3. Link the new clone to the same Monerium profile (attestor flow — automated once the
    account row's forwarder is repointed, or manual `POST /addresses`).
 4. Move the IBAN: `PATCH /ibans/{iban}` with the new address — this is the
    S1-sensitive operation; it must only ever happen inside an announced migration.
-5. Update the `monerium_accounts` row (forwarder address), penny-test the new clone,
-   re-activate.
+5. Update the `monerium_accounts` row (forwarder address), optionally penny-test the new
+   clone, re-activate.
 
 There is no unlink at Monerium and no custodial parking position: EURe always mints to
 the IBAN's current default address; the old clone stays linked but inert.
@@ -272,12 +400,12 @@ the IBAN's current default address; the old clone stays linked but inert.
 | Key | Blast radius | Response |
 |---|---|---|
 | Attestor | Can link addresses to profiles; never move funds (recovery payouts go only to the client's own bank account) | Rotate key; new forwarders need a new implementation (ATTESTOR is immutable); existing links unaffected |
-| Keeper | `poke`/`swapAndForward` only (policy-constrained); worst case gas theft | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; refund gas |
-| Guardian | Pause/unpause, bounded params, timelocked fee — delay-only griefing | Two-step `transferGuardian`/`acceptGuardian`; audit pause + pending-fee state after |
+| Keeper | `poke`/`swap`/`forward`/`recover`: can pick any whitelisted route and any reference inside the Chainlink band — worst case the fee reaches the 1% cap or the vault pays up to its caps, plus gas theft — and can move a payment whose batch is 2 h old to the client's refund wallet (never anywhere else, never a redirect) | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; pause the vault while rotating; reconcile executions against Coinbase history; audit `Recovered` events against marked deposits; refund gas |
+| Refund seed (`MONERIUM_B2B_REFUND_SEED`) | Derives every client's refund wallet; each holds funds only between that client's `recover` and its bank refund, and can redeem them out of the client's IBAN to any IBAN | Set `MONERIUM_B2B_AUTO_RECOVERY=off`, finish or reconcile open refunds by hand, rotate the seed, then give every client a new clone with its new refund wallet and move the IBANs (§5); the old wallets hold nothing between refunds |
+| Guardian | Pause/unpause, bounded params, timelocked fee policy, route whitelist (validated), vault limits and withdrawal to treasury — delay-only griefing plus Vortex-money exposure | Two-step `transferGuardian`/`acceptGuardian`; audit pause, pending-policy, route and vault state after |
 | Whitelabel API credentials | Control-plane: can re-link/move IBANs (future mints only) — S1 | §2.5 full sequence |
 | `ADMIN_SECRET` | Map/suspend accounts (mapping is bounded by on-chain clone verification) | Rotate; audit recent admin mutations |
 | Webhook HMAC secret | Fabricated inbound order events (accounting noise; forward-only lattice + mint watcher bound the damage) | Rotate at both ends; reconcile deposits against chain |
-| Client fallback key (client-side) | Full control of that client's funds/config | Client's own responsibility (terms); assist via partner: pause the account; client rotates `setFallbackAddress` if still in control |
 
 ## 7. Local mainnet-fork integration exercise
 
@@ -310,7 +438,7 @@ standard public Anvil development keys for the local roles.
 | Forwarder | `0xe06103c9E374a1CD78f17417d1eA3AE4eBaC7CFD` |
 | Forwarder deployment tx | `0x7d4f667d4de9b7a5d5aced2203a3f11dcd0b477e5d405d5b8a2317f2b56b7c4c` |
 | Destination | `0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc` |
-| Fallback address | `0x976EA74026E726554dB657fA54763abd0C3a0aa9` |
+| Recovery wallet | (reference run predates the recovery wallet; use any local EOA) |
 | Local account id | `5ebca15c-dadf-4eeb-aabb-e9c7462ff6b3` |
 | Mock Monerium profile id | `f436dbeb-6012-4688-ab3b-d2446980c835` |
 | Managed profile id | `c419d077-3e2b-488a-b228-359311c63324` |
@@ -320,9 +448,11 @@ The reference deposit transferred 25 EURe to the forwarder in transaction
 `0x727a53eb525e5851d8db38ea99c2f39633b6213de5757639d82e6c112e49079a`.
 The live keeper confirmed conversion transaction
 `0xb52f38073c41b5e8d2f89deab5c2b8536362acfd97903579113630fc02b58eb4`,
-consumed the full 25 EURe, and forwarded `29.012924` USDC with a zero fee. These
-addresses and hashes are evidence from that ephemeral run, not deployment pins; use the
-receipts and addresses produced by each new run.
+consumed the full 25 EURe, and forwarded `29.012924` USDC with a zero fee. That run
+predates the reference-priced fee bands; a new run records a reference, a route, and a
+fee or subsidy per the bands instead of a flat zero fee. These addresses and hashes are
+evidence from that ephemeral run, not deployment pins; use the receipts and addresses
+produced by each new run.
 
 ### 7.2 Start an archive-backed fork
 
@@ -410,32 +540,38 @@ fixtures:
 | Constructor field | Value |
 |---|---:|
 | `MAX_ORACLE_AGE` | 52 hours |
-| `SLIPPAGE_BPS` | 100 |
-| `MAX_FEE_BPS` | 100 |
-| `SWEEP_DELAY` | 60 days |
+| `SLIPPAGE_BPS` | 60 (on the client's net after fee and subsidy) |
+| `MAX_FEE_PPM` | 10000 |
+| `MAX_REFERENCE_DEVIATION_BPS` | 100 |
+| `RECOVERY_DELAY` | 2 hours |
 | `TRIGGER_DELAY` | 24 hours |
-| `POOL_FEE_EURE_EURC` | 500 |
-| `POOL_FEE_EURC_USDC` | 500 |
+| Initial route | EURe → EURC → USDC, 500 / 500 (packed path constructor argument) |
 | `RECOVERY_HASH` | `bytes32(0)` |
-| `MIN_SWAP_FLOOR` | `25e18` |
+| `MIN_SWAP_FLOOR` | `1e18` |
 | `CAP_CEILING` | `50000e18` |
-| Initial `minSwapAmount` | `250e18` |
-| Initial `perSwapCap` | `25000e18` |
+| Initial `minSwapAmount` | `1e18` |
+| Initial `perSwapCap` | `10000e18` |
 
-After deployment, register Anvil account 1 as a keeper and lower the mutable minimum to
-the immutable 25 EURe floor for this exercise:
+After deployment, register Anvil account 1 as a keeper:
 
 ```bash
 cast send "$FACTORY" "setKeeper(address,bool)" "$KEEPER" true \
   --private-key "$GUARDIAN_KEY" --rpc-url http://127.0.0.1:8545
-
-cast send "$FACTORY" "setMinSwapAmount(uint256)" 25000000000000000000 \
-  --private-key "$GUARDIAN_KEY" --rpc-url http://127.0.0.1:8545
 ```
 
-Deploy a zero-fee client clone as in §1.2. Use a fresh salt and record the predicted
-address and receipt. Read back `destination()`, `fallbackAddress()`, `feeBps()`, and
-`FACTORY()`, then require `factory.isForwarder(forwarder) == true` before continuing.
+Deploy `VortexSubsidyVault` (USDC, account 3 as treasury, the factory, 5000 ppm, 200e6)
+and point the factory at it with `setSubsidyVault`. Fund it with USDC from an
+impersonated mainnet holder if you want to exercise a below-floor top-up; left empty,
+a below-floor fill makes the keeper defer, which is also a valid outcome to observe.
+
+Deploy a client clone with the launch policy (1250 / 1500) as in §1.2, passing the
+refund address the backend derives for the fixture's Monerium profile ID (the account
+mapping verifies it). Use a fresh salt and record the predicted address and receipt.
+Read back `destination()`, `recoveryAddress()`,
+`targetPpm()`, `floorPpm()`, and `FACTORY()`, then require
+`factory.isForwarder(forwarder) == true` before continuing. The keeper computes its
+reference from the live Coinbase ticker before each swap, so the backend needs outbound
+HTTPS during the run.
 
 ### 7.4 Create the local account fixture
 
@@ -451,8 +587,8 @@ managed-profile manager:
   "moneriumProfileId": "<random-uuid>",
   "forwarderAddress": "<deployed-clone>",
   "destination": "<destination>",
-  "fallbackAddress": "<fallback-address>",
-  "feeBps": 0
+  "targetPpm": 1250,
+  "floorPpm": 1500
 }
 ```
 
@@ -520,8 +656,11 @@ cast rpc anvil_mine 0xd --rpc-url http://127.0.0.1:8545
 ```
 
 Wait for the next worker cycle. A direct transfer has no matching Monerium order, so the
-expected path is deliberately `unattr:` rather than an attributed customer deposit. The
-log should show an unattributed EURe mint followed by an execution allocation.
+expected path is deliberately `unattr:` rather than an attributed customer deposit — and
+since 2026-09-17 the keeper never converts `unattr:` rows, so to exercise a conversion
+insert the matching order row by hand (or send the mint through the sandbox webhook)
+before the watcher records it; the log should then show the mint, one `swap` execution
+and one `forward` execution.
 
 Verify the durable records:
 
@@ -530,29 +669,30 @@ SELECT monerium_order_id, amount_raw, status, tx_hash, log_index, block_number
 FROM monerium_fiat_deposits
 WHERE account_id = '<account-id>';
 
-SELECT eure_in_raw, usdc_gross_raw, fee_raw, usdc_net_raw, destination,
+SELECT kind, deposit_id, eure_in_raw, usdc_gross_raw, fee_raw, subsidy_raw, usdc_net_raw, destination,
+       reference_rate_raw, reference_source, max_subsidy_raw, route_index,
        tx_hash, nonce, broadcast_block_number, block_number, swap_log_index, status, error
 FROM monerium_conversion_executions
-WHERE account_id = '<account-id>';
-
-SELECT deposit_id, execution_id, eure_in_raw, usdc_net_raw
-FROM monerium_deposit_allocations
-WHERE deposit_id IN (
-  SELECT id FROM monerium_fiat_deposits WHERE account_id = '<account-id>'
-);
+WHERE account_id = '<account-id>' ORDER BY created_at;
 ```
 
 Required results:
 
-- One `minted` deposit with an `unattr:` order id and the real transfer hash and log index.
-- One allocation joining that deposit and execution with the 25 EURe input and the
-  attributed net USDC.
-- One `confirmed` execution with the 25 EURe input, zero fee, non-null
-  nonce/hash/block/swap-log-index, destination matching the clone, and `error IS NULL`.
-- The forwarder's EURe balance is zero.
-- The destination's USDC balance increased by `usdc_net_raw`.
-- The conversion receipt contains `SwapExecuted` from the clone and a USDC `Transfer`
-  from the clone to the configured destination.
+- One `forwarded` deposit with the real transfer hash and log index.
+- One `confirmed` `swap` execution bound to it with the 25 EURe input, a recorded
+  reference (rate, source), the tier cap and route index 0, a fee or subsidy
+  consistent with the fill's position against the reference bands (`usdc_net_raw =
+  usdc_gross_raw - fee_raw + subsidy_raw`), non-null nonce/hash/block/swap-log-index,
+  destination matching the clone, and `error IS NULL`. If the vault was left empty and
+  the fill sat below the floor, expect a `deferring conversion` log line and no
+  execution row instead.
+- One `confirmed` `forward` execution bound to the same deposit whose `usdc_net_raw`
+  equals the swap's net.
+- The forwarder's EURe and USDC balances are zero.
+- The destination's USDC balance increased by the forward's `usdc_net_raw` in one transfer.
+- The swap receipt contains `SwapExecuted` from the clone and no transfer to the
+  destination; the forward receipt contains `Forwarded` and the USDC `Transfer` from the
+  clone to the configured destination.
 
 ### 7.7 What this exercise validates
 
@@ -568,16 +708,15 @@ Required results:
   safety depth.
 - A direct transfer to a known forwarder is durably recorded as an unattributed mint,
   not silently presented as a Monerium customer order.
-- The executor's durable path leaves a confirmed execution with its nonce, transaction
-  hash, block number, swap log index, amounts, and destination recorded; allocation is
-  added only after the mint cursor covers that execution block.
-- The real contract accepts the current Chainlink EUR/USD answer and swaps successfully
-  through the pinned EURe -> EURC -> USDC 5-bps Uniswap V3 path.
+- The executor's durable path leaves a confirmed `swap` execution bound to the deposit
+  with its nonce, transaction hash, block number, log index, amounts and destination
+  recorded, followed by a confirmed `forward` execution for the summed net.
+- The real contract accepts the current Chainlink EUR/USD answer, the keeper's live
+  Coinbase reference inside the band, and swaps successfully through whitelisted route 0
+  (EURe -> EURC -> USDC on the 5-bps tiers).
 - Keeper authorization, the 25 EURe minimum, allowance reset, full EURe consumption,
-  zero-fee accounting, and forwarding to the immutable per-client destination work
-  together.
-- Cursor-gated snapshot allocation links the observed deposit to the confirmed execution
-  at the exact `SwapExecuted` log boundary and assigns the full USDC output.
+  fee-band accounting against the recorded reference, USDC accumulating on the clone,
+  and one forward to the immutable per-client destination work together.
 
 ### 7.8 What this exercise does not validate
 
@@ -597,9 +736,10 @@ Required results:
   run.
 - It does not test out-of-bounds factory parameters or prove their rejection; the run
   deploys only the canonical valid parameter set.
-- It does not test fees above zero, fee-increase timelocks, per-swap-cap batching,
-  sub-minimum accumulation, pause controls, dormancy, permissionless triggering,
-  stranded-fund sweeping, fallback-key recovery, or client config rotation.
+- It does not test fee-policy timelocks, route selection among several routes, a funded
+  vault's top-up (unless you fund it), the reference band rejection, per-swap-cap
+  chunking of one deposit, sub-minimum remainders, pause controls, dormancy,
+  permissionless triggering, or the recovery path (§2.7).
 - It does not test stale/invalid oracle answers, insufficient liquidity, excess price
   impact, slippage reverts, router failure, token transfer failure, or depeg behavior.
 - It does not test reorg replacement, duplicate-log replay, concurrent executors,
@@ -613,3 +753,211 @@ Required results:
   monitor received the expected provider `403` for the fake profile, and the large-size
   executable-depth quote timed out once; neither monitor was part of the conversion
   success criterion.
+
+## 8. Sepolia sandbox bring-up
+
+Monerium's sandbox mints EURe on Ethereum Sepolia, and `api-sandbox.vortexfinance.co`
+(the `vortex-sandbox` Render service, deployed from `main`) runs the keeper for it.
+This section is the Sepolia counterpart of the mainnet deploy checklist in the rollout
+doc. Every command below was dry-run on a local fork of Sepolia on 2026-10-06: pool,
+factory, vault and clone, a payment converted in two chunks and forwarded, and the
+refund leg (recover after the window, reverse swap). Set the B2B variables on the
+`vortex-sandbox` service only, never in the shared "Vortex API" env group, which
+production and staging both read; production stays dark.
+
+### 8.1 Sepolia addresses (verified on chain 2026-10-06)
+
+| Contract | Address |
+|---|---|
+| EURe (Monerium sandbox) | `0x67b34b93ac295c985e856E5B8A20D83026b580Eb` |
+| EURC (Circle) | `0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4` |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| Chainlink EUR/USD (8 decimals) | `0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910` |
+| Uniswap v3 factory | `0x0227628f3F023bb0B980b67D528571c95c6DaC1c` |
+| Uniswap SwapRouter02 | `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E` |
+| Uniswap NonfungiblePositionManager | `0x1238536071E1c677A632429e3655c799b22cDA52` |
+| Mispriced EURe/USDC 5 bps pool (never whitelist) | `0xaC4D4fe930cb78b6eAC08e8Ec3cCA5Ea12059aD2` |
+
+The July 2026 link-test deployment (factory `0xcBE354…`) used other tokens and a
+placeholder router; it is not reusable.
+
+### 8.2 What differs from mainnet
+
+- **Vortex runs the pool.** The only EURe/USDC pool with liquidity prices EURe at 0.71
+  USDC (Chainlink: 1.127 on 2026-10-06), so a swap there misses the floor (Chainlink
+  − `SLIPPAGE_BPS`) and reverts, and every payment would end in a refund. Vortex seeds
+  its own 1 bps pool at the Chainlink price (§8.4).
+- **No quoting.** Off mainnet the keeper does not quote routes; it swaps on the first
+  enabled factory route. Make the 1 bps pool the initial route and add no other.
+- **No arbitrage.** Nothing pulls the pool back to the market, and each conversion moves
+  it a little. Re-centre it before every test session (§8.9). The mispriced 5 bps pool
+  is an open arbitrage against it: if its USDC disappears between sessions, re-seed.
+- **Fresh keys only.** The well-known development keys (anvil's) carry delegated code on
+  Sepolia that sweeps any ETH sent to them.
+- **No private orderflow.** `MONERIUM_B2B_PRIVATE_RPC_URL` is required only when
+  `DEPLOYMENT_ENV=production`.
+
+### 8.3 Keys and funding
+
+- Fresh EOAs: guardian, keeper and attestor (three distinct keys), the float wallet
+  (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`), and a fee recipient address Vortex controls.
+  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
+- Sepolia ETH: about 0.2 each for the guardian (deployments), the keeper (swaps,
+  forwards, recoveries) and the float (it tops up the refund wallets' gas).
+- Sandbox EURe for the guardian (pool seeding) and the float (refund top-ups): link the
+  address to a Vortex profile in Monerium's sandbox and use "Simulate bank transfer" on
+  that profile's IBAN. Sandbox EURe costs nothing.
+- USDC: buy it with sandbox EURe from the mispriced 5 bps pool; its price is irrelevant
+  when the EURe is free. 2,000 EURe bought about 1,385 USDC in the dry run.
+
+```bash
+RPC=<Sepolia RPC URL>
+EURE=0x67b34b93ac295c985e856E5B8A20D83026b580Eb
+EURC=0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4
+USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+ORACLE=0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910
+ROUTER=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+NPM=0x1238536071E1c677A632429e3655c799b22cDA52
+UNI_FACTORY=0x0227628f3F023bb0B980b67D528571c95c6DaC1c
+GUARDIAN=$(cast wallet address $GUARDIAN_KEY)
+
+cast send $EURE "approve(address,uint256)" $ROUTER 2000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+  "($EURE,$USDC,500,$GUARDIAN,2000000000000000000000,0,0)" --rpc-url $RPC --private-key $GUARDIAN_KEY
+```
+
+### 8.4 Seed the 1 bps pool at the Chainlink price
+
+USDC sorts before EURe, so the pool's price is EURe base units per USDC base unit,
+`1e20 / answer` for a Chainlink answer with 8 decimals. The position spans ±1% (100
+ticks at the 1 bps tier's spacing of 1). 1,000 USDC and about 890 EURe keep a €100
+payment's price impact around 0.1%.
+
+```bash
+ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+read SQRT_PRICE TICK_LOWER TICK_UPPER < <(python3 -c "
+import math; a=$ANSWER
+tick = math.floor(math.log(10**20 / a, 1.0001))
+print(math.isqrt(10**20 * 2**192 // a), tick - 100, tick + 100)")
+
+cast send $NPM "createAndInitializePoolIfNecessary(address,address,uint24,uint160)" $USDC $EURE 100 $SQRT_PRICE \
+  --rpc-url $RPC --private-key $GUARDIAN_KEY
+POOL=$(cast call $UNI_FACTORY "getPool(address,address,uint24)(address)" $USDC $EURE 100 --rpc-url $RPC)
+cast send $USDC "approve(address,uint256)" $NPM 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $EURE "approve(address,uint256)" $NPM 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+# the gas estimate is too low for a mint that moves EURe; pass a limit
+cast send $NPM "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))" \
+  "($USDC,$EURE,100,$TICK_LOWER,$TICK_UPPER,1000000000,1000000000000000000000,0,0,$GUARDIAN,$(( $(date +%s) + 3600 )))" \
+  --gas-limit 1500000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 1000000000
+```
+
+### 8.5 Deploy the factory, register the keeper, deploy the vault
+
+The parameters are the ADR's (§7.3 table) except `perSwapCap`: €25 lets a €60 test
+payment convert in three chunks. It is operational; `setPerSwapCap` changes it later.
+The initial route is the 1 bps pool, EURe → USDC.
+
+From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER` and `FEE_RECIPIENT` set
+to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
+
+```bash
+ROUTE=$(cast concat-hex $EURE 0x000064 $USDC)   # fee 100 as three bytes
+forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
+  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,7200,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
+  1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
+cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
+cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
+
+# vault: 1% per swap (the ladder's top), 50 USDC per day
+forge create src/VortexSubsidyVault.sol:VortexSubsidyVault --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
+  --constructor-args $USDC $FEE_RECIPIENT $FACTORY 10000 50000000
+cast send $FACTORY "setSubsidyVault(address)" $VAULT --rpc-url $RPC --private-key $GUARDIAN_KEY
+cast send $USDC "transfer(address,uint256)" $VAULT 20000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+```
+
+Then generate and verify the manifest as in §1.3. Sepolia's public RPCs prune old logs,
+so pass `--logs-rpc` with an endpoint that serves the full history, and commit the
+result to `manifests/`.
+
+### 8.6 Sandbox backend configuration
+
+On the `vortex-sandbox` service only:
+
+| Variable | Value |
+|---|---|
+| `FLOW_VARIANT` | `mykobo` (startup refuses B2B otherwise; the sandbox's retail EUR onramp then runs on Mykobo) |
+| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | SulPayments' sandbox white-label app (S11) |
+| `MONERIUM_B2B_RPC_URL` | Sepolia RPC |
+| `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` | `$FACTORY` |
+| `MONERIUM_B2B_KEEPER_PRIVATE_KEY`, `MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, `MONERIUM_B2B_ATTESTOR_PRIVATE_KEY` | the three keys of §8.3 |
+| `MONERIUM_B2B_REFUND_SEED`, `MONERIUM_B2B_FLOAT_PRIVATE_KEY` | §8.3 |
+| `MONERIUM_B2B_AUTO_RECOVERY` | `auto`, so the refund test runs end to end |
+| `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
+| `MONERIUM_B2B_ENABLED` | `true`, set last |
+
+Register Vortex's webhook subscription on SulPayments' sandbox app with the same
+secret, from `apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at
+Monerium's sandbox API:
+
+```bash
+SECRET=<MONERIUM_B2B_WEBHOOK_SECRET> MONERIUM_WHITELABEL_CLIENT_ID=... MONERIUM_WHITELABEL_CLIENT_SECRET=... \
+MONERIUM_API_URL=https://api.monerium.dev bun -e '
+import { MoneriumApiService } from "@vortexfi/shared";
+console.log(await MoneriumApiService.getInstance().createWebhook({
+  secret: process.env.SECRET, types: ["iban.updated", "order.created", "order.updated", "profile.updated"],
+  url: "https://api-sandbox.vortexfinance.co/v1/monerium-b2b/webhook" }));'
+```
+
+Restart the service. Startup fails if a required setting is missing; once it is up,
+`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
+
+### 8.7 Partner and test clients
+
+1. Make SulPayments' sandbox profile a manager:
+   `PUT /v1/admin/managed-profile-managers/<profileId>` with corridor `EU` and customer
+   type `business`. SulPayments then takes a key from dashboard-sandbox and registers
+   its webhook through `POST /v1/webhook` (`DEPOSIT_UPDATED`, `ACCOUNT_UPDATED`).
+2. Per test client, once SulPayments confirms the Monerium profile is approved: §1.2
+   (refund address, deploy the clone), §1.4 (map), §1.5 (automatic link and IBAN),
+   §1.7 (activate). Until the destination endpoint (V6) exists, SulPayments sends the
+   profile ID and the Sepolia destination to Vortex directly.
+
+### 8.8 Test payments
+
+SulPayments simulates each SEPA payment on the client's profile in its Monerium sandbox
+app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes over.
+
+| Test | Payment | Expected |
+|---|---|---|
+| Normal | €20 | One chunk, one forward. The destination receives the reference less the client's target (12.5 bps); the fee treasury the surplus over it |
+| Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
+| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After two hours the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
+
+`DEPOSIT_UPDATED` reports every step to SulPayments, and `GET /v1/monerium-b2b/deposits`
+shows the same snapshots.
+
+### 8.9 Re-centre the pool before a session
+
+Each conversion sells EURe into the pool and pushes its price away from Chainlink. A
+swap with a price limit moves it back exactly:
+
+```bash
+ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $ANSWER))")
+CURRENT=$(cast call $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)" --rpc-url $RPC | head -1 | awk '{print $1}')
+if python3 -c "import sys; sys.exit(0 if $CURRENT > $TARGET else 1)"; then
+  # EURe cheaper than Chainlink: buy EURe with USDC up to the target price
+  cast send $USDC "approve(address,uint256)" $ROUTER 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+  cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+    "($USDC,$EURE,100,$GUARDIAN,1000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+else
+  # EURe dearer than Chainlink: sell EURe for USDC down to the target price
+  cast send $EURE "approve(address,uint256)" $ROUTER 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
+  cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+    "($EURE,$USDC,100,$GUARDIAN,1000000000000000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+fi
+```
+
+The router pulls only what the move needs. Chainlink's Sepolia feed must stay under the
+52-hour `MAX_ORACLE_AGE`; it was four hours old when checked.

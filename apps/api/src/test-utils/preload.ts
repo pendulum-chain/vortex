@@ -41,6 +41,7 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
   process.env.MONERIUM_B2B_RPC_URL = "http://evm.invalid";
   process.env.MONERIUM_B2B_PRIVATE_RPC_URL = "http://evm-private.invalid";
+  process.env.MONERIUM_B2B_REFUND_SEED = "0x3333333333333333333333333333333333333333333333333333333333333333";
   process.env.MONERIUM_B2B_WEBHOOK_SECRET = "whsec_dGVzdC1tb25lcml1bS13ZWJob29rLXNlY3JldA==";
   // COINGECKO_API_URL is deliberately NOT overridden: priceFeed config tests
   // assert its default, and the fetch guard blocks real calls anyway.

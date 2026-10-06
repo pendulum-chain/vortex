@@ -1,7 +1,11 @@
 import { Router } from "express";
 import * as moneriumB2bController from "../../controllers/monerium-b2b.controller";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
-import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
+import {
+  authorizeManagedProfile,
+  rejectDirectManagedCredential,
+  rejectManagedProfileSelection
+} from "../../middlewares/managedProfileAuth";
 
 const router = Router();
 
@@ -15,5 +19,14 @@ const accountAuth = [requirePartnerOrUserAuth(), authorizeManagedProfile({ corri
 
 router.get("/account", ...accountAuth, moneriumB2bController.getMoneriumB2bAccount);
 router.get("/deposits", ...accountAuth, moneriumB2bController.listMoneriumB2bDeposits);
+
+// Manager-level read: every onramp account of the caller's managed profiles (manager key only).
+router.get(
+  "/accounts",
+  requirePartnerOrUserAuth(),
+  rejectDirectManagedCredential,
+  rejectManagedProfileSelection,
+  moneriumB2bController.listMoneriumB2bAccounts
+);
 
 export default router;

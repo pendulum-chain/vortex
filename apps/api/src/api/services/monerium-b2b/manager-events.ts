@@ -1,4 +1,15 @@
-import { DepositStatus, type DepositWebhookPayloadBase, WebhookEventType, type WebhookPayload } from "@vortexfi/shared";
+import { createHash } from "node:crypto";
+import {
+  type AccountSnapshot,
+  type ConversionExecutionPricing,
+  type DepositRefundReason,
+  type DepositSnapshot,
+  DepositStatus,
+  type DepositWaitingReason,
+  type DepositWebhookPayloadBase,
+  WebhookEventType,
+  type WebhookPayload
+} from "@vortexfi/shared";
 import { Op } from "sequelize";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
@@ -6,10 +17,11 @@ import { config } from "../../../config/vars";
 import ManagedProfile from "../../../models/managedProfile.model";
 import MoneriumAccount from "../../../models/moneriumAccount.model";
 import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
-import MoneriumDepositAllocation from "../../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import MoneriumRecovery from "../../../models/moneriumRecovery.model";
 import webhookService from "../webhook/webhook.service";
 import { enqueueWebhookDeliveries } from "../webhook/webhook-outbox.service";
 import { getPublicClient, NOTIFY_CONFIRMATION_DEPTH } from "./chain";
@@ -29,6 +41,21 @@ const defaultDeps: ManagerEventDeps = {
   }
 };
 
+/** First and last four characters of an IBAN, for partner-facing payloads. */
+export function maskIban(iban: string): string {
+  const compact = iban.replace(/\s+/g, "");
+  return compact.length <= 8 ? compact : `${compact.slice(0, 4)}…${compact.slice(-4)}`;
+}
+
+/** Execution-level pricing facts, identical on every deposit portion the execution consumed. */
+export function executionPricing(execution: MoneriumConversionExecution): ConversionExecutionPricing {
+  return {
+    feeRaw: execution.feeRaw,
+    referenceRateRaw: execution.referenceRateRaw,
+    subsidyRaw: execution.subsidyRaw
+  };
+}
+
 function depositPayloadBase(deposit: MoneriumFiatDeposit, account: MoneriumAccount): DepositWebhookPayloadBase {
   return {
     accountId: account.id,
@@ -42,17 +69,132 @@ function depositPayloadBase(deposit: MoneriumFiatDeposit, account: MoneriumAccou
 }
 
 /**
- * Resolves the controlling manager for an account's deposit events. Returns null when
- * the account is unmapped or the managed relationship is gone — the event is then
- * marked emitted with no deliveries, so history is never replayed to late subscribers.
+ * The active managed relationship behind an account: its controlling manager and the
+ * partner's client reference. Null when the account is unmapped or the relationship is
+ * gone; events are then marked emitted with no deliveries, so history is never replayed
+ * to late subscribers.
  */
-async function resolveManagerProfileId(account: MoneriumAccount): Promise<string | null> {
+export async function findRelationship(account: MoneriumAccount): Promise<ManagedProfile | null> {
   if (!account.vortexProfileId) return null;
-  const relationship = await ManagedProfile.findOne({
-    where: { profileId: account.vortexProfileId, status: "active" }
-  });
-  return relationship?.managerProfileId ?? null;
+  return ManagedProfile.findOne({ where: { profileId: account.vortexProfileId, status: "active" } });
 }
+
+async function resolveManagerProfileId(account: MoneriumAccount): Promise<string | null> {
+  return (await findRelationship(account))?.managerProfileId ?? null;
+}
+
+const iso = (date: Date | null | undefined): string | null => (date ? date.toISOString() : null);
+
+export function accountSnapshot(account: MoneriumAccount, relationship: ManagedProfile | null | undefined): AccountSnapshot {
+  return {
+    accountId: account.id,
+    createdAt: account.createdAt.toISOString(),
+    destination: account.destination,
+    dormantSince: iso(account.dormantSince),
+    externalSubjectId: relationship?.externalSubjectId ?? null,
+    floorPpm: account.floorPpm,
+    forwarderAddress: account.forwarderAddress,
+    iban: account.iban,
+    moneriumProfileId: account.profileId,
+    profileId: account.vortexProfileId,
+    status: account.status,
+    targetPpm: account.targetPpm
+  };
+}
+
+function waitingOf(deposit: MoneriumFiatDeposit): DepositSnapshot["waiting"] {
+  if (deposit.status === MoneriumFiatDepositStatus.Pending || deposit.status === MoneriumFiatDepositStatus.Held) {
+    return { reason: "monerium_pending", since: deposit.createdAt.toISOString() };
+  }
+  const converting =
+    deposit.status === MoneriumFiatDepositStatus.Minted || deposit.status === MoneriumFiatDepositStatus.Converting;
+  if (!converting || !deposit.waitingReason) return null;
+  return {
+    reason: deposit.waitingReason as DepositWaitingReason,
+    since: iso(deposit.waitingSince) ?? deposit.createdAt.toISOString()
+  };
+}
+
+/** A confirmed execution row is terminal, so its last update is its confirmation. */
+const confirmedAt = (execution: MoneriumConversionExecution): string | null =>
+  execution.status === MoneriumConversionExecutionStatus.Confirmed ? execution.updatedAt.toISOString() : null;
+
+/**
+ * Snapshots of one account's deposits, in the given order. The deposits endpoint and the
+ * DEPOSIT_UPDATED event share this shape.
+ */
+export async function depositSnapshots(
+  account: MoneriumAccount,
+  relationship: ManagedProfile | null | undefined,
+  deposits: MoneriumFiatDeposit[]
+): Promise<DepositSnapshot[]> {
+  if (deposits.length === 0) return [];
+  const depositIds = deposits.map(deposit => deposit.id);
+  const [executions, recoveries] = await Promise.all([
+    MoneriumConversionExecution.findAll({
+      order: [["created_at", "ASC"]],
+      where: { depositId: depositIds, status: { [Op.ne]: MoneriumConversionExecutionStatus.Failed } }
+    }),
+    MoneriumRecovery.findAll({ where: { depositId: depositIds } })
+  ]);
+  return deposits.map(deposit => {
+    const own = executions.filter(execution => execution.depositId === deposit.id);
+    const confirmed = (kind: MoneriumConversionExecutionKind) =>
+      own.find(execution => execution.kind === kind && execution.status === MoneriumConversionExecutionStatus.Confirmed);
+    const swaps = own.filter(execution => execution.kind === MoneriumConversionExecutionKind.Swap);
+    const forward = confirmed(MoneriumConversionExecutionKind.Forward);
+    const recover = confirmed(MoneriumConversionExecutionKind.Recover);
+    const recovery = recoveries.find(row => row.depositId === deposit.id);
+    return {
+      accountId: account.id,
+      amount: eurAmountFromRaw(deposit.amountRaw),
+      amountRaw: deposit.amountRaw,
+      conversions: swaps.map(execution => ({
+        confirmedAt: confirmedAt(execution),
+        eureInRaw: execution.eureInRaw,
+        execution: executionPricing(execution),
+        executionId: execution.id,
+        sentAt: execution.createdAt.toISOString(),
+        status: execution.status as "pending" | "confirmed",
+        txHash: execution.txHash,
+        usdcNetRaw: execution.usdcNetRaw ?? "0"
+      })),
+      currency: deposit.currency,
+      deliveredAt: forward ? confirmedAt(forward) : null,
+      depositId: deposit.id,
+      externalSubjectId: relationship?.externalSubjectId ?? null,
+      forwardTxHash: forward?.txHash ?? null,
+      mintedAt: iso(deposit.mintedAt),
+      moneriumOrderId: deposit.moneriumOrderId,
+      moneriumProfileId: account.profileId,
+      profileId: account.vortexProfileId as string,
+      receivedAt: deposit.createdAt.toISOString(),
+      refund:
+        deposit.refundStartedAt || recovery || recover
+          ? {
+              amount: recovery?.refundAmount ?? eurAmountFromRaw(deposit.amountRaw),
+              payerIbanMasked: deposit.payerIban ? maskIban(deposit.payerIban) : null,
+              reason: deposit.refundReason as DepositRefundReason | null,
+              recoverTxHash: recover?.txHash ?? null,
+              redeemOrderId: recovery?.redeemOrderId ?? null,
+              refundedAt: deposit.status === MoneriumFiatDepositStatus.Refunded ? iso(recovery?.updatedAt) : null,
+              startedAt: iso(deposit.refundStartedAt)
+            }
+          : null,
+      rejectedReason: deposit.rejectedReason,
+      status: deposit.status as unknown as DepositStatus,
+      txHash: deposit.txHash,
+      usdcNetRaw: swaps
+        .filter(execution => execution.status === MoneriumConversionExecutionStatus.Confirmed)
+        .reduce((sum, execution) => sum + BigInt(execution.usdcNetRaw ?? "0"), 0n)
+        .toString(),
+      waiting: waitingOf(deposit)
+    };
+  });
+}
+
+const snapshotHash = (snapshot: AccountSnapshot | DepositSnapshot): string =>
+  createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 
 async function enqueueForManager(
   eventType: WebhookEventType,
@@ -75,7 +217,10 @@ async function emitReceivedEvents(): Promise<void> {
       logIndex: { [Op.ne]: null },
       moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
       receivedEventAt: null,
-      status: MoneriumFiatDepositStatus.Minted,
+      // Any state past the mint: the keeper may have started converting within the cycle.
+      status: {
+        [Op.notIn]: [MoneriumFiatDepositStatus.Pending, MoneriumFiatDepositStatus.Held, MoneriumFiatDepositStatus.Returned]
+      },
       txHash: { [Op.ne]: null }
     }
   });
@@ -109,9 +254,8 @@ async function emitConvertedEvents(deps: ManagerEventDeps): Promise<void> {
     order: [["created_at", "ASC"]],
     where: {
       convertedEventAt: null,
-      id: { [Op.in]: sequelize.literal("(SELECT deposit_id FROM monerium_deposit_allocations)") },
       moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
-      status: MoneriumFiatDepositStatus.Minted
+      status: MoneriumFiatDepositStatus.Forwarded
     }
   });
   if (deposits.length === 0) return;
@@ -129,28 +273,17 @@ async function emitConvertedEvents(deps: ManagerEventDeps): Promise<void> {
 }
 
 async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: bigint): Promise<void> {
-  const allocations = await MoneriumDepositAllocation.findAll({
-    order: [["created_at", "ASC"]],
-    where: { depositId: deposit.id }
-  });
-  if (allocations.length === 0) return;
-  const allocatedEure = allocations.reduce((sum, allocation) => sum + BigInt(allocation.eureInRaw), 0n);
-  if (allocatedEure !== BigInt(deposit.amountRaw)) return;
-
   const executions = await MoneriumConversionExecution.findAll({
-    where: { id: allocations.map(allocation => allocation.executionId) }
+    order: [["created_at", "ASC"]],
+    where: { depositId: deposit.id, status: MoneriumConversionExecutionStatus.Confirmed }
   });
-  const executionById = new Map(executions.map(execution => [execution.id, execution]));
-  if (executions.length !== allocations.length) return;
-  if (executions.some(execution => execution.status !== MoneriumConversionExecutionStatus.Confirmed)) return;
-  // Confirmation-depth gate (plan §3, registry P9): only notify once the execution
-  // blocks are NOTIFY_CONFIRMATION_DEPTH below the head, so a shallow reorg cannot
-  // produce a delivered-then-vanished aggregate conversion event.
-  if (
-    executions.some(
-      execution => execution.blockNumber === null || head < BigInt(execution.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)
-    )
-  ) {
+  const forward = executions.find(execution => execution.kind === MoneriumConversionExecutionKind.Forward);
+  const swaps = executions.filter(execution => execution.kind === MoneriumConversionExecutionKind.Swap);
+  if (!forward || swaps.length === 0) return;
+  // Confirmation-depth gate (plan §3, registry P9): only notify once the forward is
+  // NOTIFY_CONFIRMATION_DEPTH blocks below the head, so a shallow reorg cannot produce a
+  // delivered-then-vanished conversion event. The chunks precede the forward by construction.
+  if (forward.blockNumber === null || head < BigInt(forward.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)) {
     return;
   }
 
@@ -162,16 +295,15 @@ async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: 
     eventType: WebhookEventType.DEPOSIT_CONVERTED,
     payload: {
       ...depositPayloadBase(deposit, account),
-      conversions: allocations.map(allocation => {
-        const execution = executionById.get(allocation.executionId) as MoneriumConversionExecution;
-        return {
-          eureInRaw: allocation.eureInRaw,
-          executionId: execution.id,
-          txHash: execution.txHash,
-          usdcNetRaw: allocation.usdcNetRaw
-        };
-      }),
-      usdcNetRaw: allocations.reduce((sum, allocation) => sum + BigInt(allocation.usdcNetRaw), 0n).toString()
+      conversions: swaps.map(execution => ({
+        eureInRaw: execution.eureInRaw,
+        execution: executionPricing(execution),
+        executionId: execution.id,
+        txHash: execution.txHash,
+        usdcNetRaw: execution.usdcNetRaw ?? "0"
+      })),
+      forwardTxHash: forward.txHash,
+      usdcNetRaw: forward.usdcNetRaw ?? "0"
     },
     timestamp: new Date().toISOString()
   };
@@ -179,16 +311,167 @@ async function emitConvertedEventForDeposit(deposit: MoneriumFiatDeposit, head: 
   await deposit.update({ convertedEventAt: new Date() });
 }
 
+async function emitReturnedEvents(): Promise<void> {
+  const deposits = await MoneriumFiatDeposit.findAll({
+    limit: BATCH_LIMIT,
+    order: [["created_at", "ASC"]],
+    where: {
+      moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
+      returnedEventAt: null,
+      status: MoneriumFiatDepositStatus.Refunded
+    }
+  });
+  for (const deposit of deposits) {
+    try {
+      const account = await MoneriumAccount.findByPk(deposit.accountId);
+      if (!account) continue;
+      const [recovery, recoverExecution] = await Promise.all([
+        MoneriumRecovery.findOne({ where: { depositId: deposit.id } }),
+        MoneriumConversionExecution.findOne({
+          where: {
+            depositId: deposit.id,
+            kind: MoneriumConversionExecutionKind.Recover,
+            status: MoneriumConversionExecutionStatus.Confirmed
+          }
+        })
+      ]);
+      const managerProfileId = await resolveManagerProfileId(account);
+      const payload: WebhookPayload = {
+        eventId: `deposit-returned:${deposit.id}`,
+        eventType: WebhookEventType.DEPOSIT_RETURNED,
+        payload: {
+          ...depositPayloadBase(deposit, account),
+          refund: {
+            amount: recovery?.refundAmount ?? eurAmountFromRaw(deposit.amountRaw),
+            payerIbanMasked: deposit.payerIban ? maskIban(deposit.payerIban) : "",
+            recoverTxHash: recoverExecution?.txHash ?? null,
+            redeemOrderId: recovery?.redeemOrderId ?? null
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+      await enqueueForManager(WebhookEventType.DEPOSIT_RETURNED, managerProfileId, payload);
+      await deposit.update({ returnedEventAt: new Date() });
+    } catch (error) {
+      logger.error(`monerium-b2b: DEPOSIT_RETURNED emission failed for deposit ${deposit.id}:`, error);
+    }
+  }
+}
+
+/** An 18-decimal EUR amount to the cent ("1234.56"). */
+function eurAmountFromRaw(amountRaw: string): string {
+  const cents = BigInt(amountRaw) / 10n ** 16n;
+  return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+
+const SETTLED_STATUSES = [
+  MoneriumFiatDepositStatus.Forwarded,
+  MoneriumFiatDepositStatus.Returned,
+  MoneriumFiatDepositStatus.Refunded
+];
+
+/** Same depth gate as DEPOSIT_CONVERTED: "forwarded" is reported once the forward cannot reorg away. */
+async function forwardIsDeep(depositId: string, head: bigint | null): Promise<boolean> {
+  if (head === null) return false;
+  const forward = await MoneriumConversionExecution.findOne({
+    where: {
+      depositId,
+      kind: MoneriumConversionExecutionKind.Forward,
+      status: MoneriumConversionExecutionStatus.Confirmed
+    }
+  });
+  return (
+    forward?.blockNumber !== null &&
+    forward?.blockNumber !== undefined &&
+    head >= BigInt(forward.blockNumber) + BigInt(NOTIFY_CONFIRMATION_DEPTH)
+  );
+}
+
+/**
+ * DEPOSIT_UPDATED: the full snapshot whenever it changed since the last one sent. Unsettled
+ * deposits are re-evaluated every pass; a settled one once more after its last change.
+ */
+async function emitDepositUpdatedEvents(deps: ManagerEventDeps): Promise<void> {
+  // ponytail: oldest BATCH_LIMIT unsettled deposits per pass; page through them if a
+  // partner ever has more than that in flight at once.
+  const deposits = await MoneriumFiatDeposit.findAll({
+    limit: BATCH_LIMIT,
+    order: [["created_at", "ASC"]],
+    where: {
+      [Op.or]: [
+        { status: { [Op.notIn]: SETTLED_STATUSES } },
+        { lifecycleEventAt: null },
+        sequelize.where(sequelize.col("updated_at"), Op.gt, sequelize.col("lifecycle_event_at"))
+      ],
+      moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` }
+    }
+  });
+  let head: bigint | null | undefined;
+  for (const deposit of deposits) {
+    try {
+      if (deposit.status === MoneriumFiatDepositStatus.Forwarded) {
+        if (head === undefined) head = await deps.getBlockNumber();
+        if (!(await forwardIsDeep(deposit.id, head))) continue;
+      }
+      const account = await MoneriumAccount.findByPk(deposit.accountId);
+      if (!account?.vortexProfileId) continue;
+      const relationship = await findRelationship(account);
+      const [snapshot] = await depositSnapshots(account, relationship, [deposit]);
+      const hash = snapshotHash(snapshot);
+      if (hash !== deposit.lifecycleEventHash) {
+        await enqueueForManager(WebhookEventType.DEPOSIT_UPDATED, relationship?.managerProfileId ?? null, {
+          eventId: `deposit-updated:${deposit.id}:${hash.slice(0, 16)}`,
+          eventType: WebhookEventType.DEPOSIT_UPDATED,
+          payload: snapshot,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Silent: the marker must not bump updated_at, which is what re-queues a settled deposit.
+      await deposit.update({ lifecycleEventAt: new Date(), lifecycleEventHash: hash }, { silent: true });
+    } catch (error) {
+      logger.error(`monerium-b2b: DEPOSIT_UPDATED emission failed for deposit ${deposit.id}:`, error);
+    }
+  }
+}
+
+/** ACCOUNT_UPDATED: the account snapshot whenever it changed (IBAN issued, status, dormancy). */
+async function emitAccountUpdatedEvents(): Promise<void> {
+  // ponytail: scans every mapped account each pass; fine at per-partner pilot scale.
+  const accounts = await MoneriumAccount.findAll({ where: { vortexProfileId: { [Op.ne]: null } } });
+  for (const account of accounts) {
+    try {
+      const relationship = await findRelationship(account);
+      const snapshot = accountSnapshot(account, relationship);
+      const hash = snapshotHash(snapshot);
+      if (hash === account.lifecycleEventHash) continue;
+      await enqueueForManager(WebhookEventType.ACCOUNT_UPDATED, relationship?.managerProfileId ?? null, {
+        eventId: `account-updated:${account.id}:${hash.slice(0, 16)}`,
+        eventType: WebhookEventType.ACCOUNT_UPDATED,
+        payload: snapshot,
+        timestamp: new Date().toISOString()
+      });
+      await account.update({ lifecycleEventHash: hash }, { silent: true });
+    } catch (error) {
+      logger.error(`monerium-b2b: ACCOUNT_UPDATED emission failed for account ${account.id}:`, error);
+    }
+  }
+}
+
 /**
  * Emits the manager-facing deposit events into the durable webhook outbox:
- * DEPOSIT_RECEIVED once a deposit is minted, DEPOSIT_CONVERTED once every portion is
- * allocated and all of its executions are confirmed at notification depth. Emission
- * markers make each event fire exactly once regardless of the advancing component.
+ * DEPOSIT_RECEIVED once a deposit is minted, DEPOSIT_CONVERTED once the whole converted
+ * deposit was forwarded to the destination and that forward sits at notification depth,
+ * DEPOSIT_RETURNED once a deposit that missed the promised window was refunded, and
+ * DEPOSIT_UPDATED / ACCOUNT_UPDATED whenever a deposit's or account's snapshot changed.
+ * Emission markers make each event fire exactly once regardless of the advancing component.
  */
 export async function emitMoneriumDepositEvents(deps: ManagerEventDeps = defaultDeps): Promise<void> {
   try {
     await emitReceivedEvents();
     await emitConvertedEvents(deps);
+    await emitReturnedEvents();
+    await emitDepositUpdatedEvents(deps);
+    await emitAccountUpdatedEvents();
   } catch (error) {
     logger.error("monerium-b2b: manager event emission failed:", error);
   }
