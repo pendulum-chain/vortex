@@ -26,7 +26,8 @@ USDC→BRLA→USDC runs quote `REBALANCING_USD_TO_BRL_AMOUNT` by default. When
 amount with fresh quotes and uses it only if the larger amount is projected profitable. When unset, it defaults to the
 standard amount.
 `REBALANCING_MAX_USDC_COVERAGE` (e.g. `1.3`) stops USDC→BRLA→USDC runs, regular and opportunistic, whose amount would
-push the Base Nabla USDC pool coverage above that ratio. Unset means no cap.
+push the Base Nabla USDC pool coverage above that ratio. Unset means no cap. When it blocks a needed run (BRLA coverage
+above the upper bound), the run logs `REBALANCE BLOCKED` and posts to Slack at most once per hour.
 `REBALANCING_DAILY_BRIDGE_LIMIT_USD` caps paid Base rebalances only: projected-profitable current runs bypass the cap,
 but all completed Base runs are recorded in history and count toward later paid-run limit checks.
 
