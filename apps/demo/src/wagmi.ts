@@ -3,8 +3,6 @@ import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { http } from "wagmi";
 
-export const bscNetwork = bsc;
-
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim();
 
 if (!projectId) {

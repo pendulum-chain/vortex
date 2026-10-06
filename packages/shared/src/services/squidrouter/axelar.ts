@@ -1,3 +1,4 @@
+import { sleep } from "../../helpers/functions";
 import logger from "../../logger";
 
 export interface AxelarScanStatusFees {
@@ -32,10 +33,32 @@ export interface AxelarScanStatusResponse {
   confirm_failed?: boolean;
   call?: {
     chain: string; // source chain in Axelar naming, e.g. "base"
+    event?: string; // "ContractCallWithToken" or "ContractCall"
+    returnValues?: { payload?: string; symbol?: string; amount?: string };
   };
   // e.g. "gas_paid", "gas_unpaid", "gas_paid_not_enough_gas"
   gas_status?: string;
+  command_id?: string;
+  // Gateway approval on the destination chain; after it, execution is permissionless.
+  approved?: {
+    block_timestamp?: number; // seconds
+    returnValues?: {
+      contractAddress?: string;
+      sourceChain?: string;
+      sourceAddress?: string;
+      payloadHash?: string;
+      // Destination-side token; can differ from the source call's (e.g. axlUSDC on Base, USDC on Ethereum).
+      symbol?: string;
+      amount?: string;
+    };
+  };
+  // Present once a relayer sent (executing) or landed (executed) the destination call.
+  executing?: unknown;
+  executed?: unknown;
 }
+
+// How long an approved call may wait for Axelar's relayer before Vortex executes it itself.
+export const AXELAR_APPROVED_EXECUTE_GRACE_MS = 2 * 60 * 1000;
 
 /**
  * Coarse GMP states that matter for stuck-transfer handling. Derived from the
@@ -48,10 +71,11 @@ export type GmpClassification =
   | "source_confirmation_stuck"
   | "waiting_source_confirmation"
   | "relayer_pending"
+  | "approved_not_executed"
   | "execution_failed"
   | "unknown";
 
-export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined | null): GmpClassification {
+export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined | null, nowMs = Date.now()): GmpClassification {
   if (!status || !status.status) return "unknown";
   if (status.status === "executed" || status.status === "express_executed") return "executed";
   // Checked before the per-status mapping: a transfer can sit in "called" or
@@ -66,6 +90,17 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
   }
   if (status.status === "called") return status.confirm_failed ? "source_confirmation_stuck" : "waiting_source_confirmation";
   if (status.status === "confirming" || status.status === "confirmable") return "waiting_source_confirmation";
+  // Approved but no relayer tx after the grace period. no_gas_remain is not used: axelarscan
+  // sets it on healthy executed calls too, and alongside a positive gas_remain_amount.
+  if (
+    status.approved &&
+    !status.executing &&
+    !status.executed &&
+    (status.status === "approved" || status.status === "executing") &&
+    nowMs - (status.approved.block_timestamp ?? 0) * 1000 >= AXELAR_APPROVED_EXECUTE_GRACE_MS
+  ) {
+    return "approved_not_executed";
+  }
   // "confirmed" means the source confirmation already succeeded — the transfer is
   // waiting on approval/execution, so another ConfirmGatewayTx would be irrelevant.
   if (
@@ -161,19 +196,31 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
   return rpcJson.result.hash;
 }
 
+const AXELARSCAN_MAX_RETRY_AFTER_MS = 5000;
+
 export async function getStatusAxelarScan(swapHash: string, signal?: AbortSignal): Promise<AxelarScanStatusResponse> {
   try {
     // POST call, https://api.axelarscan.io/gmp/searchGMP
-    const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {
-      body: JSON.stringify({
-        txHash: swapHash
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      },
-      method: "POST",
-      signal
-    });
+    const search = () =>
+      fetch("https://api.axelarscan.io/gmp/searchGMP", {
+        body: JSON.stringify({
+          txHash: swapHash
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST",
+        signal
+      });
+    let response = await search();
+
+    // Rate-limited: retry once after Retry-After (capped), so a 429 does not hide the GMP state.
+    if (response.status === 429) {
+      const retryAfterSeconds = Number(response.headers?.get("retry-after"));
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 1000;
+      await sleep(Math.min(retryAfterMs, AXELARSCAN_MAX_RETRY_AFTER_MS), signal);
+      response = await search();
+    }
 
     if (!response.ok) {
       throw new Error(`Error fetching status from axelar scan API: ${response.statusText}`);

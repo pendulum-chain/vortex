@@ -47,8 +47,6 @@ export interface StateMetadata {
   receiverTaxId: string;
   evmEphemeralAddress: string;
   substrateEphemeralAddress: string;
-  moonbeamEphemeralAccount: { secret: string; address: string };
-  finalUserAddress: string;
   nabla: {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
@@ -56,10 +54,8 @@ export interface StateMetadata {
   assethubToPendulumHash: string;
   hydrationToAssethubXcmHash?: string;
   pendulumToAssethubXcmHash?: string;
-  pendulumToHydrationXcmHash?: string;
   pendulumToMoonbeamXcmHash?: string;
   moonbeamXcmTransactionHash: `0x${string}`;
-  hydrationSwapHash?: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
@@ -77,6 +73,9 @@ export interface StateMetadata {
   // the tx hash after; any present value prevents further top-ups, so a crash or
   // send failure in between can never cause a second payment.
   squidRouterExtraGasTxHash?: string;
+  // Destination execute sent by the funding wallet for an approved GMP call the Axelar
+  // relayer never executed. Same "pending"-then-hash claim as squidRouterExtraGasTxHash.
+  squidRouterAxelarExecuteTxHash?: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
   // Set to true once update-time validation gate passes (all presigned txs valid + complete,
@@ -86,14 +85,11 @@ export interface StateMetadata {
   payOutTicketId: string | undefined;
   brlaPayoutTxHash?: `0x${string}`;
   permitTxHash?: string;
-  moneriumOnrampSelfTransferHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;
   squidRouterQuoteId: string;
   // Final transaction hash and explorer link (computed once when ramp is complete)
-  finalTransactionHash?: string;
-  finalTransactionExplorerLink?: string;
   finalTransactionHashV2?: string;
   finalTransactionExplorerLinkV2?: string;
   // Alfredpay
@@ -109,8 +105,6 @@ export interface StateMetadata {
   squidRouterPermitExecutionValue?: string;
   nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
-  // Legacy settlement snapshot. Block flows use transactionPlan.settlementBaselines.
-  preSettlementBalance?: string;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and
   // reports back the resulting tx hashes via UpdateRampRequest.additionalData.

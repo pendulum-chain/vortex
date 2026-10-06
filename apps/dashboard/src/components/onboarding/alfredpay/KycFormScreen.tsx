@@ -19,6 +19,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TextField, type TextFieldProps } from "../TextField";
 
 export type AlfredpayKycCountry = "MX" | "CO" | "AR";
 
@@ -27,40 +28,6 @@ interface KycFormScreenProps {
   onSubmit: (data: AlfredpayKycFormData) => void;
   onCancel: () => void;
   userEmail?: string;
-}
-
-interface TextFieldProps<T extends FieldValues> {
-  control: Control<T>;
-  name: FieldPath<T>;
-  label: string;
-  placeholder?: string;
-  readOnly?: boolean;
-  type?: string;
-}
-
-function TextField<T extends FieldValues>({ control, name, label, placeholder, readOnly, type = "text" }: TextFieldProps<T>) {
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input
-              className={readOnly ? "cursor-not-allowed bg-muted text-muted-foreground" : undefined}
-              placeholder={placeholder}
-              readOnly={readOnly}
-              type={type}
-              {...field}
-              value={field.value ?? ""}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
 }
 
 /**

@@ -583,6 +583,28 @@ describe("rampMachine", () => {
       await waitFor(actor, s => s.matches("KycComplete"));
     });
 
+    it("UPDATE_QUOTE in KycComplete swaps in the refreshed quote, clears expiry and stays in KycComplete", async () => {
+      const actor = createRampActor({
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: false }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.BRL);
+      await waitFor(actor, s => s.matches("KycComplete"));
+      actor.send({ type: "EXPIRE_QUOTE" });
+      expect(actor.getSnapshot().context.isQuoteExpired).toBe(true);
+
+      const refreshed = { ...quote, id: "quote-2", outputAmount: "90" } as unknown as QuoteResponse;
+      actor.send({ quote: refreshed, type: "UPDATE_QUOTE" });
+
+      const { context, value } = actor.getSnapshot();
+      expect(value).toBe("KycComplete");
+      expect(context.quote?.id).toBe("quote-2");
+      expect(context.quoteId).toBe("quote-2");
+      expect(context.executionInput?.quote.id).toBe("quote-2");
+      expect(context.isQuoteExpired).toBe(false);
+    });
+
     it("PROCEED_TO_REGISTRATION from KycComplete stores the fiat account and registers directly when authenticated", async () => {
       const actor = createRampActor({
         registerRamp: fromPromise(() => new Promise<RampState>(() => {})),

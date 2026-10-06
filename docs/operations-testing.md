@@ -17,7 +17,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 
 | Layer | What | Where | Runner |
 |---|---|---|---|
-| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
+| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend, `node --test` for `apps/gold/tests/`) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL, Alfredpay, and Monerium EUR corridors plus persisted Mykobo on/offramp recovery scenarios. | `apps/api/src/tests/corridors/` and block tests | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
@@ -44,6 +44,11 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
   `failed`. Locks are released on terminal states; only `currentPhase`/`phaseHistory` are
   updated by the processor.
 - Presigned transaction and ephemeral address validation (F-021, F-038 class).
+- The start deadline is relaxed only for worker-driven recovery: public `/ramp/update` and
+  `/ramp/start` keep rejecting an expired ramp even with a source hash reported, while the
+  recovery worker starts (and completes) a non-domestic SELL ramp with a reported hash between
+  16 minutes and 3 days old and leaves every other `initial` ramp untouched
+  (`corridors/brl-offramp-crosschain.scenario.test.ts`, `brl-offramp.scenario.test.ts`).
 - External swap/route outputs are validated against expectations before funds move (F-030).
 
 When a new security finding is fixed, add a regression test in the same PR and reference the
@@ -198,7 +203,9 @@ different set of endpoints than the widget. Covered so far:
   Alfredpay fiat account → quote → registration with fresh ephemeral keypairs → in-page ephemeral
   signing asserted via the raw EIP-1559 txs posted to `/ramp/update` → USER-WALLET broadcast of the
   `squidRouterNoPermitTransfer` with its hash reported in a second update → `/ramp/start` → status
-  polling to a terminal phase while the form navigates to `/transactions`. A second test pins
+  polling to a terminal phase while the form navigates to `/transactions`. A retry test fails that
+  second update with the maintenance 503, reloads, and asserts **Try again** resends the identical
+  update then starts, with exactly one wallet broadcast across the reload. Another test pins
   payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
   one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
 - **Onramps and transfer modes** (`onramp-journeys.spec.ts`): route-backed Offramp/Onramp/
@@ -211,6 +218,15 @@ different set of endpoints than the widget. Covered so far:
   approved AlfredPay corridor creates a self payout account and updates the card/recipient state;
   disconnected wallet actions open AppKit's `Connect` view, while the connected address opens its
   `Account` view. The connected-wallet-only funding gate remains pinned.
+- **Maintenance windows** (`maintenance.spec.ts`): an active window from
+  `/v1/maintenance/status` shows the shell banner and disables the offramp `Send`, onramp
+  `Continue to payment`, and `I have made the payment` buttons, and quote errors on the onramp,
+  offramp, and quote-explorer pages name the maintenance pause. Two cases open a window while
+  payment instructions are showing, by flipping the mock's `maintenance` handle and relying on
+  React Query's refetch when the tab regains focus: one ending before the ramp expires (details
+  stay, confirming is paused) and one outlasting it (details hidden). The mock serves an inactive
+  window by default, so the other specs' `unmatchedRequests` checks still pass. Bun unit tests
+  cover the end-of-window refetch interval and the pre-signing status check.
 - **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, manager child
   selection, persisted acting mode, route-scoped managed-profile headers, hidden manager-only
   navigation, stopping child mode, and long-identifier mobile layout.

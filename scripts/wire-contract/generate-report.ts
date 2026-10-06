@@ -1,8 +1,8 @@
 /**
  * Wire-contract surface report generator.
  *
- * Renders the typed partner-facing surface — the shared endpoint request/response types
- * and the public SDK API — into a canonical, structurally expanded snapshot at
+ * Renders the partner-facing surface — the shared endpoint request/response types, the
+ * public SDK API, and the mounted API routes — into a canonical snapshot at
  * docs/api/wire-contract.snapshot.md. Types declared inside this repository are expanded
  * to their structural shape, so a change to a transitively referenced type (an enum
  * value, a union member, a nested field) surfaces in the snapshot even when no endpoint
@@ -16,7 +16,7 @@
  * `bun run build:shared` before regenerating if shared changed.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import ts from "typescript";
 
 const REPO_ROOT = resolve(import.meta.dir, "../..");
@@ -354,6 +354,103 @@ export function buildEntryReport(tsconfigPath: string, entryPath: string): strin
   return sections.join("\n\n");
 }
 
+const ROUTE_ROOT = "apps/api/src/config/express.ts";
+const ROUTE_RECEIVERS = new Set(["app", "router"]);
+const HTTP_METHODS = new Set(["all", "delete", "get", "patch", "post", "put"]);
+
+function literalPaths(node: ts.Expression | undefined): string[] {
+  if (!node) return [];
+  if (ts.isStringLiteralLike(node)) return [node.text];
+  if (ts.isArrayLiteralExpression(node) && node.elements.every(ts.isStringLiteralLike)) {
+    return node.elements.map(element => (element as ts.StringLiteralLike).text);
+  }
+  return [];
+}
+
+function joinRoutePath(prefix: string, path: string): string {
+  const joined = `${prefix}/${path}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1");
+  return joined === "" ? "/" : joined;
+}
+
+function resolveRouteModule(fromFile: string, specifier: string): string {
+  const base = resolve(dirname(fromFile), specifier);
+  for (const candidate of [`${base}.ts`, resolve(base, "index.ts"), base]) {
+    if (ts.sys.fileExists(candidate)) return candidate;
+  }
+  throw new Error(`Cannot resolve ${specifier} from ${fromFile}`);
+}
+
+// Leftmost identifier of a call/property chain, e.g. `router` in router.route("/x").get(h).
+function chainRoot(node: ts.Expression): ts.Identifier | undefined {
+  if (ts.isIdentifier(node)) return node;
+  if (ts.isPropertyAccessExpression(node)) return chainRoot(node.expression);
+  if (ts.isCallExpression(node)) return chainRoot(node.expression);
+  return undefined;
+}
+
+// Path of the router.route("/x") call at the bottom of a .get(h).post(h) chain.
+function routeChainPaths(receiver: ts.Expression): string[] {
+  let current = receiver;
+  while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    if (current.expression.name.text === "route") return literalPaths(current.arguments[0]);
+    current = current.expression.expression;
+  }
+  return [];
+}
+
+function collectRoutes(file: string, prefix: string, routes: Set<string>): void {
+  const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+  const routerImports = new Map<string, string>();
+  for (const statement of source.statements) {
+    if (
+      ts.isImportDeclaration(statement) &&
+      statement.importClause?.name &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text.startsWith(".")
+    ) {
+      routerImports.set(statement.importClause.name.text, resolveRouteModule(file, statement.moduleSpecifier.text));
+    }
+  }
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+      const receiver = node.expression.expression;
+      const method = node.expression.name.text;
+      const root = chainRoot(receiver);
+      if (root && ROUTE_RECEIVERS.has(root.text)) {
+        const location = `${relative(REPO_ROOT, file)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
+        if (method === "use") {
+          const paths = literalPaths(node.arguments[0]);
+          for (const argument of node.arguments) {
+            const target = ts.isIdentifier(argument) ? routerImports.get(argument.text) : undefined;
+            if (!target) continue;
+            for (const path of paths.length > 0 ? paths : [""]) collectRoutes(target, joinRoutePath(prefix, path), routes);
+          }
+        } else if (HTTP_METHODS.has(method) && (node.arguments.length > 1 || !ts.isIdentifier(receiver))) {
+          // A one-argument app.get(name) is Express's settings getter, not a route.
+          const paths = ts.isIdentifier(receiver) ? literalPaths(node.arguments[0]) : routeChainPaths(receiver);
+          if (paths.length === 0) throw new Error(`Unsupported route declaration at ${location}: use a string literal path`);
+          for (const path of paths) routes.add(`${method.toUpperCase()} ${joinRoutePath(prefix, path)}`);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+}
+
+/**
+ * Lists every mounted `METHOD /path`, following `app.use`/`router.use` mounts statically from
+ * the Express app. Conditionally mounted routers are listed too. Route modules must declare
+ * paths as string literals on a variable named `router` (or `app`); anything else throws.
+ */
+export function buildRouteReport(rootFile: string = ROUTE_ROOT): string {
+  const routes = new Set<string>();
+  collectRoutes(isAbsolute(rootFile) ? rootFile : resolve(REPO_ROOT, rootFile), "", routes);
+  const byPath = (line: string) => `${line.slice(line.indexOf(" ") + 1)} ${line.slice(0, line.indexOf(" "))}`;
+  return [...routes].sort((a, b) => (byPath(a) < byPath(b) ? -1 : byPath(a) > byPath(b) ? 1 : 0)).join("\n");
+}
+
 export function buildReport(): string {
   const parts: string[] = [
     "# Wire-contract snapshot",
@@ -361,17 +458,19 @@ export function buildReport(): string {
     "Generated by `bun run wire-contract:update` — do not edit by hand.",
     "",
     "This file is a canonical, structurally expanded rendering of the typed partner-facing",
-    "surface: the shared endpoint request/response types and the public SDK API. CI runs",
-    "`bun run wire-contract:check` and fails when this snapshot is stale, so every change",
-    "to what integrators consume appears as an explicit, reviewable diff in this file.",
-    "A diff here means: check backward compatibility for live integrations, and keep",
-    "`docs/api/openapi/vortex.openapi.json` and the SDK error mappings in sync.",
+    "surface: the shared endpoint request/response types, the public SDK API, and the",
+    "mounted HTTP routes. CI runs `bun run wire-contract:check` and fails when this",
+    "snapshot is stale, so every change to what integrators consume appears as an",
+    "explicit, reviewable diff in this file. A diff here means: check backward",
+    "compatibility for live integrations, and keep `docs/api/openapi/vortex.openapi.json`",
+    "and the SDK error mappings in sync.",
     ""
   ];
 
   for (const entry of ENTRIES) {
     parts.push(`## ${entry.heading}`, "", "```text", buildEntryReport(entry.tsconfig, entry.entry), "```", "");
   }
+  parts.push(`## apps/api — mounted HTTP routes (\`${ROUTE_ROOT}\`)`, "", "```text", buildRouteReport(), "```", "");
 
   return `${parts.join("\n").trimEnd()}\n`;
 }

@@ -40,7 +40,7 @@ export const MaintenanceBanner: FC = () => {
   };
 
   return (
-    <div className="px-4 pt-3">
+    <div className="relative z-20 px-4 pt-3">
       <div className="mx-auto max-w-2xl">
         <div className="rounded-lg border border-orange-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex items-start space-x-3">

@@ -6,6 +6,7 @@ import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import PartnerPricingConfig from "../../../models/partnerPricingConfig.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
+import { sendError } from "../../helpers/sendError";
 
 const FEE_TYPES = new Set(["absolute", "relative", "none"]);
 const FIAT_CURRENCIES = new Set<string>(Object.values(FiatToken));
@@ -19,13 +20,7 @@ const NUMERIC_FIELDS = [
 ] as const;
 
 function invalidInput(res: Response, message: string): void {
-  res.status(httpStatus.BAD_REQUEST).json({
-    error: {
-      code: "INVALID_PRICING_CONFIG_INPUT",
-      message,
-      status: httpStatus.BAD_REQUEST
-    }
-  });
+  sendError(res, httpStatus.BAD_REQUEST, "INVALID_PRICING_CONFIG_INPUT", message);
 }
 
 function serializePricingConfig(config: PartnerPricingConfig, partnerName: string) {
@@ -119,13 +114,7 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
     });
 
     if (!partner) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "PARTNER_NOT_FOUND",
-          message: `No active partners found with name: ${partnerName}`,
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "PARTNER_NOT_FOUND", `No active partners found with name: ${partnerName}`);
       return;
     }
 
@@ -172,24 +161,17 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
     });
   } catch (error) {
     if (error instanceof UniqueConstraintError) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "PRICING_CONFIG_CONFLICT",
-          message: "A pricing config already exists for this partner, ramp type and fiat-currency scope. Delete it first.",
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "PRICING_CONFIG_CONFLICT",
+        "A pricing config already exists for this partner, ramp type and fiat-currency scope. Delete it first."
+      );
       return;
     }
 
     logger.error("Error creating partner pricing config:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create partner pricing config",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create partner pricing config");
   }
 }
 
@@ -199,13 +181,7 @@ export async function deletePartnerPricingConfig(req: Request<{ configId: string
     const config = await PartnerPricingConfig.findByPk(configId);
 
     if (!config) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "PRICING_CONFIG_NOT_FOUND",
-          message: "Partner pricing config was not found",
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(res, httpStatus.NOT_FOUND, "PRICING_CONFIG_NOT_FOUND", "Partner pricing config was not found");
       return;
     }
 
@@ -213,13 +189,12 @@ export async function deletePartnerPricingConfig(req: Request<{ configId: string
     // platform-wide fallback for fees and discounts, and deleting it breaks every quote.
     const partner = await Partner.findByPk(config.partnerId);
     if (partner?.name === "vortex" && config.fiatCurrency === null) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "VORTEX_CONFIG_PROTECTED",
-          message: "The default vortex wildcard pricing config cannot be deleted.",
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "VORTEX_CONFIG_PROTECTED",
+        "The default vortex wildcard pricing config cannot be deleted."
+      );
       return;
     }
 
@@ -236,13 +211,12 @@ export async function deletePartnerPricingConfig(req: Request<{ configId: string
       }
     });
     if (pendingQuotes > 0) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "PRICING_CONFIG_IN_USE",
-          message: `${pendingQuotes} pending quote(s) still reference this partner's pricing; retry after they expire`,
-          status: httpStatus.CONFLICT
-        }
-      });
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "PRICING_CONFIG_IN_USE",
+        `${pendingQuotes} pending quote(s) still reference this partner's pricing; retry after they expire`
+      );
       return;
     }
 
@@ -252,12 +226,6 @@ export async function deletePartnerPricingConfig(req: Request<{ configId: string
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error deleting partner pricing config:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to delete partner pricing config",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to delete partner pricing config");
   }
 }

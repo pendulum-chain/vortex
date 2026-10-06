@@ -1,5 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
-import { AxelarScanStatusResponse, classifyGmpStatus, getStatusAxelarScan, recoverAxelarStuckConfirm } from "./axelar";
+import {
+  AXELAR_APPROVED_EXECUTE_GRACE_MS,
+  AxelarScanStatusResponse,
+  classifyGmpStatus,
+  getStatusAxelarScan,
+  recoverAxelarStuckConfirm
+} from "./axelar";
 
 const TX_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const SIGNED_TX_BYTES = [10, 137, 1, 42, 0, 255];
@@ -58,6 +64,24 @@ describe("classifyGmpStatus", () => {
     expect(classifyGmpStatus(status({ gas_status: "gas_paid_not_enough_gas", status: "approved" }))).toBe("insufficient_gas");
     expect(classifyGmpStatus(status({ is_insufficient_fee: true, status: "executed" }))).toBe("executed");
   });
+  it("detects an approved call the relayer has not executed once the grace period has passed", () => {
+    const approvedAtSeconds = 1_791_270_075;
+    const approvedAtMs = approvedAtSeconds * 1000;
+    // Shape seen on 2026-10-05/06: approved, no executing/executed, no_gas_remain set
+    // but not flagged as insufficient gas.
+    const stuck = status({ approved: { block_timestamp: approvedAtSeconds }, gas_status: undefined, status: "executing" });
+
+    expect(classifyGmpStatus(stuck, approvedAtMs + AXELAR_APPROVED_EXECUTE_GRACE_MS)).toBe("approved_not_executed");
+    expect(classifyGmpStatus({ ...stuck, status: "approved" }, approvedAtMs + AXELAR_APPROVED_EXECUTE_GRACE_MS)).toBe(
+      "approved_not_executed"
+    );
+    expect(classifyGmpStatus(stuck, approvedAtMs + AXELAR_APPROVED_EXECUTE_GRACE_MS - 1)).toBe("relayer_pending");
+    expect(classifyGmpStatus({ ...stuck, executing: {} }, approvedAtMs + AXELAR_APPROVED_EXECUTE_GRACE_MS)).toBe(
+      "relayer_pending"
+    );
+    expect(classifyGmpStatus({ ...stuck, executed: {}, status: "executed" })).toBe("executed");
+    expect(classifyGmpStatus({ ...stuck, is_insufficient_fee: true })).toBe("insufficient_gas");
+  });
 });
 
 describe("getStatusAxelarScan", () => {
@@ -69,6 +93,20 @@ describe("getStatusAxelarScan", () => {
     abortController.abort(new Error("status request timed out"));
 
     await expect(getStatusAxelarScan(TX_HASH, abortController.signal)).rejects.toThrow();
+  });
+
+  it("retries a rate-limited search once after Retry-After", async () => {
+    let calls = 0;
+    globalThis.fetch = mock(async () => {
+      calls++;
+      if (calls === 1) {
+        return { headers: new Headers({ "retry-after": "0.01" }), ok: false, status: 429 } as Response;
+      }
+      return jsonResponse({ data: [{ id: "0xabc_1_2", status: "approved" }] });
+    }) as unknown as typeof fetch;
+
+    await expect(getStatusAxelarScan(TX_HASH)).resolves.toMatchObject({ status: "approved" });
+    expect(calls).toBe(2);
   });
 });
 

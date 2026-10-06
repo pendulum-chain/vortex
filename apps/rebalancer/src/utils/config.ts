@@ -1,5 +1,4 @@
-import { Keyring } from "@polkadot/api";
-import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
+import { EvmClientManager, Networks } from "@vortexfi/shared";
 import { mnemonicToAccount } from "viem/accounts";
 import type { RebalancingCostPolicyConfig, RebalancingPolicyMode } from "../rebalance/usdc-brla-usdc-base/guards.ts";
 
@@ -20,6 +19,20 @@ function parseNonNegativeNumber(name: string, value: string | undefined, default
 
 export function parseRebalancingDailyBridgeLimitUsd(value = process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) {
   return parseNonNegativeNumber("REBALANCING_DAILY_BRIDGE_LIMIT_USD", value, DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD);
+}
+
+// Unset means no cap: USDC->BRLA->USDC runs ignore the Base Nabla USDC pool coverage.
+// Parsed strictly: "1,3" must not become 13 (no cap), and a ratio below 1 would block every run.
+export function parseRebalancingMaxUsdcCoverage(value = process.env.REBALANCING_MAX_USDC_COVERAGE): number | undefined {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) return undefined;
+
+  const maxCoverage = Number(trimmedValue);
+  if (!Number.isFinite(maxCoverage) || maxCoverage < 1) {
+    throw new Error("REBALANCING_MAX_USDC_COVERAGE must be a coverage ratio of at least 1 (e.g. 1.3).");
+  }
+
+  return maxCoverage;
 }
 
 export function parseRebalancingPolicyMode(value = process.env.REBALANCING_POLICY_MODE): RebalancingPolicyMode {
@@ -82,8 +95,6 @@ export function getConfig() {
   if (!process.env.EVM_ACCOUNT_SECRET) throw new Error("Missing EVM_ACCOUNT_SECRET environment variable");
 
   return {
-    alchemyApiKey: process.env.ALCHEMY_API_KEY,
-
     // BlindPay is used purely to log an observational comparison price (fiat BRL -> stablecoin)
     // against the executed routes. Optional: when apiKey/instanceId are missing, the comparison
     // is skipped and the rebalancer keeps working as before.
@@ -93,21 +104,14 @@ export function getConfig() {
     // Sandbox/dev instances only support the "USDB" token; production uses "USDC"/"USDT".
     blindpayToken: process.env.BLINDPAY_TOKEN || "USDT",
 
-    brlaBaseUrl: BRLA_BASE_URL,
-
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
 
     evmAccountSecret: process.env.EVM_ACCOUNT_SECRET,
-
-    indexerFreshnessThresholdMinutes: process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES
-      ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
-      : 5,
 
     // Main Nabla instance on Base
     mainNablaQuoter: process.env.MAIN_NABLA_QUOTER as `0x${string}` | undefined,
     mainNablaRouter: process.env.MAIN_NABLA_ROUTER as `0x${string}` | undefined,
 
-    pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
     /// The amount in BRLA to swap to USDC during each execution (BRLA→USDC reverse flow on Base).
     /// NOTE: The rebalancer now starts with USDC; this amount is now interpreted as a USD amount.
     rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
@@ -115,42 +119,22 @@ export function getConfig() {
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
     rebalancingCostPolicy: getRebalancingCostPolicyConfig(),
     rebalancingDailyBridgeLimitUsd: parseRebalancingDailyBridgeLimitUsd(),
+    /// Maximum Base Nabla USDC pool coverage a USDC→BRLA→USDC run may leave behind (e.g. 1.3 = 130%).
+    rebalancingMaxUsdcCoverage: parseRebalancingMaxUsdcCoverage(),
     /// The larger USDC amount to evaluate for USDC→BRLA→USDC runs and use when that larger amount is projected profitable.
     rebalancingProfitableUsdToBrlAmount:
       process.env.REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT || process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
 
-    /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
-    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
-    /// Route-specific thresholds (fall back to rebalancingThreshold if unset).
+    /// The thresholds above and below the optimal coverage ratio at which the rebalancing will be triggered.
+    /// Route-specific (fall back to REBALANCING_THRESHOLD, then 0.01).
     rebalancingThresholdBrlaToUsdc:
       Number(process.env.REBALANCING_THRESHOLD_BRLA_TO_USDC) || Number(process.env.REBALANCING_THRESHOLD) || 0.01,
     rebalancingThresholdUsdcToBrla:
       Number(process.env.REBALANCING_THRESHOLD_USDC_TO_BRLA) || Number(process.env.REBALANCING_THRESHOLD) || 0.01,
     /// The amount in USD to rebalance from the USD pool to the BRL pool on Pendulum during each execution.
     rebalancingUsdToBrlAmount: process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
-    /// The minimum balance in USD that the rebalancer account on Pendulum must have to allow rebalancing to occur.
-    rebalancingUsdToBrlMinBalance: process.env.REBALANCING_USD_TO_BRL_MIN_BALANCE || undefined,
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     supabaseUrl: process.env.SUPABASE_URL
-  };
-}
-
-export function getPendulumAccount() {
-  const config = getConfig();
-  if (!config.pendulumAccountSecret) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");
-
-  const keyring = new Keyring({ type: "sr25519" });
-  return keyring.addFromUri(config.pendulumAccountSecret);
-}
-
-export function getMoonbeamEvmClients() {
-  const config = getConfig();
-
-  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret);
-  const evmClientManager = EvmClientManager.getInstance();
-  return {
-    publicClient: evmClientManager.getClient(Networks.Moonbeam),
-    walletClient: evmClientManager.getWalletClient(Networks.Moonbeam, evmExecutorAccount)
   };
 }
 

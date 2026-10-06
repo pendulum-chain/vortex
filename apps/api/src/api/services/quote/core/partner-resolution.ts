@@ -2,6 +2,7 @@ import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/share
 import { Op } from "sequelize";
 import logger from "../../../../config/logger";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
+import { UUID_PATTERN } from "../../../helpers/uuid";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
 import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import type { PartnerPricingSource } from "./types";
@@ -17,8 +18,6 @@ export interface ResolvedQuotePartner {
   pricingPartnerId: string | null;
   source: PartnerPricingSource;
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function findPartnerForRamp(
   partnerRef: string,

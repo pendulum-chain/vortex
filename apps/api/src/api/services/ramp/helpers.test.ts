@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { Networks, RampDirection } from "@vortexfi/shared";
+import { Networks, RampDirection, TransactionStatus } from "@vortexfi/shared";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import { getFinalTransactionHashForRampV2 } from "./helpers";
+import { getFinalTransactionHashForRampV2, mapPhaseToTransactionStatus } from "./helpers";
 
 type RampStateTestOverrides = {
   currentPhase?: string;
@@ -107,5 +107,17 @@ describe("getFinalTransactionHashForRampV2", () => {
       transactionExplorerLink: "https://polygonscan.com/tx/0xalfredpay",
       transactionHash: "0xalfredpay"
     });
+  });
+});
+
+describe("mapPhaseToTransactionStatus", () => {
+  it.each([
+    ["complete", TransactionStatus.COMPLETE],
+    ["failed", TransactionStatus.FAILED],
+    ["timedOut", TransactionStatus.FAILED],
+    ["initial", TransactionStatus.PENDING],
+    ["nablaSwap", TransactionStatus.PENDING]
+  ])("maps %s to %s", (phase, expected) => {
+    expect(mapPhaseToTransactionStatus(phase)).toBe(expected);
   });
 });

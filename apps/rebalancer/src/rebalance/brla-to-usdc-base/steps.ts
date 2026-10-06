@@ -9,64 +9,32 @@ import {
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { erc20Abi } from "viem";
-import { base } from "viem/chains";
 import { BrlaToUsdcBaseRebalanceState, BrlaToUsdcBaseStateManager } from "../../services/stateManager.ts";
-import { getBaseEvmClients, getConfig } from "../../utils/config.ts";
+import { getBaseEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
-
-export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+import {
+  getBrlaBalanceOnBaseRaw,
+  getMainNablaConfig,
+  getUsdcBalanceOnBaseRaw,
+  NABLA_QUOTE_ABI,
+  sendNablaApproveAndSwap,
+  USDC_BASE
+} from "../usdc-brla-usdc-base/steps.ts";
 
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
-const NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
 // BRLA→USDC swap uses the BRLA Nabla pool (not the main pool)
 const BRLA_NABLA_ROUTER = NABLA_ROUTER_BASE_BRLA;
 const BRLA_NABLA_QUOTER = NABLA_QUOTER_BASE_BRLA;
-
-export async function getUsdcBalanceOnBaseRaw(): Promise<string> {
-  const { publicClient, walletClient } = getBaseEvmClients();
-  const balance = await publicClient.readContract({
-    abi: erc20Abi,
-    address: USDC_BASE,
-    args: [walletClient.account.address],
-    functionName: "balanceOf"
-  });
-  return balance.toString();
-}
-
-export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
-  const { publicClient, walletClient } = getBaseEvmClients();
-  const balance = await publicClient.readContract({
-    abi: erc20Abi,
-    address: ERC20_BRLA_BASE,
-    args: [walletClient.account.address],
-    functionName: "balanceOf"
-  });
-  return balance.toString();
-}
 
 export async function quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw: string): Promise<string> {
   const { router, quoter } = getMainNablaConfig();
   const evmClientManager = EvmClientManager.getInstance();
 
   const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-    abi: MAIN_NABLA_QUOTE_ABI,
+    abi: NABLA_QUOTE_ABI,
     address: quoter,
     args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
     functionName: "quoteSwapExactTokensForTokens"
@@ -151,46 +119,23 @@ export async function nablaSwapBrlaToUsdcOnBase(
       BRLA_NABLA_ROUTER
     );
 
-    if (!approveHash) {
-      console.log("Sending BRLA Nabla approve transaction on Base...");
-      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
-      approveHash = await walletClient.sendTransaction({
-        account: walletClient.account,
-        chain: base,
-        data: approve.data,
-        gas: BigInt(approve.gas),
-        maxFeePerGas: approveFee,
-        maxPriorityFeePerGas: approveTip,
-        nonce: baseNonce.next(),
-        to: approve.to,
-        value: BigInt(approve.value)
-      });
-      state.nablaApproveHash = approveHash;
-      await stateManager.saveState(state);
-      console.log(`Approve tx sent: ${approveHash}`);
-    } else {
-      console.log(`Resuming BRLA Nabla approval with existing tx: ${approveHash}`);
-    }
-
-    await waitForTransactionConfirmation(approveHash, publicClient);
-    console.log("BRLA Nabla approval confirmed.");
-
-    console.log("Sending BRLA Nabla swap transaction on Base...");
-    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
-    swapHash = await walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: base,
-      data: swap.data,
-      gas: BigInt(swap.gas),
-      maxFeePerGas: swapFee,
-      maxPriorityFeePerGas: swapTip,
-      nonce: baseNonce.next(),
-      to: swap.to,
-      value: BigInt(swap.value)
-    });
-    state.nablaSwapHash = swapHash;
-    await stateManager.saveState(state);
-    console.log(`Swap tx sent: ${swapHash}`);
+    ({ approveHash, swapHash } = await sendNablaApproveAndSwap({
+      approve,
+      baseNonce,
+      existingApproveHash: approveHash,
+      label: "BRLA Nabla",
+      onApproveSent: async hash => {
+        state.nablaApproveHash = hash;
+        await stateManager.saveState(state);
+      },
+      onSwapSent: async hash => {
+        state.nablaSwapHash = hash;
+        await stateManager.saveState(state);
+      },
+      publicClient,
+      swap,
+      walletClient
+    }));
   } else {
     console.log(`Resuming BRLA Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
   }
@@ -221,40 +166,7 @@ export async function nablaSwapBrlaToUsdcOnBase(
   return usdcReceivedRaw;
 }
 
-export async function verifyFinalUsdcBalanceOnBase(): Promise<Big> {
-  const { walletClient } = getBaseEvmClients();
-  const balanceRaw = await getUsdcBalanceOnBaseRaw();
-  const balanceDecimal = multiplyByPowerOfTen(Big(balanceRaw), -6);
-  console.log(`Final USDC balance on Base (${walletClient.account.address}): ${balanceDecimal.toFixed(6)} USDC`);
-  return balanceDecimal;
-}
-
 // ── Main Nabla: USDC → BRLA swap (closes the rebalancing loop) ──────────────
-
-const MAIN_NABLA_QUOTE_ABI = [
-  {
-    inputs: [
-      { name: "_amountIn", type: "uint256" },
-      { name: "_tokenPath", type: "address[]" },
-      { name: "_routerPath", type: "address[]" }
-    ],
-    name: "quoteSwapExactTokensForTokens",
-    outputs: [{ name: "amountOut_", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
-] as const;
-
-function getMainNablaConfig() {
-  const config = getConfig();
-  if (!config.mainNablaRouter || !config.mainNablaQuoter) {
-    throw new Error("Main Nabla route requires MAIN_NABLA_ROUTER and MAIN_NABLA_QUOTER env vars.");
-  }
-  return {
-    quoter: config.mainNablaQuoter,
-    router: config.mainNablaRouter
-  };
-}
 
 export async function mainNablaSwapUsdcToBrlaOnBase(
   usdcAmountRaw: string,
@@ -306,46 +218,23 @@ export async function mainNablaSwapUsdcToBrlaOnBase(
       router
     );
 
-    if (!approveHash) {
-      console.log("Sending Main Nabla approve transaction on Base...");
-      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
-      approveHash = await walletClient.sendTransaction({
-        account: walletClient.account,
-        chain: base,
-        data: approve.data,
-        gas: BigInt(approve.gas),
-        maxFeePerGas: approveFee,
-        maxPriorityFeePerGas: approveTip,
-        nonce: baseNonce.next(),
-        to: approve.to,
-        value: BigInt(approve.value)
-      });
-      state.mainNablaApproveHash = approveHash;
-      await stateManager.saveState(state);
-      console.log(`Main Nabla approve tx sent: ${approveHash}`);
-    } else {
-      console.log(`Resuming Main Nabla approval with existing tx: ${approveHash}`);
-    }
-
-    await waitForTransactionConfirmation(approveHash, publicClient);
-    console.log("Main Nabla approval confirmed.");
-
-    console.log("Sending Main Nabla swap transaction on Base...");
-    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
-    swapHash = await walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: base,
-      data: swap.data,
-      gas: BigInt(swap.gas),
-      maxFeePerGas: swapFee,
-      maxPriorityFeePerGas: swapTip,
-      nonce: baseNonce.next(),
-      to: swap.to,
-      value: BigInt(swap.value)
-    });
-    state.mainNablaSwapHash = swapHash;
-    await stateManager.saveState(state);
-    console.log(`Main Nabla swap tx sent: ${swapHash}`);
+    ({ approveHash, swapHash } = await sendNablaApproveAndSwap({
+      approve,
+      baseNonce,
+      existingApproveHash: approveHash,
+      label: "Main Nabla",
+      onApproveSent: async hash => {
+        state.mainNablaApproveHash = hash;
+        await stateManager.saveState(state);
+      },
+      onSwapSent: async hash => {
+        state.mainNablaSwapHash = hash;
+        await stateManager.saveState(state);
+      },
+      publicClient,
+      swap,
+      walletClient
+    }));
   } else {
     console.log(`Resuming Main Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
   }

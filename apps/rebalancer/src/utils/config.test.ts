@@ -3,6 +3,7 @@ import {
   getConfig,
   getRebalancingCostPolicyConfig,
   parseRebalancingDailyBridgeLimitUsd,
+  parseRebalancingMaxUsdcCoverage,
   parseRebalancingPolicyMode
 } from "./config.ts";
 
@@ -18,7 +19,8 @@ const policyEnvVars = [
   "REBALANCING_MAX_COST_BPS_MODERATE",
   "REBALANCING_MAX_COST_BPS_SEVERE",
   "REBALANCING_HARD_MAX_COST_BPS",
-  "REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS"
+  "REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS",
+  "REBALANCING_MAX_USDC_COVERAGE"
 ];
 
 const originalPolicyEnv = new Map(policyEnvVars.map(name => [name, process.env[name]]));
@@ -60,6 +62,25 @@ describe("parseRebalancingDailyBridgeLimitUsd", () => {
     expect(() => parseRebalancingDailyBridgeLimitUsd("not-a-number")).toThrow(
       "REBALANCING_DAILY_BRIDGE_LIMIT_USD must be a non-negative number."
     );
+  });
+});
+
+describe("parseRebalancingMaxUsdcCoverage", () => {
+  test("leaves the cap off when the env value is missing or blank", () => {
+    expect(parseRebalancingMaxUsdcCoverage(undefined)).toBeUndefined();
+    expect(parseRebalancingMaxUsdcCoverage(" ")).toBeUndefined();
+  });
+
+  test("parses a coverage ratio", () => {
+    expect(parseRebalancingMaxUsdcCoverage("1.3")).toBe(1.3);
+  });
+
+  test("rejects values that would silently disable or over-block the cap", () => {
+    for (const value of ["1,3", "1_3", "0", "0.5", "-1", "abc"]) {
+      expect(() => parseRebalancingMaxUsdcCoverage(value)).toThrow(
+        "REBALANCING_MAX_USDC_COVERAGE must be a coverage ratio of at least 1 (e.g. 1.3)."
+      );
+    }
   });
 });
 
@@ -148,5 +169,13 @@ describe("getConfig", () => {
     process.env.REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT = "2000";
 
     expect(getConfig().rebalancingProfitableUsdToBrlAmount).toBe("2000");
+  });
+
+  test("leaves the USDC pool coverage cap off unless configured", () => {
+    process.env.EVM_ACCOUNT_SECRET = "test test test test test test test test test test test junk";
+    expect(getConfig().rebalancingMaxUsdcCoverage).toBeUndefined();
+
+    process.env.REBALANCING_MAX_USDC_COVERAGE = "1.3";
+    expect(getConfig().rebalancingMaxUsdcCoverage).toBe(1.3);
   });
 });

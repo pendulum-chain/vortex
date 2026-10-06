@@ -16,9 +16,8 @@ ALCHEMY_API_KEY=your_alchemy_api_key
 EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
 ```
 
-Only the Base rebalancing flows are executable. The historical Pendulum/Moonbeam implementation and state schema remain
-in the repository for inspection and compatibility, but the CLI rejects `--legacy` before loading runtime configuration or
-connecting to a chain.
+Only the Base rebalancing flows exist. The historical Pendulum/Moonbeam flow has been removed, and the CLI rejects
+`--legacy` before loading runtime configuration or connecting to a chain.
 
 For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
 `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.
@@ -26,6 +25,9 @@ USDC→BRLA→USDC runs quote `REBALANCING_USD_TO_BRL_AMOUNT` by default. When
 `REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT` is set to a different value, the rebalancer also evaluates that larger
 amount with fresh quotes and uses it only if the larger amount is projected profitable. When unset, it defaults to the
 standard amount.
+`REBALANCING_MAX_USDC_COVERAGE` (e.g. `1.3`) stops USDC→BRLA→USDC runs, regular and opportunistic, whose amount would
+push the Base Nabla USDC pool coverage above that ratio. Unset means no cap. When it blocks a needed run (BRLA coverage
+above the upper bound), the run logs `REBALANCE BLOCKED` and posts to Slack at most once per hour.
 `REBALANCING_DAILY_BRIDGE_LIMIT_USD` caps paid Base rebalances only: projected-profitable current runs bypass the cap,
 but all completed Base runs are recorded in history and count toward later paid-run limit checks.
 
@@ -46,5 +48,18 @@ bun run start
 ```
 
 Passing `--legacy` exits with an error; it cannot start the retired Pendulum/Moonbeam flow.
+
+## Resetting a stuck run
+
+Each Base flow persists its phase in Supabase Storage and resumes it on the next cron run before
+anything new is quoted. If a run can no longer complete (for example its funds were moved back
+manually), reconcile the funds first, then suspend the Render cron job and make sure no
+rebalancer process is running: the script and a live run write the same Supabase object
+without locking. Then inspect and reset the USDC → BRLA → USDC state:
+
+```bash
+bun run reset:usdc-base-state            # prints the persisted state, changes nothing
+bun run reset:usdc-base-state --confirm  # resets it to idle, keeping history
+```
 
 This project was created using `bun init` in bun v1.2.6. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

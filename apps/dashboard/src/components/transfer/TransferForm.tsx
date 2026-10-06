@@ -6,12 +6,14 @@ import {
   Networks,
   QuoteError,
   RampDirection,
+  type RampProcess,
   subscribeEvmTokensLoaded
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { Lock, TriangleAlert } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { Lock, RotateCw, TriangleAlert } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,11 +22,12 @@ import { CORRIDORS } from "@/domain/corridors";
 import { getNetworkOptions, getRampTokenOptions } from "@/domain/onramp";
 import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
-import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
+import { offrampStartsAfterDeadline, PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
+import { MAINTENANCE_QUOTE_ERROR, useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { formatCurrencyAmount } from "@/lib/amount";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
-import { transferActor } from "@/machines/transferActor";
+import { resetTransferState, transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
 import { FundingMethods, type FundingSubmit } from "./FundingMethods";
 import { QuoteSummary } from "./QuoteSummary";
@@ -111,6 +114,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
       snapshot.matches("CheckingBalance") ||
       snapshot.matches("Registering") ||
       snapshot.matches("SigningUserTxs") ||
+      snapshot.matches("SubmittingUserTxs") ||
       snapshot.matches("Starting")
   );
   // The API permits parallel ramps, but this dashboard intentionally owns one local
@@ -133,6 +137,21 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
         }
       : null;
   const { data: quote, isFetching, error } = useQuote(quoteParams);
+  const maintenance = useActiveMaintenance();
+  // Once the wallet has broadcast, the tokens have left it: the form gives way to the ramp
+  // that has to be started, until it is tracking.
+  const broadcastRamp = useSelector(transferActor, snapshot =>
+    (snapshot.matches("SubmittingUserTxs") || snapshot.matches("Starting") || snapshot.matches("AwaitingRetry")) &&
+    snapshot.context.quote?.rampType === RampDirection.SELL &&
+    snapshot.context.meta?.ownerProfileId === snapshot.context.activeOwnerProfileId &&
+    snapshot.context.meta.accountId === account.id
+      ? snapshot.context.ramp
+      : null
+  );
+
+  if (broadcastRamp) {
+    return <OfframpStartRetry ramp={broadcastRamp} />;
+  }
 
   function submitTransfer(submit: FundingSubmit) {
     if (!selected || !isSendable || !quote || !quoteParams || !activeOwnerProfileId || !canStartTransfer || !pixReady) {
@@ -156,7 +175,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
           description: `Funding via ${submit.label} — we'll pay out ${currentMeta?.summary ?? summary} once your ${formatCurrencyAmount(currentQuote?.inputAmount ?? quote.inputAmount, String(currentQuote?.inputCurrency ?? quote.inputCurrency))} ${currentQuote?.inputCurrency ?? quote.inputCurrency} lands.`
         });
         navigate({ to: "/transactions" });
-      } else if (snapshot.matches("Failed")) {
+      } else if (snapshot.matches("Failed") || snapshot.matches("AwaitingRetry")) {
         subscription.unsubscribe();
         toast.error("Could not start transfer", { description: snapshot.context.errorMessage ?? undefined });
       }
@@ -291,7 +310,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
           ) : error ? (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
               <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
-              <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
+              <p className="text-destructive">{maintenance ? MAINTENANCE_QUOTE_ERROR : friendlyQuoteError(error.message)}</p>
             </div>
           ) : !amountReady ? (
             <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
@@ -311,7 +330,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
               </div>
               <QuoteSummary isFetching={isFetching} quote={quote} />
               <FundingMethods
-                disabled={!canStartTransfer || isFetching}
+                disabled={!canStartTransfer || isFetching || !!maintenance}
                 onSubmit={submitTransfer}
                 quote={quote}
                 submitting={submitting || isFetching}
@@ -331,6 +350,124 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * A SELL whose wallet transactions are broadcast but whose /ramp/update or /ramp/start has not
+ * gone through. Retrying resends only that call; the API refuses to start the ramp once its
+ * start window (expiresAt) has passed, after which the tokens need a manual recovery.
+ */
+function OfframpStartRetry({ ramp }: { ramp: RampProcess }) {
+  const navigate = useNavigate();
+  const busy = useSelector(transferActor, snapshot => !snapshot.matches("AwaitingRetry"));
+  const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
+  // No wallet output left to submit means /ramp/update accepted the source hash.
+  const startsAutomatically = useSelector(
+    transferActor,
+    snapshot =>
+      !!snapshot.context.quote &&
+      offrampStartsAfterDeadline(snapshot.context.quote.outputCurrency, snapshot.context.userTxSubmission === null)
+  );
+  const [now, setNow] = useState(() => Date.now());
+  const deadline = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
+  const expired = Number.isFinite(deadline) && deadline <= now;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  function retry() {
+    const ownerProfileId = transferActor.getSnapshot().context.activeOwnerProfileId;
+    if (!ownerProfileId) {
+      return;
+    }
+    const subscription = transferActor.subscribe(snapshot => {
+      if (snapshot.context.activeOwnerProfileId !== ownerProfileId) {
+        subscription.unsubscribe();
+        return;
+      }
+      if (snapshot.matches("Tracking")) {
+        subscription.unsubscribe();
+        toast.success("Transfer initiated", { description: snapshot.context.meta?.summary });
+        navigate({ to: "/transactions" });
+      } else if (snapshot.matches("AwaitingRetry")) {
+        subscription.unsubscribe();
+      }
+    });
+    transferActor.send({ ownerProfileId, type: "RETRY" });
+  }
+
+  if (busy) {
+    return (
+      <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm" role="status">
+        Starting your transfer… Your tokens have left your wallet, so keep this page open.
+      </p>
+    );
+  }
+
+  if (expired) {
+    return (
+      <div className="grid gap-5">
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive">
+          <TriangleAlert className="mt-px size-5 shrink-0" />
+          <div className="grid gap-1 text-sm">
+            {startsAutomatically ? (
+              <>
+                <h2 className="font-semibold text-base">This transfer will start automatically</h2>
+                <p>
+                  Your tokens left your wallet and Vortex has the transaction on record, so it starts this transfer on its own
+                  within about 10 minutes. Don’t send this payment again. If it still hasn’t started after that, contact support
+                  with transfer ID <span className="break-all font-mono">{ramp.id}</span>.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="font-semibold text-base">The window to start this transfer has closed</h2>
+                <p>
+                  Your tokens left your wallet, but the transfer can no longer be started. Contact support with transfer ID{" "}
+                  <span className="break-all font-mono">{ramp.id}</span>.
+                </p>
+              </>
+            )}
+            <p>
+              Before sending this payment again, check Transactions: if this transfer shows as processing, it already started.
+              Don’t clear this browser’s data: it holds the keys needed to recover your tokens.
+            </p>
+          </div>
+        </div>
+        <Button onClick={resetTransferState} size="lg" type="button" variant="outline">
+          Start a new transfer
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-5">
+      <div
+        className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive"
+        role="alert"
+      >
+        <TriangleAlert className="mt-px size-5 shrink-0" />
+        <div className="grid gap-1 text-sm">
+          <h2 className="font-semibold text-base">Your transfer hasn’t started yet</h2>
+          <p>{startError ?? "The page was reloaded before the transfer started."}</p>
+          <p>Your tokens already left your wallet. Trying again finishes starting this transfer and never sends them again.</p>
+        </div>
+      </div>
+      {Number.isFinite(deadline) && (
+        <p className="text-center font-medium text-sm">
+          Try again within {Math.ceil((deadline - now) / 60_000)} min (before{" "}
+          {new Date(deadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}). After that the transfer can no
+          longer be started.
+        </p>
+      )}
+      <Button onClick={retry} size="lg" type="button">
+        <RotateCw /> Try again
+      </Button>
     </div>
   );
 }

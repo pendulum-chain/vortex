@@ -76,6 +76,15 @@ export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRa
   return Number(inputAmountRaw.minus(projectedOutputRaw).div(inputAmountRaw).mul(10_000).toFixed(2));
 }
 
+// USDC->BRLA->USDC swaps the run amount into the Base Nabla USDC pool, raising its coverage.
+export function wouldExceedUsdcPoolCoverage(
+  pool: { reserveRaw: string; liabilitiesRaw: string },
+  amountUsdcRaw: string,
+  maxCoverage: number
+): boolean {
+  return Big(pool.reserveRaw).plus(amountUsdcRaw).gt(Big(pool.liabilitiesRaw).mul(maxCoverage));
+}
+
 export function shouldTriggerOpportunisticUsdcToBrla(costBps: number, maxCostBps: number): boolean {
   return costBps < maxCostBps;
 }
@@ -134,33 +143,26 @@ export function evaluateRebalancingCostPolicy(
   config: RebalancingCostPolicyConfig
 ): RebalancingCostPolicyDecision {
   const band = getRebalancingUrgencyBand(deviationBps, config);
-  const projectedCostRaw = inputAmountRaw.minus(projectedOutputRaw);
   const costBps = calculateProjectedCostBps(inputAmountRaw, projectedOutputRaw);
-  const allowedCostBps = {
-    mild: config.maxCostBpsMild,
-    moderate: config.maxCostBpsModerate,
-    severe: config.maxCostBpsSevere
-  }[band];
+  const decision = {
+    allowedCostBps: {
+      mild: config.maxCostBpsMild,
+      moderate: config.maxCostBpsModerate,
+      severe: config.maxCostBpsSevere
+    }[band],
+    band,
+    costBps,
+    projectedCostRaw: inputAmountRaw.minus(projectedOutputRaw).toFixed(0, 0)
+  };
 
   if (config.mode === "off") {
-    return {
-      allowedCostBps,
-      band,
-      costBps,
-      dryRun: false,
-      projectedCostRaw: projectedCostRaw.toFixed(0, 0),
-      reason: "Rebalancing policy mode is off.",
-      shouldExecute: false
-    };
+    return { ...decision, dryRun: false, reason: "Rebalancing policy mode is off.", shouldExecute: false };
   }
 
   if (costBps > config.hardMaxCostBps) {
     return {
-      allowedCostBps,
-      band,
-      costBps,
+      ...decision,
       dryRun: config.mode === "dry-run",
-      projectedCostRaw: projectedCostRaw.toFixed(0, 0),
       reason: `Projected cost ${costBps} bps exceeds hard cap ${config.hardMaxCostBps} bps.`,
       shouldExecute: false
     };
@@ -168,47 +170,35 @@ export function evaluateRebalancingCostPolicy(
 
   if (config.mode === "dry-run") {
     return {
-      allowedCostBps,
-      band,
-      costBps,
+      ...decision,
       dryRun: true,
-      projectedCostRaw: projectedCostRaw.toFixed(0, 0),
-      reason: `Dry-run: would ${costBps <= allowedCostBps ? "execute" : "skip"} ${band} rebalance at ${costBps} bps cost.`,
+      reason: `Dry-run: would ${costBps <= decision.allowedCostBps ? "execute" : "skip"} ${band} rebalance at ${costBps} bps cost.`,
       shouldExecute: false
     };
   }
 
   if (config.mode === "always") {
     return {
-      allowedCostBps,
-      band,
-      costBps,
+      ...decision,
       dryRun: false,
-      projectedCostRaw: projectedCostRaw.toFixed(0, 0),
       reason: `Always mode permits ${band} rebalance at ${costBps} bps cost.`,
       shouldExecute: true
     };
   }
 
-  if (costBps > allowedCostBps) {
+  if (costBps > decision.allowedCostBps) {
     return {
-      allowedCostBps,
-      band,
-      costBps,
+      ...decision,
       dryRun: false,
-      projectedCostRaw: projectedCostRaw.toFixed(0, 0),
-      reason: `Projected cost ${costBps} bps exceeds ${band} limit ${allowedCostBps} bps.`,
+      reason: `Projected cost ${costBps} bps exceeds ${band} limit ${decision.allowedCostBps} bps.`,
       shouldExecute: false
     };
   }
 
   return {
-    allowedCostBps,
-    band,
-    costBps,
+    ...decision,
     dryRun: false,
-    projectedCostRaw: projectedCostRaw.toFixed(0, 0),
-    reason: `Projected cost ${costBps} bps is within ${band} limit ${allowedCostBps} bps.`,
+    reason: `Projected cost ${costBps} bps is within ${band} limit ${decision.allowedCostBps} bps.`,
     shouldExecute: true
   };
 }

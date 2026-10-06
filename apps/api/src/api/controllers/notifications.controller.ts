@@ -3,11 +3,8 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import Notification from "../../models/notification.model";
+import { sendError } from "../helpers/sendError";
 import { getOrCreateNotificationPreferences } from "../services/notifications/notification.service";
-
-function sendError(res: Response, status: number, code: string, message: string): void {
-  res.status(status).json({ error: { code, message, status } });
-}
 
 function requireUserId(req: Request, res: Response): string | null {
   if (!req.userId) {

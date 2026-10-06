@@ -29,13 +29,15 @@ Pin the `requirementsVersion` you integrated against and re-check discovery when
 | `MX` | `api` | `api` |
 | `US` | `hosted` | `hosted` |
 
-EUR onboarding is not part of discovery. The active EUR ramp accepts only users whose approved provider profile, Polygon EOA, and IBAN were provisioned out of band and bound to their Vortex legal entity. Automated onboarding, wallet linking, IBAN provisioning, and external-user import are not part of the current integration. Provider state is always authoritative: no discovery step, client notification, or completion event can mark a verification approved.
+EUR onboarding is not part of discovery. Users onboard with the EUR provider, link their paying Polygon wallet, and receive their IBAN in the Dashboard or Widget; the API does not run these steps or import external profiles (see EUR (SEPA) below). Provider state is always authoritative: no discovery step, client notification, or completion event can mark a verification approved.
 
 ## BRL (PIX)
 
 BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the identity under which KYC is completed, but it is not how the ramp identifies the user: registration must authenticate as that user through a user-scoped key, a partner key delegated to the user, or a Supabase Bearer session. The tax ID is derived from that account. A `taxId` field may still be provided for backwards compatibility, but only as a cross-check — it must match the account's tax ID, and it cannot select a different user or claim an unlinked tax ID.
 
 Use `/v1/brl/*` for BRL account and verification operations. The previous `/v1/brla/*` prefix remains supported as an equivalent migration alias.
+
+`POST /v1/brl/createSubaccount` reserves the tax ID for the calling account, so it validates the request before anything is created: `name` must be 1 to 255 characters and `taxId` must be a check-digit-valid CPF for `INDIVIDUAL` or CNPJ for `COMPANY` (punctuation optional). Anything else returns `400`. The submission that follows must carry the same tax ID: `taxIdNumber` on `newKyc` and `taxIdentificationNumberTin` on the business submission are compared with the tax ID the subaccount was created with (punctuation ignored), and a different value returns `400` before anything reaches the provider.
 
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
@@ -167,11 +169,11 @@ Ramp registration resolves KYC and payment identity from the effective profile, 
 
 ### Fiat Accounts
 
-Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. The account is created during onboarding in the Vortex app or Widget; the ID is opaque to the SDK and the API client.
+Sells pay out to a saved bank account referenced by `fiatAccountId` in the register call. It is required for sells and optional for buys. Verification does not create it: add it after the corridor is verified, with **Add pay-out account** under Onboarding in the Dashboard, in the Widget, or with `POST /v1/domestic/fiatAccounts`. The ID is opaque to the SDK and the API client.
 
 ### Payment Instructions On Buys
 
-After `POST /v1/ramp/start`, the response's `achPaymentData` contains the bank transfer instructions the user must pay (beneficiary, account, and reference details for the corridor's rail). Display them to the user verbatim; the ramp continues automatically once the fiat deposit is confirmed.
+The first `POST /v1/ramp/update` response returns `achPaymentData`: the bank transfer instructions the user must pay (beneficiary, account, and reference details for the corridor's rail). `GET /v1/ramp/{id}` returns them too, and the SDK's `registerRamp` returns them on `rampProcess` because it performs that update. Display them to the user verbatim, and call `POST /v1/ramp/start` after the user initiates the transfer; the start response does not repeat them. The ramp continues automatically once the fiat deposit is confirmed.
 
 ### Limits
 
@@ -183,12 +185,12 @@ Authenticated clients can request account limits with `POST /v1/limits`, passing
 
 EUR uses the `"sepa"` rail identifier. New EUR BUY quotes use a Polygon source route and deliver to supported EVM destinations, Polygon included. AssetHub is not available as a destination for this flow. New EUR SELL quotes are rejected.
 
-EUR BUY is supported through the SDK, the direct API, the Dashboard, and the Widget. Registration requires the normal quote ID, a fresh EVM signing account, `additionalData.destinationAddress`, and (for the SDK) `walletAddress`, the wallet linked to the user's Monerium profile. Supply `additionalData.customerType` (`"individual"` or `"business"`) to select the same legal profile used for onboarding and wallet linking. The SDK exposes this as optional `EurOnrampAdditionalData.customerType`; it becomes required when both legal types have Monerium profiles, otherwise the API returns `409 MONERIUM_CUSTOMER_TYPE_REQUIRED`. Profile UUID, address, and IBAN are still derived server-side and caller-supplied identity fields are rejected. A user without a Monerium binding gets `MONERIUM_ONBOARDING_REQUIRED`; a user whose backend Monerium session expired gets `MONERIUM_REAUTHENTICATION_REQUIRED` and must reconnect Monerium in the Dashboard or Widget.
+EUR BUY is available in sandbox through the direct API, the Dashboard, and the Widget; production activation is pending. SDK support ships with the next `@vortexfi/sdk` release (0.9.0 does not support EUR). Registration requires the normal quote ID, a fresh EVM signing account, `additionalData.destinationAddress`, and (for the SDK) `walletAddress`, the wallet linked to the user's EUR provider profile. Supply `additionalData.customerType` (`"individual"` or `"business"`) to select the same legal profile used for onboarding and wallet linking. The SDK exposes this as optional `EurOnrampAdditionalData.customerType`; it becomes required when both legal types have EUR provider profiles, otherwise the API returns `409 MONERIUM_CUSTOMER_TYPE_REQUIRED`. Profile UUID, address, and IBAN are still derived server-side and caller-supplied identity fields are rejected. A user without a EUR provider binding gets `MONERIUM_ONBOARDING_REQUIRED`; a user whose backend EUR provider session expired gets `MONERIUM_REAUTHENTICATION_REQUIRED` and must reconnect the EUR provider in the Dashboard or Widget.
 
-Registration succeeds only for a pre-provisioned individual or business legal entity with an approved local EUR provider binding, a live approved provider profile, and exactly one existing Polygon EOA/IBAN destination. The user must control that linked EOA.
+Registration succeeds only for an individual or business legal entity with an approved local EUR provider binding, a live approved provider profile, and exactly one existing Polygon EOA/IBAN destination. The user must control that linked EOA.
 
 The register response includes unsigned ephemeral transactions and an EIP-712 permit whose signer is the linked owner EOA. Route transactions by `signer`: sign ephemeral-owned entries with the fresh ephemeral key and send the permit to the owner's wallet. Submit the complete signed set to `POST /v1/ramp/update`. Only then does `ibanPaymentData` expose the IBAN, receiver name, BIC, and payment reference. Display those values verbatim, have the user initiate the SEPA transfer, and call `POST /v1/ramp/start` before the ramp's start deadline.
 
-Onboarding, wallet linking, and IBAN provisioning happen in the Dashboard or Widget (Monerium OAuth, then linking the paying wallet); the API does not import external profiles or manage KYC/KYB lifecycle state. Moving an existing IBAN to a new wallet requires a separate, informed confirmation because future deposits to that IBAN will mint to the new wallet and other services may rely on the old one. Those setup steps must be complete before registration. The owner permit expires one week after preparation (the swap presign deadline); late settlement can require manual resolution.
+Onboarding, wallet linking, and IBAN provisioning happen in the Dashboard or Widget (signing in with the EUR provider, then linking the paying wallet); the API does not import external profiles or manage KYC/KYB lifecycle state. Moving an existing IBAN to a new wallet requires a separate, informed confirmation because future deposits to that IBAN will mint to the new wallet and other services may rely on the old one. Those setup steps must be complete before registration. The owner permit expires one week after preparation (the swap presign deadline); late settlement can require manual resolution.
 
 ---

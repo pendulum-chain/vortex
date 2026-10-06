@@ -1,16 +1,5 @@
 {
   "components": {
-    "airdropBanner": {
-      "button": "More info",
-      "description": "Buy or sell USDT/C from just R$5 or €10 - get 20 USDT for FREE",
-      "list": {
-        "1": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT.",
-        "2": "Earned rewards are sent directly to your wallet. <1>No need to claim!</1>",
-        "3": "One reward per person, paid out every day - <1>check your status</1> <2>here</2>.",
-        "4": "Your trust matters - <1>Vortex is</1> <2>open source</2> for full transparency."
-      },
-      "title": "Special offer until 27 May"
-    },
     "alfredpayKycFlow": {
       "cancel": "Cancel",
       "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click 'I have finished the verification'.",
@@ -344,7 +333,8 @@
         "invalidTransactionParameters": "The transaction parameters provided are invalid. Please verify your inputs.",
         "networkError": "A network error occurred. Please check your internet connection.",
         "quoteExpired": "Your quote has expired. Please refresh and request a new quote.",
-        "serverError": "A server error occurred while processing your request. Please try again later."
+        "serverError": "A server error occurred while processing your request. Please try again later.",
+        "startWindowClosed": "This sale expired before your funds were sent. Your funds are still in your wallet. Please start a new sale."
       },
       "retryButton": "Try Again",
       "title": "Something Went Wrong"
@@ -576,9 +566,6 @@
       "continue": "Continue",
       "documentVerifiedAlt": "Document verified"
     },
-    "kycLevel2Toggle": {
-      "temporarilyDisabled": "Temporarily disabled"
-    },
     "maintenance": {
       "banner": {
         "ends": "Expected end",
@@ -721,7 +708,6 @@
       "openApp": "Open App",
       "payments": "Payments",
       "sellCrypto": "Sell Crypto",
-      "solutions": "Solutions",
       "toggleMobileMenu": "Toggle mobile menu",
       "vortexLogo": "Vortex Logo",
       "widget": "Widget"
@@ -903,10 +889,6 @@
       "confirmPayment": "I have made the payment",
       "processing": "Processing"
     },
-    "termsAndConditions": {
-      "link": "Terms and Conditions",
-      "text": "I have read and accept the"
-    },
     "transactionId": {
       "label": "Transaction ID"
     },
@@ -922,15 +904,6 @@
     "useGetRampRegistrationErrorMessage": {
       "default": "Something went wrong",
       "quoteNotFound": "The quote is expired. Please try again."
-    },
-    "useSubmitOfframp": {
-      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
-      "kycInvalid": "Your KYC level is invalid. Please contact support.",
-      "maintenance": "Temporary maintenance in progress — please check back later."
-    },
-    "useTokenAmountOut": {
-      "default": "Something went wrong",
-      "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later."
     }
   },
   "menus": {
@@ -1588,7 +1561,6 @@
       }
     },
     "swap": {
-      "developedBy": "Developed by",
       "error": {
         "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
         "amountOutOfRange": {
@@ -1698,7 +1670,6 @@
           "next": "Next"
         },
         "eurRampUnavailable": "We are improving your EUR ramp. It will be back soon.",
-        "quoteChangedWarning": "Your quote has changed. Please confirm the new output amount before proceeding.",
         "title": "Enter Details"
       }
     }
@@ -1763,10 +1734,6 @@
       },
       "title": "How to sell crypto <1> with Vortex </1>"
     },
-    "pitch": {
-      "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market.",
-      "title": "Buy & Sell <1>Stablecoins</1> - <br class='hidden sm:block' /> directly with your Bank Account"
-    },
     "popularTokens": {
       "countries": {
         "description": "On and off-ramp in these popular fiat currencies",
@@ -1780,12 +1747,6 @@
         "description": "Trade across multiple blockchain networks",
         "title": "Supported Networks"
       }
-    },
-    "popularTokensPartners": {
-      "circlePartner": "We're an official partner of Circle.",
-      "joinNetwork": "Join our network of official partners",
-      "pendulumPowered": "Our infrastructure is powered by Pendulum.",
-      "title": "Vortex everywhere"
     },
     "trustedBy": {
       "comingSoon": "Coming soon",
@@ -1822,14 +1783,10 @@
     }
   },
   "toasts": {
-    "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
     "copyText": "Copied to clipboard",
     "genericError": "An error occurred. Please try again.",
-    "kycCompleted": "Success! Get ready to off-ramp.",
-    "kycVerificationFailed": "Could not verify KYC status. Please try again.",
     "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
     "rampLimitExceeded": "This amount exceeds the remaining limit of {{remaining}} BRL for your account.",
-    "signingFailed": "Signing failed. Please try again.",
     "signingRejected": "Request cancelled",
     "walletAlreadyOpen": "Wallet already open pending connection. Please try again."
   }

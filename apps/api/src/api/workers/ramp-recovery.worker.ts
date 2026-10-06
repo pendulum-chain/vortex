@@ -3,12 +3,16 @@ import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
+import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../constants/constants";
 import RampState from "../../models/rampState.model";
+import { getFundedInitialSellRampWhere } from "../services/phases/blocks/core/compatibility-scope";
 import { isMoonbeamRuntimeDisabledForState } from "../services/phases/moonbeam-runtime";
 import phaseProcessor from "../services/phases/phase-processor";
 import rampService from "../services/ramp/ramp.service";
 
 const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
+// Funded SELL ramps are started only once the public start window has certainly closed.
+const FUNDED_SELL_MIN_AGE_MS = (RAMP_START_EXPIRATION_TIME_SECONDS + 60) * 1000;
 const DISABLED_HYDRATION_PHASES = ["pendulumToHydrationXcm", "hydrationSwap", "hydrationToAssethubXcm"];
 
 /**
@@ -39,14 +43,6 @@ class RampRecoveryWorker {
   }
 
   /**
-   * Stop the worker
-   */
-  public stop(): void {
-    logger.info("Stopping ramp recovery worker");
-    this.job.stop();
-  }
-
-  /**
    * Recover failed ramp states
    */
   // eslint-disable-next-line class-methods-use-this
@@ -69,8 +65,17 @@ class RampRecoveryWorker {
         }
       });
 
-      const statesToRecover = staleStates.filter(state => !isMoonbeamRuntimeDisabledForState(state));
-      const retiredStateCount = staleStates.length - statesToRecover.length;
+      // SELL ramps whose user reported the source transaction hash but whose client never started
+      // them before the public start window closed. Their funds are already on the ephemeral.
+      const fundedSellStates = await RampState.findAll({
+        where: {
+          ...getFundedInitialSellRampWhere(new Date(), FUNDED_SELL_MIN_AGE_MS),
+          flowVariant: config.flowVariant
+        }
+      });
+
+      const statesToRecover = [...staleStates, ...fundedSellStates].filter(state => !isMoonbeamRuntimeDisabledForState(state));
+      const retiredStateCount = staleStates.length + fundedSellStates.length - statesToRecover.length;
       if (retiredStateCount > 0) {
         logger.warn(`Skipped ${retiredStateCount} Moonbeam-dependent ramp states during automatic recovery.`);
       }
@@ -82,12 +87,17 @@ class RampRecoveryWorker {
 
       logger.info(`Found ${statesToRecover.length} stale ramp states to process.`);
 
-      // Process each stale state concurrently
+      // Process each state concurrently. A funded initial SELL ramp is started (past the public
+      // deadline); every other state resumes its current phase.
       const recoveryPromises = statesToRecover.map(async state => {
         try {
           logger.info(`Attempting recovery in phase ${state.currentPhase} for ramp ${state.id}`);
           // Process the state (processRamp already wraps execution with runWithRampContext)
-          await phaseProcessor.processRamp(state.id);
+          if (state.currentPhase === "initial") {
+            await rampService.recoverFundedSellRamp(state.id);
+          } else {
+            await phaseProcessor.processRamp(state.id);
+          }
           logger.info(`Successfully processed ramp state ${state.id}`);
           return { stateId: state.id, status: "fulfilled" };
         } catch (e: unknown) {
@@ -122,7 +132,8 @@ class RampRecoveryWorker {
       const results = await Promise.allSettled(recoveryPromises);
 
       // Log summary of results
-      const successfulRecoveries = results.filter(r => r.status === "fulfilled").length;
+      // Each attempt catches its own error and resolves with its outcome in `value.status`.
+      const successfulRecoveries = results.filter(r => r.status === "fulfilled" && r.value.status === "fulfilled").length;
       const failedRecoveries = results.length - successfulRecoveries;
       logger.info(`Ramp recovery attempt completed. Successful: ${successfulRecoveries}, Failed: ${failedRecoveries}`);
     } catch (error) {

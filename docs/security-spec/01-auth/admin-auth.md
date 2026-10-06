@@ -23,6 +23,10 @@ The flow:
 3. Token is compared against `config.adminSecret` using constant-time comparison
 4. If valid, request proceeds. If invalid, 403 is returned.
 
+`adminAuth` and `metricsDashboardAuth` are two instances of the shared `bearerSecretAuth` factory
+(`apps/api/src/api/middlewares/bearerSecretAuth.ts`): header parsing, status codes and the secret
+comparison are identical, and only the secret source and the error codes differ.
+
 This is the simplest auth mechanism in the system — a single static secret with no user identity, session management, or key rotation built in.
 
 This identity-less design is an explicitly accepted risk for the current architecture
@@ -33,7 +37,7 @@ the shared credential; individual admin identities are out of scope for this cha
 
 ## Security Invariants
 
-1. **Token comparison MUST use constant-time comparison** — The `safeCompare()` function XORs character codes and accumulates the result, preventing timing attacks that could leak the secret byte-by-byte.
+1. **Token comparison MUST use constant-time comparison** — `bearerSecretAuth` compares the presented token and the secret as UTF-8 buffers with `constantTimeEquals()` (`apps/api/src/api/helpers/constantTimeEquals.ts`), which uses `crypto.timingSafeEqual`, preventing timing attacks that could leak the secret byte-by-byte.
 2. **Missing `ADMIN_SECRET` MUST block all admin requests** — If `config.adminSecret` is empty or unconfigured, the middleware MUST return 500 (`ADMIN_AUTH_NOT_CONFIGURED`), never silently allow access.
 3. **The admin token MUST NOT be derivable from other credentials** — `ADMIN_SECRET` must be independent of Supabase keys, API keys, funding secrets, or any other credential in the system.
 4. **Admin endpoints MUST be limited in scope** — Admin auth grants access to operational endpoints only. It MUST NOT grant the ability to initiate ramps, access user funds, or sign transactions.
@@ -62,8 +66,8 @@ the shared credential; individual admin identities are out of scope for this cha
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
-| **Timing attack on secret comparison** | Attacker sends varying tokens, measures response time to deduce correct secret | `safeCompare()` XORs all characters regardless of mismatch position; constant-time for equal-length strings |
-| **Timing leak on length mismatch** | A naive comparison returns immediately when lengths differ | `safeCompare` performs a dummy `timingSafeEqual` operation before rejecting a different-length token; equal-length values use `crypto.timingSafeEqual`. |
+| **Timing attack on secret comparison** | Attacker sends varying tokens, measures response time to deduce correct secret | `constantTimeEquals()` uses `crypto.timingSafeEqual`, which does not stop at the first mismatching byte; constant-time for equal-length values |
+| **Timing leak on length mismatch** | A naive comparison returns immediately when lengths differ | `constantTimeEquals` performs a dummy `timingSafeEqual` operation before rejecting a different-length token; equal-length values use `crypto.timingSafeEqual`. |
 | **ADMIN_SECRET in logs** | Secret accidentally logged via request logging middleware | Auth header should be excluded from request logging; verify no middleware logs full headers |
 | **Shared secret rotation** | Need to rotate ADMIN_SECRET without downtime | Currently no dual-secret or graceful rotation — changing the env var immediately invalidates all admin sessions |
 | **ADMIN_SECRET escalates to customer impersonation** | Holder of `ADMIN_SECRET` calls `POST /v1/admin/profile-roles` to grant themselves (or a colluding profile) `vortex_admin`, then impersonates any customer via `/v1/admin-console/*` | `vortex_admin` excluded from `HTTP_GRANTABLE_PROFILE_ROLES`; the route returns `403 ROLE_NOT_HTTP_GRANTABLE` for it (Invariant 8). The only grant path is `scripts/grant-vortex-admin.ts`, which requires deployment/database access. |
@@ -74,8 +78,8 @@ the shared credential; individual admin identities are out of scope for this cha
 ## Audit Checklist
 
 - [x] `adminAuth` middleware is applied to every admin-only endpoint — **PASS**
-- [x] `safeCompare()` is the only comparison used for the admin secret — no `===` or `==` anywhere — **PASS**
-- [x] `safeCompare()` uses `crypto.timingSafeEqual` for equal-length values and performs a dummy constant-time comparison before rejecting a different length. **PASS**
+- [x] `constantTimeEquals()` (via `bearerSecretAuth`) is the only comparison used for the admin secret — no `===` or `==` anywhere — **PASS**
+- [x] `constantTimeEquals()` uses `crypto.timingSafeEqual` for equal-length values and performs a dummy constant-time comparison before rejecting a different length. **PASS**
 - [x] `config.adminSecret` is validated at production startup, and the middleware also fails closed at runtime if absent. **PASS**
 - [x] No `/v1/admin/*` endpoint also accepts Supabase auth or API key auth as a fallback (`adminAuth` is the only auth layer on this surface) — **PASS**. (`/v1/admin-console/*` is a separate, intentionally Supabase-authenticated surface by design — see [`admin-impersonation.md`](admin-impersonation.md) — and is out of scope for this check.)
 - [x] Admin endpoints are not reachable from the public frontend (verify CORS, route prefix separation) — **PASS (CORS allows all origins to all routes, but auth middleware protects)**

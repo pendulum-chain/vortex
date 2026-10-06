@@ -24,7 +24,6 @@ Run from `apps/api/`:
 ```bash
 bun migrate
 bun migrate:revert-last
-bun seed:phase-metadata
 ```
 
 Do not run bulk migration reverts against shared or production databases. The production

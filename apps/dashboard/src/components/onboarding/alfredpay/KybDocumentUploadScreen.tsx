@@ -1,61 +1,8 @@
-import { KYC_FILE_ACCEPTED_TYPES, KYC_FILE_MAX_BYTES, type KybBusinessFiles } from "@vortexfi/kyc";
-import { UploadCloud } from "lucide-react";
-import { useRef, useState } from "react";
+import type { KybBusinessFiles } from "@vortexfi/kyc";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import { cn } from "@/lib/cn";
-
-function FileDropZone({ label, file, onChange }: { label: string; file: File | null; onChange: (file: File) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [rejected, setRejected] = useState<string | null>(null);
-
-  const handleFile = (candidate: File) => {
-    if (!KYC_FILE_ACCEPTED_TYPES.includes(candidate.type)) {
-      setRejected("Use a JPG, PNG or PDF file.");
-      return;
-    }
-    if (candidate.size > KYC_FILE_MAX_BYTES) {
-      setRejected("That file is over 5 MB.");
-      return;
-    }
-    setRejected(null);
-    onChange(candidate);
-  };
-
-  return (
-    <div className="grid gap-1.5">
-      <p className="font-medium text-sm">{label}</p>
-      <button
-        className={cn(
-          "flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-4 text-center transition-colors",
-          file ? "border-primary bg-primary/5" : "border-input bg-muted/40 hover:border-primary/60"
-        )}
-        onClick={() => inputRef.current?.click()}
-        type="button"
-      >
-        {file ? (
-          <span className="max-w-full truncate text-primary text-sm">{file.name}</span>
-        ) : (
-          <>
-            <UploadCloud className="size-4 text-primary" />
-            <span className="text-muted-foreground text-sm">Click to select a file</span>
-          </>
-        )}
-        <input
-          accept={KYC_FILE_ACCEPTED_TYPES.join(",")}
-          className="sr-only"
-          onChange={event => {
-            const selected = event.target.files?.[0];
-            if (selected) handleFile(selected);
-          }}
-          ref={inputRef}
-          type="file"
-        />
-      </button>
-      {rejected && <p className="text-destructive text-xs">{rejected}</p>}
-    </div>
-  );
-}
+import { FileDropZone } from "./FileDropZone";
 
 interface KybDocumentUploadScreenProps {
   error?: string;
@@ -110,18 +57,23 @@ export function KybDocumentUploadScreen({ error, isRegulatedBusiness, onBack, on
             each.
           </p>
         </div>
-        <FileDropZone file={taxIdDocument} label="Tax ID document" onChange={setTaxIdDocument} />
-        <FileDropZone file={articlesIncorporation} label="Articles of incorporation" onChange={setArticlesIncorporation} />
-        <FileDropZone file={proofAddress} label="Proof of business address" onChange={setProofAddress} />
-        <FileDropZone file={shareholderRegistry} label="Shareholder registry" onChange={setShareholderRegistry} />
+        <FileDropZone compact file={taxIdDocument} label="Tax ID document" onChange={setTaxIdDocument} />
+        <FileDropZone
+          compact
+          file={articlesIncorporation}
+          label="Articles of incorporation"
+          onChange={setArticlesIncorporation}
+        />
+        <FileDropZone compact file={proofAddress} label="Proof of business address" onChange={setProofAddress} />
+        <FileDropZone compact file={shareholderRegistry} label="Shareholder registry" onChange={setShareholderRegistry} />
         {isRegulatedBusiness && (
           <>
-            <FileDropZone file={businessLicense} label="Business licence" onChange={setBusinessLicense} />
-            <FileDropZone file={uploadAmlPolicy} label="AML policy" onChange={setUploadAmlPolicy} />
+            <FileDropZone compact file={businessLicense} label="Business licence" onChange={setBusinessLicense} />
+            <FileDropZone compact file={uploadAmlPolicy} label="AML policy" onChange={setUploadAmlPolicy} />
           </>
         )}
-        <FileDropZone file={docFront} label="Representative ID, front" onChange={setDocFront} />
-        <FileDropZone file={docBack} label="Representative ID, back" onChange={setDocBack} />
+        <FileDropZone compact file={docFront} label="Representative ID, front" onChange={setDocFront} />
+        <FileDropZone compact file={docBack} label="Representative ID, back" onChange={setDocBack} />
         {error && <p className="text-destructive text-sm">{error}</p>}
       </div>
       <DialogFooter className="pt-4">

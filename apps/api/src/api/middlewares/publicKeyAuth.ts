@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
+import { sendError } from "../helpers/sendError";
 import {
   buildApiClientRequestMetadata,
   getSafeApiKeyPrefix,
@@ -34,9 +35,7 @@ export function validatePublicKey() {
       const headerKey = req.headers["x-public-key"] as string | undefined;
       const legacyKey = (req.query.apiKey as string | undefined) || req.body?.apiKey;
       if (headerKey && legacyKey && headerKey !== legacyKey) {
-        return res.status(403).json({
-          error: { code: "CREDENTIAL_MISMATCH", message: "Public credential values do not match", status: 403 }
-        });
+        return sendError(res, 403, "CREDENTIAL_MISMATCH", "Public credential values do not match");
       }
       const apiKey = headerKey || legacyKey;
 
@@ -48,26 +47,19 @@ export function validatePublicKey() {
       // Validate API key format
       if (!isValidApiKeyFormat(apiKey)) {
         recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
-        return res.status(400).json({
-          error: {
-            code: "INVALID_API_KEY_FORMAT",
-            message: "Invalid API key format. Expected: pk_live_* or pk_test_*",
-            status: 400
-          }
-        });
+        return sendError(res, 400, "INVALID_API_KEY_FORMAT", "Invalid API key format. Expected: pk_live_* or pk_test_*");
       }
 
       // Check if it's a public key
       const keyType = getKeyType(apiKey);
       if (keyType !== "public") {
         recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
-        return res.status(400).json({
-          error: {
-            code: "INVALID_KEY_TYPE",
-            message: "Expected a public API key (pk_*). Use X-API-Key header for secret keys.",
-            status: 400
-          }
-        });
+        return sendError(
+          res,
+          400,
+          "INVALID_KEY_TYPE",
+          "Expected a public API key (pk_*). Use X-API-Key header for secret keys."
+        );
       }
 
       // Validate the public key exists and is active
@@ -75,13 +67,7 @@ export function validatePublicKey() {
 
       if (!result) {
         recordPublicKeyFailure(req, 401, getSafeApiKeyPrefix(apiKey));
-        return res.status(401).json({
-          error: {
-            code: "INVALID_PUBLIC_KEY",
-            message: "The provided public API key is invalid, expired, or inactive",
-            status: 401
-          }
-        });
+        return sendError(res, 401, "INVALID_PUBLIC_KEY", "The provided public API key is invalid, expired, or inactive");
       }
 
       // Attach validated public key info to request

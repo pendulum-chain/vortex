@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import { ValidationError } from "express-validation";
 import httpStatus from "http-status";
 
 import { config } from "../../config/vars";
@@ -57,18 +56,10 @@ export { handler };
  * If error is not an instanceOf APIError, convert it.
  * @public
  */
-export const converter = (err: Error | ValidationError, req: Request, res: Response, next: NextFunction): void => {
+export const converter = (err: Error, req: Request, res: Response, next: NextFunction): void => {
   let convertedError: APIError;
 
-  if (err instanceof ValidationError) {
-    convertedError = new APIError({
-      errors: err.errors,
-      message: "Validation Error",
-      // @ts-ignore
-      stack: err.stack,
-      status: err.status
-    });
-  } else if (isBodyParserError(err)) {
+  if (isBodyParserError(err)) {
     convertedError = new APIError({
       isPublic: true,
       message: err.type === "entity.parse.failed" ? "Invalid JSON payload" : "Request body too large",
@@ -89,7 +80,7 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
   return handler(convertedError, req, res, next);
 };
 
-function isBodyParserError(err: Error | ValidationError): err is Error & { status: 400 | 413; type: string } {
+function isBodyParserError(err: Error): err is Error & { status: 400 | 413; type: string } {
   const bodyParserError = err as Error & { status?: number; type?: string };
   return (
     (bodyParserError.type === "entity.parse.failed" && bodyParserError.status === httpStatus.BAD_REQUEST) ||

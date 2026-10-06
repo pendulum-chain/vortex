@@ -5,7 +5,7 @@ This directory is the repository source of truth for the partner-facing Vortex A
 ## Structure
 
 - `openapi/vortex.openapi.json` is the OpenAPI reference used for the Apidog endpoint catalog.
-- `wire-contract.snapshot.md` is the generated snapshot of the typed partner-facing surface (shared endpoint types + public SDK API). CI fails when it is stale; regenerate with `bun run wire-contract:update` and review the diff for backward compatibility.
+- `wire-contract.snapshot.md` is the generated snapshot of the partner-facing surface (shared endpoint types, public SDK API, and every mounted `METHOD /path` of the API). CI fails when it is stale; regenerate with `bun run wire-contract:update` and review the diff for backward compatibility.
 - `pages/*.md` contains the pure Markdown guide pages that sit around the endpoint reference.
 - `apidog/page-manifest.json` records the intended page order, source files, current Apidog project ID, and endpoint grouping decisions.
 - `scripts/*.ts` contains the local export, validation, and type-generation helpers for this docs source.
@@ -78,6 +78,9 @@ Deliberate exceptions, all of them things a rename would break or misrepresent:
 - Internal provider-protocol types, service files, workers, and log lines. These model a
   specific third party's API and are never returned to a partner.
 - `Sumsub`, which is the caller's own vendor rather than a Vortex payment partner.
+- The EUR corridor's released API names: the `/v1/monerium/*` and `/v1/monerium-b2b/*` routes,
+  `MONERIUM_*` error codes, `monerium*` phase values, and the SDK's `Monerium*` error classes.
+  Prose around them still says "EUR provider".
 
 Deprecated provider-named SDK aliases stay exported until the next major release.
 

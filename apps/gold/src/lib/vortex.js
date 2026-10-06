@@ -1,6 +1,6 @@
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
-import { PAXG_ADDRESS, assertSellBalance, sendEthereumTransaction } from "./paxg.js";
-import { saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
+import { PAXG_ADDRESS, assertPaxgSellTransactions, assertSellBalance, sendEthereumTransaction } from "./paxg.js";
+import { failActiveRamp, saveActiveRamp, getActiveRamp, saveTransactionCheckpoint } from "./pilot-store.js";
 
 const ENV = import.meta.env || {};
 // Same-origin by default: the Vortex Netlify site proxies /api/<env>/* to the API, so a
@@ -85,12 +85,20 @@ export function setVortexSession(value) {
 export function clearVortexSession() { storage()?.removeItem(ACCESS_KEY); }
 
 export async function requestVortexOtp(email) {
-  return api("/v1/auth/request-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase() }) });
+  // Without a locale the API sends the English e-mail and resets the user's stored locale to en-US.
+  return api("/v1/auth/request-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase(), locale: "pt-BR" }) });
 }
 
 export async function verifyVortexOtp(email, token) {
-  const session = await api("/v1/auth/verify-otp", { method: "POST", body: JSON.stringify({ email: String(email).trim().toLowerCase(), token: String(token).replace(/\D/g, "") }) });
-  return setVortexSession(session);
+  const verifiedEmail = String(email).trim().toLowerCase();
+  const session = await api("/v1/auth/verify-otp", { method: "POST", body: JSON.stringify({ email: verifiedEmail, token: String(token).replace(/\D/g, "") }) });
+  // Kept with the session, like the widget's stored user e-mail, so it is only reused for that address.
+  return setVortexSession({ ...session, email: verifiedEmail });
+}
+
+// A session verified in this tab for the same e-mail skips the code step; a rejected one falls back to it.
+export function hasVortexSession(email) {
+  return getVortexSession()?.email === String(email || "").trim().toLowerCase();
 }
 
 export async function refreshVortexSession() {
@@ -100,8 +108,10 @@ export async function refreshVortexSession() {
     clearVortexSession();
     throw new VortexError("Sua sessão de segurança expirou. Solicite um novo código.", { status: 401, code: "SESSION_EXPIRED" });
   }
+  // Only a 401 means the refresh token is invalid (security spec, Supabase OTP rule 9); a network
+  // error or a 503 must keep the session so the user is not logged out mid-operation.
   refreshPromise = api("/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: session.refresh_token }) })
-    .then(setVortexSession).catch((error) => { clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
+    .then((next) => setVortexSession({ ...next, email: session.email })).catch((error) => { if (error.status === 401) clearVortexSession(); throw error; }).finally(() => { refreshPromise = null; });
   return refreshPromise;
 }
 
@@ -174,32 +184,48 @@ export async function createPaxgSellQuote(amount, walletAddress) {
   return { client, quote: normalizeQuote(quote) };
 }
 
-export async function getBrazilBuyReadiness(client) {
-  const info = await client.getRampInfo();
-  const entries = Object.entries(info?.corridors || {});
-  const match = entries.find(([key]) => /^(BR|BRL|PIX|Brazil)$/i.test(key));
-  return match ? { corridor: match[0], ...match[1] } : { corridor: null, kycStatus: "not_started", canBuy: false, canSell: false };
+// Reads the signed-in user's own Avenia account with the OTP session, as the widget does before it
+// skips KYC. /v1/ramp-info cannot be used: it only reports on the owner of an API credential.
+export async function getBrazilBuyReadiness() {
+  try {
+    const { identityStatus } = await authenticatedApi("/v1/brl/getUser", { method: "GET" });
+    const approved = identityStatus === "CONFIRMED";
+    return { kycStatus: approved ? "approved" : "pending", canBuy: approved, canSell: approved };
+  } catch (error) {
+    // 400/404: the user has no approved, provisioned Avenia account yet.
+    if (error.status === 400 || error.status === 404) return { kycStatus: "not_started", canBuy: false, canSell: false };
+    throw error;
+  }
 }
 
-export async function submitWalletTransactions(client, rampId, unsignedTransactions, walletAddress, ethereumProvider) {
+// The API refuses to record or start a ramp after its start deadline, so a transaction broadcast later
+// would strand the gold. The margin covers the swap receipt wait (up to 3 minutes), the update and the start.
+const SIGNING_MARGIN_MS = 4 * 60_000;
+
+// inputAmount is the PAXG amount this device quoted, never the API's, and bounds the approval.
+export async function submitWalletTransactions(client, ramp, unsignedTransactions, walletAddress, ethereumProvider, inputAmount) {
   if (!unsignedTransactions?.length) return;
+  assertPaxgSellTransactions(unsignedTransactions, { walletAddress, inputAmount });
   if (!ethereumProvider) throw new VortexError("A carteira Privy ainda não está pronta para confirmar a operação.", { code: "WALLET_NOT_READY" });
+  const deadline = rampStartDeadline(ramp);
   await ethereumProvider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
-  await client.submitUserTransactions(rampId, unsignedTransactions, { includeDomainType: true, signTypedData: async (payload) => {
-    if (payload.domain?.chainId && BigInt(payload.domain.chainId) !== 1n) throw new Error("A confirmação não pertence à rede Ethereum.");
-    return ethereumProvider.request({ method: "eth_signTypedData_v4", params: [walletAddress, JSON.stringify(payload)] });
-  }, sendTransaction: async (transaction, context) => {
+  await client.submitUserTransactions(ramp.id, unsignedTransactions, { sendTransaction: async (transaction, context) => {
     const phase = context.unsignedTransaction.phase;
     const saved = getActiveRamp(walletAddress);
-    const previousHash = saved?.rampId === rampId ? saved.transactions?.[phase] : null;
-    return sendEthereumTransaction(ethereumProvider, walletAddress, transaction, { previousHash, onBroadcast: (hash) => saveTransactionCheckpoint(rampId, phase, hash) });
+    const previousHash = saved?.rampId === ramp.id ? saved.transactions?.[phase] : null;
+    if (!previousHash && !(deadline - Date.now() > SIGNING_MARGIN_MS)) {
+      // Nothing has left the wallet yet, so the dead ramp must stop blocking a new sale.
+      failActiveRamp(ramp.id);
+      throw new VortexError("O prazo desta venda terminou antes do envio do seu ouro. Seu ouro continua na carteira; faça uma nova venda.", { code: "START_WINDOW_CLOSED" });
+    }
+    return sendEthereumTransaction(ethereumProvider, walletAddress, transaction, { previousHash, onBroadcast: (hash) => saveTransactionCheckpoint(ramp.id, phase, hash) });
   } });
 }
 
 export async function registerPaxgBuy({ client, quote, walletAddress, ethereumProvider }) {
   if (!walletAddress) throw new VortexError("Sua carteira Privy ainda está sendo preparada. Aguarde alguns segundos.", { code: "WALLET_NOT_READY" });
   const { rampProcess, unsignedTransactions } = await client.registerRamp(quote.rawQuote || quote, { destinationAddress: walletAddress });
-  await submitWalletTransactions(client, rampProcess.id, unsignedTransactions, walletAddress, ethereumProvider);
+  await submitWalletTransactions(client, rampProcess, unsignedTransactions, walletAddress, ethereumProvider);
   return rampProcess;
 }
 
@@ -208,8 +234,13 @@ export async function registerPaxgSell({ client, quote, walletAddress, ethereumP
   const result = await client.registerRamp(quote.rawQuote || quote, { walletAddress, pixDestination: pixDestination.trim() });
   saveActiveRamp({ rampId: result.rampProcess.id, walletAddress, inputAmount: quote.inputAmount, outputAmount: quote.outputAmount, rampType: "SELL", stage: "signing" });
   onRegistered?.(result.rampProcess);
-  await submitWalletTransactions(client, result.rampProcess.id, result.unsignedTransactions, walletAddress, ethereumProvider);
+  await submitWalletTransactions(client, result.rampProcess, result.unsignedTransactions, walletAddress, ethereumProvider, quote.inputAmount);
   return result.rampProcess;
+}
+
+// The SDK's status call omits unsignedTxs; resuming a sell needs them to ask the wallet again.
+export async function getRampWithUnsignedTxs(rampId) {
+  return authenticatedApi(`/v1/ramp/${encodeURIComponent(rampId)}?showUnsignedTxs=true`, { method: "GET" });
 }
 
 export async function startRampSafely(client, rampId) {
@@ -226,32 +257,72 @@ export async function startRampSafely(client, rampId) {
 export const SUCCESS_STATUSES = ["completed", "complete", "success"];
 export const FAILURE_STATUSES = ["failed", "cancelled", "expired", "timedout", "timed_out"];
 
-export function classifyRamp(ramp) {
+// The API refuses to start a ramp 15 minutes after registration and only ever starts a paid PIX ramp
+// later through its unhandled-payment worker (every 15 minutes). A ramp still initial an hour after
+// registration is abandoned and must stop blocking new operations on this device.
+const ABANDONED_AFTER_MS = 60 * 60_000;
+
+export function classifyRamp(ramp, now = Date.now()) {
   const status = String(ramp?.status || "").toLowerCase();
   const phase = String(ramp?.currentPhase || "").toLowerCase();
   if (FAILURE_STATUSES.includes(status) || ["failed", "timedout"].includes(phase)) return "failure";
   if (SUCCESS_STATUSES.includes(status) || phase === "complete") return "success";
+  if (phase === "initial" && Date.parse(ramp?.createdAt) + ABANDONED_AFTER_MS < now) return "failure";
   if (ramp?.depositQrCode && phase === "initial") return "awaiting_payment";
   return "processing";
 }
 
-export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, timeoutMs = 20 * 60_000, signal } = {}) {
+// Status responses carry createdAt but no expiresAt; start is refused 15 minutes after registration.
+export function rampStartDeadline(ramp) {
+  if (ramp?.expiresAt) return new Date(ramp.expiresAt).getTime();
+  return ramp?.createdAt ? Date.parse(ramp.createdAt) + 15 * 60_000 : null;
+}
+
+export function secondsUntilExpiry(expiresAt, now = Date.now()) {
+  return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
+}
+
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException("Aborted", "AbortError")); return; }
+    const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+// No response, a timeout, rate limiting or a server error; auth and validation errors are final.
+function isTransientError(error) {
+  const status = Number(error?.status || 0);
+  return [0, 408, 425, 429].includes(status) || status >= 500;
+}
+
+export async function pollRamp(client, rampId, { onUpdate, intervalMs = 4_000, timeoutMs = 20 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
   const startedAt = Date.now();
+  let failures = 0;
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const ramp = await client.getRampStatus(rampId);
-    onUpdate?.(ramp);
-    const classification = classifyRamp(ramp);
-    if (["success", "failure"].includes(classification)) {
-      return ramp;
+    let ramp = null;
+    // A mobile network blip must not end the tracking of a ramp that keeps running server-side.
+    try { ramp = await client.getRampStatus(rampId); failures = 0; }
+    catch (error) { if (!isTransientError(error) || ++failures >= maxConsecutiveErrors) throw error; }
+    if (ramp) {
+      onUpdate?.(ramp);
+      if (["success", "failure"].includes(classifyRamp(ramp))) return ramp;
     }
-    await new Promise((resolve, reject) => {
-      const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
-      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, intervalMs);
-      signal?.addEventListener("abort", abort, { once: true });
-    });
+    await delay(intervalMs, signal);
   }
   throw new VortexError("A operação continua em processamento. Você pode fechar esta tela e acompanhar depois.", { code: "POLL_TIMEOUT" });
+}
+
+// Brazilian CPF check digits, so a typo is caught here instead of by the API or Avenia.
+export function isValidCpf(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  // Like the shared helper, reject digit runs: repeated digits and 01234567890 are the only runs whose
+  // check digits are valid.
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits) || digits === "01234567890") return false;
+  const checkDigit = (length) => [...digits.slice(0, length)].reduce((sum, digit, index) => sum + Number(digit) * (length + 1 - index), 0) * 10 % 11 % 10;
+  return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
 }
 
 export async function createBrazilSubaccount({ name, taxId, quoteId, sessionId }) {
@@ -267,19 +338,59 @@ export async function uploadKycDocument(uploadUrl, file) {
   if (!response.ok) throw new VortexError("Não foi possível enviar a foto do documento. Tente novamente.", { status: response.status, code: "DOCUMENT_UPLOAD_FAILED" });
 }
 
-export async function submitBrazilKyc(payload) { return authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+export async function submitBrazilKyc(payload) {
+  try { return await authenticatedApi("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
+  catch (error) {
+    // Avenia only allows a new attempt after a rejection or expiry it marks retryable; otherwise the API
+    // refuses the new documents with 409, and only support can reopen the verification.
+    if (error.status !== 409) throw error;
+    const reference = error.details?.requestId ? ` informando o código ${error.details.requestId}` : "";
+    throw new VortexError(`Não foi possível abrir uma nova verificação automaticamente. Consulte o suporte da Vortex${reference}.`, { status: 409, code: "KYC_NEW_ATTEMPT_BLOCKED", details: error.details });
+  }
+}
 export async function getBrazilKycStatus(taxId) { return authenticatedApi(`/v1/brl/getKycStatus?taxId=${encodeURIComponent(taxId)}`, { method: "GET" }); }
 
-export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, signal } = {}) {
+export async function pollBrazilKyc(taxId, { onUpdate, intervalMs = 4_000, timeoutMs = 5 * 60_000, maxConsecutiveErrors = 5, signal } = {}) {
   const startedAt = Date.now();
+  let failures = 0;
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const result = await getBrazilKycStatus(taxId);
-    onUpdate?.(result);
-    const status = String(result?.status || "").toUpperCase();
-    const outcome = String(result?.result || "").toUpperCase();
-    if (status === "COMPLETED" || ["APPROVED", "REJECTED"].includes(outcome)) return result;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    let result = null;
+    // Besides network blips, the API answers 404 until a just-submitted attempt is visible and 409 while a
+    // submission is reconciled; a 409 that persists needs an operator, so it ends in a support message.
+    try { result = await getBrazilKycStatus(taxId); failures = 0; }
+    catch (error) {
+      const reconciling = [404, 409].includes(error.status);
+      if (!(isTransientError(error) || reconciling)) throw error;
+      if (++failures >= maxConsecutiveErrors) {
+        if (!reconciling) throw error;
+        throw new VortexError("Não conseguimos confirmar sua verificação agora. Aguarde alguns minutos e tente novamente; se continuar, consulte o suporte da Vortex.", { status: error.status, code: "KYC_STATUS_UNAVAILABLE", details: error.details });
+      }
+    }
+    // An answer that arrives after the modal closed must not approve a flow that is gone.
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    if (result) {
+      onUpdate?.(result);
+      const status = String(result.status || "").toUpperCase();
+      const outcome = String(result.result || "").toUpperCase();
+      if (["COMPLETED", "EXPIRED"].includes(status) || ["APPROVED", "REJECTED"].includes(outcome)) return result;
+    }
+    await delay(intervalMs, signal);
   }
-  throw new VortexError("A verificação ainda está em análise. Você pode voltar ao painel e continuar mais tarde.", { code: "KYC_PENDING" });
+  throw new VortexError("A verificação ainda está em análise. Aguarde nesta tela e selecione \"Já concluí a selfie\" para consultar novamente.", { code: "KYC_PENDING" });
+}
+
+const KYC_REJECTION_MESSAGES = {
+  face: "A selfie não confirmou que o documento é seu. Faça a selfie novamente em um local bem iluminado.",
+  name: "O nome informado não confere com o documento. Corrija e tente novamente.",
+  birthdate: "A data de nascimento não confere com o documento. Corrija e tente novamente.",
+  // Avenia reports tax_id when the CPF does not exist, not when it differs from the document.
+  tax_id: "O CPF informado não foi encontrado. Confira o número e tente novamente.",
+};
+
+// Maps a finished Avenia attempt to what the user must do next; expired and rejected attempts start over.
+export function kycOutcome(result) {
+  if (String(result?.result || "").toUpperCase() === "APPROVED") return { approved: true, message: "" };
+  if (String(result?.status || "").toUpperCase() === "EXPIRED") return { approved: false, message: "O prazo da verificação terminou. Envie o documento e faça a selfie novamente." };
+  return { approved: false, message: KYC_REJECTION_MESSAGES[String(result?.failureReason || "").toLowerCase()] || "A verificação não foi aprovada. Confira seus dados e tente novamente." };
 }

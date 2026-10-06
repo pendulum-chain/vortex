@@ -7,6 +7,7 @@ import {
   FiatToken,
   getAnyFiatTokenDetails,
   isDomesticToken,
+  multiplyByPowerOfTen,
   RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
@@ -17,7 +18,6 @@ import ProviderCustomer from "../../../models/providerCustomer.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
 
 const FIAT_TO_COUNTRY: Partial<Record<FiatToken, DomesticCountry>> = {

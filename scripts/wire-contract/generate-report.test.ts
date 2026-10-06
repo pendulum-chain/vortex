@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildEntryReport } from "./generate-report";
+import { buildEntryReport, buildRouteReport } from "./generate-report";
 
 const FIXTURE_TSCONFIG = "scripts/wire-contract/fixtures/tsconfig.json";
 const FIXTURE_ENTRY = "scripts/wire-contract/fixtures/fixture-surface.ts";
@@ -113,5 +113,37 @@ describe("wire-contract surface serializer", () => {
     expect(report).not.toContain("/Users/");
     expect(report).not.toContain("node_modules");
     expect(report).not.toContain("import(");
+  });
+});
+
+describe("wire-contract route table", () => {
+  test("follows app/router mounts, path aliases and route() chains, ignoring the settings getter", () => {
+    expect(buildRouteReport("scripts/wire-contract/fixtures/routes/app.ts")).toBe(
+      [
+        "GET /legacy",
+        "POST /legacy",
+        "DELETE /legacy/:id",
+        "GET /legacy/:id",
+        "GET /old",
+        "POST /old",
+        "DELETE /old/:id",
+        "GET /old/:id",
+        "GET /v1/items",
+        "POST /v1/items",
+        "DELETE /v1/items/:id",
+        "GET /v1/items/:id",
+        "GET /v1/status",
+        "GET /v1/things",
+        "POST /v1/things",
+        "DELETE /v1/things/:id",
+        "GET /v1/things/:id"
+      ].join("\n")
+    );
+  });
+
+  test("fails loudly on a route path it cannot read statically", () => {
+    expect(() => buildRouteReport("scripts/wire-contract/fixtures/routes/dynamic.route.ts")).toThrow(
+      "Unsupported route declaration at scripts/wire-contract/fixtures/routes/dynamic.route.ts:6"
+    );
   });
 });

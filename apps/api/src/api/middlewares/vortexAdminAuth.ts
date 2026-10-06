@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import ProfileRole from "../../models/profileRole.model";
+import { sendError } from "../helpers/sendError";
 import { rejectImpersonation } from "./bearerPrincipal";
 import { requireAuth } from "./supabaseAuth";
 
@@ -11,13 +12,7 @@ export async function hasVortexAdminRole(userId: string): Promise<boolean> {
 
 /** Shared with the routes that gate on the role inline instead of via `requireVortexAdmin`. */
 export function vortexAdminRequiredResponse(res: Response): void {
-  res.status(httpStatus.FORBIDDEN).json({
-    error: {
-      code: "VORTEX_ADMIN_REQUIRED",
-      message: "The vortex_admin role is required for this action.",
-      status: httpStatus.FORBIDDEN
-    }
-  });
+  sendError(res, httpStatus.FORBIDDEN, "VORTEX_ADMIN_REQUIRED", "The vortex_admin role is required for this action.");
 }
 
 async function checkVortexAdminRole(req: Request, res: Response, next: NextFunction): Promise<void> {

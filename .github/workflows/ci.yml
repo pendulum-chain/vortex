@@ -7,9 +7,6 @@ jobs:
   build:
     name: Running ci
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [ 18 ]
     env:
       CI: true
 
@@ -103,3 +100,6 @@ jobs:
 
       - name: 🧪 Frontend tests (coverage-gated)
         run: cd apps/frontend && bun run test:coverage
+
+      - name: 🧪 Gold tests
+        run: bun run test:gold

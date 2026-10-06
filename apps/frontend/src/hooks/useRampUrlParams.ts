@@ -2,14 +2,12 @@ import { useSearch } from "@tanstack/react-router";
 import type { MoneriumOAuthCallback } from "@vortexfi/kyc";
 import {
   AssetHubToken,
-  DestinationType,
   type EvmNetworks,
   EvmToken,
   FiatToken,
   getEvmTokenConfig,
   isNetworkEVM,
   logger,
-  mapFiatToDestination,
   Networks,
   OnChainToken,
   OnChainTokenSymbol,
@@ -27,7 +25,7 @@ import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
 import { QuoteService } from "../services/api";
 import { useSetApiKey, useSetPartnerId } from "../stores/partnerStore";
 import { useQuoteFormStoreActions } from "../stores/quote/useQuoteFormStore";
-import { useQuoteStore } from "../stores/quote/useQuoteStore";
+import { createQuotePayload, useQuoteStore } from "../stores/quote/useQuoteStore";
 import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
 import { RampSearchParams } from "../types/searchParams";
 import { useEvmTokensLoaded } from "./useEvmTokensLoaded";
@@ -116,50 +114,6 @@ function getNetworkFromParam(param?: string): Networks | undefined {
   }
   return undefined;
 }
-
-interface QuoteParams {
-  inputAmount?: Big;
-  onChainToken: OnChainTokenSymbol;
-  fiatToken: FiatToken;
-  selectedNetwork: DestinationType;
-  rampType: RampDirection;
-}
-
-interface QuotePayload {
-  rampType: RampDirection;
-  fromDestination: DestinationType;
-  toDestination: DestinationType;
-  inputAmount: string;
-  inputCurrency: OnChainTokenSymbol | FiatToken;
-  outputCurrency: OnChainTokenSymbol | FiatToken;
-}
-
-const createQuotePayload = (params: QuoteParams): QuotePayload => {
-  const { inputAmount, onChainToken, fiatToken, selectedNetwork, rampType } = params;
-  const fiatDestination = mapFiatToDestination(fiatToken);
-  const inputAmountStr = inputAmount?.toString() || "0";
-
-  const payloadMap: Record<RampDirection, QuotePayload> = {
-    [RampDirection.SELL]: {
-      fromDestination: selectedNetwork,
-      inputAmount: inputAmountStr,
-      inputCurrency: onChainToken,
-      outputCurrency: fiatToken,
-      rampType: RampDirection.SELL,
-      toDestination: fiatDestination
-    },
-    [RampDirection.BUY]: {
-      fromDestination: fiatDestination,
-      inputAmount: inputAmountStr,
-      inputCurrency: fiatToken,
-      outputCurrency: onChainToken,
-      rampType: RampDirection.BUY,
-      toDestination: selectedNetwork
-    }
-  };
-
-  return payloadMap[rampType];
-};
 
 export enum RampUrlParamsKeys {
   RAMP_TYPE = "rampType",

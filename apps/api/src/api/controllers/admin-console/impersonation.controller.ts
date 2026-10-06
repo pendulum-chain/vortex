@@ -3,6 +3,8 @@ import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import AdminImpersonationSession from "../../../models/adminImpersonationSession.model";
 import User from "../../../models/user.model";
+import { sendError } from "../../helpers/sendError";
+import { UUID_PATTERN } from "../../helpers/uuid";
 import { impersonationNotAllowedResponse } from "../../middlewares/bearerPrincipal";
 import { hasVortexAdminRole, vortexAdminRequiredResponse } from "../../middlewares/vortexAdminAuth";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../../observability/apiClientEvent.service";
@@ -17,8 +19,6 @@ import {
   revokeSession
 } from "../../services/impersonation.service";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * POST /v1/admin-console/impersonation
  * Mints an impersonation session for the calling vortex_admin. `req.userId` is that operator:
@@ -30,13 +30,7 @@ export async function createImpersonationSession(req: Request, res: Response): P
   const { targetProfileId } = req.body ?? {};
 
   if (typeof targetProfileId !== "string" || !UUID_PATTERN.test(targetProfileId)) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: {
-        code: "INVALID_IMPERSONATION_INPUT",
-        message: "targetProfileId must be a valid UUID",
-        status: httpStatus.BAD_REQUEST
-      }
-    });
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_IMPERSONATION_INPUT", "targetProfileId must be a valid UUID");
     return;
   }
 
@@ -78,26 +72,16 @@ export async function createImpersonationSession(req: Request, res: Response): P
         status: "failure",
         userId: actorProfileId
       });
-      res.status(httpStatus.SERVICE_UNAVAILABLE).json({
-        error: { code: "IMPERSONATION_DISABLED", message: error.message, status: httpStatus.SERVICE_UNAVAILABLE }
-      });
+      sendError(res, httpStatus.SERVICE_UNAVAILABLE, "IMPERSONATION_DISABLED", error.message);
       return;
     }
     if (error instanceof ImpersonationTargetError) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: { code: "IMPERSONATION_TARGET_INVALID", message: error.message, status: httpStatus.BAD_REQUEST }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "IMPERSONATION_TARGET_INVALID", error.message);
       return;
     }
 
     logger.error("Error creating impersonation session:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create impersonation session",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create impersonation session");
   }
 }
 
@@ -132,13 +116,7 @@ export async function listImpersonationSessions(req: Request, res: Response): Pr
     });
   } catch (error) {
     logger.error("Error listing impersonation sessions:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to list impersonation sessions",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list impersonation sessions");
   }
 }
 
@@ -152,13 +130,7 @@ export async function deleteImpersonationSession(req: Request<{ sessionId: strin
   try {
     const { sessionId } = req.params;
     if (!UUID_PATTERN.test(sessionId)) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: {
-          code: "INVALID_IMPERSONATION_SESSION_ID",
-          message: "sessionId must be a valid UUID",
-          status: httpStatus.BAD_REQUEST
-        }
-      });
+      sendError(res, httpStatus.BAD_REQUEST, "INVALID_IMPERSONATION_SESSION_ID", "sessionId must be a valid UUID");
       return;
     }
 
@@ -179,13 +151,12 @@ export async function deleteImpersonationSession(req: Request<{ sessionId: strin
     const revoked = session ? await revokeSession(sessionId, isSelfRevoke ? "ended_by_target" : "revoked_by_admin") : false;
 
     if (!revoked || !session) {
-      res.status(httpStatus.NOT_FOUND).json({
-        error: {
-          code: "IMPERSONATION_SESSION_NOT_FOUND",
-          message: "Impersonation session was not found or already ended",
-          status: httpStatus.NOT_FOUND
-        }
-      });
+      sendError(
+        res,
+        httpStatus.NOT_FOUND,
+        "IMPERSONATION_SESSION_NOT_FOUND",
+        "Impersonation session was not found or already ended"
+      );
       return;
     }
 
@@ -206,12 +177,6 @@ export async function deleteImpersonationSession(req: Request<{ sessionId: strin
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error ending impersonation session:", error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to end impersonation session",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      }
-    });
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to end impersonation session");
   }
 }

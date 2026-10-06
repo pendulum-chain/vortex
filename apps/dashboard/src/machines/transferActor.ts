@@ -1,8 +1,9 @@
 import { type QuoteResponse, RampDirection, type RampProcess } from "@vortexfi/shared";
-import { type Actor, createActor } from "xstate";
+import { createActor } from "xstate";
 import { TRANSACTIONS_QUERY_KEY } from "@/hooks/useTransactions";
 import { notifyTransferCompleted } from "@/lib/notify";
 import { queryClient } from "@/lib/queryClient";
+import type { UserTxSubmission } from "./transfer.actors";
 import { type TransferContext, type TransferMeta, transferMachine } from "./transfer.machine";
 
 /**
@@ -10,8 +11,7 @@ import { type TransferContext, type TransferMeta, transferMachine } from "./tran
  * keeps running here after the form unmounts. Transaction rows come from the backend ramp
  * history, so each status change just invalidates that query to pull the latest.
  */
-const LEGACY_TRANSFER_STATE_STORAGE_KEY = "vortex-dashboard-transfer-state";
-const TRANSFER_STATE_STORAGE_PREFIX = `${LEGACY_TRANSFER_STATE_STORAGE_KEY}:owner:`;
+const TRANSFER_STATE_STORAGE_PREFIX = "vortex-dashboard-transfer-state:owner:";
 const TRANSFER_RECOVERY_VERSION = 1;
 
 interface PersistedTransferRecovery {
@@ -19,6 +19,8 @@ interface PersistedTransferRecovery {
   ownerProfileId: string;
   quote: QuoteResponse;
   ramp: RampProcess;
+  /** Offramp only: wallet output still owed to /ramp/update. Absent in BUY snapshots. */
+  userTxSubmission?: UserTxSubmission | null;
   version: typeof TRANSFER_RECOVERY_VERSION;
 }
 
@@ -34,14 +36,20 @@ function recoveryContext(value: Record<string, unknown>, ownerProfileId: string)
   const quote = value.quote;
   const meta = value.meta;
   const ramp = value.ramp;
-  return isRecord(quote) &&
-    quote.rampType === RampDirection.BUY &&
+  const submission = value.userTxSubmission ?? null;
+  const direction = isRecord(quote) ? quote.rampType : undefined;
+  return (direction === RampDirection.BUY || direction === RampDirection.SELL) &&
     isRecord(meta) &&
     meta.ownerProfileId === ownerProfileId &&
-    meta.direction === RampDirection.BUY &&
+    meta.direction === direction &&
     isRecord(ramp) &&
-    ramp.type === RampDirection.BUY &&
-    typeof ramp.id === "string"
+    ramp.type === direction &&
+    typeof ramp.id === "string" &&
+    (submission === null ||
+      (direction === RampDirection.SELL &&
+        isRecord(submission) &&
+        Array.isArray(submission.signedTxs) &&
+        isRecord(submission.additionalData)))
     ? {
         activeOwnerProfileId: ownerProfileId,
         additionalData: null,
@@ -51,6 +59,7 @@ function recoveryContext(value: Record<string, unknown>, ownerProfileId: string)
         quote: quote as unknown as QuoteResponse,
         quoteRequest: null,
         ramp: ramp as unknown as RampProcess,
+        userTxSubmission: submission as UserTxSubmission | null,
         userTxs: []
       }
     : undefined;
@@ -78,13 +87,7 @@ function readPersistedTransferState(ownerProfileId: string): TransferContext | u
   }
 }
 
-function startTransferActor(): Actor<typeof transferMachine> {
-  // Ownerless legacy state cannot be attributed safely and must never be adopted.
-  localStorage.removeItem(LEGACY_TRANSFER_STATE_STORAGE_KEY);
-  return createActor(transferMachine).start();
-}
-
-export const transferActor = startTransferActor();
+export const transferActor = createActor(transferMachine).start();
 
 const notifiedRampIds = new Set<string>();
 
@@ -94,7 +97,8 @@ export function canChangeEffectiveIdentity(): boolean {
     snapshot.matches("CheckingQuote") ||
     snapshot.matches("CheckingBalance") ||
     snapshot.matches("Registering") ||
-    snapshot.matches("SigningUserTxs")
+    snapshot.matches("SigningUserTxs") ||
+    snapshot.matches("SubmittingUserTxs")
   );
 }
 
@@ -119,7 +123,6 @@ export function activateTransferOwner(ownerProfileId: string): boolean {
 
 export function clearAllTransferRecovery(): void {
   notifiedRampIds.clear();
-  localStorage.removeItem(LEGACY_TRANSFER_STATE_STORAGE_KEY);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith(TRANSFER_STATE_STORAGE_PREFIX)) {
@@ -156,9 +159,17 @@ transferActor.on("STATUS_CHANGED", event => {
 
 transferActor.subscribe(snapshot => {
   try {
-    if (snapshot.matches("AwaitingPayment")) {
+    // A BUY user may already have paid, and a SELL user's wallet has already broadcast, so from
+    // here until tracking a reload must bring the ramp back (and an offramp's unsubmitted wallet
+    // output) so update/start can be retried.
+    if (
+      snapshot.matches("AwaitingPayment") ||
+      snapshot.matches("SubmittingUserTxs") ||
+      snapshot.matches("Starting") ||
+      snapshot.matches("AwaitingRetry")
+    ) {
       const ownerProfileId = snapshot.context.activeOwnerProfileId;
-      const { meta, quote, ramp } = snapshot.context;
+      const { meta, quote, ramp, userTxSubmission } = snapshot.context;
       if (!ownerProfileId || meta?.ownerProfileId !== ownerProfileId || !quote || !ramp) {
         return;
       }
@@ -167,13 +178,12 @@ transferActor.subscribe(snapshot => {
         ownerProfileId,
         quote,
         ramp,
+        userTxSubmission,
         version: TRANSFER_RECOVERY_VERSION
       };
       localStorage.setItem(storageKey(ownerProfileId), JSON.stringify(recovery));
       refreshTransactions();
-    } else if (!snapshot.matches("Starting")) {
-      // Keep the AwaitingPayment snapshot through Starting: the user may already have
-      // paid, and a reload must bring the instructions back so start can be retried.
+    } else {
       const ownerProfileId = snapshot.context.activeOwnerProfileId;
       if (ownerProfileId) {
         localStorage.removeItem(storageKey(ownerProfileId));

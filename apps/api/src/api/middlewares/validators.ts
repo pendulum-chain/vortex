@@ -1,4 +1,5 @@
 import {
+  AveniaAccountType,
   BrDocumentType,
   BrKYCDataUploadRequest,
   BrKybLevel1Payload,
@@ -12,6 +13,7 @@ import {
   getCaseSensitiveNetwork,
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
+  isValidCnpj,
   isValidCpf,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -23,7 +25,6 @@ import {
   RampDirection,
   SubmitKybInformationRequest,
   SubmitKycInformationRequest,
-  TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
@@ -59,12 +60,6 @@ export interface PriceQuery {
 interface ChangeOpBody extends CreationBody {
   sequence: string;
   paymentData: unknown;
-}
-
-interface SwapBody {
-  amountRaw: string;
-  address: string;
-  token?: keyof TokenConfig;
 }
 
 interface SiweCreateBody {
@@ -274,54 +269,6 @@ export const validateStorageInput = validateRequestBodyValuesForTransactionStore
 export const validateContactInput = validateRequestBodyValues(CONTACT_SHEET_HEADER_VALUES);
 export const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 export const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
-export const validateExecuteXCM = validateRequestBodyValues(["id", "payload"]);
-
-export const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
-  const { amountRaw, address } = req.body as SwapBody;
-
-  if (amountRaw === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
-    return;
-  }
-
-  if (typeof amountRaw !== "string") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
-    return;
-  }
-
-  if (address === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
-    return;
-  }
-
-  next();
-};
-
-export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
-  const { amountRaw, address, token } = req.body as Required<SwapBody>;
-
-  if (amountRaw === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
-    return;
-  }
-
-  if (typeof amountRaw !== "string") {
-    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
-    return;
-  }
-
-  if (address === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
-    return;
-  }
-
-  if (token === undefined) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "token" parameter' });
-    return;
-  }
-
-  next();
-};
 
 export const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;
@@ -354,12 +301,32 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { accountType } = req.body as CreateAveniaSubaccountRequest;
+// provider_customers.company_name is VARCHAR(255); the controller stores the trimmed name there after the provider call.
+const SUBACCOUNT_NAME_MAX_LENGTH = 255;
 
-  if (!accountType || !isValidAveniaAccountType(accountType)) {
+// Runs before any provider call or DB write: a subaccount reserves its tax id exclusively, so only a
+// well-formed CPF (INDIVIDUAL) or CNPJ (COMPANY) may reach the controller.
+export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
+  const { accountType, name, taxId } = (req.body ?? {}) as Partial<Record<keyof CreateAveniaSubaccountRequest, unknown>>;
+
+  if (typeof accountType !== "string" || !isValidAveniaAccountType(accountType)) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: "Invalid accountType."
+    });
+    return;
+  }
+
+  if (typeof name !== "string" || name.trim().length === 0 || name.trim().length > SUBACCOUNT_NAME_MAX_LENGTH) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `name must be a non-empty string of at most ${SUBACCOUNT_NAME_MAX_LENGTH} characters.`
+    });
+    return;
+  }
+
+  const isCompany = accountType === AveniaAccountType.COMPANY;
+  if (typeof taxId !== "string" || !(isCompany ? isValidCnpj(taxId.trim()) : isValidCpf(taxId.trim()))) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `taxId must be a valid ${isCompany ? "CNPJ" : "CPF"} for ${accountType} accounts.`
     });
     return;
   }

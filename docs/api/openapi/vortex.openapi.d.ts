@@ -109,7 +109,7 @@ export interface paths {
         put?: never;
         /**
          * Create user or retry KYC
-         * @description `companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`
+         * @description Creates the provider subaccount for a Brazilian individual (`INDIVIDUAL`, CPF) or company (`COMPANY`, CNPJ). The tax ID is reserved for the calling account as soon as this succeeds, so `taxId` must be the CPF/CNPJ of the person or company being onboarded; it is validated (format and check digits) before anything is created. Repeating the call for a tax ID the account already owns returns the existing `subAccountId`.
          *
          *     `quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.
          *
@@ -957,7 +957,7 @@ export interface paths {
         };
         /**
          * Get the acting profile's EUR onramp account
-         * @description Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's business EUR onramp account: status, dedicated IBAN, forwarding contract, and payout configuration. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -979,7 +979,7 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -1021,7 +1021,7 @@ export interface paths {
         };
         /**
          * Discover KYC or KYB requirements
-         * @description Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. Monerium is outside this discovery proposal.
+         * @description Returns versioned document and ordered action metadata for an existing supported onboarding flow. GET operations, status polling, and readiness checks are intentionally omitted and remain documented in the integration guides and OpenAPI. Request fields and bodies are defined only by the referenced OpenAPI schemas and are not duplicated at the top level. This endpoint does not return profile state or customer PII. EUR onboarding is not part of discovery; it runs in the Dashboard or Widget.
          */
         get: operations["getOnboardingRequirements"];
         put?: never;
@@ -2249,6 +2249,7 @@ export interface components {
             /** @enum {string} */
             sourceOfFundsAndIncome: "business_loans" | "grants" | "inter_company_funds" | "investment_proceeds" | "legal_settlement" | "owners_capital" | "pension_retirement" | "sale_of_assets" | "sales_of_goods_and_services" | "third_party_funds" | "treasury_reserves";
             taxIdentificationDocumentId: string;
+            /** @description The CNPJ the company subaccount was created with. Punctuation is ignored; a different value is rejected with `400`. */
             taxIdentificationNumberTin: string;
             uboIds: string[];
             /** Format: uri */
@@ -2365,11 +2366,14 @@ export interface components {
         CreateSubaccountRequest: {
             /** @enum {string} */
             accountType: "INDIVIDUAL" | "COMPANY";
-            /** @description Individual full name or company legal name. */
+            /** @description Individual full name or company legal name (1 to 255 characters after trimming). */
             name: string;
             quoteId?: string;
             sessionId?: string;
-            /** @description CPF for an individual or CNPJ for a company. */
+            /**
+             * @description CPF for an `INDIVIDUAL` account or CNPJ for a `COMPANY` account. Check digits are validated; punctuation is optional (`529.982.247-25` and `52998224725` are equivalent).
+             * @example 529.982.247-25
+             */
             taxId: string;
         };
         CreateSubaccountResponse: {
@@ -2767,6 +2771,7 @@ export interface components {
             state: string;
             streetAddress: string;
             subAccountId: string;
+            /** @description The CPF the subaccount was created with. Punctuation is ignored; a different CPF is rejected with `400`. */
             taxIdNumber: string;
             uploadedDocumentId: string;
             uploadedSelfieId: string;
@@ -3047,7 +3052,7 @@ export interface components {
                     /** @enum {string} */
                     provider: "alfredpay" | "avenia" | "monerium" | "mykobo";
                     rail: string | null;
-                    /** @description EUR onramp readiness of an approved Monerium account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
+                    /** @description EUR onramp readiness of an approved EUR provider account, measured against the chain the active onramp mints on. Null for other providers, for non-approved accounts, and when the account's OAuth session must be renewed (see error). */
                     ramp: Record<string, never> & (null | {
                         chain: string;
                         /** @enum {string} */
@@ -3316,8 +3321,11 @@ export interface components {
                 }[];
             };
         };
-        /** @description `PENDING`, `FAILED`, `COMPLETED` */
-        SimpleStatus: string;
+        /**
+         * @description Overall ramp status. `COMPLETE` and `FAILED` are terminal; use this field, not `currentPhase`, to detect the end of a ramp.
+         * @enum {string}
+         */
+        SimpleStatus: "PENDING" | "COMPLETE" | "FAILED";
         StartKYC2Request: {
             documentType: components["schemas"]["KYCDocType"];
             taxId: string;
@@ -3831,8 +3839,9 @@ export interface operations {
             };
             /**
              * @description Bad Request. Possible reasons:
-             *     - Missing required fields (cpf, cnpj, companyName, startDate)
-             *     - Subaccount already created and KYC level > 0
+             *     - `accountType` is not `INDIVIDUAL` or `COMPANY`
+             *     - `name` is missing, blank, or longer than 255 characters
+             *     - `taxId` is missing, is not a string, or is not a valid CPF (`INDIVIDUAL`) / CNPJ (`COMPANY`); punctuation is optional, the check digits are verified
              *     - Other invalid request details
              */
             400: {
@@ -4383,7 +4392,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Invalid submission or document state. */
+            /** @description Invalid submission or document state, including a `taxIdentificationNumberTin` that does not match the CNPJ the company subaccount was created with (punctuation is ignored). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4738,7 +4747,7 @@ export interface operations {
                     "application/json": components["schemas"]["KycLevel1Response"];
                 };
             };
-            /** @description Validation failure. */
+            /** @description Validation failure, including a `taxIdNumber` that does not match the CPF the subaccount was created with (punctuation is ignored). Submit the same CPF used for `createSubaccount`. */
             400: {
                 headers: {
                     [name: string]: unknown;

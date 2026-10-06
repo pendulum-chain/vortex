@@ -8,6 +8,7 @@ import {
   getRoute,
   isEvmTokenDetails,
   isNetworkEVM,
+  multiplyByPowerOfTen,
   NATIVE_TOKEN_ADDRESS,
   Networks,
   OnChainToken,
@@ -24,7 +25,6 @@ import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../config/logger";
 import { APIError } from "../../../../errors/api-error";
-import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { priceFeedService } from "../../../priceFeed.service";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "../../../quote/core/errors";
 import { prepareSquidrouterRouteParams } from "./squidrouter-route";

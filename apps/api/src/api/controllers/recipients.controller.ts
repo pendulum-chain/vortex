@@ -18,6 +18,8 @@ import ProviderCustomer, { VerificationStatus } from "../../models/providerCusto
 import RecipientInvitation, { type RecipientInviteeType, type SeededDiscount } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
+import { sendError } from "../helpers/sendError";
+import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 import { emitNotification } from "../services/notifications/notification.service";
@@ -33,8 +35,6 @@ import {
   isProviderApproved,
   providerForRail
 } from "../services/recipients/transfer-eligibility.service";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function recipientCorridor(
   invitation: RecipientInvitation | null,
@@ -82,10 +82,6 @@ export async function resolveRecipientAuthorizationTarget(req: Request, res: Res
   }
   res.locals.senderRecipient = relationship;
   return recipientCorridor(relationship.get("invitation") as RecipientInvitation | null, relationship);
-}
-
-function sendError(res: Response, status: number, code: string, message: string): void {
-  res.status(status).json({ error: { code, message, status } });
 }
 
 function requireUserId(req: Request, res: Response): string | null {

@@ -11,6 +11,7 @@ import {
   MoneriumReauthenticationRequiredError,
   BrlKycStatusError,
   MissingDomesticOfframpParametersError,
+  InvalidPixKeyError,
   MissingBrlOfframpParametersError,
   MissingBrlParametersError,
   MykoboKycRequiredError,
@@ -100,6 +101,13 @@ describe("parseAPIError", () => {
     const error = parseAPIError({ code: 400, message: "pixDestination is required for offramp to BRL" });
 
     expect(error).toBeInstanceOf(MissingBrlOfframpParametersError);
+    expect(error.status).toBe(400);
+  });
+
+  test("maps the API's invalid pixKey message, trailing period included", () => {
+    const error = parseAPIError({ code: 400, message: "Invalid pixKey or receiverTaxId." });
+
+    expect(error).toBeInstanceOf(InvalidPixKeyError);
     expect(error.status).toBe(400);
   });
 

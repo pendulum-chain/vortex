@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import { decodeJwtExpiryMs } from "@vortexfi/shared";
 import { getSupabaseClient } from "../config/supabase";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
@@ -70,7 +71,7 @@ export class AuthService {
     if (!tokens) {
       return false;
     }
-    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    const expiryMs = decodeJwtExpiryMs(tokens.accessToken);
     return expiryMs === null || expiryMs > Date.now();
   }
 
@@ -82,23 +83,7 @@ export class AuthService {
     if (!tokens) {
       return null;
     }
-    return this.decodeJwtExpiryMs(tokens.accessToken);
-  }
-
-  private static decodeJwtExpiryMs(token: string): number | null {
-    try {
-      const payload = token.split(".")[1];
-      if (!payload) {
-        return null;
-      }
-      // JWT segments are base64url and usually unpadded; convert to base64 and re-pad before decoding.
-      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-      const decoded = JSON.parse(atob(padded)) as { exp?: number };
-      return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
-    } catch {
-      return null;
-    }
+    return decodeJwtExpiryMs(tokens.accessToken);
   }
 
   /**

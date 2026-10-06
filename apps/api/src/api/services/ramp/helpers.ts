@@ -1,4 +1,4 @@
-import { RampDirection } from "@vortexfi/shared";
+import { RampDirection, TransactionStatus } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -228,4 +228,13 @@ export function getFinalTransactionHashForRampV2(
   }
 
   return { transactionExplorerLink: undefined, transactionHash: undefined };
+}
+
+/**
+ * Map a ramp phase to the user-facing transaction status (also used for webhook status changes).
+ */
+export function mapPhaseToTransactionStatus(phase: string): TransactionStatus {
+  if (phase === "complete") return TransactionStatus.COMPLETE;
+  if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+  return TransactionStatus.PENDING;
 }

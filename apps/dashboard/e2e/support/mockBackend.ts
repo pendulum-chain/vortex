@@ -256,6 +256,8 @@ interface MockBackendOptions {
   apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
+  // Serve an active window on GET /v1/maintenance/status (default: none). Specs can change `maintenance` later.
+  maintenanceActive?: boolean;
   onboardingState?: OnboardingState;
   companyMode?: boolean;
   selectionRequired?: boolean;
@@ -299,10 +301,20 @@ interface MockBackendOptions {
   rampRegisterError?: string;
   // Fail this many POST /v1/ramp/start calls with a 500 before succeeding.
   rampStartFailures?: number;
+  // Fail this many POST /v1/ramp/update calls that report wallet hashes (the offramp's final
+  // update) with the maintenance guard's 503 before succeeding.
+  rampHashUpdateFailures?: number;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
   quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
   tokenBalances?: TokenBalances | null | ((requestIndex: number, network: BalanceNetwork) => TokenBalances | null);
 }
+
+export const MAINTENANCE_DETAILS = {
+  estimated_time_remaining_seconds: 3600,
+  message: "Ramps are paused while we upgrade.",
+  start_datetime: "2026-10-05T08:00:00.000Z",
+  title: "Scheduled maintenance"
+};
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
 const ALFREDPAY_SUCCESS = "SUCCESS";
@@ -435,6 +447,11 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     startRequests: [] as Array<Record<string, unknown>>
   };
   const auth = { refreshes: 0 };
+  const maintenance = {
+    active: options.maintenanceActive ?? false,
+    // An hour from now outlasts a freshly registered ramp's 15-minute start deadline.
+    endsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  };
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
@@ -592,6 +609,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
+      return;
+    }
+
+    if (path === "/v1/maintenance/status" && method === "GET") {
+      await fulfillJson({
+        is_maintenance_active: maintenance.active,
+        maintenance_details: maintenance.active ? { ...MAINTENANCE_DETAILS, end_datetime: maintenance.endsAt } : null
+      });
       return;
     }
 
@@ -1000,6 +1025,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/ramp/update" && method === "POST") {
       updateRequests.push(request.postDataJSON() as Record<string, unknown>);
+      const hashUpdates = updateRequests.filter(body => body.additionalData).length;
+      if (updateRequests.at(-1)?.additionalData && hashUpdates <= (options.rampHashUpdateFailures ?? 0)) {
+        await fulfillJson(
+          { message: "Vortex services are temporarily unavailable during scheduled maintenance: Upgrade - Back soon." },
+          503
+        );
+        return;
+      }
       const isOnramp = quoteRequests.at(-1)?.rampType === "BUY";
       const paymentData = isOnramp
         ? options.onrampCurrency === "BRL"
@@ -1173,6 +1206,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     kyc,
     kycFormSubmissions,
     limitsRequests,
+    maintenance,
     monerium,
     quoteRequests,
     registerRequests,

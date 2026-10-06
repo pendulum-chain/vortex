@@ -54,7 +54,7 @@ import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
-import { getFinalTransactionHashForRampV2 } from "./helpers";
+import { getFinalTransactionHashForRampV2, mapPhaseToTransactionStatus } from "./helpers";
 
 const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
   "assethubToPendulumHash",
@@ -413,7 +413,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: filterUnsignedTxsForResponse(rampState, false),
@@ -547,7 +547,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: filterUnsignedTxsForResponse(rampState, ephemeralPresignChecksPass),
@@ -576,9 +576,22 @@ export class RampService extends BaseRampService {
     return this.startRampWithOptions({ rampId }, { enforceDeadline: false, requirePaidAveniaTicket: true });
   }
 
+  /**
+   * Start an EVM SELL ramp whose user already reported the hash of their source transaction but
+   * whose client never reached /ramp/start inside the window. That transaction delivers the funds
+   * to the ephemeral, so the deadline no longer protects anyone; FundEphemeral verifies the
+   * reported hash against the issued blueprint on-chain before any platform spend.
+   */
+  public async recoverFundedSellRamp(rampId: string): Promise<StartRampResponse> {
+    return this.startRampWithOptions(
+      { rampId },
+      { enforceDeadline: false, requirePaidAveniaTicket: false, requireReportedSellSource: true }
+    );
+  }
+
   private async startRampWithOptions(
     request: StartRampRequest,
-    options: { enforceDeadline: boolean; requirePaidAveniaTicket: boolean }
+    options: { enforceDeadline: boolean; requirePaidAveniaTicket: boolean; requireReportedSellSource?: boolean }
   ): Promise<StartRampResponse> {
     return this.withTransaction(async transaction => {
       const rampState = await RampState.findByPk(request.rampId, { lock: Transaction.LOCK.UPDATE, transaction });
@@ -621,6 +634,22 @@ export class RampService extends BaseRampService {
           message: "Ramp does not have a provider payment ticket",
           status: httpStatus.CONFLICT
         });
+      }
+      if (options.requireReportedSellSource) {
+        // Domestic (AlfredPay) and AssetHub SELLs are excluded: FundEphemeral only verifies the
+        // reported hash for the other EVM SELLs, so this recovery has no pre-spend proof for them.
+        const { squidRouterNoPermitTransferHash, squidRouterSwapHash } = rampState.state;
+        if (
+          rampState.type !== RampDirection.SELL ||
+          rampState.from === Networks.AssetHub ||
+          isDomesticToken(quote.outputCurrency as FiatToken) ||
+          !(squidRouterSwapHash || squidRouterNoPermitTransferHash)
+        ) {
+          throw new APIError({
+            message: "Ramp does not have a reported source transaction",
+            status: httpStatus.CONFLICT
+          });
+        }
       }
       if (options.enforceDeadline) {
         RampService.assertStartDeadlineNotExceeded(rampState);
@@ -676,7 +705,7 @@ export class RampService extends BaseRampService {
         paymentMethod: rampState.paymentMethod,
         quoteId: rampState.quoteId,
         sessionId: rampState.state.sessionId,
-        status: this.mapPhaseToStatus(rampState.currentPhase),
+        status: mapPhaseToTransactionStatus(rampState.currentPhase),
         to: rampState.to,
         type: rampState.type,
         unsignedTxs: rampState.unsignedTxs,
@@ -787,7 +816,7 @@ export class RampService extends BaseRampService {
       processingFeeUsd,
       quoteId: rampState.quoteId,
       sessionId: rampState.state.sessionId,
-      status: this.mapPhaseToStatus(rampState.currentPhase),
+      status: mapPhaseToTransactionStatus(rampState.currentPhase),
       ...(subsidyDisplay
         ? {
             discountCurrency: subsidyDisplay.currency,
@@ -805,7 +834,14 @@ export class RampService extends BaseRampService {
       vortexFeeFiat: fiatFees.vortex,
       vortexFeeUsd: usdFees.vortex,
       walletAddress: rampState.state.destinationAddress || rampState.state.walletAddress,
-      ...(showUnsignedTxs && { unsignedTxs: rampState.unsignedTxs })
+      ...(showUnsignedTxs && {
+        unsignedTxs: filterUnsignedTxsForResponse(
+          rampState,
+          rampState.type !== RampDirection.SELL ||
+            rampState.state.presignChecksPass ||
+            (await this.ephemeralPresignChecksPass(rampState))
+        )
+      })
     };
 
     return response;
@@ -917,7 +953,7 @@ export class RampService extends BaseRampService {
           fromAmount: quote.inputAmount,
           fromCurrency: quote.inputCurrency,
           id: ramp.id,
-          status: this.mapPhaseToStatus(ramp.currentPhase),
+          status: mapPhaseToTransactionStatus(ramp.currentPhase),
           to: ramp.to,
           toAmount: quote.outputAmount,
           toCurrency: quote.outputCurrency,
@@ -928,15 +964,6 @@ export class RampService extends BaseRampService {
     );
 
     return { totalCount, transactions };
-  }
-
-  /**
-   * Map ramp phase to a user-friendly status
-   */
-  private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
-    if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
-    return TransactionStatus.PENDING;
   }
 
   /**
@@ -1114,15 +1141,9 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private mapPhaseToWebhookStatus(phase: RampPhase): TransactionStatus {
-    if (phase === "complete") return TransactionStatus.COMPLETE;
-    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
-    return TransactionStatus.PENDING;
-  }
-
   private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
-    const oldStatus = this.mapPhaseToWebhookStatus(oldPhase);
-    const newStatus = this.mapPhaseToWebhookStatus(newPhase);
+    const oldStatus = mapPhaseToTransactionStatus(oldPhase);
+    const newStatus = mapPhaseToTransactionStatus(newPhase);
 
     // Only notify if status has changed and new status is not FAILED
     if (oldStatus !== newStatus && newStatus !== TransactionStatus.FAILED) {

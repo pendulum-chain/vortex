@@ -1,4 +1,4 @@
-import { Networks } from "@vortexfi/shared";
+import { isDomesticToken, Networks, type RampCurrency } from "@vortexfi/shared";
 import type { RecipientMethod } from "./types";
 
 /** Display label for the fiat rail each corridor settles on. */
@@ -28,4 +28,13 @@ export function shortenAddress(address: string): string {
     return address;
   }
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+/**
+ * Whether the API starts a broadcast offramp on its own once its 15-minute start deadline has
+ * passed. The API's recovery worker does so for a non-domestic (non-AlfredPay) SELL whose source
+ * hash /ramp/update has already accepted.
+ */
+export function offrampStartsAfterDeadline(outputCurrency: RampCurrency, sourceHashAccepted: boolean): boolean {
+  return sourceHashAccepted && !isDomesticToken(outputCurrency);
 }

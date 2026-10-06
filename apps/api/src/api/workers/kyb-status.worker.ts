@@ -49,11 +49,6 @@ class KybStatusWorker {
     this.job.start();
   }
 
-  public stop(): void {
-    logger.info("Stopping KYB status worker");
-    this.job.stop();
-  }
-
   private async poll(): Promise<void> {
     try {
       const pending = await KycCase.findAll({

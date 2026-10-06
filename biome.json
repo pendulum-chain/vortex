@@ -21,7 +21,6 @@
       "!**/coverage/**",
       "!**/test-results/**",
       "!**/playwright-report/**",
-      "!**/gql/**",
       "!**/lottie/**",
       "!**/storybook-static/**",
       "!contracts/monerium-forwarder/lib/**",

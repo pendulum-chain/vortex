@@ -8,6 +8,7 @@ import MoneriumConversionExecution from "../../models/moneriumConversionExecutio
 import MoneriumDepositAllocation from "../../models/moneriumDepositAllocation.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
+import { sendError } from "../helpers/sendError";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
@@ -70,13 +71,7 @@ async function findAccountForEffectiveUser(req: Request): Promise<MoneriumAccoun
 }
 
 function accountNotFound(res: Response): void {
-  res.status(httpStatus.NOT_FOUND).json({
-    error: {
-      code: "MONERIUM_B2B_ACCOUNT_NOT_FOUND",
-      message: "No Monerium account exists for the acting profile",
-      status: httpStatus.NOT_FOUND
-    }
-  });
+  sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_ACCOUNT_NOT_FOUND", "No Monerium account exists for the acting profile");
 }
 
 /**

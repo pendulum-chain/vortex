@@ -59,14 +59,6 @@ export class PhaseRegistry {
   public getHandler(phaseName: string): PhaseHandler | undefined {
     return this.handlers.get(phaseName);
   }
-
-  /**
-   * Get all registered phase handlers
-   * @returns All registered phase handlers
-   */
-  public getAllHandlers(): PhaseHandler[] {
-    return Array.from(this.handlers.values());
-  }
 }
 
 export default PhaseRegistry.getInstance();

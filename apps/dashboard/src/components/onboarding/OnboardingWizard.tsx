@@ -2,13 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  isCorridorAvailableForAccountType,
-  isCorridorOnboardingDisabled,
-  onboardingKindFor,
-  PROVIDER_LABEL,
-  routeFor
-} from "@/domain/corridors";
+import { isCorridorAvailableForAccountType, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
 import type { Corridor, OnboardingKind, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { notifyOnboardingStatus } from "@/lib/notify";
@@ -69,9 +63,7 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
           </DialogDescription>
         </DialogHeader>
 
-        {isCorridorOnboardingDisabled(corridor) ? (
-          <UnavailableNotice corridor={corridor} kind={kind} onClose={onClose} />
-        ) : isRealAlfredpayKyc ? (
+        {isRealAlfredpayKyc ? (
           <AlfredpayKycFlow
             business={kind === "kyb"}
             corridor={corridor}
@@ -114,9 +106,7 @@ function UnavailableNotice({ corridor, kind, onClose }: { corridor: Corridor; ki
     <>
       <div className="flex min-h-[120px] items-center justify-center py-6 text-center">
         <p className="max-w-sm text-muted-foreground text-sm">
-          {isCorridorOnboardingDisabled(corridor)
-            ? `${kind.toUpperCase()} is currently disabled in ${corridor.name}. Please contact support if you need this corridor.`
-            : `${corridor.name} ${kind.toUpperCase()} verification is not available yet. Please contact support if you need this corridor.`}
+          {`${corridor.name} ${kind.toUpperCase()} verification is not available yet. Please contact support if you need this corridor.`}
         </p>
       </div>
       <DialogFooter>
