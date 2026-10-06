@@ -50,7 +50,7 @@ export interface AxelarScanStatusResponse {
 }
 
 // How long an approved call may wait for Axelar's relayer before Vortex executes it itself.
-export const AXELAR_APPROVED_EXECUTE_GRACE_MS = 5 * 60 * 1000;
+export const AXELAR_APPROVED_EXECUTE_GRACE_MS = 2 * 60 * 1000;
 
 /**
  * Coarse GMP states that matter for stuck-transfer handling. Derived from the
