@@ -25,6 +25,7 @@ const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFee
 const sendTransaction = mock(async (_transaction: Record<string, unknown>) => "0xgasfunding" as `0x${string}`);
 const estimateGas = mock(async (..._args: unknown[]) => 318_000n);
 const getBalance = mock(async (..._args: unknown[]) => 10n ** 18n);
+const waitForTransactionReceipt = mock(async (..._args: unknown[]) => ({ status: "success" }));
 const fundingAccount = { address: "0x1111111111111111111111111111111111111111" as `0x${string}` };
 
 mock.module("@vortexfi/shared", () => ({
@@ -37,7 +38,7 @@ mock.module("@vortexfi/shared", () => ({
         estimateGas,
         getBalance,
         getTransactionCount: async () => 0,
-        waitForTransactionReceipt: async () => ({ status: "success" })
+        waitForTransactionReceipt
       }),
       getWalletClient: () => ({ account: fundingAccount, sendTransaction })
     })
@@ -69,7 +70,10 @@ beforeEach(() => {
   sendTransaction.mockClear();
   estimateGas.mockClear();
   getBalance.mockClear();
+  waitForTransactionReceipt.mockClear();
   estimateGas.mockImplementation(async () => 318_000n);
+  sendTransaction.mockImplementation(async () => "0xgasfunding" as `0x${string}`);
+  waitForTransactionReceipt.mockImplementation(async () => ({ status: "success" }));
   getStatus.mockImplementation(async () => ({
     id: "",
     isGMPTransaction: true,
@@ -552,5 +556,72 @@ describe("SquidRouterPayExecutor approved-not-executed recovery", () => {
       data: tx.data
     });
     expect(decoded.args[4]).toBe("USDC");
+  });
+
+  it("refuses to send when the estimated gas exceeds the cap", async () => {
+    estimateGas.mockImplementation(async () => 1_600_001n);
+    const state = makeState();
+    const { handler } = makeExecuteHandler();
+
+    const outcome = await handler.maybeExecuteApprovedGmp(state, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(outcome).toContain("exceeds 1600000");
+    expect(state.state.squidRouterAxelarExecuteTxHash).toBeUndefined();
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the claim and never resends when the send fails after claiming", async () => {
+    sendTransaction.mockImplementation(async () => {
+      throw new Error("rpc dropped the request");
+    });
+    const state = makeState();
+    const { handler } = makeExecuteHandler();
+
+    const first = await handler.maybeExecuteApprovedGmp(state, makeQuote(Networks.Base), approvedNotExecutedStatus());
+    const second = await handler.maybeExecuteApprovedGmp(state, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(first).toContain("failed after claim");
+    expect(second).toContain("unknown outcome; not retrying");
+    expect(state.state.squidRouterAxelarExecuteTxHash).toBe("pending");
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the claim when the execute reverts on-chain", async () => {
+    waitForTransactionReceipt.mockImplementation(async () => ({ status: "reverted" }));
+    const state = makeState();
+    const { handler } = makeExecuteHandler();
+
+    const outcome = await handler.maybeExecuteApprovedGmp(state, makeQuote(Networks.Base), approvedNotExecutedStatus());
+
+    expect(outcome).toContain("failed after claim");
+    expect(outcome).toContain("reverted");
+    expect(state.state.squidRouterAxelarExecuteTxHash).toBe("pending");
+  });
+
+  it("does not send when an earlier execution left a pending claim", async () => {
+    const { handler } = makeExecuteHandler();
+
+    const outcome = await handler.maybeExecuteApprovedGmp(
+      makeState({ squidRouterAxelarExecuteTxHash: "pending" }),
+      makeQuote(Networks.Base),
+      approvedNotExecutedStatus()
+    );
+
+    expect(outcome).toContain("unknown outcome; not retrying");
+    expect(handler.patchStateKey).not.toHaveBeenCalled();
+    expect(estimateGas).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not execute for a non-EVM destination", async () => {
+    const { handler } = makeExecuteHandler();
+    const quote = { ...makeQuote(Networks.Base), to: Networks.AssetHub } as unknown as QuoteTicket;
+    (quote.metadata as any).blocks.squidRouterSwap.toNetwork = Networks.AssetHub;
+
+    const outcome = await handler.maybeExecuteApprovedGmp(makeState(), quote, approvedNotExecutedStatus());
+
+    expect(outcome).toContain("not an EVM chain");
+    expect(estimateGas).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
   });
 });
