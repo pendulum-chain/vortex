@@ -213,6 +213,15 @@ different set of endpoints than the widget. Covered so far:
   approved AlfredPay corridor creates a self payout account and updates the card/recipient state;
   disconnected wallet actions open AppKit's `Connect` view, while the connected address opens its
   `Account` view. The connected-wallet-only funding gate remains pinned.
+- **Maintenance windows** (`maintenance.spec.ts`): an active window from
+  `/v1/maintenance/status` shows the shell banner and disables the offramp `Send`, onramp
+  `Continue to payment`, and `I have made the payment` buttons, and quote errors on the onramp,
+  offramp, and quote-explorer pages name the maintenance pause. Two cases open a window while
+  payment instructions are showing, by flipping the mock's `maintenance` handle and relying on
+  React Query's refetch when the tab regains focus: one ending before the ramp expires (details
+  stay, confirming is paused) and one outlasting it (details hidden). The mock serves an inactive
+  window by default, so the other specs' `unmatchedRequests` checks still pass. Bun unit tests
+  cover the end-of-window refetch interval and the pre-signing status check.
 - **Managed profiles** (`managed-profiles.spec.ts`): ordinary-user route denial, manager child
   selection, persisted acting mode, route-scoped managed-profile headers, hidden manager-only
   navigation, stopping child mode, and long-identifier mobile layout.

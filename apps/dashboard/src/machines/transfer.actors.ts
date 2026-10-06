@@ -22,6 +22,7 @@ import {
   type UnsignedTx,
   type UpdateRampRequest
 } from "@vortexfi/shared";
+import { MaintenanceService } from "@/services/api/maintenance.service";
 import { fetchQuote, type QuoteParams } from "@/services/api/quote.service";
 import { shouldRefreshQuote } from "@/services/api/quote-expiry";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
@@ -186,6 +187,15 @@ export interface UserTxSubmission {
  */
 export async function signUserTransactions(input: SignUserTransactionsInput): Promise<UserTxSubmission> {
   const { userTxs } = input;
+
+  // The banner's status can be minutes old. Once the wallet broadcasts, a window that has opened meanwhile 503s the
+  // final /ramp/update with funds already moved, so re-check right before signing. A failed check falls back to the
+  // API guard, like the rest of the UI.
+  const status = await MaintenanceService.getStatus().catch(() => null);
+  if (status?.is_maintenance_active && status.maintenance_details) {
+    throw new Error("Transfers are paused for scheduled maintenance. Nothing was sent from your wallet.");
+  }
+
   const sortedTxs = [...userTxs].sort((a, b) => a.nonce - b.nonce);
   const signedTxs: PresignedTx[] = [];
   let squidRouterApproveHash: string | undefined;
