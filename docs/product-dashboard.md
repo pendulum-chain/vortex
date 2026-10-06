@@ -294,10 +294,13 @@ provider-shaped rather than UI-shaped.
   network error) moves to `AwaitingRetry` with the ramp and any unsubmitted signatures and hashes;
   **Try again** resends only the failed call and never re-signs or re-broadcasts. The pay-out form
   shows the ramp's 15-minute start deadline (`expiresAt`); once it passes, the API refuses the
-  start, so the dashboard shows the ramp ID for a support-led recovery from the local ephemeral
-  archive and allows starting a new transfer. The transactions page offers **Resume transfer** for
-  that state. A partially broadcast wallet sequence (one transaction sent, a later one rejected)
-  still ends in `Failed`.
+  start. If `/ramp/update` had already accepted the source hash of a non-domestic (non-AlfredPay)
+  SELL, the API's recovery worker starts the ramp itself shortly after the deadline, and the
+  dashboard says so and warns against paying again. Otherwise it shows the ramp ID for a
+  support-led recovery from the local ephemeral archive. Both views ask the user to check
+  Transactions before sending again and allow starting a new transfer. The transactions page
+  offers **Resume transfer** for that state. A partially broadcast wallet sequence (one
+  transaction sent, a later one rejected) still ends in `Failed`.
 
 - **Preserve ramp recovery keys.** The dashboard stores each ramp's EVM and Substrate ephemeral
   secrets locally before registration (under a

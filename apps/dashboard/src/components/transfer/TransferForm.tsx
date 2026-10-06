@@ -22,7 +22,7 @@ import { CORRIDORS } from "@/domain/corridors";
 import { getNetworkOptions, getRampTokenOptions } from "@/domain/onramp";
 import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
-import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
+import { offrampStartsAfterDeadline, PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
 import { MAINTENANCE_QUOTE_ERROR, useActiveMaintenance } from "@/hooks/useActiveMaintenance";
 import { formatCurrencyAmount } from "@/lib/amount";
@@ -363,6 +363,13 @@ function OfframpStartRetry({ ramp }: { ramp: RampProcess }) {
   const navigate = useNavigate();
   const busy = useSelector(transferActor, snapshot => !snapshot.matches("AwaitingRetry"));
   const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
+  // No wallet output left to submit means /ramp/update accepted the source hash.
+  const startsAutomatically = useSelector(
+    transferActor,
+    snapshot =>
+      !!snapshot.context.quote &&
+      offrampStartsAfterDeadline(snapshot.context.quote.outputCurrency, snapshot.context.userTxSubmission === null)
+  );
   const [now, setNow] = useState(() => Date.now());
   const deadline = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
   const expired = Number.isFinite(deadline) && deadline <= now;
@@ -407,11 +414,27 @@ function OfframpStartRetry({ ramp }: { ramp: RampProcess }) {
         <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive">
           <TriangleAlert className="mt-px size-5 shrink-0" />
           <div className="grid gap-1 text-sm">
-            <h2 className="font-semibold text-base">The window to start this transfer has closed</h2>
+            {startsAutomatically ? (
+              <>
+                <h2 className="font-semibold text-base">This transfer will start automatically</h2>
+                <p>
+                  Your tokens left your wallet and Vortex has the transaction on record, so it starts this transfer on its own
+                  within about 10 minutes. Don’t send this payment again. If it still hasn’t started after that, contact support
+                  with transfer ID <span className="break-all font-mono">{ramp.id}</span>.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="font-semibold text-base">The window to start this transfer has closed</h2>
+                <p>
+                  Your tokens left your wallet, but the transfer can no longer be started. Contact support with transfer ID{" "}
+                  <span className="break-all font-mono">{ramp.id}</span>.
+                </p>
+              </>
+            )}
             <p>
-              Your tokens left your wallet, but the transfer can no longer be started. Contact support with transfer ID{" "}
-              <span className="break-all font-mono">{ramp.id}</span>, and don’t clear this browser’s data: it holds the keys
-              needed to recover your tokens.
+              Before sending this payment again, check Transactions: if this transfer shows as processing, it already started.
+              Don’t clear this browser’s data: it holds the keys needed to recover your tokens.
             </p>
           </div>
         </div>
