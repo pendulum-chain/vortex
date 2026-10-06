@@ -230,7 +230,10 @@ SulPayments' steps **[S11]**:
    share the app's client ID and secret with Vortex, and onboard one or two test client
    profiles through its KYB integration.
 2. Get a test API key from dashboard-sandbox.vortexfinance.co, for the API at
-   api-sandbox.vortexfinance.co, and register its webhook endpoint there.
+   api-sandbox.vortexfinance.co, once Vortex has set SulPayments' profile up as the
+   manager of its clients. Register the webhook endpoint with that key through
+   `POST /v1/webhook`, subscribing to `DEPOSIT_UPDATED` and `ACCOUNT_UPDATED`; the
+   dashboard has no webhook screen.
 3. For each test profile, send Vortex the Monerium profile ID and a Sepolia destination
    wallet that SulPayments controls.
 
