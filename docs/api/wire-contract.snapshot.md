@@ -9168,6 +9168,7 @@ DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId
 GET /v1/metrics/volumes
 GET /v1/monerium-b2b/account
 GET /v1/monerium-b2b/accounts
+POST /v1/monerium-b2b/accounts
 GET /v1/monerium-b2b/deposits
 POST /v1/monerium-b2b/webhook
 POST /v1/monerium/iban/move

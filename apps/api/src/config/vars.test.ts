@@ -216,6 +216,29 @@ describe("vars deployment environment validation", () => {
     }
   });
 
+  it("accepts partner registrations only with both the partner binding and a distinct deployer key", async () => {
+    const deployerKey = "0x4444444444444444444444444444444444444444444444444444444444444444";
+    const partner = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
+    const run = (overrides: Record<string, string>) =>
+      importVarsWithEnv({ ...requiredMoneriumB2bEnv, ...overrides, DEPLOYMENT_ENV: "production", NODE_ENV: "production" });
+
+    expect(
+      await run({ MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner })
+    ).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+    const incomplete: Record<string, string>[] = [
+      { MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: "not-a-uuid" },
+      {
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: requiredMoneriumB2bEnv.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      }
+    ];
+    for (const overrides of incomplete) {
+      expect((await run(overrides)).exitCode).toBe(1);
+    }
+  });
+
   it("requires the mykobo flow variant when Monerium B2B is enabled", async () => {
     const result = await importVarsWithEnv({
       ...requiredMoneriumB2bEnv,

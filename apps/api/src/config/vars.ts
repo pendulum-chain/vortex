@@ -249,6 +249,8 @@ interface Config {
     attestorPrivateKey: string | undefined;
     /** off: nothing; alert: log deposits past the window; auto: mark them and run the refund. */
     autoRecovery: "off" | "alert" | "auto";
+    /** Factory deployer key: deploys the clones of partner registrations (never the guardian key). */
+    deployerPrivateKey: string | undefined;
     enabled: boolean;
     /** Key of the EURe float wallet that tops a refund up to the exact amount. */
     floatPrivateKey: string | undefined;
@@ -257,6 +259,8 @@ interface Config {
     forwarderFactoryAddress: string | undefined;
     guardianPrivateKey: string | undefined;
     keeperPrivateKey: string | undefined;
+    /** The manager profile whose key may register destinations: the partner owning the white-label app. */
+    partnerManagerProfileId: string | undefined;
     privateRpcUrl: string | undefined;
     /** Promised conversion window from the mint, in minutes; the on-chain RECOVERY_DELAY is its floor. */
     recoveryDeadlineMinutes: number;
@@ -414,6 +418,7 @@ export const config: Config = {
     autoRecovery: (["alert", "auto"].includes(process.env.MONERIUM_B2B_AUTO_RECOVERY ?? "")
       ? process.env.MONERIUM_B2B_AUTO_RECOVERY
       : "off") as "off" | "alert" | "auto",
+    deployerPrivateKey: process.env.MONERIUM_B2B_DEPLOYER_PRIVATE_KEY,
     enabled: process.env.MONERIUM_B2B_ENABLED === "true",
     floatPrivateKey: process.env.MONERIUM_B2B_FLOAT_PRIVATE_KEY,
     forwarderFactoryAddress: process.env.MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS,
@@ -422,6 +427,7 @@ export const config: Config = {
     guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
     keeperCycleSeconds: Number(process.env.MONERIUM_B2B_KEEPER_CYCLE_SECONDS || 20),
     keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+    partnerManagerProfileId: process.env.MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID,
     // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
     // the keeper falls back to the public RPC and logs a warning (see chain.ts).
     privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
@@ -572,6 +578,9 @@ if (config.moneriumB2b.enabled) {
     ["MONERIUM_B2B_REFUND_SEED", config.moneriumB2b.refundSeed],
     ...(config.moneriumB2b.floatPrivateKey
       ? ([["MONERIUM_B2B_FLOAT_PRIVATE_KEY", config.moneriumB2b.floatPrivateKey]] as const)
+      : []),
+    ...(config.moneriumB2b.deployerPrivateKey
+      ? ([["MONERIUM_B2B_DEPLOYER_PRIVATE_KEY", config.moneriumB2b.deployerPrivateKey]] as const)
       : [])
   ] as const) {
     if (!/^0x[0-9a-fA-F]{64}$/.test(value as string)) {
@@ -581,10 +590,22 @@ if (config.moneriumB2b.enabled) {
   const b2bKeys = [
     config.moneriumB2b.attestorPrivateKey,
     config.moneriumB2b.guardianPrivateKey,
-    config.moneriumB2b.keeperPrivateKey
+    config.moneriumB2b.keeperPrivateKey,
+    ...(config.moneriumB2b.deployerPrivateKey ? [config.moneriumB2b.deployerPrivateKey] : [])
   ].map(value => (value as string).toLowerCase());
   if (new Set(b2bKeys).size !== b2bKeys.length) {
-    throw new Error("Monerium B2B attestor, guardian, and keeper private keys must be distinct");
+    throw new Error("Monerium B2B attestor, guardian, keeper, and deployer private keys must be distinct");
+  }
+  // Partner registrations (POST /v1/monerium-b2b/accounts) need both: who may register, and the key that deploys.
+  const { deployerPrivateKey, partnerManagerProfileId } = config.moneriumB2b;
+  if (Boolean(partnerManagerProfileId) !== Boolean(deployerPrivateKey)) {
+    throw new Error("MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID and MONERIUM_B2B_DEPLOYER_PRIVATE_KEY must be set together");
+  }
+  if (
+    partnerManagerProfileId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerManagerProfileId)
+  ) {
+    throw new Error("MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID must be a UUID");
   }
   const encodedWebhookSecret = config.moneriumB2b.webhookSecret.slice("whsec_".length);
   const decodedWebhookSecret = Buffer.from(encodedWebhookSecret, "base64");

@@ -12,6 +12,7 @@ import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
 import { runRecoveryDeadlines, runRecoveryOrchestrator } from "../services/monerium-b2b/recovery";
+import { advanceRegistrations } from "../services/monerium-b2b/registration";
 
 /** Six-field cron with seconds: a waiting chunk is re-quoted every cycle (MONERIUM_B2B_KEEPER_CYCLE_SECONDS). */
 const DEFAULT_CRON_TIME = `*/${config.moneriumB2b.keeperCycleSeconds} * * * * *`;
@@ -43,6 +44,11 @@ class MoneriumB2bWorker {
     this.running = true;
     try {
       await processMoneriumWebhookInbox();
+
+      // Partner registrations: wait for the profile's approval, deploy the forwarder and
+      // map the account; gated on the deployer key and read RPC. Runs first so a freshly
+      // mapped account is linked in the same cycle.
+      await advanceRegistrations();
 
       // Link + IBAN issuance for mapped accounts still in onboarding; internally
       // gated on the whitelabel credentials, attestor key, and read RPC.

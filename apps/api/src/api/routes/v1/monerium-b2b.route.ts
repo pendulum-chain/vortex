@@ -20,13 +20,10 @@ const accountAuth = [requirePartnerOrUserAuth(), authorizeManagedProfile({ corri
 router.get("/account", ...accountAuth, moneriumB2bController.getMoneriumB2bAccount);
 router.get("/deposits", ...accountAuth, moneriumB2bController.listMoneriumB2bDeposits);
 
-// Manager-level read: every onramp account of the caller's managed profiles (manager key only).
-router.get(
-  "/accounts",
-  requirePartnerOrUserAuth(),
-  rejectDirectManagedCredential,
-  rejectManagedProfileSelection,
-  moneriumB2bController.listMoneriumB2bAccounts
-);
+// Manager-level: every onramp account of the caller's managed profiles, and the partner's
+// registration of a new client's destination by Monerium profile ID (manager key only).
+const managerAuth = [requirePartnerOrUserAuth(), rejectDirectManagedCredential, rejectManagedProfileSelection];
+router.get("/accounts", ...managerAuth, moneriumB2bController.listMoneriumB2bAccounts);
+router.post("/accounts", ...managerAuth, moneriumB2bController.registerMoneriumB2bAccount);
 
 export default router;

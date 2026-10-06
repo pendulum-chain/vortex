@@ -14,6 +14,7 @@ import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/ef
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { accountSnapshot, depositSnapshots, findRelationship } from "../services/monerium-b2b/manager-events";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
+import { MoneriumB2bRegistrationError, registerDestination } from "../services/monerium-b2b/registration";
 import {
   MONERIUM_ID_HEADER,
   MONERIUM_SIGNATURE_HEADER,
@@ -137,21 +138,31 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
  * managed profiles, newest first, optionally narrowed to one Monerium profile. Manager
  * credential only: no delegation header, no child credential.
  */
+/** The authenticated manager when it may manage business EUR onramp accounts, else null. */
+async function b2bManager(req: Request): Promise<ManagedProfileManager | null> {
+  const managerProfileId = getAuthenticatedProfileId(req);
+  const manager = managerProfileId ? await ManagedProfileManager.findByPk(managerProfileId) : null;
+  return manager?.isActive &&
+    manager.allowedCorridors.includes("EU") &&
+    (manager.allowedCustomerTypes === null || manager.allowedCustomerTypes.includes("business"))
+    ? manager
+    : null;
+}
+
+function denyManager(res: Response): void {
+  sendError(
+    res,
+    httpStatus.FORBIDDEN,
+    "MANAGED_PROFILE_ACCESS_DENIED",
+    "The authenticated profile does not manage business EUR onramp accounts"
+  );
+}
+
 export const listMoneriumB2bAccounts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const managerProfileId = getAuthenticatedProfileId(req);
-    const manager = managerProfileId ? await ManagedProfileManager.findByPk(managerProfileId) : null;
-    if (
-      !manager?.isActive ||
-      !manager.allowedCorridors.includes("EU") ||
-      (manager.allowedCustomerTypes !== null && !manager.allowedCustomerTypes.includes("business"))
-    ) {
-      sendError(
-        res,
-        httpStatus.FORBIDDEN,
-        "MANAGED_PROFILE_ACCESS_DENIED",
-        "The authenticated profile does not manage business EUR onramp accounts"
-      );
+    const manager = await b2bManager(req);
+    if (!manager) {
+      denyManager(res);
       return;
     }
     const moneriumProfileId = req.query.moneriumProfileId;
@@ -181,6 +192,29 @@ export const listMoneriumB2bAccounts = async (req: Request, res: Response, next:
       pagination: { limit, offset, total: count }
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /v1/monerium-b2b/accounts — the partner registers a client's destination by
+ * Monerium profile ID (manager key only, and only the manager bound to the white-label
+ * app). 202 for a new registration, 200 with the current state for an identical replay.
+ */
+export const registerMoneriumB2bAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const manager = await b2bManager(req);
+    if (!manager || manager.profileId !== config.moneriumB2b.partnerManagerProfileId) {
+      denyManager(res);
+      return;
+    }
+    const { created, registration } = await registerDestination(manager.profileId, req.body ?? {});
+    res.status(created ? httpStatus.ACCEPTED : httpStatus.OK).json({ registration });
+  } catch (error) {
+    if (error instanceof MoneriumB2bRegistrationError) {
+      sendError(res, error.status, error.code, error.message);
+      return;
+    }
     next(error);
   }
 };
