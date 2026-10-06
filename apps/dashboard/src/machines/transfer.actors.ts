@@ -19,7 +19,8 @@ import {
   type RampProcess,
   type RegisterRampRequest,
   signUnsignedTransactions,
-  type UnsignedTx
+  type UnsignedTx,
+  type UpdateRampRequest
 } from "@vortexfi/shared";
 import { MaintenanceService } from "@/services/api/maintenance.service";
 import { fetchQuote, type QuoteParams } from "@/services/api/quote.service";
@@ -169,21 +170,23 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
 export class UserRejectedError extends Error {}
 
 export interface SignUserTransactionsInput {
-  ramp: RampProcess;
   userTxs: UnsignedTx[];
+}
+
+/** What the connected wallet produced: everything /ramp/update needs, so it can be resent without re-signing. */
+export interface UserTxSubmission {
+  signedTxs: PresignedTx[];
+  additionalData: NonNullable<UpdateRampRequest["additionalData"]>;
 }
 
 /**
  * Ported from the widget's sign.actor (EVM paths): walks the user-owned transactions in
  * nonce order, signing typed data (offramp permits) and broadcasting squidRouter
- * transactions with the connected wallet, then submits signatures + hashes via
- * /ramp/update.
+ * transactions with the connected wallet. Returns the signatures + hashes for /ramp/update,
+ * which the machine submits as its own step so a failed update never re-broadcasts.
  */
-export async function signUserTransactions(input: SignUserTransactionsInput): Promise<RampProcess> {
-  const { ramp, userTxs } = input;
-  if (userTxs.length === 0) {
-    return ramp;
-  }
+export async function signUserTransactions(input: SignUserTransactionsInput): Promise<UserTxSubmission> {
+  const { userTxs } = input;
 
   // The banner's status can be minutes old. Once the wallet broadcasts, a window that has opened meanwhile 503s the
   // final /ramp/update with funds already moved, so re-check right before signing. A failed check falls back to the
@@ -229,13 +232,16 @@ export async function signUserTransactions(input: SignUserTransactionsInput): Pr
     throw error;
   }
 
-  return RampService.updateRamp(ramp.id, signedTxs, {
-    squidRouterApproveHash,
-    squidRouterNoPermitApproveHash,
-    squidRouterNoPermitSwapHash,
-    squidRouterNoPermitTransferHash,
-    squidRouterSwapHash
-  });
+  return {
+    additionalData: {
+      squidRouterApproveHash,
+      squidRouterNoPermitApproveHash,
+      squidRouterNoPermitSwapHash,
+      squidRouterNoPermitTransferHash,
+      squidRouterSwapHash
+    },
+    signedTxs
+  };
 }
 
 const POLL_INTERVAL_MS = 3000;

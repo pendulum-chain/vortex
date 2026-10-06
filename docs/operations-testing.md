@@ -203,7 +203,9 @@ different set of endpoints than the widget. Covered so far:
   Alfredpay fiat account → quote → registration with fresh ephemeral keypairs → in-page ephemeral
   signing asserted via the raw EIP-1559 txs posted to `/ramp/update` → USER-WALLET broadcast of the
   `squidRouterNoPermitTransfer` with its hash reported in a second update → `/ramp/start` → status
-  polling to a terminal phase while the form navigates to `/transactions`. A second test pins
+  polling to a terminal phase while the form navigates to `/transactions`. A retry test fails that
+  second update with the maintenance 503, reloads, and asserts **Try again** resends the identical
+  update then starts, with exactly one wallet broadcast across the reload. Another test pins
   payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
   one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
 - **Onramps and transfer modes** (`onramp-journeys.spec.ts`): route-backed Offramp/Onramp/

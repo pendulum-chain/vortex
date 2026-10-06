@@ -137,7 +137,9 @@ describe("transferActor owner recovery", () => {
     const corruptions = [
       { ...complete, version: undefined },
       { ...complete, ramp: undefined },
-      { ...complete, meta: { ...complete.meta, ownerProfileId: "profile-else" } }
+      { ...complete, meta: { ...complete.meta, ownerProfileId: "profile-else" } },
+      // Only an offramp owes /ramp/update after its wallet step; a BUY snapshot never carries one.
+      { ...complete, userTxSubmission: { additionalData: {}, signedTxs: [] } }
     ];
 
     for (const corruption of corruptions) {
@@ -169,6 +171,49 @@ describe("transferActor owner recovery", () => {
     assert.equal(values.has(key), false);
     assert.equal(transferActor.getSnapshot().value, "Idle");
     assert.equal(transferActor.getSnapshot().context.activeOwnerProfileId, "profile-5");
+  });
+
+  it("restores an offramp awaiting retry with the wallet output it still owes the API", () => {
+    const key = "vortex-dashboard-transfer-state:owner:profile-6";
+    const hash = `0x${"cd".repeat(32)}`;
+    const snapshot = {
+      meta: {
+        accountId: "account-6",
+        amountIn: "100",
+        amountInToken: "USDC",
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        fiatPayoutAmount: "1850",
+        ownerProfileId: "profile-6",
+        payinNetwork: "polygon",
+        payoutCurrency: "MXN",
+        recipientEmail: "recipient@example.com",
+        recipientId: "recipient-6",
+        summary: "1850 MXN to recipient@example.com"
+      },
+      ownerProfileId: "profile-6",
+      quote: { id: "quote-sell", rampType: RampDirection.SELL },
+      ramp: { expiresAt: "2026-10-05T12:15:00.000Z", id: "ramp-sell", type: RampDirection.SELL },
+      userTxSubmission: { additionalData: { squidRouterNoPermitTransferHash: hash }, signedTxs: [] },
+      version: 1
+    };
+
+    values.set(key, JSON.stringify({ ...snapshot, userTxSubmission: { additionalData: {}, signedTxs: "corrupt" } }));
+    assert.equal(activateTransferOwner("profile-6"), true);
+    assert.equal(values.has(key), false);
+    assert.equal(transferActor.getSnapshot().value, "Idle");
+
+    assert.equal(activateTransferOwner("profile-existing"), true);
+    values.set(key, JSON.stringify(snapshot));
+    assert.equal(activateTransferOwner("profile-6"), true);
+    const restored = transferActor.getSnapshot();
+    assert.equal(restored.value, "AwaitingRetry");
+    assert.equal(restored.context.ramp?.id, "ramp-sell");
+    assert.equal(restored.context.userTxSubmission?.additionalData.squidRouterNoPermitTransferHash, hash);
+    assert.deepEqual(JSON.parse(values.get(key) ?? "null"), snapshot);
+
+    resetTransferState();
+    assert.equal(values.has(key), false);
   });
 
   it("allows identity changes while idle", () => {
