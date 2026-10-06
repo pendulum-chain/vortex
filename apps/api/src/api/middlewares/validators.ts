@@ -1,4 +1,5 @@
 import {
+  AveniaAccountType,
   BrDocumentType,
   BrKYCDataUploadRequest,
   BrKybLevel1Payload,
@@ -12,6 +13,7 @@ import {
   getCaseSensitiveNetwork,
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
+  isValidCnpj,
   isValidCpf,
   isValidCurrencyForDirection,
   isValidDirection,
@@ -299,12 +301,32 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { accountType } = req.body as CreateAveniaSubaccountRequest;
+// provider_customers.company_name is VARCHAR(255); the controller stores the trimmed name there after the provider call.
+const SUBACCOUNT_NAME_MAX_LENGTH = 255;
 
-  if (!accountType || !isValidAveniaAccountType(accountType)) {
+// Runs before any provider call or DB write: a subaccount reserves its tax id exclusively, so only a
+// well-formed CPF (INDIVIDUAL) or CNPJ (COMPANY) may reach the controller.
+export const validateSubaccountCreation: RequestHandler = (req, res, next) => {
+  const { accountType, name, taxId } = (req.body ?? {}) as Partial<Record<keyof CreateAveniaSubaccountRequest, unknown>>;
+
+  if (typeof accountType !== "string" || !isValidAveniaAccountType(accountType)) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: "Invalid accountType."
+    });
+    return;
+  }
+
+  if (typeof name !== "string" || name.trim().length === 0 || name.trim().length > SUBACCOUNT_NAME_MAX_LENGTH) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `name must be a non-empty string of at most ${SUBACCOUNT_NAME_MAX_LENGTH} characters.`
+    });
+    return;
+  }
+
+  const isCompany = accountType === AveniaAccountType.COMPANY;
+  if (typeof taxId !== "string" || !(isCompany ? isValidCnpj(taxId.trim()) : isValidCpf(taxId.trim()))) {
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: `taxId must be a valid ${isCompany ? "CNPJ" : "CPF"} for ${accountType} accounts.`
     });
     return;
   }
