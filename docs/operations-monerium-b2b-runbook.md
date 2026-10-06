@@ -64,7 +64,7 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
 # the client's refund wallet, derived from MONERIUM_B2B_REFUND_SEED and the Monerium profile ID
 curl -s -H "Authorization: Bearer $ADMIN_SECRET" \
   "$API/v1/admin/monerium-b2b/refund-address?moneriumProfileId=$MONERIUM_PROFILE_ID"
-# predict, then deploy (guardian-only); salt = any unused bytes32, convention: client index
+# predict, then deploy (guardian or a factory deployer); salt = any unused bytes32, convention: client index
 cast call $FACTORY "predictAddress(bytes32)(address)" $SALT --rpc-url $RPC
 cast send $FACTORY "deployForwarder(address,address,uint32,uint32,bytes32)" \
   $DESTINATION $REFUND_ADDRESS $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
@@ -868,6 +868,8 @@ forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RP
   1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
 cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
 cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
+# the partner registration path deploys clones with its own deployer key; grant it once that path ships
+# cast send $FACTORY "setDeployer(address,bool)" $DEPLOYER true --rpc-url $RPC --private-key $GUARDIAN_KEY
 
 # vault: 1% per swap (the ladder's top), 50 USDC per day
 forge create src/VortexSubsidyVault.sol:VortexSubsidyVault --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \

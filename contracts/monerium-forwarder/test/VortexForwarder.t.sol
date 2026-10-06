@@ -763,6 +763,31 @@ contract VortexForwarderTest is Test {
         assertEq(factory.routeCount(), 1);
     }
 
+    function test_deployers_guardianManagedAndDeployOnly() public {
+        bytes32 salt = bytes32(uint256(77));
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotDeployer.selector);
+        factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setDeployer(rando, true);
+
+        factory.setDeployer(rando, true);
+        vm.startPrank(rando);
+        address clone = factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        assertTrue(factory.isForwarder(clone));
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setKeeper(rando, true);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setDeployer(address(0xBEEF), true);
+        vm.stopPrank();
+
+        factory.setDeployer(rando, false);
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotDeployer.selector);
+        factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(78)));
+    }
+
     function test_routes_guardianOnly() public {
         vm.startPrank(rando);
         vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);

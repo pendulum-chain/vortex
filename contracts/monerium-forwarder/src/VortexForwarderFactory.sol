@@ -23,6 +23,9 @@ contract VortexForwarderFactory {
     address public guardian;
     address public pendingGuardian;
     mapping(address => bool) public isKeeper;
+    /// @notice May deploy clones besides the guardian (partner registrations), so the
+    ///         guardian key can stay cold. Deploying is the role's only power.
+    mapping(address => bool) public isDeployer;
     bool public globalPaused;
 
     uint256 public minSwapAmount; // registry P6
@@ -57,6 +60,7 @@ contract VortexForwarderFactory {
         bytes32 salt
     );
     event KeeperSet(address indexed keeper, bool enabled);
+    event DeployerSet(address indexed deployer, bool enabled);
     event GlobalPausedSet(bool paused);
     event MinSwapAmountSet(uint256 value);
     event PerSwapCapSet(uint256 value);
@@ -67,6 +71,7 @@ contract VortexForwarderFactory {
     event GuardianTransferred(address indexed previous, address indexed current);
 
     error NotGuardian();
+    error NotDeployer();
     error NotPendingGuardian();
     error OutOfBounds();
     error CloneFailed();
@@ -108,7 +113,8 @@ contract VortexForwarderFactory {
         uint32 targetPpm,
         uint32 floorPpm,
         bytes32 salt
-    ) external onlyGuardian returns (address forwarder) {
+    ) external returns (address forwarder) {
+        if (msg.sender != guardian && !isDeployer[msg.sender]) revert NotDeployer();
         forwarder = _cloneDeterministic(implementation, salt);
         VortexForwarder(forwarder).initialize(destination, recoveryAddress, targetPpm, floorPpm);
         isForwarder[forwarder] = true;
@@ -125,6 +131,11 @@ contract VortexForwarderFactory {
     function setKeeper(address keeper, bool enabled) external onlyGuardian {
         isKeeper[keeper] = enabled;
         emit KeeperSet(keeper, enabled);
+    }
+
+    function setDeployer(address deployer, bool enabled) external onlyGuardian {
+        isDeployer[deployer] = enabled;
+        emit DeployerSet(deployer, enabled);
     }
 
     function setGlobalPaused(bool paused) external onlyGuardian {
