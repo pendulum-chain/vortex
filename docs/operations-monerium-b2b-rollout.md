@@ -70,15 +70,17 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    age, 60 bps floor on the net, 1% fee cap, 100 bps reference band, 2 h recovery / 24 h
    trigger delays, €1 floor/€50k ceiling, initial 5 bps/5 bps route; the recovery address
    is per client, passed at each clone's deployment); set operational `minSwapAmount`
-   €1 and `perSwapCap` €10k; register the keeper key.
+   €1 and `perSwapCap` €10k; register the keeper key and grant the deployer key its role
+   (`setDeployer`).
 4a. Deploy `VortexSubsidyVault` (USDC, the fee Safe as treasury, the factory, 50 bps per
    swap, 200 USDC per day — P13), point the factory at it (`setSubsidyVault`), and fund
    it from the treasury with the first days of budget. Runbook §2.6 has the commands.
 5. Verify factory + implementation source on the block explorer; generate, verify, and
    publish the manifest.
 6. Production whitelabel credentials from Monerium; configure the keeper backend (the
-   mykobo flow variant only): credentials, attestor/keeper/guardian keys (three distinct;
-   keeper funded), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
+   mykobo flow variant only): credentials, attestor/keeper/guardian/deployer keys (four
+   distinct; keeper and deployer funded), `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` (the
+   partner manager allowed to register destinations), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
    read RPC + private orderflow RPC, webhook secret, and
    `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`; the backend needs outbound HTTPS to
    `api.exchange.coinbase.com` for the reference rate (P12) — without it every swap

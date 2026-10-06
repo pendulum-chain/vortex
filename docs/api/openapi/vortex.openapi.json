@@ -2859,6 +2859,84 @@
         "required": ["deposits", "pagination"],
         "type": "object"
       },
+      "MoneriumB2bRegistration": {
+        "properties": {
+          "accountId": {
+            "description": "The onramp account once created; null before.",
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "destination": {
+            "description": "Lowercased.",
+            "type": "string"
+          },
+          "externalSubjectId": {
+            "type": "string"
+          },
+          "moneriumProfileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "rejectedReason": {
+            "description": "Why the registration was rejected; null otherwise.",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "description": "`requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (the provider rejected the profile, or the contract refused the destination).",
+            "enum": ["requested", "mapped", "rejected"],
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "createdAt",
+          "destination",
+          "externalSubjectId",
+          "moneriumProfileId",
+          "rejectedReason",
+          "status"
+        ],
+        "type": "object"
+      },
+      "MoneriumB2bRegistrationRequest": {
+        "properties": {
+          "contactEmail": {
+            "description": "The client's operations contact.",
+            "format": "email",
+            "type": "string"
+          },
+          "destination": {
+            "description": "The client's wallet that receives USDC, fixed for the life of the account. All lowercase, or EIP-55 checksummed.",
+            "example": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+            "type": "string"
+          },
+          "externalSubjectId": {
+            "description": "Your immutable reference for the client (at most 255 characters).",
+            "type": "string"
+          },
+          "moneriumProfileId": {
+            "description": "The client's profile ID at the EUR provider, from your provider app.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["contactEmail", "destination", "externalSubjectId", "moneriumProfileId"],
+        "type": "object"
+      },
+      "MoneriumB2bRegistrationResponse": {
+        "properties": {
+          "registration": {
+            "$ref": "#/components/schemas/MoneriumB2bRegistration"
+          }
+        },
+        "required": ["registration"],
+        "type": "object"
+      },
       "Networks": {
         "description": "Supported blockchain networks.",
         "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
@@ -8753,6 +8831,96 @@
           }
         ],
         "summary": "List the manager's EUR onramp accounts",
+        "tags": ["Account Management"]
+      },
+      "post": {
+        "deprecated": false,
+        "description": "Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. The destination is create-only: an identical replay returns the registration's current state (200), a different destination or client reference is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "operationId": "registerMoneriumB2bAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoneriumB2bRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bRegistrationResponse"
+                }
+              }
+            },
+            "description": "Identical replay: the registration's current state."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bRegistrationResponse"
+                }
+              }
+            },
+            "description": "Registered; the account follows once the provider approved the profile and the contract is deployed."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input (`MONERIUM_B2B_INVALID_INPUT`), or a `X-Managed-Profile-Id` header was sent."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not the manager bound to the EUR provider app, or used a child's own credential."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`MONERIUM_B2B_DESTINATION_CONFLICT`: the profile is registered with a different destination or client reference, or already has an account."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`MONERIUM_B2B_PROFILE_UNAVAILABLE`: the profile is not visible to your EUR provider app, or the provider rejected it."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Register a client's destination",
         "tags": ["Account Management"]
       }
     },

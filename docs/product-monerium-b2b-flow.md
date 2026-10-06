@@ -1,8 +1,8 @@
 # Monerium B2B Onramp: End-to-End Flow
 
-> **Status:** living overview, draft for alignment. Last updated 2026-10-01, including
-> Monerium's written answers and the call of 2026-09-30, and the KYB and sandbox
-> decisions sent to SulPayments and Monerium on 2026-10-01.
+> **Status:** living overview, draft for alignment. Last updated 2026-10-06 with the
+> destination endpoint, after Monerium's written answers and the call of 2026-09-30, and
+> the KYB and sandbox decisions sent to SulPayments and Monerium on 2026-10-01.
 > **Audience:** Vortex/SatoshiPay internally, SulPayments, and Monerium.
 > **Scope:** the EUR to USDC onramp for SulPayments' business clients, as built for the
 > pilot on the branch of PR #1375. It is not merged or deployed yet. Open questions carry
@@ -112,7 +112,7 @@ subsidy on a swap, or the refund path.
 - Vortex has mapped the client under **SulPayments' partner account**, so webhooks and
   API reads reach SulPayments.
 
-### 4.2 Proposed onboarding flow
+### 4.2 Onboarding flow
 
 SulPayments owns the white-label app at Monerium and submits each client's KYB there.
 Monerium returns the new profile's ID, and SulPayments passes it to Vortex together with
@@ -163,17 +163,16 @@ Notes on the flow:
   Monerium's corporate KYB guide. Vortex never handles KYB data, which matches the
   security spec. Reading a profile returns only the company name, so KYB details stay
   with SulPayments.
-- **Destination handover by profile ID (planned for the week of 2026-10-05).** Creating a
-  profile returns its ID.
-  SulPayments then calls a new Vortex endpoint with that ID, the destination, its own
-  client reference and a contact email **[V6]**. Vortex checks the profile exists in
-  SulPayments' app, stores the destination, and deploys the forwarder once the profile
+- **Destination handover by profile ID.** Creating a profile returns its ID.
+  SulPayments then calls `POST /v1/monerium-b2b/accounts` with that ID, the destination,
+  its own client reference and a contact email **[V6]**. Vortex checks the profile exists
+  in SulPayments' app, stores the destination, and deploys the forwarder once the profile
   is approved. The destination is create-only, because it is fixed in the contract; a
-  change means a new account on SulPayments' written instruction. Vortex rejects zero,
-  token and contract addresses, and exchange addresses need SulPayments' confirmation
-  that they do not rotate. Until the endpoint is live, SulPayments sends the Monerium
-  profile ID and the destination to Vortex directly, and Vortex sets the account up
-  manually.
+  change means a new account on SulPayments' written instruction. Vortex rejects
+  malformed and zero addresses, and the forwarder refuses token addresses, which marks
+  the registration rejected. Exchange deposit addresses are accepted like any wallet;
+  the agreement covers the risk that they rotate. Only SulPayments' manager key can
+  register.
 - **Why the destination does not go through Monerium.** Monerium's profile API has no
   field for it, linking an address needs a signature from its owner, which exchange
   deposit addresses cannot give, and only the forwarder contract uses the destination.
@@ -189,19 +188,19 @@ Notes on the flow:
 
 ### 4.3 What is built today
 
-- A Vortex operator deploys the forwarder, then one admin call maps the client with its
-  Monerium profile ID, SulPayments' client ID, the destination and the fee policy.
-- The keeper then links the forwarder and requests the IBAN automatically. The IBAN is
+- SulPayments registers the client's destination by Monerium profile ID **[V6]**. Once
+  Monerium approves the profile, the keeper deploys the forwarder, maps the client,
+  links the forwarder and the refund wallet, and requests the IBAN **[V1]**. The IBAN is
   recorded when Monerium confirms it.
-- The operator then activates the account.
+- In production an operator then activates the account; in the sandbox it activates
+  once the IBAN is recorded. The operator path (deploy, then one admin call) remains for
+  corrections.
 - SulPayments can read the account and its IBAN through the Vortex API with its manager
   key. There is no dashboard view **[V3]**.
-- The backend uses one Monerium credential pair, shared with Vortex's retail EUR onramp.
-- Adopting the proposal changes four things. The B2B module gets its own credentials for
-  SulPayments' app **[V8]**. SulPayments supplies the destination by profile ID through
-  the new endpoint, planned for the week of 2026-10-05 **[V6]**. Onboarding starts once the profile is approved and the
-  destination is registered **[V1]**. The IBAN and the payer's IBAN are read back from
-  Monerium's API **[V7]**.
+- The backend that runs the B2B module uses SulPayments' app credentials and is bound to
+  SulPayments' manager key by configuration; separate credentials per partner app follow
+  with the second partner **[V8]**. Reading the IBAN and the payer's IBAN back from
+  Monerium's API is still open **[V7]**.
 - The keeper already links the client's refund wallet next to the forwarder, built on
   2026-10-01.
 
@@ -234,11 +233,11 @@ SulPayments' steps **[S11]**:
    manager of its clients. Register the webhook endpoint with that key through
    `POST /v1/webhook`, subscribing to `DEPOSIT_UPDATED` and `ACCOUNT_UPDATED`; the
    dashboard has no webhook screen.
-3. For each test profile, send Vortex the Monerium profile ID and a Sepolia destination
-   wallet that SulPayments controls.
+3. For each test profile, register the Monerium profile ID and a Sepolia destination
+   wallet that SulPayments controls with `POST /v1/monerium-b2b/accounts`.
 
-Vortex then sets up the forwarder, links it and the client's refund wallet, and requests
-the IBAN. In a joint session the parties run three test payments: a normal one, a large
+Vortex then deploys the forwarder, links it and the client's refund wallet, and requests
+the IBAN; in the sandbox the account activates once the IBAN is issued. In a joint session the parties run three test payments: a normal one, a large
 one that converts in several chunks, and one that is refunded.
 
 ## 5. Payment in: SEPA to EURe
@@ -637,7 +636,7 @@ when SulPayments needs them.
 |---|---|---|---|---|
 | S1 | How many clients, and when? | Planning, and when the destination endpoint is needed | Open | |
 | S2 | Share the white-label app's production credentials with Vortex, and agree the usage rules in section 4.2: no address links, IBAN requests or moves, orders, or changes to Vortex's webhook subscription, and profile closures coordinated with Vortex. | Protects where client payments are minted | Production credentials follow the sandbox sign-off, section 4.5 | |
-| S3 | Hand over each destination through the new Vortex endpoint by Monerium profile ID. Who at SulPayments approves a destination? | The destination is fixed in the contract | Proposal to confirm | |
+| S3 | Hand over each destination through the Vortex endpoint by Monerium profile ID. Who at SulPayments approves a destination? | The destination is fixed in the contract | Endpoint built 2026-10-06; approver at SulPayments open | |
 | S4 | How does SulPayments get each client's IBAN? | API and dashboard scope | Answered 2026-09-30 | API-first: SulPayments' frontend fetches the IBAN from the Vortex API, section 9.3. |
 | S5 | Do clients always pay from their own business bank accounts, or also from third parties? | Refund target. Monerium allows third-party payers | Open | |
 | S6 | Are destinations self-custody wallets or exchange deposit addresses? | Exchange addresses need an attestation that they do not rotate and accept contract transfers | Open | |
@@ -651,14 +650,14 @@ when SulPayments needs them.
 
 | ID | Question or task | Depends on | Status |
 |---|---|---|---|
-| V1 | Start onboarding once the profile is approved and the destination is registered, whichever comes last. | V6, V8 | Open |
+| V1 | Start onboarding once the profile is approved and the destination is registered, whichever comes last. | V6, V8 | Built 2026-10-06 |
 | V2 | Refunds through per-client refund wallets: derived from one seed, fixed in each forwarder as its recovery address, linked at onboarding. | None | Built 2026-10-01 |
 | V3 | Dashboard view for SulPayments with clients, IBANs, deposits and refunds. Optional, since SulPayments integrates API-first. | S4 | Deprioritized |
 | V4 | Full lifecycle deposit events, section 9.3: snapshot event on every change, IDs, amounts, timestamps, hold and failure reasons, an account event, and the docs fix. | S7 | Built 2026-10-01 |
 | V5 | Named owners per alert, and the escalation path between Vortex, SulPayments and Monerium, including the joint Slack channel with Monerium. | Meeting | Open |
-| V6 | Endpoint for SulPayments to register a destination by Monerium profile ID: checks the profile exists, create-only, validated, no KYB data. | S3 | Planned to go live the week of 2026-10-05 |
+| V6 | Endpoint for SulPayments to register a destination by Monerium profile ID: checks the profile exists, create-only, validated, no KYB data. | S3 | Built 2026-10-06 |
 | V7 | Read the IBAN and the payer's IBAN back from Monerium's API instead of trusting webhook payloads, and check in the sandbox whether listing subscriptions exposes their secrets. | None | Open |
-| V8 | Separate Monerium credentials for the B2B module, apart from the retail onramp, with one app and credential pair per partner. | S2 | Open |
+| V8 | Separate Monerium credentials for the B2B module, apart from the retail onramp, with one app and credential pair per partner. | S2 | Partly: the B2B backend runs on SulPayments' app, bound to its manager key (2026-10-06); per-partner credentials with the second partner |
 | V9 | Detect a mint to a refund wallet routed by payment memo, and handle it as a refund. | V2 | Open |
 | V10 | Attach the standing agreement to refunds above €15,000 so they can run automatically. | V2 | Open |
 | V11 | Remove the unused `held` status. | None | Open |

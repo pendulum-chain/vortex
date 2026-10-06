@@ -154,6 +154,18 @@ Steps in prose:
    `iban.updated` webhook records the IBAN.
 5. **Optional penny test**, then activation via the admin status endpoint.
 
+**Partner registration (the default path).** The partner starts steps 2 and 3 itself
+with `POST /v1/monerium-b2b/accounts`: the Monerium profile ID, the destination, its
+client reference and a contact email, under the manager key that
+`MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` binds to the white-label app. The request is a
+row in `monerium_account_registrations` until Monerium reports the profile `approved`;
+the keeper then deploys the clone with the factory deployer key at the CREATE2 salt
+`keccak256(abi.encode(moneriumProfileId, destination))` (a crash adopts the predicted
+clone, a deployment in flight is waited for) and runs the same mapping as step 3, before
+the onboarding step of the same cycle. Outside production the account activates once its
+IBAN is recorded; in production step 5 stays an operator call. The operator path remains
+for corrections and clients registered outside the API.
+
 ## Deposit-to-payout sequence
 
 ```mermaid
@@ -511,6 +523,7 @@ erDiagram
 |---|---|
 | `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
+| `monerium_account_registrations` (086) | One row per partner-registered Monerium profile: manager, profile ID (unique), destination, client reference and contact email, `requested` until the account is mapped (`account_id`) or `rejected` with a reason, and the deployment's transaction hash |
 | `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, attempts and the last error |
 | `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, time), the route and the subsidy tier cap (`max_subsidy_raw`), then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |

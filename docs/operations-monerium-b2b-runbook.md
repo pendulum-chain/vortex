@@ -31,6 +31,16 @@ Ground rules that shape every procedure here:
 
 ## 1. Client onboarding
 
+**Partner registration (default).** The partner calls `POST /v1/monerium-b2b/accounts`
+with the client's Monerium profile ID and destination; the keeper waits for Monerium's
+approval, deploys the clone with the deployer key, maps the account and runs §1.5. The
+operator's only step is activation (§1.7) in production; elsewhere the account activates
+once its IBAN is recorded. A registration that cannot proceed is `rejected` with a reason
+(the partner sees it on replay), and `deploy_tx_hash` on `monerium_account_registrations`
+shows a deployment in flight. If the keeper logs `NotDeployer`, grant the role
+(`setDeployer`, §8.5). The manual path below stays for corrections and clients registered
+outside the API.
+
 Deploy → manifest → verify → map → (automated: link + IBAN) → optional penny test →
 activate.
 One pass per client. Prerequisites: guardian key funded on the target chain;
@@ -799,11 +809,12 @@ placeholder router; it is not reusable.
 
 ### 8.3 Keys and funding
 
-- Fresh EOAs: guardian, keeper and attestor (three distinct keys), the float wallet
+- Fresh EOAs: guardian, keeper, attestor and deployer (four distinct keys), the float wallet
   (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`), and a fee recipient address Vortex controls.
   `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
-- Sepolia ETH: about 0.2 each for the guardian (deployments), the keeper (swaps,
-  forwards, recoveries) and the float (it tops up the refund wallets' gas).
+- Sepolia ETH: about 0.2 each for the guardian (factory and vault deployment), the
+  deployer (one clone per registered client), the keeper (swaps, forwards, recoveries)
+  and the float (it tops up the refund wallets' gas).
 - Sandbox EURe for the guardian (pool seeding) and the float (refund top-ups): link the
   address to a Vortex profile in Monerium's sandbox and use "Simulate bank transfer" on
   that profile's IBAN. Sandbox EURe costs nothing.
@@ -858,8 +869,8 @@ The parameters are the ADR's (§7.3 table) except `perSwapCap`: €25 lets a €
 payment convert in three chunks. It is operational; `setPerSwapCap` changes it later.
 The initial route is the 1 bps pool, EURe → USDC.
 
-From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER` and `FEE_RECIPIENT` set
-to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
+From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER`, `DEPLOYER` and
+`FEE_RECIPIENT` set to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
 
 ```bash
 ROUTE=$(cast concat-hex $EURE 0x000064 $USDC)   # fee 100 as three bytes
@@ -868,8 +879,8 @@ forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RP
   1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
 cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
 cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
-# the partner registration path deploys clones with its own deployer key; grant it once that path ships
-# cast send $FACTORY "setDeployer(address,bool)" $DEPLOYER true --rpc-url $RPC --private-key $GUARDIAN_KEY
+# the partner registration path deploys clones with its own deployer key
+cast send $FACTORY "setDeployer(address,bool)" $DEPLOYER true --rpc-url $RPC --private-key $GUARDIAN_KEY
 
 # vault: 1% per swap (the ladder's top), 50 USDC per day
 forge create src/VortexSubsidyVault.sol:VortexSubsidyVault --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
@@ -894,6 +905,8 @@ On the `vortex-sandbox` service only:
 | `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` | `$FACTORY` |
 | `MONERIUM_B2B_KEEPER_PRIVATE_KEY`, `MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, `MONERIUM_B2B_ATTESTOR_PRIVATE_KEY` | the three keys of §8.3 |
 | `MONERIUM_B2B_REFUND_SEED`, `MONERIUM_B2B_FLOAT_PRIVATE_KEY` | §8.3 |
+| `MONERIUM_B2B_DEPLOYER_PRIVATE_KEY` | the deployer key of §8.3 (granted with `setDeployer`) |
+| `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` | SulPayments' manager profile ID on the sandbox: the only key that may register destinations |
 | `MONERIUM_B2B_AUTO_RECOVERY` | `auto`, so the refund test runs end to end |
 | `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
 | `MONERIUM_B2B_ENABLED` | `true`, set last |
@@ -920,10 +933,11 @@ Restart the service. Startup fails if a required setting is missing; once it is 
    `PUT /v1/admin/managed-profile-managers/<profileId>` with corridor `EU` and customer
    type `business`. SulPayments then takes a key from dashboard-sandbox and registers
    its webhook through `POST /v1/webhook` (`DEPOSIT_UPDATED`, `ACCOUNT_UPDATED`).
-2. Per test client, once SulPayments confirms the Monerium profile is approved: §1.2
-   (refund address, deploy the clone), §1.4 (map), §1.5 (automatic link and IBAN),
-   §1.7 (activate). Until the destination endpoint (V6) exists, SulPayments sends the
-   profile ID and the Sepolia destination to Vortex directly.
+2. Per test client, SulPayments registers the Monerium profile ID and a Sepolia
+   destination with `POST /v1/monerium-b2b/accounts`. The keeper deploys, maps, links and
+   requests the IBAN once Monerium approves the profile, and the account activates when
+   the IBAN is recorded. The manual path (§1.2 to §1.7) remains for a client registered
+   outside the API.
 
 ### 8.8 Test payments
 
