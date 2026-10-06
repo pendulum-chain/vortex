@@ -576,9 +576,22 @@ export class RampService extends BaseRampService {
     return this.startRampWithOptions({ rampId }, { enforceDeadline: false, requirePaidAveniaTicket: true });
   }
 
+  /**
+   * Start an EVM SELL ramp whose user already reported the hash of their source transaction but
+   * whose client never reached /ramp/start inside the window. That transaction delivers the funds
+   * to the ephemeral, so the deadline no longer protects anyone; FundEphemeral verifies the
+   * reported hash against the issued blueprint on-chain before any platform spend.
+   */
+  public async recoverFundedSellRamp(rampId: string): Promise<StartRampResponse> {
+    return this.startRampWithOptions(
+      { rampId },
+      { enforceDeadline: false, requirePaidAveniaTicket: false, requireReportedSellSource: true }
+    );
+  }
+
   private async startRampWithOptions(
     request: StartRampRequest,
-    options: { enforceDeadline: boolean; requirePaidAveniaTicket: boolean }
+    options: { enforceDeadline: boolean; requirePaidAveniaTicket: boolean; requireReportedSellSource?: boolean }
   ): Promise<StartRampResponse> {
     return this.withTransaction(async transaction => {
       const rampState = await RampState.findByPk(request.rampId, { lock: Transaction.LOCK.UPDATE, transaction });
@@ -621,6 +634,22 @@ export class RampService extends BaseRampService {
           message: "Ramp does not have a provider payment ticket",
           status: httpStatus.CONFLICT
         });
+      }
+      if (options.requireReportedSellSource) {
+        // Domestic (AlfredPay) and AssetHub SELLs are excluded: FundEphemeral only verifies the
+        // reported hash for the other EVM SELLs, so this recovery has no pre-spend proof for them.
+        const { squidRouterNoPermitTransferHash, squidRouterSwapHash } = rampState.state;
+        if (
+          rampState.type !== RampDirection.SELL ||
+          rampState.from === Networks.AssetHub ||
+          isDomesticToken(quote.outputCurrency as FiatToken) ||
+          !(squidRouterSwapHash || squidRouterNoPermitTransferHash)
+        ) {
+          throw new APIError({
+            message: "Ramp does not have a reported source transaction",
+            status: httpStatus.CONFLICT
+          });
+        }
       }
       if (options.enforceDeadline) {
         RampService.assertStartDeadlineNotExceeded(rampState);

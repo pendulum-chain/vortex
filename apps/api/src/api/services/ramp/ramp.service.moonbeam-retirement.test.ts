@@ -71,7 +71,7 @@ describe("RampService Moonbeam retirement", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("rejects public and provider-paid starts before persisted flow execution", async () => {
+  it("rejects public, provider-paid, and funded-SELL starts before persisted flow execution", async () => {
     RampState.findByPk = mock(async () => ({
       createdAt: new Date(),
       currentPhase: "initial",
@@ -85,7 +85,11 @@ describe("RampService Moonbeam retirement", () => {
     })) as unknown as typeof RampState.findByPk;
 
     const service = new TestRampService();
-    for (const start of [() => service.startRamp({ rampId: "ramp-1" }), () => service.recoverPaidAveniaRamp("ramp-1")]) {
+    for (const start of [
+      () => service.startRamp({ rampId: "ramp-1" }),
+      () => service.recoverPaidAveniaRamp("ramp-1"),
+      () => service.recoverFundedSellRamp("ramp-1")
+    ]) {
       await expect(start()).rejects.toMatchObject({ status: httpStatus.SERVICE_UNAVAILABLE });
     }
   });
