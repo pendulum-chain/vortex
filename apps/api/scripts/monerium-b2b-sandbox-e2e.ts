@@ -16,6 +16,8 @@
  * the sandbox API), MONERIUM_B2B_RPC_URL, MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS,
  * E2E_DESTINATION (the default destination), optional KEEPER and DEPLOYER addresses for the
  * balance check, and ADMIN_SECRET for --refund, which suspends the account for the payment.
+ * Outside the sandbox an operator activates a registered account; with ADMIN_SECRET set the
+ * script does that step itself once the IBAN is issued.
  */
 import { parseArgs } from "node:util";
 import { type AccountSnapshot, type DepositSnapshot, DepositStatus } from "@vortexfi/shared";
@@ -141,7 +143,7 @@ async function main(): Promise<void> {
       amount: { default: "20", type: "string" },
       "client-ref": { type: "string" },
       destination: { type: "string" },
-      email: { default: "sandbox-e2e@example.com", type: "string" },
+      email: { type: "string" },
       profile: { type: "string" },
       refund: { default: false, type: "boolean" }
     }
@@ -226,9 +228,11 @@ async function main(): Promise<void> {
   }
 
   // ---- register the destination, as the partner does
+  // One client reference and contact email per profile: a manager's clients may not share either.
   const externalSubjectId = values["client-ref"] ?? `e2e-${moneriumProfileId.slice(0, 8)}`;
+  const contactEmail = values.email ?? `${externalSubjectId}@example.com`;
   const registration = await api("POST", "/v1/monerium-b2b/accounts", {
-    body: { contactEmail: values.email, destination, externalSubjectId, moneriumProfileId }
+    body: { contactEmail, destination, externalSubjectId, moneriumProfileId }
   });
   if (registration.status !== 200 && registration.status !== 202) {
     throw new Error(`Registration answered ${registration.status}: ${registration.text}`);
@@ -236,15 +240,23 @@ async function main(): Promise<void> {
   log(registration.status === 202 ? "registered the destination" : "registration exists, resuming");
 
   // ---- the keeper waits for Monerium's approval, deploys, maps, links and requests the IBAN
-  type Registration = { accountId: string | null; rejectedReason: string | null; status: string };
+  type Registration = {
+    accountId: string | null;
+    rejectedReason: string | null;
+    status: string;
+    waitingReason: string | null;
+  };
   await waitFor("registration", 30 * MINUTE, async () => {
     const { registrations } = await expectOk(
       api<{ registrations: Registration[] }>("GET", `/v1/monerium-b2b/registrations?moneriumProfileId=${moneriumProfileId}`),
       "Registrations"
     );
     const [current] = registrations;
-    if (current?.status === "rejected") throw new Error(`Registration rejected: ${current.rejectedReason}`);
-    return { done: current?.accountId ?? undefined, state: current?.status ?? "missing" };
+    if (current?.status === "rejected") {
+      throw new Error(`Registration rejected: ${current.rejectedReason}. Fix the cause and re-run to register again.`);
+    }
+    const waiting = current?.waitingReason ? ` (${current.waitingReason})` : "";
+    return { done: current?.accountId ?? undefined, state: `${current?.status ?? "missing"}${waiting}` };
   });
   const account = await waitFor("account", 30 * MINUTE, async () => {
     const { accounts } = await expectOk(
@@ -253,6 +265,17 @@ async function main(): Promise<void> {
     );
     const [current] = accounts;
     if (!current) return { state: "not listed yet" };
+    if (current.status === "onboarding" && current.iban && process.env.ADMIN_SECRET) {
+      await expectOk(
+        api("PATCH", `/v1/admin/monerium-b2b/accounts/${current.accountId}/status`, {
+          admin: true,
+          body: { status: "active" }
+        }),
+        "Activating the account"
+      );
+      log("activated the account, as the operator does after checking the destination");
+      return { state: "activated" };
+    }
     return {
       done: current.status === "active" && current.iban ? current : undefined,
       state: `${current.status}, IBAN ${current.iban ?? "not issued yet"}`
