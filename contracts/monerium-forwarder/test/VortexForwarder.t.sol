@@ -685,9 +685,33 @@ contract VortexForwarderTest is Test {
 
     function test_predictAddress_matchesDeployment() public {
         bytes32 salt = bytes32(uint256(42));
-        address predicted = factory.predictAddress(salt);
+        address predicted = factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
         address deployed = factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
         assertEq(predicted, deployed);
+    }
+
+    /// The address commits to every initialization argument, so the same salt with any other
+    /// destination, recovery address or fee policy lands elsewhere.
+    function test_predictAddress_bindsTheInitialization() public view {
+        bytes32 salt = bytes32(uint256(42));
+        address predicted = factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        assertTrue(predicted != factory.predictAddress(rando, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt));
+        assertTrue(predicted != factory.predictAddress(destination, rando, TARGET_PPM, FLOOR_PPM, salt));
+        assertTrue(predicted != factory.predictAddress(destination, recoveryWallet, TARGET_PPM - 1, FLOOR_PPM, salt));
+        assertTrue(predicted != factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM + 1, salt));
+        assertTrue(predicted != factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(43))));
+    }
+
+    /// A deployer (or a leaked deployer key) cannot squat a client's predicted address with
+    /// other settings: its clone lands elsewhere and the real one still deploys as predicted.
+    function test_deployer_cannotSquatAPredictedAddress() public {
+        bytes32 salt = bytes32(uint256(99));
+        address predicted = factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        factory.setDeployer(rando, true);
+        vm.prank(rando);
+        address squatter = factory.deployForwarder(destination, makeAddr("attackerRecovery"), TARGET_PPM, FLOOR_PPM, salt);
+        assertTrue(squatter != predicted);
+        assertEq(factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt), predicted);
     }
 
     function test_factory_paramBounds() public {
@@ -763,29 +787,104 @@ contract VortexForwarderTest is Test {
         assertEq(factory.routeCount(), 1);
     }
 
-    function test_deployers_guardianManagedAndDeployOnly() public {
-        bytes32 salt = bytes32(uint256(77));
-        vm.prank(rando);
-        vm.expectRevert(VortexForwarderFactory.NotDeployer.selector);
-        factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+    function test_setDeployer_onlyGuardian_andEmits() public {
         vm.prank(rando);
         vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
         factory.setDeployer(rando, true);
 
+        vm.expectEmit(true, false, false, true, address(factory));
+        emit VortexForwarderFactory.DeployerSet(rando, true);
         factory.setDeployer(rando, true);
-        vm.startPrank(rando);
+        assertTrue(factory.isDeployer(rando));
+
+        vm.expectEmit(true, false, false, true, address(factory));
+        emit VortexForwarderFactory.DeployerSet(rando, false);
+        factory.setDeployer(rando, false);
+        assertFalse(factory.isDeployer(rando));
+    }
+
+    function test_deployer_deploysARegisteredClone() public {
+        bytes32 salt = bytes32(uint256(77));
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotDeployer.selector);
+        factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+
+        factory.setDeployer(rando, true);
+        address predicted = factory.predictAddress(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        vm.expectEmit(true, true, false, true, address(factory));
+        emit VortexForwarderFactory.ForwarderDeployed(predicted, destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        vm.prank(rando);
         address clone = factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, salt);
+        assertEq(clone, predicted);
         assertTrue(factory.isForwarder(clone));
-        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
-        factory.setKeeper(rando, true);
-        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
-        factory.setDeployer(address(0xBEEF), true);
-        vm.stopPrank();
 
         factory.setDeployer(rando, false);
         vm.prank(rando);
         vm.expectRevert(VortexForwarderFactory.NotDeployer.selector);
         factory.deployForwarder(destination, recoveryWallet, TARGET_PPM, FLOOR_PPM, bytes32(uint256(78)));
+    }
+
+    /// Deploying is the role's only power: every guardian function of the factory and of a
+    /// clone stays closed to a deployer.
+    function test_deployer_holdsNoGuardianPower() public {
+        factory.setDeployer(rando, true);
+        vm.startPrank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setKeeper(rando, true);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setDeployer(address(0xBEEF), true);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setGlobalPaused(true);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setMinSwapAmount(25e18);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setPerSwapCap(10_000e18);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setSubsidyVault(rando);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.addRoute(_route(100, 100));
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.setRouteEnabled(0, false);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.transferGuardian(rando);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.revokeForwarder(address(fwd));
+        vm.expectRevert(VortexForwarder.NotGuardian.selector);
+        fwd.setGuardianPaused(true);
+        vm.expectRevert(VortexForwarder.NotGuardian.selector);
+        fwd.setFeePolicy(TARGET_PPM, FLOOR_PPM);
+        vm.stopPrank();
+    }
+
+    /// Documented behavior: deployers, like keepers, survive a guardian transfer until the new
+    /// guardian removes them.
+    function test_deployer_survivesGuardianTransfer() public {
+        factory.setDeployer(rando, true);
+        address next = makeAddr("nextGuardian");
+        factory.transferGuardian(next);
+        vm.prank(next);
+        factory.acceptGuardian();
+        assertTrue(factory.isDeployer(rando));
+        vm.prank(next);
+        factory.setDeployer(rando, false);
+        assertFalse(factory.isDeployer(rando));
+    }
+
+    function test_revokeForwarder_guardianOnly_oneWay() public {
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarderFactory.NotGuardian.selector);
+        factory.revokeForwarder(address(fwd));
+
+        vm.expectRevert(VortexForwarderFactory.UnknownForwarder.selector);
+        factory.revokeForwarder(rando);
+
+        vm.expectEmit(true, false, false, true, address(factory));
+        emit VortexForwarderFactory.ForwarderRevoked(address(fwd));
+        factory.revokeForwarder(address(fwd));
+        assertFalse(factory.isForwarder(address(fwd)));
+
+        vm.expectRevert(VortexForwarderFactory.UnknownForwarder.selector);
+        factory.revokeForwarder(address(fwd));
     }
 
     function test_routes_guardianOnly() public {
