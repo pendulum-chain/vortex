@@ -45,11 +45,6 @@ class MoneriumB2bWorker {
     try {
       await processMoneriumWebhookInbox();
 
-      // Partner registrations: wait for the profile's approval, deploy the forwarder and
-      // map the account; gated on the deployer key and read RPC. Runs first so a freshly
-      // mapped account is linked in the same cycle.
-      await advanceRegistrations();
-
       // Link + IBAN issuance for mapped accounts still in onboarding; internally
       // gated on the whitelabel credentials, attestor key, and read RPC.
       await advanceOnboardingAccounts();
@@ -83,6 +78,15 @@ class MoneriumB2bWorker {
         if (config.moneriumB2b.autoRecovery === "auto") {
           await runRecoveryOrchestrator();
         }
+      }
+
+      // Partner registrations: wait for the profile's approval, deploy the forwarder and
+      // map the account; gated on the deployer key. After the money steps and isolated, so
+      // slow Monerium or RPC reads never hold back a conversion or refund.
+      try {
+        await advanceRegistrations();
+      } catch (error) {
+        logger.error("monerium-b2b: registration step failed:", error);
       }
 
       // Manager-facing deposit events into the durable webhook outbox; the

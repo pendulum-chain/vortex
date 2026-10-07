@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as moneriumB2bController from "../../controllers/monerium-b2b.controller";
+import { rejectImpersonation } from "../../middlewares/bearerPrincipal";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import {
   authorizeManagedProfile,
@@ -21,10 +22,11 @@ router.get("/account", ...accountAuth, moneriumB2bController.getMoneriumB2bAccou
 router.get("/deposits", ...accountAuth, moneriumB2bController.listMoneriumB2bDeposits);
 
 // Manager-level: every onramp account of the caller's managed profiles, and the partner's
-// registrations of new clients' destinations by Monerium profile ID (manager key only).
+// registrations of new clients' destinations by Monerium profile ID (manager key only;
+// a registration creates a payout destination, so impersonation may not make one).
 const managerAuth = [requirePartnerOrUserAuth(), rejectDirectManagedCredential, rejectManagedProfileSelection];
 router.get("/accounts", ...managerAuth, moneriumB2bController.listMoneriumB2bAccounts);
-router.post("/accounts", ...managerAuth, moneriumB2bController.registerMoneriumB2bAccount);
+router.post("/accounts", ...managerAuth, rejectImpersonation, moneriumB2bController.registerMoneriumB2bAccount);
 router.get("/registrations", ...managerAuth, moneriumB2bController.listMoneriumB2bRegistrations);
 
 export default router;

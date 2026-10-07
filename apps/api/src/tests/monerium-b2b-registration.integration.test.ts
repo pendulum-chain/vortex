@@ -1,9 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { MoneriumApiError, MoneriumApiService } from "@vortexfi/shared";
 import { provisionMoneriumB2bAccount } from "../api/services/monerium-b2b/account-provisioning";
+import { createSession } from "../api/services/impersonation.service";
 import { config } from "../config/vars";
 import ManagedProfileManager from "../models/managedProfileManager.model";
-import MoneriumAccountRegistration from "../models/moneriumAccountRegistration.model";
+import MoneriumAccountRegistration, { MoneriumAccountRegistrationStatus } from "../models/moneriumAccountRegistration.model";
+import ProfileRole from "../models/profileRole.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestUser } from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
@@ -15,7 +17,11 @@ const PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 describe("POST /v1/monerium-b2b/accounts", () => {
   let app: TestApp;
   let world: FakeWorld;
-  const saved = { partner: config.moneriumB2b.partnerManagerProfileId, rpcUrl: config.moneriumB2b.rpcUrl };
+  const saved = {
+    impersonation: config.impersonationEnabled,
+    partner: config.moneriumB2b.partnerManagerProfileId,
+    rpcUrl: config.moneriumB2b.rpcUrl
+  };
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
@@ -26,6 +32,7 @@ describe("POST /v1/monerium-b2b/accounts", () => {
 
   afterAll(async () => {
     config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.impersonationEnabled = saved.impersonation;
     await app?.close();
     world?.restore();
   });
@@ -39,12 +46,19 @@ describe("POST /v1/monerium-b2b/accounts", () => {
     config.moneriumB2b.partnerManagerProfileId = saved.partner;
   });
 
-  /** The partner's white-label app: profiles it can see, by state; anything else is a 404. */
-  function moneriumProfiles(states: Record<string, string>) {
+  /**
+   * The partner's white-label app: profiles it can see, by state, or a Monerium HTTP status to fail
+   * with; anything else is a 404. `beforeAnswer` runs before each answer (a concurrent request).
+   */
+  function moneriumProfiles(states: Record<string, string | number>, beforeAnswer?: () => Promise<unknown>) {
     spyOn(MoneriumApiService, "getInstance").mockReturnValue({
       getProfile: async (id: string) => {
-        if (!states[id]) throw new MoneriumApiError({ endpoint: "/profiles/:profile", method: "GET", status: 404 });
-        return { id, state: states[id] };
+        await beforeAnswer?.();
+        const state = states[id];
+        if (state === undefined || typeof state === "number") {
+          throw new MoneriumApiError({ endpoint: "/profiles/:profile", method: "GET", status: state ?? 404 });
+        }
+        return { id, state };
       }
     } as unknown as MoneriumApiService);
   }
@@ -94,7 +108,11 @@ describe("POST /v1/monerium-b2b/accounts", () => {
     expect(replayed.status).toBe(200);
     expect(replayed.body.registration).toEqual(created.body.registration);
 
-    for (const changed of [body({ destination: "0x3333333333333333333333333333333333333333" }), body({ externalSubjectId: "client-2" })]) {
+    for (const changed of [
+      body({ destination: "0x3333333333333333333333333333333333333333" }),
+      body({ externalSubjectId: "client-2" }),
+      body({ contactEmail: "finance@client.example.com" })
+    ]) {
       const conflict = await register(headers, changed);
       expect(conflict.status).toBe(409);
       expect(conflict.body).toMatchObject({ error: { code: "MONERIUM_B2B_DESTINATION_CONFLICT" } });
@@ -102,9 +120,10 @@ describe("POST /v1/monerium-b2b/accounts", () => {
     expect(await MoneriumAccountRegistration.count()).toBe(1);
   });
 
-  it("lists the manager's registrations, filterable by profile, and nobody else's", async () => {
+  it("lists the manager's registrations, filterable by profile and paged, and nobody else's", async () => {
     const { headers } = await manager();
-    moneriumProfiles({ [PROFILE]: "pending" });
+    const secondProfile = crypto.randomUUID();
+    moneriumProfiles({ [PROFILE]: "pending", [secondProfile]: "pending" });
     const created = await register(headers, body());
     const list = async (path: string, listHeaders: Record<string, string> = headers) => {
       const response = await app.request(path, { headers: listHeaders, method: "GET" });
@@ -121,19 +140,142 @@ describe("POST /v1/monerium-b2b/accounts", () => {
 
     const other = await manager(false);
     expect((await list("/v1/monerium-b2b/registrations", other.headers)).body.registrations).toHaveLength(0);
+
+    const second = await register(
+      headers,
+      body({ contactEmail: "ops@second.example.com", externalSubjectId: "client-2", moneriumProfileId: secondProfile })
+    );
+    const paged = await list("/v1/monerium-b2b/registrations?limit=1&offset=1");
+    expect(paged.body).toEqual({ pagination: { limit: 1, offset: 1, total: 2 }, registrations: [created.body.registration] });
+    expect((await list("/v1/monerium-b2b/registrations?limit=1")).body.registrations).toEqual([second.body.registration]);
+    expect((await list("/v1/monerium-b2b/registrations?offset=1e21")).body).toMatchObject({ registrations: [] });
   });
 
-  it("refuses a profile the partner's app cannot see, or that Monerium rejected", async () => {
+  it("refuses a profile the partner's app cannot see, or that Monerium rejected or closed", async () => {
     const { headers } = await manager();
     const rejectedProfile = crypto.randomUUID();
-    moneriumProfiles({ [rejectedProfile]: "rejected" });
+    const closedProfile = crypto.randomUUID();
+    moneriumProfiles({ [closedProfile]: "closed", [rejectedProfile]: "rejected" });
 
-    for (const moneriumProfileId of [PROFILE, rejectedProfile]) {
+    for (const moneriumProfileId of [PROFILE, rejectedProfile, closedProfile]) {
       const response = await register(headers, body({ moneriumProfileId }));
       expect(response.status).toBe(422);
       expect(response.body).toMatchObject({ error: { code: "MONERIUM_B2B_PROFILE_UNAVAILABLE" } });
     }
     expect(await MoneriumAccountRegistration.count()).toBe(0);
+  });
+
+  it("answers 503 when Monerium fails or refuses access, never blaming the partner's input", async () => {
+    const { headers } = await manager();
+    for (const status of [0, 403, 429, 503]) {
+      moneriumProfiles({ [PROFILE]: status });
+      const response = await register(headers, body());
+      expect(response.status).toBe(503);
+      expect(response.body).toMatchObject({ error: { code: "MONERIUM_B2B_PROVIDER_UNAVAILABLE" } });
+      mock.restore();
+    }
+    expect(await MoneriumAccountRegistration.count()).toBe(0);
+  });
+
+  it("replays a registration created by a concurrent identical request, and refuses a different one", async () => {
+    const { headers, profileId } = await manager();
+    const concurrent = (destination: string) => () =>
+      MoneriumAccountRegistration.findOrCreate({
+        defaults: {
+          contactEmail: "ops@client.example.com",
+          destination,
+          externalSubjectId: "client-1",
+          managerProfileId: profileId,
+          moneriumProfileId: PROFILE
+        },
+        where: { moneriumProfileId: PROFILE }
+      });
+
+    moneriumProfiles({ [PROFILE]: "pending" }, concurrent(DESTINATION));
+    const replayed = await register(headers, body());
+    expect(replayed.status).toBe(200);
+    expect(replayed.body.registration).toMatchObject({ destination: DESTINATION, status: "requested" });
+
+    await resetTestDatabase();
+    const again = await manager();
+    mock.restore();
+    moneriumProfiles({ [PROFILE]: "pending" }, () =>
+      MoneriumAccountRegistration.create({
+        contactEmail: "ops@client.example.com",
+        destination: "0x3333333333333333333333333333333333333333",
+        externalSubjectId: "client-1",
+        managerProfileId: again.profileId,
+        moneriumProfileId: PROFILE
+      })
+    );
+    const conflict = await register(again.headers, body());
+    expect(conflict.status).toBe(409);
+    expect(conflict.body).toMatchObject({ error: { code: "MONERIUM_B2B_DESTINATION_CONFLICT" } });
+  });
+
+  it("lets the partner register a rejected profile again, with corrected data", async () => {
+    const { headers } = await manager();
+    moneriumProfiles({ [PROFILE]: "pending" });
+    await register(headers, body());
+    await MoneriumAccountRegistration.update(
+      { rejectedReason: "Withdrawn by Vortex operations", status: MoneriumAccountRegistrationStatus.Rejected },
+      { where: { moneriumProfileId: PROFILE } }
+    );
+
+    const corrected = await register(headers, body({ destination: "0x3333333333333333333333333333333333333333" }));
+    expect(corrected.status).toBe(202);
+    expect(corrected.body.registration).toMatchObject({
+      destination: "0x3333333333333333333333333333333333333333",
+      rejectedReason: null,
+      status: "requested",
+      waitingReason: null
+    });
+    expect(await MoneriumAccountRegistration.count()).toBe(1);
+    expect((await register(headers, body({ destination: "0x3333333333333333333333333333333333333333" }))).status).toBe(200);
+  });
+
+  it("refuses a client reference or contact email that belongs to another client", async () => {
+    const { headers, profileId } = await manager();
+    const otherProfile = crypto.randomUUID();
+    moneriumProfiles({ [PROFILE]: "approved", [otherProfile]: "approved" });
+    await provisionMoneriumB2bAccount({
+      contactEmail: "someone-else@client.example.com",
+      destination: DESTINATION,
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: profileId,
+      moneriumProfileId: otherProfile
+    });
+
+    for (const conflicting of [body(), body({ contactEmail: "someone-else@client.example.com", externalSubjectId: "client-9" })]) {
+      const response = await register(headers, conflicting);
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ error: { code: "MONERIUM_B2B_CLIENT_CONFLICT" } });
+    }
+
+    const pendingProfile = crypto.randomUUID();
+    mock.restore();
+    moneriumProfiles({ [PROFILE]: "approved", [pendingProfile]: "pending" });
+    expect((await register(headers, body({ externalSubjectId: "client-2", moneriumProfileId: pendingProfile }))).status).toBe(202);
+    const duplicate = await register(headers, body({ contactEmail: "new@client.example.com", externalSubjectId: "client-2" }));
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body).toMatchObject({ error: { code: "MONERIUM_B2B_CLIENT_CONFLICT" } });
+  });
+
+  it("refuses a registration made with an impersonation token, but lets it read", async () => {
+    const partner = await manager();
+    moneriumProfiles({ [PROFILE]: "approved" });
+    config.impersonationEnabled = true;
+    const actor = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: actor.id });
+    const { token } = await createSession({ actorProfileId: actor.id, targetProfileId: partner.profileId });
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+    const response = await register(headers, body());
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: { code: "IMPERSONATION_NOT_ALLOWED" } });
+    expect(await MoneriumAccountRegistration.count()).toBe(0);
+    expect((await app.request("/v1/monerium-b2b/registrations", { headers, method: "GET" })).status).toBe(200);
   });
 
   it("validates the profile ID, the destination and the client details", async () => {

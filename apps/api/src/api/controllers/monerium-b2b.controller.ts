@@ -130,11 +130,6 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
   }
 };
 
-/**
- * GET /v1/monerium-b2b/accounts — every onramp account of the calling manager's active
- * managed profiles, newest first, optionally narrowed to one Monerium profile. Manager
- * credential only: no delegation header, no child credential.
- */
 /** The authenticated manager when it may manage business EUR onramp accounts, else null. */
 async function b2bManager(req: Request): Promise<ManagedProfileManager | null> {
   const managerProfileId = getAuthenticatedProfileId(req);
@@ -155,6 +150,11 @@ function denyManager(res: Response): void {
   );
 }
 
+/**
+ * GET /v1/monerium-b2b/accounts — every onramp account of the calling manager's active
+ * managed profiles, newest first, optionally narrowed to one Monerium profile. Manager
+ * credential only: no delegation header, no child credential.
+ */
 export const listMoneriumB2bAccounts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const manager = await b2bManager(req);
@@ -192,8 +192,8 @@ export const listMoneriumB2bAccounts = async (req: Request, res: Response, next:
 
 /**
  * GET /v1/monerium-b2b/registrations — the manager's destination registrations, newest
- * first: `requested` until the account exists, `mapped` with its `accountId`, or
- * `rejected` with the reason. Manager key only, like the accounts list.
+ * first: `requested` with what it waits for until the account exists, `mapped` with its
+ * `accountId`, or `rejected` with the reason. Manager key only, like the accounts list.
  */
 export const listMoneriumB2bRegistrations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -228,8 +228,9 @@ export const listMoneriumB2bRegistrations = async (req: Request, res: Response, 
 
 /**
  * POST /v1/monerium-b2b/accounts — the partner registers a client's destination by
- * Monerium profile ID (manager key only, and only the manager bound to the white-label
- * app). 202 for a new registration, 200 with the current state for an identical replay.
+ * Monerium profile ID (manager key only, never an impersonation token, and only the
+ * manager bound to the white-label app). 202 for a new registration or a new attempt after
+ * a rejection, 200 with the current state for an identical replay.
  */
 export const registerMoneriumB2bAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

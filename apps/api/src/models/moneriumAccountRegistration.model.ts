@@ -6,9 +6,20 @@ export enum MoneriumAccountRegistrationStatus {
   Requested = "requested",
   /** The forwarder is deployed and the account mapped: `accountId` is set. Terminal. */
   Mapped = "mapped",
-  /** Monerium rejected the profile, or the deployment or mapping was refused. Terminal. */
+  /** Monerium rejected or closed the profile, or the deployment or mapping was refused. The partner may register again. */
   Rejected = "rejected"
 }
+
+/** What a `requested` registration waits for, shown to the partner. */
+export const MONERIUM_REGISTRATION_WAITING_REASONS = [
+  "monerium_profile_pending",
+  "monerium_profile_not_visible",
+  "deployment_pending",
+  "deployer_not_ready",
+  "manager_inactive",
+  "temporary_error"
+] as const;
+export type MoneriumRegistrationWaitingReason = (typeof MONERIUM_REGISTRATION_WAITING_REASONS)[number];
 
 // A partner's request to onboard one Monerium profile with a destination, until the
 // keeper has deployed the client's forwarder and mapped the account.
@@ -21,8 +32,12 @@ export interface MoneriumAccountRegistrationAttributes {
   /** Lowercased; fixed in the forwarder, never overwritten. */
   destination: string;
   status: MoneriumAccountRegistrationStatus;
-  /** Set once the deployment was sent; cleared when it reverted. */
+  /** The last deployment sent and when; a deployment without a receipt is sent again after a while. */
   deployTxHash: string | null;
+  deploySentAt: Date | null;
+  waitingReason: MoneriumRegistrationWaitingReason | null;
+  /** When the keeper last evaluated it; the keeper takes the least recently checked first. */
+  lastCheckedAt: Date | null;
   accountId: string | null;
   rejectedReason: string | null;
   createdAt: Date;
@@ -31,7 +46,16 @@ export interface MoneriumAccountRegistrationAttributes {
 
 type MoneriumAccountRegistrationCreationAttributes = Optional<
   MoneriumAccountRegistrationAttributes,
-  "id" | "status" | "deployTxHash" | "accountId" | "rejectedReason" | "createdAt" | "updatedAt"
+  | "id"
+  | "status"
+  | "deployTxHash"
+  | "deploySentAt"
+  | "waitingReason"
+  | "lastCheckedAt"
+  | "accountId"
+  | "rejectedReason"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 class MoneriumAccountRegistration
@@ -46,6 +70,9 @@ class MoneriumAccountRegistration
   declare destination: string;
   declare status: MoneriumAccountRegistrationStatus;
   declare deployTxHash: string | null;
+  declare deploySentAt: Date | null;
+  declare waitingReason: MoneriumRegistrationWaitingReason | null;
+  declare lastCheckedAt: Date | null;
   declare accountId: string | null;
   declare rejectedReason: string | null;
   declare createdAt: Date;
@@ -57,10 +84,12 @@ MoneriumAccountRegistration.init(
     accountId: { allowNull: true, field: "account_id", type: DataTypes.UUID },
     contactEmail: { allowNull: false, field: "contact_email", type: DataTypes.STRING(320) },
     createdAt: { allowNull: false, defaultValue: DataTypes.NOW, field: "created_at", type: DataTypes.DATE },
+    deploySentAt: { allowNull: true, field: "deploy_sent_at", type: DataTypes.DATE },
     deployTxHash: { allowNull: true, field: "deploy_tx_hash", type: DataTypes.STRING(66) },
     destination: { allowNull: false, type: DataTypes.STRING(42) },
     externalSubjectId: { allowNull: false, field: "external_subject_id", type: DataTypes.STRING(255) },
     id: { defaultValue: DataTypes.UUIDV4, primaryKey: true, type: DataTypes.UUID },
+    lastCheckedAt: { allowNull: true, field: "last_checked_at", type: DataTypes.DATE },
     managerProfileId: { allowNull: false, field: "manager_profile_id", type: DataTypes.UUID },
     moneriumProfileId: { allowNull: false, field: "monerium_profile_id", type: DataTypes.STRING(64), unique: true },
     rejectedReason: { allowNull: true, field: "rejected_reason", type: DataTypes.STRING(500) },
@@ -69,10 +98,11 @@ MoneriumAccountRegistration.init(
       defaultValue: MoneriumAccountRegistrationStatus.Requested,
       type: DataTypes.ENUM(...Object.values(MoneriumAccountRegistrationStatus))
     },
-    updatedAt: { allowNull: false, defaultValue: DataTypes.NOW, field: "updated_at", type: DataTypes.DATE }
+    updatedAt: { allowNull: false, defaultValue: DataTypes.NOW, field: "updated_at", type: DataTypes.DATE },
+    waitingReason: { allowNull: true, field: "waiting_reason", type: DataTypes.STRING(64) }
   },
   {
-    indexes: [{ fields: ["status"] }],
+    indexes: [{ fields: ["status"] }, { fields: ["manager_profile_id"] }],
     modelName: "MoneriumAccountRegistration",
     sequelize,
     tableName: "monerium_account_registrations"
