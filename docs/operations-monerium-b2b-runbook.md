@@ -970,6 +970,9 @@ The sandbox deployment of 2026-10-07 (§8.4 and §8.5, from the PR #1408 code):
   Sepolia that sweeps any ETH sent to them.
 - **No private orderflow.** `MONERIUM_B2B_PRIVATE_RPC_URL` is required only when
   `DEPLOYMENT_ENV=production`.
+- **Public RPCs lag.** A load-balanced endpoint such as publicnode can answer a balance
+  or nonce from a node a block behind; when a send fails with `nonce too low`, resend
+  with `--nonce`.
 
 ### 8.3 Keys and funding
 
@@ -1019,17 +1022,24 @@ cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint
   "($EURE,$USDC,500,$GUARDIAN,2000000000000000000000,0,0)" --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-### 8.4 Seed the 1 bps pool at the Chainlink price
+### 8.4 Seed the 1 bps pool
+
+Seed it at the higher of the Chainlink answer and the keeper's reference, the Coinbase
+EURC-USDC midpoint: a fill below the reference less the client's floor waits for the
+subsidy ladder, and one below Chainlink less `SLIPPAGE_BPS` reverts. On 2026-10-07
+Sepolia's Chainlink answer was 20 bps above the reference.
 
 USDC sorts before EURe, so the pool's price is EURe base units per USDC base unit,
-`1e20 / answer` for a Chainlink answer with 8 decimals. The position spans ±1% (100
-ticks at the 1 bps tier's spacing of 1). 1,000 USDC and about 890 EURe keep a €100
-payment's price impact around 0.1%.
+`1e20 / price` for a price with 8 decimals. The position spans ±1% (100 ticks at the
+1 bps tier's spacing of 1). 1,000 USDC and about 900 EURe keep a €100 payment's price
+impact around 0.1%.
 
 ```bash
 ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+REF=$(curl -s https://api.exchange.coinbase.com/products/EURC-USDC/ticker | jq -r '((.bid|tonumber)+(.ask|tonumber))/2*1e8|floor')
+PRICE=$(( ANSWER > REF ? ANSWER : REF ))
 read SQRT_PRICE TICK_LOWER TICK_UPPER < <(python3 -c "
-import math; a=$ANSWER
+import math; a=$PRICE
 tick = math.floor(math.log(10**20 / a, 1.0001))
 print(math.isqrt(10**20 * 2**192 // a), tick - 100, tick + 100)")
 
@@ -1038,10 +1048,10 @@ cast send $NPM "createAndInitializePoolIfNecessary(address,address,uint24,uint16
 POOL=$(cast call $UNI_FACTORY "getPool(address,address,uint24)(address)" $USDC $EURE 100 --rpc-url $RPC)
 cast send $USDC "approve(address,uint256)" $NPM 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 cast send $EURE "approve(address,uint256)" $NPM 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
-# the gas estimate is too low for a mint that moves EURe; pass a limit
+# pass a limit: the mint used 2.43M gas on Sepolia, and 1.5M ran out
 cast send $NPM "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))" \
   "($USDC,$EURE,100,$TICK_LOWER,$TICK_UPPER,1000000000,1000000000000000000000,0,0,$GUARDIAN,$(( $(date +%s) + 3600 )))" \
-  --gas-limit 1500000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+  --gas-limit 4000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 1000000000
 ```
 
@@ -1158,20 +1168,23 @@ shows the same snapshots.
 
 ### 8.9 Re-centre the pool before a session
 
-Each conversion sells EURe into the pool and pushes its price away from Chainlink. A
-swap with a price limit moves it back exactly:
+Each conversion sells EURe into the pool and pushes its price down, and the reference and
+Chainlink move on their own. A swap with a price limit moves the pool back to the higher
+of the two (§8.4):
 
 ```bash
 ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
-TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $ANSWER))")
+REF=$(curl -s https://api.exchange.coinbase.com/products/EURC-USDC/ticker | jq -r '((.bid|tonumber)+(.ask|tonumber))/2*1e8|floor')
+PRICE=$(( ANSWER > REF ? ANSWER : REF ))
+TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $PRICE))")
 CURRENT=$(cast call $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)" --rpc-url $RPC | head -1 | awk '{print $1}')
 if python3 -c "import sys; sys.exit(0 if $CURRENT > $TARGET else 1)"; then
-  # EURe cheaper than Chainlink: buy EURe with USDC up to the target price
+  # EURe cheaper than the target: buy EURe with USDC up to it
   cast send $USDC "approve(address,uint256)" $ROUTER 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
   cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
     "($USDC,$EURE,100,$GUARDIAN,1000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 else
-  # EURe dearer than Chainlink: sell EURe for USDC down to the target price
+  # EURe dearer than the target: sell EURe for USDC down to it
   cast send $EURE "approve(address,uint256)" $ROUTER 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
   cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
     "($EURE,$USDC,100,$GUARDIAN,1000000000000000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
