@@ -61,7 +61,7 @@ documents win.
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Legacy persisted EUR on/off-ramp recovery and standalone profile API |
 | Monerium | `05-integrations/monerium.md` | White-label API client, the Polygon EUR onramp for profiles reachable through either Monerium app, wallet/IBAN readiness, and OAuth KYC/KYB onboarding |
-| Monerium B2B | `05-integrations/monerium-b2b.md` | Whitelabel onramp: attestor address linking, HMAC webhook + durable inbox, forward-only deposits |
+| Monerium B2B | `05-integrations/monerium-b2b.md` | Whitelabel onramp: attestor address linking, HMAC webhook + durable inbox, forward-only deposits, partner destination registration and the factory deployer role |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |

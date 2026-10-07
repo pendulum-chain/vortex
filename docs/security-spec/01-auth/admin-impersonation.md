@@ -12,9 +12,10 @@ Impersonation is not read-only. The operator may create quotes, inspect ramp and
 history, and errors, and perform customer-account mutations outside the protected boundaries.
 Ramp registration/update/start and KYC/KYB initiation, submission, upload, retry, and OAuth actions
 reject the request. Durable credential minting and revocation are denied, as are managed-child
-creation and deletion. Alfredpay fiat-account creation and deletion remain deliberately available:
-these provider-side payout-account mutations outlive the session and are part of the accepted
-operator capability (see the risk register, RISK-018).
+creation and deletion and the partner's registration of a client's payout destination. Alfredpay
+fiat-account creation and deletion remain deliberately available: these provider-side
+payout-account mutations outlive the session and are part of the accepted operator capability (see
+the risk register, RISK-018).
 
 ### Routes
 
@@ -195,13 +196,18 @@ and requires deployment/database access rather than an HTTP credential — see
     buffering. Aggregate and provider status reads deliberately omit the guard so verification
     status remains observable. Normal managed-profile API delegation remains supported; the
     dashboard independently keeps KYC/KYB read-only while a manager acts for a child.
-18. **An impersonated request MUST NOT mutate managed-child or credential lifecycle** — manager and
-    child credential creation/revocation plus managed-child creation/deletion apply
-    `rejectImpersonation`. Credential and managed-profile list/read operations remain available for
-    support inspection. This boundary prevents an operator session from minting a durable backdoor,
-    disabling integrations through credential revocation, or creating/deleting retained child
-    identities. Alfredpay fiat-account creation and deletion are intentionally outside this denial:
-    their durable provider-side mutation is explicitly accepted by RISK-018.
+18. **An impersonated request MUST NOT mutate managed-child or credential lifecycle, or register a
+    payout destination** — manager and child credential creation/revocation, managed-child
+    creation/deletion, and `POST /v1/monerium-b2b/accounts` apply `rejectImpersonation` (403
+    `IMPERSONATION_NOT_ALLOWED`). The last one registers a client's Monerium profile with a permanent
+    payout destination and, through the keeper, a managed child, its KYB mirror and an onramp
+    account ([`monerium-b2b.md`](../05-integrations/monerium-b2b.md) invariant 12). Credential and
+    managed-profile list/read operations, and `GET /v1/monerium-b2b/registrations`, remain available
+    for support inspection. This boundary prevents an operator session from minting a durable
+    backdoor, disabling integrations through credential revocation, creating/deleting retained child
+    identities, or planting a payout destination for a partner's client. Alfredpay fiat-account
+    creation and deletion are intentionally outside this denial: their durable provider-side
+    mutation is explicitly accepted by RISK-018.
 
 ## Threat Vectors & Mitigations
 
@@ -210,6 +216,7 @@ and requires deployment/database access rather than an HTTP credential — see
 | Database dump exposes usable tokens | Attacker reads `admin_impersonation_sessions` from a backup or replica | Only a SHA-256 hash is stored; the raw token is never persisted (Invariant 2) |
 | Stolen or leaked impersonation token replayed after the operator's intent has ended | Token captured via logs, browser history, or a compromised operator device | 30-minute non-renewable TTL (Invariant 4); instant hash-based revocation via `DELETE /impersonation/:sessionId` (Invariant 8); re-checked liveness on every use (Invariant 5) |
 | Impersonation used to mint a permanent backdoor | Operator (or an attacker who obtained an operator's token) mints an API secret key for the target or a managed child while impersonating, which outlives the session | `rejectImpersonation` on both credential-creation routes (Invariant 11) |
+| Impersonation plants a payout destination | Operator (or an attacker holding an impersonation token) acts as the partner manager and registers a client's Monerium profile with a wallet of their choosing; the keeper deploys the clone and maps the account | `rejectImpersonation` on `POST /v1/monerium-b2b/accounts` (Invariant 18); the registrations list stays readable |
 | Privilege re-escalation / impersonation chaining | An impersonated request is used to start a second impersonation session, list sessions, or browse accounts | `requireVortexAdmin`'s `rejectImpersonation` step refuses `GET /accounts`, `GET /accounts/:profileId`, `POST /impersonation`, and `GET /impersonation` outright (Invariant 12) |
 | Impersonated caller abuses the self-revoke carve-out to end someone else's session | Operator impersonating profile A presents that token against profile B's `sessionId` | Rejected with `403 IMPERSONATION_NOT_ALLOWED`: the carve-out only matches when the path `:sessionId` equals the caller's own `req.impersonation.sessionId` (Invariant 12) |
 | Impersonation initiates or advances money movement | Operator calls ramp register, update, or start while acting as a customer | All three mutating ramp routes apply `rejectImpersonation` after principal resolution and before controller execution (Invariant 16); quote creation and ramp inspection remain available |
@@ -223,10 +230,11 @@ and requires deployment/database access rather than an HTTP credential — see
 
 ## Gaps Identified During This Review
 
-- Ramp money movement, KYC/KYB actions, managed-child lifecycle, and credential lifecycle mutations
-  are denied, but recipient, active-entity, notification, and Alfredpay fiat-account mutations remain
-  available. A compromised operator account can therefore still make sensitive and durable changes
-  to a customer's account and provider-side payout accounts.
+- Ramp money movement, KYC/KYB actions, managed-child lifecycle, credential lifecycle mutations, and
+  partner payout-destination registration are denied, but recipient, active-entity, notification,
+  and Alfredpay fiat-account mutations remain available. A compromised operator account can
+  therefore still make sensitive and durable changes to a customer's account and provider-side
+  payout accounts.
   Tracked as an accepted risk in the risk register (RISK-018).
 - The operator-facing frontend that consumes `/v1/admin-console/*` lives in `apps/dashboard`
   (account search UI, and a non-dismissible banner naming the impersonated account while a
@@ -304,6 +312,11 @@ and requires deployment/database access rather than an HTTP credential — see
 - [x] Managed-child creation/deletion and manager/child credential creation/revocation reject
       impersonation, while list/read operations remain available — **PASS**
       (`api-credentials.route.test.ts`).
+- [x] `POST /v1/monerium-b2b/accounts` rejects an impersonation token (`403
+      IMPERSONATION_NOT_ALLOWED`, no registration row created) while `GET
+      /v1/monerium-b2b/registrations` stays readable — **PASS**
+      (`monerium-b2b-registration.integration.test.ts`, "refuses a registration made with an
+      impersonation token, but lets it read").
 - [x] Alfredpay fiat-account creation and deletion remain available during impersonation by accepted
       policy; KYC/KYB actions remain denied — **PASS** (`alfredpay.route.ts`; RISK-018).
 - [x] The operator-facing frontend that consumes `/v1/admin-console/*` presents a
