@@ -1,4 +1,12 @@
-export const MONERIUM_PROFILE_STATES = ["created", "incomplete", "pending", "approved", "rejected"] as const;
+export const MONERIUM_PROFILE_STATES = [
+  "created",
+  "incomplete",
+  "pending",
+  "review",
+  "approved",
+  "rejected",
+  "closed"
+] as const;
 export type MoneriumProfileState = (typeof MONERIUM_PROFILE_STATES)[number];
 
 export const MONERIUM_PROFILE_KINDS = ["personal", "corporate"] as const;

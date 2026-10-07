@@ -195,6 +195,16 @@ describe("MoneriumApiService authentication and transport", () => {
 });
 
 describe("MoneriumApiService resource mappings", () => {
+  test("parses profiles in the review and closed states", async () => {
+    const profiles = ["review", "closed"].map(state => ({ id: PROFILE_ID, kind: "corporate", name: "Acme", state }));
+    const responses = [tokenResponse(), Response.json({ profiles })];
+    globalThis.fetch = mock(async () => responses.shift() as Response) as typeof fetch;
+
+    const listed = await service().listProfiles();
+
+    expect(listed.profiles.map(profile => profile.state)).toEqual(["review", "closed"]);
+  });
+
   test("encodes address/profile paths and query parameters", async () => {
     const responses = [
       tokenResponse(),
