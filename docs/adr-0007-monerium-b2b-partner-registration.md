@@ -27,7 +27,8 @@ could deploy.
 2. **Separate table.** Requests live in `monerium_account_registrations` until mapped.
    An account row stays what it always was, a verified, deployed clone the mint watcher
    scans, and the admin mapping code is reused unchanged. The account list keeps its
-   response shape; the registration's own state comes back from the endpoint itself.
+   response shape; registrations have their own list, `GET /v1/monerium-b2b/registrations`,
+   so a rejection is visible without replaying the request.
 3. **The keeper deploys.** It polls the profile each cycle while the registration waits
    (no `profile.updated` processing), then deploys at the CREATE2 salt
    `keccak256(abi.encode(moneriumProfileId, destination))` and maps through the same
@@ -42,7 +43,10 @@ could deploy.
    the one manager allowed to register, the partner owning the white-label app. Per-partner
    credentials and bindings come with the second partner.
 6. **Activation.** An operator call in production, so a person checks the destination
-   before money flows; automatic once the IBAN is recorded everywhere else.
+   before money flows; automatic once the IBAN is recorded everywhere else. Only an active
+   account converts, which makes the check a gate: a payment that arrives before
+   activation waits on the clone and the deadline refunds it. Operators find the accounts
+   waiting with `GET /v1/admin/monerium-b2b/accounts?status=onboarding`.
 7. **No exchange-address distinction.** Every valid address is accepted the same way;
    the partner agreement carries the risk of rotating exchange deposit addresses.
 
@@ -63,3 +67,6 @@ response partners already read).
   registration waiting rather than rejected.
 - Token or router destinations surface as a rejected registration from the deployment
   simulation, not as a 400.
+- A payment sent before activation is refunded, not delivered, so the partner hands a
+  client its IBAN once the account is `active`. Accounts mapped by the admin call follow
+  the same rule; a penny test runs after activation.

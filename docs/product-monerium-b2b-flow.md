@@ -192,9 +192,11 @@ Notes on the flow:
   Monerium approves the profile, the keeper deploys the forwarder, maps the client,
   links the forwarder and the refund wallet, and requests the IBAN **[V1]**. The IBAN is
   recorded when Monerium confirms it.
-- In production an operator then activates the account; in the sandbox it activates
-  once the IBAN is recorded. The operator path (deploy, then one admin call) remains for
-  corrections.
+- In production an operator then activates the account after checking the destination;
+  in the sandbox it activates once the IBAN is recorded. Payments convert only once the
+  account is active: one that arrives earlier is refunded after two hours, so SulPayments
+  hands a client its IBAN once the account is active. The operator path (deploy, then
+  one admin call) remains for corrections.
 - SulPayments can read the account and its IBAN through the Vortex API with its manager
   key. There is no dashboard view **[V3]**.
 - The backend that runs the B2B module uses SulPayments' app credentials and is bound to
@@ -492,6 +494,7 @@ removed **[V11]**.
 | API call | Returns |
 |---|---|
 | Accounts, all clients of the manager | Each client's account with IBAN and status, filterable by Monerium profile ID |
+| Registrations, all of the manager | Each destination registration: waiting, mapped to its account, or rejected with the reason |
 | Account, per client | IBAN, status, IDs, destination, forwarder address, fee policy |
 | Deposits, per client | Every deposit as its full snapshot, the same shape as `DEPOSIT_UPDATED` |
 

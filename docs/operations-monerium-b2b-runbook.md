@@ -36,7 +36,7 @@ with the client's Monerium profile ID and destination; the keeper waits for Mone
 approval, deploys the clone with the deployer key, maps the account and runs §1.5. The
 operator's only step is activation (§1.7) in production; elsewhere the account activates
 once its IBAN is recorded. A registration that cannot proceed is `rejected` with a reason
-(the partner sees it on replay), and `deploy_tx_hash` on `monerium_account_registrations`
+(the partner sees it in `GET /v1/monerium-b2b/registrations`), and `deploy_tx_hash` on `monerium_account_registrations`
 shows a deployment in flight. If the keeper logs `NotDeployer`, grant the role
 (`setDeployer`, §8.5). The manual path below stays for corrections and clients registered
 outside the API.
@@ -139,7 +139,9 @@ a few cycles.
 
 Optional, and recommended for exchange destinations (ADR amendment 2026-09-29): prove
 the destination actually credits contract-originated USDC transfers (CEXes can rotate
-or mis-credit) before real volume flows. Skipping it does not block activation.
+or mis-credit) before real volume flows. Run it right after activation (§1.7), before
+the client starts paying: only an active account converts, so a penny test sent earlier
+is refunded instead.
 
 1. Send a small SEPA deposit to the new IBAN (sandbox: dashboard → Receive → "Simulate
    bank transfer"). Target forward amount: 5 USDC (ADR B2).
@@ -148,13 +150,25 @@ or mis-credit) before real volume flows. Skipping it does not block activation.
 
 ### 1.7 Activate
 
+Activation is the operator's check of the destination, and it gates the money: only an
+active account converts. A payment that reaches an account before activation waits on
+the clone, and the deadline (two hours) refunds it.
+
+1. Find the accounts waiting for activation, with their partner manager:
+   `GET /v1/admin/monerium-b2b/accounts?status=onboarding` (Authorization: Bearer
+   $ADMIN_SECRET).
+2. Check the account's `destination` against the address the partner confirmed in
+   writing; it can never change.
+3. Activate:
+
 ```
 PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status    (Authorization: Bearer $ADMIN_SECRET)
 { "status": "active" }
 ```
 
-(Refused with 409 while no IBAN is recorded.) Confirm the next monitoring pass picks
-the account up cleanly, then hand the IBAN to the client via the partner.
+(Refused with 409 while no IBAN is recorded.) Run the penny test (§1.6) if the
+destination is an exchange, confirm the next monitoring pass picks the account up
+cleanly, then tell the partner the account is active; `ACCOUNT_UPDATED` reports it too.
 
 Failure at any step: nothing is at risk — the forwarder holds no funds until the client
 wires EUR, and every recovery path is live from deployment.

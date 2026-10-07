@@ -129,8 +129,8 @@ sequenceDiagram
     K->>M: POST /addresses (refund wallet, EOA-signed link)  [exactly-once]
     K->>M: POST /ibans for the forwarder address   [exactly-once]
     M-->>K: iban.updated webhook -> IBAN recorded
-    Op->>M: optional penny test (simulated/real small SEPA)
     Op->>Adm: PATCH .../accounts/:id/status "active" (refused without IBAN)
+    Op->>M: optional penny test (simulated/real small SEPA)
 ```
 
 Steps in prose:
@@ -152,7 +152,8 @@ Steps in prose:
    wallet (its own signature), then requests the IBAN for the forwarder, each
    exactly-once through the profile-scoped `financial_operations` ledger; the
    `iban.updated` webhook records the IBAN.
-5. **Optional penny test**, then activation via the admin status endpoint.
+5. **Activation** via the admin status endpoint, then the optional penny test: only an
+   active account converts.
 
 **Partner registration (the default path).** The partner starts steps 2 and 3 itself
 with `POST /v1/monerium-b2b/accounts`: the Monerium profile ID, the destination, its
@@ -163,7 +164,9 @@ the keeper then deploys the clone with the factory deployer key at the CREATE2 s
 `keccak256(abi.encode(moneriumProfileId, destination))` (a crash adopts the predicted
 clone, a deployment in flight is waited for) and runs the same mapping as step 3, before
 the onboarding step of the same cycle. Outside production the account activates once its
-IBAN is recorded; in production step 5 stays an operator call. The operator path remains
+IBAN is recorded; in production step 5 stays an operator call, and only an active account
+converts: a payment before activation waits on the clone and the deadline refunds it. The
+partner follows its requests with `GET /v1/monerium-b2b/registrations`. The operator path remains
 for corrections and clients registered outside the API.
 
 ## Deposit-to-payout sequence
