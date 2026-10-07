@@ -49,6 +49,7 @@
       "/v1/monerium-b2b/account",
       "/v1/monerium-b2b/accounts",
       "/v1/monerium-b2b/deposits",
+      "/v1/monerium-b2b/registrations",
       "/v1/onboarding/active-entity",
       "/v1/onboarding/requirements",
       "/v1/onboarding/status",

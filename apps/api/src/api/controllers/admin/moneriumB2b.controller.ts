@@ -1,13 +1,16 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import ManagedProfile from "../../../models/managedProfile.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import { pageOf } from "../../helpers/pagination";
 import { sendError } from "../../helpers/sendError";
 import { UUID_PATTERN } from "../../helpers/uuid";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
+import { accountSnapshot } from "../../services/monerium-b2b/manager-events";
 import { setDepositStatus } from "../../services/monerium-b2b/recovery";
 import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
 
@@ -85,6 +88,52 @@ const STATUS_TRANSITIONS: Record<MoneriumAccountStatus, readonly MoneriumAccount
   [MoneriumAccountStatus.Suspended]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Closed],
   [MoneriumAccountStatus.Closed]: []
 };
+
+/**
+ * GET /v1/admin/monerium-b2b/accounts — every onramp account, newest first, with the
+ * partner manager it belongs to. `?status=onboarding` lists the accounts waiting for the
+ * operator's activation (runbook §1.7); `?moneriumProfileId=` finds one client.
+ */
+export async function listMoneriumB2bAccountsForAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { moneriumProfileId, status } = req.query;
+    if (
+      (status !== undefined && (typeof status !== "string" || !STATUS_VALUES.includes(status))) ||
+      (moneriumProfileId !== undefined && (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId)))
+    ) {
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `status must be one of ${STATUS_VALUES.join(", ")} and moneriumProfileId a UUID`
+      );
+      return;
+    }
+    const { limit, offset } = pageOf(req.query);
+    const { count, rows } = await MoneriumAccount.findAndCountAll({
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+      where: {
+        ...(status ? { status: status as MoneriumAccountStatus } : {}),
+        ...(moneriumProfileId ? { profileId: (moneriumProfileId as string).toLowerCase() } : {})
+      }
+    });
+    const childIds = rows.map(account => account.vortexProfileId).filter((id): id is string => id !== null);
+    const relationships = await ManagedProfile.findAll({ where: { profileId: childIds } });
+    const byProfile = new Map(relationships.map(relationship => [relationship.profileId, relationship]));
+    res.status(httpStatus.OK).json({
+      accounts: rows.map(account => {
+        const relationship = account.vortexProfileId ? byProfile.get(account.vortexProfileId) : undefined;
+        return { ...accountSnapshot(account, relationship), managerProfileId: relationship?.managerProfileId ?? null };
+      }),
+      pagination: { limit, offset, total: count }
+    });
+  } catch (error) {
+    logger.error("Error listing Monerium B2B accounts:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list Monerium B2B accounts");
+  }
+}
 
 export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: string }>, res: Response): Promise<void> {
   try {

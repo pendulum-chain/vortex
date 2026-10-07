@@ -406,6 +406,42 @@ describe("monerium b2b account mapping admin route", () => {
     expect((await recover("not-a-uuid")).status).toBe(400);
   });
 
+  it("lists accounts with their partner manager, filterable by status and profile", async () => {
+    const managerProfileId = await createManager();
+    const first = await (await post(validBody(managerProfileId))).json();
+    const secondProfile = crypto.randomUUID();
+    await post(
+      validBody(managerProfileId, {
+        contactEmail: "ops@client-2.example.com",
+        externalSubjectId: "client-2",
+        forwarderAddress: "0x5555555555555555555555555555555555555555",
+        moneriumProfileId: secondProfile
+      })
+    );
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516" }, { where: { id: first.account.accountId } });
+    await fetch(`${baseUrl}/accounts/${first.account.accountId}/status`, {
+      body: JSON.stringify({ status: "active" }),
+      headers: ADMIN_HEADERS,
+      method: "PATCH"
+    });
+    const list = async (query = "", headers: Record<string, string> = ADMIN_HEADERS) => {
+      const response = await fetch(`${baseUrl}/accounts${query}`, { headers });
+      return { body: (await response.json()) as Record<string, any>, status: response.status };
+    };
+
+    const all = await list();
+    expect(all.status).toBe(200);
+    expect(all.body.pagination).toEqual({ limit: 20, offset: 0, total: 2 });
+    const waiting = await list("?status=onboarding");
+    expect(waiting.body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-2", managerProfileId, moneriumProfileId: secondProfile, status: "onboarding" })
+    ]);
+    expect((await list(`?moneriumProfileId=${secondProfile}`)).body.accounts).toHaveLength(1);
+    expect((await list("?status=nonsense")).status).toBe(400);
+    expect((await list("?moneriumProfileId=nope")).status).toBe(400);
+    expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
+  });
+
   it("refuses managers not allowed to provision business customers", async () => {
     const profile = await createTestUser();
     await ManagedProfileManager.create({

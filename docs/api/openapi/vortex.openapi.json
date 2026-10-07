@@ -2937,6 +2937,33 @@
         "required": ["registration"],
         "type": "object"
       },
+      "MoneriumB2bRegistrationsResponse": {
+        "properties": {
+          "pagination": {
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": ["limit", "offset", "total"],
+            "type": "object"
+          },
+          "registrations": {
+            "items": {
+              "$ref": "#/components/schemas/MoneriumB2bRegistration"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["pagination", "registrations"],
+        "type": "object"
+      },
       "Networks": {
         "description": "Supported blockchain networks.",
         "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
@@ -8835,7 +8862,7 @@
       },
       "post": {
         "deprecated": false,
-        "description": "Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. The destination is create-only: an identical replay returns the registration's current state (200), a different destination or client reference is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "description": "Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. Follow the registration with `GET /v1/monerium-b2b/registrations`. The destination is create-only: an identical replay returns the registration's current state (200), a different destination or client reference is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
         "operationId": "registerMoneriumB2bAccount",
         "requestBody": {
           "content": {
@@ -8982,6 +9009,74 @@
           }
         ],
         "summary": "List the acting profile's EUR deposits",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/monerium-b2b/registrations": {
+      "get": {
+        "deprecated": false,
+        "description": "Available in sandbox; production activation is pending. Lists the destination registrations made with your manager key, newest first: `requested` while Vortex waits for the EUR provider's approval or the contract deployment, `mapped` with the `accountId` once the account exists, or `rejected` with the reason. Filter by `moneriumProfileId` to follow one client. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.\n\n**Auth:** `X-API-Key` or Supabase Bearer.",
+        "operationId": "listMoneriumB2bRegistrations",
+        "parameters": [
+          {
+            "description": "Only the registration of this EUR provider profile.",
+            "in": "query",
+            "name": "moneriumProfileId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size (default 20, max 100).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0).",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneriumB2bRegistrationsResponse"
+                }
+              }
+            },
+            "description": "The manager's registrations."
+          },
+          "400": {
+            "description": "Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "The caller is not an active manager for business EUR customers, or used a child's own credential."
+          }
+        },
+        "security": [
+          {
+            "SecretApiKey": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the manager's destination registrations",
         "tags": ["Account Management"]
       }
     },

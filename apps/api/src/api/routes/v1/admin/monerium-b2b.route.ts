@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getMoneriumB2bRefundAddress,
+  listMoneriumB2bAccountsForAdmin,
   patchMoneriumB2bAccountStatus,
   patchMoneriumB2bDepositStatus,
   postMoneriumB2bAccount,
@@ -15,6 +16,9 @@ router.use(adminAuth);
 // Maps a Monerium-onboarded corporate to a managed profile and records its
 // deployed forwarder as a B2B onramp account. Idempotent.
 router.post("/accounts", postMoneriumB2bAccount);
+
+// Every account with its partner manager; ?status=onboarding lists those awaiting activation.
+router.get("/accounts", listMoneriumB2bAccountsForAdmin);
 
 // The client's derived refund wallet, passed as `recoveryAddress` when deploying its forwarder.
 router.get("/refund-address", getMoneriumB2bRefundAddress);

@@ -21,9 +21,10 @@ router.get("/account", ...accountAuth, moneriumB2bController.getMoneriumB2bAccou
 router.get("/deposits", ...accountAuth, moneriumB2bController.listMoneriumB2bDeposits);
 
 // Manager-level: every onramp account of the caller's managed profiles, and the partner's
-// registration of a new client's destination by Monerium profile ID (manager key only).
+// registrations of new clients' destinations by Monerium profile ID (manager key only).
 const managerAuth = [requirePartnerOrUserAuth(), rejectDirectManagedCredential, rejectManagedProfileSelection];
 router.get("/accounts", ...managerAuth, moneriumB2bController.listMoneriumB2bAccounts);
 router.post("/accounts", ...managerAuth, moneriumB2bController.registerMoneriumB2bAccount);
+router.get("/registrations", ...managerAuth, moneriumB2bController.listMoneriumB2bRegistrations);
 
 export default router;

@@ -6,15 +6,17 @@ import { config } from "../../config/vars";
 import ManagedProfile from "../../models/managedProfile.model";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
 import MoneriumAccount from "../../models/moneriumAccount.model";
+import MoneriumAccountRegistration from "../../models/moneriumAccountRegistration.model";
 import MoneriumFiatDeposit from "../../models/moneriumFiatDeposit.model";
 import { APIError } from "../errors/api-error";
+import { pageOf } from "../helpers/pagination";
 import { sendError } from "../helpers/sendError";
 import { UUID_PATTERN } from "../helpers/uuid";
 import { getAuthenticatedProfileId, getEffectiveUserId } from "../middlewares/effectiveUser";
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { accountSnapshot, depositSnapshots, findRelationship } from "../services/monerium-b2b/manager-events";
 import { UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
-import { MoneriumB2bRegistrationError, registerDestination } from "../services/monerium-b2b/registration";
+import { MoneriumB2bRegistrationError, registerDestination, registrationSnapshot } from "../services/monerium-b2b/registration";
 import {
   MONERIUM_ID_HEADER,
   MONERIUM_SIGNATURE_HEADER,
@@ -95,8 +97,6 @@ export const getMoneriumB2bAccount = async (req: Request, res: Response, next: N
   }
 };
 
-const DEPOSIT_LIST_MAX_LIMIT = 100;
-
 /**
  * GET /v1/monerium-b2b/deposits — the acting profile's EUR deposits, newest first,
  * each with its chunk conversions and, once the whole deposit reached the destination,
@@ -110,10 +110,7 @@ export const listMoneriumB2bDeposits = async (req: Request, res: Response, next:
       return;
     }
 
-    const rawLimit = Number(req.query.limit ?? 20);
-    const rawOffset = Number(req.query.offset ?? 0);
-    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, DEPOSIT_LIST_MAX_LIMIT) : 20;
-    const offset = Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+    const { limit, offset } = pageOf(req.query);
 
     const { count, rows } = await MoneriumFiatDeposit.findAndCountAll({
       limit,
@@ -170,10 +167,7 @@ export const listMoneriumB2bAccounts = async (req: Request, res: Response, next:
       sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "moneriumProfileId must be a UUID");
       return;
     }
-    const rawLimit = Number(req.query.limit ?? 20);
-    const rawOffset = Number(req.query.offset ?? 0);
-    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, DEPOSIT_LIST_MAX_LIMIT) : 20;
-    const offset = Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+    const { limit, offset } = pageOf(req.query);
 
     // ponytail: the manager's children go into one IN list; page the relationship query if a partner ever has thousands.
     const relationships = await ManagedProfile.findAll({ where: { managerProfileId: manager.profileId, status: "active" } });
@@ -190,6 +184,42 @@ export const listMoneriumB2bAccounts = async (req: Request, res: Response, next:
     res.status(httpStatus.OK).json({
       accounts: rows.map(account => accountSnapshot(account, byProfile.get(account.vortexProfileId as string))),
       pagination: { limit, offset, total: count }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /v1/monerium-b2b/registrations — the manager's destination registrations, newest
+ * first: `requested` until the account exists, `mapped` with its `accountId`, or
+ * `rejected` with the reason. Manager key only, like the accounts list.
+ */
+export const listMoneriumB2bRegistrations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const manager = await b2bManager(req);
+    if (!manager) {
+      denyManager(res);
+      return;
+    }
+    const moneriumProfileId = req.query.moneriumProfileId;
+    if (moneriumProfileId !== undefined && (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId))) {
+      sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "moneriumProfileId must be a UUID");
+      return;
+    }
+    const { limit, offset } = pageOf(req.query);
+    const { count, rows } = await MoneriumAccountRegistration.findAndCountAll({
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+      where: {
+        managerProfileId: manager.profileId,
+        ...(moneriumProfileId ? { moneriumProfileId: moneriumProfileId.toLowerCase() } : {})
+      }
+    });
+    res.status(httpStatus.OK).json({
+      pagination: { limit, offset, total: count },
+      registrations: rows.map(registrationSnapshot)
     });
   } catch (error) {
     next(error);

@@ -9016,6 +9016,7 @@ GET /v1/admin/managed-profile-managers/:profileId
 PUT /v1/admin/managed-profile-managers/:profileId
 POST /v1/admin/managed-profile-managers/:profileId/managed-profiles
 POST /v1/admin/managed-profiles
+GET /v1/admin/monerium-b2b/accounts
 POST /v1/admin/monerium-b2b/accounts
 PATCH /v1/admin/monerium-b2b/accounts/:accountId/status
 POST /v1/admin/monerium-b2b/deposits/:depositId/recover
@@ -9170,6 +9171,7 @@ GET /v1/monerium-b2b/account
 GET /v1/monerium-b2b/accounts
 POST /v1/monerium-b2b/accounts
 GET /v1/monerium-b2b/deposits
+GET /v1/monerium-b2b/registrations
 POST /v1/monerium-b2b/webhook
 POST /v1/monerium/iban/move
 POST /v1/monerium/oauth/complete

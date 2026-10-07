@@ -987,7 +987,7 @@ export interface paths {
         put?: never;
         /**
          * Register a client's destination
-         * @description Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. The destination is create-only: an identical replay returns the registration's current state (200), a different destination or client reference is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
+         * @description Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. Follow the registration with `GET /v1/monerium-b2b/registrations`. The destination is create-only: an identical replay returns the registration's current state (200), a different destination or client reference is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
@@ -1012,6 +1012,28 @@ export interface paths {
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
         get: operations["listMoneriumB2bDeposits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/monerium-b2b/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the manager's destination registrations
+         * @description Available in sandbox; production activation is pending. Lists the destination registrations made with your manager key, newest first: `requested` while Vortex waits for the EUR provider's approval or the contract deployment, `mapped` with the `accountId` once the account exists, or `rejected` with the reason. Filter by `moneriumProfileId` to follow one client. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bRegistrations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3084,6 +3106,14 @@ export interface components {
         };
         MoneriumB2bRegistrationResponse: {
             registration: components["schemas"]["MoneriumB2bRegistration"];
+        };
+        MoneriumB2bRegistrationsResponse: {
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
+            };
+            registrations: components["schemas"]["MoneriumB2bRegistration"][];
         };
         /**
          * @description Supported blockchain networks.
@@ -6934,6 +6964,54 @@ export interface operations {
             };
             /** @description No account exists for the acting profile. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMoneriumB2bRegistrations: {
+        parameters: {
+            query?: {
+                /** @description Only the registration of this EUR provider profile. */
+                moneriumProfileId?: string;
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The manager's registrations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bRegistrationsResponse"];
+                };
+            };
+            /** @description Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller is not an active manager for business EUR customers, or used a child's own credential. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

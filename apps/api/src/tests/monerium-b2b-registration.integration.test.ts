@@ -102,6 +102,27 @@ describe("POST /v1/monerium-b2b/accounts", () => {
     expect(await MoneriumAccountRegistration.count()).toBe(1);
   });
 
+  it("lists the manager's registrations, filterable by profile, and nobody else's", async () => {
+    const { headers } = await manager();
+    moneriumProfiles({ [PROFILE]: "pending" });
+    const created = await register(headers, body());
+    const list = async (path: string, listHeaders: Record<string, string> = headers) => {
+      const response = await app.request(path, { headers: listHeaders, method: "GET" });
+      return { body: (await response.json()) as Record<string, any>, status: response.status };
+    };
+
+    const all = await list("/v1/monerium-b2b/registrations");
+    expect(all.status).toBe(200);
+    expect(all.body).toEqual({ pagination: { limit: 20, offset: 0, total: 1 }, registrations: [created.body.registration] });
+    expect((await list(`/v1/monerium-b2b/registrations?moneriumProfileId=${PROFILE}`)).body.registrations).toHaveLength(1);
+    expect((await list(`/v1/monerium-b2b/registrations?moneriumProfileId=${crypto.randomUUID()}`)).body.registrations).toHaveLength(0);
+    expect((await list("/v1/monerium-b2b/registrations?moneriumProfileId=nope")).status).toBe(400);
+    expect((await list("/v1/monerium-b2b/registrations", { ...headers, "X-Managed-Profile-Id": crypto.randomUUID() })).status).toBe(400);
+
+    const other = await manager(false);
+    expect((await list("/v1/monerium-b2b/registrations", other.headers)).body.registrations).toHaveLength(0);
+  });
+
   it("refuses a profile the partner's app cannot see, or that Monerium rejected", async () => {
     const { headers } = await manager();
     const rejectedProfile = crypto.randomUUID();
