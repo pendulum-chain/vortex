@@ -222,15 +222,47 @@ describe("vars deployment environment validation", () => {
     const run = (overrides: Record<string, string>) =>
       importVarsWithEnv({ ...requiredMoneriumB2bEnv, ...overrides, DEPLOYMENT_ENV: "production", NODE_ENV: "production" });
 
-    expect(
-      await run({ MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner })
-    ).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+    const accepted: Record<string, string>[] = [
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner.toUpperCase() },
+      {
+        DEPLOYMENT_ENV: "staging",
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      }
+    ];
+    for (const overrides of accepted) {
+      expect(await run(overrides)).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+    }
+    const normalized = await importVarsWithEnv(
+      {
+        ...requiredMoneriumB2bEnv,
+        DEPLOYMENT_ENV: "production",
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner.toUpperCase(),
+        NODE_ENV: "production"
+      },
+      "vars.config.moneriumB2b.partnerManagerProfileId"
+    );
+    expect(normalized.stdout).toBe(`${partner}\n`);
     const incomplete: Record<string, string>[] = [
       { MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
       { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey },
       { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: "not-a-uuid" },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: "0x1234", MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      ...(
+        [
+          "MONERIUM_B2B_ATTESTOR_PRIVATE_KEY",
+          "MONERIUM_B2B_GUARDIAN_PRIVATE_KEY",
+          "MONERIUM_B2B_KEEPER_PRIVATE_KEY"
+        ] as const
+      ).map(name => ({
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: requiredMoneriumB2bEnv[name].toUpperCase().replace("0X", "0x"),
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      })),
       {
-        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: requiredMoneriumB2bEnv.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_FLOAT_PRIVATE_KEY: deployerKey,
         MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
       }
     ];

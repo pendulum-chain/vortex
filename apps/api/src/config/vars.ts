@@ -427,7 +427,8 @@ export const config: Config = {
     guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
     keeperCycleSeconds: Number(process.env.MONERIUM_B2B_KEEPER_CYCLE_SECONDS || 20),
     keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
-    partnerManagerProfileId: process.env.MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID,
+    // Lowercased: compared with stored profile IDs.
+    partnerManagerProfileId: process.env.MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID?.toLowerCase(),
     // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
     // the keeper falls back to the public RPC and logs a warning (see chain.ts).
     privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
@@ -590,11 +591,17 @@ if (config.moneriumB2b.enabled) {
   const b2bKeys = [
     config.moneriumB2b.attestorPrivateKey,
     config.moneriumB2b.guardianPrivateKey,
-    config.moneriumB2b.keeperPrivateKey,
-    ...(config.moneriumB2b.deployerPrivateKey ? [config.moneriumB2b.deployerPrivateKey] : [])
+    config.moneriumB2b.keeperPrivateKey
   ].map(value => (value as string).toLowerCase());
   if (new Set(b2bKeys).size !== b2bKeys.length) {
-    throw new Error("Monerium B2B attestor, guardian, keeper, and deployer private keys must be distinct");
+    throw new Error("Monerium B2B attestor, guardian, and keeper private keys must be distinct");
+  }
+  // The deployer sends with implicit nonces like the keeper and the float wallet: one EOA each.
+  const deployerKey = config.moneriumB2b.deployerPrivateKey?.toLowerCase();
+  if (deployerKey && [...b2bKeys, config.moneriumB2b.floatPrivateKey?.toLowerCase()].includes(deployerKey)) {
+    throw new Error(
+      "MONERIUM_B2B_DEPLOYER_PRIVATE_KEY must differ from the attestor, guardian, keeper, and float private keys"
+    );
   }
   // Partner registrations (POST /v1/monerium-b2b/accounts) need both: who may register, and the key that deploys.
   const { deployerPrivateKey, partnerManagerProfileId } = config.moneriumB2b;
