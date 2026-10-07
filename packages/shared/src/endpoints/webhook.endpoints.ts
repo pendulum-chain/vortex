@@ -187,11 +187,13 @@ export interface DepositReturnedWebhookPayload {
 
 /**
  * Why a deposit is waiting: `monerium_pending` until Monerium mints it (minting or a
- * compliance review, which Monerium does not tell apart), otherwise the reason the
- * keeper is holding the next conversion chunk.
+ * compliance review, which Monerium does not tell apart), `account_not_active` while the
+ * account cannot convert (not activated yet, suspended, or paused for dormancy), otherwise
+ * the reason the keeper is holding the next conversion chunk.
  */
 export type DepositWaitingReason =
   | "monerium_pending"
+  | "account_not_active"
   | "oracle_unavailable"
   | "reference_unavailable"
   | "reference_out_of_band"

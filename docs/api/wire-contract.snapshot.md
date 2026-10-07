@@ -600,7 +600,7 @@ DepositSnapshot: {
   txHash: null | string;
   usdcNetRaw: string;
   waiting: null | {
-    reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+    reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
     since: string;
   };
 }
@@ -652,14 +652,14 @@ DepositUpdatedWebhookPayload: {
     txHash: null | string;
     usdcNetRaw: string;
     waiting: null | {
-      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
       since: string;
     };
   };
   timestamp: string;
 }
 
-DepositWaitingReason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable"
+DepositWaitingReason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable"
 
 DepositWebhookPayloadBase: {
   accountId: string;
@@ -2684,7 +2684,7 @@ WebhookDeliveryAttempt: {
       txHash: null | string;
       usdcNetRaw: string;
       waiting: null | {
-        reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+        reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
         since: string;
       };
     };
@@ -2841,7 +2841,7 @@ WebhookPayload: {
     txHash: null | string;
     usdcNetRaw: string;
     waiting: null | {
-      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
       since: string;
     };
   };

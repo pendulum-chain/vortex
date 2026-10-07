@@ -854,6 +854,33 @@ export function canConvert(account: Pick<MoneriumAccount, "dormantSince" | "stat
   return account.status === MoneriumAccountStatus.Active && !account.dormantSince;
 }
 
+const NOT_ACTIVE: DepositWaitingReason = "account_not_active";
+
+/**
+ * Partner-visible hold reason for deposits the activation gate holds (canConvert): set
+ * while the account cannot convert, cleared once it can and nothing else replaced it.
+ */
+async function syncNotActiveReason(accountId: string, convertible: boolean): Promise<void> {
+  const converting = [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Converting];
+  if (convertible) {
+    await MoneriumFiatDeposit.update(
+      { waitingReason: null, waitingSince: null },
+      { where: { accountId, status: { [Op.in]: converting }, waitingReason: NOT_ACTIVE } }
+    );
+    return;
+  }
+  await MoneriumFiatDeposit.update(
+    { waitingReason: NOT_ACTIVE, waitingSince: sequelize.fn("COALESCE", sequelize.col("waiting_since"), sequelize.fn("NOW")) },
+    {
+      where: {
+        accountId,
+        [Op.or]: [{ waitingReason: null }, { waitingReason: { [Op.ne]: NOT_ACTIVE } }],
+        status: { [Op.in]: converting }
+      }
+    }
+  );
+}
+
 export interface ActionPlanningInput {
   batchOpenedAtSec: bigint;
   convertible: boolean;
@@ -1007,6 +1034,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     });
   });
   if (planned.kind === "none") {
+    await syncNotActiveReason(account.id, convertible);
     if (pokeNeeded) {
       await sendPoke(forwarder);
     }
