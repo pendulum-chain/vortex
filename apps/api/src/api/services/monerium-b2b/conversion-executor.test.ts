@@ -12,6 +12,7 @@ import * as chain from "./chain";
 import { parseSubsidyLadder } from "../../../config/vars";
 import {
   broadcastExecutionSequence,
+  canConvert,
   chunkElapsedSeconds,
   classifyHashlessPending,
   conversionAmountsFromSwapEvent,
@@ -118,6 +119,16 @@ describe("settlementState", () => {
 
   it("never reports a negative remainder", () => {
     expect(settlementState({ amountRaw: (100n * EUR).toString() }, [swapRow(101n * EUR, 1n)]).remainingEureRaw).toBe(0n);
+  });
+});
+
+describe("canConvert", () => {
+  it("converts only for an active account that is not dormant", () => {
+    expect(canConvert({ dormantSince: null, status: MoneriumAccountStatus.Active })).toBe(true);
+    // Not activated yet: the operator has not checked the destination, so the payment waits for a refund.
+    expect(canConvert({ dormantSince: null, status: MoneriumAccountStatus.Onboarding })).toBe(false);
+    expect(canConvert({ dormantSince: null, status: MoneriumAccountStatus.Suspended })).toBe(false);
+    expect(canConvert({ dormantSince: new Date(), status: MoneriumAccountStatus.Active })).toBe(false);
   });
 });
 

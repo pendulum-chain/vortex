@@ -843,6 +843,17 @@ export type PlannedAction =
   | { kind: "forward"; deposit: MoneriumFiatDeposit; usdcRaw: bigint }
   | { kind: "swap"; deposit: MoneriumFiatDeposit; amountIn: bigint; elapsedSeconds: number };
 
+/**
+ * Only an active account swaps or forwards. A payment to an account not activated yet (the
+ * operator's check of the destination) waits on the clone and the deadline refunds it;
+ * suspended and dormant (guardian-paused) accounts convert nothing either. A recovery
+ * still runs for all of them: the refund path is exactly for payments nobody is
+ * converting, and `recover` ignores the pause.
+ */
+export function canConvert(account: Pick<MoneriumAccount, "dormantSince" | "status">): boolean {
+  return account.status === MoneriumAccountStatus.Active && !account.dormantSince;
+}
+
 export interface ActionPlanningInput {
   batchOpenedAtSec: bigint;
   convertible: boolean;
@@ -940,10 +951,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     return;
   }
 
-  // Suspended/dormant accounts never swap or forward (dormancy is guardian-paused — the
-  // clone would revert Paused()), but a recovery still runs for them: the refund path is
-  // exactly for payments nobody is converting any more, and `recover` ignores the pause.
-  const convertible = account.status !== MoneriumAccountStatus.Suspended && !account.dormantSince;
+  const convertible = canConvert(account);
 
   const client = getPublicClient();
   const forwarder = account.forwarderAddress as Address;
