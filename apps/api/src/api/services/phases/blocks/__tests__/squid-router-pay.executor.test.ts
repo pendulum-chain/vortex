@@ -6,10 +6,12 @@ import { decodeFunctionData, keccak256, parseAbi } from "viem";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
 import * as financialOperationNamespace from "../core/financial-operation";
+import * as axelarConfirmNamespace from "../phases/squid-router-swap/axelar-confirm";
 import { settlementBalanceKey } from "../core/settlement";
 
 const sharedReal = { ...sharedNamespace };
 const financialOperationReal = { ...financialOperationNamespace };
+const axelarConfirmReal = { ...axelarConfirmNamespace };
 const SWAP_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const getStatus = mock(async (..._args: unknown[]) => ({
   id: "",
@@ -20,6 +22,7 @@ const getStatus = mock(async (..._args: unknown[]) => ({
 }));
 const getStatusAxelarScan = mock(async (..._args: unknown[]) => undefined as unknown);
 const recoverAxelarStuckConfirm = mock(async (..._args: unknown[]) => "AXELAR_RECOVERY_HASH");
+const confirmGatewayTxFromFundingAccount = mock(async (..._args: unknown[]) => "OWN_CONFIRM_HASH");
 const checkEvmBalanceForToken = mock(async (..._args: unknown[]) => new Big("900100"));
 const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n }));
 const sendTransaction = mock(async (_transaction: Record<string, unknown>) => "0xgasfunding" as `0x${string}`);
@@ -53,18 +56,24 @@ mock.module("../core/financial-operation", () => ({
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
   runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
 }));
+mock.module("../phases/squid-router-swap/axelar-confirm", () => ({
+  ...axelarConfirmReal,
+  confirmGatewayTxFromFundingAccount
+}));
 
 const { SquidRouterPayExecutor } = await import("../phases/squid-router-swap/execution");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
+  mock.module("../phases/squid-router-swap/axelar-confirm", () => ({ ...axelarConfirmReal }));
 });
 
 beforeEach(() => {
   getStatus.mockClear();
   getStatusAxelarScan.mockClear();
   recoverAxelarStuckConfirm.mockClear();
+  confirmGatewayTxFromFundingAccount.mockClear();
   checkEvmBalanceForToken.mockClear();
   estimateFeesPerGas.mockClear();
   sendTransaction.mockClear();
@@ -261,6 +270,50 @@ describe("SquidRouterPayExecutor reliability", () => {
     expect(second).toContain("on cooldown");
     expect(handler.patchStateKey).toHaveBeenCalledTimes(1);
     expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+    expect(confirmGatewayTxFromFundingAccount).not.toHaveBeenCalled();
+  });
+
+  it("confirms from the funding account when the relayer recovery fails, within the same cooldown", async () => {
+    recoverAxelarStuckConfirm.mockImplementationOnce(async () => {
+      throw new Error("Axelar broadcast failed with code 32: account sequence mismatch, expected 53020, got 53019");
+    });
+    const state = makeState();
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+    handler.patchStateKey = mock(async (target: RampState, key: string, value: string) => {
+      target.state = { ...target.state, [key]: value };
+      return 1;
+    });
+
+    const first = await handler.maybeRecoverStuckConfirm(state, SWAP_HASH, "base");
+    const second = await handler.maybeRecoverStuckConfirm(state, SWAP_HASH, "base");
+
+    expect(first).toContain("code 32");
+    expect(first).toContain("OWN_CONFIRM_HASH");
+    expect(second).toContain("on cooldown");
+    expect(confirmGatewayTxFromFundingAccount).toHaveBeenCalledTimes(1);
+    expect(confirmGatewayTxFromFundingAccount.mock.calls[0]?.slice(0, 2)).toEqual(["base", SWAP_HASH]);
+  });
+
+  it("reports both failures and does not fall back once the phase is aborted", async () => {
+    recoverAxelarStuckConfirm.mockImplementation(async () => {
+      throw new Error("Axelar broadcast failed with code 32");
+    });
+    confirmGatewayTxFromFundingAccount.mockImplementationOnce(async () => {
+      throw new Error("Axelar account axelar1abc holds 0 uaxl");
+    });
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+    handler.patchStateKey = mock(async () => 1);
+
+    const unfunded = await handler.maybeRecoverStuckConfirm(makeState(), SWAP_HASH, "base");
+    const controller = new AbortController();
+    controller.abort(new Error("phase timed out"));
+    const aborted = await handler.maybeRecoverStuckConfirm(makeState(), SWAP_HASH, "base", controller.signal);
+    recoverAxelarStuckConfirm.mockImplementation(async () => "AXELAR_RECOVERY_HASH");
+
+    expect(unfunded).toContain("relayer: Axelar broadcast failed with code 32");
+    expect(unfunded).toContain("funding account: Axelar account axelar1abc holds 0 uaxl");
+    expect(aborted).toBe("confirm recovery attempt failed: Axelar broadcast failed with code 32");
+    expect(confirmGatewayTxFromFundingAccount).toHaveBeenCalledTimes(1);
   });
 
   it("triggers confirm recovery on confirm_failed whatever the status, until the call is approved", async () => {
