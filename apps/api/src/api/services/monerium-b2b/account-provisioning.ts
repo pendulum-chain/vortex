@@ -182,7 +182,9 @@ async function verifyForwarderOnChain(
   if (mismatch) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
-      `Deployed forwarder verification failed: ${mismatch}`
+      `Deployed forwarder verification failed: ${mismatch}`,
+      // An unregistered clone right after its deployment can be a lagging RPC node: read again.
+      !onchain.isForwarder
     );
   }
 }

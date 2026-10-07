@@ -122,6 +122,12 @@ export const DEPLOYMENT_RESEND_AFTER_MS = 10 * 60 * 1000;
 /** Registrations evaluated per keeper cycle, least recently checked first. */
 const REGISTRATIONS_PER_CYCLE = 20;
 
+/** A registration waiting for Monerium is asked about again after this long, not every cycle. */
+export const MONERIUM_RECHECK_MS = 60 * 1000;
+
+/** The step stops early past this, so a slow Monerium or RPC never holds the keeper cycle long. */
+const STEP_BUDGET_MS = 15 * 1000;
+
 const factory = () => config.moneriumB2b.forwarderFactoryAddress as Address;
 
 const defaultDeps: RegistrationDeps = {
@@ -358,14 +364,40 @@ export async function withdrawRegistration(registrationId: string): Promise<bool
   return count > 0;
 }
 
+/**
+ * The row as this cycle loaded it. The keeper writes only while it still matches, so an operator
+ * withdrawal or the partner's new attempt in the meantime wins and the next cycle starts afresh.
+ */
+function loaded(registration: MoneriumAccountRegistration) {
+  return {
+    contactEmail: registration.contactEmail,
+    destination: registration.destination,
+    externalSubjectId: registration.externalSubjectId,
+    id: registration.id,
+    status: MoneriumAccountRegistrationStatus.Requested
+  };
+}
+
+async function writeIfLoaded(
+  registration: MoneriumAccountRegistration,
+  fields: Partial<MoneriumAccountRegistration>
+): Promise<boolean> {
+  const [count] = await MoneriumAccountRegistration.update(fields, { where: loaded(registration) });
+  return count > 0;
+}
+
 /** The stored reason is always Vortex's own text; error details go to the log only. */
 async function reject(registration: MoneriumAccountRegistration, reason: string): Promise<null> {
-  logger.warn(`monerium-b2b: registration for profile ${registration.moneriumProfileId} rejected: ${reason}`);
-  await registration.update({
-    rejectedReason: reason.slice(0, 500),
-    status: MoneriumAccountRegistrationStatus.Rejected,
-    waitingReason: null
-  });
+  const rejectedReason = reason.slice(0, 500);
+  if (
+    await writeIfLoaded(registration, {
+      rejectedReason,
+      status: MoneriumAccountRegistrationStatus.Rejected,
+      waitingReason: null
+    })
+  ) {
+    logger.warn(`monerium-b2b: registration for profile ${registration.moneriumProfileId} rejected: ${reason}`);
+  }
   return null;
 }
 
@@ -402,12 +434,21 @@ async function advanceRegistration(
     if (mappedByOperator.destination.toLowerCase() !== registration.destination) {
       return reject(registration, "An operator mapped this Monerium profile to a different destination");
     }
-    await registration.update({
-      accountId: mappedByOperator.id,
-      status: MoneriumAccountRegistrationStatus.Mapped,
-      waitingReason: null
-    });
-    logger.info(`monerium-b2b: registration for profile ${registration.moneriumProfileId} adopted the operator's account`);
+    const ownChild =
+      mappedByOperator.vortexProfileId !== null &&
+      (await ManagedProfile.count({
+        where: { managerProfileId: registration.managerProfileId, profileId: mappedByOperator.vortexProfileId }
+      })) > 0;
+    if (!ownChild) return reject(registration, "An operator mapped this Monerium profile for another client relationship");
+    if (
+      await writeIfLoaded(registration, {
+        accountId: mappedByOperator.id,
+        status: MoneriumAccountRegistrationStatus.Mapped,
+        waitingReason: null
+      })
+    ) {
+      logger.info(`monerium-b2b: registration for profile ${registration.moneriumProfileId} adopted the operator's account`);
+    }
     return null;
   }
 
@@ -443,8 +484,20 @@ async function advanceRegistration(
         logger.warn(`monerium-b2b: factory refused the deployment for profile ${registration.moneriumProfileId}:`, error);
         return reject(registration, `The forwarder factory refused the deployment (${name})`);
       }
-      // A clone already sits at the address (a stale registry read): adopt it next cycle.
-      if (name === "CloneFailed") return "deployment_pending";
+      if (name === "CloneFailed") {
+        // A clone already sits at the address. Right after a deployment that is a stale registry
+        // read (adopt it next cycle); otherwise the clone is out of the registry for good: the
+        // guardian revoked it, and the same destination would always land on it.
+        const sentAt = registration.deploySentAt?.getTime() ?? 0;
+        if (Date.now() - sentAt < DEPLOYMENT_RESEND_AFTER_MS || (await deps.isForwarder(forwarder))) {
+          return "deployment_pending";
+        }
+        logger.error(`monerium-b2b: forwarder ${forwarder} for profile ${registration.moneriumProfileId} was revoked`);
+        return reject(
+          registration,
+          "The forwarder at this destination's address was revoked: register the profile with another destination"
+        );
+      }
       // Vortex's side (setDeployer missing, deployer out of gas), not the partner's input.
       if (name === "NotDeployer" || isInsufficientFunds(error)) {
         logger.error(
@@ -456,28 +509,38 @@ async function advanceRegistration(
       throw error;
     }
     cycle.deploymentSent = true;
-    await registration.update({ deploySentAt: new Date(), deployTxHash: hash });
+    await writeIfLoaded(registration, { deploySentAt: new Date(), deployTxHash: hash });
     logger.info(`monerium-b2b: forwarder ${forwarder} for profile ${registration.moneriumProfileId} deployment sent (${hash})`);
     return "deployment_pending";
   }
 
   try {
-    const mapped = await deps.provision({
-      contactEmail: registration.contactEmail,
-      destination: registration.destination,
-      externalSubjectId: registration.externalSubjectId,
-      forwarderAddress: forwarder,
-      managerProfileId: registration.managerProfileId,
-      moneriumProfileId: registration.moneriumProfileId
+    // The row stays locked while the account is created, so a withdrawal or a new attempt can
+    // neither slip in between nor be overwritten by the mapping.
+    const accountId = await sequelize.transaction(async transaction => {
+      const locked = await MoneriumAccountRegistration.findOne({
+        lock: transaction.LOCK.UPDATE,
+        transaction,
+        where: loaded(registration)
+      });
+      if (!locked) return null;
+      const mapped = await deps.provision({
+        contactEmail: registration.contactEmail,
+        destination: registration.destination,
+        externalSubjectId: registration.externalSubjectId,
+        forwarderAddress: forwarder,
+        managerProfileId: registration.managerProfileId,
+        moneriumProfileId: registration.moneriumProfileId
+      });
+      await locked.update(
+        { accountId: mapped.accountId, status: MoneriumAccountRegistrationStatus.Mapped, waitingReason: null },
+        { transaction }
+      );
+      return mapped.accountId;
     });
-    await registration.update({
-      accountId: mapped.accountId,
-      status: MoneriumAccountRegistrationStatus.Mapped,
-      waitingReason: null
-    });
-    logger.info(
-      `monerium-b2b: registration for profile ${registration.moneriumProfileId} mapped to account ${mapped.accountId}`
-    );
+    if (accountId) {
+      logger.info(`monerium-b2b: registration for profile ${registration.moneriumProfileId} mapped to account ${accountId}`);
+    }
     return null;
   } catch (error) {
     if (error instanceof MoneriumB2bProvisioningError && error.retryable) {
@@ -504,10 +567,10 @@ async function recordWaiting(
   reason: MoneriumRegistrationWaitingReason,
   checkedAt: Date
 ): Promise<void> {
-  if (registration.waitingReason !== reason) {
+  const recorded = await writeIfLoaded(registration, { lastCheckedAt: checkedAt, waitingReason: reason });
+  if (recorded && registration.waitingReason !== reason) {
     logger.info(`monerium-b2b: registration for profile ${registration.moneriumProfileId} waits: ${reason}`);
   }
-  await registration.update({ lastCheckedAt: checkedAt, waitingReason: reason });
 }
 
 /**
@@ -530,21 +593,33 @@ async function activateRegisteredAccounts(): Promise<void> {
 
 /**
  * Keeper step: drives the least recently checked requested registrations one step each, so
- * registrations waiting for Monerium never crowd out newer ones; a failure leaves a
- * registration for the next cycle.
+ * registrations waiting for Monerium never crowd out newer ones; those are asked about again
+ * only after MONERIUM_RECHECK_MS. A failure leaves a registration for the next cycle.
  */
 export async function advanceRegistrations(deps: RegistrationDeps = defaultDeps): Promise<void> {
   if (!config.moneriumB2b.deployerPrivateKey) return; // registrations are off without the deployer key
+  const started = Date.now();
   const pending = await MoneriumAccountRegistration.findAll({
     limit: REGISTRATIONS_PER_CYCLE,
     order: [
       ["lastCheckedAt", "ASC NULLS FIRST"],
       ["createdAt", "ASC"]
     ],
-    where: { status: MoneriumAccountRegistrationStatus.Requested }
+    where: {
+      [Op.or]: [
+        { lastCheckedAt: null },
+        { lastCheckedAt: { [Op.lt]: new Date(started - MONERIUM_RECHECK_MS) } },
+        { waitingReason: { [Op.notIn]: ["monerium_profile_pending", "monerium_profile_not_visible"] } }
+      ],
+      status: MoneriumAccountRegistrationStatus.Requested
+    }
   });
   const cycle: CycleState = { deploymentSent: false };
-  for (const registration of pending) {
+  for (const [index, registration] of pending.entries()) {
+    if (Date.now() - started > STEP_BUDGET_MS) {
+      logger.warn(`monerium-b2b: registration step over its time budget; ${pending.length - index} left for the next cycle`);
+      break;
+    }
     const checkedAt = new Date();
     try {
       const waiting = await advanceRegistration(registration, deps, cycle);

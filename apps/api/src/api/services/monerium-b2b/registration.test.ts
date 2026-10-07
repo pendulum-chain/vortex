@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import {
   type Address,
+  ContractFunctionExecutionError,
   ContractFunctionRevertedError,
   encodeErrorResult,
   type Hex,
@@ -15,16 +16,29 @@ import MoneriumAccountRegistration, {
 } from "../../../models/moneriumAccountRegistration.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
-import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "./account-provisioning";
+import { DEFAULT_FLOOR_PPM, DEFAULT_TARGET_PPM, MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "./account-provisioning";
+import * as chain from "./chain";
 import { refundAccountFor } from "./refund-wallet";
-import { advanceRegistrations, DEPLOYMENT_RESEND_AFTER_MS, type RegistrationDeps, registrationSalt } from "./registration";
+import {
+  advanceRegistrations,
+  DEPLOYMENT_RESEND_AFTER_MS,
+  MONERIUM_RECHECK_MS,
+  type RegistrationDeps,
+  registrationSalt,
+  withdrawRegistration
+} from "./registration";
 
 const PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
 const FORWARDER = "0x1111111111111111111111111111111111111111" as Address;
-const factoryErrors = parseAbi(["error NotDeployer()", "error InvalidConfigAddress()", "error CloneFailed()"]);
+const factoryErrors = parseAbi([
+  "error NotDeployer()",
+  "error InvalidConfigAddress()",
+  "error CloneFailed()",
+  "error ZeroAddress()"
+]);
 
-function revert(errorName: "NotDeployer" | "InvalidConfigAddress" | "CloneFailed"): ContractFunctionRevertedError {
+function revert(errorName: "NotDeployer" | "InvalidConfigAddress" | "CloneFailed" | "ZeroAddress"): ContractFunctionRevertedError {
   return new ContractFunctionRevertedError({
     abi: factoryErrors,
     data: encodeErrorResult({ abi: factoryErrors, errorName }),
@@ -33,6 +47,8 @@ function revert(errorName: "NotDeployer" | "InvalidConfigAddress" | "CloneFailed
 }
 
 interface FakeOptions {
+  /** Runs inside each profile read: something that happens while the cycle is under way. */
+  duringCycle?: () => Promise<unknown>;
   deployed?: boolean;
   deployError?: Error;
   provision?: RegistrationDeps["provision"];
@@ -48,7 +64,7 @@ function fakeDeps(options: FakeOptions = {}) {
   // The main registration's clone is FORWARDER; any other salt gets its own address.
   const forwarderOf = (salt: Hex) =>
     salt === registrationSalt(PROFILE, DESTINATION) ? FORWARDER : (`0x${salt.slice(26)}` as Address);
-  const deps: RegistrationDeps = {
+  const deps: RegistrationDeps & { profileReads: number } = {
     async deploy(destination, recoveryAddress, salt) {
       if (options.deployError) throw options.deployError;
       deploys.push([destination, recoveryAddress, salt]);
@@ -56,11 +72,14 @@ function fakeDeps(options: FakeOptions = {}) {
       return "0xdeploy";
     },
     isForwarder: async address => deployed.has(address),
+    profileReads: 0,
     async predictAddress(destination, recoveryAddress, salt) {
       predictions.push([destination, recoveryAddress, salt]);
       return forwarderOf(salt);
     },
     async profileState() {
+      (deps as { profileReads: number }).profileReads += 1;
+      await options.duringCycle?.();
       const state = options.state === undefined ? "approved" : options.state;
       if (state instanceof Error) throw state;
       return state as never;
@@ -83,6 +102,8 @@ describe("advanceRegistrations", () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
     await setupTestDatabase();
   });
+
+  afterEach(() => mock.restore());
 
   afterAll(() => {
     config.moneriumB2b.deployerPrivateKey = saved.deployer;
@@ -214,6 +235,18 @@ describe("advanceRegistrations", () => {
     expect(deploys).toHaveLength(2);
   });
 
+  it("asks Monerium about a waiting registration again only after the re-check interval", async () => {
+    const registration = await requested();
+    const { deps } = fakeDeps({ state: "pending" });
+    await advanceRegistrations(deps);
+    await advanceRegistrations(deps);
+    expect(deps.profileReads).toBe(1);
+
+    await registration.update({ lastCheckedAt: new Date(Date.now() - MONERIUM_RECHECK_MS - 1000) });
+    await advanceRegistrations(deps);
+    expect(deps.profileReads).toBe(2);
+  });
+
   it("checks the least recently checked registrations first, so waiting ones never starve newer ones", async () => {
     const managerProfileId = await createManager();
     for (let index = 0; index < 21; index += 1) {
@@ -226,6 +259,8 @@ describe("advanceRegistrations", () => {
         managerProfileId
       );
     }
+    // Waiting on a deployment, so every cycle re-checks them (no Monerium re-check interval).
+    await MoneriumAccountRegistration.update({ waitingReason: "deployment_pending" }, { where: {} });
     const { deps } = fakeDeps({ state: "pending" });
 
     await advanceRegistrations(deps);
@@ -275,10 +310,21 @@ describe("advanceRegistrations", () => {
     expect(refused.status).toBe(MoneriumAccountRegistrationStatus.Rejected);
     expect(refused.rejectedReason).toBe("The forwarder factory refused the deployment (InvalidConfigAddress)");
 
+    // The shape viem actually throws: the revert wrapped in the call's execution error.
+    await resetTestDatabase();
+    const wrapped = await requested();
+    const execution = new ContractFunctionExecutionError(revert("ZeroAddress"), {
+      abi: factoryErrors,
+      contractAddress: FORWARDER,
+      functionName: "deployForwarder"
+    });
+    await advanceRegistrations(fakeDeps({ deployError: execution }).deps);
+    expect((await wrapped.reload()).status).toBe(MoneriumAccountRegistrationStatus.Rejected);
+
     for (const [deployError, reason] of [
       [revert("NotDeployer"), "deployer_not_ready"],
       [new InsufficientFundsError(), "deployer_not_ready"],
-      [revert("CloneFailed"), "deployment_pending"],
+
       // An RPC error viem wraps as a revert without decodable data, and a plain transport error.
       [new ContractFunctionRevertedError({ abi: factoryErrors, functionName: "deployForwarder" }), "temporary_error"],
       [new Error("socket hang up"), "temporary_error"]
@@ -288,6 +334,76 @@ describe("advanceRegistrations", () => {
       await advanceRegistrations(fakeDeps({ deployError }).deps);
       await registration.reload();
       expect(registration).toMatchObject({ status: MoneriumAccountRegistrationStatus.Requested, waitingReason: reason });
+    }
+  });
+
+  it("adopts a clone found right after its deployment, but rejects a clone the guardian revoked", async () => {
+    const fresh = await requested({ deploySentAt: new Date(), deployTxHash: "0xmined" });
+    await advanceRegistrations(fakeDeps({ deployError: revert("CloneFailed"), receipt: "success" }).deps);
+    expect(await fresh.reload()).toMatchObject({
+      status: MoneriumAccountRegistrationStatus.Requested,
+      waitingReason: "deployment_pending"
+    });
+
+    await resetTestDatabase();
+    const revoked = await requested();
+    await advanceRegistrations(fakeDeps({ deployError: revert("CloneFailed") }).deps);
+    await revoked.reload();
+    expect(revoked.status).toBe(MoneriumAccountRegistrationStatus.Rejected);
+    expect(revoked.rejectedReason).toContain("was revoked");
+  });
+
+  it("never maps or rejects a registration withdrawn or registered again while the cycle runs", async () => {
+    const withdrawn = await requested();
+    await advanceRegistrations(fakeDeps({ deployed: true, duringCycle: () => withdrawRegistration(withdrawn.id) }).deps);
+    await withdrawn.reload();
+    expect(withdrawn).toMatchObject({ accountId: null, status: MoneriumAccountRegistrationStatus.Rejected });
+    expect(await MoneriumAccount.count()).toBe(0);
+
+    await resetTestDatabase();
+    const corrected = "0x3333333333333333333333333333333333333333";
+    const retried = await requested();
+    const retry = () =>
+      MoneriumAccountRegistration.update({ destination: corrected, status: MoneriumAccountRegistrationStatus.Requested }, { where: { id: retried.id } });
+    await advanceRegistrations(fakeDeps({ deployed: true, duringCycle: retry }).deps);
+    await retried.reload();
+    expect(retried).toMatchObject({ accountId: null, destination: corrected, status: MoneriumAccountRegistrationStatus.Requested });
+    expect(await MoneriumAccount.count()).toBe(0);
+
+    await resetTestDatabase();
+    const rejectedMeanwhile = await requested();
+    await advanceRegistrations(
+      fakeDeps({ duringCycle: () => withdrawRegistration(rejectedMeanwhile.id), state: "rejected" }).deps
+    );
+    expect((await rejectedMeanwhile.reload()).rejectedReason).toContain("Withdrawn");
+  });
+
+  it("reads a clone that is not registered yet at mapping time again instead of rejecting", async () => {
+    const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+    const factory = "0x7777777777777777777777777777777777777777";
+    config.moneriumB2b.rpcUrl = "http://rpc.invalid";
+    config.moneriumB2b.forwarderFactoryAddress = factory;
+    const reads: Record<string, unknown> = {
+      destination: DESTINATION,
+      FACTORY: factory,
+      floorPpm: DEFAULT_FLOOR_PPM,
+      isForwarder: false, // a lagging node behind the one the keeper asked
+      recoveryAddress: refundAccountFor(PROFILE).address,
+      targetPpm: DEFAULT_TARGET_PPM
+    };
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ functionName }: { functionName: string }) => reads[functionName]
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    try {
+      const registration = await requested();
+      await advanceRegistrations(fakeDeps({ deployed: true }).deps);
+      expect(await registration.reload()).toMatchObject({
+        status: MoneriumAccountRegistrationStatus.Requested,
+        waitingReason: "temporary_error"
+      });
+    } finally {
+      config.moneriumB2b.rpcUrl = saved.rpcUrl;
+      config.moneriumB2b.forwarderFactoryAddress = saved.factory;
     }
   });
 
@@ -345,6 +461,22 @@ describe("advanceRegistrations", () => {
     expect(registration.status).toBe(MoneriumAccountRegistrationStatus.Rejected);
     expect(registration.rejectedReason).toContain("different contact email");
     expect(deploys).toHaveLength(0);
+  });
+
+  it("never adopts an account an operator mapped for another manager's client", async () => {
+    const registration = await requested();
+    await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: DESTINATION,
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x5555555555555555555555555555555555555555",
+      managerProfileId: await createManager(),
+      moneriumProfileId: PROFILE
+    });
+    await advanceRegistrations(fakeDeps().deps);
+    await registration.reload();
+    expect(registration).toMatchObject({ accountId: null, status: MoneriumAccountRegistrationStatus.Rejected });
+    expect(registration.rejectedReason).toContain("another client relationship");
   });
 
   it("adopts an account an operator mapped by hand, or rejects it when its destination differs", async () => {
