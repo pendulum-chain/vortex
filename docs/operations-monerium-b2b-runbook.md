@@ -887,7 +887,7 @@ On the `vortex-sandbox` service only:
 | Variable | Value |
 |---|---|
 | `FLOW_VARIANT` | `mykobo` (startup refuses B2B otherwise; the sandbox's retail EUR onramp then runs on Mykobo) |
-| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | SulPayments' sandbox white-label app (S11) |
+| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | The partner's sandbox white-label app (S11) |
 | `MONERIUM_B2B_RPC_URL` | Sepolia RPC |
 | `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` | `$FACTORY` |
 | `MONERIUM_B2B_KEEPER_PRIVATE_KEY`, `MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, `MONERIUM_B2B_ATTESTOR_PRIVATE_KEY` | the three keys of §8.3 |
@@ -896,7 +896,7 @@ On the `vortex-sandbox` service only:
 | `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
 | `MONERIUM_B2B_ENABLED` | `true`, set last |
 
-Register Vortex's webhook subscription on SulPayments' sandbox app with the same
+Register Vortex's webhook subscription on the partner's sandbox app with the same
 secret, from `apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at
 Monerium's sandbox API:
 
@@ -914,18 +914,18 @@ Restart the service. Startup fails if a required setting is missing; once it is 
 
 ### 8.7 Partner and test clients
 
-1. Make SulPayments' sandbox profile a manager:
+1. Make the partner's sandbox profile a manager:
    `PUT /v1/admin/managed-profile-managers/<profileId>` with corridor `EU` and customer
-   type `business`. SulPayments then takes a key from dashboard-sandbox and registers
+   type `business`. The partner then takes a key from dashboard-sandbox and registers
    its webhook through `POST /v1/webhook` (`DEPOSIT_UPDATED`, `ACCOUNT_UPDATED`).
-2. Per test client, once SulPayments confirms the Monerium profile is approved: §1.2
+2. Per test client, once the partner confirms the Monerium profile is approved: §1.2
    (refund address, deploy the clone), §1.4 (map), §1.5 (automatic link and IBAN),
-   §1.7 (activate). Until the destination endpoint (V6) exists, SulPayments sends the
+   §1.7 (activate). Until the destination endpoint (V6) exists, the partner sends the
    profile ID and the Sepolia destination to Vortex directly.
 
 ### 8.8 Test payments
 
-SulPayments simulates each SEPA payment on the client's profile in its Monerium sandbox
+The partner simulates each SEPA payment on the client's profile in its Monerium sandbox
 app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes over.
 
 | Test | Payment | Expected |
@@ -934,7 +934,7 @@ app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes ove
 | Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
 | Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After two hours the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
 
-`DEPOSIT_UPDATED` reports every step to SulPayments, and `GET /v1/monerium-b2b/deposits`
+`DEPOSIT_UPDATED` reports every step to the partner, and `GET /v1/monerium-b2b/deposits`
 shows the same snapshots.
 
 ### 8.9 Re-centre the pool before a session
