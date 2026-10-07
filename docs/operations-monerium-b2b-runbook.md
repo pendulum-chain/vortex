@@ -967,7 +967,10 @@ placeholder router; it is not reusable.
 - Fresh EOAs: guardian, keeper, attestor and deployer (four distinct keys), the float wallet
   (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`, also distinct from the deployer: both send with
   implicit nonces), and a fee recipient address Vortex controls.
-  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
+  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`). The
+  first block below writes them, the webhook secret and a test destination to a private
+  file outside every checkout, under the backend's variable names, and prints only the
+  addresses.
 - Sepolia ETH: about 0.2 each for the guardian (factory and vault deployment), the
   deployer (one clone per registered client), the keeper (swaps, forwards, recoveries)
   and the float (it tops up the refund wallets' gas).
@@ -976,6 +979,20 @@ placeholder router; it is not reusable.
   that profile's IBAN. Sandbox EURe costs nothing.
 - USDC: buy it with sandbox EURe from the mispriced 5 bps pool; its price is irrelevant
   when the EURe is free. 2,000 EURe bought about 1,385 USDC in the dry run.
+
+```bash
+F=~/.vortex/monerium-b2b-sepolia.env   # never commit it or paste it anywhere
+[ -e "$F" ] || (umask 077; mkdir -p ~/.vortex
+  for ROLE in GUARDIAN KEEPER ATTESTOR DEPLOYER FLOAT FEE_RECIPIENT E2E_DESTINATION; do
+    W=$(cast wallet new --json)
+    case $ROLE in FEE_RECIPIENT|E2E_DESTINATION) VAR=${ROLE}_PRIVATE_KEY ;; *) VAR=MONERIUM_B2B_${ROLE}_PRIVATE_KEY ;; esac
+    echo "$VAR=$(jq -r '.[0].private_key' <<< "$W")" >> "$F"; echo "$ROLE=$(jq -r '.[0].address' <<< "$W")" >> "$F"
+  done
+  echo "MONERIUM_B2B_REFUND_SEED=0x$(openssl rand -hex 32)" >> "$F"
+  echo "MONERIUM_B2B_WEBHOOK_SECRET=whsec_$(openssl rand -base64 32)" >> "$F")
+grep -E '^[A-Z_0-9]+=0x[0-9a-fA-F]{40}$' "$F"   # the addresses
+set -a; . "$F"; set +a; GUARDIAN_KEY=$MONERIUM_B2B_GUARDIAN_PRIVATE_KEY
+```
 
 ```bash
 RPC=<Sepolia RPC URL>
@@ -1100,8 +1117,22 @@ console.log(await MoneriumApiService.getInstance().createWebhook({
 
 ### 8.8 Test payments
 
-The partner simulates each SEPA payment on the client's profile in its Monerium sandbox
-app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes over.
+Each test runs through one command, with the §8.3 file (plus `MONERIUM_B2B_RPC_URL` and
+`MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` once §8.5 has run) and the partner's secret key:
+
+```bash
+VORTEX_SECRET_KEY=sk_test_... bun --env-file="$F" run --cwd apps/api monerium-b2b:sandbox-e2e \
+  --profile <moneriumProfileId> [--amount 60] [--refund]
+```
+
+It registers the destination (or resumes the registration), waits until the account is
+active, checks the clone on chain, asks for the payment, and then checks the outcome: one
+forward transaction paying the deposit's net USDC to the destination, or the refund.
+`--refund` suspends the account for the payment and reactivates it afterwards, with
+`ADMIN_SECRET`. The script does not make the payment. How a payment reaches a white-label
+profile's IBAN in the sandbox is open with Monerium: the dashboard's "Simulate bank
+transfer" mints only for your own profile, and EURe sent to the clone on chain is recorded
+as unattributed and never converted.
 
 | Test | Payment | Expected |
 |---|---|---|
