@@ -34,7 +34,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`operations-monerium-interface.md`](operations-monerium-interface.md) | Monerium onramp boundary across the OAuth and white-label apps plus the profile, address, IBAN, and payment interface reference |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`product-monerium-b2b-flow.md`](product-monerium-b2b-flow.md) | High-level end-to-end flow of the Monerium B2B onramp for Vortex, SulPayments and Monerium, with the open questions per party |
+| [`product-monerium-b2b-flow.md`](product-monerium-b2b-flow.md) | High-level end-to-end flow of the Monerium B2B onramp for Vortex, the partner and Monerium, with the open questions per party |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |

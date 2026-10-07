@@ -10,7 +10,7 @@ invariants in
 
 ## Context
 
-SulPayments creates its clients' profiles and submits their KYB in its own Monerium
+The partner creates its clients' profiles and submits their KYB in its own Monerium
 white-label app, so it holds each new client's Monerium profile ID; only it knows the
 client's payout wallet. Until now a Vortex operator deployed every forwarder with `cast`
 and mapped the account with an admin call, so every client waited on a manual step, and

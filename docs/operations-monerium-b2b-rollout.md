@@ -27,7 +27,7 @@ verbal/Telegram statements; consolidate into the MSA or a side letter:
 6. SEPA recall / fraud loss allocation after conversion+forwarding.
 7. Per-IBAN suspension capability for incident response.
 8. Corporate KYB mechanism for direct (non-reliance) clients — not needed for the
-   SulPayments pilot, still an MSA item.
+   partner pilot, still an MSA item.
 9. Advance notice of any change to the EIP-1271 ownership/link message (and the
    recovery message): the forwarder whitelists their exact hashes, so an unannounced
    change fail-closes new onboarding.
@@ -41,7 +41,7 @@ the subsidy vault (P13).
 **G3 — external contract audit.** Parameters are final (ADR); the internal reviews and
 the invariant suite are done, but this moves client funds.
 
-**G4 — pilot.** SulPayments agreement signed (terms inputs below), reliance
+**G4 — pilot.** Partner agreement signed (terms inputs below), reliance
 attestations per customer, 3–5 clients at **€50k/client/day** (paper control), launch
 fee policy 12.5 bps target / 15 bps floor (B1).
 
@@ -91,7 +91,7 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    Receive → "Simulate bank transfer") and re-verify the signed `webhook-id`,
    `webhook-timestamp`, and `webhook-signature: v1,<base64>` fixture against a real
    production delivery.
-9. SulPayments side: manager profile configured (EU corridor, business type), secret
+9. Partner side: manager profile configured (EU corridor, business type), secret
    credential issued, deposit-event webhook registered and verifying signatures against
    `GET /v1/public-key`.
 10. Confirm every mapped forwarder has a zero EURe balance before the first enablement.
@@ -201,7 +201,7 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
 | G1 package (9 items) | Marcel ↔ Monerium | All verbal; consolidate in writing |
 | G2 legal scope | Counsel | Not started |
 | G3 audit | External | After PR merge; params final |
-| SulPayments agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
+| Partner agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
 | Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint (spot, since 2026-09-18) — confirm that is what was meant |

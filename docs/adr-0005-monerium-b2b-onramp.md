@@ -19,7 +19,7 @@ consumer-flow design this grew out of remains a phase-2 proposal:
 
 ## Context
 
-Partner-sourced business clients (SulPayments' OTC corporates, KYB'd under the partner's
+Partner-sourced business clients (the partner's OTC corporates, KYB'd under the partner's
 FINMA/VQF licence with per-customer reliance attestations to Monerium) need EUR → USDC
 on Ethereum with **zero Vortex-side interaction**: no app, no wallet ceremony, no digital
 signature. Onboarding is paperwork only. The single blocker in the consumer design was
@@ -144,7 +144,7 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 
 ## Amendment 2026-09-17: whole-deposit settlement and the refund path
 
-Product requirements from the partner (SulPayments): one USDC transfer per bank
+Product requirements from the partner: one USDC transfer per bank
 payment, and an automatic refund of the exact EUR amount to the payer's bank account
 when a payment cannot be converted inside the promised window. Vortex holding the funds
 for that refund is agreed commercially. Decisions (the proposal that led here,
