@@ -44,6 +44,7 @@ import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../co
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { settlementBalanceKey } from "../../core/settlement";
+import { confirmGatewayTxFromFundingAccount } from "./axelar-confirm";
 import { SquidRouterSwapContext } from "./simulation";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -574,7 +575,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
 
             await this.patchStateKey(state, "squidRouterPayTxHash", payTxHash);
-          } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
+          } else if (axelarScanStatus.confirm_failed && !axelarScanStatus.approved && !axelarScanStatus.executed) {
             recoveryOutcome = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
 
@@ -659,6 +660,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
     await this.patchStateKey(state, "axelarConfirmRecoveryAt", new Date().toISOString());
 
+    let relayerFailure: string;
     try {
       const axelarTxHash = await recoverAxelarStuckConfirm(swapHash, sourceChain, signal);
       logger.info(
@@ -666,9 +668,25 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       );
       return `broadcast recovery ConfirmGatewayTx ${axelarTxHash} on Axelar`;
     } catch (error) {
+      relayerFailure = error instanceof Error ? error.message : String(error);
+      logger.warn(`SquidRouterPayExecutor: Axelar stuck-confirm recovery attempt failed for ${swapHash}: ${relayerFailure}`);
+    }
+    if (signal?.aborted) {
+      return `confirm recovery attempt failed: ${relayerFailure}`;
+    }
+
+    // Axelar's signing relayer has repeatedly signed with a stale account sequence (code 32),
+    // so confirm from the funding key's own Axelar account instead.
+    try {
+      const axelarTxHash = await abortableCall(signal, () => confirmGatewayTxFromFundingAccount(sourceChain, swapHash, signal));
+      logger.info(
+        `SquidRouterPayExecutor: Confirm poll failed for ${swapHash}; broadcast ConfirmGatewayTxs ${axelarTxHash} from the funding account's Axelar account.`
+      );
+      return `relayer recovery failed (${relayerFailure}); broadcast ConfirmGatewayTxs ${axelarTxHash} from the funding account`;
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logger.warn(`SquidRouterPayExecutor: Axelar stuck-confirm recovery attempt failed for ${swapHash}: ${message}`);
-      return `confirm recovery attempt failed: ${message}`;
+      logger.warn(`SquidRouterPayExecutor: Funding-account Axelar confirm failed for ${swapHash}: ${message}`);
+      return `confirm recovery attempt failed: relayer: ${relayerFailure}; funding account: ${message}`;
     }
   }
 
