@@ -1040,7 +1040,10 @@ cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 100000000
 
 The parameters are the ADR's (§7.3 table) except `perSwapCap`: €25 lets a €60 test
 payment convert in three chunks. It is operational; `setPerSwapCap` changes it later.
-The initial route is the 1 bps pool, EURe → USDC.
+`RECOVERY_DELAY` is 15 minutes instead of two hours, so a refund test fits into one
+session; it is immutable, and `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (§8.6) matches it.
+The subsidy ladder's top tier, from 16 minutes, then never applies. The initial route is
+the 1 bps pool, EURe → USDC.
 
 From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER`, `DEPLOYER` and
 `FEE_RECIPIENT` set to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
@@ -1048,7 +1051,7 @@ From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER`, `DEPLOYER` and
 ```bash
 ROUTE=$(cast concat-hex $EURE 0x000064 $USDC)   # fee 100 as three bytes
 forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
-  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,7200,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
+  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,900,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
   1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
 cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
 cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
@@ -1081,6 +1084,7 @@ On the `vortex-sandbox` service only:
 | `MONERIUM_B2B_DEPLOYER_PRIVATE_KEY` | the deployer key of §8.3 (granted with `setDeployer`) |
 | `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` | The partner's manager profile ID on the sandbox: the only key that may register destinations |
 | `MONERIUM_B2B_AUTO_RECOVERY` | `auto`, so the refund test runs end to end |
+| `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` | `15`, the factory's `RECOVERY_DELAY` (§8.5) |
 | `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
 | `MONERIUM_B2B_ENABLED` | `true`, set last |
 
@@ -1138,7 +1142,7 @@ as unattributed and never converted.
 |---|---|---|
 | Normal | €20 | One chunk, one forward. The destination receives the reference less the client's target (12.5 bps); the fee treasury the surplus over it |
 | Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
-| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 120 by default) the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
+| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 15 minutes in the sandbox) the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
 
 `DEPOSIT_UPDATED` reports every step to the partner, and `GET /v1/monerium-b2b/deposits`
 shows the same snapshots.

@@ -244,7 +244,8 @@ The partner's steps **[S11]**:
 
 Vortex then deploys the forwarder, links it and the client's refund wallet, and requests
 the IBAN; in the sandbox the account activates once the IBAN is issued. In a joint session the parties run three test payments: a normal one, a large
-one that converts in several chunks, and one that is refunded.
+one that converts in several chunks, and one that is refunded. The sandbox refunds after
+15 minutes instead of two hours, so the refund test fits into the session.
 
 ## 5. Payment in: SEPA to EURe
 
