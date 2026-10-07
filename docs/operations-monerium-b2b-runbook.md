@@ -32,17 +32,59 @@ Ground rules that shape every procedure here:
 ## 1. Client onboarding
 
 **Partner registration (default).** The partner calls `POST /v1/monerium-b2b/accounts`
-with the client's Monerium profile ID and destination; the keeper waits for Monerium's
-approval, deploys the clone with the deployer key, maps the account and runs §1.5. The
-operator's only step is activation (§1.7) in production; elsewhere the account activates
-once its IBAN is recorded. A registration that cannot proceed is `rejected` with a reason
-(the partner sees it in `GET /v1/monerium-b2b/registrations`), and `deploy_tx_hash` on `monerium_account_registrations`
-shows a deployment in flight. If the keeper logs `NotDeployer`, grant the role
-(`setDeployer`, §8.5). The manual path below stays for corrections and clients registered
-outside the API.
+with the client's Monerium profile ID, destination, client reference and contact email;
+the keeper waits for Monerium's approval, deploys the clone with the deployer key, maps
+the account and runs §1.5. The operator's only step is activation (§1.7); only the
+sandbox (`SANDBOX_ENABLED=true`, §8) activates a registered account by itself once its
+IBAN is recorded. The partner follows a registration in
+`GET /v1/monerium-b2b/registrations`. Operators list the same rows with the keeper's
+progress (`id`, `contactEmail`, `managerProfileId`, `deployTxHash`, `deploySentAt`,
+`lastCheckedAt`) with `GET /v1/admin/monerium-b2b/registrations?status=requested|mapped|rejected`
+(`limit`, `offset`; `Authorization: Bearer $ADMIN_SECRET`), no SQL needed.
 
-Deploy → manifest → verify → map → (automated: link + IBAN) → optional penny test →
-activate.
+A `requested` registration shows what it waits for in `waitingReason`:
+
+| `waitingReason` | Meaning | Who acts |
+|---|---|---|
+| `monerium_profile_pending` | Monerium reports the profile `created`, `incomplete`, `pending` or `review`; the keeper re-reads it every minute | The partner, at Monerium (finish the KYB); nothing at Vortex |
+| `monerium_profile_not_visible` | Monerium now answers 404 for the profile in the partner's app, though it was visible when the partner registered it | The partner checks that the profile still exists in its app; if it persists, Vortex checks that the white-label credentials are still the partner's app |
+| `deployment_pending` | The profile is approved and the deployment is sent (`deployTxHash`, `deploySentAt`) or queued behind another one (one deployment per cycle); with no receipt after 10 minutes, or after a revert, it is sent again | Nobody; if it outlasts a few cycles, check the deployer's pending nonce and the RPC |
+| `deployer_not_ready` | The deployer cannot deploy: no deployer role on the factory (`NotDeployer`) or no gas. Vortex's side, never the partner's | Vortex: `setDeployer` (§8.5) or fund the deployer address; the next cycle proceeds |
+| `manager_inactive` | The mapping is refused because the partner's managed-profile manager is inactive or missing | Vortex: restore the manager (`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type `business`) |
+| `temporary_error` | A transient failure: RPC, Monerium (timeout, rate limit, 5xx, 403), the mapping's on-chain verification, or the database; the keeper retries every cycle | Vortex only if it persists: the log line `registration for profile ... failed this cycle` names the cause |
+
+A registration becomes `rejected`, with a reason the partner can read, only for a
+definite cause: Monerium rejected or closed the profile; the factory refused the
+arguments (`InvalidConfigAddress`, `ZeroAddress`, `InvalidFeePolicy`, §1.1); a client
+conflict (the client reference already used with another contact email, by a client
+that is not a business or with another Monerium profile; the contact email used by
+another client; another registration that is not rejected with the same reference or
+email); a definite mapping conflict; an operator mapped the profile by hand to a
+different destination or for another manager's client; the guardian revoked the clone
+at the predicted address (the same destination would always land on it); or an operator
+withdrew it. Transient failures wait instead. The
+partner may register a rejected profile again, with the same or corrected data (202; the
+row restarts).
+
+To stop a registration that must not proceed (a partner typo, a wrong destination, a
+clone you revoked), withdraw it: `POST /v1/admin/monerium-b2b/registrations/<id>/withdraw`
+turns a `requested` registration into `rejected` with the reason "Withdrawn by Vortex
+operations: register the profile again with corrected data" (409
+`MONERIUM_B2B_REGISTRATION_NOT_WITHDRAWABLE` when it is mapped or already rejected, 404
+`MONERIUM_B2B_REGISTRATION_NOT_FOUND`); the partner registers the profile again. The
+keeper deploys as soon as Monerium approves the profile, so withdraw before that; a clone
+already deployed for a withdrawn registration stays unused (no IBAN is linked to it) and
+the guardian may revoke it (§6). A withdrawal always wins over a keeper cycle running at
+the same time: the keeper writes only to the row it loaded and locks it while it maps.
+
+The manual path below stays for corrections and clients registered outside the API.
+Mapping a profile by hand while its registration is still `requested` is safe: the keeper
+adopts the account when the destination matches and the account belongs to one of the
+registering manager's clients, and rejects the registration otherwise, without deploying
+a second clone.
+
+Deploy → manifest → verify → map → (automated: link + IBAN) → activate → optional penny
+test.
 One pass per client. Prerequisites: guardian key funded on the target chain;
 `MONERIUM_B2B_ENABLED=true` and the complete `MONERIUM_B2B_*` env set on the one
 `mykobo` keeper backend (including the trusted factory address, read/private RPCs,
@@ -55,10 +97,13 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
 
 ### 1.1 Paperwork inputs (from the partner agreement)
 
-- `destination` — client's payout address. CEX deposit addresses allowed; validate:
-  EIP-55 checksum, not zero/dead/precompile/token/router (the contract re-rejects
-  token/router/self at init), warn-and-attest for contract addresses and CEX addresses
-  (rotation risk — terms).
+- `destination` — client's payout address. CEX deposit addresses allowed; validate by
+  hand: EIP-55 checksum, not zero/dead/precompile/token/router, warn-and-attest for
+  contract addresses and CEX addresses (rotation risk — terms). Nothing else screens
+  them: the registration API rejects only a malformed or zero address (400), and the
+  factory refuses at init (the registration is rejected) only EURe, EURC, USDC, the
+  router, the clone itself and the client's own refund wallet. A dead or precompile
+  address deploys and would receive the client's USDC.
 - (No client-held recovery address: the clone's `recoveryAddress` is the client's refund
   wallet, derived by Vortex, step 1.2. The destination has no setter — a client wallet
   change is a new clone, §5 — so get it right; a penny test is recommended for exchange
@@ -74,11 +119,18 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
 # the client's refund wallet, derived from MONERIUM_B2B_REFUND_SEED and the Monerium profile ID
 curl -s -H "Authorization: Bearer $ADMIN_SECRET" \
   "$API/v1/admin/monerium-b2b/refund-address?moneriumProfileId=$MONERIUM_PROFILE_ID"
-# predict, then deploy (guardian or a factory deployer); salt = any unused bytes32, convention: client index
-cast call $FACTORY "predictAddress(bytes32)(address)" $SALT --rpc-url $RPC
+# predict, then deploy (guardian or a factory deployer); salt = any bytes32, convention: client index
+cast call $FACTORY "predictAddress(address,address,uint32,uint32,bytes32)(address)" \
+  $DESTINATION $REFUND_ADDRESS $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC
 cast send $FACTORY "deployForwarder(address,address,uint32,uint32,bytes32)" \
   $DESTINATION $REFUND_ADDRESS $TARGET_PPM $FLOOR_PPM $SALT --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
+
+The factory deploys at the CREATE2 salt
+`keccak256(abi.encode(destination, recoveryAddress, targetPpm, floorPpm, salt))`, so
+`predictAddress` takes the very arguments of `deployForwarder`, and nobody can occupy a
+client's predicted address with other arguments. The same arguments with the same salt
+twice revert (`CloneFailed`); use a fresh salt for a second clone of one configuration.
 
 The clone is initialized atomically in the deploy tx (`ForwarderDeployed` event). The
 refund wallet is fixed for the clone's lifetime; the account mapping (§1.4) refuses a
@@ -121,7 +173,9 @@ POST /v1/admin/monerium-b2b/accounts        (Authorization: Bearer $ADMIN_SECRET
 ```
 
 Replaying the identical call is safe (200); divergent input is a 409, never an
-overwrite.
+overwrite. If the partner's registration for this profile is still `requested`, the
+keeper marks it mapped on its next cycle when the destination matches and rejects it when
+it differs; it never deploys a second clone for an account that exists.
 
 ### 1.5 Link + IBAN (automated)
 
@@ -130,10 +184,11 @@ exactly-once via the profile-scoped `financial_operations` ledger: links the for
 with the attestor signature (`POST /addresses` — HTTP 201, `state: linked`, zero client
 interaction), links the client's refund wallet with its own signature, then requests IBAN
 issuance for the forwarder (`POST /ibans`, async 202). The IBAN lands on
-the account row via the `iban.updated` webhook; from then on the association monitor
-treats the DB record as the reference state. Nothing to do manually — verify the row
-has its IBAN before activation, and check the logs if it stays empty for more than
-a few cycles.
+the account row via the `iban.updated` webhook (the log says `account ... has its
+IBAN`); from then on the association monitor treats the DB record as the reference
+state, and the onboarding step stops polling the account: it only awaits activation
+(§1.7). Nothing to do manually — verify the row has its IBAN before activation, and check
+the logs if it stays empty for more than a few cycles.
 
 ### 1.6 Penny test (optional)
 
@@ -141,7 +196,8 @@ Optional, and recommended for exchange destinations (ADR amendment 2026-09-29): 
 the destination actually credits contract-originated USDC transfers (CEXes can rotate
 or mis-credit) before real volume flows. Run it right after activation (§1.7), before
 the client starts paying: only an active account converts, so a penny test sent earlier
-is refunded instead.
+waits on the clone and is refunded at the deadline (§1.7), which reads as a failed
+destination test.
 
 1. Send a small SEPA deposit to the new IBAN (sandbox: dashboard → Receive → "Simulate
    bank transfer"). Target forward amount: 5 USDC (ADR B2).
@@ -152,11 +208,19 @@ is refunded instead.
 
 Activation is the operator's check of the destination, and it gates the money: only an
 active account converts. A payment that reaches an account before activation waits on
-the clone, and the deadline (two hours) refunds it.
+the clone, and the partner sees waiting reason `account_not_active` on the deposit. With
+`MONERIUM_B2B_AUTO_RECOVERY=auto` the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`,
+120 by default, counted from the mint) then refunds it; in `alert` mode the keeper only
+logs `REFUND DUE` and in `off` mode (the default) it does nothing, so mark the deposit
+by hand (§2.7). The gate is a keeper-side policy, not an on-chain guarantee: once the
+clone's batch has been open for `TRIGGER_DELAY` (24 h), `swap` and `forwardAll` are
+permissionless and anyone can send the payment to the unchecked destination, so activate
+or refund well before that.
 
 1. Find the accounts waiting for activation, with their partner manager:
    `GET /v1/admin/monerium-b2b/accounts?status=onboarding` (Authorization: Bearer
-   $ADMIN_SECRET).
+   $ADMIN_SECRET). Entries with an `iban` wait for you; those without are still linking
+   (§1.5).
 2. Check the account's `destination` against the address the partner confirmed in
    writing; it can never change.
 3. Activate:
@@ -166,9 +230,23 @@ PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status    (Authorization: Bear
 { "status": "active" }
 ```
 
-(Refused with 409 while no IBAN is recorded.) Run the penny test (§1.6) if the
+(Refused with 409 while no IBAN is recorded.) Activation records `activated_at`: the
+60-day dormancy window (§4) of a never-converted account runs from it, so a late
+activation does not pause the account at once. Every status change is logged
+(`operator moved account <id> from <from> to <to>`, with destination and forwarder); the
+log names no operator, since the admin secret is shared. Run the penny test (§1.6) if the
 destination is an exchange, confirm the next monitoring pass picks the account up
 cleanly, then tell the partner the account is active; `ACCOUNT_UPDATED` reports it too.
+
+If the destination does not match, suspend the account instead
+(`{ "status": "suspended" }`, allowed from `onboarding` once the IBAN is issued): nothing converts, recoveries
+still run, and `ACCOUNT_UPDATED` tells the partner. Mark any payment already on the clone
+for the refund path (§2.7).
+
+**Before deploying the gate to a backend that already holds accounts**, list the accounts
+in `onboarding` that already have an IBAN (the same call; `iban` not null). They converted
+before the gate and stop converting once it is live, so a payment would sit on the clone.
+Run the check above for each and activate it, or leave it idle on purpose.
 
 Failure at any step: nothing is at risk — the forwarder holds no funds until the client
 wires EUR, and every recovery path is live from deployment.
@@ -279,7 +357,8 @@ deferrals become routine; both are instant. The ladder itself
 
 ### 2.7 Refund (recovery) procedure
 
-Trigger: a deposit the promised window (2 h) was missed on, a remainder below
+Trigger: a deposit the promised window was missed on (the deadline,
+`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 120 by default), a remainder below
 `minSwapAmount`, a compliance decision, or a critical incident (§2.4). Prerequisites: the
 client's refund wallet (the clone's `recoveryAddress()`) is linked to the client's
 Monerium profile (onboarding does this, §1.5), `MONERIUM_B2B_REFUND_SEED` and the EURe
@@ -361,6 +440,8 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `reconciled guardian-authorized fee policy change` | A timelocked fee-policy change applied — expected, DB updated | No incident; confirm it matches the announced change |
 | `config violation ... destination changed on chain` | Should be impossible: the clone has no destination setter | Full incident (see the row above) |
 | `onboarding advance failed` (repeating for one account) | Link/IBAN automation stuck | Check the `financial_operations` row: `failed` retries itself; `unknown` needs manual reconciliation (compare Monerium-side state, then update the row) |
+| `the deployer cannot deploy for profile` (error) | The registration waits as `deployer_not_ready`: the deployer key has no role on the factory or no gas (Vortex's side, not the partner's input) | Grant the role (`setDeployer`, §8.5) or fund the deployer address; the next cycle deploys |
+| `deployment ... has no receipt after 10 minutes; sending it again` (warn) | A registration's deployment was dropped or never mined | Nothing, unless it repeats: check the deployer's pending nonce, gas price and the private RPC |
 | `delivery ... abandoned after N attempts` | Partner webhook endpoint down > backoff horizon | Contact partner; deliveries are not retried after abandonment — partner should poll `GET /v1/monerium-b2b/deposits` to catch up |
 | `MONERIUM_B2B_PRIVATE_RPC_URL is not set` | Keeper writes in the public mempool | Set the private orderflow RPC (operational finding on mainnet) |
 
@@ -370,10 +451,12 @@ Why: CEX rotation risk concentrates in dormant accounts — an exchange silently
 a deposit address; months later a deposit arrives and USDC would be forwarded to an
 address the client no longer controls. The gate converts that silent loss into a pause.
 
-**Automatic:** an `active` account with no confirmed conversion for 60 days is paused
-(`setGuardianPaused(true)` with the guardian key; log-only if the key is unset) and
-`dormant_since` is recorded; the conversion executor stops swapping and forwarding for
-it but still recovers deposits marked for the refund path (`recover` ignores the pause).
+**Automatic:** an `active` account whose last confirmed conversion (for a never-converted
+account, its activation; its creation when none was recorded) is 60 days old is paused
+(`setGuardianPaused(true)` with the guardian key, which the backend therefore keeps hot,
+ADR-0007 decision 4) and `dormant_since` is recorded; the conversion executor stops
+swapping and forwarding for it but still recovers deposits marked for the refund path
+(`recover` ignores the pause).
 EURe arriving during dormancy accumulates safely; a deposit into a dormant account is
 therefore refunded through §2.7 once the window is missed, unless re-confirmation
 arrives first.
@@ -413,8 +496,8 @@ monitor's alerts are expected, then:
    account row's forwarder is repointed, or manual `POST /addresses`).
 4. Move the IBAN: `PATCH /ibans/{iban}` with the new address — this is the
    S1-sensitive operation; it must only ever happen inside an announced migration.
-5. Update the `monerium_accounts` row (forwarder address), optionally penny-test the new
-   clone, re-activate.
+5. Update the `monerium_accounts` row (forwarder address), re-activate (§1.7), then
+   optionally penny-test the new clone: only an active account converts.
 
 There is no unlink at Monerium and no custodial parking position: EURe always mints to
 the IBAN's current default address; the old clone stays linked but inert.
@@ -426,10 +509,38 @@ the IBAN's current default address; the old clone stays linked but inert.
 | Attestor | Can link addresses to profiles; never move funds (recovery payouts go only to the client's own bank account) | Rotate key; new forwarders need a new implementation (ATTESTOR is immutable); existing links unaffected |
 | Keeper | `poke`/`swap`/`forward`/`recover`: can pick any whitelisted route and any reference inside the Chainlink band — worst case the fee reaches the 1% cap or the vault pays up to its caps, plus gas theft — and can move a payment whose batch is 2 h old to the client's refund wallet (never anywhere else, never a redirect) | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; pause the vault while rotating; reconcile executions against Coinbase history; audit `Recovered` events against marked deposits; refund gas |
 | Refund seed (`MONERIUM_B2B_REFUND_SEED`) | Derives every client's refund wallet; each holds funds only between that client's `recover` and its bank refund, and can redeem them out of the client's IBAN to any IBAN | Set `MONERIUM_B2B_AUTO_RECOVERY=off`, finish or reconcile open refunds by hand, rotate the seed, then give every client a new clone with its new refund wallet and move the IBANs (§5); the old wallets hold nothing between refunds |
-| Guardian | Pause/unpause, bounded params, timelocked fee policy, route whitelist (validated), vault limits and withdrawal to treasury — delay-only griefing plus Vortex-money exposure | Two-step `transferGuardian`/`acceptGuardian`; audit pause, pending-policy, route and vault state after |
+| Guardian | Pause/unpause, bounded params, timelocked fee policy, route whitelist (validated), vault limits and withdrawal to treasury, revoking clones — delay-only griefing plus Vortex-money exposure | Two-step `transferGuardian`/`acceptGuardian`; audit pause, pending-policy, route, vault, keeper and deployer state after (below) |
+| Deployer (`MONERIUM_B2B_DEPLOYER_PRIVATE_KEY`) | Deploys a registered clone for any destination and refund address; no power over existing clones, funds or settings. Each such clone counts as a forwarder, so the vault pays it, up to its `dailyBudget` and `maxSubsidyPpm`, once its batch delay allows a swap | Guardian: `setDeployer(old,false)`, then `revokeForwarder` for its rogue clones (below); fresh key, fund it, `setDeployer(new,true)`, update the env |
 | Whitelabel API credentials | Control-plane: can re-link/move IBANs (future mints only) — S1 | §2.5 full sequence |
 | `ADMIN_SECRET` | Map/suspend accounts (mapping is bounded by on-chain clone verification) | Rotate; audit recent admin mutations |
 | Webhook HMAC secret | Fabricated inbound order events (accounting noise; forward-only lattice + mint watcher bound the damage) | Rotate at both ends; reconcile deposits against chain |
+
+**Leaked deployer key (guardian key).** The factory registry is what the vault and the
+backend's account mapping trust, so a rogue clone is cleaned out of it:
+
+1. Stop new deployments: `cast send $FACTORY "setDeployer(address,bool)" $OLD false
+   --rpc-url $RPC --private-key $GUARDIAN_KEY`. Clones it already deployed stay
+   registered.
+2. Optionally pause the vault (`setPaused(true)`, §2.1) while you work: below-floor swaps
+   defer meanwhile.
+3. Enumerate the clones the key deployed: the manifest generator (§1.3) lists the
+   factory's `ForwarderDeployed` events with their deploy transactions, and
+   `cast tx <hash> from` names the sender. Drop every clone that backs an account
+   (`GET /v1/admin/monerium-b2b/accounts`, `forwarderAddress`) or a registration
+   (`GET /v1/admin/monerium-b2b/registrations`, `deployTxHash`); the rest are rogue.
+4. Revoke each rogue clone: `cast send $FACTORY "revokeForwarder(address)" <clone>
+   --rpc-url $RPC --private-key $GUARDIAN_KEY` (one-way, emits `ForwarderRevoked`; the
+   vault then refuses it, so its swaps that need a subsidy revert, and the backend refuses
+   to map it; a clone that holds funds keeps its forward and recover paths). Never revoke a clone that backs a live account: its subsidies stop and
+   the monitor raises `not registered on trusted factory` (§3).
+5. Generate a fresh deployer key, fund it, grant it, set it in
+   `MONERIUM_B2B_DEPLOYER_PRIVATE_KEY`, restart, then unpause the vault.
+
+**After a guardian transfer.** Keepers and deployers survive `acceptGuardian`, so the new
+guardian inherits them. Read the factory's `KeeperSet` and `DeployerSet` events, check
+`isKeeper(address)` and `isDeployer(address)` for every address that ever appeared, and
+reset what is not recognised with `setKeeper(address,false)` and
+`setDeployer(address,false)`.
 
 ## 7. Local mainnet-fork integration exercise
 
@@ -824,7 +935,8 @@ placeholder router; it is not reusable.
 ### 8.3 Keys and funding
 
 - Fresh EOAs: guardian, keeper, attestor and deployer (four distinct keys), the float wallet
-  (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`), and a fee recipient address Vortex controls.
+  (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`, also distinct from the deployer: both send with
+  implicit nonces), and a fee recipient address Vortex controls.
   `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
 - Sepolia ETH: about 0.2 each for the guardian (factory and vault deployment), the
   deployer (one clone per registered client), the keeper (swaps, forwards, recoveries)
@@ -950,8 +1062,9 @@ Restart the service. Startup fails if a required setting is missing; once it is 
 2. Per test client, the partner registers the Monerium profile ID and a Sepolia
    destination with `POST /v1/monerium-b2b/accounts`. The keeper deploys, maps, links and
    requests the IBAN once Monerium approves the profile, and the account activates when
-   the IBAN is recorded. The manual path (§1.2 to §1.7) remains for a client registered
-   outside the API.
+   the IBAN is recorded: only a backend with `SANDBOX_ENABLED=true` (which boot pairs with
+   `DEPLOYMENT_ENV=sandbox`) activates by itself, every other environment needs the §1.7
+   call. The manual path (§1.2 to §1.7) remains for a client registered outside the API.
 
 ### 8.8 Test payments
 
@@ -962,7 +1075,7 @@ app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes ove
 |---|---|---|
 | Normal | €20 | One chunk, one forward. The destination receives the reference less the client's target (12.5 bps); the fee treasury the surplus over it |
 | Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
-| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After two hours the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
+| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 120 by default) the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation, closed with `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` |
 
 `DEPOSIT_UPDATED` reports every step to the partner, and `GET /v1/monerium-b2b/deposits`
 shows the same snapshots.

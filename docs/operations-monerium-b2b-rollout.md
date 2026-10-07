@@ -100,8 +100,10 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
 11. Set `MONERIUM_B2B_ENABLED=true` on only the designated `mykobo` keeper backend and
    restart. Startup must fail if any required B2B setting is absent. Confirm the routes,
    raw webhook parser, and keeper are active before accepting a deposit.
-12. Per client: runbook §1 (deploy clone → map → automated link/IBAN → optional penny
-   test → activate).
+12. Per client: runbook §1 (partner registration, or deploy clone → map; automated
+   link/IBAN → activate → optional penny test). Before the first enablement on a backend
+   that already holds accounts, run the runbook §1.7 check for `onboarding` accounts that
+   already have an IBAN: they stop converting until activated.
 
 ## Terms & disclosure inputs (engineering-accurate; G2/partner own final wording)
 
@@ -119,8 +121,9 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    warrants the destination is valid and under the client's control and notifies Vortex
    of changes before further deposits; client/partner bears rotation/closure/
    mis-crediting losses; CEX destinations carry an explicit rotation/minimum-deposit
-   attestation. Vortex's diligence consideration: an optional 5 USDC penny test before
-   activation, recommended for exchange destinations, the 60-day dormancy gate, and never sending unconverted EURe to the destination.
+   attestation. Vortex's diligence consideration: an operator check of the destination
+   before activation, an optional 5 USDC penny test right after it (recommended for
+   exchange destinations), the 60-day dormancy gate, and never sending unconverted EURe to the destination.
    Vortex enforces no practical minimum (€1, ADR amendment 2026-09-29), so keeping
    payments above an exchange destination's minimum deposit is the client's
    responsibility. The destination is

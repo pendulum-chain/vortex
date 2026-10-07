@@ -172,7 +172,10 @@ Notes on the flow:
   malformed and zero addresses, and the forwarder refuses token addresses, which marks
   the registration rejected. Exchange deposit addresses are accepted like any wallet;
   the agreement covers the risk that they rotate. Only the partner's manager key can
-  register.
+  register. A registration that is only waiting (Monerium has not approved the profile,
+  a transient failure on Vortex's side) shows why, and one that cannot proceed is marked
+  rejected with the reason; the partner may register a rejected profile again, with the
+  same or corrected data.
 - **Why the destination does not go through Monerium.** Monerium's profile API has no
   field for it, linking an address needs a signature from its owner, which exchange
   deposit addresses cannot give, and only the forwarder contract uses the destination.
@@ -192,10 +195,11 @@ Notes on the flow:
   Monerium approves the profile, the keeper deploys the forwarder, maps the client,
   links the forwarder and the refund wallet, and requests the IBAN **[V1]**. The IBAN is
   recorded when Monerium confirms it.
-- In production an operator then activates the account after checking the destination;
-  in the sandbox it activates once the IBAN is recorded. Payments convert only once the
-  account is active: one that arrives earlier is refunded after two hours, so the partner
-  hands a client its IBAN once the account is active. The operator path (deploy, then
+- An operator then activates the account after checking the destination; only in the
+  sandbox does it activate once the IBAN is recorded. Payments convert only once the
+  account is active: one that arrives earlier waits, `DEPOSIT_UPDATED` shows it as
+  `account_not_active`, and it is refunded after two hours, so the partner hands a
+  client its IBAN once the account is active. The operator path (deploy, then
   one admin call) remains for corrections.
 - The partner can read the account and its IBAN through the Vortex API with its manager
   key. There is no dashboard view **[V3]**.
@@ -494,7 +498,7 @@ removed **[V11]**.
 | API call | Returns |
 |---|---|
 | Accounts, all clients of the manager | Each client's account with IBAN and status, filterable by Monerium profile ID |
-| Registrations, all of the manager | Each destination registration: waiting, mapped to its account, or rejected with the reason |
+| Registrations, all of the manager | Each destination registration: waiting with what it waits for, mapped to its account, or rejected with the reason |
 | Account, per client | IBAN, status, IDs, destination, forwarder address, fee policy |
 | Deposits, per client | Every deposit as its full snapshot, the same shape as `DEPOSIT_UPDATED` |
 
@@ -526,6 +530,7 @@ How each stage is reported:
 | Returned by Monerium before minting | returned | `DEPOSIT_UPDATED` with Monerium's rejection reason |
 | EURe minted to the forwarder | minted | `DEPOSIT_UPDATED` with the mint time and transaction, plus `DEPOSIT_RECEIVED` |
 | Conversion chunk sent and confirmed | converting | `DEPOSIT_UPDATED` with each chunk's pricing, transaction, and sent and confirmed times |
+| Conversion held because the account cannot convert | minted or converting | `DEPOSIT_UPDATED` with waiting reason `account_not_active` and start time: the account is not activated yet, suspended or paused. Cleared once it can convert |
 | Conversion waiting on the market | minted or converting | `DEPOSIT_UPDATED` with waiting reason and start time: `below_floor`, `reference_unavailable`, `reference_out_of_band`, `oracle_unavailable` or `no_route` |
 | Delivered as one USDC transfer | forwarded | `DEPOSIT_UPDATED` with delivery time and transaction once 32 blocks deep, plus `DEPOSIT_CONVERTED` |
 | Refund started | recovering | `DEPOSIT_UPDATED` with refund reason and start time: `window_missed`, `compliance`, `incident` or `operator` |
