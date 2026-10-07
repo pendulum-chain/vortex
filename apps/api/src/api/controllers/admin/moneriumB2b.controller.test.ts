@@ -5,6 +5,9 @@ import KycCase from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumAccountRegistration, {
+  MoneriumAccountRegistrationStatus
+} from "../../../models/moneriumAccountRegistration.model";
 import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
@@ -343,6 +346,59 @@ describe("monerium b2b account mapping admin route", () => {
     expect(suspended.status).toBe(200);
     expect(await suspended.json()).toMatchObject({ account: { accountStatus: "suspended" } });
     expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt).toBeNull();
+  });
+
+  it("lists partner registrations with the keeper's progress and withdraws one not yet mapped", async () => {
+    const managerProfileId = await createManager();
+    const registration = (fields: Partial<MoneriumAccountRegistration>) =>
+      MoneriumAccountRegistration.create({
+        contactEmail: `${crypto.randomUUID()}@client.example.com`,
+        destination: DESTINATION,
+        externalSubjectId: crypto.randomUUID(),
+        managerProfileId,
+        moneriumProfileId: crypto.randomUUID(),
+        ...fields
+      });
+    const waiting = await registration({ waitingReason: "monerium_profile_pending" });
+    const deploying = await registration({ deploySentAt: new Date(), deployTxHash: `0x${"ab".repeat(32)}` });
+    const rejected = await registration({ rejectedReason: "Monerium rejected the profile", status: MoneriumAccountRegistrationStatus.Rejected });
+    const list = async (query = "", headers: Record<string, string> = ADMIN_HEADERS) => {
+      const response = await fetch(`${baseUrl}/registrations${query}`, { headers });
+      return { body: (await response.json()) as Record<string, any>, status: response.status };
+    };
+    const withdraw = (id: string) => fetch(`${baseUrl}/registrations/${id}/withdraw`, { headers: ADMIN_HEADERS, method: "POST" });
+
+    const all = await list();
+    expect(all.status).toBe(200);
+    expect(all.body.pagination).toEqual({ limit: 20, offset: 0, total: 3 });
+    const requested = await list("?status=requested");
+    expect(requested.body.registrations).toHaveLength(2);
+    expect(requested.body.registrations).toContainEqual(
+      expect.objectContaining({
+        deployTxHash: deploying.deployTxHash,
+        id: deploying.id,
+        managerProfileId,
+        status: "requested"
+      })
+    );
+    expect((await list("?status=nonsense")).status).toBe(400);
+    expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
+
+    for (const id of [waiting.id, deploying.id]) {
+      const withdrawn = await withdraw(id);
+      expect(withdrawn.status).toBe(200);
+      expect(await withdrawn.json()).toMatchObject({
+        registration: { rejectedReason: expect.stringContaining("Withdrawn"), status: "rejected", waitingReason: null }
+      });
+    }
+    const mapped = await registration({ status: MoneriumAccountRegistrationStatus.Mapped });
+    for (const id of [rejected.id, mapped.id]) {
+      const refused = await withdraw(id);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ error: { code: "MONERIUM_B2B_REGISTRATION_NOT_WITHDRAWABLE" } });
+    }
+    expect((await withdraw(crypto.randomUUID())).status).toBe(404);
+    expect((await withdraw("not-a-uuid")).status).toBe(400);
   });
 
   it("marks a settling deposit for recovery and lets an operator close or retry it", async () => {

@@ -340,9 +340,10 @@ export async function registerDestination(
 }
 
 /**
- * Operator withdrawal of a registration whose deployment was not sent yet (a partner typo, a
- * wrong destination): it becomes rejected, and the partner registers the profile again with
- * corrected data. False when it is not requested or a deployment was already sent.
+ * Operator withdrawal of a registration not mapped yet (a partner typo, a wrong destination,
+ * a revoked clone): it becomes rejected, and the partner registers the profile again with
+ * corrected data. A clone already deployed for it stays unused (no IBAN is linked to it).
+ * False when it is not requested.
  */
 export async function withdrawRegistration(registrationId: string): Promise<boolean> {
   const [count] = await MoneriumAccountRegistration.update(
@@ -351,7 +352,7 @@ export async function withdrawRegistration(registrationId: string): Promise<bool
       status: MoneriumAccountRegistrationStatus.Rejected,
       waitingReason: null
     },
-    { where: { deployTxHash: null, id: registrationId, status: MoneriumAccountRegistrationStatus.Requested } }
+    { where: { id: registrationId, status: MoneriumAccountRegistrationStatus.Requested } }
   );
   if (count > 0) logger.info(`monerium-b2b: operator withdrew registration ${registrationId}`);
   return count > 0;

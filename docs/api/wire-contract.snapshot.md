@@ -9022,6 +9022,8 @@ PATCH /v1/admin/monerium-b2b/accounts/:accountId/status
 POST /v1/admin/monerium-b2b/deposits/:depositId/recover
 PATCH /v1/admin/monerium-b2b/deposits/:depositId/status
 GET /v1/admin/monerium-b2b/refund-address
+GET /v1/admin/monerium-b2b/registrations
+POST /v1/admin/monerium-b2b/registrations/:registrationId/withdraw
 POST /v1/admin/partner-pricing-configs
 DELETE /v1/admin/partner-pricing-configs/:configId
 GET /v1/admin/partners/:partnerName/api-credentials
