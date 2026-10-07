@@ -336,13 +336,20 @@ describe("monerium b2b account mapping admin route", () => {
   it("suspends an onboarding account whose destination check failed", async () => {
     const managerProfileId = await createManager();
     const { account } = await (await post(validBody(managerProfileId))).json();
+    const suspend = () =>
+      fetch(`${baseUrl}/accounts/${account.accountId}/status`, {
+        body: JSON.stringify({ status: "suspended" }),
+        headers: ADMIN_HEADERS,
+        method: "PATCH"
+      });
 
-    const suspended = await fetch(`${baseUrl}/accounts/${account.accountId}/status`, {
-      body: JSON.stringify({ status: "suspended" }),
-      headers: ADMIN_HEADERS,
-      method: "PATCH"
-    });
+    // Onboarding stops once suspended: without its IBAN the account could never be activated.
+    const premature = await suspend();
+    expect(premature.status).toBe(409);
+    expect(await premature.json()).toMatchObject({ error: { code: "MONERIUM_B2B_ACCOUNT_NOT_READY" } });
 
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516" }, { where: { id: account.accountId } });
+    const suspended = await suspend();
     expect(suspended.status).toBe(200);
     expect(await suspended.json()).toMatchObject({ account: { accountStatus: "suspended" } });
     expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt).toBeNull();

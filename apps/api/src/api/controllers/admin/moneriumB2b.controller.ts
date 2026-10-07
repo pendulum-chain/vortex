@@ -179,6 +179,20 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       );
       return;
     }
+    // Onboarding stops for a suspended account, so one without its IBAN could never be activated.
+    if (
+      status === MoneriumAccountStatus.Suspended &&
+      account.status === MoneriumAccountStatus.Onboarding &&
+      account.iban === null
+    ) {
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_ACCOUNT_NOT_READY",
+        "The account has no issued IBAN yet; check its destination once onboarding has finished"
+      );
+      return;
+    }
 
     if (targetStatus !== account.status) {
       const from = account.status;
