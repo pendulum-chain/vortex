@@ -98,6 +98,9 @@ describe("advanceRegistrations", () => {
   it("deploys the forwarder once with the client's refund wallet and maps the account", async () => {
     const registration = await requested();
     const { deploys, deps } = fakeDeps("approved");
+    await advanceRegistrations(deps); // deploys; the next cycle finds the clone and maps it
+    await registration.reload();
+    expect(registration).toMatchObject({ deployTxHash: "0xdeploy", status: MoneriumAccountRegistrationStatus.Requested });
     await advanceRegistrations(deps);
     await advanceRegistrations(deps);
 
@@ -156,7 +159,8 @@ describe("advanceRegistrations", () => {
   it("activates a registered account once its IBAN is issued, except in production", async () => {
     const registration = await requested();
     const { deps } = fakeDeps("approved");
-    await advanceRegistrations(deps);
+    await advanceRegistrations(deps); // deploy
+    await advanceRegistrations(deps); // map
     await registration.reload();
     const account = (await MoneriumAccount.findByPk(registration.accountId as string)) as MoneriumAccount;
 

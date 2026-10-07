@@ -162,8 +162,8 @@ client reference and a contact email, under the manager key that
 row in `monerium_account_registrations` until Monerium reports the profile `approved`;
 the keeper then deploys the clone with the factory deployer key at the CREATE2 salt
 `keccak256(abi.encode(moneriumProfileId, destination))` (a crash adopts the predicted
-clone, a deployment in flight is waited for) and runs the same mapping as step 3, before
-the onboarding step of the same cycle. Outside production the account activates once its
+clone, a deployment in flight is waited for) and, on the cycle that finds the clone, runs
+the same mapping as step 3 before that cycle's onboarding step. Outside production the account activates once its
 IBAN is recorded; in production step 5 stays an operator call, and only an active account
 converts: a payment before activation waits on the clone and the deadline refunds it. The
 partner follows its requests with `GET /v1/monerium-b2b/registrations`. The operator path remains

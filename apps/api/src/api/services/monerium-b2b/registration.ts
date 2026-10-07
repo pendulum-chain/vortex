@@ -11,7 +11,6 @@ import {
   keccak256,
   parseAbi,
   TransactionReceiptNotFoundError,
-  WaitForTransactionReceiptTimeoutError,
   zeroAddress
 } from "viem";
 import sequelize from "../../../config/database";
@@ -31,7 +30,6 @@ import {
   provisionMoneriumB2bAccount
 } from "./account-provisioning";
 import { getDeployerWalletClient, getPublicClient } from "./chain";
-import { RECEIPT_TIMEOUT_MS } from "./conversion-executor";
 import { refundAccountFor } from "./refund-wallet";
 
 /**
@@ -53,18 +51,8 @@ export class MoneriumB2bRegistrationError extends Error {
   }
 }
 
-export interface RegistrationSnapshot {
-  moneriumProfileId: string;
-  externalSubjectId: string;
-  destination: string;
-  /** `requested` until the account is mapped (`accountId` set) or the registration is rejected. */
-  status: MoneriumAccountRegistrationStatus;
-  rejectedReason: string | null;
-  accountId: string | null;
-  createdAt: string;
-}
-
-export function registrationSnapshot(registration: MoneriumAccountRegistration): RegistrationSnapshot {
+/** `status` is `requested` until the account is mapped (`accountId` set) or the registration is rejected. */
+export function registrationSnapshot(registration: MoneriumAccountRegistration) {
   return {
     accountId: registration.accountId,
     createdAt: registration.createdAt.toISOString(),
@@ -83,7 +71,7 @@ export interface RegistrationDeps {
   isForwarder(address: Address): Promise<boolean>;
   /** Simulates, then sends `deployForwarder` from the deployer key; a contract revert throws. */
   deploy(destination: Address, recoveryAddress: Address, salt: Hex): Promise<Hex>;
-  receiptStatus(hash: Hex, wait: boolean): Promise<"pending" | "reverted" | "success">;
+  receiptStatus(hash: Hex): Promise<"pending" | "reverted" | "success">;
   provision(input: ProvisionMoneriumB2bAccountInput): Promise<{ accountId: string }>;
 }
 
@@ -92,10 +80,7 @@ const factoryDeployAbi = parseAbi([
   "function isForwarder(address forwarder) view returns (bool)",
   "function deployForwarder(address destination, address recoveryAddress, uint32 targetPpm, uint32 floorPpm, bytes32 salt) returns (address)",
   "error NotDeployer()",
-  "error CloneFailed()",
-  "error ZeroAddress()",
-  "error InvalidConfigAddress()",
-  "error InvalidFeePolicy()"
+  "error InvalidConfigAddress()"
 ]);
 
 const factory = () => config.moneriumB2b.forwarderFactoryAddress as Address;
@@ -126,37 +111,21 @@ const defaultDeps: RegistrationDeps = {
     }
   },
   provision: provisionMoneriumB2bAccount,
-  async receiptStatus(hash, wait) {
-    const client = getPublicClient();
+  async receiptStatus(hash) {
     try {
-      const receipt = wait
-        ? await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS })
-        : await client.getTransactionReceipt({ hash });
-      return receipt.status;
+      return (await getPublicClient().getTransactionReceipt({ hash })).status;
     } catch (error) {
-      if (error instanceof TransactionReceiptNotFoundError || error instanceof WaitForTransactionReceiptTimeoutError) {
-        return "pending";
-      }
+      if (error instanceof TransactionReceiptNotFoundError) return "pending";
       throw error;
     }
   }
 };
 
+export type RegistrationSnapshot = ReturnType<typeof registrationSnapshot>;
+
 /** The CREATE2 salt: one clone per (profile, destination), so a retry adopts instead of deploying twice. */
 export function registrationSalt(moneriumProfileId: string, destination: string): Hex {
   return keccak256(encodeAbiParameters([{ type: "string" }, { type: "address" }], [moneriumProfileId, destination as Address]));
-}
-
-function sameRequest(
-  registration: MoneriumAccountRegistration,
-  managerProfileId: string,
-  input: { destination: string; externalSubjectId: string }
-): boolean {
-  return (
-    registration.managerProfileId === managerProfileId &&
-    registration.destination === input.destination &&
-    registration.externalSubjectId === input.externalSubjectId
-  );
 }
 
 function replay(
@@ -164,7 +133,11 @@ function replay(
   managerProfileId: string,
   input: { destination: string; externalSubjectId: string }
 ): { created: false; registration: RegistrationSnapshot } {
-  if (!sameRequest(registration, managerProfileId, input)) {
+  if (
+    registration.managerProfileId !== managerProfileId ||
+    registration.destination !== input.destination ||
+    registration.externalSubjectId !== input.externalSubjectId
+  ) {
     throw new MoneriumB2bRegistrationError(
       409,
       "MONERIUM_B2B_DESTINATION_CONFLICT",
@@ -180,8 +153,7 @@ function replay(
  */
 export async function registerDestination(
   managerProfileId: string,
-  body: Record<string, unknown>,
-  deps: Pick<RegistrationDeps, "profileState"> = defaultDeps
+  body: Record<string, unknown>
 ): Promise<{ created: boolean; registration: RegistrationSnapshot }> {
   const { contactEmail, destination, externalSubjectId, moneriumProfileId } = body;
   if (
@@ -220,7 +192,7 @@ export async function registerDestination(
     );
   }
 
-  const state = await deps.profileState(input.moneriumProfileId);
+  const state = await defaultDeps.profileState(input.moneriumProfileId);
   if (state === null || state === "rejected") {
     throw new MoneriumB2bRegistrationError(
       422,
@@ -261,7 +233,7 @@ async function advanceRegistration(registration: MoneriumAccountRegistration, de
   const salt = registrationSalt(registration.moneriumProfileId, registration.destination);
   const forwarder = await deps.predictAddress(salt);
   if (!(await deps.isForwarder(forwarder))) {
-    if (registration.deployTxHash && (await deps.receiptStatus(registration.deployTxHash as Hex, false)) === "pending") {
+    if (registration.deployTxHash && (await deps.receiptStatus(registration.deployTxHash as Hex)) === "pending") {
       return; // the earlier deployment is still in flight
     }
     let hash: Hex;
@@ -278,7 +250,7 @@ async function advanceRegistration(registration: MoneriumAccountRegistration, de
       return reject(registration, `the forwarder factory refused the deployment (${name})`);
     }
     await registration.update({ deployTxHash: hash });
-    if ((await deps.receiptStatus(hash, true)) !== "success") return; // next cycle re-checks the clone
+    return; // the next cycle finds the clone, or waits for or resends the deployment
   }
 
   try {
@@ -301,19 +273,16 @@ async function advanceRegistration(registration: MoneriumAccountRegistration, de
 
 /** Activation is an operator call in production; elsewhere a registered account activates once its IBAN is issued. */
 async function activateRegisteredAccounts(): Promise<void> {
-  const accounts = await MoneriumAccount.findAll({
-    where: {
-      iban: { [Op.ne]: null },
-      id: {
-        [Op.in]: sequelize.literal("(SELECT account_id FROM monerium_account_registrations WHERE status = 'mapped')")
-      },
-      status: MoneriumAccountStatus.Onboarding
+  await MoneriumAccount.update(
+    { status: MoneriumAccountStatus.Active },
+    {
+      where: {
+        iban: { [Op.ne]: null },
+        id: { [Op.in]: sequelize.literal("(SELECT account_id FROM monerium_account_registrations WHERE status = 'mapped')") },
+        status: MoneriumAccountStatus.Onboarding
+      }
     }
-  });
-  for (const account of accounts) {
-    await account.update({ status: MoneriumAccountStatus.Active });
-    logger.info(`monerium-b2b: activated registered account ${account.id}`);
-  }
+  );
 }
 
 /** Keeper step: drives every requested registration one step; a failure leaves it for the next cycle. */
