@@ -946,14 +946,19 @@ production and staging both read; production stays dark.
 The July 2026 link-test deployment (factory `0xcBE354…`) used other tokens and a
 placeholder router; it is not reusable.
 
-The sandbox deployment of 2026-10-07 (§8.4 and §8.5, from the PR #1408 code):
+The sandbox deployment of 2026-10-07 (§8.4 and §8.5, from the PR #1408 code with the
+bound CREATE2 salt and `revokeForwarder`):
 
 | Contract | Address |
 |---|---|
-| Factory (guardian `0x44fd1d3b38A4523F6F5309ea5a5F8d7b4Df82a7f`) | `0x1E87a5F5e169806771BA8bED021617d5f8e23891` |
-| Forwarder implementation (`RECOVERY_DELAY` 900) | `0x27D6A44803a54e6bfE50a27D6D438c21309Eb726` |
-| Subsidy vault | `0xE7C9Da885B546c7E74FB8FAa3A362FA2957CB95c` |
+| Factory (guardian `0x44fd1d3b38A4523F6F5309ea5a5F8d7b4Df82a7f`) | `0xebbE4f26e856c138D34086Aa1CEB468d20c79992` |
+| Forwarder implementation (`RECOVERY_DELAY` 900) | `0x0cFc619C62f9Cf0778D3269345cd6Ca2AF39BE1C` |
+| Subsidy vault | `0x155f59523E24ef4046756A83a58B972e31d4ec4a` |
 | EURe/USDC 1 bps pool, factory route 0 | `0xFAB9CFfbA5Fc6fB32c7121128C58716D460a5579` |
+
+An earlier factory of the same day (`0x1E87a5…3891`, vault `0xE7C9Da…B95c`, emptied back
+to the treasury) predates the salt binding and the revoke; it has no clones and is not
+used.
 
 ### 8.2 What differs from mainnet
 
