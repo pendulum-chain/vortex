@@ -144,9 +144,9 @@ contract VortexForwarderFactory {
     }
 
     /// @notice Removes a clone from the forwarder registry for good, for example one deployed
-    ///         with a leaked deployer key: it can no longer draw vault subsidies, and the backend
-    ///         refuses to map it. The clone's own funds and paths are untouched, since the
-    ///         factory holds no power over them.
+    ///         with a leaked deployer key: the backend refuses to map it, and a swap that needs a
+    ///         vault subsidy reverts, since the vault pays registered clones only. Its forward and
+    ///         recover paths and its funds are untouched: the factory holds no power over them.
     function revokeForwarder(address forwarder) external onlyGuardian {
         if (!isForwarder[forwarder]) revert UnknownForwarder();
         isForwarder[forwarder] = false;
