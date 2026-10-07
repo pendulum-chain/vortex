@@ -1033,8 +1033,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       recoveryInFlight
     });
   });
+  await syncNotActiveReason(account.id, convertible);
   if (planned.kind === "none") {
-    await syncNotActiveReason(account.id, convertible);
     if (pokeNeeded) {
       await sendPoke(forwarder);
     }

@@ -882,18 +882,22 @@ describe("runConversionExecutor activation gate", () => {
     await resetTestDatabase();
     // A clone holding a deposit below the minimum swap: nothing is sent either way, so the
     // cycle exercises only the gate's partner-visible reason.
-    const reads: Record<string, bigint> = {
+    const reads: Record<string, unknown> = {
       batchOpenedAt: 1n,
+      floorPpm: 1_500,
+      latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: a planned swap defers before sending anything
       MIN_SWAP_FLOOR: 1n,
       minSwapAmount: 25n * EUR,
-      perSwapCap: 10_000n * EUR
+      perSwapCap: 10_000n * EUR,
+      subsidyVault: "0x0000000000000000000000000000000000000000",
+      targetPpm: 1_250
     };
     spyOn(chain, "getForwarderImmutables").mockResolvedValue({
       eure: EURE,
       factory: FACTORY,
       usdc: "0x6666666666666666666666666666666666666666",
       recoveryDelaySeconds: 7_200
-    } as chain.ForwarderImmutables);
+    } as unknown as chain.ForwarderImmutables);
     spyOn(chain, "getPublicClient").mockReturnValue({
       readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
         functionName === "balanceOf" ? (address === EURE ? 10n * EUR : 0n) : reads[functionName]
@@ -902,7 +906,7 @@ describe("runConversionExecutor activation gate", () => {
 
   afterEach(() => mock.restore());
 
-  async function accountWithDeposit(waitingReason: string | null = null) {
+  async function accountWithDeposit(waitingReason: string | null = null, amountsEur: bigint[] = [10n]) {
     const manager = await createTestUser();
     await ManagedProfileManager.create({
       allowedCorridors: ["EU"],
@@ -919,23 +923,28 @@ describe("runConversionExecutor activation gate", () => {
       moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
     });
     const since = new Date(Date.now() - 60_000);
-    const deposit = await MoneriumFiatDeposit.create({
-      accountId,
-      amountRaw: (10n * EUR).toString(),
-      blockNumber: 100,
-      chainId: 11155111,
-      currency: "eur",
-      logIndex: 1,
-      mintedAt: new Date(),
-      moneriumOrderId: "order-1",
-      payerIban: "DE89370400440532013000",
-      payerName: "Payer GmbH",
-      status: MoneriumFiatDepositStatus.Minted,
-      txHash: "0xorder1",
-      waitingReason,
-      waitingSince: waitingReason ? since : null
-    });
-    return { accountId, deposit, since };
+    const deposits = [];
+    for (const [index, amount] of amountsEur.entries()) {
+      deposits.push(
+        await MoneriumFiatDeposit.create({
+          accountId,
+          amountRaw: (amount * EUR).toString(),
+          blockNumber: 100 + index,
+          chainId: 11155111,
+          currency: "eur",
+          logIndex: 1,
+          mintedAt: new Date(),
+          moneriumOrderId: `order-${index + 1}`,
+          payerIban: "DE89370400440532013000",
+          payerName: "Payer GmbH",
+          status: MoneriumFiatDepositStatus.Minted,
+          txHash: `0xorder${index + 1}`,
+          waitingReason,
+          waitingSince: waitingReason ? since : null
+        })
+      );
+    }
+    return { accountId, deposit: deposits[0], deposits, since };
   }
 
   it("tells the partner a deposit waits for activation, and clears it once the account converts", async () => {
@@ -951,6 +960,18 @@ describe("runConversionExecutor activation gate", () => {
     await deposit.reload();
     expect(deposit.waitingReason).toBeNull();
     expect(deposit.waitingSince).toBeNull();
+  });
+
+  it("clears the reason on every queued deposit once the account converts, not only the next one", async () => {
+    const { accountId, deposits } = await accountWithDeposit(null, [100n, 100n]);
+    await runConversionExecutor(accountId);
+    for (const deposit of deposits) expect((await deposit.reload()).waitingReason).toBe("account_not_active");
+
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    await runConversionExecutor(accountId);
+    const [next, queued] = deposits;
+    expect((await next.reload()).waitingReason).toBe("oracle_unavailable");
+    expect((await queued.reload()).waitingReason).toBeNull();
   });
 
   it("replaces an earlier hold reason and keeps when the wait started", async () => {
