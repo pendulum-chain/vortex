@@ -521,6 +521,10 @@ describe("monerium b2b account mapping admin route", () => {
       expect.objectContaining({ externalSubjectId: "client-2", managerProfileId, moneriumProfileId: secondProfile, status: "onboarding" })
     ]);
     expect((await list(`?moneriumProfileId=${secondProfile}`)).body.accounts).toHaveLength(1);
+    expect((await list("?limit=1")).body.accounts).toEqual([expect.objectContaining({ externalSubjectId: "client-2" })]);
+    expect((await list("?limit=1&offset=1")).body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-1" })
+    ]);
     expect((await list("?status=active")).body.accounts).toEqual([
       expect.objectContaining({ externalSubjectId: "client-1", managerProfileId, status: "active" })
     ]);

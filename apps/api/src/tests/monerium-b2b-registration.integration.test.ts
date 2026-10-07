@@ -118,6 +118,33 @@ describe("POST /v1/monerium-b2b/accounts", () => {
       expect(conflict.body).toMatchObject({ error: { code: "MONERIUM_B2B_DESTINATION_CONFLICT" } });
     }
     expect(await MoneriumAccountRegistration.count()).toBe(1);
+
+    // The profile ID and the destination are stored lowercased: a differently cased replay is the same registration.
+    const uppercased = await register(headers, body({ destination: DESTINATION.toUpperCase().replace("0X", "0x"), moneriumProfileId: PROFILE.toUpperCase() }));
+    expect(uppercased.status).toBe(200);
+    expect(await MoneriumAccountRegistration.count()).toBe(1);
+  });
+
+  it("replays a mapped registration with its account", async () => {
+    const { headers, profileId } = await manager();
+    moneriumProfiles({ [PROFILE]: "approved" });
+    await register(headers, body());
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: DESTINATION,
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: profileId,
+      moneriumProfileId: PROFILE
+    });
+    await MoneriumAccountRegistration.update(
+      { accountId, status: MoneriumAccountRegistrationStatus.Mapped, waitingReason: null },
+      { where: { moneriumProfileId: PROFILE } }
+    );
+
+    const replayed = await register(headers, body());
+    expect(replayed.status).toBe(200);
+    expect(replayed.body.registration).toMatchObject({ accountId, status: "mapped", waitingReason: null });
   });
 
   it("lists the manager's registrations, filterable by profile and paged, and nobody else's", async () => {
