@@ -158,7 +158,8 @@ export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDe
 
   const accounts = await MoneriumAccount.findAll({
     order: [["created_at", "ASC"]],
-    where: { status: MoneriumAccountStatus.Onboarding, vortexProfileId: { [Op.ne]: null } }
+    // An account with its IBAN is fully linked (the IBAN request comes last) and only awaits activation.
+    where: { iban: null, status: MoneriumAccountStatus.Onboarding, vortexProfileId: { [Op.ne]: null } }
   });
   if (accounts.length === 0) return 0;
 
