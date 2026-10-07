@@ -83,7 +83,8 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
 
 const STATUS_VALUES = Object.values(MoneriumAccountStatus) as string[];
 const STATUS_TRANSITIONS: Record<MoneriumAccountStatus, readonly MoneriumAccountStatus[]> = {
-  [MoneriumAccountStatus.Onboarding]: [MoneriumAccountStatus.Active],
+  // Suspending an onboarding account records a failed destination check: nothing converts.
+  [MoneriumAccountStatus.Onboarding]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Suspended],
   [MoneriumAccountStatus.Active]: [MoneriumAccountStatus.Suspended, MoneriumAccountStatus.Closed],
   [MoneriumAccountStatus.Suspended]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Closed],
   [MoneriumAccountStatus.Closed]: []
@@ -176,7 +177,15 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
     }
 
     if (targetStatus !== account.status) {
-      await account.update({ status: targetStatus });
+      const from = account.status;
+      await account.update({
+        status: targetStatus,
+        ...(targetStatus === MoneriumAccountStatus.Active ? { activatedAt: new Date() } : {})
+      });
+      logger.info(
+        `monerium-b2b: operator moved account ${account.id} from ${from} to ${targetStatus} ` +
+          `(destination ${account.destination}, forwarder ${account.forwarderAddress})`
+      );
     }
     res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
   } catch (error) {

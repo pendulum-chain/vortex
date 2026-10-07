@@ -106,6 +106,7 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
   const issued = await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId);
   if (issued) {
     await account.update({ iban: issued.iban });
+    logger.info(`monerium-b2b: account ${account.id} has its IBAN and awaits activation`);
     return;
   }
   await runFinancialOperation({

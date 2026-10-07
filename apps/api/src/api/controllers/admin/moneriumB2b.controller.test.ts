@@ -297,6 +297,8 @@ describe("monerium b2b account mapping admin route", () => {
     const activated = await patchStatus(account.accountId, "active");
     expect(activated.status).toBe(200);
     expect(await activated.json()).toMatchObject({ account: { accountStatus: "active" } });
+    const activatedAt = (await MoneriumAccount.findByPk(account.accountId))?.activatedAt;
+    expect(activatedAt).toBeInstanceOf(Date);
 
     const suspended = await patchStatus(account.accountId, "suspended");
     expect(suspended.status).toBe(200);
@@ -305,6 +307,10 @@ describe("monerium b2b account mapping admin route", () => {
     const reactivated = await patchStatus(account.accountId, "active");
     expect(reactivated.status).toBe(200);
     expect(await reactivated.json()).toMatchObject({ account: { accountStatus: "active" } });
+    // The dormancy window restarts at every activation.
+    expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt?.getTime()).toBeGreaterThanOrEqual(
+      (activatedAt as Date).getTime()
+    );
 
     const regressed = await patchStatus(account.accountId, "onboarding");
     expect(regressed.status).toBe(409);
@@ -322,6 +328,21 @@ describe("monerium b2b account mapping admin route", () => {
 
     expect((await patchStatus(account.accountId, "nonsense")).status).toBe(400);
     expect((await patchStatus(crypto.randomUUID(), "active")).status).toBe(404);
+  });
+
+  it("suspends an onboarding account whose destination check failed", async () => {
+    const managerProfileId = await createManager();
+    const { account } = await (await post(validBody(managerProfileId))).json();
+
+    const suspended = await fetch(`${baseUrl}/accounts/${account.accountId}/status`, {
+      body: JSON.stringify({ status: "suspended" }),
+      headers: ADMIN_HEADERS,
+      method: "PATCH"
+    });
+
+    expect(suspended.status).toBe(200);
+    expect(await suspended.json()).toMatchObject({ account: { accountStatus: "suspended" } });
+    expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt).toBeNull();
   });
 
   it("marks a settling deposit for recovery and lets an operator close or retry it", async () => {
@@ -437,6 +458,19 @@ describe("monerium b2b account mapping admin route", () => {
       expect.objectContaining({ externalSubjectId: "client-2", managerProfileId, moneriumProfileId: secondProfile, status: "onboarding" })
     ]);
     expect((await list(`?moneriumProfileId=${secondProfile}`)).body.accounts).toHaveLength(1);
+    expect((await list("?status=active")).body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-1", managerProfileId, status: "active" })
+    ]);
+    // An account mapped before managed profiles existed has no partner manager.
+    await MoneriumAccount.create({
+      destination: DESTINATION,
+      forwarderAddress: "0x6666666666666666666666666666666666666666",
+      profileId: crypto.randomUUID(),
+      status: MoneriumAccountStatus.Suspended
+    });
+    expect((await list("?status=suspended")).body.accounts).toEqual([
+      expect.objectContaining({ managerProfileId: null, status: "suspended" })
+    ]);
     expect((await list("?status=nonsense")).status).toBe(400);
     expect((await list("?moneriumProfileId=nope")).status).toBe(400);
     expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
