@@ -263,6 +263,46 @@ describe("SquidRouterPayExecutor reliability", () => {
     expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it("triggers confirm recovery on confirm_failed whatever the status, until the call is approved", async () => {
+    // Live shape on 2026-10-06 (Base -> BSC): the failed poll left status "confirmed", not "called".
+    const failedPoll = {
+      ...FEE_STATUS,
+      call: { chain: "base" },
+      confirm_failed: true,
+      is_insufficient_fee: false,
+      status: "confirmed"
+    };
+    const pollUntilExecuted = async (axelarStatus: Record<string, unknown>) => {
+      getStatusAxelarScan
+        .mockImplementationOnce(async () => axelarStatus as never)
+        .mockImplementationOnce(async () => ({ ...axelarStatus, status: "executed" }) as never);
+      const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+      handler.initialDelayMs = 0;
+      handler.pollIntervalMs = 0;
+      handler.stuckAlertThresholdMs = Number.POSITIVE_INFINITY;
+      handler.patchStateKey = mock(async (target: RampState, key: string, value: string) => {
+        target.state = { ...target.state, [key]: value };
+        return 1;
+      });
+      const state = makeState();
+      await handler.checkBridgeStatus(state, SWAP_HASH, makeQuote(), 1000);
+      return state;
+    };
+
+    const recovered = await pollUntilExecuted(failedPoll);
+    expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+    expect(recoverAxelarStuckConfirm.mock.calls[0]?.slice(0, 2)).toEqual([SWAP_HASH, "base"]);
+    expect(recovered.state.axelarConfirmRecoveryAt).toBeString();
+
+    const approved = await pollUntilExecuted({
+      ...failedPoll,
+      approved: { block_timestamp: 1_791_295_300 },
+      status: "approved"
+    });
+    expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+    expect(approved.state.axelarConfirmRecoveryAt).toBeUndefined();
+  });
+
   it("alerts once with block context and the current stuck classification", async () => {
     const state = makeState();
     state.phaseHistory = [{ phase: "squidRouterPay", timestamp: new Date(Date.now() - 30 * 60 * 1000) }];

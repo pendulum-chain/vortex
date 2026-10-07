@@ -82,6 +82,21 @@ describe("classifyGmpStatus", () => {
     expect(classifyGmpStatus({ ...stuck, executed: {}, status: "executed" })).toBe("executed");
     expect(classifyGmpStatus({ ...stuck, is_insufficient_fee: true })).toBe("insufficient_gas");
   });
+
+  it("treats a failed confirm poll as stuck whatever the status, until the call is approved", () => {
+    // Shape seen on 2026-10-06 (Base -> BSC, poll 3258866): the failed poll recorded both a
+    // confirm and a confirm_failed event, so axelarscan reports "confirmed", not "called".
+    const failedPoll = status({ call: { chain: "base" }, confirm_failed: true, status: "confirmed" });
+
+    expect(classifyGmpStatus(failedPoll)).toBe("source_confirmation_stuck");
+    expect(classifyGmpStatus({ ...failedPoll, status: "confirming" })).toBe("source_confirmation_stuck");
+    expect(classifyGmpStatus({ ...failedPoll, approved: { block_timestamp: 1 } })).toBe("relayer_pending");
+    expect(classifyGmpStatus({ ...failedPoll, approved: { block_timestamp: 1 }, status: "approved" })).toBe(
+      "approved_not_executed"
+    );
+    expect(classifyGmpStatus({ ...failedPoll, executed: {}, status: "executed" })).toBe("executed");
+    expect(classifyGmpStatus({ ...failedPoll, is_insufficient_fee: true })).toBe("insufficient_gas");
+  });
 });
 
 describe("getStatusAxelarScan", () => {

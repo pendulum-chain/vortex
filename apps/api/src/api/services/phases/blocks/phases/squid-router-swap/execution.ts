@@ -574,7 +574,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
 
             await this.patchStateKey(state, "squidRouterPayTxHash", payTxHash);
-          } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
+          } else if (axelarScanStatus.confirm_failed && !axelarScanStatus.approved && !axelarScanStatus.executed) {
             recoveryOutcome = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
 
