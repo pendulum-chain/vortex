@@ -1067,9 +1067,14 @@ On the `vortex-sandbox` service only:
 | `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
 | `MONERIUM_B2B_ENABLED` | `true`, set last |
 
-Register Vortex's webhook subscription on the partner's sandbox app with the same
-secret, from `apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at
-Monerium's sandbox API:
+Restart the service. Startup fails if a required setting is missing; once it is up,
+`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
+
+Only then register Vortex's webhook subscription on the partner's sandbox app with the
+same secret: Monerium pings the URL when the subscription is created and does not create
+it if the ping fails, and the route exists only while B2B is enabled. Run it from
+`apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at Monerium's
+sandbox API:
 
 ```bash
 SECRET=<MONERIUM_B2B_WEBHOOK_SECRET> MONERIUM_WHITELABEL_CLIENT_ID=... MONERIUM_WHITELABEL_CLIENT_SECRET=... \
@@ -1079,9 +1084,6 @@ console.log(await MoneriumApiService.getInstance().createWebhook({
   secret: process.env.SECRET, types: ["iban.updated", "order.created", "order.updated", "profile.updated"],
   url: "https://api-sandbox.vortexfinance.co/v1/monerium-b2b/webhook" }));'
 ```
-
-Restart the service. Startup fails if a required setting is missing; once it is up,
-`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
 
 ### 8.7 Partner and test clients
 
