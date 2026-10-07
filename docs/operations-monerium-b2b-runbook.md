@@ -946,6 +946,15 @@ production and staging both read; production stays dark.
 The July 2026 link-test deployment (factory `0xcBE354…`) used other tokens and a
 placeholder router; it is not reusable.
 
+The sandbox deployment of 2026-10-07 (§8.4 and §8.5, from the PR #1408 code):
+
+| Contract | Address |
+|---|---|
+| Factory (guardian `0x44fd1d3b38A4523F6F5309ea5a5F8d7b4Df82a7f`) | `0x1E87a5F5e169806771BA8bED021617d5f8e23891` |
+| Forwarder implementation (`RECOVERY_DELAY` 900) | `0x27D6A44803a54e6bfE50a27D6D438c21309Eb726` |
+| Subsidy vault | `0xE7C9Da885B546c7E74FB8FAa3A362FA2957CB95c` |
+| EURe/USDC 1 bps pool, factory route 0 | `0xFAB9CFfbA5Fc6fB32c7121128C58716D460a5579` |
+
 ### 8.2 What differs from mainnet
 
 - **Vortex runs the pool.** The only EURe/USDC pool with liquidity prices EURe at 0.71
