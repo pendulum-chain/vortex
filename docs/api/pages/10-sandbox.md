@@ -23,7 +23,7 @@ The sandbox is self-service. You do not need credentials from Vortex to start.
 Contact <support@vortexfinance.co> for the parts that Vortex enables:
 
 - **Browser origins.** Server-to-server calls work immediately. Browser calls are refused by CORS until your exact origins are approved for sandbox. See [Browser Origin Approval](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
-- **Partner features.** Acting for managed customer profiles and business EUR onramp accounts are set up by Vortex. See [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles).
+- **Partner features.** Acting for managed customer profiles and business EUR onramp accounts are set up by Vortex. See [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles). For the business EUR onramp, start with "Get Started With The Business EUR Onramp In Sandbox" on the Managed Profiles page.
 
 ---
 
