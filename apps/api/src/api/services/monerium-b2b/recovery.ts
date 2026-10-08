@@ -608,12 +608,17 @@ async function openRecoveries(): Promise<void> {
     { type: QueryTypes.SELECT }
   );
   for (const row of moved) {
-    await MoneriumRecovery.create({
-      depositId: row.depositId,
-      eureRecoveredRaw: row.eureInRaw,
-      phase: MoneriumRecoveryPhase.Moved,
-      usdcRecoveredRaw: row.usdcNetRaw ?? "0"
-    });
+    try {
+      await MoneriumRecovery.create({
+        depositId: row.depositId,
+        eureRecoveredRaw: row.eureInRaw,
+        phase: MoneriumRecoveryPhase.Moved,
+        usdcRecoveredRaw: row.usdcNetRaw ?? "0"
+      });
+    } catch (error) {
+      // One client's failed insert must not stop the other clients' refunds from being stepped.
+      logger.error(`monerium-b2b: could not open the refund of deposit ${row.depositId}:`, error);
+    }
   }
 }
 

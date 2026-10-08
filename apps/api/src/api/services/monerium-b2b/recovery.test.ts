@@ -1206,6 +1206,27 @@ describe("refund deadlines and orchestration", () => {
     expect(loggedText(errors)).toContain(`refund of deposit ${depositB.id} waits for the operator`);
   });
 
+  it("keeps stepping the other clients when opening one client's refund fails", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const poisoned = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.ToppedUp, 30_000, { eure: 100n * EUR, usdc: 0n });
+    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 100n * EUR]]), usdc: new Map() };
+    const { depsFor } = clientsFixture(ledger);
+    const create = MoneriumRecovery.create.bind(MoneriumRecovery);
+    const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
+    const insert = spyOn(MoneriumRecovery, "create").mockImplementation(((values: { depositId: string }) =>
+      values.depositId === poisoned.id ? Promise.reject(new Error("insert failed")) : create(values as never)) as never);
+    try {
+      await runRecoveryOrchestrator(depsFor);
+      expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.Redeeming);
+      expect(loggedText(errors)).toContain(poisoned.id);
+    } finally {
+      insert.mockRestore(); // the model's create is shared with the other tests
+    }
+  });
+
   /** Runs a cycle in which client A's receipt wait hangs; `check` runs while it is unresolved, then A is released. */
   async function cycleWithHungReceiptOfA(depsFor: ReturnType<typeof clientsFixture>["depsFor"], check: () => Promise<void>) {
     let release: () => void = () => {};
