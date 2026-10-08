@@ -195,7 +195,7 @@ An account converts payments only once it is `active`, and its IBAN can be issue
 | Response | Meaning |
 |---|---|
 | `403 MANAGED_PROFILE_ACCESS_DENIED` | The selector or child credential failed a check: inactive manager, not your child, deleted child, invalid entity layout, or a corridor/type your policy does not allow. |
-| `400 MANAGED_PROFILE_UNSUPPORTED` | The endpoint does not support delegation (currently webhook management). |
+| `400 MANAGED_PROFILE_UNSUPPORTED` | The endpoint does not support delegation: webhook management, the manager-level business EUR routes (`GET` and `POST /v1/monerium-b2b/accounts`, `GET /v1/monerium-b2b/registrations`), and invite preview and acceptance. |
 | `404` on lifecycle routes | The `profileId` does not identify a child of the authenticated manager. |
 | `200` instead of `201` on create | Idempotent retry — the identical child already exists. |
 | `409 CREDENTIAL_LIMIT_REACHED` | The child already has five active, non-expired credentials. |
