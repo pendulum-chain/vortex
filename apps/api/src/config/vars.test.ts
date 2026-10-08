@@ -27,6 +27,7 @@ const requiredMoneriumB2bEnv = {
   MONERIUM_B2B_GUARDIAN_PRIVATE_KEY: "0x2222222222222222222222222222222222222222222222222222222222222222",
   MONERIUM_B2B_KEEPER_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
   MONERIUM_B2B_PRIVATE_RPC_URL: "https://private-rpc.example.com",
+  MONERIUM_B2B_REFUND_SEED: "0x3333333333333333333333333333333333333333333333333333333333333333",
   MONERIUM_B2B_RPC_URL: "https://rpc.example.com",
   MONERIUM_B2B_WEBHOOK_SECRET: "whsec_MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
   MONERIUM_WHITELABEL_CLIENT_ID: "test-whitelabel-client-id",
@@ -212,6 +213,61 @@ describe("vars deployment environment validation", () => {
         NODE_ENV: "production"
       });
       expect(result.exitCode).toBe(1);
+    }
+  });
+
+  it("accepts partner registrations only with both the partner binding and a distinct deployer key", async () => {
+    const deployerKey = "0x4444444444444444444444444444444444444444444444444444444444444444";
+    const partner = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
+    const run = (overrides: Record<string, string>) =>
+      importVarsWithEnv({ ...requiredMoneriumB2bEnv, ...overrides, DEPLOYMENT_ENV: "production", NODE_ENV: "production" });
+
+    const accepted: Record<string, string>[] = [
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner.toUpperCase() },
+      {
+        DEPLOYMENT_ENV: "staging",
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      }
+    ];
+    for (const overrides of accepted) {
+      expect(await run(overrides)).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+    }
+    const normalized = await importVarsWithEnv(
+      {
+        ...requiredMoneriumB2bEnv,
+        DEPLOYMENT_ENV: "production",
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner.toUpperCase(),
+        NODE_ENV: "production"
+      },
+      "vars.config.moneriumB2b.partnerManagerProfileId"
+    );
+    expect(normalized.stdout).toBe(`${partner}\n`);
+    const incomplete: Record<string, string>[] = [
+      { MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey, MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: "not-a-uuid" },
+      { MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: "0x1234", MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner },
+      ...(
+        [
+          "MONERIUM_B2B_ATTESTOR_PRIVATE_KEY",
+          "MONERIUM_B2B_GUARDIAN_PRIVATE_KEY",
+          "MONERIUM_B2B_KEEPER_PRIVATE_KEY"
+        ] as const
+      ).map(name => ({
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: requiredMoneriumB2bEnv[name].toUpperCase().replace("0X", "0x"),
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      })),
+      {
+        MONERIUM_B2B_DEPLOYER_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_FLOAT_PRIVATE_KEY: deployerKey,
+        MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID: partner
+      }
+    ];
+    for (const overrides of incomplete) {
+      expect((await run(overrides)).exitCode).toBe(1);
     }
   });
 

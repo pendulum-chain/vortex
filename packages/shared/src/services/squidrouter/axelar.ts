@@ -28,8 +28,9 @@ export interface AxelarScanStatusResponse {
   fees: AxelarScanStatusFees;
   id: string; // the id of the swap.
   // Set by axelarscan when the validator poll confirming the source event failed.
-  // Axelar's own relayer does not retry a failed poll, so the transfer stays in
-  // status "called" until a new ConfirmGatewayTx is broadcast.
+  // Axelar's own relayer does not retry a failed poll, so the transfer stalls until a
+  // new ConfirmGatewayTx is broadcast. The status can still read "confirmed": axelarscan
+  // records the failed poll's confirm event too (poll 3258866, 2026-10-06).
   confirm_failed?: boolean;
   call?: {
     chain: string; // source chain in Axelar naming, e.g. "base"
@@ -88,7 +89,8 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
   ) {
     return "insufficient_gas";
   }
-  if (status.status === "called") return status.confirm_failed ? "source_confirmation_stuck" : "waiting_source_confirmation";
+  if (status.confirm_failed && !status.approved && !status.executed) return "source_confirmation_stuck";
+  if (status.status === "called") return "waiting_source_confirmation";
   if (status.status === "confirming" || status.status === "confirmable") return "waiting_source_confirmation";
   // Approved but no relayer tx after the grace period. no_gas_remain is not used: axelarscan
   // sets it on healthy executed calls too, and alongside a positive gas_remain_amount.
@@ -101,8 +103,8 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
   ) {
     return "approved_not_executed";
   }
-  // "confirmed" means the source confirmation already succeeded — the transfer is
-  // waiting on approval/execution, so another ConfirmGatewayTx would be irrelevant.
+  // Without confirm_failed, "confirmed" means the source confirmation succeeded — the
+  // transfer is waiting on approval/execution, so another ConfirmGatewayTx would be irrelevant.
   if (
     ["confirmed", "approving", "approvable", "approved", "executing", "executable", "express_executable"].includes(
       status.status
@@ -117,8 +119,8 @@ const AXELAR_SIGNING_RELAYER_URL = "https://axelar-signing-relayer-mainnet.axela
 const AXELAR_RPC_URL = "https://mainnet.rpc.axelar.dev/chain/axelar";
 
 /**
- * Recovers a GMP transfer stuck at the confirmation step (status "called" with
- * confirm_failed) by asking Axelar's recovery signing service for a signed
+ * Recovers a GMP transfer stuck at the confirmation step (confirm_failed and not
+ * yet approved) by asking Axelar's recovery signing service for a signed
  * ConfirmGatewayTx and broadcasting it to the Axelar network. This restarts the
  * validator poll; once it passes, approval and execution proceed automatically.
  *

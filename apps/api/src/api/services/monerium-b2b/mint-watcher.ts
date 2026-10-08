@@ -70,6 +70,8 @@ export function matchMintLogToDeposit(log: MintLogFields, candidates: MatchableD
 interface ObservedMint {
   blockHash: string;
   blockNumber: number;
+  /** Block timestamp: the promised conversion window counts from here. */
+  mintedAt: Date;
   logIndex: number;
   to: Address;
   txHash: string;
@@ -120,6 +122,7 @@ async function recordMint(
           blockNumber: mint.blockNumber,
           chainId,
           logIndex: mint.logIndex,
+          mintedAt: mint.mintedAt,
           // Forward-only: pending -> minted; a webhook-minted row just gains chain fields.
           ...(deposit.status === MoneriumFiatDepositStatus.Pending ? { status: MoneriumFiatDepositStatus.Minted } : {}),
           txHash: mint.txHash
@@ -148,6 +151,7 @@ async function recordMint(
           chainId,
           currency: "eur",
           logIndex: mint.logIndex,
+          mintedAt: mint.mintedAt,
           moneriumOrderId: syntheticUnattributedOrderId(chainId, mint.txHash, mint.logIndex),
           status: MoneriumFiatDepositStatus.Minted,
           txHash: mint.txHash
@@ -205,15 +209,23 @@ export async function runMintWatcher(): Promise<string[]> {
   });
 
   const touchedAccounts = new Set<string>();
+  const blockTimestamps = new Map<bigint, Date>();
   for (const log of logs) {
     if (log.blockHash === null || log.blockNumber === null || log.transactionHash === null || log.logIndex === null) {
       continue; // pending log — will be picked up once mined (cursor only advances over mined ranges)
+    }
+    let mintedAt = blockTimestamps.get(log.blockNumber);
+    if (!mintedAt) {
+      const block = await client.getBlock({ blockNumber: log.blockNumber });
+      mintedAt = new Date(Number(block.timestamp) * 1000);
+      blockTimestamps.set(log.blockNumber, mintedAt);
     }
     const accountId = await recordMint(
       {
         blockHash: log.blockHash,
         blockNumber: Number(log.blockNumber),
         logIndex: log.logIndex,
+        mintedAt,
         to: log.args.to as Address,
         txHash: log.transactionHash,
         valueRaw: log.args.value as bigint

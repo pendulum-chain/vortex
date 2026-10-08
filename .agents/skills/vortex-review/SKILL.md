@@ -39,9 +39,10 @@ lens.
 
 Spawn the selected lenses as parallel read-only subagents (use the Workflow tool if
 available, otherwise parallel Agent tasks). Finders are recall-oriented — precision comes
-from verification in step 4 — so run them on a cheaper model than the session default: in
-Claude Code pass `model: "sonnet"` (Workflow tool: `opts.model: 'sonnet'`,
-`opts.effort: 'low'`); in Codex use GPT-5.6-Luna instead of GPT-5.6-Sol. Every finder
+from verification in step 4, which cannot recover what a finder missed — so in Claude Code
+run them on Opus at medium effort: pass `model: "opus"` (Workflow tool: `opts.effort:
+'medium'`; it has no model option, so agents inherit the session's Opus model); in Codex
+use GPT-5.6-Luna instead of GPT-5.6-Sol. Every finder
 gets: the diff, the change inventory, its lens brief below, and these standing rules:
 
 - Verify every claim against the actual code — read whole functions/files, never judge

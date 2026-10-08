@@ -970,6 +970,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/monerium-b2b/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the manager's EUR onramp accounts
+         * @description Available in sandbox; production activation is pending. Lists the business EUR onramp accounts of every active managed profile under the calling manager, newest first, each with its IBAN and status (an IBAN can be listed while the account is still `onboarding`; it converts payments only once `active`). Filter by `moneriumProfileId` to find one client by the EUR provider's profile ID. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bAccounts"];
+        put?: never;
+        /**
+         * Register a client's destination
+         * @description Available in sandbox; production activation is pending. Registers the payout wallet (`destination`) for one of your business clients by the EUR provider's profile ID, after you created that profile in your own EUR provider app and submitted its KYB. Vortex waits until the provider approves the profile, deploys the client's conversion contract with the destination fixed in it, and creates the client's onramp account: it then appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook reports its IBAN. The account converts payments only once it is `active`, and its IBAN can be issued before that: a payment made to the IBAN earlier waits and is refunded after the promised conversion window instead of being converted, so give the client the IBAN only when the account is `active` (the sandbox activates accounts on its own once the IBAN is issued). Follow the registration with `GET /v1/monerium-b2b/registrations`: while it is `requested`, `waitingReason` says what it waits for, and a transient failure keeps it waiting instead of rejecting it. A rejected registration can be registered again with the same or corrected data (202). The destination is create-only: an identical replay (same destination, client reference and contact email) returns the registration's current state (200), and any difference in destination, client reference or contact email is a conflict (409). A change of wallet is a new account on your written instruction. Only the manager bound to the EUR provider app may register; the `X-Managed-Profile-Id` header is rejected with 400, and a child's own credential or an admin impersonation session with 403. If the provider cannot be reached or fails the profile check, the request answers 503 and records nothing: retry the identical request later.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        post: operations["registerMoneriumB2bAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/monerium-b2b/deposits": {
         parameters: {
             query?: never;
@@ -979,11 +1007,33 @@ export interface paths {
         };
         /**
          * List the acting profile's EUR deposits
-         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, with every allocated conversion portion and aggregate attributed USDC. A per-swap cap can split one deposit across multiple executions. This is the polling surface for payment-received / converted status; the deposit webhook events cover push delivery. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
+         * @description Available in sandbox; production activation is pending. Returns the acting profile's EUR deposits newest first, each as its full lifecycle snapshot: IDs, amounts, timestamps, waiting and refund reasons, and every conversion chunk. A per-swap cap can split one deposit into several chunks, delivered together in one transfer. This is the polling surface; the `DEPOSIT_UPDATED` webhook pushes the same snapshot on every change. A partner manager acts for a child via `X-Managed-Profile-Id` (EU corridor and business customer type policy applies), or the child's own credential authenticates directly. Strictly scoped to the acting profile; no account, profile, or IBAN selector is accepted.
          *
          *     **Auth:** `X-API-Key` or Supabase Bearer.
          */
         get: operations["listMoneriumB2bDeposits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/monerium-b2b/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the manager's destination registrations
+         * @description Available in sandbox; production activation is pending. Lists the destination registrations made with your manager key, newest first: `requested` while Vortex waits (`waitingReason` says for what: the EUR provider's approval, the contract deployment, or a retry after a temporary failure), `mapped` with the `accountId` once the account exists, or `rejected` with the reason; a rejected profile can be registered again with `POST /v1/monerium-b2b/accounts`. Filter by `moneriumProfileId` to follow one client. Manager credential only: the `X-Managed-Profile-Id` header is rejected with 400 and a child's own credential with 403.
+         *
+         *     **Auth:** `X-API-Key` or Supabase Bearer.
+         */
+        get: operations["listMoneriumB2bRegistrations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2866,53 +2916,151 @@ export interface components {
             destination: string;
             /**
              * Format: date-time
-             * @description Set while the account is dormancy-paused.
+             * @description Set while the account is paused for dormancy: its `status` stays `active`, but nothing converts until the pause is lifted.
              */
             dormantSince: string | null;
-            /** @description The client's self-custodied recovery address. */
-            fallbackAddress: string;
-            feeBps: number;
+            /** @description Your own client reference for this managed profile. */
+            externalSubjectId: string | null;
+            /** @description Fee policy floor in parts per million below the reference rate: the least the client receives on a keeper-executed swap. */
+            floorPpm: number;
             /** @description The account's on-chain forwarding contract. */
             forwarderAddress: string;
-            /** @description The account's dedicated IBAN; null until issuance completes. */
+            /** @description The account's dedicated IBAN; null until issuance completes. It can be issued while `status` is still `onboarding`, and it is payable only once `status` is `active`: a payment made earlier waits and is refunded after the promised conversion window (two hours by default) instead of being converted. Give the client the IBAN only when the account is `active`. */
             iban: string | null;
-            /** @enum {string} */
+            /** @description The EUR provider's profile ID for this client. */
+            moneriumProfileId: string;
+            /** @description The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls. */
+            profileId: string | null;
+            /**
+             * @description `onboarding` from setup until Vortex activates the account: an operations step in production once the destination is checked, automatic in the sandbox once the IBAN is issued. Only an `active` account that is not paused for dormancy converts payments; in any other status a received payment waits (`waiting.reason` `account_not_active`) and is refunded after the promised conversion window. `suspended` converts nothing either (an `onboarding` account can be suspended after a failed destination check), and `closed` is final.
+             * @enum {string}
+             */
             status: "onboarding" | "active" | "suspended" | "closed";
+            /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
+            targetPpm: number;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];
         };
+        MoneriumB2bAccountsResponse: {
+            accounts: components["schemas"]["MoneriumB2bAccount"][];
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
+            };
+        };
         MoneriumB2bDeposit: {
+            accountId: string;
+            /** @description EUR amount to the cent, for example "1234.56". */
+            amount: string;
             /** @description Deposit amount in 18-decimal base units of the deposit currency. */
             amountRaw: string;
-            /** @description Conversion portions allocated to this deposit, oldest first. Empty while the deposit awaits conversion; multiple entries are returned when a per-swap cap splits the deposit. */
+            /** @description The chunk swaps of this deposit, oldest first. Empty while the deposit awaits conversion; a deposit larger than the per-swap cap is converted in several chunks that accumulate on the forwarding contract until one transfer delivers them all. Chunks are never shared between deposits. */
             conversions: {
-                /** @description EURe from this deposit consumed by the execution in 18-decimal base units. */
+                /**
+                 * Format: date-time
+                 * @description When the chunk's swap confirmed; null while pending.
+                 */
+                confirmedAt: string | null;
+                /** @description EURe of this deposit consumed by the chunk in 18-decimal base units. */
                 eureInRaw: string;
+                /** @description The chunk's pricing: the reference rate it was settled against, the fee taken above the target band, and the subsidy paid to reach the floor. Null values while the chunk is not yet confirmed. */
+                execution: {
+                    /** @description Fee taken on the chunk in 6-decimal base units. */
+                    feeRaw: string | null;
+                    /** @description Reference EUR/USD rate the execution was priced against: the Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, in the oracle's decimals (8). */
+                    referenceRateRaw: string | null;
+                    /** @description Subsidy paid by the vault onto the forwarding contract for the chunk, delivered with the deposit's transfer, in 6-decimal base units. */
+                    subsidyRaw: string | null;
+                };
                 executionId: string;
                 /**
-                 * @description Execution status.
+                 * Format: date-time
+                 * @description When the chunk's swap was sent.
+                 */
+                sentAt: string;
+                /**
+                 * @description Chunk status. Failed attempts are retried and not listed.
                  * @enum {string}
                  */
-                status: "pending" | "confirmed" | "failed";
-                /** @description The swap-and-forward transaction hash. */
+                status: "pending" | "confirmed";
+                /** @description The chunk swap transaction hash. */
                 txHash: string | null;
-                /** @description Net USDC from this execution attributed to this deposit in 6-decimal base units. */
+                /** @description Net USDC of the chunk (fill minus fee plus subsidy) in 6-decimal base units. */
                 usdcNetRaw: string;
             }[];
-            /** Format: date-time */
-            createdAt: string;
             currency: string;
-            depositId: string;
             /**
-             * @description Deposit status (forward-only).
+             * Format: date-time
+             * @description When the single transfer to the destination confirmed; null until forwarded.
+             */
+            deliveredAt: string | null;
+            depositId: string;
+            /** @description Your own client reference for this managed profile. */
+            externalSubjectId: string | null;
+            /** @description The single transaction that delivered the whole converted deposit to the destination; null until the deposit is forwarded. */
+            forwardTxHash: string | null;
+            /**
+             * Format: date-time
+             * @description When the EUR arrived on chain as EURe; the conversion window counts from here.
+             */
+            mintedAt: string | null;
+            /** @description The EUR provider's order ID for the incoming payment. */
+            moneriumOrderId: string;
+            /** @description The EUR provider's profile ID for this client. */
+            moneriumProfileId: string;
+            /** @description The client's managed profile ID: the `X-Managed-Profile-Id` value for delegated calls. */
+            profileId: string;
+            /**
+             * Format: date-time
+             * @description When Vortex first saw the payment.
+             */
+            receivedAt: string;
+            /** @description Present once the deposit entered the refund path: why, when it started, the EUR amount refunded, the masked IBAN it goes to, the provider's redemption order ID, and the transaction that moved the deposit off the forwarding contract. Null otherwise. */
+            refund: {
+                /** @description The EUR amount refunded, to the cent: always the full issue amount. */
+                amount: string | null;
+                /** @description The payer's IBAN the refund goes to, masked to its first and last four characters. */
+                payerIbanMasked: string | null;
+                /**
+                 * @description Why the deposit is refunded: `window_missed` (not converted within the promised window), `compliance`, `incident`, or `operator` for another operator decision.
+                 * @enum {string|null}
+                 */
+                reason: "window_missed" | "compliance" | "incident" | "operator" | null;
+                /** @description The transaction that moved the deposit off the forwarding contract. */
+                recoverTxHash: string | null;
+                /** @description The provider's order ID for the outgoing SEPA refund. */
+                redeemOrderId: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the provider processed the refund; null until then.
+                 */
+                refundedAt: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the deposit entered the refund path.
+                 */
+                startedAt: string | null;
+            } | null;
+            /** @description The provider's reason when it returned the payment before minting. */
+            rejectedReason: string | null;
+            /**
+             * @description Deposit status (forward-only): the provider states, then `converting` and `forwarded`, or - when the deposit could not be converted within the promised window - `recovering`, `refunded` and `recovery_failed`.
              * @enum {string}
              */
-            status: "pending" | "minted" | "held" | "returned";
+            status: "pending" | "minted" | "held" | "returned" | "converting" | "forwarded" | "recovering" | "refunded" | "recovery_failed";
             /** @description The on-chain mint transaction, when observed. */
             txHash: string | null;
-            /** @description Aggregate net USDC attributed to this deposit so far in 6-decimal base units. */
+            /** @description Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded. */
             usdcNetRaw: string;
+            /** @description Present while the deposit waits. `monerium_pending` until the EUR provider mints it: minting or a compliance review, which the provider does not tell apart. After the mint, `account_not_active` while the client's account cannot convert (it is not `active` yet, is suspended, or is paused for dormancy; the reason clears once it can convert, and a payment still waiting when the promised conversion window ends is refunded), otherwise the reason Vortex is holding the next conversion chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor` (the market is below the client's floor by more than the subsidy currently allows). Null otherwise. */
+            waiting: {
+                /** @enum {string} */
+                reason: "monerium_pending" | "account_not_active" | "oracle_unavailable" | "reference_unavailable" | "reference_out_of_band" | "no_route" | "below_floor";
+                /** Format: date-time */
+                since: string;
+            } | null;
         };
         MoneriumB2bDepositsResponse: {
             deposits: components["schemas"]["MoneriumB2bDeposit"][];
@@ -2921,6 +3069,62 @@ export interface components {
                 offset: number;
                 total: number;
             };
+        };
+        MoneriumB2bRegistration: {
+            /**
+             * Format: uuid
+             * @description The onramp account once created; null before.
+             */
+            accountId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Lowercased. */
+            destination: string;
+            externalSubjectId: string;
+            /** Format: uuid */
+            moneriumProfileId: string;
+            /** @description Why the registration was rejected, in Vortex's words; null otherwise. Registering the profile again clears it. */
+            rejectedReason: string | null;
+            /**
+             * @description `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected`. A registration is rejected only for a definite reason: the provider rejected or closed the profile, the conversion contract refused the destination (for example a token or router address), the client data conflicts with an existing client or account, or Vortex operations withdrew it. Transient failures keep it `requested` (see `waitingReason`). A rejected profile can be registered again.
+             * @enum {string}
+             */
+            status: "requested" | "mapped" | "rejected";
+            /**
+             * @description What a `requested` registration waits for; null in every other status. `monerium_profile_pending`: the provider has not approved the profile yet (created, incomplete, pending or in review); finish its KYB in your provider app. `monerium_profile_not_visible`: the provider no longer shows the profile to your app; check the profile ID. `deployment_pending`: Vortex is deploying the client's conversion contract or waiting for it to confirm. `deployer_not_ready`: Vortex's deployment wallet lacks its role or gas; Vortex fixes it, nothing to do on your side. `manager_inactive`: your manager profile is not active for business EUR clients; contact Vortex. `temporary_error`: a temporary failure at Vortex or the provider, retried automatically.
+             * @enum {string|null}
+             */
+            waitingReason: "monerium_profile_pending" | "monerium_profile_not_visible" | "deployment_pending" | "deployer_not_ready" | "manager_inactive" | "temporary_error" | null;
+        };
+        MoneriumB2bRegistrationRequest: {
+            /**
+             * Format: email
+             * @description The client's operations contact. Stored lowercased and compared case-insensitively on a replay.
+             */
+            contactEmail: string;
+            /**
+             * @description The client's wallet that receives USDC, fixed for the life of the account. All lowercase, or EIP-55 checksummed; the zero address is refused.
+             * @example 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc
+             */
+            destination: string;
+            /** @description Your immutable reference for the client (at most 255 characters). */
+            externalSubjectId: string;
+            /**
+             * Format: uuid
+             * @description The client's profile ID at the EUR provider, from your provider app.
+             */
+            moneriumProfileId: string;
+        };
+        MoneriumB2bRegistrationResponse: {
+            registration: components["schemas"]["MoneriumB2bRegistration"];
+        };
+        MoneriumB2bRegistrationsResponse: {
+            pagination: {
+                limit: number;
+                offset: number;
+                total: number;
+            };
+            registrations: components["schemas"]["MoneriumB2bRegistration"][];
         };
         /**
          * @description Supported blockchain networks.
@@ -6605,6 +6809,139 @@ export interface operations {
             };
         };
     };
+    listMoneriumB2bAccounts: {
+        parameters: {
+            query?: {
+                /** @description Only the account of this EUR provider profile. */
+                moneriumProfileId?: string;
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The manager's onramp accounts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bAccountsResponse"];
+                };
+            };
+            /** @description Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller is not an active manager for business EUR customers, or used a child's own credential. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    registerMoneriumB2bAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoneriumB2bRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Identical replay: the registration's current state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bRegistrationResponse"];
+                };
+            };
+            /** @description Registered, or registered again after a rejection; the account follows once the provider approved the profile and the contract is deployed. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bRegistrationResponse"];
+                };
+            };
+            /** @description Invalid input (`MONERIUM_B2B_INVALID_INPUT`), or a `X-Managed-Profile-Id` header was sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `MANAGED_PROFILE_ACCESS_DENIED`: the caller is not the manager bound to the EUR provider app, or used a child's own credential. `IMPERSONATION_NOT_ALLOWED`: the request acts through an admin impersonation session. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `MONERIUM_B2B_DESTINATION_CONFLICT`: the profile is registered with a different destination, client reference or contact email, or already has an account. `MONERIUM_B2B_CLIENT_CONFLICT`: the client data clashes with an existing client or registration: the client reference is already used with a different contact email, by a client that is not a business or with another EUR provider profile, the contact email belongs to another client, or another open registration uses the reference or email. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `MONERIUM_B2B_PROFILE_UNAVAILABLE`: the profile is not known to your EUR provider app (check the profile ID), or the provider rejected or closed it. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `MONERIUM_B2B_PROVIDER_UNAVAILABLE`: the EUR provider failed, timed out, rate-limited the request or refused the profile check. Nothing was recorded: retry the identical request later. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     listMoneriumB2bDeposits: {
         parameters: {
             query?: {
@@ -6647,6 +6984,54 @@ export interface operations {
             };
             /** @description No account exists for the acting profile. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMoneriumB2bRegistrations: {
+        parameters: {
+            query?: {
+                /** @description Only the registration of this EUR provider profile. */
+                moneriumProfileId?: string;
+                /** @description Page size (default 20, max 100). */
+                limit?: number;
+                /** @description Rows to skip (default 0). */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The manager's registrations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneriumB2bRegistrationsResponse"];
+                };
+            };
+            /** @description Invalid `moneriumProfileId`, or a `X-Managed-Profile-Id` header was sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller is not an active manager for business EUR customers, or used a child's own credential. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

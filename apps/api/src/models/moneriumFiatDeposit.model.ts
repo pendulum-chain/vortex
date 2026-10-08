@@ -2,15 +2,31 @@ import { DataTypes, Model, Op, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export enum MoneriumFiatDepositStatus {
+  /** Provider order placed, EURe not minted yet. */
   Pending = "pending",
+  /** EURe minted to the forwarder; convertible once chain-indexed. */
   Minted = "minted",
+  /** Provider compliance hold before the mint. */
   Held = "held",
-  Returned = "returned"
+  /** Provider returned the payment before the mint. Terminal. */
+  Returned = "returned",
+  /** At least one chunk swap was sent; USDC accumulates on the forwarder. */
+  Converting = "converting",
+  /** The whole converted deposit reached the client's destination. Terminal. */
+  Forwarded = "forwarded",
+  /** The promised window was missed (or an operator intervened): funds go to the recovery wallet for a bank refund. */
+  Recovering = "recovering",
+  /** The exact EUR amount was redeemed to the payer's bank account. Terminal. */
+  Refunded = "refunded",
+  /** A recovery step failed beyond retry; operator runbook. Terminal until reset by an operator. */
+  RecoveryFailed = "recovery_failed"
 }
 
 // One row per Monerium issue order (SEPA deposit → EURe mint). Identity/idempotency:
 // monerium_order_id for accounting, (chain_id, tx_hash, log_index) for the on-chain
-// mint. Status transitions are forward-only (plan §3, R06/R13).
+// mint. Status transitions are forward-only (plan §3, R06/R13): the provider states
+// first, then the settlement (converting → forwarded) or refund (recovering → refunded)
+// branch; executions bound to the deposit carry the chain evidence for each step.
 export interface MoneriumFiatDepositAttributes {
   id: string;
   accountId: string;
@@ -23,8 +39,25 @@ export interface MoneriumFiatDepositAttributes {
   logIndex: number | null;
   blockHash: string | null;
   blockNumber: number | null;
+  /** Timestamp of the mint block: the promised conversion window counts from here. */
+  mintedAt: Date | null;
+  /** The payer's bank account and name from the issue order's counterpart: the refund target. */
+  payerIban: string | null;
+  payerName: string | null;
   receivedEventAt: Date | null;
   convertedEventAt: Date | null;
+  returnedEventAt: Date | null;
+  /** Why the keeper is waiting to convert (a DepositWaitingReason), and since when. */
+  waitingReason: string | null;
+  waitingSince: Date | null;
+  /** Monerium's reason when it rejected the payment before minting. */
+  rejectedReason: string | null;
+  /** Why the deposit entered the refund path (a DepositRefundReason), and when. */
+  refundReason: string | null;
+  refundStartedAt: Date | null;
+  /** Hash and time of the last DEPOSIT_UPDATED snapshot evaluated (set silently, never bumps updated_at). */
+  lifecycleEventHash: string | null;
+  lifecycleEventAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,8 +71,19 @@ type MoneriumFiatDepositCreationAttributes = Optional<
   | "logIndex"
   | "blockHash"
   | "blockNumber"
+  | "mintedAt"
+  | "payerIban"
+  | "payerName"
   | "receivedEventAt"
   | "convertedEventAt"
+  | "returnedEventAt"
+  | "waitingReason"
+  | "waitingSince"
+  | "rejectedReason"
+  | "refundReason"
+  | "refundStartedAt"
+  | "lifecycleEventHash"
+  | "lifecycleEventAt"
   | "createdAt"
   | "updatedAt"
 >;
@@ -59,8 +103,19 @@ class MoneriumFiatDeposit
   declare logIndex: number | null;
   declare blockHash: string | null;
   declare blockNumber: number | null;
+  declare mintedAt: Date | null;
+  declare payerIban: string | null;
+  declare payerName: string | null;
   declare receivedEventAt: Date | null;
   declare convertedEventAt: Date | null;
+  declare returnedEventAt: Date | null;
+  declare waitingReason: string | null;
+  declare waitingSince: Date | null;
+  declare rejectedReason: string | null;
+  declare refundReason: string | null;
+  declare refundStartedAt: Date | null;
+  declare lifecycleEventHash: string | null;
+  declare lifecycleEventAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -115,10 +170,25 @@ MoneriumFiatDeposit.init(
       primaryKey: true,
       type: DataTypes.UUID
     },
+    lifecycleEventAt: {
+      allowNull: true,
+      field: "lifecycle_event_at",
+      type: DataTypes.DATE
+    },
+    lifecycleEventHash: {
+      allowNull: true,
+      field: "lifecycle_event_hash",
+      type: DataTypes.STRING(64)
+    },
     logIndex: {
       allowNull: true,
       field: "log_index",
       type: DataTypes.INTEGER
+    },
+    mintedAt: {
+      allowNull: true,
+      field: "minted_at",
+      type: DataTypes.DATE
     },
     moneriumOrderId: {
       allowNull: false,
@@ -126,9 +196,39 @@ MoneriumFiatDeposit.init(
       type: DataTypes.STRING(64),
       unique: true
     },
+    payerIban: {
+      allowNull: true,
+      field: "payer_iban",
+      type: DataTypes.STRING(34)
+    },
+    payerName: {
+      allowNull: true,
+      field: "payer_name",
+      type: DataTypes.STRING(140)
+    },
     receivedEventAt: {
       allowNull: true,
       field: "received_event_at",
+      type: DataTypes.DATE
+    },
+    refundReason: {
+      allowNull: true,
+      field: "refund_reason",
+      type: DataTypes.STRING(32)
+    },
+    refundStartedAt: {
+      allowNull: true,
+      field: "refund_started_at",
+      type: DataTypes.DATE
+    },
+    rejectedReason: {
+      allowNull: true,
+      field: "rejected_reason",
+      type: DataTypes.STRING(500)
+    },
+    returnedEventAt: {
+      allowNull: true,
+      field: "returned_event_at",
       type: DataTypes.DATE
     },
     status: {
@@ -145,6 +245,16 @@ MoneriumFiatDeposit.init(
       allowNull: false,
       defaultValue: DataTypes.NOW,
       field: "updated_at",
+      type: DataTypes.DATE
+    },
+    waitingReason: {
+      allowNull: true,
+      field: "waiting_reason",
+      type: DataTypes.STRING(32)
+    },
+    waitingSince: {
+      allowNull: true,
+      field: "waiting_since",
       type: DataTypes.DATE
     }
   },

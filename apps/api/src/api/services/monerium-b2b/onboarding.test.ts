@@ -12,22 +12,38 @@ import { advanceOnboardingAccounts, type OnboardingDeps } from "./onboarding";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
-const FALLBACK = "0x3333333333333333333333333333333333333333";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 const IBAN = "EE08 7224 5745 6244 9516";
+const REFUND_WALLET = "0x9999999999999999999999999999999999999999";
 const ETHEREUM_CHAIN = { getChainId: async () => 1 };
 
 const savedConfig = { ...config.moneriumB2b };
 
 interface FakeDeps extends OnboardingDeps {
-  calls: { getChainId: number; getIbanForAddress: number; getProfileAddresses: number; linkAddress: unknown[][]; requestIban: unknown[][]; signLinkAttestation: unknown[][] };
+  calls: {
+    getChainId: number;
+    getIbanForAddress: number;
+    getProfileAddresses: number;
+    linkAddress: unknown[][];
+    requestIban: unknown[][];
+    signLinkAttestation: unknown[][];
+    signRefundLink: unknown[][];
+  };
   ibanByAddress: Map<string, string>;
   linkedAddresses: Set<string>;
 }
 
 function fakeDeps(): FakeDeps {
   const deps: FakeDeps = {
-    calls: { getChainId: 0, getIbanForAddress: 0, getProfileAddresses: 0, linkAddress: [], requestIban: [], signLinkAttestation: [] },
+    calls: {
+      getChainId: 0,
+      getIbanForAddress: 0,
+      getProfileAddresses: 0,
+      linkAddress: [],
+      requestIban: [],
+      signLinkAttestation: [],
+      signRefundLink: []
+    },
     async getChainId() {
       deps.calls.getChainId += 1;
       return 1;
@@ -46,7 +62,8 @@ function fakeDeps(): FakeDeps {
       deps.calls.linkAddress.push(args);
       return {};
     },
-    linkedAddresses: new Set(),
+    // The refund wallet starts linked so most cases exercise only the forwarder link.
+    linkedAddresses: new Set([REFUND_WALLET]),
     async requestIban(...args: unknown[]) {
       deps.calls.requestIban.push(args);
       return {};
@@ -54,6 +71,10 @@ function fakeDeps(): FakeDeps {
     async signLinkAttestation(...args: unknown[]) {
       deps.calls.signLinkAttestation.push(args);
       return { signature: "0xattestor-signature" };
+    },
+    async signRefundLink(...args: unknown[]) {
+      deps.calls.signRefundLink.push(args);
+      return { address: REFUND_WALLET, signature: "0xrefund-signature" };
     }
   };
   return deps;
@@ -76,8 +97,6 @@ async function createMappedAccount(overrides: Partial<Parameters<typeof Monerium
   });
   return MoneriumAccount.create({
     destination: DESTINATION,
-    fallbackAddress: FALLBACK,
-    feeBps: 0,
     forwarderAddress: FORWARDER,
     profileId: MONERIUM_PROFILE,
     vortexProfileId: child.profileId,
@@ -94,6 +113,7 @@ describe("monerium b2b onboarding automation", () => {
     await resetTestDatabase();
     config.moneriumB2b.attestorPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     config.moneriumB2b.rpcUrl = "http://rpc.invalid";
+    config.moneriumB2b.refundSeed = `0x${"11".repeat(32)}`;
     // MONERIUM_WHITELABEL_CLIENT_ID/SECRET come from test-utils/preload.ts.
   });
 
@@ -117,6 +137,22 @@ describe("monerium b2b onboarding automation", () => {
       { phase: "linkAddress", scopeId: ownerProfileId, scopeType: "profile", status: "confirmed" },
       { phase: "requestIban", scopeId: ownerProfileId, scopeType: "profile", status: "confirmed" }
     ]);
+  });
+
+  it("links the client's refund wallet to the profile next to the forwarder", async () => {
+    await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.clear();
+
+    await advanceOnboardingAccounts(deps);
+    expect(deps.calls.signRefundLink).toEqual([[MONERIUM_PROFILE]]);
+    expect(deps.calls.linkAddress).toEqual([
+      [MONERIUM_PROFILE, FORWARDER, "ethereum", "0xattestor-signature"],
+      [MONERIUM_PROFILE, REFUND_WALLET, "ethereum", "0xrefund-signature"]
+    ]);
+    expect(deps.calls.requestIban).toEqual([[FORWARDER, "ethereum"]]);
+    const links = await FinancialOperation.findAll({ where: { phase: ["linkAddress", "linkRefundAddress"] } });
+    expect(links.map(link => link.status)).toEqual(["confirmed", "confirmed"]);
   });
 
   it("never repeats a claimed provider write on replay", async () => {
@@ -155,12 +191,25 @@ describe("monerium b2b onboarding automation", () => {
     expect(deps.calls.requestIban).toHaveLength(0);
   });
 
+  it("stops polling an account once its IBAN is recorded, while it awaits activation", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.ibanByAddress.set(FORWARDER, IBAN);
+    await advanceOnboardingAccounts(deps);
+    expect((await account.reload()).iban).toBe(IBAN);
+    const callsAfterIban = JSON.stringify(deps.calls);
+
+    expect(await advanceOnboardingAccounts(deps)).toBe(0);
+
+    expect(JSON.stringify(deps.calls)).toBe(callsAfterIban);
+    expect(account.status).toBe(MoneriumAccountStatus.Onboarding);
+  });
+
   it("only advances mapped accounts still in onboarding", async () => {
     await createMappedAccount({ status: MoneriumAccountStatus.Active });
     await MoneriumAccount.create({
       destination: DESTINATION,
-      fallbackAddress: FALLBACK,
-      feeBps: 0,
       forwarderAddress: "0x9999999999999999999999999999999999999999",
       profileId: crypto.randomUUID()
       // no vortexProfileId: pre-mapping row stays operator-managed

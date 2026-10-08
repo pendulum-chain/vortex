@@ -1,6 +1,8 @@
 {
   "author": "Pendulum Chain",
   "dependencies": {
+    "@cosmjs/proto-signing": "^0.39.0",
+    "@cosmjs/stargate": "^0.39.0",
     "@pendulum-chain/api-solang": "catalog:",
     "@polkadot/api": "catalog:",
     "@polkadot/api-contract": "catalog:",
@@ -15,6 +17,7 @@
     "compression": "^1.6.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.3",
+    "cosmjs-types": "^0.11.0",
     "cron": "^4.1.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
@@ -71,6 +74,7 @@
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
+    "monerium-b2b:sandbox-e2e": "bun scripts/monerium-b2b-sandbox-e2e.ts",
     "preview:emails": "bun src/scripts/preview-emails.ts",
     "preview:emails:watch": "bun --watch src/scripts/preview-emails.ts",
     "register:avenia-webhook": "bun src/scripts/register-avenia-webhook.ts",

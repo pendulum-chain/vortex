@@ -21,15 +21,16 @@ import { forwarderAbi, getGuardianWalletClient, getPublicClient } from "./chain"
 export const DORMANCY_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
 
 export interface DormancyAccountFields {
+  activatedAt: Date | null;
   createdAt: Date;
   dormantSince: Date | null;
   status: MoneriumAccountStatus;
 }
 
 /**
- * An account is a dormancy candidate iff it is active, not already flagged, and its
- * last confirmed conversion (or, for never-converted accounts, its creation) is at
- * least the dormancy window in the past.
+ * An account is a dormancy candidate iff it is active, not already flagged, and the later
+ * of its last confirmed conversion and its activation (else its creation) is at least the
+ * dormancy window in the past.
  */
 export function isDormancyCandidate(
   account: DormancyAccountFields,
@@ -39,8 +40,8 @@ export function isDormancyCandidate(
   if (account.status !== MoneriumAccountStatus.Active || account.dormantSince !== null) {
     return false;
   }
-  const anchor = lastConfirmedAt ?? account.createdAt;
-  return now.getTime() - anchor.getTime() >= DORMANCY_WINDOW_MS;
+  const anchor = Math.max(lastConfirmedAt?.getTime() ?? 0, account.activatedAt?.getTime() ?? 0) || account.createdAt.getTime();
+  return now.getTime() - anchor >= DORMANCY_WINDOW_MS;
 }
 
 async function pauseDormantAccount(account: MoneriumAccount, now: Date): Promise<void> {

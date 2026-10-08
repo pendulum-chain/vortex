@@ -13,6 +13,7 @@ function daysAgo(days: number): Date {
 
 function account(overrides: Partial<Parameters<typeof isDormancyCandidate>[0]> = {}) {
   return {
+    activatedAt: null,
     createdAt: daysAgo(365),
     dormantSince: null,
     status: MoneriumAccountStatus.Active,
@@ -40,6 +41,12 @@ describe("isDormancyCandidate", () => {
   it("anchors never-converted accounts on their creation date", () => {
     expect(isDormancyCandidate(account({ createdAt: daysAgo(61) }), null, NOW)).toBe(true);
     expect(isDormancyCandidate(account({ createdAt: daysAgo(10) }), null, NOW)).toBe(false);
+  });
+
+  it("anchors on the activation when it is later than the last conversion or the creation", () => {
+    expect(isDormancyCandidate(account({ activatedAt: NOW, createdAt: daysAgo(61) }), null, NOW)).toBe(false);
+    expect(isDormancyCandidate(account({ activatedAt: daysAgo(10) }), daysAgo(90), NOW)).toBe(false);
+    expect(isDormancyCandidate(account({ activatedAt: daysAgo(90) }), daysAgo(61), NOW)).toBe(true);
   });
 
   it("never re-flags an account already marked dormant", () => {

@@ -97,6 +97,7 @@ export function mapMoneriumProfileState(state: string): MoneriumStatus {
     case "approved":
       return "APPROVED";
     case "rejected":
+    case "closed":
       return "REJECTED";
     default:
       return "PENDING";

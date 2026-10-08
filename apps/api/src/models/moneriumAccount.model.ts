@@ -20,18 +20,33 @@ export interface MoneriumAccountAttributes {
   iban: string | null;
   forwarderAddress: string;
   destination: string;
-  fallbackAddress: string;
-  feeBps: number;
+  targetPpm: number;
+  floorPpm: number;
   configVersion: number;
   status: MoneriumAccountStatus;
   dormantSince: Date | null;
+  /** When the account last became active; anchors the dormancy window of a never-converted account. */
+  activatedAt: Date | null;
+  /** Hash of the last ACCOUNT_UPDATED snapshot sent to the partner. */
+  lifecycleEventHash: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 type MoneriumAccountCreationAttributes = Optional<
   MoneriumAccountAttributes,
-  "id" | "vortexProfileId" | "iban" | "configVersion" | "status" | "dormantSince" | "createdAt" | "updatedAt"
+  | "id"
+  | "vortexProfileId"
+  | "iban"
+  | "targetPpm"
+  | "floorPpm"
+  | "configVersion"
+  | "status"
+  | "dormantSince"
+  | "activatedAt"
+  | "lifecycleEventHash"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 class MoneriumAccount
@@ -44,17 +59,24 @@ class MoneriumAccount
   declare iban: string | null;
   declare forwarderAddress: string;
   declare destination: string;
-  declare fallbackAddress: string;
-  declare feeBps: number;
+  declare targetPpm: number;
+  declare floorPpm: number;
   declare configVersion: number;
   declare status: MoneriumAccountStatus;
   declare dormantSince: Date | null;
+  declare activatedAt: Date | null;
+  declare lifecycleEventHash: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
 
 MoneriumAccount.init(
   {
+    activatedAt: {
+      allowNull: true,
+      field: "activated_at",
+      type: DataTypes.DATE
+    },
     configVersion: {
       allowNull: false,
       defaultValue: 1,
@@ -76,15 +98,12 @@ MoneriumAccount.init(
       field: "dormant_since",
       type: DataTypes.DATE
     },
-    fallbackAddress: {
+    // Fee policy mirror (ppm below the reference rate) for accounting and drift
+    // detection only; the clone's values are authoritative (P11 reconciliation).
+    floorPpm: {
       allowNull: false,
-      field: "fallback_address",
-      type: DataTypes.STRING(42)
-    },
-    feeBps: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "fee_bps",
+      defaultValue: 1500,
+      field: "floor_ppm",
       type: DataTypes.INTEGER
     },
     forwarderAddress: {
@@ -102,6 +121,11 @@ MoneriumAccount.init(
       primaryKey: true,
       type: DataTypes.UUID
     },
+    lifecycleEventHash: {
+      allowNull: true,
+      field: "lifecycle_event_hash",
+      type: DataTypes.STRING(64)
+    },
     profileId: {
       allowNull: false,
       field: "profile_id",
@@ -112,6 +136,12 @@ MoneriumAccount.init(
       allowNull: false,
       defaultValue: MoneriumAccountStatus.Onboarding,
       type: DataTypes.ENUM(...Object.values(MoneriumAccountStatus))
+    },
+    targetPpm: {
+      allowNull: false,
+      defaultValue: 1250,
+      field: "target_ppm",
+      type: DataTypes.INTEGER
     },
     updatedAt: {
       allowNull: false,
