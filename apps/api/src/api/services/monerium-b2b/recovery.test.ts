@@ -343,6 +343,7 @@ describe("driveRecovery", () => {
 
   it("keeps a processed refund open, without the refunded log, until the deposit is marked refunded", async () => {
     const info = spyOn(logger, "info");
+    info.mockClear(); // another file's leaked logger mock can carry earlier calls into the spy
     const refundedLogged = () => info.mock.calls.some(([message]) => String(message).includes("refunded"));
     try {
       const ledger: Ledger = { eure: new Map(), usdc: new Map() };
@@ -594,7 +595,9 @@ describe("refund deadlines and orchestration", () => {
     );
     const depsFor = async () => deps;
     const error = spyOn(logger, "error");
-    const refundFailedLogs = () => error.mock.calls.filter(([message]) => String(message).includes("REFUND FAILED")).length;
+    // Scoped to this deposit: another file's leaked logger mock can carry earlier calls into the spy.
+    const refundFailedLogs = () =>
+      error.mock.calls.filter(([message]) => String(message).includes(`REFUND FAILED — deposit ${deposit.id}`)).length;
     try {
       await runRecoveryOrchestrator(depsFor); // fifth failure: parking refused
       const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
