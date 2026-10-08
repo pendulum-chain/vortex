@@ -42,7 +42,8 @@ export async function withForwarderLock<T>(forwarderAddress: string, fn: (transa
 // Forward-only lattice (plan §3): the provider states first — pending → minted/held/
 // returned, a compliance hold resolves to minted or returned — then the keeper's
 // settlement branch (minted → converting → forwarded) or the refund branch (minted or
-// converting → recovering → refunded, or recovery_failed for the operator, who may retry).
+// converting → recovering → refunded, or recovery_failed for the operator, who may retry
+// or close it as refunded once the refund went out by hand).
 const FORWARD_TRANSITIONS: Record<MoneriumFiatDepositStatus, readonly MoneriumFiatDepositStatus[]> = {
   [MoneriumFiatDepositStatus.Pending]: [
     MoneriumFiatDepositStatus.Minted,
@@ -53,7 +54,7 @@ const FORWARD_TRANSITIONS: Record<MoneriumFiatDepositStatus, readonly MoneriumFi
   [MoneriumFiatDepositStatus.Minted]: [MoneriumFiatDepositStatus.Converting, MoneriumFiatDepositStatus.Recovering],
   [MoneriumFiatDepositStatus.Converting]: [MoneriumFiatDepositStatus.Forwarded, MoneriumFiatDepositStatus.Recovering],
   [MoneriumFiatDepositStatus.Recovering]: [MoneriumFiatDepositStatus.Refunded, MoneriumFiatDepositStatus.RecoveryFailed],
-  [MoneriumFiatDepositStatus.RecoveryFailed]: [MoneriumFiatDepositStatus.Recovering],
+  [MoneriumFiatDepositStatus.RecoveryFailed]: [MoneriumFiatDepositStatus.Recovering, MoneriumFiatDepositStatus.Refunded],
   [MoneriumFiatDepositStatus.Forwarded]: [],
   [MoneriumFiatDepositStatus.Returned]: [],
   [MoneriumFiatDepositStatus.Refunded]: []

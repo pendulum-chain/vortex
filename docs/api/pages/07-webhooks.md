@@ -215,7 +215,7 @@ Fired once per deposit that could not be converted within the promised window (o
 }
 ```
 
-`refund.amount` is the EUR amount refunded, to the cent — always the full issue amount. `payerIbanMasked` identifies the receiving account by its first and last four characters, `redeemOrderId` is the EUR provider's order for the outgoing SEPA transfer, and `recoverTxHash` the transaction that moved the deposit off the forwarding contract.
+`refund.amount` is the EUR amount refunded, to the cent — always the full issue amount. `payerIbanMasked` identifies the receiving account by its first and last four characters, `redeemOrderId` is the EUR provider's order for the outgoing SEPA transfer (null when the refund was completed by hand), and `recoverTxHash` the transaction that moved the deposit off the forwarding contract.
 
 ### `DEPOSIT_UPDATED`
 
