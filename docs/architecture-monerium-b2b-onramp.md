@@ -301,7 +301,22 @@ window triggers it automatically; `refunded` and `recovery_failed` are set by wh
 completes the bank refund). Account statuses follow only the arrows above; `closed` is terminal and a repeated
 write of the current status is idempotent. A nonce-less execution row is a five-minute
 pre-send reservation; expiry uses a compare-and-set so its original owner can no longer
-broadcast. Once the swap nonce is persisted, time alone never fails the execution.
+broadcast. Once the swap nonce is persisted, a row is never failed on elapsed time
+alone. A reserved nonce that is never mined (the process died before broadcasting, the send
+threw, or a private relay dropped the transaction) would block the account and its
+refund path forever, so once the row has been idle for the same five minutes and the
+nonce is not yet mined and nothing is pending at the keeper's next nonce, the keeper
+(first filling with zero-value self-transfers any gap below the row's nonce, which a
+dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
+re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
+copy is mined is the expected call and the exact recovery below adopts it. If the call
+no longer executes (the gas estimate reverts; a transport error or an unfunded keeper
+is not a revert and only leaves the row pending), or if the account is suspended,
+dormant or closed and the call is a swap or forward, a zero-value self-transfer
+consumes the nonce instead (a revert-protecting private relay would never mine the
+call); the row then fails on the next cycle and retries on a fresh plan. A recover is
+exempt from the account-status gate (it is the refund path) but is still consumed by the
+no-op if its own estimate reverts.
 Recovery scans bounded 2,000-block pages from the pre-broadcast block and adopts only
 one transaction matching the keeper sender, nonce, forwarder target, the exact calldata
 of its kind — `swap(reference, route, amountIn)`, `forward(amount)` or
@@ -353,9 +368,19 @@ and sends at most one transaction per account per cycle:
   deposit becomes `refunded` when Monerium processes the order, and the partner receives
   one `DEPOSIT_RETURNED` (refunded amount, masked payer IBAN, redeem order, recover
   transaction). One refund runs at a
-  time: every step re-derives what is left to do from the client's refund wallet's
-  balances (so a lost transaction hash never repeats a send), and the keeper refuses a
-  second `recover` while one is in flight. A step that fails beyond its retries, a
+  time per client: every step re-derives what is left to do from the client's refund
+  wallet's balances (so a lost transaction hash never repeats a send), and the keeper
+  refuses a second `recover` for an account while one of its refunds is in flight.
+  Different clients' refunds advance side by side, one step each per keeper cycle, and
+  a cycle can last several minutes, since each receipt wait times out after 3 minutes and a float step can wait on more than one (a slow receipt wait ends the cycle late, but
+  does not hold the other clients' steps within it). The one
+  shared resource is the EURe float wallet, which sends with implicit nonces, so across
+  clients it is serialized: steps that cannot touch it run concurrently, alongside at
+  most one step that sends from it, and none while another client's float transfer
+  awaits its receipt (a parked refund never holds that gate). Clients share that one
+  float wallet, so a slow float transfer can delay another client's refund. The float
+  steps start no new step after 90 s. A refund parked in `recovery_failed` blocks
+  only its own client's later refunds. A step that fails beyond its retries, a
   missing payer, or an amount that needs a supporting document (EUR 15,000 and above)
   parks the deposit in `recovery_failed` with the phase preserved; an operator retry
   (deposit back to `recovering`) resumes there. The promised window is
@@ -450,8 +475,8 @@ read-only — no keys, no transactions:
 1. **Association monitor (the S1 detective control).** Per active account it re-reads
    the Monerium-side state — `GET /addresses?profile=` and the IBAN list — and diffs it
    against the database record. **Any** divergence is an error-level alert: the
-   forwarder no longer linked, an extra address linked to the profile, the IBAN moved
-   or unrecorded. This is the control for the structural risk that Vortex-held
+   forwarder no longer linked, an extra address linked to the profile (the client's own
+   refund wallet is expected), the IBAN moved or unrecorded. This is the control for the structural risk that Vortex-held
    whitelabel credentials can change associations at Monerium: those changes cannot be
    prevented client-side, only detected fast.
 2. **Executable-depth monitor.** QuoterV2 quotes on every enabled route vs Chainlink;
@@ -471,9 +496,10 @@ read-only — no keys, no transactions:
    delisted or halted product keeps answering its endpoints with stale data
    and would make every keeper swap defer silently, so its status is an error line
    rather than an assumption.
-7. **Refund monitor** (automated refunds only). The one active recovery must not
-   linger (warn after an hour, error after four or on a failed step) and the EURe float
-   must not run dry.
+7. **Refund monitor** (automated refunds only). Every open recovery must not
+   linger (each is judged on its own: warn after an hour, error after four or on a failed step) and the EURe float
+   must not run dry; the float's ETH, which pays for its own sends and the refund wallets' gas, warns below 0.05 ETH
+   and errors once it cannot pay for one transfer.
 
 ## Data model — the Monerium B2B tables
 
@@ -527,7 +553,7 @@ erDiagram
 | `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
 | `monerium_account_registrations` (086) | One row per partner-registered Monerium profile: manager, profile ID (unique), destination, client reference and contact email, `requested` until the account is mapped (`account_id`) or `rejected` with a reason, and the deployment's transaction hash |
-| `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, attempts and the last error |
+| `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, failed attempts and the error that parked it for the operator |
 | `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, time), the route and the subsidy tier cap (`max_subsidy_raw`), then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |
 | `monerium_chain_cursors` (070) | Persisted block cursors for the mint watcher |
@@ -548,7 +574,7 @@ when that order row already exists, without duplicating chain identity or execut
 provider onboarding calls are exactly-once (`financial_operations`) and their reads are
 bound to the configured profile and chain; a broadcast whose hash was lost is recovered
 from its persisted nonce/block plus an exact transaction-and-event match (the calldata
-of its kind rebuilt from what was persisted) rather than re-sent; a swap the vault
+of its kind rebuilt from what was persisted) rather than re-sent (unless the nonce is unconsumed and idle past the deadline, above); a swap the vault
 could not cover, a reference that is unavailable or out of band, or a fill below the
 floor is deferred by the keeper, never forced; all per-account writes serialize on one
 advisory lock; a Vortex outage can never trap converted funds on chain (past the

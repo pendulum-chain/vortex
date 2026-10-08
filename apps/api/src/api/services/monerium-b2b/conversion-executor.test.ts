@@ -1,7 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { FindOptions, Transaction } from "sequelize";
-import { Address, encodeAbiParameters, encodeEventTopics, encodeFunctionData, Hex, TransactionReceipt } from "viem";
+import {
+  Address,
+  BaseError,
+  encodeAbiParameters,
+  encodeEventTopics,
+  encodeFunctionData,
+  EstimateGasExecutionError,
+  ExecutionRevertedError,
+  Hex,
+  TransactionReceipt,
+  TransactionReceiptNotFoundError
+} from "viem";
 import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
@@ -982,5 +994,303 @@ describe("runConversionExecutor activation gate", () => {
     await deposit.reload();
     expect(deposit.waitingReason).toBe("account_not_active");
     expect(deposit.waitingSince?.getTime()).toBe(since.getTime());
+  });
+});
+
+// A reservation whose broadcast never happened (the process died between `reserve` and
+// `send`) holds a nonce nobody will use; the keeper re-sends the identical call there.
+describe("runConversionExecutor reserved-nonce re-send", () => {
+  afterEach(() => mock.restore());
+
+  const FORWARDER = "0x1111111111111111111111111111111111111111" as Address;
+  const KEEPER = "0x7777777777777777777777777777777777777777" as Address;
+  const RESENT = `0x${"cd".repeat(32)}` as Hex;
+  const FORWARD_DATA = encodeFunctionData({ abi: chain.forwarderAbi, args: [108n * USDC], functionName: "forward" });
+
+  // What viem throws for a reverting eth_estimateGas: the revert is nested in the wrapper.
+  const revertingEstimate = async () => {
+    throw new EstimateGasExecutionError(new ExecutionRevertedError({ message: "execution reverted: stale" }), {});
+  };
+  const NOOP = { account: { address: KEEPER }, chain: null, gas: 21_000n, nonce: 7, to: KEEPER, value: 0n };
+
+  async function cycle(
+    options: {
+      estimateGas?: () => Promise<bigint>;
+      latest?: number;
+      /** The keeper's mined nonce count on every read after the first (it moved between the pre-check and the lock). */
+      latestInLock?: number;
+      pendingCount?: number;
+      row?: Record<string, unknown>;
+      receipt?: TransactionReceipt;
+      reservedAgoMs?: number;
+      sendError?: Error;
+      status?: MoneriumAccountStatus;
+      dormantSince?: Date;
+      txHash?: string | null;
+    } = {}
+  ) {
+    const originalTransaction = sequelize.transaction;
+    const originalQuery = sequelize.query;
+    const originalFindAccount = MoneriumAccount.findByPk;
+    const originalFindExecution = MoneriumConversionExecution.findOne;
+    const originalFindExecutions = MoneriumConversionExecution.findAll;
+
+    const account = {
+      dormantSince: options.dormantSince ?? null,
+      forwarderAddress: FORWARDER,
+      id: "account-1",
+      status: options.status ?? MoneriumAccountStatus.Active
+    } as MoneriumAccount;
+    const updates: Record<string, unknown>[] = [];
+    const pending = {
+      accountId: account.id,
+      broadcastBlockNumber: 150,
+      createdAt: new Date(Date.now() - 60 * 60_000),
+      eureInRaw: (100n * EUR).toString(),
+      id: "execution-1",
+      kind: MoneriumConversionExecutionKind.Forward,
+      nonce: 7,
+      status: MoneriumConversionExecutionStatus.Pending,
+      txHash: options.txHash ?? null,
+      updatedAt: new Date(Date.now() - (options.reservedAgoMs ?? 6 * 60_000)),
+      usdcNetRaw: (108n * USDC).toString(),
+      ...options.row,
+      async update(values: Partial<MoneriumConversionExecution>) {
+        updates.push(values);
+        Object.assign(this, values);
+      }
+    } as unknown as MoneriumConversionExecution;
+    const sent: Array<Record<string, unknown>> = [];
+    const events: string[] = [];
+    const keeper = {
+      account: { address: KEEPER },
+      sendTransaction: async (request: Record<string, unknown>) => {
+        events.push("send");
+        sent.push(request);
+        if (options.sendError) throw options.sendError;
+        return RESENT;
+      }
+    };
+    spyOn(chain, "getKeeperWalletClient").mockReturnValue(keeper as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
+    // Every cycle that gets past the pending-row recovery stops here; the re-send is decided before.
+    const stop = new Error("stop after recovery");
+    spyOn(chain, "getForwarderImmutables").mockRejectedValue(stop);
+    let latestReads = 0;
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      estimateGas: options.estimateGas ?? (async () => 90_000n),
+      getBlockNumber: async () => 200n,
+      getLogs: async () => [],
+      getTransactionCount: async ({ blockTag }: { blockTag: string }) => {
+        events.push(`count:${blockTag}`);
+        if (blockTag === "pending") return options.pendingCount ?? options.latest ?? 7;
+        latestReads += 1;
+        return latestReads > 1 && options.latestInLock !== undefined ? options.latestInLock : (options.latest ?? 7);
+      },
+      getTransactionReceipt: async () => {
+        if (options.receipt) return options.receipt;
+        throw new TransactionReceiptNotFoundError({ hash: RESENT });
+      }
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+
+    try {
+      sequelize.transaction = (async (...args: unknown[]) => {
+        const callback = args.at(-1) as (transaction: Transaction) => Promise<unknown>;
+        return callback({} as Transaction);
+      }) as typeof sequelize.transaction;
+      sequelize.query = (async (_sql: string, queryOptions?: { replacements?: { key?: string } }) => {
+        if (queryOptions?.replacements?.key === "monerium-b2b:keeper-sends") events.push("keeper-lock");
+        return [[], 0];
+      }) as unknown as typeof sequelize.query;
+      MoneriumAccount.findByPk = (async () => account) as typeof MoneriumAccount.findByPk;
+      MoneriumConversionExecution.findOne = (async (queryOptions?: FindOptions) => {
+        const status = (queryOptions?.where as { status?: MoneriumConversionExecutionStatus } | undefined)?.status;
+        return status === MoneriumConversionExecutionStatus.Pending ? pending : null;
+      }) as typeof MoneriumConversionExecution.findOne;
+      MoneriumConversionExecution.findAll = (async (queryOptions?: FindOptions) => {
+        const status = (queryOptions?.where as { status?: MoneriumConversionExecutionStatus } | undefined)?.status;
+        return status === MoneriumConversionExecutionStatus.Pending ? [pending] : [];
+      }) as typeof MoneriumConversionExecution.findAll;
+
+      await runConversionExecutor(account.id).catch(error => {
+        if (error !== stop) throw error;
+      });
+    } finally {
+      sequelize.transaction = originalTransaction;
+      sequelize.query = originalQuery;
+      MoneriumAccount.findByPk = originalFindAccount;
+      MoneriumConversionExecution.findOne = originalFindExecution;
+      MoneriumConversionExecution.findAll = originalFindExecutions;
+    }
+    return { events, pending, sent, updates };
+  }
+
+  it("re-sends the identical call at the reserved nonce under the keeper lock and persists the hash", async () => {
+    const warn = spyOn(logger, "warn");
+    const { events, pending, sent, updates } = await cycle();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ data: FORWARD_DATA, gas: 90_000n, nonce: 7, to: FORWARDER });
+    expect(updates).toEqual([{ txHash: RESENT }]);
+    expect(pending.status).toBe(MoneriumConversionExecutionStatus.Pending);
+    // The lock is taken before the counts are re-read and before the send.
+    const lock = events.indexOf("keeper-lock");
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(events.indexOf("send")).toBeGreaterThan(events.lastIndexOf("count:pending"));
+    expect(events.indexOf("count:pending")).toBeGreaterThan(lock);
+    expect(warn.mock.calls.some(([message]) => String(message).includes("execution-1") && String(message).includes("nonce 7"))).toBe(true);
+  });
+
+  it("re-sends a swap with the calldata the exact-match recovery compares", async () => {
+    const row = { kind: MoneriumConversionExecutionKind.Swap, maxSubsidyRaw: "5", referenceRateRaw: "1100000", routeIndex: 1 };
+    const { sent } = await cycle({ row });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].data).toBe(
+      encodeFunctionData({
+        abi: chain.forwarderAbi,
+        args: [1_100_000n, 1n, 100n * EUR, 5n],
+        functionName: "swap"
+      })
+    );
+  });
+
+  it("sends nothing before the grace period has passed, and never takes the keeper lock", async () => {
+    const { events, sent, updates } = await cycle({ reservedAgoMs: 60_000 });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([]);
+    expect(events).not.toContain("keeper-lock");
+  });
+
+  it("sends nothing while another transaction is queued at the nonce", async () => {
+    const { sent, updates } = await cycle({ pendingCount: 8 });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([]);
+  });
+
+  it("leaves the existing consumed-nonce classification alone", async () => {
+    const { pending, sent, updates } = await cycle({ latest: 8 });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([
+      { error: "nonce consumed without the expected transaction", status: MoneriumConversionExecutionStatus.Failed }
+    ]);
+    expect(pending.status).toBe(MoneriumConversionExecutionStatus.Failed);
+  });
+
+  it("re-sends a hashed row whose transaction was never mined once it has been idle past the grace", async () => {
+    const { sent, updates } = await cycle({ txHash: `0x${"ab".repeat(32)}` });
+    expect(sent).toHaveLength(1);
+    expect(updates).toEqual([{ txHash: RESENT }]);
+  });
+
+  it("does not re-send a hashed row before the grace period has passed", async () => {
+    const { sent } = await cycle({ reservedAgoMs: 60_000, txHash: `0x${"ab".repeat(32)}` });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("keeps the row pending, with no other state change, when the re-send throws", async () => {
+    const { pending, sent, updates } = await cycle({ sendError: new Error("nonce too low") });
+    expect(sent).toHaveLength(1);
+    expect(updates).toEqual([]);
+    expect(pending.status).toBe(MoneriumConversionExecutionStatus.Pending);
+    expect(pending.txHash).toBeNull();
+  });
+
+  it("consumes the nonce with a zero-value no-op when the call no longer executes, then fails the row", async () => {
+    const first = await cycle({ estimateGas: revertingEstimate });
+    expect(first.sent).toEqual([NOOP]);
+    expect(first.updates).toEqual([]);
+    expect(first.pending.status).toBe(MoneriumConversionExecutionStatus.Pending);
+
+    // Once the no-op is mined the nonce is consumed without the expected call: the row fails.
+    const second = await cycle({ latest: 8 });
+    expect(second.sent).toHaveLength(0);
+    expect(second.pending.status).toBe(MoneriumConversionExecutionStatus.Failed);
+    expect(second.pending.error).toBe("nonce consumed without the expected transaction");
+  });
+
+  it("leaves the row pending without a no-op when gas estimation fails for a reason other than a revert", async () => {
+    for (const error of [new Error("429 Too Many Requests"), new EstimateGasExecutionError(new BaseError("timeout"), {})]) {
+      const { pending, sent, updates } = await cycle({
+        estimateGas: async () => {
+          throw error;
+        }
+      });
+      expect(sent).toHaveLength(0);
+      expect(updates).toEqual([]);
+      expect(pending.status).toBe(MoneriumConversionExecutionStatus.Pending);
+    }
+  });
+
+  it("never swaps or forwards for a suspended, dormant or closed account: it frees the nonce with a no-op", async () => {
+    const swap = { kind: MoneriumConversionExecutionKind.Swap, maxSubsidyRaw: "5", referenceRateRaw: "1100000", routeIndex: 1 };
+    for (const row of [undefined, swap]) {
+      for (const options of [
+        { status: MoneriumAccountStatus.Suspended },
+        { status: MoneriumAccountStatus.Closed },
+        { dormantSince: new Date() }
+      ]) {
+        const { sent, updates } = await cycle({ ...options, row });
+        expect(sent).toEqual([NOOP]);
+        expect(updates).toEqual([]);
+      }
+    }
+  });
+
+  it("sends nothing for a swap row whose persisted reference fields are missing", async () => {
+    const { sent, updates } = await cycle({ row: { kind: MoneriumConversionExecutionKind.Swap, referenceRateRaw: null } });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([]);
+  });
+
+  it("frees the nonce of a recover whose own estimate reverts", async () => {
+    const { sent } = await cycle({
+      estimateGas: revertingEstimate,
+      row: { kind: MoneriumConversionExecutionKind.Recover, usdcNetRaw: (8n * USDC).toString() }
+    });
+    expect(sent).toEqual([NOOP]);
+  });
+
+  it("does not read an underfunded keeper as a revert: the estimate carries no fee cap", async () => {
+    // A node that caps gas at balance/feeCap answers a fee-capped estimate with this error,
+    // which viem maps to ExecutionRevertedError.
+    const allowance = async (request: { prepare?: boolean }) => {
+      if (request.prepare !== false) {
+        throw new EstimateGasExecutionError(new ExecutionRevertedError({ message: "gas required exceeds allowance (0)" }), {});
+      }
+      return 90_000n;
+    };
+    const { sent, updates } = await cycle({ estimateGas: allowance as () => Promise<bigint> });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ data: FORWARD_DATA, gas: 90_000n, nonce: 7 });
+    expect(updates).toEqual([{ txHash: RESENT }]);
+  });
+
+  it("still re-sends a recover for a suspended account: it is the refund path", async () => {
+    const recover = encodeFunctionData({ abi: chain.forwarderAbi, args: [100n * EUR, 8n * USDC], functionName: "recover" });
+    const { sent, updates } = await cycle({
+      row: { kind: MoneriumConversionExecutionKind.Recover, usdcNetRaw: (8n * USDC).toString() },
+      status: MoneriumAccountStatus.Suspended
+    });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ data: recover, nonce: 7, to: FORWARDER });
+    expect(updates).toEqual([{ txHash: RESENT }]);
+  });
+
+  it("fills the gap a dropped poke leaves with no-ops, then re-sends the row's call at its nonce", async () => {
+    const { sent, updates } = await cycle({ latest: 6 });
+    expect(sent).toHaveLength(2);
+    expect(sent[0]).toEqual({ ...NOOP, nonce: 6 });
+    expect(sent[1]).toMatchObject({ data: FORWARD_DATA, nonce: 7, to: FORWARDER });
+    expect(updates).toEqual([{ txHash: RESENT }]);
+  });
+
+  it("sends nothing while an earlier nonce is still queued in the pool", async () => {
+    const { sent, updates } = await cycle({ latest: 6, pendingCount: 7 });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([]);
+  });
+
+  it("sends nothing when the nonce gets mined between the pre-check and the keeper lock", async () => {
+    const { sent, updates } = await cycle({ latest: 7, latestInLock: 8 });
+    expect(sent).toHaveLength(0);
+    expect(updates).toEqual([]);
   });
 });

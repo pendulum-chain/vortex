@@ -1,6 +1,15 @@
 import type { DepositRefundReason, DepositWaitingReason } from "@vortexfi/shared";
 import { Op, Transaction } from "sequelize";
-import { Address, encodeFunctionData, Hex, parseEventLogs, TransactionReceipt, TransactionReceiptNotFoundError } from "viem";
+import {
+  Address,
+  BaseError,
+  ExecutionRevertedError,
+  encodeFunctionData,
+  Hex,
+  parseEventLogs,
+  TransactionReceipt,
+  TransactionReceiptNotFoundError
+} from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
@@ -50,7 +59,9 @@ import { fetchCoinbaseReference, isWithinReferenceBand, ReferenceQuote } from ".
  * crash-safety requires the pending execution row to be durably COMMITTED before the
  * transaction is broadcast (a row inside an open transaction would roll back on crash).
  * Double-send is instead prevented by the "any pending execution -> skip" check, which
- * runs under the lock.
+ * runs under the lock. The one exception is resendReservedExecution: a send-only (no
+ * wait) re-send of a reserved nonce that was never mined, made under the forwarder lock
+ * and only after the idle deadline; a lost hash write is recovered by the exact scan.
  */
 
 /** Retry backoff for failed executions: base * 2^attempts, capped. Kept deliberately minimal. */
@@ -531,8 +542,9 @@ export function isExpectedTransaction(
 /**
  * Decides what happened to a pending execution whose tx hash was never persisted (a
  * crash or DB error between broadcast and the hash update). Inputs are pure chain
- * observations. A nonce that has not been consumed remains uncertain indefinitely;
- * once consumed, only one exact sender+nonce+target+calldata match may be adopted.
+ * observations. A nonce that has not been consumed stays in flight here (an idle,
+ * unmined reservation is re-sent by resendReservedExecution first); once consumed, only one
+ * exact sender+nonce+target+calldata match may be adopted.
  */
 export function classifyHashlessPending(input: {
   nonce: number | null;
@@ -558,6 +570,86 @@ export function classifyHashlessPending(input: {
     return { kind: "in-flight", reason: "multiple exact recovery candidates were found" };
   }
   return { kind: "fail", reason: "nonce consumed without the expected transaction" };
+}
+
+function isReplayable(pending: MoneriumConversionExecution, account: MoneriumAccount): boolean {
+  return pending.kind === MoneriumConversionExecutionKind.Recover || canConvert(account);
+}
+
+/**
+ * Frees a reserved nonce that was never mined (the process died between `reserve` and
+ * `send`, the send threw, or a private relay dropped the transaction). Only one
+ * transaction per nonce can be mined and the re-send carries the row's own calldata, so
+ * whichever copy lands is the expected call and the exact-match recovery adopts it. If the
+ * call no longer executes (gas estimation reverts: a stale reference), a revert-protecting
+ * private relay would never mine it, so a zero-value self-transfer consumes the nonce
+ * instead and the next cycle fails the row for a fresh plan. Only a genuine revert counts as
+ * stale: a transport error, rate limit or underfunded keeper is rethrown so the row simply
+ * stays pending (the estimate carries no fee cap, so a low balance is not read as a revert).
+ * A swap or forward of an account that cannot convert (`canConvert`: not activated, suspended,
+ * closed or dormant) is treated the same way (its call must not run), while a recover is
+ * exempt from that gate: it is the refund path. When
+ * the mined nonce is below the row's (a swap or forward reserves nonce+1 behind a poke that
+ * was dropped), the gap is first filled with no-ops so the row's nonce can be mined. The keeper lock covers the
+ * re-check and the send, so a live owner still about to send is waited for. Lock order is
+ * forwarder, then keeper; the send path never takes the forwarder lock. This is the one
+ * send made while the forwarder lock is held; the caller checks the grace first so a live
+ * reservation never waits here. A failure leaves the row pending for the next cycle.
+ */
+async function resendReservedExecution(
+  pending: MoneriumConversionExecution,
+  account: MoneriumAccount,
+  transaction: Transaction
+) {
+  const data = expectedCalldata(pending);
+  const nonce = pending.nonce;
+  if (data === null || nonce === null) return;
+  try {
+    const hash = await withKeeperSendLock(async () => {
+      const client = getPublicClient();
+      const keeper = getKeeperWalletClient();
+      const [latestNonceCount, pendingNonceCount] = await Promise.all([
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "latest" }),
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" })
+      ]);
+      // Nothing queued (pending == latest) and the reservation not yet consumed. latest < nonce
+      // is the gap a dropped poke leaves: the swap reserved nonce+1 behind it.
+      if (latestNonceCount > nonce || pendingNonceCount !== latestNonceCount) return null;
+      const request = { account: keeper.account, data, to: account.forwarderAddress as Address };
+      // prepare:false sends no fee cap, so an underfunded keeper cannot be misread as a revert
+      // ("gas required exceeds allowance" maps to ExecutionRevertedError in viem).
+      const gas = isReplayable(pending, account)
+        ? await client.estimateGas({ ...request, prepare: false }).catch((error: unknown) => {
+            if (error instanceof BaseError && error.walk(cause => cause instanceof ExecutionRevertedError)) return null;
+            throw error;
+          })
+        : null;
+      const noop = (at: number) =>
+        keeper.sendTransaction({
+          account: keeper.account,
+          chain: null,
+          gas: 21_000n,
+          nonce: at,
+          to: keeper.account.address,
+          value: 0n
+        });
+      for (let gap = latestNonceCount; gap < nonce; gap++) await noop(gap);
+      if (gas === null) {
+        const filler = await noop(nonce);
+        logger.warn(
+          `monerium-b2b: execution ${pending.id} no longer executes (reverts or its account is not convertible); consumed its reserved nonce ${nonce} with a no-op (${filler})`
+        );
+        return null;
+      }
+      return keeper.sendTransaction({ ...request, chain: null, gas, nonce });
+    });
+    if (hash) {
+      logger.warn(`monerium-b2b: re-sent never-mined execution ${pending.id} at reserved nonce ${nonce} (${hash})`);
+      await pending.update({ txHash: hash }, { transaction });
+    }
+  } catch (error) {
+    logger.warn(`monerium-b2b: re-send of execution ${pending.id} at nonce ${nonce} failed: ${errorText(error)}`);
+  }
 }
 
 /** Inclusive, non-overlapping block ranges for a complete bounded recovery scan. */
@@ -669,6 +761,11 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     try {
       const keeperAddress = getKeeperWalletClient().account.address;
       const latestNonceCount = await client.getTransactionCount({ address: keeperAddress, blockTag: "latest" });
+      // `updatedAt` is the row's last write (the reservation, or the hash write), so this
+      // is "idle for the pre-send deadline" without a new column.
+      if (latestNonceCount <= pending.nonce && Date.now() - pending.updatedAt.getTime() >= PRE_SEND_RESERVATION_MS) {
+        await resendReservedExecution(pending, account, transaction);
+      }
       const recovery =
         latestNonceCount > pending.nonce
           ? await findMatchingTxHashes(pending, account, transaction)
@@ -888,15 +985,15 @@ export interface ActionPlanningInput {
   nowMs: number;
   perSwapCap: bigint;
   recoveryDelaySeconds: number;
-  /** A recovered payment is still on the recovery wallet: no second `recover` may land there. */
+  /** A recovered payment is still on this account's refund wallet: no second `recover` may land there. */
   recoveryInFlight: boolean;
 }
 
 /**
  * What the keeper should do next for an account, given its settling deposits (oldest
  * mint first) and their confirmed chunks. A deposit marked `recovering` goes first, once
- * the clone's batch has been open for RECOVERY_DELAY and no other refund is in flight
- * (the recovery wallet takes one payment at a time); else it waits without blocking
+ * the clone's batch has been open for RECOVERY_DELAY and no other refund of this account is
+ * in flight (a refund wallet takes one payment at a time); else it waits without blocking
  * younger deposits. Then the oldest convertible deposit is forwarded when all of its
  * EURe is converted, or swapped in its next chunk.
  */
@@ -1004,7 +1101,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // is currently possible.
   const pokeNeeded = batchOpenedAt === 0n && (eureBalance >= minSwapFloor || usdcBalance > 0n);
 
-  const recoveryInFlight = await activeRecoveryExists();
+  const recoveryInFlight = await activeRecoveryExists(account.id);
   const planned = await withForwarderLock(account.forwarderAddress, async transaction => {
     const deposits = await settlingDeposits(account.id, transaction);
     const withState = [];

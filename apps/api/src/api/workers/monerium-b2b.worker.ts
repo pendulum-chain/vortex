@@ -70,7 +70,7 @@ class MoneriumB2bWorker {
         await runDormancyGate();
 
         // The refund path: deposits past the promised window are marked (or reported),
-        // and the one active refund advances by a step; both need the keeper's chain
+        // and each client's open refund advances by a step; both need the keeper's chain
         // config, the orchestrator also the recovery and float keys (fail-fast config).
         if (config.moneriumB2b.autoRecovery !== "off") {
           await runRecoveryDeadlines();
