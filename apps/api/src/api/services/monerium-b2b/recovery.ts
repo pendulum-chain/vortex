@@ -672,10 +672,11 @@ async function stepRecovery(
  * is confirmed and that has no recovery row yet. A recovery whose deposit is
  * `recovery_failed` waits for the operator and blocks only its own client's queue.
  *
- * Each client's refund wallet is its own, so clients progress independently; the one
+ * Each client's refund wallet is its own, so clients advance one step per cycle each; the one
  * shared resource is the EURe float wallet, which sends with implicit nonces and no
  * coherent pending pool. So per cycle: steps that cannot touch the float run concurrently
- * (a client's slow receipt wait starves nobody); alongside them at most one step that sends
+ * (a client's slow receipt wait does not hold the others' steps, though the cycle lasts
+ * until the slowest wait ends, up to a receipt timeout); alongside them at most one step that sends
  * from the float runs, and none while an earlier float transfer is still unconfirmed (a
  * `topping_up` recovery waiting on its receipt, unless parked). Float steps are taken oldest
  * first; one that sends nothing (float underfunded, nothing to swap) does not use the slot.
