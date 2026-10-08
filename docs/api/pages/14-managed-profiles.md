@@ -141,7 +141,7 @@ The business EUR onramp is open for testing in sandbox as a preliminary release;
 
 1. Sign up at <https://dashboard-sandbox.vortexfinance.co> with your email, open **API keys**, and create a credential. Keep the secret key (`sk_test_...`) on your backend.
 2. Email <support@vortexfinance.co> the address you signed up with. The dashboard does not show your profile ID; Vortex looks it up from the email.
-3. Vortex enables your profile as a manager for the `EU` corridor and business customers, and sends you the EUR provider's sandbox profile IDs of the test companies you can register. During this pilot those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
+3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. During this pilot those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
 
 **Integrate**
 
@@ -181,7 +181,7 @@ X-API-Key: sk_test_...
 ```
 
 4. Wait for an `ACCOUNT_UPDATED` event with `status: "active"` and an `iban`. In sandbox, an account activates on its own once its IBAN is issued. The event's `profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
-5. Pay at least EUR 1 to the client's IBAN from a sandbox account at the EUR provider. `DEPOSIT_UPDATED` events follow the payment until the deposit is `forwarded` to the destination.
+5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. During this pilot, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination.
 6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. Before the account exists, both return `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`.
 
 ```http
@@ -199,8 +199,8 @@ X-Managed-Profile-Id: <profileId from ACCOUNT_UPDATED>
 **Sandbox specifics**
 
 - **Network.** Sandbox converts and delivers on Ethereum Sepolia; production uses Ethereum mainnet. The destination must be an Ethereum address the client controls, and it is fixed for the life of the account.
-- **Minimum.** Payments from EUR 1 are converted.
-- **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from. The EUR provider pays refunds out only for profiles it has approved.
+- **Minimum.** Payments from EUR 1 are converted; a smaller payment is refunded after the refund window.
+- **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from (operations process the refund by hand where automatic refunds are off). The EUR provider pays refunds out only for profiles it has approved.
 - **Webhook signatures.** Sandbox signs deliveries with its own key: verify them against `https://api-sandbox.vortexfinance.co/v1/public-key`, not the production key. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 
 ## Register A Business EUR Client
