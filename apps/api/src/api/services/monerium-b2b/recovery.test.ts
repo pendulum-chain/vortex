@@ -1161,6 +1161,79 @@ describe("refund deadlines and orchestration", () => {
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
   });
 
+  /** Runs a cycle in which client A's receipt wait hangs; `check` runs while it is unresolved, then A is released. */
+  async function cycleWithHungReceiptOfA(depsFor: ReturnType<typeof clientsFixture>["depsFor"], check: () => Promise<void>) {
+    let release: () => void = () => {};
+    const hung = new Promise<void>(resolve => (release = resolve));
+    const cycle = runRecoveryOrchestrator(async account => {
+      const deps = await depsFor(account);
+      return account.forwarderAddress.toLowerCase() === FORWARDER
+        ? { ...deps, waitReceipt: async () => (await hung, Promise.reject(new Error("timed out waiting for the receipt"))) }
+        : deps;
+    });
+    try {
+      await check();
+    } finally {
+      release();
+      await cycle;
+    }
+  }
+
+  async function waitForCall(calls: string[], prefix: string) {
+    for (let i = 0; i < 100 && !calls.some(call => call.startsWith(prefix)); i++) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  }
+
+  it("lets a younger client's float top-up go while another client's non-gating receipt wait hangs", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.Swapping, 60_000).then(row => row.update({ reverseSwapTxHash: "0xstuck" }));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
+    const { calls, depsFor } = clientsFixture(ledger);
+
+    await cycleWithHungReceiptOfA(depsFor, async () => {
+      await waitForCall(calls, "eure:float");
+      expect(calls).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]); // sent while A's wait is unresolved
+    });
+  });
+
+  it("does not let a surplus sweep's unconfirmed receipt hold the float for another client", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
+    // A swept a surplus (no float top-up hash): the float took that transfer in, so it is no float send in flight.
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000).then(row => row.update({ surplusTxHash: "0xsweep" }));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
+    const { calls, depsFor } = clientsFixture(ledger);
+
+    await cycleWithHungReceiptOfA(depsFor, async () => {
+      await waitForCall(calls, "eure:float");
+      expect(calls).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
+    });
+  });
+
+  it("steps only a client's oldest open recovery per cycle", async () => {
+    const { accountId } = await mappedAccount();
+    const older = await confirmedRecover(accountId, "older", new Date(Date.now() - 90_000));
+    const newer = await confirmedRecover(accountId, SECOND, new Date(Date.now() - 80_000));
+    // Seeded directly: the opening query never produces two open recoveries for one client.
+    await openRecovery(older.id, MoneriumRecoveryPhase.ToppedUp, 60_000, { eure: 100n * EUR, usdc: 0n });
+    await openRecovery(newer.id, MoneriumRecoveryPhase.ToppedUp, 30_000, { eure: 100n * EUR, usdc: 0n });
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() };
+    const { calls, depsFor } = clientsFixture(ledger);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(calls.filter(call => call.startsWith("redeem:"))).toEqual(["redeem:0"]);
+    expect((await MoneriumRecovery.findOne({ where: { depositId: older.id } }))?.phase).toBe(MoneriumRecoveryPhase.Redeeming);
+    expect((await MoneriumRecovery.findOne({ where: { depositId: newer.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppedUp);
+  });
+
   describe("refund monitor", () => {
     afterEach(() => {
       (logger.error as unknown as { mockRestore?: () => void }).mockRestore?.();
@@ -1209,6 +1282,24 @@ describe("refund deadlines and orchestration", () => {
       expect(text).toContain(parkedA.id);
       expect(text).toContain(parkedC.id);
       expect(text).not.toContain(healthyB.id);
+    });
+
+    it("classifies each open refund by its own age: only the lingering one warns", async () => {
+      const a = await mappedAccount(0);
+      const b = await mappedAccount(1);
+      const now = Date.now();
+      const lingering = await confirmedRecover(a.accountId, "a1", new Date(now - 3 * 3_600_000));
+      const fresh = await confirmedRecover(b.accountId, "b1", new Date(now));
+      await openRecovery(lingering.id, MoneriumRecoveryPhase.Redeeming, 2 * 3_600_000);
+      await openRecovery(fresh.id, MoneriumRecoveryPhase.Moved, 60_000);
+      const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
+      const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+
+      await runRefundMonitor(now);
+      const text = warns.mock.calls.map(call => String(call[0])).join("\n");
+      expect(text).toContain(lingering.id);
+      expect(text).not.toContain(fresh.id);
+      expect(errors).not.toHaveBeenCalled();
     });
   });
 });
