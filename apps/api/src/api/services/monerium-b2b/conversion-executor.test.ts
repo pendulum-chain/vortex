@@ -982,7 +982,9 @@ describe("runConversionExecutor activation gate", () => {
     await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
     await runConversionExecutor(accountId);
     const [next, queued] = deposits;
-    expect((await next.reload()).waitingReason).toBe("oracle_unavailable");
+    await next.reload();
+    expect(next.waitingReason).toBe("oracle_unavailable");
+    expect(next.waitingSince).toBeInstanceOf(Date); // a fresh wait, not the cleared activation wait
     expect((await queued.reload()).waitingReason).toBeNull();
   });
 

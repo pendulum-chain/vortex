@@ -1101,6 +1101,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // is currently possible.
   const pokeNeeded = batchOpenedAt === 0n && (eureBalance >= minSwapFloor || usdcBalance > 0n);
 
+  // Before planning, so the deposits it loads (and any wait it records) start from the synced reason.
+  await syncNotActiveReason(account.id, convertible);
   const recoveryInFlight = await activeRecoveryExists(account.id);
   const planned = await withForwarderLock(account.forwarderAddress, async transaction => {
     const deposits = await settlingDeposits(account.id, transaction);
@@ -1130,7 +1132,6 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       recoveryInFlight
     });
   });
-  await syncNotActiveReason(account.id, convertible);
   if (planned.kind === "none") {
     if (pokeNeeded) {
       await sendPoke(forwarder);
