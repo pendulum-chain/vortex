@@ -54,9 +54,6 @@ import { refundAccountFor } from "./refund-wallet";
  * `recovery_failed` blocks only its own client's later refunds. A step that fails beyond
  * its retries parks the deposit in `recovery_failed` with the phase preserved; an operator
  * retry (deposit back to `recovering`) resumes there.
- *
- * The EURe float wallet is shared and sends with implicit nonces, so across clients its
- * sends are serialized: see `runRecoveryOrchestrator`.
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
@@ -711,8 +708,7 @@ export async function runRecoveryOrchestrator(
     stepRecovery(recovery, deposit, depsFor, onFloatSend).catch(error =>
       logger.error(`monerium-b2b: refund step for deposit ${deposit.id} failed:`, error)
     );
-  // Steps that cannot touch the float use only their own client's wallet, so they run
-  // concurrently: one client's slow receipt wait (up to RECEIPT_TIMEOUT_MS) must not starve the others.
+  // Float-free steps use only their own client's wallet, so a slow receipt wait (up to RECEIPT_TIMEOUT_MS) starves nobody.
   const gating = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase) && holdsFloatTransfer(head));
   // Partitioned before any step starts: the running steps mutate their recoveries, and a client stepped once must not be stepped again this cycle.
   const floatHeads = queue.filter(head => FLOAT_PHASES.has(head.recovery.phase));
