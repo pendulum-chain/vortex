@@ -600,7 +600,7 @@ DepositSnapshot: {
   txHash: null | string;
   usdcNetRaw: string;
   waiting: null | {
-    reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+    reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
     since: string;
   };
 }
@@ -652,14 +652,14 @@ DepositUpdatedWebhookPayload: {
     txHash: null | string;
     usdcNetRaw: string;
     waiting: null | {
-      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
       since: string;
     };
   };
   timestamp: string;
 }
 
-DepositWaitingReason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable"
+DepositWaitingReason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable"
 
 DepositWebhookPayloadBase: {
   accountId: string;
@@ -2684,7 +2684,7 @@ WebhookDeliveryAttempt: {
       txHash: null | string;
       usdcNetRaw: string;
       waiting: null | {
-        reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+        reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
         since: string;
       };
     };
@@ -2841,7 +2841,7 @@ WebhookPayload: {
     txHash: null | string;
     usdcNetRaw: string;
     waiting: null | {
-      reason: "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
+      reason: "account_not_active" | "below_floor" | "monerium_pending" | "no_route" | "oracle_unavailable" | "reference_out_of_band" | "reference_unavailable";
       since: string;
     };
   };
@@ -9016,11 +9016,14 @@ GET /v1/admin/managed-profile-managers/:profileId
 PUT /v1/admin/managed-profile-managers/:profileId
 POST /v1/admin/managed-profile-managers/:profileId/managed-profiles
 POST /v1/admin/managed-profiles
+GET /v1/admin/monerium-b2b/accounts
 POST /v1/admin/monerium-b2b/accounts
 PATCH /v1/admin/monerium-b2b/accounts/:accountId/status
 POST /v1/admin/monerium-b2b/deposits/:depositId/recover
 PATCH /v1/admin/monerium-b2b/deposits/:depositId/status
 GET /v1/admin/monerium-b2b/refund-address
+GET /v1/admin/monerium-b2b/registrations
+POST /v1/admin/monerium-b2b/registrations/:registrationId/withdraw
 POST /v1/admin/partner-pricing-configs
 DELETE /v1/admin/partner-pricing-configs/:configId
 GET /v1/admin/partners/:partnerName/api-credentials
@@ -9168,7 +9171,9 @@ DELETE /v1/managed-profiles/:profileId/api-credentials/:credentialId
 GET /v1/metrics/volumes
 GET /v1/monerium-b2b/account
 GET /v1/monerium-b2b/accounts
+POST /v1/monerium-b2b/accounts
 GET /v1/monerium-b2b/deposits
+GET /v1/monerium-b2b/registrations
 POST /v1/monerium-b2b/webhook
 POST /v1/monerium/iban/move
 POST /v1/monerium/oauth/complete

@@ -106,6 +106,7 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
   const issued = await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId);
   if (issued) {
     await account.update({ iban: issued.iban });
+    logger.info(`monerium-b2b: account ${account.id} has its IBAN and awaits activation`);
     return;
   }
   await runFinancialOperation({
@@ -157,7 +158,8 @@ export async function advanceOnboardingAccounts(deps: OnboardingDeps = defaultDe
 
   const accounts = await MoneriumAccount.findAll({
     order: [["created_at", "ASC"]],
-    where: { status: MoneriumAccountStatus.Onboarding, vortexProfileId: { [Op.ne]: null } }
+    // An account with its IBAN is fully linked (the IBAN request comes last) and only awaits activation.
+    where: { iban: null, status: MoneriumAccountStatus.Onboarding, vortexProfileId: { [Op.ne]: null } }
   });
   if (accounts.length === 0) return 0;
 

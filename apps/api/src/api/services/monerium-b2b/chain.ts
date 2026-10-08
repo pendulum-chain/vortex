@@ -295,6 +295,12 @@ export function getRefundWalletClient(account: Account): KeeperWalletClient {
   return createWalletClient({ account, transport: http(submissionRpcUrl()) });
 }
 
+/** Factory deployer client (MONERIUM_B2B_DEPLOYER_PRIVATE_KEY): deploys the clones of partner registrations. */
+export function getDeployerWalletClient(): KeeperWalletClient | null {
+  const key = config.moneriumB2b.deployerPrivateKey;
+  return key ? createWalletClient({ account: privateKeyToAccount(key as Hex), transport: http(submissionRpcUrl()) }) : null;
+}
+
 /** Float-wallet client (MONERIUM_B2B_FLOAT_PRIVATE_KEY): the EURe float that tops a refund up to the exact amount. */
 export function getFloatWalletClient(): KeeperWalletClient | null {
   const key = config.moneriumB2b.floatPrivateKey;

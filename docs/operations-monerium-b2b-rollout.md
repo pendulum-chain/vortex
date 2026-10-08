@@ -27,7 +27,7 @@ verbal/Telegram statements; consolidate into the MSA or a side letter:
 6. SEPA recall / fraud loss allocation after conversion+forwarding.
 7. Per-IBAN suspension capability for incident response.
 8. Corporate KYB mechanism for direct (non-reliance) clients — not needed for the
-   SulPayments pilot, still an MSA item.
+   partner pilot, still an MSA item.
 9. Advance notice of any change to the EIP-1271 ownership/link message (and the
    recovery message): the forwarder whitelists their exact hashes, so an unannounced
    change fail-closes new onboarding.
@@ -41,7 +41,7 @@ the subsidy vault (P13).
 **G3 — external contract audit.** Parameters are final (ADR); the internal reviews and
 the invariant suite are done, but this moves client funds.
 
-**G4 — pilot.** SulPayments agreement signed (terms inputs below), reliance
+**G4 — pilot.** Partner agreement signed (terms inputs below), reliance
 attestations per customer, 3–5 clients at **€50k/client/day** (paper control), launch
 fee policy 12.5 bps target / 15 bps floor (B1).
 
@@ -70,15 +70,17 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    age, 60 bps floor on the net, 1% fee cap, 100 bps reference band, 2 h recovery / 24 h
    trigger delays, €1 floor/€50k ceiling, initial 5 bps/5 bps route; the recovery address
    is per client, passed at each clone's deployment); set operational `minSwapAmount`
-   €1 and `perSwapCap` €10k; register the keeper key.
+   €1 and `perSwapCap` €10k; register the keeper key and grant the deployer key its role
+   (`setDeployer`).
 4a. Deploy `VortexSubsidyVault` (USDC, the fee Safe as treasury, the factory, 50 bps per
    swap, 200 USDC per day — P13), point the factory at it (`setSubsidyVault`), and fund
    it from the treasury with the first days of budget. Runbook §2.6 has the commands.
 5. Verify factory + implementation source on the block explorer; generate, verify, and
    publish the manifest.
 6. Production whitelabel credentials from Monerium; configure the keeper backend (the
-   mykobo flow variant only): credentials, attestor/keeper/guardian keys (three distinct;
-   keeper funded), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
+   mykobo flow variant only): credentials, attestor/keeper/guardian/deployer keys (four
+   distinct; keeper and deployer funded), `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` (the
+   partner manager allowed to register destinations), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
    read RPC + private orderflow RPC, webhook secret, and
    `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`; the backend needs outbound HTTPS to
    `api.exchange.coinbase.com` for the reference rate (P12) — without it every swap
@@ -89,7 +91,7 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    Receive → "Simulate bank transfer") and re-verify the signed `webhook-id`,
    `webhook-timestamp`, and `webhook-signature: v1,<base64>` fixture against a real
    production delivery.
-9. SulPayments side: manager profile configured (EU corridor, business type), secret
+9. Partner side: manager profile configured (EU corridor, business type), secret
    credential issued, deposit-event webhook registered and verifying signatures against
    `GET /v1/public-key`.
 10. Confirm every mapped forwarder has a zero EURe balance before the first enablement.
@@ -98,8 +100,10 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
 11. Set `MONERIUM_B2B_ENABLED=true` on only the designated `mykobo` keeper backend and
    restart. Startup must fail if any required B2B setting is absent. Confirm the routes,
    raw webhook parser, and keeper are active before accepting a deposit.
-12. Per client: runbook §1 (deploy clone → map → automated link/IBAN → optional penny
-   test → activate).
+12. Per client: runbook §1 (partner registration, or deploy clone → map; automated
+   link/IBAN → activate → optional penny test). Before the first enablement on a backend
+   that already holds accounts, run the runbook §1.7 check for `onboarding` accounts that
+   already have an IBAN: they stop converting until activated.
 
 ## Terms & disclosure inputs (engineering-accurate; G2/partner own final wording)
 
@@ -117,8 +121,9 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    warrants the destination is valid and under the client's control and notifies Vortex
    of changes before further deposits; client/partner bears rotation/closure/
    mis-crediting losses; CEX destinations carry an explicit rotation/minimum-deposit
-   attestation. Vortex's diligence consideration: an optional 5 USDC penny test before
-   activation, recommended for exchange destinations, the 60-day dormancy gate, and never sending unconverted EURe to the destination.
+   attestation. Vortex's diligence consideration: an operator check of the destination
+   before activation, an optional 5 USDC penny test right after it (recommended for
+   exchange destinations), the 60-day dormancy gate, and never sending unconverted EURe to the destination.
    Vortex enforces no practical minimum (€1, ADR amendment 2026-09-29), so keeping
    payments above an exchange destination's minimum deposit is the client's
    responsibility. The destination is
@@ -199,7 +204,7 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
 | G1 package (9 items) | Marcel ↔ Monerium | All verbal; consolidate in writing |
 | G2 legal scope | Counsel | Not started |
 | G3 audit | External | After PR merge; params final |
-| SulPayments agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
+| Partner agreement (terms above) | Marcel ↔ partner | Drafting inputs ready |
 | Sandbox SEPA simulation + 3 TODO(sandbox) pins | Engineering (needs Marcel's sandbox login) | Open — only remaining engineering unknown |
 | Fee Safe multisig creation | Ops | Before implementation deploy; also the subsidy vault's treasury |
 | Reference wording in the partner agreement | Marcel ↔ partner | Agreement says "Coinbase EURC oracle"; implementation uses the Coinbase Exchange EURC-USDC bid/ask midpoint (spot, since 2026-09-18) — confirm that is what was meant |

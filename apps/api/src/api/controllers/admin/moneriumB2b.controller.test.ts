@@ -5,6 +5,9 @@ import KycCase from "../../../models/kycCase.model";
 import ManagedProfile from "../../../models/managedProfile.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumAccountRegistration, {
+  MoneriumAccountRegistrationStatus
+} from "../../../models/moneriumAccountRegistration.model";
 import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
@@ -297,6 +300,8 @@ describe("monerium b2b account mapping admin route", () => {
     const activated = await patchStatus(account.accountId, "active");
     expect(activated.status).toBe(200);
     expect(await activated.json()).toMatchObject({ account: { accountStatus: "active" } });
+    const activatedAt = (await MoneriumAccount.findByPk(account.accountId))?.activatedAt;
+    expect(activatedAt).toBeInstanceOf(Date);
 
     const suspended = await patchStatus(account.accountId, "suspended");
     expect(suspended.status).toBe(200);
@@ -305,6 +310,10 @@ describe("monerium b2b account mapping admin route", () => {
     const reactivated = await patchStatus(account.accountId, "active");
     expect(reactivated.status).toBe(200);
     expect(await reactivated.json()).toMatchObject({ account: { accountStatus: "active" } });
+    // The dormancy window restarts at every activation.
+    expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt?.getTime()).toBeGreaterThanOrEqual(
+      (activatedAt as Date).getTime()
+    );
 
     const regressed = await patchStatus(account.accountId, "onboarding");
     expect(regressed.status).toBe(409);
@@ -322,6 +331,81 @@ describe("monerium b2b account mapping admin route", () => {
 
     expect((await patchStatus(account.accountId, "nonsense")).status).toBe(400);
     expect((await patchStatus(crypto.randomUUID(), "active")).status).toBe(404);
+  });
+
+  it("suspends an onboarding account whose destination check failed", async () => {
+    const managerProfileId = await createManager();
+    const { account } = await (await post(validBody(managerProfileId))).json();
+    const suspend = () =>
+      fetch(`${baseUrl}/accounts/${account.accountId}/status`, {
+        body: JSON.stringify({ status: "suspended" }),
+        headers: ADMIN_HEADERS,
+        method: "PATCH"
+      });
+
+    // Onboarding stops once suspended: without its IBAN the account could never be activated.
+    const premature = await suspend();
+    expect(premature.status).toBe(409);
+    expect(await premature.json()).toMatchObject({ error: { code: "MONERIUM_B2B_ACCOUNT_NOT_READY" } });
+
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516" }, { where: { id: account.accountId } });
+    const suspended = await suspend();
+    expect(suspended.status).toBe(200);
+    expect(await suspended.json()).toMatchObject({ account: { accountStatus: "suspended" } });
+    expect((await MoneriumAccount.findByPk(account.accountId))?.activatedAt).toBeNull();
+  });
+
+  it("lists partner registrations with the keeper's progress and withdraws one not yet mapped", async () => {
+    const managerProfileId = await createManager();
+    const registration = (fields: Partial<MoneriumAccountRegistration>) =>
+      MoneriumAccountRegistration.create({
+        contactEmail: `${crypto.randomUUID()}@client.example.com`,
+        destination: DESTINATION,
+        externalSubjectId: crypto.randomUUID(),
+        managerProfileId,
+        moneriumProfileId: crypto.randomUUID(),
+        ...fields
+      });
+    const waiting = await registration({ waitingReason: "monerium_profile_pending" });
+    const deploying = await registration({ deploySentAt: new Date(), deployTxHash: `0x${"ab".repeat(32)}` });
+    const rejected = await registration({ rejectedReason: "Monerium rejected the profile", status: MoneriumAccountRegistrationStatus.Rejected });
+    const list = async (query = "", headers: Record<string, string> = ADMIN_HEADERS) => {
+      const response = await fetch(`${baseUrl}/registrations${query}`, { headers });
+      return { body: (await response.json()) as Record<string, any>, status: response.status };
+    };
+    const withdraw = (id: string) => fetch(`${baseUrl}/registrations/${id}/withdraw`, { headers: ADMIN_HEADERS, method: "POST" });
+
+    const all = await list();
+    expect(all.status).toBe(200);
+    expect(all.body.pagination).toEqual({ limit: 20, offset: 0, total: 3 });
+    const requested = await list("?status=requested");
+    expect(requested.body.registrations).toHaveLength(2);
+    expect(requested.body.registrations).toContainEqual(
+      expect.objectContaining({
+        deployTxHash: deploying.deployTxHash,
+        id: deploying.id,
+        managerProfileId,
+        status: "requested"
+      })
+    );
+    expect((await list("?status=nonsense")).status).toBe(400);
+    expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
+
+    for (const id of [waiting.id, deploying.id]) {
+      const withdrawn = await withdraw(id);
+      expect(withdrawn.status).toBe(200);
+      expect(await withdrawn.json()).toMatchObject({
+        registration: { rejectedReason: expect.stringContaining("Withdrawn"), status: "rejected", waitingReason: null }
+      });
+    }
+    const mapped = await registration({ status: MoneriumAccountRegistrationStatus.Mapped });
+    for (const id of [rejected.id, mapped.id]) {
+      const refused = await withdraw(id);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ error: { code: "MONERIUM_B2B_REGISTRATION_NOT_WITHDRAWABLE" } });
+    }
+    expect((await withdraw(crypto.randomUUID())).status).toBe(404);
+    expect((await withdraw("not-a-uuid")).status).toBe(400);
   });
 
   it("marks a settling deposit for recovery and lets an operator close or retry it", async () => {
@@ -404,6 +488,59 @@ describe("monerium b2b account mapping admin route", () => {
 
     expect((await recover(crypto.randomUUID())).status).toBe(404);
     expect((await recover("not-a-uuid")).status).toBe(400);
+  });
+
+  it("lists accounts with their partner manager, filterable by status and profile", async () => {
+    const managerProfileId = await createManager();
+    const first = await (await post(validBody(managerProfileId))).json();
+    const secondProfile = crypto.randomUUID();
+    await post(
+      validBody(managerProfileId, {
+        contactEmail: "ops@client-2.example.com",
+        externalSubjectId: "client-2",
+        forwarderAddress: "0x5555555555555555555555555555555555555555",
+        moneriumProfileId: secondProfile
+      })
+    );
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516" }, { where: { id: first.account.accountId } });
+    await fetch(`${baseUrl}/accounts/${first.account.accountId}/status`, {
+      body: JSON.stringify({ status: "active" }),
+      headers: ADMIN_HEADERS,
+      method: "PATCH"
+    });
+    const list = async (query = "", headers: Record<string, string> = ADMIN_HEADERS) => {
+      const response = await fetch(`${baseUrl}/accounts${query}`, { headers });
+      return { body: (await response.json()) as Record<string, any>, status: response.status };
+    };
+
+    const all = await list();
+    expect(all.status).toBe(200);
+    expect(all.body.pagination).toEqual({ limit: 20, offset: 0, total: 2 });
+    const waiting = await list("?status=onboarding");
+    expect(waiting.body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-2", managerProfileId, moneriumProfileId: secondProfile, status: "onboarding" })
+    ]);
+    expect((await list(`?moneriumProfileId=${secondProfile}`)).body.accounts).toHaveLength(1);
+    expect((await list("?limit=1")).body.accounts).toEqual([expect.objectContaining({ externalSubjectId: "client-2" })]);
+    expect((await list("?limit=1&offset=1")).body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-1" })
+    ]);
+    expect((await list("?status=active")).body.accounts).toEqual([
+      expect.objectContaining({ externalSubjectId: "client-1", managerProfileId, status: "active" })
+    ]);
+    // An account mapped before managed profiles existed has no partner manager.
+    await MoneriumAccount.create({
+      destination: DESTINATION,
+      forwarderAddress: "0x6666666666666666666666666666666666666666",
+      profileId: crypto.randomUUID(),
+      status: MoneriumAccountStatus.Suspended
+    });
+    expect((await list("?status=suspended")).body.accounts).toEqual([
+      expect.objectContaining({ managerProfileId: null, status: "suspended" })
+    ]);
+    expect((await list("?status=nonsense")).status).toBe(400);
+    expect((await list("?moneriumProfileId=nope")).status).toBe(400);
+    expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
   });
 
   it("refuses managers not allowed to provision business customers", async () => {

@@ -25,6 +25,8 @@ export interface MoneriumAccountAttributes {
   configVersion: number;
   status: MoneriumAccountStatus;
   dormantSince: Date | null;
+  /** When the account last became active; anchors the dormancy window of a never-converted account. */
+  activatedAt: Date | null;
   /** Hash of the last ACCOUNT_UPDATED snapshot sent to the partner. */
   lifecycleEventHash: string | null;
   createdAt: Date;
@@ -41,6 +43,7 @@ type MoneriumAccountCreationAttributes = Optional<
   | "configVersion"
   | "status"
   | "dormantSince"
+  | "activatedAt"
   | "lifecycleEventHash"
   | "createdAt"
   | "updatedAt"
@@ -61,6 +64,7 @@ class MoneriumAccount
   declare configVersion: number;
   declare status: MoneriumAccountStatus;
   declare dormantSince: Date | null;
+  declare activatedAt: Date | null;
   declare lifecycleEventHash: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -68,6 +72,11 @@ class MoneriumAccount
 
 MoneriumAccount.init(
   {
+    activatedAt: {
+      allowNull: true,
+      field: "activated_at",
+      type: DataTypes.DATE
+    },
     configVersion: {
       allowNull: false,
       defaultValue: 1,

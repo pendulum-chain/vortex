@@ -487,6 +487,7 @@ describe("Monerium profile normalization", () => {
   it("maps only terminal provider states and keeps all others pending", () => {
     expect(service.mapMoneriumProfileState("approved")).toBe("APPROVED");
     expect(service.mapMoneriumProfileState("REJECTED")).toBe("REJECTED");
+    expect(service.mapMoneriumProfileState("closed")).toBe("REJECTED");
     expect(service.mapMoneriumProfileState("submitted")).toBe("PENDING");
   });
 

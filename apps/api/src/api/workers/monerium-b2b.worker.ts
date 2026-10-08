@@ -12,6 +12,7 @@ import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
 import { runRecoveryDeadlines, runRecoveryOrchestrator } from "../services/monerium-b2b/recovery";
+import { advanceRegistrations } from "../services/monerium-b2b/registration";
 
 /** Six-field cron with seconds: a waiting chunk is re-quoted every cycle (MONERIUM_B2B_KEEPER_CYCLE_SECONDS). */
 const DEFAULT_CRON_TIME = `*/${config.moneriumB2b.keeperCycleSeconds} * * * * *`;
@@ -77,6 +78,15 @@ class MoneriumB2bWorker {
         if (config.moneriumB2b.autoRecovery === "auto") {
           await runRecoveryOrchestrator();
         }
+      }
+
+      // Partner registrations: wait for the profile's approval, deploy the forwarder and
+      // map the account; gated on the deployer key. After the money steps and isolated, so
+      // slow Monerium or RPC reads never hold back a conversion or refund.
+      try {
+        await advanceRegistrations();
+      } catch (error) {
+        logger.error("monerium-b2b: registration step failed:", error);
       }
 
       // Manager-facing deposit events into the durable webhook outbox; the

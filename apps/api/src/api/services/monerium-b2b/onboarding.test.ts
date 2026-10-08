@@ -191,6 +191,21 @@ describe("monerium b2b onboarding automation", () => {
     expect(deps.calls.requestIban).toHaveLength(0);
   });
 
+  it("stops polling an account once its IBAN is recorded, while it awaits activation", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.ibanByAddress.set(FORWARDER, IBAN);
+    await advanceOnboardingAccounts(deps);
+    expect((await account.reload()).iban).toBe(IBAN);
+    const callsAfterIban = JSON.stringify(deps.calls);
+
+    expect(await advanceOnboardingAccounts(deps)).toBe(0);
+
+    expect(JSON.stringify(deps.calls)).toBe(callsAfterIban);
+    expect(account.status).toBe(MoneriumAccountStatus.Onboarding);
+  });
+
   it("only advances mapped accounts still in onboarding", async () => {
     await createMappedAccount({ status: MoneriumAccountStatus.Active });
     await MoneriumAccount.create({

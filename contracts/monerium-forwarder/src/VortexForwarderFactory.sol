@@ -23,6 +23,13 @@ contract VortexForwarderFactory {
     address public guardian;
     address public pendingGuardian;
     mapping(address => bool) public isKeeper;
+    /// @notice May deploy clones besides the guardian (partner registrations), so deploying
+    ///         needs no guardian signature. Deploying is the role's only power, but every clone
+    ///         it deploys counts as a forwarder (and may draw vault subsidies within the vault's
+    ///         limits) until the guardian revokes it with `revokeForwarder`. Like keepers,
+    ///         deployers survive a guardian transfer: the new guardian removes them with
+    ///         `setDeployer(deployer, false)`, and `DeployerSet` events enumerate them.
+    mapping(address => bool) public isDeployer;
     bool public globalPaused;
 
     uint256 public minSwapAmount; // registry P6
@@ -48,6 +55,7 @@ contract VortexForwarderFactory {
     ///         shortfall reached its own destination, so a swap cannot be harmed by it.
     address public subsidyVault;
 
+    event ForwarderRevoked(address indexed forwarder);
     event ForwarderDeployed(
         address indexed forwarder,
         address indexed destination,
@@ -57,6 +65,7 @@ contract VortexForwarderFactory {
         bytes32 salt
     );
     event KeeperSet(address indexed keeper, bool enabled);
+    event DeployerSet(address indexed deployer, bool enabled);
     event GlobalPausedSet(bool paused);
     event MinSwapAmountSet(uint256 value);
     event PerSwapCapSet(uint256 value);
@@ -67,10 +76,12 @@ contract VortexForwarderFactory {
     event GuardianTransferred(address indexed previous, address indexed current);
 
     error NotGuardian();
+    error NotDeployer();
     error NotPendingGuardian();
     error OutOfBounds();
     error CloneFailed();
     error InvalidRoute();
+    error UnknownForwarder();
 
     modifier onlyGuardian() {
         if (msg.sender != guardian) revert NotGuardian();
@@ -101,23 +112,45 @@ contract VortexForwarderFactory {
 
     /// @notice Deploy and initialize a client forwarder in one transaction. The clone
     ///         address is deterministic (CREATE2) so it can be communicated/linked
-    ///         reliably; predict it with `predictAddress` before deploying.
+    ///         reliably; predict it with `predictAddress` and the same arguments. The
+    ///         address is bound to the whole initialization, so nobody can occupy a
+    ///         client's predicted address with another destination, recovery address or fee
+    ///         policy.
     function deployForwarder(
         address destination,
         address recoveryAddress,
         uint32 targetPpm,
         uint32 floorPpm,
         bytes32 salt
-    ) external onlyGuardian returns (address forwarder) {
-        forwarder = _cloneDeterministic(implementation, salt);
+    ) external returns (address forwarder) {
+        if (msg.sender != guardian && !isDeployer[msg.sender]) revert NotDeployer();
+        forwarder =
+            _cloneDeterministic(implementation, _boundSalt(destination, recoveryAddress, targetPpm, floorPpm, salt));
         VortexForwarder(forwarder).initialize(destination, recoveryAddress, targetPpm, floorPpm);
         isForwarder[forwarder] = true;
         emit ForwarderDeployed(forwarder, destination, recoveryAddress, targetPpm, floorPpm, salt);
     }
 
-    function predictAddress(bytes32 salt) external view returns (address) {
+    function predictAddress(
+        address destination,
+        address recoveryAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
+    ) external view returns (address) {
         bytes32 initCodeHash = keccak256(_cloneInitCode(implementation));
-        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, initCodeHash)))));
+        bytes32 bound = _boundSalt(destination, recoveryAddress, targetPpm, floorPpm, salt);
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), bound, initCodeHash)))));
+    }
+
+    /// @notice Removes a clone from the forwarder registry for good, for example one deployed
+    ///         with a leaked deployer key: the backend refuses to map it, and a swap that needs a
+    ///         vault subsidy reverts, since the vault pays registered clones only. Its forward and
+    ///         recover paths and its funds are untouched: the factory holds no power over them.
+    function revokeForwarder(address forwarder) external onlyGuardian {
+        if (!isForwarder[forwarder]) revert UnknownForwarder();
+        isForwarder[forwarder] = false;
+        emit ForwarderRevoked(forwarder);
     }
 
     // ------------------------------------------------------------- governance
@@ -125,6 +158,11 @@ contract VortexForwarderFactory {
     function setKeeper(address keeper, bool enabled) external onlyGuardian {
         isKeeper[keeper] = enabled;
         emit KeeperSet(keeper, enabled);
+    }
+
+    function setDeployer(address deployer, bool enabled) external onlyGuardian {
+        isDeployer[deployer] = enabled;
+        emit DeployerSet(deployer, enabled);
     }
 
     function setGlobalPaused(bool paused) external onlyGuardian {
@@ -233,6 +271,17 @@ contract VortexForwarderFactory {
         assembly {
             value := shr(232, mload(add(add(data, 32), offset)))
         }
+    }
+
+    /// @dev The CREATE2 salt actually used: the caller's salt bound to the initialization.
+    function _boundSalt(
+        address destination,
+        address recoveryAddress,
+        uint32 targetPpm,
+        uint32 floorPpm,
+        bytes32 salt
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(destination, recoveryAddress, targetPpm, floorPpm, salt));
     }
 
     /// @dev Standard EIP-1167 minimal proxy init code for `target`.

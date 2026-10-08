@@ -161,6 +161,7 @@ async function processIbanEvent(
       logger.error(`monerium-b2b: iban.updated scope mismatch for account ${account.id}, skipping`);
     } else if (account.iban === null) {
       await account.update({ iban: event.iban }, { transaction });
+      logger.info(`monerium-b2b: account ${account.id} has its IBAN (${account.status})`);
     } else if (account.iban !== event.iban) {
       // Never overwrite: an IBAN change on a live account is the association
       // monitor's alert condition (PATCH /ibans detective control), not routine data.

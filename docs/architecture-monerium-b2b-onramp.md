@@ -129,8 +129,8 @@ sequenceDiagram
     K->>M: POST /addresses (refund wallet, EOA-signed link)  [exactly-once]
     K->>M: POST /ibans for the forwarder address   [exactly-once]
     M-->>K: iban.updated webhook -> IBAN recorded
-    Op->>M: optional penny test (simulated/real small SEPA)
     Op->>Adm: PATCH .../accounts/:id/status "active" (refused without IBAN)
+    Op->>M: optional penny test (simulated/real small SEPA)
 ```
 
 Steps in prose:
@@ -152,7 +152,22 @@ Steps in prose:
    wallet (its own signature), then requests the IBAN for the forwarder, each
    exactly-once through the profile-scoped `financial_operations` ledger; the
    `iban.updated` webhook records the IBAN.
-5. **Optional penny test**, then activation via the admin status endpoint.
+5. **Activation** via the admin status endpoint, then the optional penny test: only an
+   active account converts.
+
+**Partner registration (the default path).** The partner starts steps 2 and 3 itself
+with `POST /v1/monerium-b2b/accounts`: the Monerium profile ID, the destination, its
+client reference and a contact email, under the manager key that
+`MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` binds to the white-label app. The request is a
+row in `monerium_account_registrations` until Monerium reports the profile `approved`;
+the keeper then deploys the clone with the factory deployer key at the CREATE2 salt
+`keccak256(abi.encode(moneriumProfileId, destination))` (a crash adopts the predicted
+clone, a deployment in flight is waited for) and, on the cycle that finds the clone, runs
+the same mapping as step 3 before that cycle's onboarding step. Outside production the account activates once its
+IBAN is recorded; in production step 5 stays an operator call, and only an active account
+converts: a payment before activation waits on the clone and the deadline refunds it. The
+partner follows its requests with `GET /v1/monerium-b2b/registrations`. The operator path remains
+for corrections and clients registered outside the API.
 
 ## Deposit-to-payout sequence
 
@@ -272,6 +287,7 @@ stateDiagram-v2
     state "Account (monerium_accounts)" as acc {
         [*] --> onboarding : admin mapping
         onboarding --> active : admin PATCH (needs IBAN)
+        onboarding --> suspended : failed destination check
         active --> suspended
         suspended --> active
         active --> closed
@@ -296,8 +312,9 @@ dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
 re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
 copy is mined is the expected call and the exact recovery below adopts it. If the call
 no longer executes (the gas estimate reverts; a transport error or an unfunded keeper
-is not a revert and only leaves the row pending), or if the account is suspended,
-dormant or closed and the call is a swap or forward, a zero-value self-transfer
+is not a revert and only leaves the row pending), or if the account cannot convert
+(not activated, suspended, dormant or closed: `canConvert`) and the call is a swap or
+forward, a zero-value self-transfer
 consumes the nonce instead (a revert-protecting private relay would never mine the
 call); the row then fails on the next cycle and retries on a fresh plan. A recover is
 exempt from the account-status gate (it is the refund path) but is still consumed by the
@@ -535,8 +552,9 @@ erDiagram
 
 | Table | Purpose |
 |---|---|
-| `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
+| `monerium_accounts` (069, 071, 078, 080, 087) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, activation time (`activated_at`, the dormancy anchor), dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
+| `monerium_account_registrations` (086) | One row per partner-registered Monerium profile: manager, profile ID (unique), destination, client reference and contact email, `requested` until the account is mapped (`account_id`) or `rejected` with a reason, and the deployment's transaction hash |
 | `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, failed attempts and the error that parked it for the operator |
 | `monerium_conversion_executions` (069, 074, 075, 077, 079, 080) | One row per keeper transaction, bound to the deposit it serves (`deposit_id`) and typed by `kind`: a `swap` row is created before broadcast with the chunk, the reference (rate, source, time), the route and the subsidy tier cap (`max_subsidy_raw`), then filled from `SwapExecuted` (USDC gross, fee, subsidy, net `usdcOut - fee + subsidy`); a `forward` row carries the amount pushed to the destination; a `recover` row the EURe and USDC moved to the recovery wallet. All carry tx hash, planned nonce and pre-broadcast block (crash recovery), receipt block and event log index, status |
 | `monerium_webhook_events` (069) | Durable persist-before-200 inbox for Monerium deliveries, dedup by event id, 30-day retention after processing |

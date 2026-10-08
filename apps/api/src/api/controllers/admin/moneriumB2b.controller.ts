@@ -1,15 +1,22 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
+import ManagedProfile from "../../../models/managedProfile.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumAccountRegistration, {
+  MoneriumAccountRegistrationStatus
+} from "../../../models/moneriumAccountRegistration.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import { pageOf } from "../../helpers/pagination";
 import { sendError } from "../../helpers/sendError";
 import { UUID_PATTERN } from "../../helpers/uuid";
 import { ManagedProfileProvisioningError } from "../../services/managed-profile-provisioning.service";
 import { MoneriumB2bProvisioningError, provisionMoneriumB2bAccount } from "../../services/monerium-b2b/account-provisioning";
 import { markDepositForRecovery } from "../../services/monerium-b2b/conversion-executor";
+import { accountSnapshot } from "../../services/monerium-b2b/manager-events";
 import { setDepositStatus } from "../../services/monerium-b2b/recovery";
 import { refundAccountFor } from "../../services/monerium-b2b/refund-wallet";
+import { registrationSnapshot, withdrawRegistration } from "../../services/monerium-b2b/registration";
 
 export async function postMoneriumB2bAccount(req: Request, res: Response): Promise<void> {
   try {
@@ -80,11 +87,58 @@ export async function postMoneriumB2bAccount(req: Request, res: Response): Promi
 
 const STATUS_VALUES = Object.values(MoneriumAccountStatus) as string[];
 const STATUS_TRANSITIONS: Record<MoneriumAccountStatus, readonly MoneriumAccountStatus[]> = {
-  [MoneriumAccountStatus.Onboarding]: [MoneriumAccountStatus.Active],
+  // Suspending an onboarding account records a failed destination check: nothing converts.
+  [MoneriumAccountStatus.Onboarding]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Suspended],
   [MoneriumAccountStatus.Active]: [MoneriumAccountStatus.Suspended, MoneriumAccountStatus.Closed],
   [MoneriumAccountStatus.Suspended]: [MoneriumAccountStatus.Active, MoneriumAccountStatus.Closed],
   [MoneriumAccountStatus.Closed]: []
 };
+
+/**
+ * GET /v1/admin/monerium-b2b/accounts — every onramp account, newest first, with the
+ * partner manager it belongs to. `?status=onboarding` lists the accounts waiting for the
+ * operator's activation (runbook §1.7); `?moneriumProfileId=` finds one client.
+ */
+export async function listMoneriumB2bAccountsForAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { moneriumProfileId, status } = req.query;
+    if (
+      (status !== undefined && (typeof status !== "string" || !STATUS_VALUES.includes(status))) ||
+      (moneriumProfileId !== undefined && (typeof moneriumProfileId !== "string" || !UUID_PATTERN.test(moneriumProfileId)))
+    ) {
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `status must be one of ${STATUS_VALUES.join(", ")} and moneriumProfileId a UUID`
+      );
+      return;
+    }
+    const { limit, offset } = pageOf(req.query);
+    const { count, rows } = await MoneriumAccount.findAndCountAll({
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+      where: {
+        ...(status ? { status: status as MoneriumAccountStatus } : {}),
+        ...(moneriumProfileId ? { profileId: (moneriumProfileId as string).toLowerCase() } : {})
+      }
+    });
+    const childIds = rows.map(account => account.vortexProfileId).filter((id): id is string => id !== null);
+    const relationships = await ManagedProfile.findAll({ where: { profileId: childIds } });
+    const byProfile = new Map(relationships.map(relationship => [relationship.profileId, relationship]));
+    res.status(httpStatus.OK).json({
+      accounts: rows.map(account => {
+        const relationship = account.vortexProfileId ? byProfile.get(account.vortexProfileId) : undefined;
+        return { ...accountSnapshot(account, relationship), managerProfileId: relationship?.managerProfileId ?? null };
+      }),
+      pagination: { limit, offset, total: count }
+    });
+  } catch (error) {
+    logger.error("Error listing Monerium B2B accounts:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list Monerium B2B accounts");
+  }
+}
 
 export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: string }>, res: Response): Promise<void> {
   try {
@@ -125,9 +179,31 @@ export async function patchMoneriumB2bAccountStatus(req: Request<{ accountId: st
       );
       return;
     }
+    // Onboarding stops for a suspended account, so one without its IBAN could never be activated.
+    if (
+      status === MoneriumAccountStatus.Suspended &&
+      account.status === MoneriumAccountStatus.Onboarding &&
+      account.iban === null
+    ) {
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_ACCOUNT_NOT_READY",
+        "The account has no issued IBAN yet; check its destination once onboarding has finished"
+      );
+      return;
+    }
 
     if (targetStatus !== account.status) {
-      await account.update({ status: targetStatus });
+      const from = account.status;
+      await account.update({
+        status: targetStatus,
+        ...(targetStatus === MoneriumAccountStatus.Active ? { activatedAt: new Date() } : {})
+      });
+      logger.info(
+        `monerium-b2b: operator moved account ${account.id} from ${from} to ${targetStatus} ` +
+          `(destination ${account.destination}, forwarder ${account.forwarderAddress})`
+      );
     }
     res.status(httpStatus.OK).json({ account: { accountId: account.id, accountStatus: account.status } });
   } catch (error) {
@@ -230,5 +306,80 @@ export async function getMoneriumB2bRefundAddress(req: Request, res: Response): 
   } catch (error) {
     logger.error("Error deriving a Monerium B2B refund address:", error);
     sendError(res, httpStatus.SERVICE_UNAVAILABLE, "MONERIUM_B2B_NOT_CONFIGURED", "MONERIUM_B2B_REFUND_SEED is not configured");
+  }
+}
+
+const REGISTRATION_STATUS_VALUES = Object.values(MoneriumAccountRegistrationStatus) as string[];
+
+/**
+ * GET /v1/admin/monerium-b2b/registrations — every partner registration, newest first, with
+ * the keeper's progress (deployment, last check); `?status=requested` lists those in flight.
+ */
+export async function listMoneriumB2bRegistrationsForAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { status } = req.query;
+    if (status !== undefined && (typeof status !== "string" || !REGISTRATION_STATUS_VALUES.includes(status))) {
+      sendError(
+        res,
+        httpStatus.BAD_REQUEST,
+        "MONERIUM_B2B_INVALID_INPUT",
+        `status must be one of ${REGISTRATION_STATUS_VALUES.join(", ")}`
+      );
+      return;
+    }
+    const { limit, offset } = pageOf(req.query);
+    const { count, rows } = await MoneriumAccountRegistration.findAndCountAll({
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
+      where: status ? { status: status as MoneriumAccountRegistrationStatus } : {}
+    });
+    res.status(httpStatus.OK).json({
+      pagination: { limit, offset, total: count },
+      registrations: rows.map(registration => ({
+        ...registrationSnapshot(registration),
+        contactEmail: registration.contactEmail,
+        deploySentAt: registration.deploySentAt?.toISOString() ?? null,
+        deployTxHash: registration.deployTxHash,
+        id: registration.id,
+        lastCheckedAt: registration.lastCheckedAt?.toISOString() ?? null,
+        managerProfileId: registration.managerProfileId
+      }))
+    });
+  } catch (error) {
+    logger.error("Error listing Monerium B2B registrations:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list Monerium B2B registrations");
+  }
+}
+
+/** POST /v1/admin/monerium-b2b/registrations/:registrationId/withdraw — see withdrawRegistration. */
+export async function postMoneriumB2bRegistrationWithdrawal(
+  req: Request<{ registrationId: string }>,
+  res: Response
+): Promise<void> {
+  try {
+    if (!UUID_PATTERN.test(req.params.registrationId)) {
+      sendError(res, httpStatus.BAD_REQUEST, "MONERIUM_B2B_INVALID_INPUT", "registrationId must be a UUID");
+      return;
+    }
+    if (!(await withdrawRegistration(req.params.registrationId))) {
+      const exists = await MoneriumAccountRegistration.findByPk(req.params.registrationId);
+      if (!exists) {
+        sendError(res, httpStatus.NOT_FOUND, "MONERIUM_B2B_REGISTRATION_NOT_FOUND", "Monerium registration not found");
+        return;
+      }
+      sendError(
+        res,
+        httpStatus.CONFLICT,
+        "MONERIUM_B2B_REGISTRATION_NOT_WITHDRAWABLE",
+        "Only a requested registration can be withdrawn"
+      );
+      return;
+    }
+    const registration = await MoneriumAccountRegistration.findByPk(req.params.registrationId);
+    res.status(httpStatus.OK).json({ registration: registrationSnapshot(registration as MoneriumAccountRegistration) });
+  } catch (error) {
+    logger.error("Error withdrawing Monerium B2B registration:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to withdraw Monerium B2B registration");
   }
 }

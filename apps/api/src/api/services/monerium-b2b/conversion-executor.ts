@@ -572,17 +572,8 @@ export function classifyHashlessPending(input: {
   return { kind: "fail", reason: "nonce consumed without the expected transaction" };
 }
 
-/** Suspended and dormant accounts never swap or forward and a closed one is finished; recover is the refund path. */
-function isConvertible(account: MoneriumAccount): boolean {
-  return (
-    account.status !== MoneriumAccountStatus.Suspended &&
-    account.status !== MoneriumAccountStatus.Closed &&
-    !account.dormantSince
-  );
-}
-
 function isReplayable(pending: MoneriumConversionExecution, account: MoneriumAccount): boolean {
-  return pending.kind === MoneriumConversionExecutionKind.Recover || isConvertible(account);
+  return pending.kind === MoneriumConversionExecutionKind.Recover || canConvert(account);
 }
 
 /**
@@ -595,8 +586,9 @@ function isReplayable(pending: MoneriumConversionExecution, account: MoneriumAcc
  * instead and the next cycle fails the row for a fresh plan. Only a genuine revert counts as
  * stale: a transport error, rate limit or underfunded keeper is rethrown so the row simply
  * stays pending (the estimate carries no fee cap, so a low balance is not read as a revert).
- * A swap or forward of a suspended, closed or dormant account is treated the same way (its
- * call must not run), while a recover is exempt from that gate: it is the refund path. When
+ * A swap or forward of an account that cannot convert (`canConvert`: not activated, suspended,
+ * closed or dormant) is treated the same way (its call must not run), while a recover is
+ * exempt from that gate: it is the refund path. When
  * the mined nonce is below the row's (a swap or forward reserves nonce+1 behind a poke that
  * was dropped), the gap is first filled with no-ops so the row's nonce can be mined. The keeper lock covers the
  * re-check and the send, so a live owner still about to send is waited for. Lock order is
@@ -948,6 +940,44 @@ export type PlannedAction =
   | { kind: "forward"; deposit: MoneriumFiatDeposit; usdcRaw: bigint }
   | { kind: "swap"; deposit: MoneriumFiatDeposit; amountIn: bigint; elapsedSeconds: number };
 
+/**
+ * Only an active account swaps or forwards. A payment to an account not activated yet (the
+ * operator's check of the destination) waits on the clone and the deadline refunds it;
+ * suspended and dormant (guardian-paused) accounts convert nothing either. A recovery
+ * still runs for all of them: the refund path is exactly for payments nobody is
+ * converting, and `recover` ignores the pause.
+ */
+export function canConvert(account: Pick<MoneriumAccount, "dormantSince" | "status">): boolean {
+  return account.status === MoneriumAccountStatus.Active && !account.dormantSince;
+}
+
+const NOT_ACTIVE: DepositWaitingReason = "account_not_active";
+
+/**
+ * Partner-visible hold reason for deposits the activation gate holds (canConvert): set
+ * while the account cannot convert, cleared once it can and nothing else replaced it.
+ */
+async function syncNotActiveReason(accountId: string, convertible: boolean): Promise<void> {
+  const converting = [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Converting];
+  if (convertible) {
+    await MoneriumFiatDeposit.update(
+      { waitingReason: null, waitingSince: null },
+      { where: { accountId, status: { [Op.in]: converting }, waitingReason: NOT_ACTIVE } }
+    );
+    return;
+  }
+  await MoneriumFiatDeposit.update(
+    { waitingReason: NOT_ACTIVE, waitingSince: sequelize.fn("COALESCE", sequelize.col("waiting_since"), sequelize.fn("NOW")) },
+    {
+      where: {
+        accountId,
+        [Op.or]: [{ waitingReason: null }, { waitingReason: { [Op.ne]: NOT_ACTIVE } }],
+        status: { [Op.in]: converting }
+      }
+    }
+  );
+}
+
 export interface ActionPlanningInput {
   batchOpenedAtSec: bigint;
   convertible: boolean;
@@ -1045,10 +1075,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     return;
   }
 
-  // Suspended/dormant accounts never swap or forward (dormancy is guardian-paused — the
-  // clone would revert Paused()), but a recovery still runs for them: the refund path is
-  // exactly for payments nobody is converting any more, and `recover` ignores the pause.
-  const convertible = isConvertible(account);
+  const convertible = canConvert(account);
 
   const client = getPublicClient();
   const forwarder = account.forwarderAddress as Address;
@@ -1074,6 +1101,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // is currently possible.
   const pokeNeeded = batchOpenedAt === 0n && (eureBalance >= minSwapFloor || usdcBalance > 0n);
 
+  // Before planning, so the deposits it loads (and any wait it records) start from the synced reason.
+  await syncNotActiveReason(account.id, convertible);
   const recoveryInFlight = await activeRecoveryExists(account.id);
   const planned = await withForwarderLock(account.forwarderAddress, async transaction => {
     const deposits = await settlingDeposits(account.id, transaction);

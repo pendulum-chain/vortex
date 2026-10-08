@@ -15,7 +15,9 @@ const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
 export class MoneriumB2bProvisioningError extends Error {
   constructor(
     readonly code: "MONERIUM_B2B_ACCOUNT_CONFLICT" | "MONERIUM_B2B_INVALID_INPUT",
-    message: string
+    message: string,
+    /** Vortex's side (RPC, configuration), not the input: the same call may succeed later. */
+    readonly retryable = false
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -134,7 +136,8 @@ async function verifyForwarderOnChain(
   if (!trustedFactory) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
-      "MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS is not configured"
+      "MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS is not configured",
+      true
     );
   }
   const client = getPublicClient();
@@ -167,7 +170,8 @@ async function verifyForwarderOnChain(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
       `Could not verify the forwarder on chain (is the address a deployed clone? retry if the RPC was unavailable): ${
         error instanceof Error ? error.message.slice(0, 200) : String(error)
-      }`
+      }`,
+      true
     );
   }
   const recoveryAddress = refundAccountFor(moneriumProfileId).address;
@@ -178,7 +182,9 @@ async function verifyForwarderOnChain(
   if (mismatch) {
     throw new MoneriumB2bProvisioningError(
       "MONERIUM_B2B_ACCOUNT_CONFLICT",
-      `Deployed forwarder verification failed: ${mismatch}`
+      `Deployed forwarder verification failed: ${mismatch}`,
+      // An unregistered clone right after its deployment can be a lagging RPC node: read again.
+      !onchain.isForwarder
     );
   }
 }

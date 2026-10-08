@@ -15,7 +15,7 @@ Manager status is granted by Vortex, not self-service. During partner onboarding
 - **Allowed corridors** — the countries (`BR`, `AR`, `CO`, `MX`, `US`, `EU`) your children may operate in.
 - **Optional customer-type narrowing** — restrict children to `individual` or `business`; a null policy allows both wherever the corridor's canonical capability matrix does.
 
-Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Automated EUR onboarding and provider binding are not available for managed children. A non-technical child that operations has already provisioned with an approved EUR provider binding, Polygon EOA, and IBAN may use the direct-API EUR BUY flow when the manager policy allows that corridor. The `EU` corridor also covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding. The account response carries the child's IBAN, status and fee policy (`targetPpm` and `floorPpm`, parts per million below the reference rate), and each deposit is returned as its full lifecycle snapshot, the same object the [`DEPOSIT_UPDATED` webhook](https://api-docs.vortexfinance.co/webhooks) pushes. To read every child's account in one call, use `GET /v1/monerium-b2b/accounts` with your manager key and no `X-Managed-Profile-Id` header; filter by `moneriumProfileId` to find one client by the EUR provider's profile ID. EUR, including this business account surface, is available in sandbox; production activation is pending.
+Every delegated operation re-checks this policy at request time, so a corridor removed from your manager record immediately blocks new mutations for children in that corridor (in-flight ramps continue). Automated EUR onboarding and provider binding are not available for managed children. A non-technical child that operations has already provisioned with an approved EUR provider binding, Polygon EOA, and IBAN may use the direct-API EUR BUY flow when the manager policy allows that corridor. The `EU` corridor also covers the dedicated business EUR onramp account surface (`GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/deposits` under delegation or a child credential), available to business children whose accounts Vortex provisions during partner onboarding. The account response carries the child's IBAN, status and fee policy (`targetPpm` and `floorPpm`, parts per million below the reference rate), and each deposit is returned as its full lifecycle snapshot, the same object the [`DEPOSIT_UPDATED` webhook](https://api-docs.vortexfinance.co/webhooks) pushes. To read every child's account in one call, use `GET /v1/monerium-b2b/accounts` with your manager key and no `X-Managed-Profile-Id` header; filter by `moneriumProfileId` to find one client by the EUR provider's profile ID. To onboard a new business client, register its payout wallet with `POST /v1/monerium-b2b/accounts` (see [Register A Business EUR Client](#register-a-business-eur-client)); the account then appears in the list above and in the `ACCOUNT_UPDATED` webhook. An account converts payments only once it is `active`, and its IBAN can be issued earlier, so hand a client its IBAN once its account is active. EUR, including this business account surface, is available in sandbox; production activation is pending.
 
 ## Create A Managed Child
 
@@ -132,6 +132,63 @@ Two things behave differently for managed children:
 
 - **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
 - **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives the lifecycle events `DEPOSIT_UPDATED`/`ACCOUNT_UPDATED` and the milestones `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED`/`DEPOSIT_RETURNED` for all their children's accounts — see the Webhooks page.
+
+## Register A Business EUR Client
+
+You register business EUR clients yourself. Create the client's profile and submit its KYB in your own EUR provider app first; no KYB data goes to Vortex. Then register the client's payout wallet with your manager key (`X-API-Key`; the `X-Managed-Profile-Id` header, a child credential, and an admin impersonation session are refused, and only the manager bound to your provider app may register):
+
+```http
+POST /v1/monerium-b2b/accounts
+X-API-Key: sk_live_...
+Content-Type: application/json
+
+{
+  "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
+  "destination": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+  "externalSubjectId": "client-1",
+  "contactEmail": "operations@client.example"
+}
+```
+
+```json
+{
+  "registration": {
+    "accountId": null,
+    "createdAt": "2026-10-07T09:00:00.000Z",
+    "destination": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+    "externalSubjectId": "client-1",
+    "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
+    "rejectedReason": null,
+    "status": "requested",
+    "waitingReason": "monerium_profile_pending"
+  }
+}
+```
+
+Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for:
+
+| `waitingReason` | Meaning |
+|---|---|
+| `monerium_profile_pending` | The provider has not approved the profile yet (created, incomplete, pending or in review). Finish its KYB in your provider app. |
+| `monerium_profile_not_visible` | The provider no longer shows the profile to your app. Check the profile ID. |
+| `deployment_pending` | Vortex is deploying the client's conversion contract or waiting for it to confirm. |
+| `deployer_not_ready` | Vortex's deployment wallet lacks its role or gas. Vortex fixes it; nothing to do on your side. |
+| `manager_inactive` | Your manager profile is not active for business EUR clients. Contact Vortex. |
+| `temporary_error` | A temporary failure at Vortex or the provider. It is retried automatically. |
+
+A registration is rejected only for a definite reason: the provider rejected or closed the profile; the conversion contract refused the destination (for example a token or router address); the client data conflicts with an existing client (the reference is already used with a different contact email, by a client that is not a business, or with another provider profile; the contact email belongs to another client; another open registration uses the reference or email); an account Vortex operations already set up for the profile has a different destination or belongs to another client; the conversion contract at the destination's address was retired (register a different destination); or Vortex operations withdrew it, which `rejectedReason` says. A temporary failure never rejects: the registration keeps waiting. To correct or retry a rejected profile, send the same call again with the same or corrected data: it returns `202` and the registration is `requested` again.
+
+The destination is fixed for the life of the account, so an identical replay (same `destination`, `externalSubjectId` and `contactEmail`, the email compared case-insensitively) returns `200` with the registration's current state, and any difference is `409 MONERIUM_B2B_DESTINATION_CONFLICT`, as is a profile that already has an account.
+
+| Response | Meaning |
+|---|---|
+| `400 MONERIUM_B2B_INVALID_INPUT` | The profile ID is not a UUID, the destination is not a non-zero EVM address (EIP-55 checksum when mixed case), the reference is empty or longer than 255 characters, or the email is invalid. |
+| `403 MANAGED_PROFILE_ACCESS_DENIED` / `403 IMPERSONATION_NOT_ALLOWED` | The caller is not the manager bound to your provider app, or acts through an admin impersonation session. |
+| `409 MONERIUM_B2B_CLIENT_CONFLICT` | The client data clashes with an existing client or registration, as listed above. Checked when you register and again before Vortex deploys, which then rejects the registration. |
+| `422 MONERIUM_B2B_PROFILE_UNAVAILABLE` | Your provider app does not know the profile (check the profile ID), or the provider rejected or closed it. |
+| `503 MONERIUM_B2B_PROVIDER_UNAVAILABLE` | The provider failed, timed out, rate-limited the request or refused the profile check. Nothing was recorded: retry the identical request later. |
+
+An account converts payments only once it is `active`, and its IBAN can be issued before that: `iban` is set while `status` is still `onboarding`. A payment that reaches the IBAN earlier is not converted. The deposit waits with `waiting.reason` `account_not_active` and is refunded once the promised conversion window has passed (two hours by default; operations process the refund by hand where automatic refunds are off). A `suspended` account, or one paused for dormancy, converts nothing either, and Vortex suspends an account whose destination check fails even if it was never active. So hand a client its IBAN only once an `ACCOUNT_UPDATED` event or `GET /v1/monerium-b2b/account` reports `status: "active"`. The gate is Vortex's policy, applied by its conversion service rather than locked on chain, so treat the IBAN as unusable until then. In sandbox, accounts activate on their own once the IBAN is issued; in production, Vortex operations activate an account after checking its destination.
 
 ## Common Errors
 
