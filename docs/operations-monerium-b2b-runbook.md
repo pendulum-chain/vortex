@@ -284,19 +284,25 @@ a cycle can last several minutes, since each receipt wait times out after 3 minu
 the same float key for other clients' refunds while one is parked, so a transfer you send
 by hand can take the same nonce as a keeper transfer and one of the two is dropped. A
 dropped keeper top-up leaves its client in `topping_up` and holds the float for every
-client until that refund is parked. Cheaper option: first confirm that no other refund is
-in `moved`, `swapped` or `topping_up` and that no float transaction is in flight:
+client until that refund is parked. Cheaper option: first confirm that no other deposit is
+`recovering` (a refund in `swapping`, or a confirmed `recover` with no recovery row yet,
+starts sending from the float within a cycle or two) and that no float transaction is in
+flight (the float's pending nonce equals its latest nonce). The result is a snapshot, so
+the hand send must follow right after it:
 
 ```sql
-SELECT d.account_id, r.deposit_id, r.phase, d.status
-FROM monerium_recoveries r JOIN monerium_fiat_deposits d ON d.id = r.deposit_id
-WHERE r.phase IN ('moved', 'swapped', 'topping_up') AND d.status = 'recovering';
+SELECT id, account_id FROM monerium_fiat_deposits
+WHERE status = 'recovering' AND id <> '<depositId>';
 ```
 
 Alternative: set `MONERIUM_B2B_AUTO_RECOVERY=alert`; this needs a restart and pauses every
-client's refunds until you set `auto` again. Before parking a `topping_up` refund by hand,
-check the float's pending nonce, or cancel or replace the stuck transfer, then park:
-parking releases the float for the other clients while that transfer may still be pending.
+client's refunds, and it also silences the refund monitor and the orchestrator's refund
+alerts (`REFUND FAILED`, `waits for the operator`) for every client, so set `auto` again
+right after the hand step. Even then, first confirm no float transaction is pending: one
+sent before the restart can still collide with the hand send. Before parking a `topping_up`
+refund by hand, check the float's pending nonce, or cancel or replace the stuck transfer,
+then park: parking releases the float for the other clients while that transfer may still
+be pending. If its float top-up was dropped, park the refund, clear its hash (`UPDATE monerium_recoveries SET float_topup_tx_hash = NULL WHERE deposit_id = '<depositId>';`), then set it back to `recovering` (§2.7): a `topping_up` refund without a hash returns to `swapped` and re-derives the top-up from balances, so no hand send is needed.
 
 1. **Mark the deposit.** `POST /v1/admin/monerium-b2b/deposits/<depositId>/recover`
    (`Authorization: Bearer $ADMIN_SECRET`). Refused (409) while a keeper transaction for
@@ -351,8 +357,8 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; SLA long broken (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
 | `REFERENCE VENUE —` (error) | The Coinbase product the reference reads is delisted or halted; every keeper swap defers silently | Change `COINBASE_REFERENCE_PRODUCT` (a live EURC market), redeploy the backend; the venue is an operational, not an on-chain, setting |
 | `REFUND DUE — deposit ...` (error, `alert` mode) | A deposit outlived the promised window and the mode only reports | Mark it (§2.7 step 1) or switch to `auto` |
-| `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: finish by hand from the named phase, or fix the cause and set the deposit back to `recovering`. A hand send from the float key can collide with the keeper's float sends for other clients: first confirm no other refund is in `moved`, `swapped` or `topping_up` and no float transaction is in flight, or set `MONERIUM_B2B_AUTO_RECOVERY=alert` (needs a restart, pauses every client's refunds) |
-| `float steps wait for the unconfirmed float transfer of deposit` (warn) | That deposit's float transfer has no confirmed receipt, so other clients' float steps wait | Check the transfer's hash and the float's pending nonce; if it was dropped, replace it, then park that refund (§2.7) |
+| `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: finish by hand from the named phase, or fix the cause and set the deposit back to `recovering`. A hand send from the float key can collide with the keeper's float sends for other clients: first confirm no other deposit is `recovering` and no float transaction is in flight, then send right away (the check is a snapshot), or set `MONERIUM_B2B_AUTO_RECOVERY=alert` (needs a restart, pauses every client's refunds and silences the refund alerts for every client; set `auto` again right after the hand step) |
+| `float steps wait for the unconfirmed float transfer of deposit` (warn) | That deposit's float transfer has no confirmed receipt, so other clients' float steps wait | Check the transfer's hash and the float's pending nonce; if it was dropped, park the refund, clear its hash (`UPDATE monerium_recoveries SET float_topup_tx_hash = NULL WHERE deposit_id = '<depositId>';`), then set it back to `recovering` (§2.7): a `topping_up` refund without a hash returns to `swapped` and re-derives the top-up from balances, so no hand send is needed |
 | `FLOAT ETH EMPTY` (error) / `float ETH running low` (warn) | The float's ETH cannot pay for one transfer / is below 0.05 ETH; every float send (EURe and gas top-ups) fails without it, and a refund whose step keeps failing parks after five attempts | Send ETH to the float wallet named in the line, then set any refund parked meanwhile back to `recovering` (§2.7) |
 | `FLOAT UNDERFUNDED` / `FLOAT EMPTY` (error) | The EURe float cannot cover a top-up; the refund waits at `swapped` | Fund the float wallet named in the line; the step retries every cycle |
 | `refund of deposit ... in phase ... since` (warn ≥1 h, error ≥4 h) | One client's open refund lingers or is parked (the line names the deposit; one line per open refund) | Check that client's refund wallet's balances and pending transactions, RPC health, Monerium order state; escalate per §2.7 |
