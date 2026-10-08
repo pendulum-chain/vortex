@@ -66,7 +66,7 @@ const RUN_KYC_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYC_FLOW;
 const RUN_KYB_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYB_FLOW;
 // Completed Argentina sandbox customer reserved for the create/list/delete account lifecycle.
 const AR_COMPLETED_CUSTOMER_ID = "cd0a7a0d-1b2d-4894-bbb2-f05fe3b5c7df";
-const AR_CONTRACT_ACCOUNT_NUMBER = "0720369388000033954918";
+const AR_CONTRACT_ACCOUNT_NUMBER = "2850590940090418135201";
 const CO_COMPLETED_CUSTOMER_ID = "2be2683f-9594-4b8f-9578-69212b6240fd";
 const MX_COMPLETED_CUSTOMER_ID = "230ee85f-5f2d-4cbf-af7c-afa46591d9ef";
 
@@ -100,13 +100,13 @@ const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
   },
   {
     accountFields: {
-      accountNumber: "012020477538404708",
+      accountNumber: "002010077777777771",
       accountType: "CLABE",
       metadata: { accountHolderName: "Vortex Contract Test" }
     },
     country: "MX",
     customerId: MX_COMPLETED_CUSTOMER_ID,
-    expectedFields: { accountNumber: "012020477538404708", accountType: "CLABE" },
+    expectedFields: { accountNumber: "002010077777777771", accountType: "CLABE" },
     type: DomesticFiatAccountType.SPEI
   }
 ];
