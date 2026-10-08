@@ -263,6 +263,7 @@ stateDiagram-v2
         recovering --> refunded
         recovering --> recovery_failed
         recovery_failed --> recovering : operator retry
+        recovery_failed --> refunded : refunded by hand
         forwarded --> [*]
         returned --> [*]
         refunded --> [*]
@@ -385,7 +386,9 @@ and sends at most one transaction per account per cycle:
   only its own client's later refunds. A step that fails beyond its retries, a
   missing payer, or an amount that needs a supporting document (EUR 15,000 and above)
   parks the deposit in `recovery_failed` with the phase preserved; an operator retry
-  (deposit back to `recovering`) resumes there. The promised window is
+  (deposit back to `recovering`) resumes there, and a refund the operator completed by
+  hand is closed by setting the deposit `refunded` (the recovery then closes without an
+  order). The promised window is
   `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (120) counted from the mint block
   (`minted_at`); the on-chain `RECOVERY_DELAY` is its floor.
 - **Liveness without Vortex.** Past `TRIGGER_DELAY` (24 h) anyone may `swap` (Chainlink

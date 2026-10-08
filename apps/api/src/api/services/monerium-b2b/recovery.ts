@@ -53,7 +53,8 @@ import { refundAccountFor } from "./refund-wallet";
  * its previous one is redeemed. Clients do not wait for each other; a refund parked in
  * `recovery_failed` blocks only its own client's later refunds. A step that fails beyond
  * its retries parks the deposit in `recovery_failed` with the phase preserved; an operator
- * retry (deposit back to `recovering`) resumes there.
+ * retry (deposit back to `recovering`) resumes there, and a
+ * refund the operator completed by hand is closed by setting the deposit `refunded`.
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";

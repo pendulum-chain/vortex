@@ -375,9 +375,15 @@ Start on `alert`, switch to `auto` once a sandbox refund has been observed end t
 What stays manual in `auto`: refunds of EUR 15,000 or more (Monerium's supporting
 document), deposits whose issue order carried no payer IBAN/name, orders Monerium
 rejects, and any step that failed five times — all park the deposit as
-`recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`);
-fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` resumes
-from that phase. While a client's refund is `recovery_failed` only that client's later
+`recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`).
+When the cause is fixable (a rejected order, a failing step), fix it, then
+`PATCH .../deposits/<id>/status {"status": "recovering"}` resumes from that phase.
+When the refund stays manual (EUR 15,000 or more, no payer), do not set `recovering`:
+the next cycle would park it again. Place the redeem order by hand (step 5) under the
+memo `vortex-refund:<depositId>`, so no automated retry can place a second order, and once
+Monerium processed it close the deposit straight from `recovery_failed` with
+`{"status": "refunded"}` (step 6); the keeper then closes the recovery without placing an
+order. While a client's refund is `recovery_failed` only that client's later
 refunds wait behind it; other clients' refunds go on. The shared EURe float sends for one
 client per keeper cycle, and an unconfirmed float transfer delays another client's float
 step (a parked refund never does). Other clients advance one step per keeper cycle, and
@@ -433,13 +439,15 @@ be pending. If its float top-up was dropped, park the refund, clear its hash (`U
    `amount` = the issue order's `amount` string, `counterpart.identifier.iban` = the issue
    order's `counterpart.identifier.iban`, `details.companyName` = its `details.name`
    (individual payers: `firstName`/`lastName`), `country` from the IBAN prefix, `memo`
-   naming the original payment, the message `Send EUR <amount> to <iban> at <minute>`
+   `vortex-refund:<depositId>` (the key the automation checks before placing), the
+   message `Send EUR <amount> to <iban> at <minute>`
    signed by the refund wallet's key; attach `supportingDocumentId` above EUR 15,000 (the
    same client agreement can be reused, Monerium 2026-09-30). Monerium pays the refund
    out of the client's own IBAN. Watch `order.updated` for `processed`.
 6. **Close the deposit.** `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status`
-   with `{"status": "refunded"}`; use `recovery_failed` when a step cannot complete (and
-   `recovering` again to retry later). Record deposit id, recover tx, reverse-swap tx,
+   with `{"status": "refunded"}`, from `recovering` or `recovery_failed`; use
+   `recovery_failed` when a step cannot complete (and `recovering` again to retry later).
+   Record deposit id, recover tx, reverse-swap tx,
    float top-up, redeem order id and payer IBAN (masked) in the ops ledger.
 
 ## 3. Alert triage (monitoring log lines → action)

@@ -612,6 +612,39 @@ describe("refund deadlines and orchestration", () => {
     expect(deposit.status).toBe(MoneriumFiatDepositStatus.Recovering);
   });
 
+  it("closes a parked EUR 15,000+ refund the operator completed by hand, without placing a redeem order", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "large", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await deposit.update({ amountRaw: (20_000n * EUR).toString() });
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (20_000n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    const deps = fakeDeps({ eure: new Map([[RECOVERY, 20_000n * EUR]]), usdc: new Map() }, { setDepositStatus });
+    const depsFor = async () => deps;
+    for (let i = 0; i < 3; i++) await runRecoveryOrchestrator(depsFor); // moved -> swapped -> topped up -> parked
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    expect(recovery).toMatchObject({ error: expect.stringContaining("supporting document"), phase: MoneriumRecoveryPhase.ToppedUp });
+
+    // The operator places the order by hand and closes the deposit (PATCH .../status {"status": "refunded"}).
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    await deposit.reload();
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.Refunded);
+    expect(deps.calls.some(call => call.startsWith("redeem:"))).toBe(false);
+    expect(await activeRecoveryExists()).toBe(false);
+  });
+
   it("holds the queue on a failed refund until the operator retries it", async () => {
     const { accountId } = await mappedAccount();
     const deposit = await minted(accountId, "stuck", new Date(), MoneriumFiatDepositStatus.Recovering);

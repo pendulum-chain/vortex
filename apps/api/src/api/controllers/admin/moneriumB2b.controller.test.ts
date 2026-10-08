@@ -543,6 +543,32 @@ describe("monerium b2b account mapping admin route", () => {
     expect((await list("", { "Content-Type": "application/json" })).status).toBe(401);
   });
 
+  it("lets an operator close a parked refund they completed by hand", async () => {
+    const managerProfileId = await createManager();
+    const created = await post(validBody(managerProfileId));
+    const { account } = (await created.json()) as { account: { accountId: string } };
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: account.accountId,
+      amountRaw: "20000000000000000000000",
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.RecoveryFailed,
+      txHash: "0xmint"
+    });
+
+    const closed = await fetch(`${baseUrl}/deposits/${deposit.id}/status`, {
+      body: JSON.stringify({ status: "refunded" }),
+      headers: ADMIN_HEADERS,
+      method: "PATCH"
+    });
+    expect(closed.status).toBe(200);
+    expect(await closed.json()).toEqual({ deposit: { depositId: deposit.id, status: "refunded" } });
+    expect((await MoneriumFiatDeposit.findByPk(deposit.id))?.status).toBe(MoneriumFiatDepositStatus.Refunded);
+  });
+
   it("refuses managers not allowed to provision business customers", async () => {
     const profile = await createTestUser();
     await ManagedProfileManager.create({

@@ -48,6 +48,7 @@ describe("forward-only deposit status transitions", () => {
     expect(isForwardTransition(Recovering, Refunded)).toBe(true);
     expect(isForwardTransition(Recovering, RecoveryFailed)).toBe(true);
     expect(isForwardTransition(RecoveryFailed, Recovering)).toBe(true); // operator retry
+    expect(isForwardTransition(RecoveryFailed, Refunded)).toBe(true); // refunded by hand
     expect(isForwardTransition(Recovering, Forwarded)).toBe(false);
   });
 

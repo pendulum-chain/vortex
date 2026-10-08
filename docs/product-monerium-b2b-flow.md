@@ -479,6 +479,7 @@ stateDiagram-v2
     recovering --> refunded: EUR back to payer
     recovering --> recovery_failed
     recovery_failed --> recovering: operator retry
+    recovery_failed --> refunded: refunded by hand
     forwarded --> [*]
     returned --> [*]
     refunded --> [*]
