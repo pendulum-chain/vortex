@@ -593,23 +593,38 @@ describe("refund deadlines and orchestration", () => {
       }
     );
     const depsFor = async () => deps;
+    const error = spyOn(logger, "error");
+    const refundFailedLogs = () => error.mock.calls.filter(([message]) => String(message).includes("REFUND FAILED")).length;
+    try {
+      await runRecoveryOrchestrator(depsFor); // fifth failure: parking refused
+      const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+      expect(recovery).toMatchObject({ attempts: 5, error: null });
 
-    await runRecoveryOrchestrator(depsFor); // fifth failure: parking refused
-    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
-    expect(recovery).toMatchObject({ attempts: 5, error: null });
+      park = async () => {
+        throw new Error("connection reset");
+      };
+      await runRecoveryOrchestrator(depsFor); // no reset to a fresh run of five; parking throws
+      await recovery.reload();
+      expect(recovery).toMatchObject({ attempts: 6, error: null });
 
-    park = async () => {
-      throw new Error("connection reset");
-    };
-    await runRecoveryOrchestrator(depsFor); // no reset to a fresh run of five; parking throws
-    await recovery.reload();
-    expect(recovery).toMatchObject({ attempts: 6, error: null });
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+      await deposit.reload();
+      expect(recovery).toMatchObject({ attempts: 7, error: null });
+      expect(deposit.status).toBe(MoneriumFiatDepositStatus.Recovering);
+      expect(refundFailedLogs()).toBe(0); // the deposit is still driven: nothing for the operator yet
 
-    await runRecoveryOrchestrator(depsFor);
-    await recovery.reload();
-    await deposit.reload();
-    expect(recovery).toMatchObject({ attempts: 7, error: null });
-    expect(deposit.status).toBe(MoneriumFiatDepositStatus.Recovering);
+      park = async () => {
+        await deposit.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
+        return null;
+      };
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+      expect(recovery.error).toContain("after 8 attempts");
+      expect(refundFailedLogs()).toBe(1);
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("closes a parked EUR 15,000+ refund the operator completed by hand, without placing a redeem order", async () => {

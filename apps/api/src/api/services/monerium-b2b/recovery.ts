@@ -348,13 +348,13 @@ async function fail(
   deps: RecoveryDeps,
   reason: string
 ): Promise<void> {
-  logger.error(`monerium-b2b: REFUND FAILED — deposit ${deposit.id} in phase ${recovery.phase}: ${reason} (runbook §2.7)`);
   // Park before recording `error`: an error on a deposit still `recovering` reads as the operator's retry.
   const refusal = await deps.setDepositStatus(deposit, MoneriumFiatDepositStatus.RecoveryFailed);
   if (refusal) {
-    logger.error(`monerium-b2b: deposit ${deposit.id} could not be parked as recovery_failed: ${refusal}`);
+    logger.error(`monerium-b2b: deposit ${deposit.id} could not be parked as recovery_failed (${reason}): ${refusal}`);
     return;
   }
+  logger.error(`monerium-b2b: REFUND FAILED — deposit ${deposit.id} in phase ${recovery.phase}: ${reason} (runbook §2.7)`);
   await recovery.update({ error: reason.slice(0, 500) });
 }
 
