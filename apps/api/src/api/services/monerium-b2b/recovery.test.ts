@@ -946,6 +946,70 @@ describe("refund deadlines and orchestration", () => {
     expect(await activeRecoveryExists(b.accountId)).toBe(true);
   });
 
+  it("opens a refund confirmed later while another client's refund is already parked", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const parked = await confirmedRecover(a.accountId, "a-parked", new Date(Date.now() - 90_000));
+    await parked.update({ payerIban: null });
+    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 100n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
+    const { depsFor } = clientsFixture(ledger);
+
+    for (let i = 0; i < 4; i++) await runRecoveryOrchestrator(depsFor);
+    await parked.reload();
+    expect(parked.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+
+    const later = await confirmedRecover(b.accountId, "b-later", new Date());
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count({ where: { depositId: later.id } })).toBe(1);
+    await runRecoveryOrchestrator(depsFor);
+    expect((await MoneriumRecovery.findOne({ where: { depositId: later.id } }))?.phase).not.toBe(MoneriumRecoveryPhase.Moved);
+  });
+
+  it("lets a younger client's refund advance while the oldest client's receipt wait hangs", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000));
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.Swapping, 60_000).then(row => row.update({ reverseSwapTxHash: "0xstuck" }));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.ToppedUp, 30_000, { eure: 100n * EUR, usdc: 0n });
+    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 100n * EUR]]), usdc: new Map() };
+    const { depsFor } = clientsFixture(ledger);
+    let release: () => void = () => {};
+    const hung = new Promise<void>(resolve => (release = resolve));
+    const phaseOf = async (depositId: string) => (await MoneriumRecovery.findOne({ where: { depositId } }))?.phase;
+
+    // Client A's swap receipt never arrives within the cycle (the live wait throws only after RECEIPT_TIMEOUT_MS).
+    const cycle = runRecoveryOrchestrator(async account => {
+      const deps = await depsFor(account);
+      return account.forwarderAddress.toLowerCase() === FORWARDER
+        ? { ...deps, waitReceipt: async () => (await hung, Promise.reject(new Error("timed out waiting for the receipt"))) }
+        : deps;
+    });
+    try {
+      for (let i = 0; i < 100 && (await phaseOf(depositB.id)) === MoneriumRecoveryPhase.ToppedUp; i++) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      expect(await phaseOf(depositB.id)).toBe(MoneriumRecoveryPhase.Redeeming);
+      expect(await phaseOf(depositA.id)).toBe(MoneriumRecoveryPhase.Swapping);
+    } finally {
+      release();
+      await cycle;
+    }
+  });
+
+  it("does not let a parked refund's unconfirmed float transfer hold the float for other clients", async () => {
+    const { depositA, depositB, ledger } = await twoClientsNeedingTopUps();
+    const recoveryA = (await MoneriumRecovery.findOne({ where: { depositId: depositA.id } })) as MoneriumRecovery;
+    // An operator parked client A's refund while its float top-up was in flight: the phase never advances.
+    await recoveryA.update({ error: "parked by hand", floatTopupTxHash: "0xhash", phase: MoneriumRecoveryPhase.ToppingUp });
+    await depositA.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
+    const { calls, depsFor } = clientsFixture(ledger);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
+    expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
+  });
+
   describe("refund monitor", () => {
     afterEach(() => {
       (logger.error as unknown as { mockRestore?: () => void }).mockRestore?.();

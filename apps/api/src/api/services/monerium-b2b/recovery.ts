@@ -672,11 +672,11 @@ async function stepRecovery(
  *
  * Each client's refund wallet is its own, so clients progress independently; the one
  * shared resource is the EURe float wallet, which sends with implicit nonces and no
- * coherent pending pool. So per cycle: steps that cannot touch the float run first; then
- * at most one step that did send from the float runs, and none while an earlier float
- * transfer is still unconfirmed (a `topping_up` recovery waiting on its receipt). Float
- * steps are taken oldest first; one that sends nothing (float underfunded, nothing to
- * swap) does not use the slot.
+ * coherent pending pool. So per cycle: steps that cannot touch the float run concurrently
+ * (a client's slow receipt wait starves nobody); alongside them at most one step that sends
+ * from the float runs, and none while an earlier float transfer is still unconfirmed (a
+ * `topping_up` recovery waiting on its receipt, unless parked). Float steps are taken oldest
+ * first; one that sends nothing (float underfunded, nothing to swap) does not use the slot.
  */
 export async function runRecoveryOrchestrator(
   depsFor: (account: MoneriumAccount) => Promise<RecoveryDeps> = liveRecoveryDeps
@@ -702,15 +702,24 @@ export async function runRecoveryOrchestrator(
     floatSent = true;
   };
   const queue = [...heads.values()];
-  const floatFree = queue.filter(({ recovery }) => !FLOAT_PHASES.has(recovery.phase));
-  const floatCapable = queue.filter(({ recovery }) => FLOAT_PHASES.has(recovery.phase));
-  for (const { deposit, recovery } of floatFree) {
-    if (Date.now() - startedAt > CYCLE_BUDGET_MS) return;
-    await stepRecovery(recovery, deposit, depsFor, onFloatSend);
+  // A float transfer of a recovery (not parked: it is never stepped) that still waits for its receipt.
+  const holdsFloatTransfer = ({ deposit, recovery }: (typeof queue)[number]) =>
+    recovery.phase === MoneriumRecoveryPhase.ToppingUp &&
+    Boolean(recovery.floatTopupTxHash) &&
+    deposit.status !== MoneriumFiatDepositStatus.RecoveryFailed;
+  const step = ({ deposit, recovery }: (typeof queue)[number]) =>
+    stepRecovery(recovery, deposit, depsFor, onFloatSend).catch(error =>
+      logger.error(`monerium-b2b: refund step for deposit ${deposit.id} failed:`, error)
+    );
+  // Steps that cannot touch the float use only their own client's wallet, so they run
+  // concurrently: one client's slow receipt wait (up to RECEIPT_TIMEOUT_MS) must not starve the others.
+  const gating = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase) && holdsFloatTransfer(head));
+  const floatFreeSteps = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase)).map(head => [head, step(head)] as const);
+  // The float stage waits only for the steps that gate it, not for every slow receipt.
+  await Promise.all(floatFreeSteps.filter(([head]) => gating.includes(head)).map(([, running]) => running));
+  for (const head of queue.filter(({ recovery }) => FLOAT_PHASES.has(recovery.phase))) {
+    if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS || queue.some(holdsFloatTransfer)) break;
+    await step(head);
   }
-  for (const { deposit, recovery } of floatCapable) {
-    if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS) return;
-    if (queue.some(head => head.recovery.phase === MoneriumRecoveryPhase.ToppingUp && head.recovery.floatTopupTxHash)) return;
-    await stepRecovery(recovery, deposit, depsFor, onFloatSend);
-  }
+  await Promise.all(floatFreeSteps.map(([, running]) => running));
 }
