@@ -1393,7 +1393,7 @@ describe("refund deadlines and orchestration", () => {
       expect(text).not.toContain(healthyB.id);
     });
 
-    it("warns when the float's ETH for refund-wallet gas runs low", async () => {
+    it("warns when the float's ETH runs low and errors once it cannot pay for one transfer", async () => {
       await mappedAccount();
       let ethBalance = 10n ** 15n;
       chainSpies.push(
@@ -1402,19 +1402,29 @@ describe("refund deadlines and orchestration", () => {
         >),
         spyOn(chain, "getPublicClient").mockReturnValue({
           getBalance: async () => ethBalance,
+          getGasPrice: async () => 10n ** 9n,
           readContract: async () => 5_000n * EUR
         } as unknown as ReturnType<typeof chain.getPublicClient>),
         spyOn(chain, "getForwarderImmutables").mockResolvedValue({ eure: EURE } as unknown as chain.ForwarderImmutables)
       );
       const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+      const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
 
       await runRefundMonitor();
       expect(loggedText(warns)).toContain("float ETH running low");
+      expect(errors).not.toHaveBeenCalled();
 
       warns.mockClear();
+      ethBalance = 20_999n * 10n ** 9n; // one gas unit short of a 21k-gas transfer at 1 gwei
+      await runRefundMonitor();
+      expect(loggedText(errors)).toContain("FLOAT ETH EMPTY");
+      expect(warns).not.toHaveBeenCalled();
+
+      errors.mockClear();
       ethBalance = 10n ** 18n;
       await runRefundMonitor();
       expect(warns).not.toHaveBeenCalled();
+      expect(errors).not.toHaveBeenCalled();
     });
 
     it("classifies each open refund by its own age: only the lingering one warns", async () => {

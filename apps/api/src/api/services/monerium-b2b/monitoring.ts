@@ -562,7 +562,7 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
 export const RECOVERY_LINGER_MS = 60 * 60 * 1000;
 /** The EURe float warns below this balance (18 decimals). */
 export const FLOAT_WARN_EURE = 1_000n * 10n ** 18n;
-/** The float's ETH funds the gas top-ups of refund wallets; it warns below this balance (18 decimals). */
+/** The float's ETH pays for its own sends and the gas top-ups of refund wallets; it warns below this balance (18 decimals). */
 export const FLOAT_WARN_ETH = 5n * 10n ** 16n;
 
 export type RefundQueueSeverity = "error" | "ok" | "warn";
@@ -616,10 +616,12 @@ export async function runRefundMonitor(now: number = Date.now()): Promise<void> 
     logger.info(`monerium-b2b: ${detail}`);
   }
   const gas = await publicClient.getBalance({ address: float.account.address });
-  if (gas < FLOAT_WARN_ETH) {
-    logger.warn(
-      `monerium-b2b: float ETH running low; float ${float.account.address} holds ${formatUnits(gas, 18)} ETH — refund-wallet gas top-ups fail without it (runbook §2.7)`
-    );
+  const ethDetail = `float ${float.account.address} holds ${formatUnits(gas, 18)} ETH — every float send (EURe and gas top-ups) fails without it (runbook §2.7)`;
+  // Below one plain 21k-gas transfer at the current gas price, nothing can leave the float.
+  if (gas < 21_000n * (await publicClient.getGasPrice())) {
+    logger.error(`monerium-b2b: FLOAT ETH EMPTY; ${ethDetail}`);
+  } else if (gas < FLOAT_WARN_ETH) {
+    logger.warn(`monerium-b2b: float ETH running low; ${ethDetail}`);
   }
 }
 
