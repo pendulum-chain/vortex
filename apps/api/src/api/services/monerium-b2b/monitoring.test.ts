@@ -158,6 +158,30 @@ describe("diffAssociation", () => {
     expect(changes).toEqual([`unexpected address linked to the profile: ${intruder}`]);
   });
 
+  it("expects the client's refund wallet on the profile, but nothing else", () => {
+    const refund = "0x7777777777777777777777777777777777777777";
+    const intruder = "0x9999999999999999999999999999999999999999";
+    const withRefund = { ...db, refundAddress: refund };
+    const ibans = [{ address: FORWARDER, iban: IBAN }];
+    expect(diffAssociation(withRefund, { ibans, profileAddresses: [FORWARDER, refund.toLowerCase()] })).toEqual([]);
+    expect(diffAssociation(withRefund, { ibans, profileAddresses: [FORWARDER, refund, intruder] })).toEqual([
+      `unexpected address linked to the profile: ${intruder}`
+    ]);
+    // Without a derived refund address (seed not configured) the wallet is not excused.
+    expect(diffAssociation(db, { ibans, profileAddresses: [FORWARDER, refund] })).toEqual([
+      `unexpected address linked to the profile: ${refund}`
+    ]);
+  });
+
+  it("does not excuse the IBAN moving to the refund wallet", () => {
+    const refund = "0x7777777777777777777777777777777777777777";
+    const changes = diffAssociation(
+      { ...db, refundAddress: refund },
+      { ibans: [{ address: refund, iban: IBAN }], profileAddresses: [FORWARDER, refund] }
+    );
+    expect(changes).toEqual([`IBAN ${IBAN} moved to address ${refund}`]);
+  });
+
   it("detects the IBAN moving to another address (PATCH /ibans scenario)", () => {
     const elsewhere = "0x8888888888888888888888888888888888888888";
     const changes = diffAssociation(db, {

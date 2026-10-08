@@ -21,6 +21,7 @@ import {
 } from "./chain";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
+import { refundAccountFor } from "./refund-wallet";
 
 /**
  * Monitoring pass for the Monerium B2B onramp (implementation plan D3 / phase 3), run
@@ -42,8 +43,9 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  * 3. Association monitor (S1 detective control, trust model in the b2b-variant doc):
  *    re-reads the linked-address and IBAN state from the Monerium API per active
  *    account and alerts on ANY divergence from the DB record (IBAN moved, new address
- *    linked). Vortex holds the whitelabel credentials, so association changes cannot
- *    be prevented client-side — only detected.
+ *    linked; the client's own derived refund wallet, linked at onboarding, is expected).
+ *    Vortex holds the whitelabel credentials, so association changes cannot be
+ *    prevented client-side — only detected.
  * 4. Config reconciliation (manifest re-verification, R07): re-reads per-clone config
  *    and clone bytecode. Guardian fee-policy changes (P11) are reconciled into the DB
  *    and logged, not alarmed; the destination has no setter, so a change there, like
@@ -181,6 +183,8 @@ export function classifyVaultRunway(state: Pick<SubsidyVaultState, "balance" | "
 export interface AssociationDbRecord {
   forwarderAddress: string;
   iban: string | null;
+  /** The client's derived refund wallet, linked at onboarding; the only other expected address. */
+  refundAddress?: string | null;
 }
 
 export interface LiveAssociationState {
@@ -197,17 +201,19 @@ export function normalizeIban(iban: string): string {
 /**
  * Detects ANY divergence between the DB association record and the live Monerium
  * state (S1/PATCH-ibans detective control): forwarder unlinked, extra addresses on
- * the profile, the IBAN moved to another address, or an IBAN we did not record.
+ * the profile (the client's own refund wallet excepted), the IBAN moved to another
+ * address, or an IBAN we did not record.
  */
 export function diffAssociation(db: AssociationDbRecord, live: LiveAssociationState): string[] {
   const changes: string[] = [];
   const forwarder = db.forwarderAddress.toLowerCase();
+  const refund = db.refundAddress?.toLowerCase();
 
   if (!live.profileAddresses.some(address => address.toLowerCase() === forwarder)) {
     changes.push(`forwarder ${db.forwarderAddress} is no longer linked to the profile`);
   }
   for (const address of live.profileAddresses) {
-    if (address.toLowerCase() !== forwarder) {
+    if (address.toLowerCase() !== forwarder && address.toLowerCase() !== refund) {
       changes.push(`unexpected address linked to the profile: ${address}`);
     }
   }
@@ -431,8 +437,12 @@ export async function runAssociationMonitor(): Promise<void> {
         .filter(entry => entry.chain === chainName && entry.profile === account.profileId)
         .map(entry => ({ address: entry.address, iban: entry.iban }));
       const profileAddresses = await getProfileAddresses(account.profileId, chainName);
+      // Onboarding links the client's derived refund wallet to the profile. Without the seed
+      // (module misconfigured) nothing is excused, so the wallet alerts instead of the check
+      // going quiet.
+      const refundAddress = config.moneriumB2b.refundSeed ? refundAccountFor(account.profileId).address : null;
       const changes = diffAssociation(
-        { forwarderAddress: account.forwarderAddress, iban: account.iban },
+        { forwarderAddress: account.forwarderAddress, iban: account.iban, refundAddress },
         { ibans, profileAddresses }
       );
       if (changes.length > 0) {

@@ -445,8 +445,8 @@ read-only — no keys, no transactions:
 1. **Association monitor (the S1 detective control).** Per active account it re-reads
    the Monerium-side state — `GET /addresses?profile=` and the IBAN list — and diffs it
    against the database record. **Any** divergence is an error-level alert: the
-   forwarder no longer linked, an extra address linked to the profile, the IBAN moved
-   or unrecorded. This is the control for the structural risk that Vortex-held
+   forwarder no longer linked, an extra address linked to the profile (the client's own
+   refund wallet is expected), the IBAN moved or unrecorded. This is the control for the structural risk that Vortex-held
    whitelabel credentials can change associations at Monerium: those changes cannot be
    prevented client-side, only detected fast.
 2. **Executable-depth monitor.** QuoterV2 quotes on every enabled route vs Chainlink;
