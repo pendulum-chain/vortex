@@ -1161,12 +1161,24 @@ describe("refund deadlines and orchestration", () => {
     }
   }
 
-  it("lets a younger client's float top-up go while another client's non-gating receipt wait hangs", async () => {
+  it.each([
+    [
+      "lets a younger client's float top-up go while another client's non-gating receipt wait hangs",
+      MoneriumRecoveryPhase.Swapping,
+      { reverseSwapTxHash: "0xstuck" }
+    ],
+    // A swept a surplus (no float top-up hash): the float took that transfer in, so it is no float send in flight.
+    [
+      "does not let a surplus sweep's unconfirmed receipt hold the float for another client",
+      MoneriumRecoveryPhase.ToppingUp,
+      { surplusTxHash: "0xsweep" }
+    ]
+  ])("%s", async (_name, phase, patch) => {
     const a = await mappedAccount(0);
     const b = await mappedAccount(1);
     const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
     const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
-    await openRecovery(depositA.id, MoneriumRecoveryPhase.Swapping, 60_000).then(row => row.update({ reverseSwapTxHash: "0xstuck" }));
+    await openRecovery(depositA.id, phase, 60_000).then(row => row.update(patch));
     await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
     const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
     const { calls, depsFor } = clientsFixture(ledger);
@@ -1174,23 +1186,6 @@ describe("refund deadlines and orchestration", () => {
     await cycleWithHungReceiptOfA(depsFor, async () => {
       await waitForCall(calls, "eure:float");
       expect(calls).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]); // sent while A's wait is unresolved
-    });
-  });
-
-  it("does not let a surplus sweep's unconfirmed receipt hold the float for another client", async () => {
-    const a = await mappedAccount(0);
-    const b = await mappedAccount(1);
-    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
-    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
-    // A swept a surplus (no float top-up hash): the float took that transfer in, so it is no float send in flight.
-    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000).then(row => row.update({ surplusTxHash: "0xsweep" }));
-    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
-    const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
-    const { calls, depsFor } = clientsFixture(ledger);
-
-    await cycleWithHungReceiptOfA(depsFor, async () => {
-      await waitForCall(calls, "eure:float");
-      expect(calls).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
     });
   });
 
