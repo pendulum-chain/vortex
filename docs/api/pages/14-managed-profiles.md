@@ -160,12 +160,12 @@ Content-Type: application/json
     "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
     "rejectedReason": null,
     "status": "requested",
-    "waitingReason": "monerium_profile_pending"
+    "waitingReason": null
   }
 }
 ```
 
-Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for:
+Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for. `null` means Vortex has not checked the registration yet, as in the response to a new or repeated registration; mapped and rejected registrations also report `null`.
 
 | `waitingReason` | Meaning |
 |---|---|
