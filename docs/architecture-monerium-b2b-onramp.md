@@ -286,7 +286,22 @@ window triggers it automatically; `refunded` and `recovery_failed` are set by wh
 completes the bank refund). Account statuses follow only the arrows above; `closed` is terminal and a repeated
 write of the current status is idempotent. A nonce-less execution row is a five-minute
 pre-send reservation; expiry uses a compare-and-set so its original owner can no longer
-broadcast. Once the swap nonce is persisted, time alone never fails the execution.
+broadcast. Once the swap nonce is persisted, a row is never failed on elapsed time
+alone. A reserved nonce that is never mined (the process died before broadcasting, the send
+threw, or a private relay dropped the transaction) would block the account and its
+refund path forever, so once the row has been idle for the same five minutes and the
+nonce is not yet mined and nothing is pending at the keeper's next nonce, the keeper
+(first filling with zero-value self-transfers any gap below the row's nonce, which a
+dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
+re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
+copy is mined is the expected call and the exact recovery below adopts it. If the call
+no longer executes (the gas estimate reverts; a transport error or an unfunded keeper
+is not a revert and only leaves the row pending), or if the account is suspended,
+dormant or closed and the call is a swap or forward, a zero-value self-transfer
+consumes the nonce instead (a revert-protecting private relay would never mine the
+call); the row then fails on the next cycle and retries on a fresh plan. A recover is
+exempt from the account-status gate (it is the refund path) but is still consumed by the
+no-op if its own estimate reverts.
 Recovery scans bounded 2,000-block pages from the pre-broadcast block and adopts only
 one transaction matching the keeper sender, nonce, forwarder target, the exact calldata
 of its kind — `swap(reference, route, amountIn)`, `forward(amount)` or
@@ -543,7 +558,7 @@ when that order row already exists, without duplicating chain identity or execut
 provider onboarding calls are exactly-once (`financial_operations`) and their reads are
 bound to the configured profile and chain; a broadcast whose hash was lost is recovered
 from its persisted nonce/block plus an exact transaction-and-event match (the calldata
-of its kind rebuilt from what was persisted) rather than re-sent; a swap the vault
+of its kind rebuilt from what was persisted) rather than re-sent (unless the nonce is unconsumed and idle past the deadline, above); a swap the vault
 could not cover, a reference that is unavailable or out of band, or a fill below the
 floor is deferred by the keeper, never forced; all per-account writes serialize on one
 advisory lock; a Vortex outage can never trap converted funds on chain (past the
