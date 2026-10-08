@@ -1206,6 +1206,32 @@ describe("refund deadlines and orchestration", () => {
     expect(loggedText(errors)).toContain(`refund of deposit ${depositB.id} waits for the operator`);
   });
 
+  it.each([
+    ["parks its deposit", (depositId: string) => MoneriumFiatDeposit.update({ status: MoneriumFiatDepositStatus.RecoveryFailed }, { where: { id: depositId } })],
+    ["moves its phase on", (depositId: string) => MoneriumRecovery.update({ phase: MoneriumRecoveryPhase.ToppedUp }, { where: { depositId } })]
+  ])("sends nothing for a float step whose refund an operator %s while the cycle waited on the float gate", async (_name, change) => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000), { eure: 99n * EUR, usdc: 0n });
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000).then(row => row.update({ floatTopupTxHash: "0xlanded" }));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = {
+      eure: new Map([[WALLETS[0], 99n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
+      usdc: new Map()
+    };
+    const { calls, depsFor } = clientsFixture(ledger, {
+      // A's receipt wait gates the float stage; the operator acts on B's refund while it runs.
+      waitReceipt: async () => {
+        await change(depositB.id);
+        return "success";
+      }
+    });
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([]);
+  });
+
   it("keeps stepping the other clients when opening one client's refund fails", async () => {
     const a = await mappedAccount(0);
     const b = await mappedAccount(1);
