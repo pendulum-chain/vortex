@@ -287,6 +287,7 @@ stateDiagram-v2
     state "Account (monerium_accounts)" as acc {
         [*] --> onboarding : admin mapping
         onboarding --> active : admin PATCH (needs IBAN)
+        onboarding --> suspended : failed destination check
         active --> suspended
         suspended --> active
         active --> closed
@@ -311,8 +312,9 @@ dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
 re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
 copy is mined is the expected call and the exact recovery below adopts it. If the call
 no longer executes (the gas estimate reverts; a transport error or an unfunded keeper
-is not a revert and only leaves the row pending), or if the account is suspended,
-dormant or closed and the call is a swap or forward, a zero-value self-transfer
+is not a revert and only leaves the row pending), or if the account cannot convert
+(not activated, suspended, dormant or closed: `canConvert`) and the call is a swap or
+forward, a zero-value self-transfer
 consumes the nonce instead (a revert-protecting private relay would never mine the
 call); the row then fails on the next cycle and retries on a fresh plan. A recover is
 exempt from the account-status gate (it is the refund path) but is still consumed by the
@@ -550,7 +552,7 @@ erDiagram
 
 | Table | Purpose |
 |---|---|
-| `monerium_accounts` (069, 071, 078, 080) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, dormancy marker, and `vortex_profile_id` → the owning managed child profile |
+| `monerium_accounts` (069, 071, 078, 080, 087) | One row per client account: Monerium profile UUID, IBAN, forwarder and destination addresses, fee policy mirror (`target_ppm`, `floor_ppm`), lifecycle status, activation time (`activated_at`, the dormancy anchor), dormancy marker, and `vortex_profile_id` → the owning managed child profile |
 | `monerium_fiat_deposits` (069, 070, 073, 076, 080, 081) | One row per Monerium issue order (or flagged `unattr:` inflow): amount in 18-dp base units, forward-only status through settlement (`converting`, `forwarded`) or refund (`recovering`, `refunded`, `recovery_failed`), on-chain mint identity and mint time, the payer's IBAN and name (the refund target), and two webhook-emission markers |
 | `monerium_account_registrations` (086) | One row per partner-registered Monerium profile: manager, profile ID (unique), destination, client reference and contact email, `requested` until the account is mapped (`account_id`) or `rejected` with a reason, and the deployment's transaction hash |
 | `monerium_recoveries` (081) | One row per refunded deposit: the phase of the refund, the EURe and USDC the keeper recovered, the reverse-swap output, the float top-up (the refund's subsidy) or the surplus swept back, the redeem order and the EUR amount refunded, failed attempts and the error that parked it for the operator |
