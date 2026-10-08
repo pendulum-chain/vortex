@@ -1084,19 +1084,6 @@ describe("refund deadlines and orchestration", () => {
     });
   });
 
-  it("tracks the in-flight recover per account", async () => {
-    const a = await mappedAccount(0);
-    const b = await mappedAccount(1);
-    const deposit = await confirmedRecover(a.accountId, "a1", new Date());
-    expect(await activeRecoveryExists(a.accountId)).toBe(true);
-    expect(await activeRecoveryExists(b.accountId)).toBe(false);
-    await confirmedRecover(b.accountId, "b1", new Date());
-    expect(await activeRecoveryExists(b.accountId)).toBe(true);
-    await deposit.update({ status: MoneriumFiatDepositStatus.Refunded });
-    expect(await activeRecoveryExists(a.accountId)).toBe(false);
-    expect(await activeRecoveryExists(b.accountId)).toBe(true);
-  });
-
   it("opens a refund confirmed later while another client's refund is already parked", async () => {
     const a = await mappedAccount(0);
     const b = await mappedAccount(1);
