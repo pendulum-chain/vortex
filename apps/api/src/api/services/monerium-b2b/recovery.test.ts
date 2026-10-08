@@ -385,6 +385,11 @@ describe("refund deadlines and orchestration", () => {
     config.moneriumB2b.autoRecovery = "auto";
   });
 
+  afterEach(() => {
+    (logger.error as unknown as { mockRestore?: () => void }).mockRestore?.();
+    (logger.warn as unknown as { mockRestore?: () => void }).mockRestore?.();
+  });
+
   /** A mapped client; `slot` > 0 makes a further client with its own clone, Monerium profile and manager. */
   async function mappedAccount(slot = 0) {
     const manager = await createTestUser();
@@ -1137,6 +1142,8 @@ describe("refund deadlines and orchestration", () => {
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
   });
 
+  const loggedText = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(call => String(call[0])).join("\n");
+
   /** Runs a cycle in which client A's receipt wait hangs; `check` runs while it is unresolved, then A is released. */
   async function cycleWithHungReceiptOfA(depsFor: ReturnType<typeof clientsFixture>["depsFor"], check: () => Promise<void>) {
     let release: () => void = () => {};
@@ -1208,9 +1215,10 @@ describe("refund deadlines and orchestration", () => {
 
   describe("refund monitor", () => {
     afterEach(() => {
-      (logger.error as unknown as { mockRestore?: () => void }).mockRestore?.();
-      (logger.warn as unknown as { mockRestore?: () => void }).mockRestore?.();
+      for (const spy of chainSpies) spy.mockRestore();
+      chainSpies.length = 0;
     });
+    const chainSpies: Array<{ mockRestore(): void }> = [];
 
     it("raises an error for a parked refund and stays quiet for a fresh one", async () => {
       const { accountId } = await mappedAccount();
@@ -1254,6 +1262,30 @@ describe("refund deadlines and orchestration", () => {
       expect(text).toContain(parkedA.id);
       expect(text).toContain(parkedC.id);
       expect(text).not.toContain(healthyB.id);
+    });
+
+    it("warns when the float's ETH for refund-wallet gas runs low", async () => {
+      await mappedAccount();
+      let ethBalance = 10n ** 15n;
+      chainSpies.push(
+        spyOn(chain, "getFloatWalletClient").mockReturnValue({ account: { address: FLOAT } } as unknown as ReturnType<
+          typeof chain.getFloatWalletClient
+        >),
+        spyOn(chain, "getPublicClient").mockReturnValue({
+          getBalance: async () => ethBalance,
+          readContract: async () => 5_000n * EUR
+        } as unknown as ReturnType<typeof chain.getPublicClient>),
+        spyOn(chain, "getForwarderImmutables").mockResolvedValue({ eure: EURE } as unknown as chain.ForwarderImmutables)
+      );
+      const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+
+      await runRefundMonitor();
+      expect(loggedText(warns)).toContain("float ETH running low");
+
+      warns.mockClear();
+      ethBalance = 10n ** 18n;
+      await runRefundMonitor();
+      expect(warns).not.toHaveBeenCalled();
     });
 
     it("classifies each open refund by its own age: only the lingering one warns", async () => {

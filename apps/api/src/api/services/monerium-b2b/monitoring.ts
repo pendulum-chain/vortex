@@ -562,6 +562,8 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
 export const RECOVERY_LINGER_MS = 60 * 60 * 1000;
 /** The EURe float warns below this balance (18 decimals). */
 export const FLOAT_WARN_EURE = 1_000n * 10n ** 18n;
+/** The float's ETH funds the gas top-ups of refund wallets; it warns below this balance (18 decimals). */
+export const FLOAT_WARN_ETH = 5n * 10n ** 16n;
 
 export type RefundQueueSeverity = "error" | "ok" | "warn";
 
@@ -598,7 +600,8 @@ export async function runRefundMonitor(now: number = Date.now()): Promise<void> 
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
   if (!float || accounts.length === 0) return;
   const { eure } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
-  const balance = await getPublicClient().readContract({
+  const publicClient = getPublicClient();
+  const balance = await publicClient.readContract({
     abi: erc20Abi,
     address: eure,
     args: [float.account.address],
@@ -611,6 +614,12 @@ export async function runRefundMonitor(now: number = Date.now()): Promise<void> 
     logger.warn(`monerium-b2b: float running low; ${detail}`);
   } else {
     logger.info(`monerium-b2b: ${detail}`);
+  }
+  const gas = await publicClient.getBalance({ address: float.account.address });
+  if (gas < FLOAT_WARN_ETH) {
+    logger.warn(
+      `monerium-b2b: float ETH running low; float ${float.account.address} holds ${formatUnits(gas, 18)} ETH — refund-wallet gas top-ups fail without it (runbook §2.7)`
+    );
   }
 }
 
