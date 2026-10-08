@@ -1142,8 +1142,15 @@ describe("refund deadlines and orchestration", () => {
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
   });
 
-  /** Client A's float top-up never confirms (its receipt wait times out), so the float stage is closed to float-capable steps. */
-  async function floatGateClosedByA() {
+  /**
+   * Client A's float top-up gates the float stage for client B's float top-up. By default A's receipt never
+   * confirms (its wait times out), so the float stage stays closed to float-capable steps.
+   */
+  async function floatGateClosedByA(
+    waitReceipt: () => Promise<"success"> = async () => {
+      throw new Error("timed out waiting for the receipt");
+    }
+  ) {
     const a = await mappedAccount(0);
     const b = await mappedAccount(1);
     const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000), { eure: 99n * EUR, usdc: 0n });
@@ -1154,11 +1161,7 @@ describe("refund deadlines and orchestration", () => {
       eure: new Map([[WALLETS[0], 99n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
       usdc: new Map()
     };
-    const fixture = clientsFixture(ledger, {
-      waitReceipt: async () => {
-        throw new Error("timed out waiting for the receipt");
-      }
-    });
+    const fixture = clientsFixture(ledger, { waitReceipt });
     return { ...fixture, a, b, depositA, depositB };
   }
 
@@ -1220,26 +1223,33 @@ describe("refund deadlines and orchestration", () => {
     ["parks its deposit", (depositId: string) => MoneriumFiatDeposit.update({ status: MoneriumFiatDepositStatus.RecoveryFailed }, { where: { id: depositId } })],
     ["moves its phase on", (depositId: string) => MoneriumRecovery.update({ phase: MoneriumRecoveryPhase.ToppedUp }, { where: { depositId } })]
   ])("sends nothing for a float step whose refund an operator %s while the cycle waited on the float gate", async (_name, change) => {
-    const a = await mappedAccount(0);
-    const b = await mappedAccount(1);
-    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000), { eure: 99n * EUR, usdc: 0n });
-    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
-    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000).then(row => row.update({ floatTopupTxHash: "0xlanded" }));
-    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
-    const ledger: Ledger = {
-      eure: new Map([[WALLETS[0], 99n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
-      usdc: new Map()
-    };
-    const { calls, depsFor } = clientsFixture(ledger, {
-      // A's receipt wait gates the float stage; the operator acts on B's refund while it runs.
-      waitReceipt: async () => {
-        await change(depositB.id);
-        return "success";
-      }
+    let depositBId = "";
+    // A's receipt wait gates the float stage; the operator acts on B's refund while it runs.
+    const { calls, depositB, depsFor } = await floatGateClosedByA(async () => {
+      await change(depositBId);
+      return "success";
     });
+    depositBId = depositB.id;
+    spyOn(logger, "error").mockImplementation((() => logger) as never);
 
     await runRecoveryOrchestrator(depsFor);
     expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([]);
+  });
+
+  it("skips a float step whose refund cannot be reloaded after the float gate and finishes the cycle", async () => {
+    const { calls, depositB, depsFor } = await floatGateClosedByA(async () => "success");
+    const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
+    const reload = MoneriumFiatDeposit.prototype.reload;
+    const failing = spyOn(MoneriumFiatDeposit.prototype, "reload").mockImplementation(function (this: MoneriumFiatDeposit) {
+      return this.id === depositB.id ? Promise.reject(new Error("connection lost")) : reload.call(this);
+    } as never);
+    try {
+      await runRecoveryOrchestrator(depsFor);
+      expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([]);
+      expect(loggedText(errors)).toContain(`could not reload the refund of deposit ${depositB.id}`);
+    } finally {
+      failing.mockRestore(); // the model's prototype is shared with the other tests
+    }
   });
 
   it("keeps stepping the other clients when opening one client's refund fails", async () => {

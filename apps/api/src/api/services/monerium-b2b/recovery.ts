@@ -733,16 +733,14 @@ export async function runRecoveryOrchestrator(
       logger.warn(`monerium-b2b: float steps wait for the unconfirmed float transfer of deposit ${gate.deposit.id}`);
       break;
     }
-    // The gating wait can be long: skip a head the operator parked, closed or moved on in the meantime.
+    // The gating wait can be long: step the head as the operator left it (parked, closed or moved on) in the meantime.
     const { deposit, recovery } = head;
-    const phase = recovery.phase;
     try {
       await Promise.all([deposit.reload(), recovery.reload()]);
     } catch (error) {
       logger.error(`monerium-b2b: could not reload the refund of deposit ${deposit.id}:`, error);
       continue;
     }
-    if (deposit.status !== MoneriumFiatDepositStatus.Recovering || recovery.phase !== phase) continue;
     await step(head);
   }
   await Promise.all(floatFreeSteps.map(([, running]) => running));
