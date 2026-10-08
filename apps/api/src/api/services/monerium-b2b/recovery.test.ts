@@ -14,6 +14,8 @@ import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriu
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { provisionMoneriumB2bAccount } from "./account-provisioning";
+import * as chain from "./chain";
+import { runConversionExecutor } from "./conversion-executor";
 import { runRefundMonitor } from "./monitoring";
 import {
   activeRecoveryExists,
@@ -931,6 +933,112 @@ describe("refund deadlines and orchestration", () => {
     }
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositA.id } }))?.phase).toBe(MoneriumRecoveryPhase.Swapped);
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.Moved);
+  });
+
+  it("counts a surplus sweep to the float against the same float slot as a top-up", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000), { eure: 103n * EUR, usdc: 0n });
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.Swapped, 60_000, { eure: 103n * EUR, usdc: 0n });
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = {
+      eure: new Map([[WALLETS[0], 103n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
+      usdc: new Map()
+    };
+    const { calls, depsFor } = clientsFixture(ledger);
+
+    await runRecoveryOrchestrator(depsFor); // A sweeps its surplus to the float; B's top-up waits
+    expect(calls).toEqual([`eure:recovery->${FLOAT.toLowerCase()}:${3n * EUR}`]);
+    await runRecoveryOrchestrator(depsFor); // the sweep confirms (no float send), then B tops up
+    expect(calls.slice(1)).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
+  });
+
+  it("starts no float step after a float-free step has used up the cycle's time budget", async () => {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000));
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000));
+    // A's float transfer already landed, so its (slow) receipt step gates the float stage and then releases it.
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000, { eure: 99n * EUR, usdc: 0n }).then(row =>
+      row.update({ floatTopupTxHash: "0xlanded" })
+    );
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = {
+      eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
+      usdc: new Map()
+    };
+    const { calls, depsFor } = clientsFixture(ledger);
+    try {
+      await runRecoveryOrchestrator(async account => {
+        const deps = await depsFor(account);
+        if (account.forwarderAddress.toLowerCase() !== FORWARDER) return deps;
+        return {
+          ...deps,
+          waitReceipt: async hash => {
+            setSystemTime(new Date(Date.now() + 120_000)); // the receipt wait takes two minutes
+            return deps.waitReceipt(hash);
+          }
+        };
+      });
+    } finally {
+      setSystemTime();
+    }
+    expect((await MoneriumRecovery.findOne({ where: { depositId: depositA.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppedUp);
+    expect(calls).toEqual([]); // B's top-up did not start
+
+    await runRecoveryOrchestrator(depsFor); // a fresh cycle has its full budget
+    expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
+  });
+
+  describe("keeper wiring of the in-flight recover", () => {
+    afterEach(() => {
+      for (const spy of spies) spy.mockRestore();
+      spies.length = 0;
+    });
+    const spies: Array<{ mockRestore(): void }> = [];
+
+    it("refuses a second recover only for the account whose refund is in flight", async () => {
+      const a = await mappedAccount(0);
+      const b = await mappedAccount(1);
+      const now = Date.now();
+      const inFlight = await confirmedRecover(a.accountId, "a1", new Date(now - 90_000)); // A's refund holds its wallet
+      const waitingA = await minted(a.accountId, "a2", new Date(now - 80_000), MoneriumFiatDepositStatus.Recovering);
+      const waitingB = await minted(b.accountId, "b1", new Date(now - 70_000), MoneriumFiatDepositStatus.Recovering);
+      await waitingA.update({ blockNumber: 101 });
+      await waitingB.update({ blockNumber: 102 });
+      expect(await activeRecoveryExists(a.accountId)).toBe(true);
+
+      const reads: Record<string, unknown> = {
+        MIN_SWAP_FLOOR: 1n,
+        balanceOf: 100n * EUR,
+        batchOpenedAt: 1_000n, // long past the recovery delay
+        minSwapAmount: 25n * EUR,
+        perSwapCap: 10_000n * EUR
+      };
+      spies.push(
+        spyOn(chain, "getPublicClient").mockReturnValue({
+          readContract: async ({ functionName }: { functionName: string }) => reads[functionName]
+        } as unknown as ReturnType<typeof chain.getPublicClient>),
+        spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+          factory: config.moneriumB2b.forwarderFactoryAddress,
+          recoveryDelaySeconds: 7_200
+        } as unknown as chain.ForwarderImmutables),
+        // No keeper in tests: a recover that gets as far as its send fails right after its row is reserved.
+        spyOn(chain, "getKeeperWalletClient").mockImplementation(() => {
+          throw new Error("no keeper in tests");
+        })
+      );
+      const recoversOf = (depositId: string) =>
+        MoneriumConversionExecution.count({ where: { depositId, kind: MoneriumConversionExecutionKind.Recover } });
+
+      await runConversionExecutor(a.accountId);
+      await runConversionExecutor(b.accountId);
+
+      expect(await recoversOf(inFlight.id)).toBe(1);
+      expect(await recoversOf(waitingA.id)).toBe(0); // refused: A's previous refund is still on its wallet
+      expect(await recoversOf(waitingB.id)).toBe(1); // B has no refund in flight: planned and attempted
+    });
   });
 
   it("tracks the in-flight recover per account", async () => {
