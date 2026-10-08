@@ -142,6 +142,7 @@ function fakeDeps(
     setDepositStatus: async (deposit, status) => {
       calls.push(`deposit:${status}`);
       (deposit as { status: MoneriumFiatDepositStatus }).status = status;
+      return null;
     },
     signMessage: async message => {
       calls.push(`sign:${message}`);
@@ -340,6 +341,38 @@ describe("driveRecovery", () => {
     expect(redeeming.error).toContain("compliance");
   });
 
+  it("keeps a processed refund open, without the refunded log, until the deposit is marked refunded", async () => {
+    const info = spyOn(logger, "info");
+    info.mockClear(); // another file's leaked logger mock can carry earlier calls into the spy
+    const refundedLogged = () => info.mock.calls.some(([message]) => String(message).includes("refunded"));
+    try {
+      const ledger: Ledger = { eure: new Map(), usdc: new Map() };
+      const orders = [{ id: "order-1", memo: refundMemo("deposit-1"), state: "processed" }];
+      const recovery = recoveryRow({ phase: MoneriumRecoveryPhase.Redeeming, redeemOrderId: "order-1", refundAmount: "100.00" });
+      const deposit = depositRow();
+
+      await driveRecovery(recovery, deposit, fakeDeps(ledger, { orders, setDepositStatus: async () => "Monerium account not found" }));
+      expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeeming);
+
+      const throwing = fakeDeps(ledger, {
+        orders,
+        setDepositStatus: async () => {
+          throw new Error("connection reset");
+        }
+      });
+      await expect(driveRecovery(recovery, deposit, throwing)).rejects.toThrow("connection reset");
+      expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeeming);
+      expect(refundedLogged()).toBe(false);
+
+      await driveRecovery(recovery, deposit, fakeDeps(ledger, { orders }));
+      expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+      expect(deposit.status).toBe(MoneriumFiatDepositStatus.Refunded);
+      expect(refundedLogged()).toBe(true);
+    } finally {
+      info.mockRestore();
+    }
+  });
+
   it("retries a reverted reverse swap and fails after the fifth attempt", async () => {
     const ledger: Ledger = { eure: new Map([[RECOVERY, 40n * EUR]]), usdc: new Map([[RECOVERY, 68n * USDC]]) };
     const deps = fakeDeps(ledger, {
@@ -464,6 +497,7 @@ describe("refund deadlines and orchestration", () => {
     const deps = fakeDeps(ledger, {
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       }
     });
     const depsFor = async () => deps;
@@ -508,6 +542,7 @@ describe("refund deadlines and orchestration", () => {
       },
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       }
     });
     const depsFor = async () => deps;
@@ -539,6 +574,136 @@ describe("refund deadlines and orchestration", () => {
     expect(redeemCalls).toBe(6);
   });
 
+  it("keeps counting attempts when parking a failed refund is refused, instead of reading it as an operator retry", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "unparked", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await MoneriumRecovery.create({
+      attempts: 4,
+      depositId: deposit.id,
+      eureRecoveredRaw: (100n * EUR).toString(),
+      phase: MoneriumRecoveryPhase.ToppedUp,
+      usdcRecoveredRaw: "0"
+    });
+    let park: () => Promise<string | null> = async () => "Monerium account not found";
+    const deps = fakeDeps(
+      { eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() },
+      {
+        createRedeemOrder: async () => {
+          throw new Error("Request failed with status '503'");
+        },
+        setDepositStatus: () => park()
+      }
+    );
+    const depsFor = async () => deps;
+    const error = spyOn(logger, "error");
+    // Scoped to this deposit: another file's leaked logger mock can carry earlier calls into the spy.
+    const refundFailedLogs = () =>
+      error.mock.calls.filter(([message]) => String(message).includes(`REFUND FAILED — deposit ${deposit.id}`)).length;
+    try {
+      await runRecoveryOrchestrator(depsFor); // fifth failure: parking refused
+      const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+      expect(recovery).toMatchObject({ attempts: 5, error: null });
+
+      park = async () => {
+        throw new Error("connection reset");
+      };
+      await runRecoveryOrchestrator(depsFor); // no reset to a fresh run of five; parking throws
+      await recovery.reload();
+      expect(recovery).toMatchObject({ attempts: 6, error: null });
+
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+      await deposit.reload();
+      expect(recovery).toMatchObject({ attempts: 7, error: null });
+      expect(deposit.status).toBe(MoneriumFiatDepositStatus.Recovering);
+      expect(refundFailedLogs()).toBe(0); // the deposit is still driven: nothing for the operator yet
+
+      park = async () => {
+        await deposit.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
+        return null;
+      };
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+      expect(recovery.error).toContain("after 8 attempts");
+      expect(refundFailedLogs()).toBe(1);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("closes a parked EUR 15,000+ refund the operator completed by hand, without placing a redeem order", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "large", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await deposit.update({ amountRaw: (20_000n * EUR).toString() });
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (20_000n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    const deps = fakeDeps({ eure: new Map([[RECOVERY, 20_000n * EUR]]), usdc: new Map() }, { setDepositStatus });
+    const depsFor = async () => deps;
+    for (let i = 0; i < 3; i++) await runRecoveryOrchestrator(depsFor); // moved -> swapped -> topped up -> parked
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    expect(recovery).toMatchObject({ error: expect.stringContaining("supporting document"), phase: MoneriumRecoveryPhase.ToppedUp });
+
+    // The operator places the order by hand and closes the deposit (PATCH .../status {"status": "refunded"}).
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    await deposit.reload();
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.Refunded);
+    expect(deps.calls.some(call => call.startsWith("redeem:"))).toBe(false);
+    expect(await activeRecoveryExists(accountId)).toBe(false);
+  });
+
+  it("re-parks a rejected redeem order on an operator retry, and a hand close never reports it", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "rejected", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    const deps = fakeDeps({ eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() }, { setDepositStatus });
+    const depsFor = async () => deps;
+    for (let i = 0; i < 3; i++) await runRecoveryOrchestrator(depsFor); // moved -> swapped -> topped up -> order placed
+    Object.assign(deps.orders[0], { rejectedReason: "compliance", state: "rejected" });
+    await runRecoveryOrchestrator(depsFor);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(recovery).toMatchObject({ phase: MoneriumRecoveryPhase.Redeeming, redeemOrderId: null });
+    expect(recovery.error).toContain("order-1: compliance");
+
+    // A retry cannot get past a rejected order: the memo lookup adopts it again and it parks again.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Recovering)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(recovery.redeemOrderId).toBeNull();
+
+    // Refunded by hand and closed: DEPOSIT_RETURNED reads no order id rather than the rejected one.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    expect(recovery).toMatchObject({ phase: MoneriumRecoveryPhase.Redeemed, redeemOrderId: null });
+    expect(deps.calls.filter(call => call.startsWith("redeem:"))).toHaveLength(1);
+  });
+
   it("holds the queue on a failed refund until the operator retries it", async () => {
     const { accountId } = await mappedAccount();
     const deposit = await minted(accountId, "stuck", new Date(), MoneriumFiatDepositStatus.Recovering);
@@ -557,6 +722,7 @@ describe("refund deadlines and orchestration", () => {
     const deps = fakeDeps(ledger, {
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       }
     });
     const depsFor = async () => deps;
@@ -607,6 +773,7 @@ describe("refund deadlines and orchestration", () => {
     return fakeDeps(ledger, {
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       },
       ...overrides
     });

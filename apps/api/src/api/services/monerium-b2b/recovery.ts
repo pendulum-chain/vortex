@@ -53,7 +53,8 @@ import { refundAccountFor } from "./refund-wallet";
  * its previous one is redeemed. Clients do not wait for each other; a refund parked in
  * `recovery_failed` blocks only its own client's later refunds. A step that fails beyond
  * its retries parks the deposit in `recovery_failed` with the phase preserved; an operator
- * retry (deposit back to `recovering`) resumes there.
+ * retry (deposit back to `recovering`) resumes there, and a
+ * refund the operator completed by hand is closed by setting the deposit `refunded`.
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
@@ -140,8 +141,8 @@ export interface RecoveryDeps {
   createRedeemOrder(request: MoneriumRedeemOrderRequest): Promise<{ id: string | null }>;
   getOrder(orderId: string): Promise<{ rejectedReason?: string; state: string }>;
   signMessage(message: string): Promise<string>;
-  /** Forward-only deposit transition under the forwarder lock (a no-op for an illegal edge; the refund path ignores the refusal). */
-  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<unknown>;
+  /** Forward-only deposit transition under the forwarder lock: why it was refused, or null once the deposit has `status`. */
+  setDepositStatus(deposit: MoneriumFiatDeposit, status: MoneriumFiatDepositStatus): Promise<string | null>;
   now(): Date;
 }
 
@@ -347,9 +348,14 @@ async function fail(
   deps: RecoveryDeps,
   reason: string
 ): Promise<void> {
+  // Park before recording `error`: an error on a deposit still `recovering` reads as the operator's retry.
+  const refusal = await deps.setDepositStatus(deposit, MoneriumFiatDepositStatus.RecoveryFailed);
+  if (refusal) {
+    logger.error(`monerium-b2b: deposit ${deposit.id} could not be parked as recovery_failed (${reason}): ${refusal}`);
+    return;
+  }
   logger.error(`monerium-b2b: REFUND FAILED — deposit ${deposit.id} in phase ${recovery.phase}: ${reason} (runbook §2.7)`);
   await recovery.update({ error: reason.slice(0, 500) });
-  await deps.setDepositStatus(deposit, MoneriumFiatDepositStatus.RecoveryFailed);
 }
 
 async function retryOrFail(
@@ -569,13 +575,28 @@ export async function driveRecovery(
       }
       if (!order) return; // accepted asynchronously: it shows up in the next listing
       if (order.state === "processed") {
+        // The deposit first: a redeemed recovery leaves every open query, so it could never retry.
+        const refusal = await deps.setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded);
+        if (refusal) {
+          logger.error(
+            `monerium-b2b: deposit ${deposit.id} was refunded (order ${recovery.redeemOrderId}) but could not be marked refunded: ${refusal}`
+          );
+          return;
+        }
         await recovery.update({ error: null, phase: MoneriumRecoveryPhase.Redeemed });
-        await deps.setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded);
         logger.info(
           `monerium-b2b: deposit ${deposit.id} refunded (${recovery.refundAmount} EUR, order ${recovery.redeemOrderId})`
         );
       } else if (order.state === "rejected") {
-        await fail(recovery, deposit, deps, `Monerium rejected the redeem order: ${order.rejectedReason ?? "no reason given"}`);
+        // It paid nothing out: no partner event may name it once the operator refunds by hand (the id stays in `error`).
+        const rejectedId = recovery.redeemOrderId;
+        await recovery.update({ redeemOrderId: null });
+        await fail(
+          recovery,
+          deposit,
+          deps,
+          `Monerium rejected redeem order ${rejectedId}: ${order.rejectedReason ?? "no reason given"}`
+        );
       }
       return;
     }
