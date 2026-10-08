@@ -850,15 +850,15 @@ export interface ActionPlanningInput {
   nowMs: number;
   perSwapCap: bigint;
   recoveryDelaySeconds: number;
-  /** A recovered payment is still on the recovery wallet: no second `recover` may land there. */
+  /** A recovered payment is still on this account's refund wallet: no second `recover` may land there. */
   recoveryInFlight: boolean;
 }
 
 /**
  * What the keeper should do next for an account, given its settling deposits (oldest
  * mint first) and their confirmed chunks. A deposit marked `recovering` goes first, once
- * the clone's batch has been open for RECOVERY_DELAY and no other refund is in flight
- * (the recovery wallet takes one payment at a time); else it waits without blocking
+ * the clone's batch has been open for RECOVERY_DELAY and no other refund of this account is
+ * in flight (a refund wallet takes one payment at a time); else it waits without blocking
  * younger deposits. Then the oldest convertible deposit is forwarded when all of its
  * EURe is converted, or swapped in its next chunk.
  */
@@ -969,7 +969,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // is currently possible.
   const pokeNeeded = batchOpenedAt === 0n && (eureBalance >= minSwapFloor || usdcBalance > 0n);
 
-  const recoveryInFlight = await activeRecoveryExists();
+  const recoveryInFlight = await activeRecoveryExists(account.id);
   const planned = await withForwarderLock(account.forwarderAddress, async transaction => {
     const deposits = await settlingDeposits(account.id, transaction);
     const withState = [];

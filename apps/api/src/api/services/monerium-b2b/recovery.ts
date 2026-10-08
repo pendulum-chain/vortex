@@ -36,8 +36,8 @@ import { refundAccountFor } from "./refund-wallet";
  *     than the promised window (MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES), or only alerts,
  *     depending on MONERIUM_B2B_AUTO_RECOVERY. The keeper then sends `recover` once the
  *     clone's batch is RECOVERY_DELAY old (conversion-executor.ts).
- *  2. `runRecoveryOrchestrator` drives ONE recovery at a time from the confirmed `recover`
- *     to the bank refund, on the client's own refund wallet (the clone's `recoveryAddress`,
+ *  2. `runRecoveryOrchestrator` drives each client's oldest open recovery from the confirmed
+ *     `recover` to the bank refund, on the client's own refund wallet (the clone's `recoveryAddress`,
  *     derived in refund-wallet.ts and linked to the client's Monerium profile): reverse-swap
  *     the USDC, top the wallet up from the EURe float to exactly the refund amount (or
  *     sweep a surplus back to the float), place the Monerium redeem order to the payer's
@@ -47,10 +47,16 @@ import { refundAccountFor } from "./refund-wallet";
  * Crash safety rests on the refund wallet being dedicated and empty between refunds:
  * every step re-derives what is still to do from the wallet's balances, so a lost
  * transaction hash never repeats a value-moving send (a top-up already on chain makes the
- * remaining need zero). One recovery at a time is what keeps those balances meaningful;
- * the executor refuses a second `recover` while one is in flight (`activeRecoveryExists`).
- * A step that fails beyond its retries parks the deposit in `recovery_failed` with the
- * phase preserved; an operator retry (deposit back to `recovering`) resumes there.
+ * remaining need zero). One recovery at a time PER CLIENT is what keeps those balances
+ * meaningful: the executor refuses a second `recover` for an account while one is in flight
+ * (`activeRecoveryExists`), and the orchestrator opens a client's next recovery only after
+ * its previous one is redeemed. Clients do not wait for each other; a refund parked in
+ * `recovery_failed` blocks only its own client's later refunds. A step that fails beyond
+ * its retries parks the deposit in `recovery_failed` with the phase preserved; an operator
+ * retry (deposit back to `recovering`) resumes there.
+ *
+ * The EURe float wallet is shared and sends with implicit nonces, so across clients its
+ * sends are serialized: see `runRecoveryOrchestrator`.
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
@@ -298,22 +304,23 @@ export async function runRecoveryDeadlines(now: number = Date.now()): Promise<vo
 // ------------------------------------------------------------------ orchestrator
 
 /**
- * True while a recovered payment is (or is about to be) on a refund wallet: a
- * `recover` execution that is pending or confirmed whose deposit has not left the
- * refund path. The executor refuses to send another `recover` meanwhile.
+ * True while a recovered payment is (or is about to be) on the account's refund wallet: a
+ * `recover` execution that is pending or confirmed whose deposit has not left the refund
+ * path. The executor refuses to send another `recover` for that account meanwhile.
  */
-export async function activeRecoveryExists(): Promise<boolean> {
+export async function activeRecoveryExists(accountId: string): Promise<boolean> {
   const rows = await sequelize.query<{ id: string }>(
     `SELECT e.id
      FROM monerium_conversion_executions AS e
      JOIN monerium_fiat_deposits AS d ON d.id = e.deposit_id
      LEFT JOIN monerium_recoveries AS r ON r.deposit_id = e.deposit_id
-     WHERE e.kind = 'recover'
+     WHERE e.account_id = :accountId
+       AND e.kind = 'recover'
        AND e.status IN ('pending', 'confirmed')
        AND d.status IN ('recovering', 'recovery_failed')
        AND (r.id IS NULL OR r.phase <> 'redeemed')
      LIMIT 1`,
-    { type: QueryTypes.SELECT }
+    { replacements: { accountId }, type: QueryTypes.SELECT }
   );
   return rows.length > 0;
 }
@@ -580,44 +587,49 @@ export async function driveRecovery(
   }
 }
 
-/**
- * Runs one step of the active recovery, or opens the next one: the oldest deposit in
- * `recovering` whose `recover` execution is confirmed and that has no recovery row yet.
- * A recovery whose deposit is `recovery_failed` waits for the operator and blocks the
- * queue (one refund at a time; ponytail: per-client wallets would allow one per client, add
- * when refunds queue up).
- */
-export async function runRecoveryOrchestrator(
-  depsFor: (account: MoneriumAccount) => Promise<RecoveryDeps> = liveRecoveryDeps
-): Promise<void> {
-  let recovery = await MoneriumRecovery.findOne({
-    order: [["created_at", "ASC"]],
-    where: { phase: { [Op.ne]: MoneriumRecoveryPhase.Redeemed } }
-  });
-  if (!recovery) {
-    const moved = await sequelize.query<{ depositId: string; eureInRaw: string; usdcNetRaw: string }>(
-      `SELECT e.deposit_id AS "depositId", e.eure_in_raw AS "eureInRaw", e.usdc_net_raw AS "usdcNetRaw"
-       FROM monerium_conversion_executions AS e
-       JOIN monerium_fiat_deposits AS d ON d.id = e.deposit_id
-       LEFT JOIN monerium_recoveries AS r ON r.deposit_id = e.deposit_id
-       WHERE e.kind = 'recover' AND e.status = 'confirmed' AND d.status = 'recovering' AND r.id IS NULL
-       ORDER BY e.created_at ASC
-       LIMIT 1`,
-      { type: QueryTypes.SELECT }
-    );
-    if (moved.length === 0) return;
-    recovery = await MoneriumRecovery.create({
-      depositId: moved[0].depositId,
-      eureRecoveredRaw: moved[0].eureInRaw,
+/** Phases whose step may send from the shared float (reverse swap and top-up fund the refund wallet's gas or EURe). */
+const FLOAT_PHASES: ReadonlySet<MoneriumRecoveryPhase> = new Set([MoneriumRecoveryPhase.Moved, MoneriumRecoveryPhase.Swapped]);
+/** No new step starts once a cycle has spent this long (each step may wait on a receipt). */
+const CYCLE_BUDGET_MS = 90_000;
+
+/** Opens the oldest confirmed `recover` of every client that has no open recovery. */
+async function openRecoveries(): Promise<void> {
+  const moved = await sequelize.query<{ depositId: string; eureInRaw: string; usdcNetRaw: string }>(
+    `SELECT DISTINCT ON (d.account_id)
+            e.deposit_id AS "depositId", e.eure_in_raw AS "eureInRaw", e.usdc_net_raw AS "usdcNetRaw"
+     FROM monerium_conversion_executions AS e
+     JOIN monerium_fiat_deposits AS d ON d.id = e.deposit_id
+     LEFT JOIN monerium_recoveries AS r ON r.deposit_id = e.deposit_id
+     WHERE e.kind = 'recover' AND e.status = 'confirmed' AND d.status = 'recovering' AND r.id IS NULL
+       AND NOT EXISTS (
+         SELECT 1
+         FROM monerium_recoveries AS open
+         JOIN monerium_fiat_deposits AS open_deposit ON open_deposit.id = open.deposit_id
+         WHERE open_deposit.account_id = d.account_id AND open.phase <> 'redeemed'
+       )
+     ORDER BY d.account_id, e.created_at ASC`,
+    { type: QueryTypes.SELECT }
+  );
+  for (const row of moved) {
+    await MoneriumRecovery.create({
+      depositId: row.depositId,
+      eureRecoveredRaw: row.eureInRaw,
       phase: MoneriumRecoveryPhase.Moved,
-      usdcRecoveredRaw: moved[0].usdcNetRaw ?? "0"
+      usdcRecoveredRaw: row.usdcNetRaw ?? "0"
     });
   }
-  const deposit = await MoneriumFiatDeposit.findByPk(recovery.depositId);
-  if (!deposit) return;
+}
+
+/** One step of one client's open recovery: parked and closed ones are handled here, the rest are driven. */
+async function stepRecovery(
+  recovery: MoneriumRecovery,
+  deposit: MoneriumFiatDeposit,
+  depsFor: (account: MoneriumAccount) => Promise<RecoveryDeps>,
+  onFloatSend: () => void
+): Promise<void> {
   if (deposit.status === MoneriumFiatDepositStatus.RecoveryFailed) {
     logger.error(
-      `monerium-b2b: refund of deposit ${deposit.id} waits for the operator (${recovery.error}); the refund queue is blocked`
+      `monerium-b2b: refund of deposit ${deposit.id} waits for the operator (${recovery.error}); that client's refund queue is blocked`
     );
     return;
   }
@@ -634,8 +646,71 @@ export async function runRecoveryOrchestrator(
   if (!account) return;
   try {
     const deps = await depsFor(account);
-    await driveRecovery(recovery, deposit, deps);
+    // The float is touched only by these two sends (EURe top-up, and the gas top-up inside both).
+    const tracked: RecoveryDeps = {
+      ...deps,
+      sendEure: (...args) => {
+        onFloatSend();
+        return deps.sendEure(...args);
+      },
+      sendReverseSwap: (...args) => {
+        onFloatSend();
+        return deps.sendReverseSwap(...args);
+      }
+    };
+    await driveRecovery(recovery, deposit, tracked);
   } catch (error) {
     logger.error(`monerium-b2b: refund step for deposit ${deposit.id} errored:`, error);
+  }
+}
+
+/**
+ * Runs one step of every client's oldest open recovery, after opening the next one for
+ * each client that has none: the oldest deposit in `recovering` whose `recover` execution
+ * is confirmed and that has no recovery row yet. A recovery whose deposit is
+ * `recovery_failed` waits for the operator and blocks only its own client's queue.
+ *
+ * Each client's refund wallet is its own, so clients progress independently; the one
+ * shared resource is the EURe float wallet, which sends with implicit nonces and no
+ * coherent pending pool. So per cycle: steps that cannot touch the float run first; then
+ * at most one step that did send from the float runs, and none while an earlier float
+ * transfer is still unconfirmed (a `topping_up` recovery waiting on its receipt). Float
+ * steps are taken oldest first; one that sends nothing (float underfunded, nothing to
+ * swap) does not use the slot.
+ */
+export async function runRecoveryOrchestrator(
+  depsFor: (account: MoneriumAccount) => Promise<RecoveryDeps> = liveRecoveryDeps
+): Promise<void> {
+  await openRecoveries();
+  const open = await MoneriumRecovery.findAll({
+    order: [["created_at", "ASC"]],
+    where: { phase: { [Op.ne]: MoneriumRecoveryPhase.Redeemed } }
+  });
+  if (open.length === 0) return;
+  const deposits = await MoneriumFiatDeposit.findAll({ where: { id: open.map(row => row.depositId) } });
+  const depositById = new Map(deposits.map(deposit => [deposit.id, deposit]));
+  // The oldest open recovery of each client (rows are oldest first).
+  const heads = new Map<string, { deposit: MoneriumFiatDeposit; recovery: MoneriumRecovery }>();
+  for (const recovery of open) {
+    const deposit = depositById.get(recovery.depositId);
+    if (deposit && !heads.has(deposit.accountId)) heads.set(deposit.accountId, { deposit, recovery });
+  }
+
+  const startedAt = Date.now();
+  let floatSent = false;
+  const onFloatSend = () => {
+    floatSent = true;
+  };
+  const queue = [...heads.values()];
+  const floatFree = queue.filter(({ recovery }) => !FLOAT_PHASES.has(recovery.phase));
+  const floatCapable = queue.filter(({ recovery }) => FLOAT_PHASES.has(recovery.phase));
+  for (const { deposit, recovery } of floatFree) {
+    if (Date.now() - startedAt > CYCLE_BUDGET_MS) return;
+    await stepRecovery(recovery, deposit, depsFor, onFloatSend);
+  }
+  for (const { deposit, recovery } of floatCapable) {
+    if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS) return;
+    if (queue.some(head => head.recovery.phase === MoneriumRecoveryPhase.ToppingUp && head.recovery.floatTopupTxHash)) return;
+    await stepRecovery(recovery, deposit, depsFor, onFloatSend);
   }
 }

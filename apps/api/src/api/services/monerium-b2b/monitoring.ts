@@ -558,14 +558,14 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
   }
 }
 
-/** An active refund older than this warns; older than four times it errors. */
+/** An open refund older than this warns; older than four times it errors. */
 export const RECOVERY_LINGER_MS = 60 * 60 * 1000;
 /** The EURe float warns below this balance (18 decimals). */
 export const FLOAT_WARN_EURE = 1_000n * 10n ** 18n;
 
 export type RefundQueueSeverity = "error" | "ok" | "warn";
 
-/** Severity of the oldest active refund by its age; a failed one is always an error. */
+/** Severity of an open refund by its age; a failed one is always an error. */
 export function classifyRefundQueue(activeCreatedAt: Date | null, failed: boolean, nowMs: number): RefundQueueSeverity {
   if (failed) return "error";
   if (!activeCreatedAt) return "ok";
@@ -576,16 +576,17 @@ export function classifyRefundQueue(activeCreatedAt: Date | null, failed: boolea
 }
 
 /**
- * Refund monitor: the one active recovery and the float. Runs only with automated
- * refunds configured; the manual procedure has the runbook.
+ * Refund monitor: every open recovery (one per client at most) and the float. Each is
+ * classified by its own age, so a parked refund alerts regardless of the others. Runs only
+ * with automated refunds configured; the manual procedure has the runbook.
  */
 export async function runRefundMonitor(now: number = Date.now()): Promise<void> {
-  const active = await MoneriumRecovery.findOne({
+  const open = await MoneriumRecovery.findAll({
     order: [["created_at", "ASC"]],
     where: { phase: { [Op.ne]: MoneriumRecoveryPhase.Redeemed } }
   });
-  const severity = classifyRefundQueue(active?.createdAt ?? null, Boolean(active?.error), now);
-  if (active) {
+  for (const active of open) {
+    const severity = classifyRefundQueue(active.createdAt, Boolean(active.error), now);
     const message =
       `monerium-b2b: refund of deposit ${active.depositId} in phase ${active.phase} since ${active.createdAt.toISOString()}` +
       `${active.error ? ` — FAILED: ${active.error}` : ""}`;
