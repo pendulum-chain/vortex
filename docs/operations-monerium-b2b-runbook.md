@@ -89,17 +89,16 @@ One pass per client. Prerequisites: guardian key funded on the target chain;
 `MONERIUM_B2B_ENABLED=true` and the complete `MONERIUM_B2B_*` env set on the one
 `mykobo` keeper backend (including the trusted factory address, read/private RPCs,
 webhook secret, and three keys); the factory's subsidy vault deployed, pointed at and
-funded (§2.6); partner paperwork complete; the client
-company onboarded and KYB-approved on Monerium's side (partner KYC reliance) with its
-Monerium profile UUID at hand; the partner configured as a managed-profile manager
+funded (§2.6); the client company onboarded and KYB-approved on Monerium's side with
+its Monerium profile UUID at hand; the partner configured as a managed-profile manager
 (`PUT /v1/admin/managed-profile-managers/:profileId`, corridor `EU`, customer type
 `business`).
 
-### 1.1 Paperwork inputs (from the partner agreement)
+### 1.1 Client inputs
 
 - `destination` — client's payout address. CEX deposit addresses allowed; validate by
   hand: EIP-55 checksum, not zero/dead/precompile/token/router, warn-and-attest for
-  contract addresses and CEX addresses (rotation risk — terms). Nothing else screens
+  contract addresses and CEX addresses (rotation risk). Nothing else screens
   them: the registration API rejects only a malformed or zero address (400), and the
   factory refuses at init (the registration is rejected) only EURe, EURC, USDC, the
   router, the clone itself and the client's own refund wallet. A dead or precompile
@@ -109,9 +108,8 @@ Monerium profile UUID at hand; the partner configured as a managed-profile manag
   change is a new clone, §5 — so get it right; a penny test is recommended for exchange
   destinations.)
 - `targetPpm` / `floorPpm` — the client's fee policy in ppm below the reference rate;
-  launch policy 1250 / 1500 (12.5 / 15 bps, ADR B1). Adjustable later via the
-  guardian's timelocked `setFeePolicy` (raising either value waits 24 h).
-- Signed terms including the redemption-limitation disclosure (rollout doc, Terms §1).
+  Vortex's default policy 1250 / 1500 (12.5 / 15 bps, ADR B1). Adjustable later via
+  the guardian's timelocked `setFeePolicy` (raising either value waits 24 h).
 
 ### 1.2 Deploy the forwarder clone
 
@@ -277,12 +275,11 @@ need no subsidy keep executing.
 
 ### 2.2 Monerium IBAN suspension ask
 
-Per-IBAN suspension is **G1 item 7 — not yet contractual**; until the MSA settles it,
-best-effort: contact Monerium support/emergency, identify the whitelabel partner
-account and affected IBAN(s) + forwarder(s), ask for suspension of inbound SEPA
-(deposits bounce to senders — NOT profile closure), record the ticket for the G1
-negotiation record. While unsuspended, inbound SEPA keeps minting EURe to the forwarder
-— safe behind the contract invariants, but growing exposure.
+Contact Monerium support/emergency, identify the whitelabel partner account and
+affected IBAN(s) + forwarder(s), ask for suspension of inbound SEPA (deposits bounce to
+senders — NOT profile closure), and record the ticket. While unsuspended, inbound SEPA
+keeps minting EURe to the forwarder — safe behind the contract invariants, but growing
+exposure.
 
 ### 2.3 Client notification
 
@@ -442,9 +439,12 @@ be pending. If its float top-up was dropped, park the refund, clear its hash (`U
    (individual payers: `firstName`/`lastName`), `country` from the IBAN prefix, `memo`
    `vortex-refund:<depositId>` (the key the automation checks before placing), the
    message `Send EUR <amount> to <iban> at <minute>`
-   signed by the refund wallet's key; attach `supportingDocumentId` above EUR 15,000 (the
-   same client agreement can be reused, Monerium 2026-09-30). Monerium pays the refund
-   out of the client's own IBAN. Watch `order.updated` for `processed`.
+   signed by the refund wallet's key; attach `supportingDocumentId` from EUR 15,000 (one
+   standing document per client can be uploaded once and reused for its refunds). Monerium
+   pays the refund out of the client's own IBAN. Watch `order.updated` for `processed`.
+   Monerium may review a redeem order during business hours before paying it out; the
+   payout goes by SEPA Instant where the payer's bank supports it, otherwise the next
+   business day.
 6. **Close the deposit.** `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status`
    with `{"status": "refunded"}`, from `recovering` or `recovery_failed`; use
    `recovery_failed` when a step cannot complete (and `recovering` again to retry later).
@@ -466,7 +466,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `route ... could not be quoted` | One whitelisted route's pool is unquotable (drained, removed) | Disable it (§2.1) so the keeper stops trying; keep at least one healthy route |
 | `ASSOCIATION CHANGE` | Monerium-side association diverged from the DB (IBAN moved, an address other than the forwarder and the client's own refund wallet linked) — the S1 detective control | §2.5 — potential credential compromise unless the change was an announced migration (§5) |
 | `stranded funds on forwarder ... past RECOVERY_DELAY` (warn) | A batch has been open longer than the promised 2 h window and is neither forwarded nor recovering | Check worker liveness, RPC health, keeper gas, oracle staleness (`StalePrice` reverts), `deferring conversion` lines; if the payment cannot complete, mark it for recovery (§2.7) |
-| `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; SLA long broken (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
+| `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; the promised window long missed (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
 | `REFERENCE VENUE —` (error) | The Coinbase product the reference reads is delisted or halted; every keeper swap defers silently | Change `COINBASE_REFERENCE_PRODUCT` (a live EURC market), redeploy the backend; the venue is an operational, not an on-chain, setting |
 | `REFUND DUE — deposit ...` (error, `alert` mode) | A deposit outlived the promised window and the mode only reports | Mark it (§2.7 step 1) or switch to `auto` |
 | `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: after five failed attempts, fix the cause and set the deposit back to `recovering`; otherwise refund by hand under the memo and close the deposit as `refunded`. A hand send from the float key can collide with the keeper's float sends for other clients: first confirm no other deposit is `recovering` and no float transaction is in flight, then send right away (the check is a snapshot), or set `MONERIUM_B2B_AUTO_RECOVERY=alert` (needs a restart, pauses every client's refunds and silences the refund alerts for every client; set `auto` again right after the hand step) |
@@ -740,7 +740,7 @@ and point the factory at it with `setSubsidyVault`. Fund it with USDC from an
 impersonated mainnet holder if you want to exercise a below-floor top-up; left empty,
 a below-floor fill makes the keeper defer, which is also a valid outcome to observe.
 
-Deploy a client clone with the launch policy (1250 / 1500) as in §1.2, passing the
+Deploy a client clone with the default policy (1250 / 1500) as in §1.2, passing the
 refund address the backend derives for the fixture's Monerium profile ID (the account
 mapping verifies it). Use a fresh salt and record the predicted address and receipt.
 Read back `destination()`, `recoveryAddress()`,
@@ -1111,7 +1111,7 @@ On the `vortex-sandbox` service only:
 | Variable | Value |
 |---|---|
 | `FLOW_VARIANT` | `mykobo` (startup refuses B2B otherwise; the sandbox's retail EUR onramp then runs on Mykobo) |
-| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | The partner's sandbox white-label app (S11) |
+| `MONERIUM_WHITELABEL_CLIENT_ID`, `MONERIUM_WHITELABEL_CLIENT_SECRET` | The partner's sandbox white-label app |
 | `MONERIUM_B2B_RPC_URL` | Sepolia RPC |
 | `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` | `$FACTORY` |
 | `MONERIUM_B2B_KEEPER_PRIVATE_KEY`, `MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, `MONERIUM_B2B_ATTESTOR_PRIVATE_KEY` | the three keys of §8.3 |
@@ -1168,10 +1168,10 @@ It registers the destination (or resumes the registration), waits until the acco
 active, checks the clone on chain, asks for the payment, and then checks the outcome: one
 forward transaction paying the deposit's net USDC to the destination, or the refund.
 `--refund` suspends the account for the payment and reactivates it afterwards, with
-`ADMIN_SECRET`. The script does not make the payment. How a payment reaches a white-label
-profile's IBAN in the sandbox is open with Monerium: the dashboard's "Simulate bank
-transfer" mints only for your own profile, and EURe sent to the clone on chain is recorded
-as unattributed and never converted.
+`ADMIN_SECRET`. The script does not make the payment. How a payment reaches a
+white-label profile's IBAN in the sandbox is still open (rollout ledger): the dashboard's
+"Simulate bank transfer" mints only for your own profile, and EURe sent to the clone on
+chain is recorded as unattributed and never converted.
 
 | Test | Payment | Expected |
 |---|---|---|

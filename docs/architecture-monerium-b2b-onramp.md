@@ -11,14 +11,14 @@ operator procedures in [`operations-monerium-b2b-runbook.md`](operations-moneriu
 ## The shape in one paragraph
 
 Each corporate client is onboarded and KYB-approved by Monerium in Vortex's whitelabel
-app (under the partner's KYC reliance) and owns a dedicated Monerium profile. Vortex
+app and owns a dedicated Monerium profile. Vortex
 deploys one `VortexForwarder` contract clone per client, links it to that profile with an
 attestor signature, and requests an IBAN **for the linked contract address** — the IBAN's
 default mint destination *is* the forwarder. From then on the flow is passive on
 Monerium's side: EUR received on the IBAN mints EURe to the forwarder, and Vortex's
 keeper converts each bank payment in `swap(reference, route, amountIn)` chunks on the
 contract — each swaps EURe to USDC over a whitelisted Uniswap v3 route and settles the
-fill against the partner reference rate (surplus above the target is the fee, shortfall
+fill against the reference rate (surplus above the target is the fee, shortfall
 below the floor is topped up from the subsidy vault, Chainlink bounds the net) — the USDC
 accumulates on the forwarder, and one `forward(amount)` pushes the whole converted
 payment to the client's fixed destination wallet, so the client sees one transfer per
@@ -119,7 +119,7 @@ sequenceDiagram
     participant M as Monerium
     participant C as Ethereum
 
-    Note over M: Monerium onboards the corporate under partner reliance - profile "approved"
+    Note over M: Monerium onboards and KYB-approves the corporate - profile "approved"
     Op->>Adm: GET /v1/admin/monerium-b2b/refund-address (derived refund wallet)
     Op->>C: deployForwarder(destination, refundWallet, targetPpm, floorPpm) via factory
     Op->>Adm: POST /v1/admin/monerium-b2b/accounts
@@ -135,9 +135,8 @@ sequenceDiagram
 
 Steps in prose:
 
-1. **Monerium onboards the corporate** under the partner's reliance attestation; the
-   profile arrives `approved`. (Vortex's KYB submission API is a deliberate 501 stub —
-   registry T3.)
+1. **Monerium onboards the corporate** and approves its KYB; the profile arrives
+   `approved`. (Vortex's KYB submission API is a deliberate 501 stub — registry T3.)
 2. **Operator deploys the forwarder clone** with the client's `destination` (no setter:
    a wallet change means a new clone, runbook §5), the client's refund wallet as
    `recoveryAddress` (derived from `MONERIUM_B2B_REFUND_SEED` and the Monerium profile ID,
@@ -209,6 +208,14 @@ mint identity. Only a settled, chain-indexed mint makes an account a conversion
 candidate. A live balance by itself is deliberately insufficient: this prevents a swap
 from outrunning the watcher's reorg window and becoming impossible to attribute safely.
 
+A payer can name a chain and address in the SEPA memo; when that address is linked to the
+client's profile, Monerium mints there instead of to the IBAN's default address. The only
+other address linked to a client profile is the client's refund wallet, so such a payment
+lands there: its order is skipped as referencing an unknown forwarder address, and it is
+neither converted nor refunded automatically. Operators refund it by hand (runbook §2.7)
+before the client's next refund, which would otherwise sweep that EURe to the float as
+surplus.
+
 ## How the mint watcher walks the chain
 
 The watcher is a poll-based log scanner with a **persisted cursor** so no block range is
@@ -269,6 +276,9 @@ stateDiagram-v2
         refunded --> [*]
     }
 ```
+
+Monerium reports no separate review state (a payment under compliance review stays
+`pending`), so `held` is mapped defensively and not expected in practice.
 
 ```mermaid
 stateDiagram-v2
@@ -397,9 +407,9 @@ and sends at most one transaction per account per cycle:
 
 ## Fees, reference rate and subsidy
 
-The partner agreement fixes the client's rate against a reference: the reference minus
-12.5 bps whenever the market allows it, never worse than 15 bps below it. The contract
-settles every fill into three bands against that reference (decisions:
+Vortex's default fee policy prices the client's rate against a reference: the reference
+minus 12.5 bps whenever the market allows it, never worse than 15 bps below it. The
+contract settles every fill into three bands against that reference (decisions:
 [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md), amendment).
 
 - **Reference rate.** Before each swap the keeper reads the Coinbase Exchange EURC-USDC

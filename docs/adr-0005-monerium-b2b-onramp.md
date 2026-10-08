@@ -11,7 +11,7 @@ acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
 invariants and the threat model in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md);
-launch gates and terms inputs in
+launch gates and the deploy checklist in
 [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md); procedures in
 [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md). The
 consumer-flow design this grew out of remains a phase-2 proposal:
@@ -19,13 +19,11 @@ consumer-flow design this grew out of remains a phase-2 proposal:
 
 ## Context
 
-Partner-sourced business clients (the partner's OTC corporates, KYB'd under the partner's
-FINMA/VQF licence with per-customer reliance attestations to Monerium) need EUR → USDC
-on Ethereum with **zero Vortex-side interaction**: no app, no wallet ceremony, no digital
-signature. Onboarding is paperwork only. The single blocker in the consumer design was
-Monerium's link signature — connecting an IBAN to an on-chain address requires that
-address to approve the fixed ownership message `"I hereby declare that I am the address
-owner."` via EIP-1271.
+Partner-sourced business clients need EUR → USDC on Ethereum with **zero Vortex-side
+interaction**: no app, no wallet ceremony, no digital signature. Onboarding needs no
+client action at Vortex. The single blocker in the consumer design was Monerium's link signature —
+connecting an IBAN to an on-chain address requires that address to approve the fixed
+ownership message `"I hereby declare that I am the address owner."` via EIP-1271.
 
 ## Decision: the attestor-constrained forwarder
 
@@ -47,7 +45,7 @@ Supporting decisions, all in force:
 - **Conversion policy** (amended 2026-09-15): the swap runs over one of the factory's
   whitelisted Uniswap v3 routes — validated on chain to touch only EURe, EURC and USDC
   on the immutable router — chosen by the caller through a route index; the caller also
-  supplies the partner reference rate, which the contract bounds to a band around
+  supplies the reference rate, which the contract bounds to a band around
   Chainlink EUR/USD (staleness ceiling kept). The fill is settled into fee bands
   (amendment) and the Chainlink floor is enforced on the client's net after fee and
   subsidy; exact approvals and atomic delta checks stay; the fee goes to an immutable
@@ -92,11 +90,11 @@ Supporting decisions, all in force:
 
 ## Amendment 2026-09-15: reference-priced fee bands and the subsidy vault
 
-The partner agreement fixes the client's rate against a reference: the client receives
-the Coinbase EURC-USDC reference minus 12.5 bps, and never worse than 15 bps below it.
-A flat skim on whatever the DEX returns cannot express that, so the contract now settles
-every fill into bands against a reference rate (decided with the partner; contracts were
-not yet deployed, so this replaced the flat fee before launch with no migration):
+Vortex's default fee policy fixes the client's rate against a reference: the client
+receives the Coinbase EURC-USDC reference minus 12.5 bps, and never worse than 15 bps
+below it. A flat skim on whatever the DEX returns cannot express that, so the contract now
+settles every fill into bands against a reference rate (contracts were not yet deployed,
+so this replaced the flat fee before launch with no migration):
 
 - **Reference rate** (superseded 2026-09-18 by the bid/ask midpoint, see the third
   amendment). Before each swap the keeper computes a five-minute
@@ -135,7 +133,7 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 - **Accepted limitation.** After the 24 h trigger anyone may execute the swap, priced
   against Chainlink and unsubsidized, so a forced swap after a deliberate deferral can
   land below the 15 bps floor. Accepted: the trigger exists so no Vortex outage can trap
-  funds; the rate guarantee applies to keeper-executed swaps and the terms say so.
+  funds; the rate guarantee applies to keeper-executed swaps only.
   Pausing instead of deferring was rejected as turning every market dip into an
   operator incident.
 - **Accepted exposure.** The subsidy widens the sandwich-exploitable band from the
@@ -144,11 +142,9 @@ not yet deployed, so this replaced the flat fee before launch with no migration)
 
 ## Amendment 2026-09-17: whole-deposit settlement and the refund path
 
-Product requirements from the partner: one USDC transfer per bank
-payment, and an automatic refund of the exact EUR amount to the payer's bank account
-when a payment cannot be converted inside the promised window. Vortex holding the funds
-for that refund is agreed commercially. Decisions (the proposal that led here,
-`proposal-monerium-b2b-settlement-and-recovery.md`, is in git history):
+Product requirements: one USDC transfer per bank payment, and an automatic refund of the
+exact EUR amount to the payer's bank account when a payment cannot be converted inside
+the promised window. Decisions:
 
 - **Chunks accumulate on the clone; one forward per payment.** `swap(reference, route,
   amountIn)` converts an explicit chunk and keeps the USDC (subsidy included) on the
@@ -170,14 +166,12 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
   runbook until automated.
 - **Client fallback role removed.** `fallbackAddress`, `sweep`, `setDestination`,
   `setClientPaused` and the dead-man sweep are gone (the client never held a key in
-  the pilot; the partner warrants the destination, B5). A destination change means a new
+  the pilot; the partner supplies the destination, B5). A destination change means a new
   clone (runbook §5). The permissionless `swap`/`forwardAll` path after `TRIGGER_DELAY`
   stays as the liveness guarantee, so a Vortex outage never traps converted funds.
 - **Trust statement (replaces "Vortex keys cannot move client funds").** Vortex keys can
   move a client's funds only to the Vortex recovery wallet, only after `RECOVERY_DELAY`,
-  and the contract can never send anywhere else. Consequences carried to G1 (Monerium
-  re-approval of the Vortex-held fallback and of one company profile refunding many
-  client corporates), G2 (custody scoping) and the partner terms (rollout §Terms 6).
+  and the contract can never send anywhere else.
 - **Refund triggers.** Missed window (automated in a later phase; operator-triggered via
   the admin endpoint until then), operator intervention, and remainders below
   `minSwapAmount` (they cannot be swapped and are refunded). Chunk fees already taken on
@@ -246,8 +240,8 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
   €1 (P6; €25 and €250 before). Almost every payment now converts instead of waiting
   for the refund path as sub-minimum. Accepted consequences: a very small payment costs
   Vortex more gas than it earns; a small payment forwarded to an exchange address can
-  land below that exchange's minimum deposit, which now sits with the client under B5
-  instead of Vortex's minimum-forward diligence; and unsolicited EURe from €1 upward arms
+  land below that exchange's minimum deposit (the destination is the partner's input,
+  B5); and unsolicited EURe from €1 upward arms
   a clone's batch timers (from €25 before), which the stranded-balance monitor still
   reports. The guardian can raise the operational minimum at any time without a
   redeploy; it can never go below €1.
@@ -256,13 +250,12 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
   price impact per swap and a smaller top-up per chunk at the ladder's top (about
   115 USDC instead of 285), at the cost of more transactions and more time for large
   payments. When the market needs the ladder's top tier, each chunk can wait up to
-  16 minutes, so a payment above roughly €70k could reach the two-hour window; the
-  €50k per client per day pilot limit (B4) keeps a payment at five chunks or fewer. The
+  16 minutes, so a payment above roughly €70k could reach the two-hour window. The
   guardian can change the cap at any time up to the €50k ceiling.
-- **Penny test optional.** The penny test (B2) was never agreed as a mandatory step. It
-  is an optional check, recommended for exchange destinations, and not an activation
-  requirement. A wrong or rotated destination is now caught by the penny test only when
-  one is run, otherwise by the dormancy gate; the loss allocation under B5 is unchanged.
+- **Penny test optional.** The penny test (B2) is an optional check, recommended for
+  exchange destinations, and not an activation requirement. A wrong or rotated
+  destination is now caught by the penny test only when one is run, otherwise by the
+  dormancy gate.
 
 ## Amendment 2026-10-01: per-client refund wallets
 
@@ -284,9 +277,9 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
   switching an existing client then means a new clone (runbook §5).
 - **Linked to the client's profile, refunded from the client's IBAN.** Onboarding links
   the refund wallet to the client's Monerium profile next to the forwarder (an address
-  belongs to exactly one profile, confirmed by Monerium 2026-09-30). The refund runs on
-  that wallet as before: reverse swap, float top-up to the exact amount, redeem to the
-  payer, which Monerium pays out of the client's own IBAN. The float also tops up the
+  belongs to exactly one profile). The refund runs on that wallet as before: reverse
+  swap, float top-up to the exact amount, redeem to the payer, which Monerium pays out of
+  the client's own IBAN. The float also tops up the
   wallet's ETH for its own transactions, sized from the current gas price. No Vortex
   company profile at Monerium is needed, and recovered funds of different clients never
   share a wallet. `MONERIUM_B2B_RECOVERY_PRIVATE_KEY` is replaced by
@@ -296,12 +289,12 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
 
 | ID | Parameter | Value |
 |---|---|---|
-| B1 | Fee policy | **target 1250 ppm (12.5 bps), floor 1500 ppm (15 bps) below the reference**, per client, guardian-adjustable (amended 2026-09-15; replaces the flat 0 / 15 bps skim) |
+| B1 | Default fee policy | **target 1250 ppm (12.5 bps), floor 1500 ppm (15 bps) below the reference**, per client, guardian-adjustable (amended 2026-09-15; replaces the flat 0 / 15 bps skim) |
 | B2 | Penny-test amount | 5 USDC, **optional** (amended 2026-09-29): recommended for exchange destinations, not an activation requirement |
-| B3 | Processing SLA wording | **Same business day**; weekend mints execute within the 52 h oracle window at possibly wider spreads |
-| B4 | Pilot volume limits | **€50k/client/day, paper/contractual only** (no backend enforcement in the pilot; GA revisit) |
-| B5 | Partner liability | Tier A defaults: partner warrants destination correctness; rotation loss borne by the client; dormancy re-activation on written partner confirmation |
-| B6 | Redemption-limitation disclosure | Mandatory in client terms (committed to Monerium); draft in the rollout doc |
+| B3 | Conversion window | **2 h from the mint** (P3; `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` default 120), refunded past it; weekend mints execute within the 52 h oracle window at possibly wider spreads |
+| B4 | Per-client volume limit | **Not enforced by the backend** (GA revisit); `perSwapCap` (P7) bounds each swap, not a client's daily volume |
+| B5 | Destination responsibility | The partner supplies and confirms each destination; dormancy re-activation on written partner confirmation |
+| B6 | Redemption limitation | A clone validates no redeem order, so its EURe is never redeemed to an IBAN directly: it leaves only by swap and forward to the destination, by recovery to the client's refund wallet, or through Monerium's issuer recovery (T1) |
 | P1 | `SLIPPAGE_BPS` | **60 bps on the client's net after fee and subsidy** (amended 2026-09-17; 40 from 2026-09-15, 100 on the raw fill before) |
 | P2 | `MAX_FEE_PPM` | 10000 ppm (1%), immutable; caps both the fee and the floor policy (amended 2026-09-15; was `MAX_FEE_BPS` 100) |
 | P3 | `RECOVERY_DELAY` | **2 hours** (amended 2026-09-17): the promised conversion window, enforced on chain as the earliest a payment may move to the recovery wallet. Replaces the dead-man sweep delay (7 days on 2026-09-15, 60 before), which had no target left once the fallback role was removed |
@@ -316,10 +309,10 @@ for that refund is agreed commercially. Decisions (the proposal that led here,
 | P12 | Reference rate | **Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, deferring on a spread above 50 bps** (amended 2026-09-18; from 2026-09-15 a five-minute VWAP over one-minute candles widened to 60 min on no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15). The floor on the net binds first: with `floorPpm` 15 bps and `SLIPPAGE_BPS` 40 bps, a reference more than `SLIPPAGE_BPS − floorPpm` ≈ 25 bps below Chainlink makes every normal fill (fee band or subsidized) revert on chain and defer off chain, so ~25 bps is the working downside margin against a stale round; the 100 bps band is the outlier ceiling for a keeper-supplied value, not the operating tolerance (2026-09-16) |
 | P14 | Subsidy ladder | **`MONERIUM_B2B_SUBSIDY_LADDER` = `0:0,360:10,480:20,600:30,720:40,840:50,960:100`** (2026-09-18; keeper policy, tunable from deferral logs); per-chunk clock; the vault's per-swap cap must be at least the ladder's top |
 | P13 | Subsidy vault limits | One shared vault; **50 bps of the reference value per swap, 200 USDC per UTC day** at launch, guardian-settable; withdraw to treasury only (2026-09-15) |
-| T2 | Whitelabel MSA terms | Open — G1 negotiation (rollout doc), includes the per-IBAN suspension ask |
-| T3 | KYB submission mechanism | Open, deliberately unbuilt — pilot corporates are approved by Monerium under partner KYC reliance and imported via the admin mapping; no identity-data submission path may exist until this settles (security-spec invariant 11) |
+| T2 | Per-IBAN suspension | Best-effort: a manual request to Monerium (runbook §2.2) |
+| T3 | KYB submission mechanism | Open, deliberately unbuilt — clients are approved by Monerium and imported via the admin mapping; no identity-data submission path may exist until a submission mechanism is designed and this row and security-spec invariant 11 are updated |
 | T4 | Sandbox wire-format verifications | Webhook digest encoding, delivery id field, order-state vocabulary, and the EIP-191 link-hash variant were confirmed against the sandbox during G0; re-verify against production before first mainnet deposit |
-| T1 | Issuer recovery message | **Resolved (verbal, 2026-08-26): identical to the link message** — already whitelisted, recovery works as built; `RECOVERY_HASH` stays 0; written confirmation folds into the G1 package |
+| T1 | Issuer recovery message | **Identical to the link message** — already whitelisted, recovery works as built; `RECOVERY_HASH` stays 0 |
 | O1 | Client-migration tooling | Build when first needed; manual procedure in the runbook meanwhile |
 | O2 | `FEE_RECIPIENT` treasury | **New dedicated Safe multisig** (immutable at implementation deploy); guardian key to hardware/multisig custody at GA |
 
@@ -345,29 +338,37 @@ example (oversized-deposit allocation).
   client verification moment; the published manifest + verifier make deployments
   *checkable*, not trustless. Accepted; heightened relative to the consumer flow.
 - **S1 — Monerium credential control-plane.** Whitelabel credentials can re-link
-  addresses and move IBANs (redirecting *future* mints only). Cannot be prevented
-  client-side: association monitor is the detective control; Monerium-side
-  authorization requirements are the G1 ask; response = rotate + suspend (runbook).
-- **CEX destination rotation.** Not verifiable on-chain; carried contractually (B5)
+  addresses and move IBANs (redirecting *future* mints only). The white-label app is the
+  partner's, so the partner holds credentials with the same power; it only creates
+  profiles and submits KYB, and never links addresses, requests or moves IBANs, places
+  orders, or changes Vortex's webhook subscription, so any such change is treated as an
+  incident (runbook §2.5). Closing a profile also closes its IBAN, so profile closures are
+  coordinated with Vortex operations. Cannot be prevented client-side: a preventive
+  control (authorization requirements on `PATCH /ibans` and `POST /addresses`) can exist
+  only at Monerium; the association monitor is the detective control; response = rotate
+  + suspend (runbook).
+- **CEX destination rotation.** Not verifiable on-chain; left to the partner (B5),
   with the dormancy gate and an optional penny test. Silent-loss risk
   converts to a pause via the dormancy gate.
 - **Vortex custody on the refund path** (amendment 2026-09-17). A recovered payment
   sits in Vortex's own wallet until the bank refund goes out; a compromised keeper plus
   recovery key could divert a payment the window was missed on. Bounded by the immutable
   wallet, the on-chain delay, explicit amounts, a dedicated linked address holding
-  nothing else, and the association monitor; accepted commercially by the partner and
-  carried to G1/G2.
+  nothing else, and the association monitor.
 - **Broken destination** — with no client key on the clone, a wrong destination is
-  caught by an optional penny test or by the dormancy gate; a rotation loss is borne by the
-  client/partner (B5); a destination change is a new clone.
-- **Non-custody ≠ out of MiCA scope.** The constrained-attestor construction defeats
-  the custody definition, but exchange/transfer-service scoping is a separate G2
-  question. Never present "no custody" as "no licence needed".
+  caught by an optional penny test or by the dormancy gate; a destination change is a new
+  clone.
 - **Stuck-state table** (route death, feed retirement, depeg beyond bound, blacklisted
   destination, reference feed outage, exhausted subsidy budget): all fail-safe — swaps
   revert or the keeper defers, funds accumulate as EURe; past the promised window the
   payment is refunded through the client's refund wallet, past 24 h anyone may convert and
   forward permissionlessly; the issuer backstop remains. Accepted.
+- **Link-message change.** The forwarder validates only Monerium's exact ownership
+  message (a constant of the implementation), so a change to that message at Monerium
+  fails every new link closed, and with it new onboarding, until a new implementation and
+  factory are deployed; issuer recovery validates the same message (T1).
+- **SEPA recall after forwarding.** A payment recalled by the payer's bank after its USDC
+  was forwarded cannot be reversed on chain; the system has no clawback path.
 - **Bounded keeper pricing power.** A compromised keeper can pick any whitelisted route
   and any reference inside the Chainlink band: worst case the fee reaches `MAX_FEE_PPM`
   or the vault pays up to its caps. Bounded by the band, the fee cap, the vault limits
@@ -387,7 +388,7 @@ accepted, IBAN issued, no client interaction). A Vortex outage can never trap co
 funds (the permissionless path), and a payment the promised window was missed on is
 refunded rather than parked, at the price of Vortex custody on that path. The cost: every rescue path must be designed in upfront
 (no universal owner key), fee-policy increases are timelocked and venue changes are
-bounded by on-chain route validation rather than admin switches, the partner's rate
+bounded by on-chain route validation rather than admin switches, the client's rate
 guarantee is enforced by the contract at the cost of a treasury-funded subsidy budget,
 and Vortex accepts elevated provisioning trust plus a control-plane risk at Monerium
-that only contract terms and monitoring can bound.
+that only Monerium-side controls and monitoring can bound.
