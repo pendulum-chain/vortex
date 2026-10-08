@@ -362,7 +362,8 @@ async function retryOrFail(
     return;
   }
   logger.warn(`monerium-b2b: refund step for deposit ${deposit.id} failed (attempt ${attempts}): ${reason}`);
-  await recovery.update({ attempts, error: reason.slice(0, 500), phase });
+  // `error` stays for the terminal failure: the orchestrator reads it as the operator's retry.
+  await recovery.update({ attempts, phase });
 }
 
 /** One step of one recovery. Returns after at most one value-moving send (plus its receipt wait). */
@@ -622,7 +623,9 @@ export async function runRecoveryOrchestrator(
     return;
   }
   if (recovery.error) {
-    await recovery.update({ attempts: 0, error: null }); // operator retry: resume from the preserved phase
+    // Only fail() sets it, so a recovering deposit with an error is the operator's retry: a fresh
+    // run of attempts from the preserved phase.
+    await recovery.update({ attempts: 0, error: null });
   }
   const account = await MoneriumAccount.findByPk(deposit.accountId);
   if (!account) return;

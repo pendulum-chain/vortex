@@ -451,6 +451,59 @@ describe("refund deadlines and orchestration", () => {
     expect(await activeRecoveryExists()).toBe(false);
   });
 
+  it("parks a refund whose redeem keeps failing after five cycles, and gives an operator retry five more", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "refused", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() };
+    let redeemCalls = 0;
+    const deps = fakeDeps(ledger, {
+      createRedeemOrder: async () => {
+        redeemCalls += 1;
+        throw new Error("Request failed with status '400'");
+      },
+      setDepositStatus: async (row, status) => {
+        await row.update({ status });
+      }
+    });
+    const depsFor = async () => deps;
+    await runRecoveryOrchestrator(depsFor); // opens the row: moved -> swapped
+    await runRecoveryOrchestrator(depsFor); // exact balance: topped up
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+
+    for (let cycle = 1; cycle <= 4; cycle++) {
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+      await deposit.reload();
+      expect(recovery).toMatchObject({ attempts: cycle, error: null, phase: MoneriumRecoveryPhase.ToppedUp });
+      expect(deposit.status).toBe(MoneriumFiatDepositStatus.Recovering);
+    }
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(recovery.attempts).toBe(5);
+    expect(recovery.error).toContain("after 5 attempts");
+    await runRecoveryOrchestrator(depsFor); // parked: no further call to Monerium
+    expect(redeemCalls).toBe(5);
+
+    // The operator sets it back to recovering: a fresh run of attempts from the preserved phase.
+    await deposit.update({ status: MoneriumFiatDepositStatus.Recovering });
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    expect(recovery).toMatchObject({ attempts: 1, error: null, phase: MoneriumRecoveryPhase.ToppedUp });
+    expect(redeemCalls).toBe(6);
+  });
+
   it("holds the queue on a failed refund until the operator retries it", async () => {
     const { accountId } = await mappedAccount();
     const deposit = await minted(accountId, "stuck", new Date(), MoneriumFiatDepositStatus.Recovering);
