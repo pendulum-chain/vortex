@@ -28,7 +28,8 @@ import {
   reversePath,
   reverseSwapMinOut,
   runRecoveryDeadlines,
-  runRecoveryOrchestrator
+  runRecoveryOrchestrator,
+  setDepositStatus
 } from "./recovery";
 
 const EUR = 10n ** 18n;
@@ -952,6 +953,48 @@ describe("refund deadlines and orchestration", () => {
     expect(calls).toEqual([`eure:recovery->${FLOAT.toLowerCase()}:${3n * EUR}`]);
     await runRecoveryOrchestrator(depsFor); // the sweep confirms (no float send), then B tops up
     expect(calls.slice(1)).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]);
+  });
+
+  it("steps a client once per cycle: a float-free step that just failed is not picked up again by the float stage", async () => {
+    const g = await mappedAccount(0);
+    const a = await mappedAccount(1);
+    const depositG = await confirmedRecover(g.accountId, "g1", new Date(Date.now() - 90_000));
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 80_000), { eure: 40n * EUR, usdc: 68n * USDC });
+    // G's float transfer landed, so its (slow) receipt wait gates the float stage.
+    await openRecovery(depositG.id, MoneriumRecoveryPhase.ToppingUp, 60_000, { eure: 99n * EUR, usdc: 0n }).then(row =>
+      row.update({ floatTopupTxHash: "0xlanded" })
+    );
+    // A's fifth swap attempt reverts: it is parked, and nothing more may be sent for it.
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.Swapping, 30_000, { eure: 40n * EUR, usdc: 68n * USDC }).then(row =>
+      row.update({ attempts: 4, reverseSwapTxHash: "0xbad" })
+    );
+    const ledger: Ledger = {
+      eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 40n * EUR], [FLOAT, 10n * EUR]]),
+      usdc: new Map([[WALLETS[1], 68n * USDC]])
+    };
+    const { calls, depsFor } = clientsFixture(ledger, {
+      receipts: { "0xbad": "reverted" },
+      setDepositStatus // the live one: it updates a separate instance, so the cycle's own deposit object goes stale
+    });
+
+    await runRecoveryOrchestrator(async account => {
+      const deps = await depsFor(account);
+      if (account.forwarderAddress.toLowerCase() !== FORWARDER) return deps;
+      return {
+        ...deps,
+        waitReceipt: async hash => {
+          await new Promise(resolve => setTimeout(resolve, 200)); // A's step is long done when this returns
+          return deps.waitReceipt(hash);
+        }
+      };
+    });
+
+    expect(calls.filter(call => call.startsWith("swap:") || call.startsWith("eure:"))).toEqual([]);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: depositA.id } })) as MoneriumRecovery;
+    expect(recovery).toMatchObject({ attempts: 5, phase: MoneriumRecoveryPhase.Moved });
+    expect(recovery.error).toContain("after 5 attempts");
+    await depositA.reload();
+    expect(depositA.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
   });
 
   it("starts no float step after a float-free step has used up the cycle's time budget", async () => {

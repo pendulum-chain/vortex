@@ -714,10 +714,12 @@ export async function runRecoveryOrchestrator(
   // Steps that cannot touch the float use only their own client's wallet, so they run
   // concurrently: one client's slow receipt wait (up to RECEIPT_TIMEOUT_MS) must not starve the others.
   const gating = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase) && holdsFloatTransfer(head));
+  // Partitioned before any step starts: the running steps mutate their recoveries, and a client stepped once must not be stepped again this cycle.
+  const floatHeads = queue.filter(head => FLOAT_PHASES.has(head.recovery.phase));
   const floatFreeSteps = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase)).map(head => [head, step(head)] as const);
   // The float stage waits only for the steps that gate it, not for every slow receipt.
   await Promise.all(floatFreeSteps.filter(([head]) => gating.includes(head)).map(([, running]) => running));
-  for (const head of queue.filter(({ recovery }) => FLOAT_PHASES.has(recovery.phase))) {
+  for (const head of floatHeads) {
     if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS || queue.some(holdsFloatTransfer)) break;
     await step(head);
   }
