@@ -158,7 +158,7 @@ Content-Type: application/json
 }
 ```
 
-2. Register each test company with its provider profile ID and the client's destination address. A new registration returns `202` with `status: "requested"`; see [Register A Business EUR Client](#register-a-business-eur-client) for every response.
+2. Register each test company with its provider profile ID and the client's destination address. A new registration returns `202` with `status: "requested"`; see [Register A Business EUR Client](#register-a-business-eur-client) for every response. The destination cannot be changed after registration, and each test profile can be registered once, so use an address you control. Use a different `externalSubjectId` and `contactEmail` for each company; reusing either for another profile returns `409 MONERIUM_B2B_CLIENT_CONFLICT`.
 
 ```http
 POST /v1/monerium-b2b/accounts
@@ -167,33 +167,33 @@ Content-Type: application/json
 
 {
   "moneriumProfileId": "<profile ID from Vortex>",
-  "destination": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+  "destination": "<Sepolia address the client controls>",
   "externalSubjectId": "client-1",
-  "contactEmail": "operations@client.example"
+  "contactEmail": "operations@client.example.com"
 }
 ```
 
-3. Follow the registration until `status` is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. During this pilot the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
+3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. During this pilot the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
 
 ```http
 GET /v1/monerium-b2b/registrations?moneriumProfileId=<profile ID from Vortex>
 X-API-Key: sk_test_...
 ```
 
-4. Wait for an `ACCOUNT_UPDATED` event with `status: "active"` and an `iban`. In sandbox, an account activates on its own once its IBAN is issued. The event's `profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
-5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. During this pilot, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination.
-6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. Before the account exists, both return `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`.
+4. Wait for an `ACCOUNT_UPDATED` event whose `payload.status` is `"active"` and whose `payload.iban` is set. In sandbox, an account activates on its own once its IBAN is issued. The event's `payload.profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
+5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. During this pilot, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination, or `refunded` for the refunded one.
+6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. A managed child without a business EUR account returns `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`; an ID that is not your child returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 ```http
 GET /v1/monerium-b2b/account
 X-API-Key: sk_test_...
-X-Managed-Profile-Id: <profileId from ACCOUNT_UPDATED>
+X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
 ```
 
 ```http
 GET /v1/monerium-b2b/deposits?limit=20&offset=0
 X-API-Key: sk_test_...
-X-Managed-Profile-Id: <profileId from ACCOUNT_UPDATED>
+X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
 ```
 
 **Sandbox specifics**
@@ -216,7 +216,7 @@ Content-Type: application/json
   "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
   "destination": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
   "externalSubjectId": "client-1",
-  "contactEmail": "operations@client.example"
+  "contactEmail": "operations@client.example.com"
 }
 ```
 
