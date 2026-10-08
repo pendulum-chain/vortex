@@ -1221,10 +1221,11 @@ describe("runConversionExecutor reserved-nonce re-send", () => {
     }
   });
 
-  it("never swaps or forwards for a suspended, dormant or closed account: it frees the nonce with a no-op", async () => {
+  it("never swaps or forwards for an account that cannot convert (not activated, suspended, dormant or closed): it frees the nonce with a no-op", async () => {
     const swap = { kind: MoneriumConversionExecutionKind.Swap, maxSubsidyRaw: "5", referenceRateRaw: "1100000", routeIndex: 1 };
     for (const row of [undefined, swap]) {
       for (const options of [
+        { status: MoneriumAccountStatus.Onboarding },
         { status: MoneriumAccountStatus.Suspended },
         { status: MoneriumAccountStatus.Closed },
         { dormantSince: new Date() }
