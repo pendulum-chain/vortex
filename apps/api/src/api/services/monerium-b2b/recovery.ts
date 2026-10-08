@@ -58,7 +58,7 @@ import { refundAccountFor } from "./refund-wallet";
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
-/** Monerium requires a supporting document above this amount; such refunds stay manual (rollout G1). */
+/** Monerium requires a supporting document above this amount; such refunds stay manual (runbook §2.7). */
 export const SUPPORTING_DOCUMENT_THRESHOLD_EUR = 15_000;
 /** Gas the refund wallet's own transactions use (approve, reverse swap, surplus transfer), with margin. */
 const REFUND_WALLET_GAS_UNITS = 400_000n;

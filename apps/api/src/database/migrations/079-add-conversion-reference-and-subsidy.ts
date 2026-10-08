@@ -1,6 +1,6 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
-// Every swap is priced against a partner reference rate (the Coinbase bid/ask midpoint)
+// Every swap is priced against a reference rate (the Coinbase bid/ask midpoint)
 // and may draw a subsidy from the vault up to the keeper's tier for the chunk
 // (docs/architecture-monerium-b2b-onramp.md, fees section). The reference, the chosen
 // route and the tier are persisted before broadcast (crash-recovery calldata identity +

@@ -34,7 +34,7 @@ export interface MoneriumConversionExecutionAttributes {
   subsidyRaw: string | null;
   usdcNetRaw: string | null;
   destination: string;
-  /** Partner reference the swap was priced against, ORACLE_DECIMALS; persisted before broadcast. */
+  /** Reference rate the swap was priced against, ORACLE_DECIMALS; persisted before broadcast. */
   referenceRateRaw: string | null;
   referenceSource: string | null;
   referenceAt: Date | null;
