@@ -468,7 +468,8 @@ read-only — no keys, no transactions:
    rather than an assumption.
 7. **Refund monitor** (automated refunds only). Every open recovery must not
    linger (each is judged on its own: warn after an hour, error after four or on a failed step) and the EURe float
-   must not run dry.
+   must not run dry; the float's ETH, which pays for its own sends and the refund wallets' gas, warns below 0.05 ETH
+   and errors once it cannot pay for one transfer.
 
 ## Data model — the Monerium B2B tables
 
