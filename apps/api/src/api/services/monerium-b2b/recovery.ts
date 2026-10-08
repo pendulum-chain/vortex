@@ -714,9 +714,11 @@ export async function runRecoveryOrchestrator(
     stepRecovery(recovery, deposit, depsFor, onFloatSend).catch(error =>
       logger.error(`monerium-b2b: refund step for deposit ${deposit.id} failed:`, error)
     );
-  // Parked and refunded heads return before any send, so only a recovering one in a float phase can touch the float.
+  // Parked and refunded heads return before any send; any other head in a float phase can touch the float.
   const floatCapable = ({ deposit, recovery }: (typeof queue)[number]) =>
-    FLOAT_PHASES.has(recovery.phase) && deposit.status === MoneriumFiatDepositStatus.Recovering;
+    FLOAT_PHASES.has(recovery.phase) &&
+    deposit.status !== MoneriumFiatDepositStatus.RecoveryFailed &&
+    deposit.status !== MoneriumFiatDepositStatus.Refunded;
   // Float-free steps use only their own client's wallet, so a slow receipt wait (up to RECEIPT_TIMEOUT_MS) does not hold the others' steps in this cycle.
   const gating = queue.filter(head => !floatCapable(head) && holdsFloatTransfer(head));
   // Partitioned before any step starts: the running steps mutate their recoveries, and a client stepped once must not be stepped again this cycle.

@@ -1174,6 +1174,16 @@ describe("refund deadlines and orchestration", () => {
     expect(loggedText(warns)).toContain(depositA.id);
   });
 
+  it("keeps a float-phase refund behind a closed float gate whatever its deposit status, short of parked or refunded", async () => {
+    const { calls, depositB, depsFor } = await floatGateClosedByA();
+    await depositB.update({ status: MoneriumFiatDepositStatus.Converting }); // a hand edit outside the lattice
+    spyOn(logger, "warn").mockImplementation((() => logger) as never);
+    spyOn(logger, "error").mockImplementation((() => logger) as never);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([]);
+  });
+
   it("logs no float-gate warning when the only unconfirmed float transfer belongs to a parked refund", async () => {
     const { depositA, depsFor } = await floatGateClosedByA();
     await depositA.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
