@@ -343,9 +343,10 @@ and sends at most one transaction per account per cycle:
   refuses a second `recover` for an account while one of its refunds is in flight.
   Different clients' refunds run side by side, one step each per keeper cycle. The one
   shared resource is the EURe float wallet, which sends with implicit nonces, so across
-  clients it is serialized: steps that cannot touch it run first, then at most one step
-  that sends from it, and none while another client's float transfer awaits its receipt.
-  A cycle also starts no new step after 90 s. A refund parked in `recovery_failed` blocks
+  clients it is serialized: steps that cannot touch it run concurrently (one client's
+  slow receipt wait starves nobody), alongside at most one step that sends from it, and
+  none while another client's float transfer awaits its receipt (a parked refund never
+  holds that gate). The float steps start no new step after 90 s. A refund parked in `recovery_failed` blocks
   only its own client's later refunds. A step that fails beyond its retries, a
   missing payer, or an amount that needs a supporting document (EUR 15,000 and above)
   parks the deposit in `recovery_failed` with the phase preserved; an operator retry

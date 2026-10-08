@@ -277,8 +277,9 @@ fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` re
 from that phase. While a client's refund is `recovery_failed` only that client's later
 refunds wait behind it (one refund per client at a time); other clients' refunds go on.
 The shared EURe float sends for one client per keeper cycle (about 20 s apart), so several
-clients' refunds interleave rather than collide; a refund's slow step can delay another
-client's by a cycle or two, never by the parked refund.
+clients' refunds interleave rather than collide. Other steps run concurrently, so one
+client's slow transaction does not hold up another's; only an unconfirmed float transfer
+delays another client's float step, and a parked refund never does.
 
 1. **Mark the deposit.** `POST /v1/admin/monerium-b2b/deposits/<depositId>/recover`
    (`Authorization: Bearer $ADMIN_SECRET`). Refused (409) while a keeper transaction for
