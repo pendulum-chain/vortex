@@ -23,8 +23,8 @@ export enum MoneriumRecoveryPhase {
   Redeemed = "redeemed"
 }
 
-// One row per refunded deposit; at most one row is active (not redeemed) at a time,
-// because every step reasons about the dedicated recovery wallet's balances.
+// One row per refunded deposit; at most one row per client is active (not redeemed) at a
+// time, because every step reasons about the client's dedicated refund wallet's balances.
 export interface MoneriumRecoveryAttributes {
   id: string;
   depositId: string;

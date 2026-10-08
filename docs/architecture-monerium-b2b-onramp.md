@@ -338,9 +338,19 @@ and sends at most one transaction per account per cycle:
   deposit becomes `refunded` when Monerium processes the order, and the partner receives
   one `DEPOSIT_RETURNED` (refunded amount, masked payer IBAN, redeem order, recover
   transaction). One refund runs at a
-  time: every step re-derives what is left to do from the client's refund wallet's
-  balances (so a lost transaction hash never repeats a send), and the keeper refuses a
-  second `recover` while one is in flight. A step that fails beyond its retries, a
+  time per client: every step re-derives what is left to do from the client's refund
+  wallet's balances (so a lost transaction hash never repeats a send), and the keeper
+  refuses a second `recover` for an account while one of its refunds is in flight.
+  Different clients' refunds advance side by side, one step each per keeper cycle, and
+  a cycle can last several minutes, since each receipt wait times out after 3 minutes and a float step can wait on more than one (a slow receipt wait ends the cycle late, but
+  does not hold the other clients' steps within it). The one
+  shared resource is the EURe float wallet, which sends with implicit nonces, so across
+  clients it is serialized: steps that cannot touch it run concurrently, alongside at
+  most one step that sends from it, and none while another client's float transfer
+  awaits its receipt (a parked refund never holds that gate). Clients share that one
+  float wallet, so a slow float transfer can delay another client's refund. The float
+  steps start no new step after 90 s. A refund parked in `recovery_failed` blocks
+  only its own client's later refunds. A step that fails beyond its retries, a
   missing payer, or an amount that needs a supporting document (EUR 15,000 and above)
   parks the deposit in `recovery_failed` with the phase preserved; an operator retry
   (deposit back to `recovering`) resumes there. The promised window is
@@ -456,9 +466,10 @@ read-only — no keys, no transactions:
    delisted or halted product keeps answering its endpoints with stale data
    and would make every keeper swap defer silently, so its status is an error line
    rather than an assumption.
-7. **Refund monitor** (automated refunds only). The one active recovery must not
-   linger (warn after an hour, error after four or on a failed step) and the EURe float
-   must not run dry.
+7. **Refund monitor** (automated refunds only). Every open recovery must not
+   linger (each is judged on its own: warn after an hour, error after four or on a failed step) and the EURe float
+   must not run dry; the float's ETH, which pays for its own sends and the refund wallets' gas, warns below 0.05 ETH
+   and errors once it cannot pay for one transfer.
 
 ## Data model — the Monerium B2B tables
 

@@ -51,7 +51,7 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  * 6. Reference-venue monitor: the Coinbase product the reference midpoint reads. A
  *    delisted or halted product keeps answering its endpoints with stale data, so every
  *    keeper swap would defer silently; its status is probed instead of assumed.
- * 7. Refund monitor (automated refunds only): the active recovery must not linger, and
+ * 7. Refund monitor (automated refunds only): no client's open recovery may linger, and
  *    the EURe float that tops refunds up must not run dry.
  *
  * None of these monitors hold keys or send transactions; they are detection-only.
@@ -558,14 +558,16 @@ export async function runSubsidyVaultMonitor(): Promise<void> {
   }
 }
 
-/** An active refund older than this warns; older than four times it errors. */
+/** An open refund older than this warns; older than four times it errors. */
 export const RECOVERY_LINGER_MS = 60 * 60 * 1000;
 /** The EURe float warns below this balance (18 decimals). */
 export const FLOAT_WARN_EURE = 1_000n * 10n ** 18n;
+/** The float's ETH pays for its own sends and the gas top-ups of refund wallets; it warns below this balance (18 decimals). */
+export const FLOAT_WARN_ETH = 5n * 10n ** 16n;
 
 export type RefundQueueSeverity = "error" | "ok" | "warn";
 
-/** Severity of the oldest active refund by its age; a failed one is always an error. */
+/** Severity of an open refund by its age; a failed one is always an error. */
 export function classifyRefundQueue(activeCreatedAt: Date | null, failed: boolean, nowMs: number): RefundQueueSeverity {
   if (failed) return "error";
   if (!activeCreatedAt) return "ok";
@@ -576,16 +578,17 @@ export function classifyRefundQueue(activeCreatedAt: Date | null, failed: boolea
 }
 
 /**
- * Refund monitor: the one active recovery and the float. Runs only with automated
- * refunds configured; the manual procedure has the runbook.
+ * Refund monitor: every open recovery (one per client at most) and the float. Each is
+ * classified by its own age, so a parked refund alerts regardless of the others. Runs only
+ * with automated refunds configured; the manual procedure has the runbook.
  */
 export async function runRefundMonitor(now: number = Date.now()): Promise<void> {
-  const active = await MoneriumRecovery.findOne({
+  const open = await MoneriumRecovery.findAll({
     order: [["created_at", "ASC"]],
     where: { phase: { [Op.ne]: MoneriumRecoveryPhase.Redeemed } }
   });
-  const severity = classifyRefundQueue(active?.createdAt ?? null, Boolean(active?.error), now);
-  if (active) {
+  for (const active of open) {
+    const severity = classifyRefundQueue(active.createdAt, Boolean(active.error), now);
     const message =
       `monerium-b2b: refund of deposit ${active.depositId} in phase ${active.phase} since ${active.createdAt.toISOString()}` +
       `${active.error ? ` — FAILED: ${active.error}` : ""}`;
@@ -597,7 +600,8 @@ export async function runRefundMonitor(now: number = Date.now()): Promise<void> 
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
   if (!float || accounts.length === 0) return;
   const { eure } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
-  const balance = await getPublicClient().readContract({
+  const publicClient = getPublicClient();
+  const balance = await publicClient.readContract({
     abi: erc20Abi,
     address: eure,
     args: [float.account.address],
@@ -610,6 +614,14 @@ export async function runRefundMonitor(now: number = Date.now()): Promise<void> 
     logger.warn(`monerium-b2b: float running low; ${detail}`);
   } else {
     logger.info(`monerium-b2b: ${detail}`);
+  }
+  const gas = await publicClient.getBalance({ address: float.account.address });
+  const ethDetail = `float ${float.account.address} holds ${formatUnits(gas, 18)} ETH — every float send (EURe and gas top-ups) fails without it (runbook §2.7)`;
+  // Below one plain 21k-gas transfer at the current gas price, nothing can leave the float.
+  if (gas < 21_000n * (await publicClient.getGasPrice())) {
+    logger.error(`monerium-b2b: FLOAT ETH EMPTY; ${ethDetail}`);
+  } else if (gas < FLOAT_WARN_ETH) {
+    logger.warn(`monerium-b2b: float ETH running low; ${ethDetail}`);
   }
 }
 
