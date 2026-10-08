@@ -266,16 +266,19 @@ float wallet's key are in the operator's custody, and the float holds EURe and s
 every step below to the operator; `alert` logs `REFUND DUE` for deposits past
 `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (120, counted from the mint) and nothing else;
 `auto` marks them, and — with `MONERIUM_B2B_FLOAT_PRIVATE_KEY` set and the seed deriving
-the clone's `recoveryAddress` — runs steps 2–6 itself, one refund at a time, reporting
-through the refund monitor (§3).
+the clone's `recoveryAddress` — runs steps 2–6 itself, one refund at a time per client
+(different clients' refunds run side by side), reporting through the refund monitor (§3).
 Start on `alert`, switch to `auto` once a sandbox refund has been observed end to end.
 What stays manual in `auto`: refunds of EUR 15,000 or more (Monerium's supporting
 document), deposits whose issue order carried no payer IBAN/name, orders Monerium
 rejects, and any step that failed five times — all park the deposit as
 `recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`);
 fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` resumes
-from that phase. While one refund is `recovery_failed` the queue waits (one refund at a
-time).
+from that phase. While a client's refund is `recovery_failed` only that client's later
+refunds wait behind it (one refund per client at a time); other clients' refunds go on.
+The shared EURe float sends for one client per keeper cycle (about 20 s apart), so several
+clients' refunds interleave rather than collide; a refund's slow step can delay another
+client's by a cycle or two, never by the parked refund.
 
 1. **Mark the deposit.** `POST /v1/admin/monerium-b2b/deposits/<depositId>/recover`
    (`Authorization: Bearer $ADMIN_SECRET`). Refused (409) while a keeper transaction for
@@ -332,7 +335,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `REFUND DUE — deposit ...` (error, `alert` mode) | A deposit outlived the promised window and the mode only reports | Mark it (§2.7 step 1) or switch to `auto` |
 | `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: finish by hand from the named phase, or fix the cause and set the deposit back to `recovering` |
 | `FLOAT UNDERFUNDED` / `FLOAT EMPTY` (error) | The EURe float cannot cover a top-up; the refund waits at `swapped` | Fund the float wallet named in the line; the step retries every cycle |
-| `refund of deposit ... in phase ... since` (warn ≥1 h, error ≥4 h) | The active refund lingers | Check the recovery wallet's balances and pending transactions, RPC health, Monerium order state; escalate per §2.7 |
+| `refund of deposit ... in phase ... since` (warn ≥1 h, error ≥4 h) | One client's open refund lingers or is parked (the line names the deposit; one line per open refund) | Check that client's refund wallet's balances and pending transactions, RPC health, Monerium order state; escalate per §2.7 |
 | `untrusted factory` / `config violation` / `bytecode is not the EIP-1167 clone` / `not registered on trusted factory` | Should-be-impossible state | Full incident: global pause, verify `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`, run the manifest verifier, compare against manifest history |
 | `reconciled guardian-authorized fee policy change` | A timelocked fee-policy change applied — expected, DB updated | No incident; confirm it matches the announced change |
 | `config violation ... destination changed on chain` | Should be impossible: the clone has no destination setter | Full incident (see the row above) |
