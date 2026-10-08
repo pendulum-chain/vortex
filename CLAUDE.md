@@ -139,6 +139,27 @@ Commit examples from history: `fix(api): keep active phase retries below lock ex
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
 feature specs`.
 
+## Public Repository: No Client Data
+
+This repository is public. Files, commit messages, branch names, PR titles and
+descriptions, and review comments are world-readable, and git and GitHub keep every
+earlier version even after an edit.
+
+- Never name customers, business clients, partners, prospects, or their end users. Write
+  "the partner", "a business client", or another neutral role, even when the user or the
+  task context uses the real name. Providers the code already integrates (for example
+  Monerium or Avenia) are not clients and may be named.
+- Keep commercial details out as well: agreement and negotiation status, prices, fees or
+  discounts agreed with a specific party, onboarding status, contacts, and anything quoted
+  from a client conversation.
+- Never commit production personal data (names, emails, tax IDs, IBANs, wallet addresses
+  tied to a person). Fixtures use obviously fake values such as `@example.com`, and must
+  not hint at a real client in disguise.
+- Before every commit, push, `gh pr create`, `gh pr edit`, or review comment, check the
+  diff, message, branch name, and PR title and body for any of the above.
+- If something already leaked, stop and tell the user. Never write a commit message, PR
+  title, or comment that explains what was removed or why.
+
 ## Lean, Safe Fixes
 
 For fixes, prefer the smallest change that fully resolves the demonstrated root cause
