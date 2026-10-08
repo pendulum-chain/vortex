@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import type { MoneriumRedeemOrderRequest } from "@vortexfi/shared";
 import { Address, Hex } from "viem";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumConversionExecution, {
@@ -12,6 +13,7 @@ import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriu
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { provisionMoneriumB2bAccount } from "./account-provisioning";
+import { runRefundMonitor } from "./monitoring";
 import {
   activeRecoveryExists,
   driveRecovery,
@@ -559,5 +561,168 @@ describe("refund deadlines and orchestration", () => {
     await recovery.reload();
     expect(recovery.error).toBeNull();
     expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeeming);
+  });
+
+  // ---------------------------------------------------------------- one client's refund queue
+  // Characterization of the behaviour that must survive per-client concurrency: within one
+  // client, refunds run oldest first, one at a time, and a parked refund holds that client's queue.
+
+  const SECOND = "second";
+
+  async function confirmedRecover(accountId: string, orderId: string, mintedAt: Date) {
+    const deposit = await minted(accountId, orderId, mintedAt, MoneriumFiatDepositStatus.Recovering);
+    await MoneriumConversionExecution.create({
+      accountId,
+      createdAt: mintedAt,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: `0xrecover-${orderId}`,
+      usdcNetRaw: "0"
+    });
+    return deposit;
+  }
+
+  function dbDeps(ledger: Ledger, overrides: Parameters<typeof fakeDeps>[1] = {}) {
+    return fakeDeps(ledger, {
+      setDepositStatus: async (row, status) => {
+        await row.update({ status });
+      },
+      ...overrides
+    });
+  }
+
+  async function runUntilRedeemed(depsFor: () => Promise<RecoveryDeps>, recovery: MoneriumRecovery, deps: ReturnType<typeof fakeDeps>) {
+    for (let i = 0; i < 8 && recovery.phase !== MoneriumRecoveryPhase.Redeeming; i++) {
+      await runRecoveryOrchestrator(depsFor);
+      await recovery.reload();
+    }
+    deps.orders[0].state = "processed";
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+  }
+
+  it("opens one client's refunds oldest first and the next only after the previous is redeemed", async () => {
+    const { accountId } = await mappedAccount();
+    const now = Date.now();
+    const older = await confirmedRecover(accountId, "older", new Date(now - 60_000));
+    const newer = await confirmedRecover(accountId, SECOND, new Date(now - 30_000));
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 100n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
+    const deps = dbDeps(ledger);
+    const depsFor = async () => deps;
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count()).toBe(1);
+    const first = (await MoneriumRecovery.findOne({ where: { depositId: older.id } })) as MoneriumRecovery;
+    expect(first).not.toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count({ where: { depositId: newer.id } })).toBe(0);
+
+    await runUntilRedeemed(depsFor, first, deps);
+    expect(first.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(await MoneriumRecovery.count({ where: { depositId: newer.id } })).toBe(0);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count({ where: { depositId: newer.id } })).toBe(1);
+  });
+
+  it("holds a client's later refund behind its parked one until the operator retries", async () => {
+    const { accountId } = await mappedAccount();
+    const now = Date.now();
+    const parked = await confirmedRecover(accountId, "parked", new Date(now - 60_000));
+    await parked.update({ payerIban: null });
+    const later = await confirmedRecover(accountId, "later", new Date(now - 30_000));
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 100n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map() };
+    const deps = dbDeps(ledger);
+    const depsFor = async () => deps;
+
+    for (let i = 0; i < 6; i++) await runRecoveryOrchestrator(depsFor);
+    await parked.reload();
+    expect(parked.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(await MoneriumRecovery.count({ where: { depositId: later.id } })).toBe(0);
+
+    await parked.update({ payerIban: "DE89370400440532013000", status: MoneriumFiatDepositStatus.Recovering });
+    const first = (await MoneriumRecovery.findOne({ where: { depositId: parked.id } })) as MoneriumRecovery;
+    await runUntilRedeemed(depsFor, first, deps);
+    expect(first.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count({ where: { depositId: later.id } })).toBe(1);
+  });
+
+  it("closes the recovery of a deposit an operator refunded by hand without driving it", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await confirmedRecover(accountId, "by-hand", new Date());
+    const deps = dbDeps({ eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() });
+    const depsFor = async () => deps;
+    await runRecoveryOrchestrator(depsFor); // opens and advances one step
+    await deposit.update({ status: MoneriumFiatDepositStatus.Refunded });
+    const calls = deps.calls.length;
+    await runRecoveryOrchestrator(depsFor);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(deps.calls.length).toBe(calls);
+  });
+
+  it("advances an opened recovery by one step per cycle with at most one reverse swap", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await confirmedRecover(accountId, "chunked", new Date());
+    await MoneriumConversionExecution.update(
+      { eureInRaw: (40n * EUR).toString(), usdcNetRaw: (68n * USDC).toString() },
+      { where: { depositId: deposit.id } }
+    );
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 40n * EUR]]), usdc: new Map([[RECOVERY, 68n * USDC]]) };
+    const deps = dbDeps(ledger, { swapOut: 59n * EUR });
+    const depsFor = async () => deps;
+
+    await runRecoveryOrchestrator(depsFor);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Swapping);
+    expect(deps.calls.filter(call => call.startsWith("swap:"))).toHaveLength(1);
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Swapped);
+    expect(deps.calls.filter(call => call.startsWith("swap:"))).toHaveLength(1);
+  });
+
+  it("counts only pending or confirmed recovers of deposits still on the refund path as in flight", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await confirmedRecover(accountId, "in-flight", new Date());
+    expect(await activeRecoveryExists()).toBe(true);
+    await MoneriumConversionExecution.update({ status: MoneriumConversionExecutionStatus.Pending }, { where: { depositId: deposit.id } });
+    expect(await activeRecoveryExists()).toBe(true);
+    await MoneriumConversionExecution.update({ status: MoneriumConversionExecutionStatus.Failed }, { where: { depositId: deposit.id } });
+    expect(await activeRecoveryExists()).toBe(false);
+    await MoneriumConversionExecution.update({ status: MoneriumConversionExecutionStatus.Confirmed }, { where: { depositId: deposit.id } });
+    await deposit.update({ status: MoneriumFiatDepositStatus.Refunded });
+    expect(await activeRecoveryExists()).toBe(false);
+  });
+
+  describe("refund monitor", () => {
+    afterEach(() => {
+      (logger.error as unknown as { mockRestore?: () => void }).mockRestore?.();
+      (logger.warn as unknown as { mockRestore?: () => void }).mockRestore?.();
+    });
+
+    it("raises an error for a parked refund and stays quiet for a fresh one", async () => {
+      const { accountId } = await mappedAccount();
+      const deposit = await confirmedRecover(accountId, "monitored", new Date());
+      const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
+      const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+      const deps = dbDeps({ eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() });
+      await runRecoveryOrchestrator(async () => deps);
+      await runRefundMonitor();
+      expect(errors).not.toHaveBeenCalled();
+      expect(warns).not.toHaveBeenCalled();
+
+      const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+      await recovery.update({ error: "redeem order rejected" });
+      await runRefundMonitor();
+      const text = errors.mock.calls.map(call => String(call[0])).join("\n");
+      expect(text).toContain(deposit.id);
+      expect(text).toContain("FAILED: redeem order rejected");
+    });
   });
 });
