@@ -626,9 +626,7 @@ export async function runRecoveryOrchestrator(
     return;
   }
   if (recovery.error) {
-    // Only fail() sets it, so a recovering deposit with an error is the operator's retry: a fresh
-    // run of attempts from the preserved phase.
-    await recovery.update({ attempts: 0, error: null });
+    await recovery.update({ attempts: 0, error: null }); // operator retry: resume from the preserved phase
   }
   const account = await MoneriumAccount.findByPk(deposit.accountId);
   if (!account) return;
