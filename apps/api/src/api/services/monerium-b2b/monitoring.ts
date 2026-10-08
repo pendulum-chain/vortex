@@ -51,7 +51,7 @@ import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProduc
  * 6. Reference-venue monitor: the Coinbase product the reference midpoint reads. A
  *    delisted or halted product keeps answering its endpoints with stale data, so every
  *    keeper swap would defer silently; its status is probed instead of assumed.
- * 7. Refund monitor (automated refunds only): the active recovery must not linger, and
+ * 7. Refund monitor (automated refunds only): no client's open recovery may linger, and
  *    the EURe float that tops refunds up must not run dry.
  *
  * None of these monitors hold keys or send transactions; they are detection-only.
