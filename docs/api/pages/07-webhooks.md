@@ -39,7 +39,7 @@ Content-Type: application/json
 
 For the transaction events, the body must include **exactly one** of `quoteId` or `sessionId`. Use `sessionId` to subscribe to events from a Widget-hosted ramp instead of a partner-created quote. Omitting `events` subscribes to the two transaction events only — deposit events are never a default.
 
-Store the returned webhook ID so you can delete it later.
+Vortex responds `201 Created` with the webhook resource. Store its `id` so you can delete the webhook later.
 
 ```http
 DELETE /v1/webhook/{id}

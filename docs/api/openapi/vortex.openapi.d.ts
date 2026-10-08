@@ -1961,7 +1961,7 @@ export interface paths {
                 };
             };
             responses: {
-                200: {
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
