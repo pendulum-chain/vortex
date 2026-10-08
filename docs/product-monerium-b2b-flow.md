@@ -413,7 +413,8 @@ sequenceDiagram
   by Monerium during business hours before it is sent **[M4]**.
 - Refunds run one at a time per client, and a refund that waits for Vortex operations
   blocks only that client's later refunds. Clients share one float wallet, so a float
-  transfer that is slow to confirm can briefly delay another client's refund. Refunds
+  transfer that is slow to confirm can delay another client's refund until Vortex
+  operations resolve it. Refunds
   survive a crash of the keeper midway. A refund that
   fails its retries goes to **recovery failed** and is handed to Vortex operations.
 - Rollout: the automation first runs in **alert mode**, where Vortex operators confirm
