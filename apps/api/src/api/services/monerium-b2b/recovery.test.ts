@@ -542,6 +542,7 @@ describe("refund deadlines and orchestration", () => {
       },
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       }
     });
     const depsFor = async () => deps;
@@ -660,7 +661,7 @@ describe("refund deadlines and orchestration", () => {
     expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
     expect(deposit.status).toBe(MoneriumFiatDepositStatus.Refunded);
     expect(deps.calls.some(call => call.startsWith("redeem:"))).toBe(false);
-    expect(await activeRecoveryExists()).toBe(false);
+    expect(await activeRecoveryExists(accountId)).toBe(false);
   });
 
   it("re-parks a rejected redeem order on an operator retry, and a hand close never reports it", async () => {
@@ -772,6 +773,7 @@ describe("refund deadlines and orchestration", () => {
     return fakeDeps(ledger, {
       setDepositStatus: async (row, status) => {
         await row.update({ status });
+        return null;
       },
       ...overrides
     });
