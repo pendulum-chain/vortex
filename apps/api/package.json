@@ -74,6 +74,7 @@
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",
+    "monerium-b2b:sandbox-e2e": "bun scripts/monerium-b2b-sandbox-e2e.ts",
     "preview:emails": "bun src/scripts/preview-emails.ts",
     "preview:emails:watch": "bun --watch src/scripts/preview-emails.ts",
     "register:avenia-webhook": "bun src/scripts/register-avenia-webhook.ts",

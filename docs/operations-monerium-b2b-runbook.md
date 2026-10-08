@@ -957,6 +957,20 @@ production and staging both read; production stays dark.
 The July 2026 link-test deployment (factory `0xcBE354…`) used other tokens and a
 placeholder router; it is not reusable.
 
+The sandbox deployment of 2026-10-07 (§8.4 and §8.5, from the PR #1408 code with the
+bound CREATE2 salt and `revokeForwarder`):
+
+| Contract | Address |
+|---|---|
+| Factory (guardian `0x44fd1d3b38A4523F6F5309ea5a5F8d7b4Df82a7f`) | `0xebbE4f26e856c138D34086Aa1CEB468d20c79992` |
+| Forwarder implementation (`RECOVERY_DELAY` 900) | `0x0cFc619C62f9Cf0778D3269345cd6Ca2AF39BE1C` |
+| Subsidy vault | `0x155f59523E24ef4046756A83a58B972e31d4ec4a` |
+| EURe/USDC 1 bps pool, factory route 0 | `0xFAB9CFfbA5Fc6fB32c7121128C58716D460a5579` |
+
+An earlier factory of the same day (`0x1E87a5…3891`, vault `0xE7C9Da…B95c`, emptied back
+to the treasury) predates the salt binding and the revoke; it has no clones and is not
+used.
+
 ### 8.2 What differs from mainnet
 
 - **Vortex runs the pool.** The only EURe/USDC pool with liquidity prices EURe at 0.71
@@ -972,13 +986,19 @@ placeholder router; it is not reusable.
   Sepolia that sweeps any ETH sent to them.
 - **No private orderflow.** `MONERIUM_B2B_PRIVATE_RPC_URL` is required only when
   `DEPLOYMENT_ENV=production`.
+- **Public RPCs lag.** A load-balanced endpoint such as publicnode can answer a balance
+  or nonce from a node a block behind; when a send fails with `nonce too low`, resend
+  with `--nonce`.
 
 ### 8.3 Keys and funding
 
 - Fresh EOAs: guardian, keeper, attestor and deployer (four distinct keys), the float wallet
   (`MONERIUM_B2B_FLOAT_PRIVATE_KEY`, also distinct from the deployer: both send with
   implicit nonces), and a fee recipient address Vortex controls.
-  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`).
+  `MONERIUM_B2B_REFUND_SEED` is any fresh 32-byte secret (`openssl rand -hex 32`). The
+  first block below writes them, the webhook secret and a test destination to a private
+  file outside every checkout, under the backend's variable names, and prints only the
+  addresses.
 - Sepolia ETH: about 0.2 each for the guardian (factory and vault deployment), the
   deployer (one clone per registered client), the keeper (swaps, forwards, recoveries)
   and the float (it tops up the refund wallets' gas).
@@ -987,6 +1007,20 @@ placeholder router; it is not reusable.
   that profile's IBAN. Sandbox EURe costs nothing.
 - USDC: buy it with sandbox EURe from the mispriced 5 bps pool; its price is irrelevant
   when the EURe is free. 2,000 EURe bought about 1,385 USDC in the dry run.
+
+```bash
+F=~/.vortex/monerium-b2b-sepolia.env   # never commit it or paste it anywhere
+[ -e "$F" ] || (umask 077; mkdir -p ~/.vortex
+  for ROLE in GUARDIAN KEEPER ATTESTOR DEPLOYER FLOAT FEE_RECIPIENT E2E_DESTINATION; do
+    W=$(cast wallet new --json)
+    case $ROLE in FEE_RECIPIENT|E2E_DESTINATION) VAR=${ROLE}_PRIVATE_KEY ;; *) VAR=MONERIUM_B2B_${ROLE}_PRIVATE_KEY ;; esac
+    echo "$VAR=$(jq -r '.[0].private_key' <<< "$W")" >> "$F"; echo "$ROLE=$(jq -r '.[0].address' <<< "$W")" >> "$F"
+  done
+  echo "MONERIUM_B2B_REFUND_SEED=0x$(openssl rand -hex 32)" >> "$F"
+  echo "MONERIUM_B2B_WEBHOOK_SECRET=whsec_$(openssl rand -base64 32)" >> "$F")
+grep -E '^[A-Z_0-9]+=0x[0-9a-fA-F]{40}$' "$F"   # the addresses
+set -a; . "$F"; set +a; GUARDIAN_KEY=$MONERIUM_B2B_GUARDIAN_PRIVATE_KEY
+```
 
 ```bash
 RPC=<Sepolia RPC URL>
@@ -1004,17 +1038,24 @@ cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint
   "($EURE,$USDC,500,$GUARDIAN,2000000000000000000000,0,0)" --rpc-url $RPC --private-key $GUARDIAN_KEY
 ```
 
-### 8.4 Seed the 1 bps pool at the Chainlink price
+### 8.4 Seed the 1 bps pool
+
+Seed it at the higher of the Chainlink answer and the keeper's reference, the Coinbase
+EURC-USDC midpoint: a fill below the reference less the client's floor waits for the
+subsidy ladder, and one below Chainlink less `SLIPPAGE_BPS` reverts. On 2026-10-07
+Sepolia's Chainlink answer was 20 bps above the reference.
 
 USDC sorts before EURe, so the pool's price is EURe base units per USDC base unit,
-`1e20 / answer` for a Chainlink answer with 8 decimals. The position spans ±1% (100
-ticks at the 1 bps tier's spacing of 1). 1,000 USDC and about 890 EURe keep a €100
-payment's price impact around 0.1%.
+`1e20 / price` for a price with 8 decimals. The position spans ±1% (100 ticks at the
+1 bps tier's spacing of 1). 1,000 USDC and about 900 EURe keep a €100 payment's price
+impact around 0.1%.
 
 ```bash
 ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
+REF=$(curl -s https://api.exchange.coinbase.com/products/EURC-USDC/ticker | jq -r '((.bid|tonumber)+(.ask|tonumber))/2*1e8|floor')
+PRICE=$(( ANSWER > REF ? ANSWER : REF ))
 read SQRT_PRICE TICK_LOWER TICK_UPPER < <(python3 -c "
-import math; a=$ANSWER
+import math; a=$PRICE
 tick = math.floor(math.log(10**20 / a, 1.0001))
 print(math.isqrt(10**20 * 2**192 // a), tick - 100, tick + 100)")
 
@@ -1023,10 +1064,10 @@ cast send $NPM "createAndInitializePoolIfNecessary(address,address,uint24,uint16
 POOL=$(cast call $UNI_FACTORY "getPool(address,address,uint24)(address)" $USDC $EURE 100 --rpc-url $RPC)
 cast send $USDC "approve(address,uint256)" $NPM 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 cast send $EURE "approve(address,uint256)" $NPM 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
-# the gas estimate is too low for a mint that moves EURe; pass a limit
+# pass a limit: the mint used 2.43M gas on Sepolia, and 1.5M ran out
 cast send $NPM "mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))" \
   "($USDC,$EURE,100,$TICK_LOWER,$TICK_UPPER,1000000000,1000000000000000000000,0,0,$GUARDIAN,$(( $(date +%s) + 3600 )))" \
-  --gas-limit 1500000 --rpc-url $RPC --private-key $GUARDIAN_KEY
+  --gas-limit 4000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 1000000000
 ```
 
@@ -1034,7 +1075,10 @@ cast call $USDC "balanceOf(address)(uint256)" $POOL --rpc-url $RPC   # 100000000
 
 The parameters are the ADR's (§7.3 table) except `perSwapCap`: €25 lets a €60 test
 payment convert in three chunks. It is operational; `setPerSwapCap` changes it later.
-The initial route is the 1 bps pool, EURe → USDC.
+`RECOVERY_DELAY` is 15 minutes instead of two hours, so a refund test fits into one
+session; it is immutable, and `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` (§8.6) matches it.
+The subsidy ladder's top tier, from 16 minutes, then never applies. The initial route is
+the 1 bps pool, EURe → USDC.
 
 From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER`, `DEPLOYER` and
 `FEE_RECIPIENT` set to the §8.3 addresses, and `FACTORY` and `VAULT` taken from forge's "Deployed to" line:
@@ -1042,7 +1086,7 @@ From `contracts/monerium-forwarder/`, with `ATTESTOR`, `KEEPER`, `DEPLOYER` and
 ```bash
 ROUTE=$(cast concat-hex $EURE 0x000064 $USDC)   # fee 100 as three bytes
 forge create src/VortexForwarderFactory.sol:VortexForwarderFactory --rpc-url $RPC --private-key $GUARDIAN_KEY --broadcast \
-  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,7200,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
+  --constructor-args "($EURE,$EURC,$USDC,$ROUTER,$ORACLE,$ATTESTOR,$FEE_RECIPIENT,187200,60,10000,100,900,86400,0x0000000000000000000000000000000000000000000000000000000000000000)" \
   1000000000000000000 50000000000000000000000 1000000000000000000 25000000000000000000 $ROUTE
 cast call $FACTORY "route(uint256)(bytes,bool)" 0 --rpc-url $RPC   # the path above, true
 cast send $FACTORY "setKeeper(address,bool)" $KEEPER true --rpc-url $RPC --private-key $GUARDIAN_KEY
@@ -1075,12 +1119,18 @@ On the `vortex-sandbox` service only:
 | `MONERIUM_B2B_DEPLOYER_PRIVATE_KEY` | the deployer key of §8.3 (granted with `setDeployer`) |
 | `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` | The partner's manager profile ID on the sandbox: the only key that may register destinations |
 | `MONERIUM_B2B_AUTO_RECOVERY` | `auto`, so the refund test runs end to end |
+| `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` | `15`, the factory's `RECOVERY_DELAY` (§8.5) |
 | `MONERIUM_B2B_WEBHOOK_SECRET` | `whsec_` plus base64 of 32 random bytes: `echo "whsec_$(openssl rand -base64 32)"` |
 | `MONERIUM_B2B_ENABLED` | `true`, set last |
 
-Register Vortex's webhook subscription on the partner's sandbox app with the same
-secret, from `apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at
-Monerium's sandbox API:
+Restart the service. Startup fails if a required setting is missing; once it is up,
+`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
+
+Only then register Vortex's webhook subscription on the partner's sandbox app with the
+same secret: Monerium pings the URL when the subscription is created and does not create
+it if the ping fails, and the route exists only while B2B is enabled. Run it from
+`apps/api` with that app's credentials and `MONERIUM_API_URL` pointing at Monerium's
+sandbox API:
 
 ```bash
 SECRET=<MONERIUM_B2B_WEBHOOK_SECRET> MONERIUM_WHITELABEL_CLIENT_ID=... MONERIUM_WHITELABEL_CLIENT_SECRET=... \
@@ -1090,9 +1140,6 @@ console.log(await MoneriumApiService.getInstance().createWebhook({
   secret: process.env.SECRET, types: ["iban.updated", "order.created", "order.updated", "profile.updated"],
   url: "https://api-sandbox.vortexfinance.co/v1/monerium-b2b/webhook" }));'
 ```
-
-Restart the service. Startup fails if a required setting is missing; once it is up,
-`GET /v1/monerium-b2b/accounts` answers 401 without a key instead of 404.
 
 ### 8.7 Partner and test clients
 
@@ -1109,34 +1156,51 @@ Restart the service. Startup fails if a required setting is missing; once it is 
 
 ### 8.8 Test payments
 
-The partner simulates each SEPA payment on the client's profile in its Monerium sandbox
-app ("Simulate bank transfer"); EURe lands on the clone and the keeper takes over.
+Each test runs through one command, with the §8.3 file (plus `MONERIUM_B2B_RPC_URL` and
+`MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS` once §8.5 has run) and the partner's secret key:
+
+```bash
+VORTEX_SECRET_KEY=sk_test_... bun --env-file="$F" run --cwd apps/api monerium-b2b:sandbox-e2e \
+  --profile <moneriumProfileId> [--amount 60] [--refund]
+```
+
+It registers the destination (or resumes the registration), waits until the account is
+active, checks the clone on chain, asks for the payment, and then checks the outcome: one
+forward transaction paying the deposit's net USDC to the destination, or the refund.
+`--refund` suspends the account for the payment and reactivates it afterwards, with
+`ADMIN_SECRET`. The script does not make the payment. How a payment reaches a white-label
+profile's IBAN in the sandbox is open with Monerium: the dashboard's "Simulate bank
+transfer" mints only for your own profile, and EURe sent to the clone on chain is recorded
+as unattributed and never converted.
 
 | Test | Payment | Expected |
 |---|---|---|
 | Normal | €20 | One chunk, one forward. The destination receives the reference less the client's target (12.5 bps); the fee treasury the surplus over it |
 | Chunked | €60 | Three chunks at the €25 cap, then one forward of their sum |
-| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 120 by default) the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation. Never close it while the refund wallet still holds the EURe: refund it by hand (§2.7) or sweep the EURe back to the float, then `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` with `{"status": "refunded"}` (it sends `DEPOSIT_RETURNED`; note a sweep in the ops ledger) |
+| Refund | €15 | Suspend the account before the payment (`PATCH /v1/admin/monerium-b2b/accounts/<accountId>/status` with `suspended`): the keeper converts nothing for a suspended account but still arms the clone's clock and runs recoveries. After the deadline (`MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES`, 15 minutes in the sandbox) the deadline job marks the deposit, the keeper recovers it, and the refund leaves from the client's IBAN. Reactivate afterwards. If the simulated transfer carries no payer IBAN and name, the refund parks as `recovery_failed`; that is a finding about the sandbox simulation. Never close it while the refund wallet still holds the EURe: refund it by hand (§2.7) or sweep the EURe back to the float, then `PATCH /v1/admin/monerium-b2b/deposits/<depositId>/status` with `{"status": "refunded"}` (it sends `DEPOSIT_RETURNED`; note a sweep in the ops ledger) |
 
 `DEPOSIT_UPDATED` reports every step to the partner, and `GET /v1/monerium-b2b/deposits`
 shows the same snapshots.
 
 ### 8.9 Re-centre the pool before a session
 
-Each conversion sells EURe into the pool and pushes its price away from Chainlink. A
-swap with a price limit moves it back exactly:
+Each conversion sells EURe into the pool and pushes its price down, and the reference and
+Chainlink move on their own. A swap with a price limit moves the pool back to the higher
+of the two (§8.4):
 
 ```bash
 ANSWER=$(cast call $ORACLE "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url $RPC | sed -n 2p | awk '{print $1}')
-TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $ANSWER))")
+REF=$(curl -s https://api.exchange.coinbase.com/products/EURC-USDC/ticker | jq -r '((.bid|tonumber)+(.ask|tonumber))/2*1e8|floor')
+PRICE=$(( ANSWER > REF ? ANSWER : REF ))
+TARGET=$(python3 -c "import math; print(math.isqrt(10**20 * 2**192 // $PRICE))")
 CURRENT=$(cast call $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)" --rpc-url $RPC | head -1 | awk '{print $1}')
 if python3 -c "import sys; sys.exit(0 if $CURRENT > $TARGET else 1)"; then
-  # EURe cheaper than Chainlink: buy EURe with USDC up to the target price
+  # EURe cheaper than the target: buy EURe with USDC up to it
   cast send $USDC "approve(address,uint256)" $ROUTER 1000000000 --rpc-url $RPC --private-key $GUARDIAN_KEY
   cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
     "($USDC,$EURE,100,$GUARDIAN,1000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
 else
-  # EURe dearer than Chainlink: sell EURe for USDC down to the target price
+  # EURe dearer than the target: sell EURe for USDC down to it
   cast send $EURE "approve(address,uint256)" $ROUTER 1000ether --rpc-url $RPC --private-key $GUARDIAN_KEY
   cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
     "($EURE,$USDC,100,$GUARDIAN,1000000000000000000000,0,$TARGET)" --gas-limit 600000 --rpc-url $RPC --private-key $GUARDIAN_KEY
