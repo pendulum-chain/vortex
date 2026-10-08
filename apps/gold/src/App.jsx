@@ -32,7 +32,7 @@ import {
   verifyVortexOtp,
 } from "./lib/vortex.js";
 
-const DEMO_EMAIL = "ana.silva@gmail.com";
+const DEMO_EMAIL = "ana.silva@example.com";
 const INITIAL_GRAMS = 12.634;
 const HIGH_SLIPPAGE = 1.5;
 const formatBRL = (value, digits = 2) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value || 0));
