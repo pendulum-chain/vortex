@@ -1125,27 +1125,16 @@ describe("refund deadlines and orchestration", () => {
     await openRecovery(depositB.id, MoneriumRecoveryPhase.ToppedUp, 30_000, { eure: 100n * EUR, usdc: 0n });
     const ledger: Ledger = { eure: new Map([[WALLETS[0], 100n * EUR], [WALLETS[1], 100n * EUR]]), usdc: new Map() };
     const { depsFor } = clientsFixture(ledger);
-    let release: () => void = () => {};
-    const hung = new Promise<void>(resolve => (release = resolve));
     const phaseOf = async (depositId: string) => (await MoneriumRecovery.findOne({ where: { depositId } }))?.phase;
 
     // Client A's swap receipt never arrives within the cycle (the live wait throws only after RECEIPT_TIMEOUT_MS).
-    const cycle = runRecoveryOrchestrator(async account => {
-      const deps = await depsFor(account);
-      return account.forwarderAddress.toLowerCase() === FORWARDER
-        ? { ...deps, waitReceipt: async () => (await hung, Promise.reject(new Error("timed out waiting for the receipt"))) }
-        : deps;
-    });
-    try {
+    await cycleWithHungReceiptOfA(depsFor, async () => {
       for (let i = 0; i < 100 && (await phaseOf(depositB.id)) === MoneriumRecoveryPhase.ToppedUp; i++) {
         await new Promise(resolve => setTimeout(resolve, 20));
       }
       expect(await phaseOf(depositB.id)).toBe(MoneriumRecoveryPhase.Redeeming);
       expect(await phaseOf(depositA.id)).toBe(MoneriumRecoveryPhase.Swapping);
-    } finally {
-      release();
-      await cycle;
-    }
+    });
   });
 
   it("does not let a parked refund's unconfirmed float transfer hold the float for other clients", async () => {
