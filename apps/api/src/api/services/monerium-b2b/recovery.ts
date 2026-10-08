@@ -588,7 +588,15 @@ export async function driveRecovery(
           `monerium-b2b: deposit ${deposit.id} refunded (${recovery.refundAmount} EUR, order ${recovery.redeemOrderId})`
         );
       } else if (order.state === "rejected") {
-        await fail(recovery, deposit, deps, `Monerium rejected the redeem order: ${order.rejectedReason ?? "no reason given"}`);
+        // It paid nothing out: no partner event may name it once the operator refunds by hand (the id stays in `error`).
+        const rejectedId = recovery.redeemOrderId;
+        await recovery.update({ redeemOrderId: null });
+        await fail(
+          recovery,
+          deposit,
+          deps,
+          `Monerium rejected redeem order ${rejectedId}: ${order.rejectedReason ?? "no reason given"}`
+        );
       }
       return;
     }

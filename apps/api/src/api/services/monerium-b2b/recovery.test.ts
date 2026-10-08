@@ -660,6 +660,46 @@ describe("refund deadlines and orchestration", () => {
     expect(await activeRecoveryExists()).toBe(false);
   });
 
+  it("re-parks a rejected redeem order on an operator retry, and a hand close never reports it", async () => {
+    const { accountId } = await mappedAccount();
+    const deposit = await minted(accountId, "rejected", new Date(), MoneriumFiatDepositStatus.Recovering);
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: DESTINATION,
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Confirmed,
+      txHash: "0xrecover",
+      usdcNetRaw: "0"
+    });
+    const deps = fakeDeps({ eure: new Map([[RECOVERY, 100n * EUR]]), usdc: new Map() }, { setDepositStatus });
+    const depsFor = async () => deps;
+    for (let i = 0; i < 3; i++) await runRecoveryOrchestrator(depsFor); // moved -> swapped -> topped up -> order placed
+    Object.assign(deps.orders[0], { rejectedReason: "compliance", state: "rejected" });
+    await runRecoveryOrchestrator(depsFor);
+    const recovery = (await MoneriumRecovery.findOne({ where: { depositId: deposit.id } })) as MoneriumRecovery;
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(recovery).toMatchObject({ phase: MoneriumRecoveryPhase.Redeeming, redeemOrderId: null });
+    expect(recovery.error).toContain("order-1: compliance");
+
+    // A retry cannot get past a rejected order: the memo lookup adopts it again and it parks again.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Recovering)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    await deposit.reload();
+    expect(deposit.status).toBe(MoneriumFiatDepositStatus.RecoveryFailed);
+    expect(recovery.redeemOrderId).toBeNull();
+
+    // Refunded by hand and closed: DEPOSIT_RETURNED reads no order id rather than the rejected one.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await runRecoveryOrchestrator(depsFor);
+    await recovery.reload();
+    expect(recovery).toMatchObject({ phase: MoneriumRecoveryPhase.Redeemed, redeemOrderId: null });
+    expect(deps.calls.filter(call => call.startsWith("redeem:"))).toHaveLength(1);
+  });
+
   it("holds the queue on a failed refund until the operator retries it", async () => {
     const { accountId } = await mappedAccount();
     const deposit = await minted(accountId, "stuck", new Date(), MoneriumFiatDepositStatus.Recovering);

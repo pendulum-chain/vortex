@@ -376,14 +376,15 @@ What stays manual in `auto`: refunds of EUR 15,000 or more (Monerium's supportin
 document), deposits whose issue order carried no payer IBAN/name, orders Monerium
 rejects, and any step that failed five times — all park the deposit as
 `recovery_failed` with the phase preserved (`monerium_recoveries.phase`/`error`).
-When the cause is fixable (a rejected order, a failing step), fix it, then
+After five failed attempts, fix the cause, then
 `PATCH .../deposits/<id>/status {"status": "recovering"}` resumes from that phase.
-When the refund stays manual (EUR 15,000 or more, no payer), do not set `recovering`:
-the next cycle would park it again. Place the redeem order by hand (step 5) under the
-memo `vortex-refund:<depositId>`, so no automated retry can place a second order, and once
-Monerium processed it close the deposit straight from `recovery_failed` with
-`{"status": "refunded"}` (step 6); the keeper then closes the recovery without placing an
-order. While a client's refund is `recovery_failed` only that client's later
+The other parks stay manual (EUR 15,000 or more, no payer, a rejected order): do not set
+`recovering`, the next cycle would park it again (a rejected order stays rejected, and
+the memo lookup adopts it again). Address the rejection reason if there is one, place
+the redeem order by hand (step 5) under the memo `vortex-refund:<depositId>`, so no
+automated retry can place a second order, and once Monerium processed it close the
+deposit straight from `recovery_failed` with `{"status": "refunded"}` (step 6); the
+keeper then closes the recovery without placing an order. While a client's refund is `recovery_failed` only that client's later
 refunds wait behind it; other clients' refunds go on. The shared EURe float sends for one
 client per keeper cycle, and an unconfirmed float transfer delays another client's float
 step (a parked refund never does). Other clients advance one step per keeper cycle, and
@@ -468,7 +469,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; SLA long broken (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
 | `REFERENCE VENUE —` (error) | The Coinbase product the reference reads is delisted or halted; every keeper swap defers silently | Change `COINBASE_REFERENCE_PRODUCT` (a live EURC market), redeploy the backend; the venue is an operational, not an on-chain, setting |
 | `REFUND DUE — deposit ...` (error, `alert` mode) | A deposit outlived the promised window and the mode only reports | Mark it (§2.7 step 1) or switch to `auto` |
-| `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: finish by hand from the named phase, or fix the cause and set the deposit back to `recovering`. A hand send from the float key can collide with the keeper's float sends for other clients: first confirm no other deposit is `recovering` and no float transaction is in flight, then send right away (the check is a snapshot), or set `MONERIUM_B2B_AUTO_RECOVERY=alert` (needs a restart, pauses every client's refunds and silences the refund alerts for every client; set `auto` again right after the hand step) |
+| `REFUND FAILED — deposit ... in phase ...` (error) | A refund step cannot complete automatically (large amount, missing payer, rejected order, five failed attempts) | §2.7: after five failed attempts, fix the cause and set the deposit back to `recovering`; otherwise refund by hand under the memo and close the deposit as `refunded`. A hand send from the float key can collide with the keeper's float sends for other clients: first confirm no other deposit is `recovering` and no float transaction is in flight, then send right away (the check is a snapshot), or set `MONERIUM_B2B_AUTO_RECOVERY=alert` (needs a restart, pauses every client's refunds and silences the refund alerts for every client; set `auto` again right after the hand step) |
 | `could not be parked as recovery_failed (...)` (error) | A refund step needs the operator (the reason in parentheses), but moving the deposit to `recovery_failed` was refused (the reason after the colon), usually because its status changed meanwhile; the keeper re-runs the step every cycle | Check the deposit's status: `refunded` needs nothing (the next cycle closes the recovery); otherwise resolve the refusal, after which the line becomes `REFUND FAILED` |
 | `was refunded (order ...) but could not be marked refunded` (error) | Monerium paid the refund out, but the deposit could not be set `refunded`; the keeper retries every cycle | Do not refund again. If it repeats, check the deposit's status and the database, then close it with `PATCH .../deposits/<id>/status {"status": "refunded"}` |
 | `float steps wait for the unconfirmed float transfer of deposit` (warn) | That deposit's float transfer has no confirmed receipt, so other clients' float steps wait | Check the transfer's hash and the float's pending nonce; if it was dropped, park the refund, clear its hash (`UPDATE monerium_recoveries SET float_topup_tx_hash = NULL WHERE deposit_id = '<depositId>';`), then set it back to `recovering` (§2.7): a `topping_up` refund without a hash returns to `swapped` and re-derives the top-up from balances, so no hand send is needed |
