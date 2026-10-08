@@ -277,8 +277,8 @@ fix the cause, then `PATCH .../deposits/<id>/status {"status": "recovering"}` re
 from that phase. While a client's refund is `recovery_failed` only that client's later
 refunds wait behind it; other clients' refunds go on. The shared EURe float sends for one
 client per keeper cycle, and an unconfirmed float transfer delays another client's float
-step (a parked refund never does). Other clients advance one step per keeper cycle, and a
-cycle can last up to a receipt timeout.
+step (a parked refund never does). Other clients advance one step per keeper cycle, and
+a cycle can last several minutes, since each receipt wait times out after 3 minutes and a float step can wait on more than one.
 
 **Hand sends from the float key (steps 3 and 4).** In `auto` the keeper keeps sending from
 the same float key for other clients' refunds while one is parked, so a transfer you send

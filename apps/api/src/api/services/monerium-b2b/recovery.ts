@@ -676,8 +676,9 @@ async function stepRecovery(
  * shared resource is the EURe float wallet, which sends with implicit nonces and no
  * coherent pending pool. So per cycle: steps that cannot touch the float run concurrently
  * (a client's slow receipt wait does not hold the others' steps, though the cycle lasts
- * until the slowest wait ends, up to a receipt timeout); alongside them at most one step that sends
- * from the float runs, and none while an earlier float transfer is still unconfirmed (a
+ * until the slowest wait ends: a cycle can last several minutes, since each receipt wait
+ * times out after 3 minutes and a float step can wait on more than one); alongside them at
+ * most one step that sends from the float runs, and none while an earlier float transfer is still unconfirmed (a
  * `topping_up` recovery waiting on its receipt, unless parked). Float steps are taken oldest
  * first; one that sends nothing (float underfunded, nothing to swap) does not use the slot.
  */

@@ -341,8 +341,8 @@ and sends at most one transaction per account per cycle:
   time per client: every step re-derives what is left to do from the client's refund
   wallet's balances (so a lost transaction hash never repeats a send), and the keeper
   refuses a second `recover` for an account while one of its refunds is in flight.
-  Different clients' refunds advance side by side, one step each per keeper cycle, and a
-  cycle can last up to a receipt timeout (a slow receipt wait ends the cycle late, but
+  Different clients' refunds advance side by side, one step each per keeper cycle, and
+  a cycle can last several minutes, since each receipt wait times out after 3 minutes and a float step can wait on more than one (a slow receipt wait ends the cycle late, but
   does not hold the other clients' steps within it). The one
   shared resource is the EURe float wallet, which sends with implicit nonces, so across
   clients it is serialized: steps that cannot touch it run concurrently, alongside at
