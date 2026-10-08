@@ -381,6 +381,9 @@ export async function driveRecovery(
         // beyond the recovered EURe is the swap's output.
         const eure = await deps.eureBalance(wallet);
         const fromSwap = eure > BigInt(recovery.eureRecoveredRaw) ? eure - BigInt(recovery.eureRecoveredRaw) : 0n;
+        // USDC was recovered, yet neither it nor a swap's output shows: a node behind the
+        // recover's block, not a landed swap. Read again next cycle instead of topping up.
+        if (BigInt(recovery.usdcRecoveredRaw) > 0n && fromSwap === 0n) return;
         await recovery.update({ eureFromSwapRaw: fromSwap.toString(), phase: MoneriumRecoveryPhase.Swapped });
         return;
       }

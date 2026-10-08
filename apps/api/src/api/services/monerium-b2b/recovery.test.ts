@@ -257,6 +257,26 @@ describe("driveRecovery", () => {
     expect(sweeps).toEqual([3n * EUR]);
   });
 
+  it("waits instead of skipping the reverse swap when a node behind the recover reads no USDC", async () => {
+    const ledger: Ledger = { eure: new Map([[RECOVERY, 40n * EUR], [FLOAT, 10n * EUR]]), usdc: new Map([[RECOVERY, 68n * USDC]]) };
+    let lagging = true; // the RPC answers from before the recover's block: neither the EURe nor the USDC is there yet
+    const deps = fakeDeps(ledger, {
+      eureBalance: async address => (lagging ? 0n : (ledger.eure.get(address.toLowerCase()) ?? 0n)),
+      usdcBalance: async address => (lagging ? 0n : (ledger.usdc.get(address.toLowerCase()) ?? 0n))
+    });
+    const recovery = recoveryRow();
+    const deposit = depositRow();
+
+    await driveRecovery(recovery, deposit, deps);
+    expect(recovery).toMatchObject({ eureFromSwapRaw: null, phase: MoneriumRecoveryPhase.Moved });
+    expect(deps.calls).toEqual([]);
+
+    lagging = false;
+    await driveRecovery(recovery, deposit, deps);
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Swapping);
+    expect(deps.calls[0]).toStartWith(`swap:${68n * USDC}:`);
+  });
+
   it("re-derives a lost swap from balances instead of swapping twice", async () => {
     // The swap landed (USDC gone, EURe up) but the hash never persisted.
     const ledger: Ledger = { eure: new Map([[RECOVERY, 99n * EUR]]), usdc: new Map([[RECOVERY, 0n]]) };
