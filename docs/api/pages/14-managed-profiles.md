@@ -173,7 +173,7 @@ Content-Type: application/json
 }
 ```
 
-3. Follow the registration until `status` is `mapped`. It reports `waitingReason: "monerium_profile_pending"` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract.
+3. Follow the registration until `status` is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. During this pilot the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
 
 ```http
 GET /v1/monerium-b2b/registrations?moneriumProfileId=<profile ID from Vortex>
@@ -235,7 +235,7 @@ Content-Type: application/json
 }
 ```
 
-Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for. `null` means Vortex has not checked the registration yet, as in the response to a new or repeated registration; mapped and rejected registrations also report `null`.
+Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for. `null` means Vortex has not checked the registration yet, as in the `202` response to a new registration or to a new attempt after a rejection (an identical replay returns `200` with the current reason); mapped and rejected registrations also report `null`.
 
 | `waitingReason` | Meaning |
 |---|---|
