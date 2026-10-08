@@ -29,7 +29,7 @@ Content-Type: application/json
 {
   "externalSubjectId": "customer-4711",
   "customerType": "individual",
-  "contactEmail": "customer-4711@platform.example"
+  "contactEmail": "customer-4711@platform.example.com"
 }
 ```
 
@@ -43,7 +43,7 @@ Content-Type: application/json
     "profileId": "00000000-0000-0000-0000-000000000002",
     "externalSubjectId": "customer-4711",
     "customerType": "individual",
-    "contactEmail": "customer-4711@platform.example",
+    "contactEmail": "customer-4711@platform.example.com",
     "status": "active",
     "creationSource": "manager",
     "deletedAt": null,
