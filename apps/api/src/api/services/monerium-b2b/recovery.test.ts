@@ -1142,7 +1142,69 @@ describe("refund deadlines and orchestration", () => {
     expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.ToppingUp);
   });
 
+  /** Client A's float top-up never confirms (its receipt wait times out), so the float stage is closed to float-capable steps. */
+  async function floatGateClosedByA() {
+    const a = await mappedAccount(0);
+    const b = await mappedAccount(1);
+    const depositA = await confirmedRecover(a.accountId, "a1", new Date(Date.now() - 90_000), { eure: 99n * EUR, usdc: 0n });
+    const depositB = await confirmedRecover(b.accountId, "b1", new Date(Date.now() - 80_000), { eure: 99n * EUR, usdc: 0n });
+    await openRecovery(depositA.id, MoneriumRecoveryPhase.ToppingUp, 60_000).then(row => row.update({ floatTopupTxHash: "0xlanded" }));
+    await openRecovery(depositB.id, MoneriumRecoveryPhase.Swapped, 30_000);
+    const ledger: Ledger = {
+      eure: new Map([[WALLETS[0], 99n * EUR], [WALLETS[1], 99n * EUR], [FLOAT, 10n * EUR]]),
+      usdc: new Map()
+    };
+    const fixture = clientsFixture(ledger, {
+      waitReceipt: async () => {
+        throw new Error("timed out waiting for the receipt");
+      }
+    });
+    return { ...fixture, a, b, depositA, depositB };
+  }
+
   const loggedText = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(call => String(call[0])).join("\n");
+
+  it("names the deposit whose unconfirmed float transfer holds the float stage", async () => {
+    const { calls, depositA, depsFor } = await floatGateClosedByA();
+    const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+    spyOn(logger, "error").mockImplementation((() => logger) as never);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(calls.filter(call => call.startsWith("eure:float"))).toEqual([]);
+    expect(loggedText(warns)).toContain(depositA.id);
+  });
+
+  it("logs no float-gate warning when the only unconfirmed float transfer belongs to a parked refund", async () => {
+    const { depositA, depsFor } = await floatGateClosedByA();
+    await depositA.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
+    const warns = spyOn(logger, "warn").mockImplementation((() => logger) as never);
+    spyOn(logger, "error").mockImplementation((() => logger) as never);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(loggedText(warns)).not.toContain(depositA.id);
+  });
+
+  it("closes a refunded client's recovery and opens its next one while another client's float gate is closed", async () => {
+    const { b, depositB, depsFor } = await floatGateClosedByA();
+    spyOn(logger, "error").mockImplementation((() => logger) as never);
+    await depositB.update({ status: MoneriumFiatDepositStatus.Refunded }); // closed by hand
+    const next = await confirmedRecover(b.accountId, "b2", new Date(Date.now() - 70_000));
+
+    await runRecoveryOrchestrator(depsFor);
+    expect((await MoneriumRecovery.findOne({ where: { depositId: depositB.id } }))?.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    await runRecoveryOrchestrator(depsFor);
+    expect(await MoneriumRecovery.count({ where: { depositId: next.id } })).toBe(1);
+  });
+
+  it("still reports a parked client's refund while another client's float gate is closed", async () => {
+    const { depositB, depsFor } = await floatGateClosedByA();
+    await depositB.update({ status: MoneriumFiatDepositStatus.RecoveryFailed });
+    await MoneriumRecovery.update({ error: "parked by hand" }, { where: { depositId: depositB.id } });
+    const errors = spyOn(logger, "error").mockImplementation((() => logger) as never);
+
+    await runRecoveryOrchestrator(depsFor);
+    expect(loggedText(errors)).toContain(`refund of deposit ${depositB.id} waits for the operator`);
+  });
 
   /** Runs a cycle in which client A's receipt wait hangs; `check` runs while it is unresolved, then A is released. */
   async function cycleWithHungReceiptOfA(depsFor: ReturnType<typeof clientsFixture>["depsFor"], check: () => Promise<void>) {

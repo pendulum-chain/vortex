@@ -708,15 +708,23 @@ export async function runRecoveryOrchestrator(
     stepRecovery(recovery, deposit, depsFor, onFloatSend).catch(error =>
       logger.error(`monerium-b2b: refund step for deposit ${deposit.id} failed:`, error)
     );
-  // Float-free steps use only their own client's wallet, so a slow receipt wait (up to RECEIPT_TIMEOUT_MS) starves nobody.
-  const gating = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase) && holdsFloatTransfer(head));
+  // Parked and refunded heads return before any send, so only a recovering one in a float phase can touch the float.
+  const floatCapable = ({ deposit, recovery }: (typeof queue)[number]) =>
+    FLOAT_PHASES.has(recovery.phase) && deposit.status === MoneriumFiatDepositStatus.Recovering;
+  // Float-free steps use only their own client's wallet, so a slow receipt wait (up to RECEIPT_TIMEOUT_MS) does not hold the others' steps in this cycle.
+  const gating = queue.filter(head => !floatCapable(head) && holdsFloatTransfer(head));
   // Partitioned before any step starts: the running steps mutate their recoveries, and a client stepped once must not be stepped again this cycle.
-  const floatHeads = queue.filter(head => FLOAT_PHASES.has(head.recovery.phase));
-  const floatFreeSteps = queue.filter(head => !FLOAT_PHASES.has(head.recovery.phase)).map(head => [head, step(head)] as const);
+  const floatHeads = queue.filter(floatCapable);
+  const floatFreeSteps = queue.filter(head => !floatCapable(head)).map(head => [head, step(head)] as const);
   // The float stage waits only for the steps that gate it, not for every slow receipt.
   await Promise.all(floatFreeSteps.filter(([head]) => gating.includes(head)).map(([, running]) => running));
   for (const head of floatHeads) {
-    if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS || queue.some(holdsFloatTransfer)) break;
+    if (floatSent || Date.now() - startedAt > CYCLE_BUDGET_MS) break;
+    const gate = queue.find(holdsFloatTransfer);
+    if (gate) {
+      logger.warn(`monerium-b2b: float steps wait for the unconfirmed float transfer of deposit ${gate.deposit.id}`);
+      break;
+    }
     await step(head);
   }
   await Promise.all(floatFreeSteps.map(([, running]) => running));
