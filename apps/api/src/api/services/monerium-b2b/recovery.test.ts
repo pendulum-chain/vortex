@@ -1100,7 +1100,9 @@ describe("refund deadlines and orchestration", () => {
     await runRecoveryOrchestrator(depsFor);
     expect(await MoneriumRecovery.count({ where: { depositId: later.id } })).toBe(1);
     await runRecoveryOrchestrator(depsFor);
-    expect((await MoneriumRecovery.findOne({ where: { depositId: later.id } }))?.phase).not.toBe(MoneriumRecoveryPhase.Moved);
+    const laterRecovery = (await MoneriumRecovery.findOne({ where: { depositId: later.id } })) as MoneriumRecovery;
+    expect(laterRecovery.phase).toBe(MoneriumRecoveryPhase.ToppedUp);
+    expect(laterRecovery.error).toBeNull();
   });
 
   it("lets a younger client's refund advance while the oldest client's receipt wait hangs", async () => {
@@ -1116,9 +1118,7 @@ describe("refund deadlines and orchestration", () => {
 
     // Client A's swap receipt never arrives within the cycle (the live wait throws only after RECEIPT_TIMEOUT_MS).
     await cycleWithHungReceiptOfA(depsFor, async () => {
-      for (let i = 0; i < 100 && (await phaseOf(depositB.id)) === MoneriumRecoveryPhase.ToppedUp; i++) {
-        await new Promise(resolve => setTimeout(resolve, 20));
-      }
+      await waitUntil(async () => (await phaseOf(depositB.id)) !== MoneriumRecoveryPhase.ToppedUp);
       expect(await phaseOf(depositB.id)).toBe(MoneriumRecoveryPhase.Redeeming);
       expect(await phaseOf(depositA.id)).toBe(MoneriumRecoveryPhase.Swapping);
     });
@@ -1155,8 +1155,9 @@ describe("refund deadlines and orchestration", () => {
     }
   }
 
-  async function waitForCall(calls: string[], prefix: string) {
-    for (let i = 0; i < 100 && !calls.some(call => call.startsWith(prefix)); i++) {
+  /** Polls until the condition holds; the deadline is generous because database-backed steps are slow on a loaded runner. */
+  async function waitUntil(condition: () => Promise<boolean> | boolean, timeoutMs = 10_000) {
+    for (const deadline = Date.now() + timeoutMs; Date.now() < deadline && !(await condition()); ) {
       await new Promise(resolve => setTimeout(resolve, 20));
     }
   }
@@ -1184,7 +1185,7 @@ describe("refund deadlines and orchestration", () => {
     const { calls, depsFor } = clientsFixture(ledger);
 
     await cycleWithHungReceiptOfA(depsFor, async () => {
-      await waitForCall(calls, "eure:float");
+      await waitUntil(() => calls.some(call => call.startsWith("eure:float")));
       expect(calls).toEqual([`eure:float->${WALLETS[1].toLowerCase()}:${EUR}`]); // sent while A's wait is unresolved
     });
   });
