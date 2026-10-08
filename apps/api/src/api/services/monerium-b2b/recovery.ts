@@ -362,7 +362,8 @@ async function retryOrFail(
     return;
   }
   logger.warn(`monerium-b2b: refund step for deposit ${deposit.id} failed (attempt ${attempts}): ${reason}`);
-  await recovery.update({ attempts, error: reason.slice(0, 500), phase });
+  // `error` stays for the terminal failure: the orchestrator reads it as the operator's retry.
+  await recovery.update({ attempts, phase });
 }
 
 /** One step of one recovery. Returns after at most one value-moving send (plus its receipt wait). */
@@ -380,6 +381,9 @@ export async function driveRecovery(
         // beyond the recovered EURe is the swap's output.
         const eure = await deps.eureBalance(wallet);
         const fromSwap = eure > BigInt(recovery.eureRecoveredRaw) ? eure - BigInt(recovery.eureRecoveredRaw) : 0n;
+        // USDC was recovered, yet neither it nor a swap's output shows: a node behind the
+        // recover's block, not a landed swap. Read again next cycle instead of topping up.
+        if (BigInt(recovery.usdcRecoveredRaw) > 0n && fromSwap === 0n) return;
         await recovery.update({ eureFromSwapRaw: fromSwap.toString(), phase: MoneriumRecoveryPhase.Swapped });
         return;
       }
